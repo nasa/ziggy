@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;

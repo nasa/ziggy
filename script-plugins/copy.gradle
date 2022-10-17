@@ -28,7 +28,7 @@ task copyEtc(type: Copy) {
 assemble.dependsOn copyEtc
 
 task copyLibs(type: Copy) {
-    from(configurations.runtime) {
+    from(configurations.runtimeClasspath) {
         fileMode(0644)
     }
     from("$projectDir/src/main/python") {

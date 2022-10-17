@@ -14,6 +14,7 @@ import java.util.List;
 
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.Internal;
 
 import com.google.common.collect.ImmutableList;
 
@@ -72,7 +73,7 @@ public class ZiggyVersionGenerator extends TessExecTask {
         }
     }
 
-    public List<String> getProcessOutput(List<String> command)
+    public List<String> processOutput(List<String> command)
         throws IOException, InterruptedException {
 
         ProcessBuilder processBuilder = new ProcessBuilder(command);
@@ -95,33 +96,37 @@ public class ZiggyVersionGenerator extends TessExecTask {
         return lines;
     }
 
+    @Internal
     public String getGitRevision() throws IOException, InterruptedException {
         if (osType.equals(MAC_OS_X_OS_NAME)) {
             return "Not Supported";
         }
         List<String> cmd = ImmutableList.of("git", "rev-parse", "--short=10", "HEAD");
-        List<String> output = getProcessOutput(cmd);
+        List<String> output = processOutput(cmd);
         return output.get(output.size() - 1);
     }
 
+    @Internal
     public String getGitBranch() throws IOException, InterruptedException {
         if (osType.equals(MAC_OS_X_OS_NAME)) {
             return "Not Supported";
         }
         List<String> cmd = ImmutableList.of("git", "rev-parse", "--abbrev-ref", "HEAD");
-        List<String> output = getProcessOutput(cmd);
+        List<String> output = processOutput(cmd);
         return output.get(output.size() - 1);
     }
 
+    @Internal
     public String getGitRelease() throws IOException, InterruptedException {
         if (osType.equals(MAC_OS_X_OS_NAME)) {
             return "Not Supported";
         }
         List<String> cmd = ImmutableList.of("git", "describe", "--always", "--abbrev=10");
-        List<String> output = getProcessOutput(cmd);
+        List<String> output = processOutput(cmd);
         return output.get(output.size() - 1);
     }
 
+    @Internal
     public String getBuildDate() {
         SimpleDateFormat dateFormatter = new SimpleDateFormat(dateFormat);
         return dateFormatter.format(new Date());
