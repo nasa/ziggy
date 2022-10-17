@@ -4,7 +4,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import jakarta.xml.bind.annotation.XmlEnum;
+import javax.xml.bind.annotation.XmlEnum;
 
 import org.apache.commons.codec.digest.DigestUtils;
 

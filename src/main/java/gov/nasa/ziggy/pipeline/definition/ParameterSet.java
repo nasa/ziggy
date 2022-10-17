@@ -22,11 +22,11 @@ import javax.persistence.Version;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.InternalParameters;
 import gov.nasa.ziggy.parameters.Parameters;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.XmlElement;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * This class models a set of module parameters. A parameter set may be shared by multiple pipeline

@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.data.management;
 
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
  * Provides status for several users within data receipt. Specifically:

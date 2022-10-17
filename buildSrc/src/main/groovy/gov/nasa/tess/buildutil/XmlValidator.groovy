@@ -6,13 +6,13 @@ import java.io.FileReader
 import java.util.ArrayList
 
 import javax.xml.XMLConstants
-import jakarta.xml.bind.JAXBContext
-import jakarta.xml.bind.Unmarshaller
-import jakarta.xml.bind.ValidationEvent
-import jakarta.xml.bind.ValidationEventLocator
-import jakarta.xml.bind.ValidationException
-import jakarta.xml.bind.util.JAXBSource
-import jakarta.xml.bind.util.ValidationEventCollector
+import javax.xml.bind.JAXBContext
+import javax.xml.bind.Unmarshaller
+import javax.xml.bind.ValidationEvent
+import javax.xml.bind.ValidationEventLocator
+import javax.xml.bind.ValidationException
+import javax.xml.bind.util.JAXBSource
+import javax.xml.bind.util.ValidationEventCollector
 import javax.xml.validation.SchemaFactory
 import javax.xml.transform.stream.StreamSource
 
@@ -70,7 +70,7 @@ public class XmlValidator {
             def validator = schema.newValidator()
 
             validator.validate(xmlSource)
-        } catch (jakarta.xml.bind.UnmarshalException e) {
+        } catch (javax.xml.bind.UnmarshalException e) {
             MessageError error = new MessageError(e.getMessage(), e.getErrorCode(), e)
             errors[0] = error
         } catch (org.xml.sax.SAXParseException e) {

@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.util;
 
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
  * Handles backslashes in regular expressions.

@@ -17,8 +17,7 @@ dependencies {
     api 'commons-io:commons-io:2.11.+'
     api 'org.apache.commons:commons-exec:1.+'
     api 'org.freemarker:freemarker:2.3.+'
-    api 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.+'
-    api 'org.glassfish.jaxb:jaxb-runtime:3.0+'
+    api 'org.apache.cxf:cxf:3.5.+'
 
     // Needed to compile unit tests.
     api 'junit:junit:4.+'
