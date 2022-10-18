@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.xml.bind.UnmarshalException;
+import jakarta.xml.bind.UnmarshalException;
 
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.core.IsInstanceOf;

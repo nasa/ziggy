@@ -5,8 +5,6 @@ import static org.junit.Assert.assertEquals;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import javax.xml.bind.JAXBException;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -19,6 +17,7 @@ import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.config.PropertyNames;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Unit test class for DataFileTypeImporter.
@@ -51,7 +50,7 @@ public class DataFileTypeImporterTest {
 
     // Basic functionality -- multiple files, multiple definitions, get imported
     @Test
-    public void testBasicImport() throws JAXBException {
+	public void testBasicImport() throws jakarta.xml.bind.JAXBException {
 
         DataFileTypeImporter dataFileImporter = new DataFileTypeImporter(
             ImmutableList.of(FILE_1, FILE_2), false);

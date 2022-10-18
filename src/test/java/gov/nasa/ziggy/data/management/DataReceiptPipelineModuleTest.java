@@ -18,8 +18,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.xml.bind.JAXBException;
-
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -174,7 +172,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportFromDataReceiptDir() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -270,7 +268,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportFromDataSubdir() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
 
         // Populate the models
         setUpModelsForImport(modelImporterSubdirPath);
@@ -359,7 +357,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportFromModelsSubdir() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
 
         // Populate the models
         setUpModelsForImport(modelImporterSubdirPath);
@@ -447,7 +445,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportWithErrors() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -586,7 +584,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test(expected = PipelineException.class)
     public void testCleanupFailOnNonEmptyDir() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -606,7 +604,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testInterruptInAlgorithm() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, InterruptedException {
+			IllegalAccessException, SAXException, InterruptedException, jakarta.xml.bind.JAXBException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -630,7 +628,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testInterruptInStoring() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, InterruptedException {
+			IllegalAccessException, SAXException, InterruptedException, jakarta.xml.bind.JAXBException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -737,14 +735,14 @@ public class DataReceiptPipelineModuleTest {
     }
 
     private void constructManifests() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
         constructManifest(dataImporterSubdirPath, "data-importer-subdir-manifest.xml", 2L);
         constructManifest(modelImporterSubdirPath, "model-importer-subdir-manifest.xml", 3L);
         constructManifest(dataImporterPath, "data-importer-manifest.xml", 1L);
     }
 
     private void constructManifest(Path dir, String name, long datasetId) throws IOException,
-        InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			InstantiationException, IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
         Manifest manifest = Manifest.generateManifest(dir, datasetId);
         manifest.setName(name);
         if (manifest.getFileCount() > 0) {

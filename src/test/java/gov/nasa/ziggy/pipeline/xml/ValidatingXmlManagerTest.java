@@ -5,8 +5,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.UnmarshalException;
+import jakarta.xml.bind.UnmarshalException;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -50,7 +49,8 @@ public class ValidatingXmlManagerTest {
 
     @Test(expected = UnmarshalException.class)
     public void testUnmarshalInvalidXml()
-        throws InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException,
+			jakarta.xml.bind.JAXBException {
 
         ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
             PipelineDefinitionFile.class);
@@ -59,7 +59,8 @@ public class ValidatingXmlManagerTest {
 
     @Test
     public void testUnmarshalValidXml()
-        throws InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException, 
+			jakarta.xml.bind.JAXBException {
         ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
             PipelineDefinitionFile.class);
         xmlManager.unmarshal(validXmlFile);

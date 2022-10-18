@@ -16,8 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import javax.xml.bind.JAXBException;
-
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.hibernate.Hibernate;
@@ -82,7 +80,8 @@ public class ZiggyEventHandlerTest {
     private PipelineOperations pipelineOperations = Mockito.spy(PipelineOperations.class);
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
 
-    @Before
+	@SuppressWarnings("unchecked")
+	@Before
     public void setUp() throws IOException {
         testStatusSleepTime = 200L;
         testDataDir = Paths.get(TEST_DATA_DIR);
@@ -182,7 +181,8 @@ public class ZiggyEventHandlerTest {
 
     @Test
     public void testReadXml()
-        throws InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException,
+			jakarta.xml.bind.JAXBException {
         ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager = new ValidatingXmlManager<>(
             ZiggyEventHandlerFile.class);
         ZiggyEventHandlerFile eventFile = xmlManager

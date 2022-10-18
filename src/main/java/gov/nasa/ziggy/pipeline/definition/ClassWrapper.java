@@ -8,7 +8,7 @@ import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 import javax.persistence.Transient;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.DefaultParameters;

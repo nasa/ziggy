@@ -357,7 +357,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
 
                 long fieldGroupId = H5.H5Gcreate(fileId, field.getName(), H5P_DEFAULT, H5P_DEFAULT,
                     H5P_DEFAULT);
-                groupIds.add(new Long(fieldGroupId));
+				groupIds.add(Long.valueOf(fieldGroupId));
                 writeFieldOrderAttribute(fieldGroupId, iField);
                 iField++;
 

@@ -15,8 +15,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBException;
-
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -209,7 +207,7 @@ public class AcknowledgementTest {
 
     @Test
     public void testXmlRoundTrip() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
 
         // Copy all the files from the source directory
         FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR));

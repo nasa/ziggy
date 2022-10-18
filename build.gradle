@@ -5,7 +5,7 @@
 // bottom of this file.
 
 apply plugin: 'eclipse'
-apply plugin: 'java-library'
+apply plugin: 'java'
 
 // See comment for ziggyDependencies in gradle.properties.
 ext.ziggyDependencies = "$rootDir/$ziggyDependencies"
@@ -21,108 +21,109 @@ repositories {
 
 dependencies {
     // Needed to compile ziggy.
-    api 'com.github.librepdf:openpdf:1.3.+'
-    api 'com.github.testdriven.guice:commons-configuration:1.+'
-    api 'com.google.guava:guava:23.+'
-    api 'com.jgoodies:jgoodies-forms:1.9.+'
-    api 'com.jgoodies:jgoodies-looks:2.7.+'
-    api 'commons-cli:commons-cli:1.5.+'
-    api 'commons-codec:commons-codec:1.+'
-    api 'commons-io:commons-io:2.11.+'
-    api 'org.apache.commons:commons-collections4:4.+'
-    api 'org.apache.commons:commons-compress:1.+'
-    api 'org.apache.commons:commons-csv:1.9.+'
-    api 'org.apache.commons:commons-exec:1.+'
-    api 'org.apache.commons:commons-lang3:3.12.+'
-    api 'org.apache.commons:commons-math3:3.6.+'
-    api 'org.apache.commons:commons-text:1.+'
-    api 'org.apache.logging.log4j:log4j-api:2.17.+'
-    api 'org.apache.logging.log4j:log4j-core:2.17.+'
-    api 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.+'
-    api 'org.hibernate.javax.persistence:hibernate-jpa-2.0-api:1.0.+'
-    api 'org.hibernate:hibernate-core:4.2.+'
-    api 'org.javassist:javassist:3.18.1-GA'
-    api 'org.jfree:jfreechart:1.0.+'
-    api 'org.netbeans.api:org-netbeans-swing-outline:+'
-    api 'org.tros:l2fprod-properties-editor:1.3.+'
-    api 'tanukisoft:wrapper:3.2.+'
-    api 'org.apache.cxf:cxf:3.5.+'
+    implementation 'com.github.librepdf:openpdf:1.3.+'
+    implementation 'com.github.testdriven.guice:commons-configuration:1.+'
+    implementation 'com.google.guava:guava:23.+'
+    implementation 'com.jgoodies:jgoodies-forms:1.9.+'
+    implementation 'com.jgoodies:jgoodies-looks:2.7.+'
+    implementation 'commons-cli:commons-cli:1.5.+'
+    implementation 'commons-codec:commons-codec:1.+'
+    implementation 'commons-io:commons-io:2.11.+'
+    implementation 'org.apache.commons:commons-collections4:4.+'
+    implementation 'org.apache.commons:commons-compress:1.+'
+    implementation 'org.apache.commons:commons-csv:1.9.+'
+    implementation 'org.apache.commons:commons-exec:1.+'
+    implementation 'org.apache.commons:commons-lang3:3.12.+'
+    implementation 'org.apache.commons:commons-math3:3.6.+'
+    implementation 'org.apache.commons:commons-text:1.+'
+    implementation 'org.apache.logging.log4j:log4j-api:2.17.+'
+    implementation 'org.apache.logging.log4j:log4j-core:2.17.+'
+    implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.+'
+    implementation 'org.hibernate.javax.persistence:hibernate-jpa-2.0-api:1.0.+'
+    implementation 'org.hibernate:hibernate-core:4.2.+'
+    implementation 'org.javassist:javassist:3.18.1-GA'
+    implementation 'org.jfree:jfreechart:1.0.+'
+    implementation 'org.netbeans.api:org-netbeans-swing-outline:+'
+    implementation 'org.tros:l2fprod-properties-editor:1.3.+'
+    implementation 'tanukisoft:wrapper:3.2.+'
+    implementation 'com.sun.xml.bind:jaxb-impl:3.0+'
+    runtimeOnly 'jakarta.xml.bind:jakarta.xml.bind-api:3.0+'
 
     // Libraries built in buildSrc.
-    api ':jarhdf5:1.12.+'
+    implementation ':jarhdf5:1.12.+'
 
     // Needed to compile unit tests.
-    api 'junit:junit:4.+'
-    api 'org.hamcrest:hamcrest:2.+'
-    api 'org.mockito:mockito-core:1.10.19'
+    implementation 'junit:junit:4.+'
+    implementation 'org.hamcrest:hamcrest:2.+'
+    implementation 'org.mockito:mockito-core:1.10.19'
 
     // Needed to run unit tests.
     // hsqldb version 2.3.4 causes PipelineInstanceTaskCrudTest to
     // fail with HsqlException: data exception: datetime field
     // overflow. This can be fixed by replacing Long.MAX_VALUE with a
     // smaller date. Other problems ensue with version 2.6.
-    api 'org.hsqldb:hsqldb:2.3.2'
+    implementation 'org.hsqldb:hsqldb:2.3.2'
 
     // Needed at runtime.
-    api 'org.postgresql:postgresql:9.4-1201-jdbc4'
+    implementation 'org.postgresql:postgresql:9.4-1201-jdbc4'
 
     // Probably not needed
-    // api 'c3p0:c3p0:0.9.+'
-    // api 'org.hibernate.common:hibernate-commons-annotations:4.0.2.Final'
-    // api 'org.hibernate:antlr:2.7.+'
-    // api 'org.lucee:dom4j:1.6.+'
-    // api 'org.jboss.logging:jboss-logging:3.1.0.GA'
-    // api 'org.jboss.spec.javax.transaction:jboss-transaction-api_1.1_spec:1.0.1.Final'
-    // api 'org.slf4j:jcl-over-slf4j:1.7.+'
-    // api 'org.slf4j:slf4j-api:1.7.+'
-    // api 'org.slf4j:slf4j-simple:1.7.+'
-    // api 'net.sf.trove4j:trove4j:3.0.+'
+    // implementation 'c3p0:c3p0:0.9.+'
+    // implementation 'org.hibernate.common:hibernate-commons-annotations:4.0.2.Final'
+    // implementation 'org.hibernate:antlr:2.7.+'
+    // implementation 'org.lucee:dom4j:1.6.+'
+    // implementation 'org.jboss.logging:jboss-logging:3.1.0.GA'
+    // implementation 'org.jboss.spec.javax.transaction:jboss-transaction-api_1.1_spec:1.0.1.Final'
+    // implementation 'org.slf4j:jcl-over-slf4j:1.7.+'
+    // implementation 'org.slf4j:slf4j-api:1.7.+'
+    // implementation 'org.slf4j:slf4j-simple:1.7.+'
+    // implementation 'net.sf.trove4j:trove4j:3.0.+'
 
 
     // Hibernate libraries...
-    // api 'hibernate:hibernate-entitymanager:+'
-    // api 'org.ehcache.modules:ehcache-core:3.0.+'
-    // api 'org.freemarker:freemarker:2.3.+'
-    // api 'org.hibernate:hibernate-c3p0:4.2.+'
-    // api 'org.hibernate:hibernate-ehcache:4.2.+'
-    // api 'org.hibernate:hibernate-tools:4.2.+'
+    // implementation 'hibernate:hibernate-entitymanager:+'
+    // implementation 'org.ehcache.modules:ehcache-core:3.0.+'
+    // implementation 'org.freemarker:freemarker:2.3.+'
+    // implementation 'org.hibernate:hibernate-c3p0:4.2.+'
+    // implementation 'org.hibernate:hibernate-ehcache:4.2.+'
+    // implementation 'org.hibernate:hibernate-tools:4.2.+'
 
     // Remaining libraries that may no longer be necessary.
-    // api 'cglib:cglib-nodep:2.1_3'
-    // api 'com.google.code.gson:gson:2.+'
-    // api 'com.mchange:mchange-commons-java:0.2.11'
-    // api 'com.oracle.database.jdbc.debug:ojdbc6_g:+'
-    // api 'com.sun.mail:dsn:+'
-    // api 'com.sun.mail:imap:+'
-    // api 'com.sun.mail:mailapi:+'
-    // api 'com.sun.mail:pop3:+'
-    // api 'com.sun.mail:smtp:+'
-    // api 'com.toedter:jcalendar:1.3.+'
-    // api 'commons-dbcp:commons-dbcp:1.2.+'
-    // api 'commons-pool:commons-pool:1.+'
-    // api 'javax.jms:jms-api:+'
-    // api 'jmock:jmock-cglib:1.1.0'
-    // api 'org.antlr:antlr:3.4'
-    // api 'org.antlr:stringtemplate:3.+'
-    // api 'org.beanshell:bsh-core:2.0b4'
-    // api 'org.hamcrest:hamcrest-core:2.2-rc1'
-    // api 'org.hamcrest:hamcrest-library:2.2-rc1'
-    // api 'org.jboss.jbossts:common:4.17.+'
-    // api 'org.jboss.jbossts:jbossjta-integration:4.16.+'
-    // api 'org.jboss.jbossts:jbossjta:4.16.+'
-    // api 'org.jmock:jmock-junit3:2.5.1'
-    // api 'org.jmock:jmock-junit4:2.5.1'
-    // api 'org.jmock:jmock-legacy:2.5.1'
-    // api 'org.jmock:jmock-script:2.5.+'
-    // api 'org.jmock:jmock:2.5.1'
-    // api 'org.objenesis:objenesis:1.+'
-    // api 'spice:spice-jndikit:1.1'
+    // implementation 'cglib:cglib-nodep:2.1_3'
+    // implementation 'com.google.code.gson:gson:2.+'
+    // implementation 'com.mchange:mchange-commons-java:0.2.11'
+    // implementation 'com.oracle.database.jdbc.debug:ojdbc6_g:+'
+    // implementation 'com.sun.mail:dsn:+'
+    // implementation 'com.sun.mail:imap:+'
+    // implementation 'com.sun.mail:mailapi:+'
+    // implementation 'com.sun.mail:pop3:+'
+    // implementation 'com.sun.mail:smtp:+'
+    // implementation 'com.toedter:jcalendar:1.3.+'
+    // implementation 'commons-dbcp:commons-dbcp:1.2.+'
+    // implementation 'commons-pool:commons-pool:1.+'
+    // implementation 'javax.jms:jms-api:+'
+    // implementation 'jmock:jmock-cglib:1.1.0'
+    // implementation 'org.antlr:antlr:3.4'
+    // implementation 'org.antlr:stringtemplate:3.+'
+    // implementation 'org.beanshell:bsh-core:2.0b4'
+    // implementation 'org.hamcrest:hamcrest-core:2.2-rc1'
+    // implementation 'org.hamcrest:hamcrest-library:2.2-rc1'
+    // implementation 'org.jboss.jbossts:common:4.17.+'
+    // implementation 'org.jboss.jbossts:jbossjta-integration:4.16.+'
+    // implementation 'org.jboss.jbossts:jbossjta:4.16.+'
+    // implementation 'org.jmock:jmock-junit3:2.5.1'
+    // implementation 'org.jmock:jmock-junit4:2.5.1'
+    // implementation 'org.jmock:jmock-legacy:2.5.1'
+    // implementation 'org.jmock:jmock-script:2.5.+'
+    // implementation 'org.jmock:jmock:2.5.1'
+    // implementation 'org.objenesis:objenesis:1.+'
+    // implementation 'spice:spice-jndikit:1.1'
 
     // Could not find these on search.maven.org.
-    // api ':jMockJUnit4Support:1.1.0RC1'
-    // api 'cglib:cglib:2.1_3-src'
-    // api 'org.jmock:jmock:1.1.+'
-    // api 'org.jboss.jbossts:concurrent:4.+'
+    // implementation ':jMockJUnit4Support:1.1.0RC1'
+    // implementation 'cglib:cglib:2.1_3-src'
+    // implementation 'org.jmock:jmock:1.1.+'
+    // implementation 'org.jboss.jbossts:concurrent:4.+'
 }
 
 test {
@@ -134,15 +135,17 @@ test {
     testLogging {
         events "failed", "skipped"
     }
-
+    
     // The RMI tests appear to have an ordering sensitivity. To wit,
-    // If Intra- runs before Inter-, they all run successfully.
-    // If Inter- runs before Intra-, Intra- tests all fail.
+    // If Intra- runs before Inter-, they all run successfully. 
+    // If Inter- runs before Intra-, Intra- tests all fail. 
     // Nonetheless, these tests are good to have for interactive use,
     // as they allow to troubleshoot RMI problems more simply. Thus,
     // we leave that class out of gradle test but keep it around in case
-    // we need it.
-    exclude "**/RmiInt*"
+    // we need it. 
+    filter {
+        excludeTestsMatching "*Rmi*"
+    }
 }
 
 javadoc {
@@ -155,8 +158,6 @@ apply from: "script-plugins/copy.gradle"
 apply from: "script-plugins/database-schemas.gradle"
 apply from: "script-plugins/eclipse.gradle"
 apply from: "script-plugins/gcc.gradle"
-apply from: "script-plugins/hdf5.gradle"
-// apply from: "script-plugins/matlab.gradle"
 apply from: "script-plugins/misc.gradle"
 apply from: "script-plugins/test.gradle"
 apply from: "script-plugins/wrapper.gradle"

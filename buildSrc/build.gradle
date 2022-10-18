@@ -3,7 +3,7 @@
  * amount of dependencies as this is used by the build system itself.
  */
 apply plugin: 'eclipse'
-apply plugin: 'java-library'
+apply plugin: 'java'
 
 defaultTasks 'assemble'
 
@@ -13,19 +13,20 @@ repositories {
 
 dependencies {
     // Needed to compile buildSrc.
-    api 'com.google.guava:guava:23.+'
-    api 'commons-io:commons-io:2.11.+'
-    api 'org.apache.commons:commons-exec:1.+'
-    api 'org.freemarker:freemarker:2.3.+'
-    api 'org.apache.cxf:cxf:3.5.+'
+    implementation 'com.google.guava:guava:23.+'
+    implementation 'commons-io:commons-io:2.11.+'
+    implementation 'org.apache.commons:commons-exec:1.+'
+    implementation 'org.freemarker:freemarker:2.3.+'
+    implementation 'com.sun.xml.bind:jaxb-impl:3.0+'
+    runtimeOnly 'jakarta.xml.bind:jakarta.xml.bind-api:3.0+'
 
     // Needed to compile unit tests.
-    api 'junit:junit:4.+'
-    api 'org.mockito:mockito-core:4.8.+'
+    implementation 'junit:junit:4.+'
+    implementation 'org.mockito:mockito-core:4.8.+'
 
     // The following stuff is needed in order to build custom gradle tasks and plugins.
-    api gradleApi()
-    api localGroovy()
+    implementation gradleApi()
+    implementation localGroovy()
 }
 
 eclipse {
