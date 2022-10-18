@@ -126,7 +126,8 @@ public class ProcessHeartbeatManager {
         heartbeatListener.scheduleAtFixedRate(() -> {
             try {
                 checkForHeartbeat();
-            } catch (NoHeartbeatException e) {
+            } catch (Exception e) {
+                e.printStackTrace();
                 // NB: I'm pretty certain this block could never be executed because if there's
                 // a NoHeartbeatException thrown in checkForHeartbeat(), this thread will
                 // immediately be shut down.
@@ -241,6 +242,14 @@ public class ProcessHeartbeatManager {
         void restartUiCommunicator() {
             UiCommunicator.restart();
         }
+    }
+
+    /**
+     * Allows a subclass {such as @link InstrumentedWorkerHeartbeatManager} to supply a
+     * {@link ClusterController} instance that has customized behaviors for test.
+     */
+    protected void setClusterController(ClusterController clusterController) {
+        this.clusterController = clusterController;
     }
 
     public static class NoHeartbeatException extends Exception {

@@ -144,7 +144,7 @@ test {
     // we leave that class out of gradle test but keep it around in case
     // we need it. 
     filter {
-        excludeTestsMatching "*Rmi*"
+        excludeTestsMatching "*RmiIntra*"
     }
 }
 
