@@ -266,8 +266,10 @@ public class SubtaskExecutorTest {
             .pipelineConfigPath("/dev/null")
             .build();
         externalProcessExecutor = Mockito.spy(externalProcessExecutor);
-        Mockito.when(externalProcessExecutor.externalProcess(Matchers.any(Writer.class),
-            Matchers.any(Writer.class))).thenReturn(externalProcess);
+        Mockito.when(externalProcessExecutor.externalProcess(Mockito.any(Writer.class),
+            Mockito.any(Writer.class))).thenReturn(externalProcess);
+        Mockito.when(externalProcessExecutor.externalProcess(Mockito.isNull(),
+				Mockito.isNull())).thenReturn(externalProcess);
     }
 
     private static class MockableExternalProcess extends ExternalProcess {

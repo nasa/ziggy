@@ -2,6 +2,7 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -12,8 +13,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import jakarta.xml.bind.JAXBException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +30,7 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Contains methods for importing and exporting pipeline configurations.
@@ -62,7 +62,8 @@ public class PipelineDefinitionOperations {
     public PipelineDefinitionOperations() {
         try {
             xmlManager = new ValidatingXmlManager<>(PipelineDefinitionFile.class);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class PipelineDefinitionFile", e);
         }

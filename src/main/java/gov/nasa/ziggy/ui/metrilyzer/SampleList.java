@@ -186,7 +186,7 @@ public class SampleList {
         TimeSeries series = new TimeSeries(name, Millisecond.class);
 
         for (Sample sample : samples) {
-            series.addOrUpdate(new Millisecond(new Date(sample.time)), new Double(sample.value));
+			series.addOrUpdate(new Millisecond(new Date(sample.time)), sample.value);
         }
 
         return series;

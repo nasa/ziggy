@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -207,7 +208,8 @@ public class AcknowledgementTest {
 
     @Test
     public void testXmlRoundTrip() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Copy all the files from the source directory
         FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR));

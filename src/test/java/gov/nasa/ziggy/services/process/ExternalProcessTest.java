@@ -37,7 +37,7 @@ public class ExternalProcessTest {
     }
 
     @After
-    public void after() throws IOException {
+	public void after() throws IOException, InterruptedException {
         FileUtils.forceDelete(workingDir);
     }
 
@@ -58,8 +58,7 @@ public class ExternalProcessTest {
         p.logStdOut(true);
         p.logStdErr(true);
 
-        int rc = p.run(true, 1000);
-
+		int rc = p.run(true, 1000);
         assertEquals("return code from external process,", 0, rc);
     }
 
@@ -70,7 +69,7 @@ public class ExternalProcessTest {
         p.logStdOut(true);
         p.logStdErr(true);
 
-        int rc = p.run(true, 1000);
+		int rc = p.run(true, 1000);
         assertTrue(rc != 0);
 
     }
@@ -78,11 +77,11 @@ public class ExternalProcessTest {
     @Test
     public void testExeFail() throws Exception {
         ExternalProcess p = ExternalProcess.simpleExternalProcess(command(1, 0, false, false));
-        p.setWorkingDirectory(exeDir);
+		p.setWorkingDirectory(exeDir);
         p.logStdOut(true);
         p.logStdErr(true);
 
-        int rc = p.run(true, 1000);
+		int rc = p.run(true, 1000);
         assertEquals(1, rc);
 
     }
@@ -101,7 +100,7 @@ public class ExternalProcessTest {
         p.logStdOut(true);
         p.logStdErr(true);
 
-        int rc = p.run(true, 1000);
+		int rc = p.run(true, 1000);
 
         assertEquals("return code from external process,", 0, rc);
         File touchFile = new File(workingDir.getCanonicalFile(), "touch.txt");
@@ -123,7 +122,7 @@ public class ExternalProcessTest {
         commandLine.addArgument("0");
         p.setCommandLine(commandLine);
 
-        int rc = p.run(true, 1000);
+		int rc = p.run(true, 1000);
         assertEquals(0, rc);
         String stdoutString = p.getStdoutString();
         String stderrString = p.getStderrString();
@@ -136,7 +135,7 @@ public class ExternalProcessTest {
     @Test
     public void testExecute() throws IOException {
         ExternalProcess p = new ExternalProcess(true, null, true, null);
-        p.setWorkingDirectory(workingDir.getCanonicalFile());
+		p.setWorkingDirectory(workingDir.getCanonicalFile());
         p.writeStdErr(true);
         p.writeStdOut(true);
 
@@ -147,7 +146,7 @@ public class ExternalProcessTest {
         commandLine.addArgument("0");
         p.setCommandLine(commandLine);
 
-        int rc = p.execute();
+		int rc = p.execute();
         assertEquals(0, rc);
     }
 

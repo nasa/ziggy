@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.data.management;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -13,14 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
-
-import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.XmlElement;
-import jakarta.xml.bind.annotation.XmlRootElement;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.apache.commons.io.FilenameUtils;
 import org.xml.sax.SAXException;
@@ -35,6 +28,13 @@ import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Models an acknowledgement of a data receipt {@link Manifest}. An acknowledgement contains an
@@ -95,11 +95,17 @@ public class Acknowledgement implements HasXmlSchemaFilename {
     }
 
     /**
-     * Writes the acknowledgement to the specified directory. The manifest name must be set to a
-     * valid value; if not, a {@link PipelineException} will occur.
-     */
+	 * Writes the acknowledgement to the specified directory. The manifest name must
+	 * be set to a valid value; if not, a {@link PipelineException} will occur.
+	 *
+	 * @throws SecurityException
+	 * @throws NoSuchMethodException
+	 * @throws InvocationTargetException
+	 * @throws IllegalArgumentException
+	 */
     public void write(Path directory)
-        throws InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 
         ValidatingXmlManager<Acknowledgement> xmlManager = new ValidatingXmlManager<>(
             Acknowledgement.class);
@@ -146,7 +152,8 @@ public class Acknowledgement implements HasXmlSchemaFilename {
             xmlManager = new ValidatingXmlManager<>(Acknowledgement.class);
             Acknowledgement ack = xmlManager.unmarshal(acknowledgementPath.toFile());
             return ack.transferStatus.equals(DataReceiptStatus.VALID);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new PipelineException(
                 "Unable to read acknowledgement " + acknowledgementPath.toString(), e);
         }
@@ -413,11 +420,11 @@ public class Acknowledgement implements HasXmlSchemaFilename {
         @Override
         public boolean equals(Object obj) {
             if (this == obj) {
-                return true;
-            }
+				return true;
+			}
             if (obj == null || getClass() != obj.getClass()) {
-                return false;
-            }
+				return false;
+			}
             AcknowledgementEntry other = (AcknowledgementEntry) obj;
             return Objects.equals(name, other.name) && Objects.equals(checksum, other.checksum)
                 && size == other.size && transferStatus == other.transferStatus

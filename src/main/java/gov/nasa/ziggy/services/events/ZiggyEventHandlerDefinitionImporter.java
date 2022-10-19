@@ -35,9 +35,8 @@
 package gov.nasa.ziggy.services.events;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
-import jakarta.xml.bind.JAXBException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +46,7 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Extremely simple class that imports {@link ZiggyEventHandler} definitions into the database. The
@@ -64,7 +64,8 @@ public class ZiggyEventHandlerDefinitionImporter {
     private File[] files;
 
     public ZiggyEventHandlerDefinitionImporter(String[] filenames)
-        throws InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
         files = new File[filenames.length];
         for (int i = 0; i < filenames.length; i++) {
             files[i] = new File(filenames[i]);
@@ -73,7 +74,8 @@ public class ZiggyEventHandlerDefinitionImporter {
     }
 
     public ZiggyEventHandlerDefinitionImporter(File[] files)
-        throws InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
         this.files = files;
         xmlManager = new ValidatingXmlManager<>(ZiggyEventHandlerFile.class);
     }
@@ -123,7 +125,8 @@ public class ZiggyEventHandlerDefinitionImporter {
         ZiggyEventHandlerDefinitionImporter importer = null;
         try {
             importer = new ZiggyEventHandlerDefinitionImporter(args);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new PipelineException("Unable to construct event handler importer ", e);
         }
         final ZiggyEventHandlerDefinitionImporter finalImporter = importer;

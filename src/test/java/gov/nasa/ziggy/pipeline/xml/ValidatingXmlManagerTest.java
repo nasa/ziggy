@@ -1,13 +1,10 @@
 package gov.nasa.ziggy.pipeline.xml;
 
 import java.io.File;
-import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import jakarta.xml.bind.UnmarshalException;
-
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,7 +12,7 @@ import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
 import gov.nasa.ziggy.services.config.PropertyNames;
-import gov.nasa.ziggy.util.io.Filenames;
+import jakarta.xml.bind.UnmarshalException;
 
 /**
  * Unit tests for {@link ValidatingXmlManager} class.
@@ -50,7 +47,8 @@ public class ValidatingXmlManagerTest {
     @Test(expected = UnmarshalException.class)
     public void testUnmarshalInvalidXml()
 			throws InstantiationException, IllegalAccessException, SAXException,
-			jakarta.xml.bind.JAXBException {
+			jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+			SecurityException {
 
         ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
             PipelineDefinitionFile.class);
@@ -59,8 +57,9 @@ public class ValidatingXmlManagerTest {
 
     @Test
     public void testUnmarshalValidXml()
-			throws InstantiationException, IllegalAccessException, SAXException, 
-			jakarta.xml.bind.JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException,
+			jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+			SecurityException {
         ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
             PipelineDefinitionFile.class);
         xmlManager.unmarshal(validXmlFile);

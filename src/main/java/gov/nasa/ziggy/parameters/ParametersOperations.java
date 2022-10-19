@@ -3,6 +3,7 @@ package gov.nasa.ziggy.parameters;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -13,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeConfigurationException;
 
 import org.slf4j.Logger;
@@ -28,6 +28,7 @@ import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Utility functions for managing the parameter library.
@@ -44,7 +45,8 @@ public class ParametersOperations {
     public ParametersOperations() {
         try {
             xmlManager = new ValidatingXmlManager<>(ParameterLibrary.class);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class ParameterLibrary", e);
         }

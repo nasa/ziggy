@@ -19,6 +19,10 @@ repositories {
     }
 }
 
+tasks.withType(JavaCompile) {
+    options.deprecation = true
+}
+
 dependencies {
     // Needed to compile ziggy.
     implementation 'com.github.librepdf:openpdf:1.3.+'
@@ -55,7 +59,7 @@ dependencies {
     // Needed to compile unit tests.
     implementation 'junit:junit:4.+'
     implementation 'org.hamcrest:hamcrest:2.+'
-    implementation 'org.mockito:mockito-core:1.10.19'
+    implementation 'org.mockito:mockito-core:3.+'
 
     // Needed to run unit tests.
     // hsqldb version 2.3.4 causes PipelineInstanceTaskCrudTest to
@@ -126,12 +130,16 @@ dependencies {
     // implementation 'org.jboss.jbossts:concurrent:4.+'
 }
 
+def numTests = 0
+
 test {
     systemProperty "log4j2.configurationFile","$projectDir/test/data/logging/log4j2.xml"
     systemProperty "java.library.path", "$ziggyDependencies/lib"
     
     forkEvery = 1
 
+    beforeTest {numTests++}
+    
     testLogging {
         events "failed", "skipped"
     }
@@ -146,6 +154,10 @@ test {
     filter {
         excludeTestsMatching "*RmiIntra*"
     }
+}
+
+test.doLast() {
+    println "\n Total tests: ${numTests}"
 }
 
 javadoc {

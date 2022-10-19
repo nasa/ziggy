@@ -19,12 +19,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.messages.WorkerShutdownMessage;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
-import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ConsoleMessageDispatcherForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ServerSideMessageHandlerForTest;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager;
-
+import gov.nasa.ziggy.ui.messaging.PigMessageDispatcher;
+import gov.nasa.ziggy.ui.mon.alerts.AlertMessageTableModel;
+import gov.nasa.ziggy.ui.mon.master.WorkerStatusPanel;
 /**
  * Tests the RMI communication classes for Ziggy in the context where the client and server sides
  * (or UI and worker, if you prefer) are running in the same process and thus the same JVM.
@@ -202,7 +204,7 @@ public class RmiIntraProcessCommunicationTest {
     @Test
     public void testIntraProcessCommunication() {
 
-        ServerTest serverTest = new ServerTest();
+		ServerTest serverTest = new ServerTest();
         serverTest.startServer(port, 2, true);
         messageHandler1 = (ServerSideMessageHandlerForTest) WorkerCommunicator.getMessageHandler();
 
@@ -250,13 +252,13 @@ public class RmiIntraProcessCommunicationTest {
     public void testHeartbeatManagement() throws InterruptedException {
 
         // Start the server
-        ServerTest serverTest = new ServerTest();
+		ServerTest serverTest = new ServerTest();
         serverTest.startServer(port, 2, false);
         Thread.sleep(50);
 
         // Start the heartbeat manager and communicator
         MessageHandler messageHandler = new MessageHandler(
-            new ConsoleMessageDispatcherForTest(null, null, false));
+				new PigMessageDispatcherForTest(null, null, false));
         InstrumentedWorkerHeartbeatManager h = new InstrumentedWorkerHeartbeatManager(
             messageHandler);
         UiCommunicator.setHeartbeatManager(h);
@@ -308,5 +310,19 @@ public class RmiIntraProcessCommunicationTest {
             assertTrue(localTimesAtChecks.get(i + 1) - localTimesAtChecks.get(i) < 210L);
         }
     }
+
+	public static class PigMessageDispatcherForTest extends PigMessageDispatcher {
+
+		public PigMessageDispatcherForTest(AlertMessageTableModel tableModel, WorkerStatusPanel statusPanel,
+				boolean shutdownEnabled) {
+			super(tableModel, statusPanel, shutdownEnabled);
+		}
+
+		@Override
+		public void handleShutdownMessage(WorkerShutdownMessage message) {
+
+		}
+
+	}
 
 }

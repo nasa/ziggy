@@ -2,7 +2,6 @@ package gov.nasa.ziggy.services.messaging;
 
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ServerSideMessageHandlerForTest;
-
 /**
  * Instantiates the {@link WorkerCommunicator}, potentially in an external process. This allows
  * testing of inter-process communication via RMI.

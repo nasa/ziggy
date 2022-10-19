@@ -94,7 +94,7 @@ public abstract class DisplayModel {
     }
 
     protected String formatDouble(double d) {
-        if (new Double(d).isNaN()) {
+		if (Double.isNaN(d)) {
             return "-";
         } else {
             return String.format("%.3f", d);

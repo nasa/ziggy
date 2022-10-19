@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -182,7 +183,8 @@ public class ZiggyEventHandlerTest {
     @Test
     public void testReadXml()
 			throws InstantiationException, IllegalAccessException, SAXException,
-			jakarta.xml.bind.JAXBException {
+			jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+			SecurityException {
         ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager = new ValidatingXmlManager<>(
             ZiggyEventHandlerFile.class);
         ZiggyEventHandlerFile eventFile = xmlManager
@@ -335,6 +337,7 @@ public class ZiggyEventHandlerTest {
         // The ready-indicator file should still be present and the event handler should
         // be disabled
         assertTrue(Files.exists(readyIndicator1));
+		Thread.sleep(50L);
         assertFalse(ziggyEventHandler.isRunning());
     }
 

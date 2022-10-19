@@ -36,12 +36,10 @@ package gov.nasa.ziggy.pipeline.xml;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Paths;
 import java.util.Set;
 
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.SchemaOutputResolver;
 import javax.xml.transform.Result;
 import javax.xml.transform.stream.StreamResult;
 
@@ -59,6 +57,9 @@ import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.events.ZiggyEventHandlerFile;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.SchemaOutputResolver;
 
 /**
  * Exports XML schemas based on JAXB annotations. The schemas describe the XML files that are used
@@ -110,8 +111,9 @@ public class XmlSchemaExporter {
         public PipelineDefinitionSchemaResolver(Class<? extends HasXmlSchemaFilename> clazz) {
             super();
             try {
-                schemaFilename = clazz.newInstance().getXmlSchemaFilename();
-            } catch (InstantiationException | IllegalAccessException e) {
+				schemaFilename = clazz.getDeclaredConstructor().newInstance().getXmlSchemaFilename();
+			} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+					| InvocationTargetException | NoSuchMethodException | SecurityException e) {
                 throw new PipelineException(
                     "Unable to generate schema resolver for class " + clazz.getName(), e);
             }

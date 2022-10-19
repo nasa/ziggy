@@ -152,7 +152,7 @@ public class NasQueueTimeMetrics {
     private Set<ArchitectureQueueTimeMetrics> parseQsCsv(String file, String nasaDivision) {
 
         Set<ArchitectureQueueTimeMetrics> metricsAllArchitectures = new HashSet<>();
-        CSVFormat format = CSVFormat.EXCEL.withRecordSeparator("\n");
+		CSVFormat format = CSVFormat.Builder.create(CSVFormat.EXCEL).setRecordSeparator("\n").build();
         try (CSVParser parser = format.parse(new FileReader(new File(file)))) {
             List<CSVRecord> csvRecords = parser.getRecords();
             CSVRecord divisionsRecord = csvRecords.get(0);

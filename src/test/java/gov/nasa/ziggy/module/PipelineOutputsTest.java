@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,6 +14,8 @@ import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+//import com.google.common.io.Files;
 
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineResultsSample1;
@@ -36,10 +39,12 @@ public class PipelineOutputsTest {
     private String otherFilename = ModuleInterfaceUtils.outputsFileName("pa", 2);
 
     @Before
-    public void setup() {
+	public void setup() throws IOException {
 
         // Create the task dir and the subtask dir
-        File taskRootDir = new File(Filenames.BUILD_TEST);
+		File taskRootDir = new File(Filenames.BUILD_TEST);
+		Files.createDirectories(taskRootDir.toPath());
+        this.taskRootDir = taskRootDir.getAbsolutePath();
         File taskDir = new File(taskRootDir, "100-200-pa");
         this.taskDir = taskDir.getAbsolutePath();
         File subTaskDir = new File(taskDir, subTaskDirName);
@@ -53,8 +58,8 @@ public class PipelineOutputsTest {
         PipelineOutputsSample1 p = new PipelineOutputsSample1();
         p.populateTaskResults();
         Hdf5ModuleInterface h = new Hdf5ModuleInterface();
-        h.writeFile(DirectoryProperties.workingDir().resolve(filename).toFile(), p, true);
-        h.writeFile(DirectoryProperties.workingDir().resolve(otherFilename).toFile(), p, true);
+		h.writeFile(new File(System.getProperty("user.dir"), filename), p, true);
+		h.writeFile(new File(System.getProperty("user.dir"), otherFilename), p, true);
 
         System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
 

@@ -8,11 +8,11 @@ import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 import javax.persistence.Transient;
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.Parameters;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
  * This class provides a simple wrapper around a String that contains a Java classname. The
@@ -101,7 +101,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     @SuppressWarnings("unchecked")
     public T newInstance() throws PipelineException {
         try {
-            return (T) Class.forName(unmangledClassName()).newInstance();
+			return (T) Class.forName(unmangledClassName()).getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new PipelineException("failed to instantiate instance with className="
                 + unmangledClassName() + ", caught e = " + e, e);

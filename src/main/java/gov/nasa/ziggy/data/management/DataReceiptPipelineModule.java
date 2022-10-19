@@ -18,8 +18,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import jakarta.xml.bind.JAXBException;
-
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -50,6 +48,7 @@ import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.util.io.FileUtil;
 import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Pipeline module that performs data receipt, defined as the process that brings science data and
@@ -229,7 +228,8 @@ public class DataReceiptPipelineModule extends PipelineModule
                     "No manifest file present in directory " + dataImportPathForTask.toString());
             }
         } catch (InstantiationException | IllegalAccessException | IOException | SAXException
-            | JAXBException e) {
+				| JAXBException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+				| SecurityException e) {
             throw new PipelineException("Unable to read manifest from directory " + dataReceiptDir,
                 e);
         }
@@ -244,7 +244,8 @@ public class DataReceiptPipelineModule extends PipelineModule
         try {
             ack.write(dataImportPathForTask);
             log.info("Acknowledgement file written: " + ack.getName());
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new PipelineException("Unable to write manifest acknowledgement", e);
         }
 
@@ -289,7 +290,8 @@ public class DataReceiptPipelineModule extends PipelineModule
             throw new PipelineException(
                 "Unable to find regular files in directory " + dataImportPathForTask.toString(),
                 e1);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (NoSuchMethodException | InstantiationException | IllegalAccessException | SAXException
+				| InvocationTargetException | JAXBException e) {
             throw new PipelineException("Unable to write manifest acknowledgement", e);
         }
     }

@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -172,7 +173,8 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportFromDataReceiptDir() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -197,24 +199,24 @@ public class DataReceiptPipelineModuleTest {
             successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
         }
         assertTrue(successfulImports.containsKey("pa/20/pa-001234567-20-results.h5"));
-        assertEquals(new Long(101L), successfulImports.get("pa/20/pa-001234567-20-results.h5"));
+		assertEquals(Long.valueOf(101L), successfulImports.get("pa/20/pa-001234567-20-results.h5"));
         assertTrue(successfulImports.containsKey("cal/20/cal-1-1-A-20-results.h5"));
-        assertEquals(new Long(101L), successfulImports.get("cal/20/cal-1-1-A-20-results.h5"));
+		assertEquals(Long.valueOf(101L), successfulImports.get("cal/20/cal-1-1-A-20-results.h5"));
         assertTrue(successfulImports
             .containsKey("models/geometry/tess2020321141517-12345_024-geometry.xml"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/geometry/tess2020321141517-12345_024-geometry.xml"));
         assertTrue(successfulImports
             .containsKey("models/geometry/tess2020321141517-12345_025-geometry.xml"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/geometry/tess2020321141517-12345_025-geometry.xml"));
         assertTrue(
             successfulImports.containsKey("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/ravenswood/2020-12-29.0001-simple-text.h5"));
         assertTrue(
             successfulImports.containsKey("models/calibration/2020-12-29.calibration-4.12.19.h5"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/calibration/2020-12-29.calibration-4.12.19.h5"));
 
         // check that all the files made it to their destinations
@@ -268,7 +270,8 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportFromDataSubdir() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(modelImporterSubdirPath);
@@ -293,9 +296,9 @@ public class DataReceiptPipelineModuleTest {
             successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
         }
         assertTrue(successfulImports.containsKey("pa/20/pa-765432100-20-results.h5"));
-        assertEquals(new Long(101L), successfulImports.get("pa/20/pa-765432100-20-results.h5"));
+		assertEquals(Long.valueOf(101L), successfulImports.get("pa/20/pa-765432100-20-results.h5"));
         assertTrue(successfulImports.containsKey("cal/20/cal-1-1-B-20-results.h5"));
-        assertEquals(new Long(101L), successfulImports.get("cal/20/cal-1-1-B-20-results.h5"));
+		assertEquals(Long.valueOf(101L), successfulImports.get("cal/20/cal-1-1-B-20-results.h5"));
 
         // check that the data files made it to their destinations
         assertTrue(datastoreRootPath.resolve(Paths.get("pa", "20", "pa-765432100-20-results.h5"))
@@ -357,7 +360,8 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportFromModelsSubdir() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(modelImporterSubdirPath);
@@ -385,19 +389,19 @@ public class DataReceiptPipelineModuleTest {
         }
         assertTrue(successfulImports
             .containsKey("models/geometry/tess2020321141517-12345_024-geometry.xml"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/geometry/tess2020321141517-12345_024-geometry.xml"));
         assertTrue(successfulImports
             .containsKey("models/geometry/tess2020321141517-12345_025-geometry.xml"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/geometry/tess2020321141517-12345_025-geometry.xml"));
         assertTrue(
             successfulImports.containsKey("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/ravenswood/2020-12-29.0001-simple-text.h5"));
         assertTrue(
             successfulImports.containsKey("models/calibration/2020-12-29.calibration-4.12.19.h5"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/calibration/2020-12-29.calibration-4.12.19.h5"));
 
         // check that the model files made it to their destinations
@@ -445,7 +449,8 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testImportWithErrors() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -510,18 +515,18 @@ public class DataReceiptPipelineModuleTest {
             successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
         }
         assertTrue(successfulImports.containsKey("cal/20/cal-1-1-A-20-results.h5"));
-        assertEquals(new Long(101L), successfulImports.get("cal/20/cal-1-1-A-20-results.h5"));
+		assertEquals(Long.valueOf(101L), successfulImports.get("cal/20/cal-1-1-A-20-results.h5"));
         assertTrue(successfulImports
             .containsKey("models/geometry/tess2020321141517-12345_024-geometry.xml"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/geometry/tess2020321141517-12345_024-geometry.xml"));
         assertTrue(
             successfulImports.containsKey("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/ravenswood/2020-12-29.0001-simple-text.h5"));
         assertTrue(
             successfulImports.containsKey("models/calibration/2020-12-29.calibration-4.12.19.h5"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             successfulImports.get("models/calibration/2020-12-29.calibration-4.12.19.h5"));
 
         // check that the files made it to their destinations
@@ -576,15 +581,16 @@ public class DataReceiptPipelineModuleTest {
             failedImportMap.put(failedImport.getFilename(), failedImport.getDataReceiptTaskId());
         }
         assertTrue(failedImportMap.containsKey("pa/20/pa-001234567-20-results.h5"));
-        assertEquals(new Long(101L), failedImportMap.get("pa/20/pa-001234567-20-results.h5"));
+		assertEquals(Long.valueOf(101L), failedImportMap.get("pa/20/pa-001234567-20-results.h5"));
         assertTrue(failedImportMap.containsKey("tess2020321141517-12345_025-geometry.xml"));
-        assertEquals(new Long(101L),
+		assertEquals(Long.valueOf(101L),
             failedImportMap.get("tess2020321141517-12345_025-geometry.xml"));
     }
 
     @Test(expected = PipelineException.class)
     public void testCleanupFailOnNonEmptyDir() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -604,7 +610,8 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testInterruptInAlgorithm() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, InterruptedException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, InterruptedException, jakarta.xml.bind.JAXBException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -628,7 +635,8 @@ public class DataReceiptPipelineModuleTest {
 
     @Test
     public void testInterruptInStoring() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, InterruptedException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, InterruptedException, jakarta.xml.bind.JAXBException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -735,14 +743,16 @@ public class DataReceiptPipelineModuleTest {
     }
 
     private void constructManifests() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
         constructManifest(dataImporterSubdirPath, "data-importer-subdir-manifest.xml", 2L);
         constructManifest(modelImporterSubdirPath, "model-importer-subdir-manifest.xml", 3L);
         constructManifest(dataImporterPath, "data-importer-manifest.xml", 1L);
     }
 
     private void constructManifest(Path dir, String name, long datasetId) throws IOException,
-			InstantiationException, IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException {
+			InstantiationException, IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
         Manifest manifest = Manifest.generateManifest(dir, datasetId);
         manifest.setName(name);
         if (manifest.getFileCount() > 0) {

@@ -255,11 +255,17 @@ public abstract class PipelineInputs implements Persistable {
         String moduleName = moduleName();
         String filename = ModuleInterfaceUtils.inputsFileName(moduleName, seqNum);
         log.info("Writing file " + filename + " to sub-task directory");
-        hdf5ModuleInterface.writeFile(DirectoryProperties.workingDir()
-            .resolve(ModuleInterfaceUtils.inputsFileName(moduleName, seqNum))
-            .toFile(), this, true);
-//        hdf5ModuleInterface.writeFile(
-//            new File(ModuleInterfaceUtils.inputsFileName(moduleName, seqNum)), this, true);
+
+		// Note: you might think that we shouldn't need this getProperty call when
+		// constructing the File for use as the inputs file. And you'd be right! The
+		// problem is that starting in Java 11, changing the user.dir property doesn't
+		// change the working directory, but does change the value of the system
+		// property. Thus we need to include its value here so that unit tests work
+		// correctly.
+		File f = new File(System.getProperty("user.dir"), ModuleInterfaceUtils.inputsFileName(moduleName, seqNum));
+        hdf5ModuleInterface.writeFile(
+				f, this,
+				true);
         ModuleInterfaceUtils.writeCompanionXmlFile(this, moduleName, seqNum);
     }
 

@@ -58,11 +58,12 @@ public final class TaskFileManager {
 
             Class<?> pipelineInputsOutputsClass = Class.forName(fullyQualifiedClassName);
             if (PipelineInputs.class.isAssignableFrom(pipelineInputsOutputsClass)) {
-                PipelineInputs p = (PipelineInputs) pipelineInputsOutputsClass.newInstance();
+				PipelineInputs p = (PipelineInputs) pipelineInputsOutputsClass
+                		.getDeclaredConstructor().newInstance();
                 p.populateSubTaskInputs();
             } else if (PipelineOutputs.class.isAssignableFrom(pipelineInputsOutputsClass)) {
-                PipelineOutputs pipelineOutputs = (PipelineOutputs) pipelineInputsOutputsClass
-                    .newInstance();
+				PipelineOutputs pipelineOutputs = (PipelineOutputs) pipelineInputsOutputsClass.getDeclaredConstructor()
+						.newInstance();
                 pipelineOutputs.populateTaskResults();
                 pipelineOutputs.setResultsState();
             } else {

@@ -20,8 +20,8 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
-import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ConsoleMessageDispatcherForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
+import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.PigMessageDispatcherForTest;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager;
 import gov.nasa.ziggy.util.os.ProcessUtils;
 
@@ -122,7 +122,7 @@ public class RmiInterProcessCommunicationTest {
 
         // Start the heartbeat manager and communicator
         MessageHandler messageHandler = new MessageHandler(
-            new ConsoleMessageDispatcherForTest(null, null, false));
+				new PigMessageDispatcherForTest(null, null, false));
         InstrumentedWorkerHeartbeatManager h = new InstrumentedWorkerHeartbeatManager(
             messageHandler);
         UiCommunicator.setHeartbeatManager(h);

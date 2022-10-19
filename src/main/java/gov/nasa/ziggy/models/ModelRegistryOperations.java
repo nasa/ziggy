@@ -2,12 +2,11 @@ package gov.nasa.ziggy.models;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import jakarta.xml.bind.JAXBException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +19,7 @@ import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Operations class for the model metadata registry. This registry maintains metadata about models
@@ -35,7 +35,8 @@ public class ModelRegistryOperations {
     public ModelRegistryOperations() {
         try {
             xmlManager = new ValidatingXmlManager<>(ModelRegistry.class);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class ModelRegistry", e);
         }

@@ -35,14 +35,13 @@
 package gov.nasa.ziggy.data.management;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import jakarta.xml.bind.JAXBException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -59,6 +58,7 @@ import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Performs import of DataFileType and ModelType instances to the database.
@@ -86,7 +86,8 @@ public class DataFileTypeImporter {
         this.dryrun = dryrun;
         try {
             xmlManager = new ValidatingXmlManager<>(DatastoreConfigurationFile.class);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
+		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class DatastoreConfigurationFile", e);
         }

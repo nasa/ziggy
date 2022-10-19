@@ -35,6 +35,7 @@
 package gov.nasa.ziggy.data.management;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,12 +61,6 @@ import javax.persistence.Id;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
-import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.XmlElement;
-import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.xml.sax.SAXException;
 
@@ -75,6 +70,12 @@ import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.io.FileUtil;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 /**
  * Models a data receipt manifest. A manifest is an XML file that specifies the name, size, and
@@ -215,11 +216,13 @@ public class Manifest implements HasXmlSchemaFilename {
     }
 
     /**
-     * Writes the manifest to the specified directory. The manifest name must be set to a valid
-     * value; if not, a {@link PipelineException} will occur.
-     */
+	 * Writes the manifest to the specified directory. The manifest name must be set
+	 * to a valid value; if not, a {@link PipelineException} will occur.
+	 * @throws IllegalArgumentException
+	 */
     public void write(Path directory)
-        throws InstantiationException, IllegalAccessException, SAXException, JAXBException {
+			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 
         validateName(name);
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
@@ -230,7 +233,8 @@ public class Manifest implements HasXmlSchemaFilename {
     }
 
     public static Manifest readManifest(Path directory) throws InstantiationException,
-        IllegalAccessException, IOException, SAXException, JAXBException {
+			IllegalAccessException, IOException, SAXException, JAXBException, IllegalArgumentException,
+			InvocationTargetException, NoSuchMethodException, SecurityException {
         Manifest manifest = null;
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, entry -> {
@@ -251,13 +255,15 @@ public class Manifest implements HasXmlSchemaFilename {
     }
 
     /**
-     * Simple utility for manually generating a manifest from the contents of a directory. First
-     * argument is the desired filename (including path, if not in the working directory). Second
-     * argument is the dataset ID. Third argument is the path to go to for the files that get
-     * manifested; if this is left out, the working directory will be used.
-     */
+	 * Simple utility for manually generating a manifest from the contents of a
+	 * directory. First argument is the desired filename (including path, if not in
+	 * the working directory). Second argument is the dataset ID. Third argument is
+	 * the path to go to for the files that get manifested; if this is left out, the
+	 * working directory will be used.
+	 */
     public static void main(String[] args) throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
+			NoSuchMethodException, SecurityException {
         String manifestName = args[0];
         long datasetId = Long.parseLong(args[1]);
         String manifestDir = System.getProperty("user.dir");
@@ -402,11 +408,11 @@ public class Manifest implements HasXmlSchemaFilename {
         @Override
         public boolean equals(Object obj) {
             if (this == obj) {
-                return true;
-            }
+				return true;
+			}
             if (obj == null || getClass() != obj.getClass()) {
-                return false;
-            }
+				return false;
+			}
             ManifestEntry other = (ManifestEntry) obj;
             return Objects.equals(checksum, other.checksum) && Objects.equals(name, other.name)
                 && size == other.size;

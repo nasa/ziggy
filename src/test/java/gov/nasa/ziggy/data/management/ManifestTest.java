@@ -8,12 +8,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-
-import jakarta.xml.bind.JAXBException;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -24,6 +23,7 @@ import org.xml.sax.SAXException;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.FileUtil;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Unit tests for {@link Manifest} class.
@@ -102,7 +102,8 @@ public class ManifestTest {
 
     @Test
     public void testWriteAndReadManifest() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
+			NoSuchMethodException, SecurityException {
 
         // Copy all the files from the source directory
         FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR));
@@ -132,7 +133,8 @@ public class ManifestTest {
 
     @Test
     public void testWriteAndReadManifestSymlinks() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException {
+			IllegalAccessException, SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
+			NoSuchMethodException, SecurityException {
 
         // Symlink all the files from the source directory
         FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), Paths.get(TEST_DATA_DIR));
