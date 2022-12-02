@@ -1,0 +1,7 @@
+<parameterLibrary override-only="true">
+
+    <parameter-set name="Sample classless parameter set">
+        <parameter name="z1" value="string"/>
+    </parameter-set>
+
+</parameterLibrary>

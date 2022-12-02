@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<def:pipelineDefinition xmlns:def="http://ziggy.nasa.gov/pipeline/definition"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://ziggy.nasa.gov/pipeline/definition file:../../../schema/xml/pipeline-definition.xsd">
+
+  <pipelines>
+      <pipeline name="samplePipeline" description="A sample pipeline" rootNodeNames="10">
+      <!-- no closing tag -->
+  </pipelines>
+    
+</def:pipelineDefinition>

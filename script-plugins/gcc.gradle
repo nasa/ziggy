@@ -1,0 +1,13 @@
+// Default C / C++ options for regular and mexfile builds that can be
+// overridden in build.gradle files.
+
+ext.defaultCppCompileOptions = ["Wall", "fPIC", "std=c++11"];
+ext.defaultCppReleaseOptimizations = ["O2", "DNDEBUG", "g"];
+ext.defaultCppDebugOptimizations = ["Og", "g"];
+ext.defaultCppMexCompileOptions = ["Wall", "fPIC", "std=c++11", "D_GNU_SOURCE", "fexceptions",
+                                   "fno-omit-frame-pointer", "pthread", "fno-reorder-blocks", "fstack-protector-all",
+                                   "fpermissive"]
+ext.defaultCppMexReleaseOptimizations = ["O2", "DNDEBUG", "g"]
+ext.defaultCppMexDebugOptimizations = ["Og", "g"]
+ext.defaultCppMexLinkOptions = ["lstdc++"]
+

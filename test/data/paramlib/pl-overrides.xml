@@ -1,0 +1,11 @@
+<parameterLibrary override-only="true">
+
+    <parameter-set name="Remote Hyperion L1">
+        <parameter name="gigsPerSubtask" value="1.0"/>
+    </parameter-set>
+    
+    <parameter-set name="Sample classless parameter set">
+        <parameter name="z1" value="100"/>
+    </parameter-set>
+
+</parameterLibrary>

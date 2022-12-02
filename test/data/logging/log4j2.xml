@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+
+    <Properties>
+        <Property name="pattern">%d %-5p [%t:%C{1}.%M] %X{logStreamIdentifier} %m%n</Property>
+        <Property name="filename">${sys:cli.logfile:-/dev/null}</Property>
+    </Properties>
+    <Appenders>
+        <Console name="console"> <!-- Console wants to be plain because wrapper formats for us -->
+            <PatternLayout pattern="[%C{1}.%M] %m%n"/>
+        </Console>
+        <File name="cli" filename="${filename}">
+            <PatternLayout pattern="${pattern}"/>
+        </File>
+    </Appenders>
+    
+    <Loggers>
+    
+        <Logger name="gov.nasa.ziggy" level="info"/>
+        <Logger name="org.hibernate" level="warn"/>
+    
+        <Root level="info">
+            <AppenderRef ref="console"/>
+            <AppenderRef ref="cli"/>
+        </Root>
+        
+    </Loggers>
+
+</Configuration>

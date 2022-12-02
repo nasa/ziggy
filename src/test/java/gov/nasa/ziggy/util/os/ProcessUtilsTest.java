@@ -1,0 +1,96 @@
+package gov.nasa.ziggy.util.os;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.Set;
+
+import org.junit.After;
+import org.junit.Test;
+
+import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.io.FileUtil;
+
+/**
+ * @author Sean McCauliff
+ */
+public class ProcessUtilsTest {
+    private Process subJavaProcess;
+
+    @After
+    public void cleanUpProcesses() {
+        if (subJavaProcess != null) {
+            ProcessUtils.closeProcess(subJavaProcess);
+            subJavaProcess = null;
+        }
+    }
+
+    /**
+     * This is kind of a weak test since we can't really know the correct value.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testPid() throws Exception {
+        long pid = ProcessUtils.getPid();
+        assertTrue(pid > 0); // 0 is init on UNIX
+        assertTrue(pid <= OperatingSystemType.getInstance().getProcInfo().getMaximumPid());
+        ExternalProcess psProcess = ExternalProcess
+            .simpleExternalProcess("/bin/ps -o pid,comm " + Long.toString(pid));
+        psProcess.execute();
+        String psString = psProcess.getStdoutString();
+        assertTrue(psString.endsWith("java\n"));
+    }
+
+    @Test
+    public void testRunJava() throws Exception {
+        subJavaProcess = ProcessUtils.runJava(ProcessUtilsTestProgram.class,
+            Arrays.asList(new String[] { "44", "Hello world." }));
+        Thread.sleep(500);
+
+        InputStream inputStream = subJavaProcess.getInputStream();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        String helloWorld = bufferedReader.readLine();
+        inputStream.close();
+        InputStream errorStream = subJavaProcess.getErrorStream();
+        if (errorStream.available() > 0) {
+            StringBuilder builder = new StringBuilder();
+            FileUtil.readAll(builder, errorStream);
+            System.out.println(builder.toString());
+        }
+        subJavaProcess.getErrorStream().close();
+        subJavaProcess.getOutputStream().close();
+        int exitValue = subJavaProcess.waitFor();
+
+        assertEquals("Hello world.", helloWorld);
+        assertEquals(44, exitValue);
+    }
+
+    @Test
+    public void testChildProcesses() throws InterruptedException {
+
+        Set<Long> childProcessIds = ProcessUtils.descendantProcessIds();
+        assertEquals(0, childProcessIds.size());
+        int nProcesses = 2;
+        for (int i = 0; i < nProcesses; i++) {
+            ExternalProcess psProcess = ExternalProcess.simpleExternalProcess("/bin/sleep 1");
+            psProcess.timeout(1000);
+            psProcess.execute(false);
+        }
+        Thread.sleep(10L);
+        childProcessIds = ProcessUtils.descendantProcessIds();
+        assertEquals(nProcesses, childProcessIds.size());
+        for (long processId : childProcessIds) {
+            ProcessUtils.sendSigtermToProcess(processId);
+            Thread.sleep(25);
+        }
+        childProcessIds = ProcessUtils.descendantProcessIds();
+        assertEquals(0, childProcessIds.size());
+
+    }
+
+}

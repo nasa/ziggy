@@ -1,0 +1,41 @@
+task copySh(type: Copy) {
+    from(fileTree("src/main/sh").files) {
+        include('*.sh')
+        rename('(.+)\\.sh$', '$1')
+        fileMode(0755)
+    }
+    into "$buildDir/bin"
+}
+
+assemble.dependsOn copySh
+
+task copyPerl(type: Copy) {
+    from(fileTree("src/main/perl").files) {
+        include('*.pl')
+        rename('(.+)\\.pl$', '$1')
+        fileMode(0755)
+    }
+    into "$buildDir/bin"
+}
+
+assemble.dependsOn copyPerl
+
+task copyEtc(type: Copy) {
+    from("$projectDir/etc")
+    into "$buildDir/etc"
+}
+
+assemble.dependsOn copyEtc
+
+task copyLibs(type: Copy) {
+    from(configurations.runtime) {
+        fileMode(0644)
+    }
+    from("$projectDir/src/main/python") {
+        include "hdf5mi/**"
+        include "zigutils/**"
+    }
+    into "$buildDir/libs"
+}
+
+assemble.dependsOn copyLibs

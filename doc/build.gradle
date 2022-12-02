@@ -1,0 +1,115 @@
+defaultTasks 'build'
+
+def getDate() {
+    def date = new Date()
+    def formattedDate = date.format('yyyyMMdd')
+    return formattedDate
+}
+
+task cleanestDryRun(type: Exec) {
+    description = "Removes pdf and .gradle directories (DRY RUN)."
+
+    outputs.upToDateWhen { false }
+
+    workingDir = rootDir
+    commandLine "sh", "-c", "git clean --force -x -d --dry-run"
+}
+
+task cleanest(type: Exec) {
+    description = "Removes pdf and .gradle directories."
+
+    outputs.upToDateWhen { false }
+
+    workingDir = rootDir
+    commandLine "sh", "-c", "git clean --force -x -d"
+}
+
+subprojects {
+    defaultTasks 'build'
+
+    task build() {
+    }
+
+    task makeDocId() {
+	description = "Generates a doc-id.sty file."
+
+        inputs.files fileTree(dir: projectDir, include: '**/*.tex', exclude: '**/build/**').files
+        outputs.file "$buildDir/doc-id.sty"
+
+        makeDocId.doFirst {
+            mkdir buildDir
+        }
+
+        doLast() {
+            if (!project.hasProperty('docId')) {
+                return
+            }
+
+            exec {
+                workingDir buildDir
+                commandLine "bash", "-c", "echo -E '\\newcommand{\\DOCID}{$docId}' > doc-id.sty"
+            }
+        }
+    }
+
+    task compileLaTex(dependsOn: makeDocId) {
+	description = "Compiles the .tex files into a .pdf file."
+
+        inputs.files fileTree(dir: projectDir, include: '**/*.tex', exclude: '**/build/**').files
+        outputs.files fileTree(dir: buildDir, include: '**/*.pdf').files
+
+        doFirst {
+            mkdir buildDir
+        }
+
+        doLast {
+            if (!project.hasProperty('texFileName')) {
+                return
+            }
+
+            // Execute twice to update references and a third time for BibTeX.
+            3.times {
+                exec {
+                    executable 'pdflatex'
+                    workingDir project.workingDir
+                    args '-output-directory=build'
+                    args '-interaction=nonstopmode'
+                    args '-halt-on-error'
+                    args texFileName
+                }
+            }
+        }
+    }
+    build.dependsOn compileLaTex
+
+    task publish(dependsOn: build) {
+	description = "Publishes the .pdf file into the pdf directory."
+
+        inputs.dir buildDir
+        outputs.files fileTree(rootDir.getPath() + '/pdf').include('**/*-' + getDate() + '.pdf').files
+
+        doFirst() {
+            mkdir rootDir.getPath() + '/pdf/' + publishDir
+        }
+
+        doLast() {
+            if (!project.hasProperty('texFileName') || !project.hasProperty('publishDir') || !project.hasProperty('docId')) {
+                return
+            }
+
+            copy {
+                from(buildDir) {
+                    rename '^(.*).pdf$', docId + '-$1-' + getDate() + '.pdf'
+                }
+                into rootDir.getPath() + '/pdf/' + publishDir
+                include '**/*.pdf'
+            }
+        }
+    }
+
+    task clean() {
+        doLast() {
+            delete buildDir
+        }
+    }
+}

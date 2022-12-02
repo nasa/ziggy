@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Parameter library definitions for the Ziggy sample pipeline. -->
+
+<parameterLibrary>
+
+  <!-- Parameter library definitions for the Ziggy sample pipeline. -->
+
+  <!-- Remote parameters are used to select whether to run a given step in the pipeline
+       on the NAS (remote) or on the server with the worker (local), and to set up the
+       parameters that are needed to decide how many nodes to use, how much wall time
+       to ask for, etc. Generally there should be a separate instance of these for each
+       step in the pipeline. In the interest of not duplicating things too much, we'll
+       leave out the ones for steps after the color-perumute step. -->
+  <parameter-set name="Remote Parameters (permute color)"
+		 classname="gov.nasa.ziggy.module.remote.RemoteParameters">
+    <parameter name="enabled" value="false"/>
+    <parameter name="gigsPerSubtask" value="10"/>
+    <parameter name="subtaskMaxWallTimeHours" value="0.15"/>
+    <parameter name="subtaskTypicalWallTimeHours" value="0.15"/>
+    <parameter name="optimizer" value="COST"/>
+    <parameter name="nodeSharing" value="true"/>
+    <parameter name="wallTimeScaling" value="false"/>
+    <parameter name="minSubtasksForRemoteExecution" value="5"/>
+  </parameter-set>
+
+  <!-- Task configuration parameters tell Ziggy how to set up tasks for a given step
+       in the pipeline. It's not necessary to provide 1 instance of task configuration
+       parameters per step, as it's often sensible to have multiple steps that use
+       the same information to define tasks. In this case, we'll use these parameters
+       for the first 3 steps in the pipeline. -->
+  <parameter-set name="Multiple subtask configuration"
+		 classname="gov.nasa.ziggy.uow.TaskConfigurationParameters">
+    <parameter name="taskDirectoryRegex" value="set-([0-9]{1})"/>
+    <parameter name="singleSubtask" value="false"/>
+    <parameter name="maxFailedSubtaskCount" value="0"/>
+    <parameter name="reprocess" value="true"/>
+    <parameter name="reprocessingTasksExclude" value="0"/>
+    <parameter name="maxAutoResubmits" value="0"/>
+  </parameter-set>
+
+  <!-- This task configuration parameter set is used for the final step of the pipeline.
+       The difference relative to the set above is that in this case each task has a
+       single subtask, rather than 1 subtask per data file. This is useful in cases where
+       all the data has to be used in a single processing action. Since the final step
+       of the pipeline averages together all the images, it needs all the images in a
+       single subtask. -->
+  <parameter-set name="Single subtask configuration"
+		 classname="gov.nasa.ziggy.uow.TaskConfigurationParameters">
+    <parameter name="taskDirectoryRegex" value="set-([0-9]{1})"/>
+    <parameter name="singleSubtask" value="true"/>
+    <parameter name="maxFailedSubtaskCount" value="0"/>
+    <parameter name="reprocess" value="true"/>
+    <parameter name="reprocessingTasksExclude" value="0"/>
+    <parameter name="maxAutoResubmits" value="0"/>
+  </parameter-set>
+
+  <!-- Finally, a task configuration parameter set for data receipt. -->
+  <parameter-set name="Data receipt configuration"
+		 classname="gov.nasa.ziggy.uow.TaskConfigurationParameters">
+    <parameter name="taskDirectoryRegex" value=""/>
+    <parameter name="singleSubtask" value="true"/>
+    <parameter name="maxFailedSubtaskCount" value="0"/>
+    <parameter name="reprocess" value="true"/>
+    <parameter name="reprocessingTasksExclude" value="0"/>
+    <parameter name="maxAutoResubmits" value="0"/>
+  </parameter-set>
+
+  <!-- This emulates a parameter set that's used by the algorithms. In this case, we're
+       telling the algorithms whether to emulate an exception that occurs in processing,
+       and whether to emulate a processing action that runs successfully but produces
+       no output. This uses Ziggy's DefaultParameters class. Parameter sets of this
+       type need to specify the name, default value, and data type of each parameter. -->
+  <parameter-set name="Algorithm Parameters">
+    <parameter name="throw exception subtask_0" value="false" type="boolean"/>
+    <parameter name="produce output subtask 1" value="true" type="boolean"/>
+    <parameter name="dummy array parameter" value="1, 2, 3" type="intarray"/>
+    <parameter name="execution pause seconds" value="5" type="int"/>
+  </parameter-set>
+
+</parameterLibrary>

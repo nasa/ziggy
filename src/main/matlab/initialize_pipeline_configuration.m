@@ -1,0 +1,93 @@
+function initialize_pipeline_configuration() 
+%
+% initialize_pipeline_configuration -- sets up the necessary MATLAB paths and etc. for use
+% with a Ziggy-based pipeline.
+%
+% initialize_pipeline_configuration() adds the Ziggy third-party runtime JAR files to the
+% MATLAB Java class path; it adds the pipeline and Ziggy MATLAB source file directories
+% to the MATLAB search path; and finally it adds the pipeline and Ziggy JAR files to the
+% MATLAB Java class path, if those are present (i.e., if they have been compiled already).
+% The function assumes the existence of an environment variable, ZIGGY_CODE_ROOT, which
+% is pointed to the top-level directory of the Ziggy directory tree. 
+%
+
+%=========================================================================================
+
+%   We should only do this if we are running interactively or are in the compiler
+
+    if (~isdeployed || ismcc)
+        
+        warning('OFF', 'MATLAB:javaclasspath:jarAlreadySpecified') ;
+        
+%       get the Ziggy code root env var
+
+%       get the location of this file (it's in pipeline/ziggy/src/main/matlab, so once we
+%       find this file we know where the libs directory is)
+
+        thisFile = strsplit(mfilename('fullpath'), filesep) ;
+        thisFile{1} = filesep ;
+        
+%       need to lop off the last 5 parts of the path to this file: the filename, "matlab",
+%       "main", "src", "ziggy"
+
+        nPathSteps = length(thisFile) - 4 ;
+        pipelineLocation = fullfile(thisFile{1:nPathSteps});
+        thisLocation = fullfile(thisFile{1:length(thisFile)-1}) ;
+        
+%       add this location to the path
+
+        addpath(thisLocation) ;
+        
+        buildDir = fullfile(pipelineLocation, 'build') ;
+        if exist(fullfile(buildDir, 'libs', 'pipeline-classpath.jar'), 'file') ~= 0
+            javaaddpath(fullfile(buildDir, 'libs', 'pipeline-classpath.jar')) ;
+        else
+            jarlist = dir(fullfile(buildDir, 'libs', '*.jar')) ;
+            for iJar = jarlist(:)'
+                javaaddpath(fullfile(buildDir, 'libs', iJar.name)) ;
+            end
+        end
+        
+%       construct pipeline path object and pipeline properties object
+
+        pipelineProperties = pipelinePropertiesClass();
+        pipelinePathObject = pipelinePathClass() ;
+        
+%       add CSCI paths to the MATLAB path
+
+        csciNames = pipelinePathObject.get_csci_names ;
+        csciNames = csciNames(:)' ;
+        
+        for iCsci = csciNames
+            csciMatlabDirs = pipelinePathObject.get_csci_paths( iCsci{1} ) ;
+            pipelinePathClass.addpath_cell_array( csciMatlabDirs ) ;
+            csciMexDirs = pipelinePathObject.get_csci_mex_paths( iCsci{1} ) ;
+            pipelinePathClass.addpath_cell_array( csciMexDirs ) ;
+        end
+
+%       log4j configuration
+
+        ziggyHomeDir = pipelineProperties.get_property('ziggy.home.dir') ;
+        if (ziggyHomeDir(end) == filesep)
+            ziggyHomeDir = ziggyHomeDir(1:end-1) ;
+        end
+        ziggyCodeDir = fileparts(ziggyHomeDir) ;
+        ziggyConfigDir = fullfile(ziggyCodeDir, 'config') ;
+        log4jConfigFile = fullfile(ziggyConfigDir,'/log4j2.xml') ;
+        if (exist(log4jConfigFile, 'file'))
+            disp(['Setting log4j2 configuration file to ' log4jConfigFile]);
+            java.lang.System.setProperty('log4j2.configurationFile', log4jConfigFile);
+            log4jDestination = fullfile(pipelineProperties.get_property( ...
+                'pipeline.home.dir'), 'logs') ;
+            disp(['Setting log4j destination to: ',log4jDestination]) ;
+            % trailing slash needed
+            java.lang.System.setProperty('log4j.logfile.prefix', ...
+                [log4jDestination,'/']) ;
+        else
+            disp('No log4j config file found') ;
+        end
+
+        warning('ON', 'MATLAB:javaclasspath:jarAlreadySpecified') ;
+
+    end % if ~isdeployed || ismcc
+return
