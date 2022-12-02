@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xs:schema elementFormDefault="qualified" version="1.0" targetNamespace="http://ziggy.nasa.gov/adb/storage" xmlns:tns="http://ziggy.nasa.gov/adb/storage" xmlns:adbs="http://ziggy.nasa.gov/adb/storage" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="fsDataPlacementConfiguration" type="tns:fsDataPlacementConfiguration"/>
+
+  <xs:complexType name="fsDataPlacementConfiguration">
+    <xs:sequence>
+      <xs:element name="fileSystem" type="tns:fileSystem" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="defaultDirectory" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="fileSystem">
+    <xs:sequence>
+      <xs:element name="fsIdPath" type="xs:string" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="directory" type="xs:string" use="required"/>
+  </xs:complexType>
+</xs:schema>
+

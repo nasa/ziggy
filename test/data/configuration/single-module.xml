@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<def:pipelineDefinition xmlns:def="http://ziggy.nasa.gov/pipeline/definition"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://ziggy.nasa.gov/pipeline/definition file:../../../schema/xml/pipeline-definition.xsd">
+
+  <modules>
+      <module name="sampleModule" description="A sample module" 
+          pipelineModuleClass="gov.nasa.ziggy.DoesNotExist"
+          inputsClass="gov.nasa.ziggy.DoesNotExistInputs"
+          outputsClass="gov.nasa.ziggy.DoesNotExistOutputs"
+          exeTimeoutSecs="600" minMemoryMegaBytes="0"/>
+      <module name="anotherSample" description="Another sample module"
+         inputsClass="gov.nasa.ziggy.DoesNotExistInputs"
+          outputsClass="gov.nasa.ziggy.DoesNotExistOutputs"
+          exeTimeoutSecs="600" minMemoryMegaBytes="0"/>          
+  </modules>
+    
+</def:pipelineDefinition>

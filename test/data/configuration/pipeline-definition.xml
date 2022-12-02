@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <pipeline description="first pipeline" name="pipeline 1" instancePriority="2" rootNodeNames="module 1">
+        <pipelineParameter name="Pipeline parameters"/>
+        <node startNewUow="true" moduleName="module 2" childNodeNames="module 4">
+            <moduleParameter name="Convergence criteria"/>
+            <moduleParameter name="Remote execution"/>
+            <inputDataFileType name="flight L1 data"/>
+            <outputDataFileType name="flight L2 data"/>
+            <modelType name="georeferencing constants"/>
+        </node>
+        <node startNewUow="true" moduleName="module 4">
+            <moduleParameter name="Export format"/>
+            <inputDataFileType name="flight L2 data"/>
+            <outputDataFileType name="exports"/>
+        </node>
+        <node startNewUow="true" moduleName="module 3">
+            <moduleParameter name="Excluded bands"/>
+            <inputDataFileType name="flight L1 data"/>
+            <outputDataFileType name="flight L2 data"/>
+            <modelType name="Temperature references"/>
+        </node>
+        <node startNewUow="true" uowGenerator="gov.nasa.ziggy.uow.SingleUowTaskGenerator" 
+                moduleName="module 1" childNodeNames="module 2, module 3">
+            <moduleParameter name="Convergence criteria"/>
+            <moduleParameter name="Remote execution"/>
+            <inputDataFileType name="flight L0 data"/>
+            <outputDataFileType name="flight L1 data"/>
+            <modelType name="calibration constants"/>
+        </node>
+    </pipeline>

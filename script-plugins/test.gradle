@@ -1,0 +1,22 @@
+/**
+ * testprog is used to test external process control.  testprog has the
+ * advantage over something like /bin/true that it can run for a specified
+ * wall clock time, crash and return different error codes.
+ */
+task generateTestProg(type: Exec) {
+    def binDir = file("$buildDir/bin")
+
+    inputs.file "$projectDir/src/test/cpp/ExternalProcess/Makefile"
+    inputs.file "$projectDir/src/test/cpp/ExternalProcess/testprog.cpp"
+    outputs.file "$binDir/testprog"
+
+    workingDir = "$projectDir/src/test/cpp/ExternalProcess"
+    commandLine = [ "sh", "-c", "make -e" ]
+    System.setProperty("OUTDIR", "$binDir")
+}
+
+compileTestJava.dependsOn generateTestProg
+
+clean.doLast() {
+    file("$projectDir/src/test/cpp/ExternalProcess/testprog.o").delete()
+}

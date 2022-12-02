@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineEventDefinition>
+
+  <pipelineEvent name="data-receipt" pipelineName="sample"
+		 enableOnClusterStart="false"
+		 directory="${data.receipt.dir}"/>
+
+</pipelineEventDefinition>

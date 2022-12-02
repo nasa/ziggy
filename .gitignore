@@ -1,1 +1,13 @@
-
+**/.gradle*
+**/__pycache__
+**/build
+*.mexmaci64
+.classpath
+.cproject
+.project
+.pydevproject
+.settings
+dist
+doc/pdf
+src/test/cpp/ExternalProcess/testprog.o
+src/test/cpp/testmi/inputs-0.bin

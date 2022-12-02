@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<par:parameter-library xmlns:par="http://ziggy.nasa.gov/parameters">
+  <parameter-set name="bad parameters" version="0" locked="false" classname="gov.nasa.ziggy.parameters.ParametersOperationsTest$TestBean">
+    <parameter name="name" value="George Washington"/>
+    <parameter name="nonexistentParameter" value="gorp"/>
+  </parameter-set>
+</par:parameter-library>

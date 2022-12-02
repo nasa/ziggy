@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datastoreConfiguration>
+
+        <modelType type="geometry"
+            fileNameRegex="tess([0-9]{13})-([0-9]{5})_([0-9]{3})-geometry.xml"
+            timestampGroup="1" versionNumberGroup="3"/>
+        <modelType type="read-noise"
+            fileNameRegex="read-noise-([0-9]+.[0-9]+.[0-9]).h5"
+            versionNumberGroup="1" semanticVersionNumber="true"/>
+            
+        <dataFileType name="calibrated pixels" 
+            fileNameRegexForTaskDir="sector-([0-9]{4})-readout-([ABCD])-ccd-([1234]:[1234])-calibrated-pixels.h5"
+            fileNameWithSubstitutionsForDatastore="sector-$1/ccd-$3/cal/readout-$2/calibrated-pixels.h5" />
+        <dataFileType name="raw flux"
+            fileNameRegexForTaskDir="sector-([0-9]{4})-ccd-([1234]:[1234])-tic-([0-9]{16})-raw-flux.h5"
+            fileNameWithSubstitutionsForDatastore="sector-$1/ccd-$2/pa/tic-$3-raw-flux.h5"/>
+    
+        <dataFileType name="corrected flux"
+            fileNameRegexForTaskDir="sector-([0-9]{4})-ccd-([1234]:[1234])-tic-([0-9]{16})-corrected-flux.h5"
+            fileNameWithSubstitutionsForDatastore="sector-$1/ccd-$2/pdc/tic-$3-corrected-flux.h5"/>
+        <dataFileType name="CDPP"
+            fileNameRegexForTaskDir="sector-([0-9]{4})-ccd-([1234]:[1234])-tic-([0-9]{16})-cdpp.h5"
+            fileNameWithSubstitutionsForDatastore="sector-$1/ccd-$2/tps/tic-$3-cdpp.h5"/>
+            
+        <dataFileType name="has backslashes"
+                fileNameRegexForTaskDir="(\\S+)-(set-[0-9])-(file-[0-9]).png"
+            fileNameWithSubstitutionsForDatastore="$2/L0/$1-$3.png" />
+
+
+</datastoreConfiguration>

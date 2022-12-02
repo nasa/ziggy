@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<def:parameter-library xmlns:def="http://ziggy.nasa.gov/parameters"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://ziggy.nasa.gov/parameters file:../../../schema/xml/parameter-library.xsd">
+    
+  <parameter-set name="sampleSet" classname="gov.nasa.ziggy.sample.SampleParameters">
+    <parameter name="paramName" value="paramValue"> <!-- No closing tag -->
+  </parameter-set>
+
+</def:parameter-library>
+    

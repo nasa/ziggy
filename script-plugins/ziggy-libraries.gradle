@@ -1,0 +1,23 @@
+// Build the libziggy shared object.
+import gov.nasa.ziggy.buildutil.ZiggyCpp
+import gov.nasa.ziggy.buildutil.ZiggyCppMex
+
+task buildLibZiggy(type: ZiggyCpp) {
+    outputName = "ziggy"
+    outputType = "static"
+    cppFilePaths = ["$projectDir/src/main/cpp/libziggy"]
+    includeFilePaths = ["$projectDir/src/main/cpp/libziggy"]
+}
+
+assemble.dependsOn buildLibZiggy
+
+// Build the libziggymi shared object.
+task buildLibZiggyMi(type: ZiggyCpp) {
+    outputName = "ziggymi"
+    outputType = "static"
+    cppFilePaths = ["$projectDir/src/main/cpp/libziggymi"]
+    includeFilePaths = ["$projectDir/src/main/cpp/libziggymi", "$projectDir/src/main/cpp/libziggy",
+                        "$ziggyDependencies/include"]
+}
+
+assemble.dependsOn buildLibZiggyMi

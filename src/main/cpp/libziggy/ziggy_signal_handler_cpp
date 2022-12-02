@@ -1,0 +1,38 @@
+#include "ziggy_signal_handler.h"
+
+#include <signal.h>
+#include <ziggy_exceptions.h>
+
+using namespace std;
+
+static const char* signalToStr(uint32_t signalNumber) {
+    switch (signalNumber) {
+    case SIGABRT: return "SIGABRT";
+    case SIGSEGV: return "SIGSEGV";
+    case SIGBUS: return "SIGBUS";
+    case SIGILL: return "SIGILL";
+    case SIGFPE: return "SIGFPE";
+    default:
+        return "unknown signal";
+    }
+}
+
+    extern "C" void print_stack_trace_signal_handler(int32_t signalNumber) {
+    cerr << "Caught signal " << signalToStr(signalNumber) << "; attempting to print stack trace..." << endl;
+    RUN_TIME_STACK_TRACE
+    exit(-1);
+    //return -1;
+}
+
+extern "C" void register_print_stack_on_signal() {
+    cerr << "Registering signal handlers" << endl;
+    
+    signal(SIGABRT, print_stack_trace_signal_handler);
+    signal(SIGSEGV, print_stack_trace_signal_handler);
+    signal(SIGBUS, print_stack_trace_signal_handler);
+    signal(SIGILL, print_stack_trace_signal_handler);
+    signal(SIGFPE, print_stack_trace_signal_handler);
+
+    cerr << "DONE Registering signal handlers" << endl;
+}
+

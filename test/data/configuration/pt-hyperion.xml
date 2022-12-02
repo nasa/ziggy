@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datastoreConfiguration>
+
+        <dataFileType name="Hyperion L0" 
+            fileNameRegexForTaskDir="EO1H([0-9]{6})([0-9]{4})([0-9]{2})([0-9]{1})([A-Za-z0-9]{5})_([A-Z0-9]{3})_([0-9]{2})"
+            fileNameWithSubstitutionsForDatastore="hyperion/$2/L0/$3/EO1H$1$2$3$4$5_$6_$7"/>
+        <dataFileType name="Hyperion L1R" 
+            fileNameRegexForTaskDir="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L1R"
+            fileNameWithSubstitutionsForDatastore="hyperion/$2/L1R/EO1H$1$2$3$4.L1R"/>
+        <dataFileType name="Hyperion L2" 
+            fileNameRegexForTaskDir="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L2.tgz"
+            fileNameWithSubstitutionsForDatastore="hyperion/$2/L2/EO1H$1$2$3$4.L2.tgz"/>
+    
+        <modelType type="metadata-updates" fileNameRegex="([0-9]{4}-[0-9]+)_eo1hyp_metadata_updates([0-9]+).xlsx"
+            versionNumberGroup="2" timestampGroup="1"/>
+        <modelType type="bandwidth" fileNameRegex="BandwidthL0_revA.([0-9]+).dat"/>
+        <modelType type="template" fileNameRegex="EO1Htemplate.L1R"/>
+        <modelType type="gain" fileNameRegex="HypGain_rev([A-Z]+).csv"/>
+        <modelType type="ratio" fileNameRegex="ratio_rev([A-Z]+).csv" />
+        <modelType type="spectra" fileNameRegex="SpectralL0_rev([A-Z]+).([0-9]+).dat"
+            versionNumberGroup="2"/>
+        <modelType type="L0 attributes" fileNameRegex="attributes.csv"/>
+        <modelType type="sRTM neural network" fileNameRegex="sRTMnet"/>
+        <modelType type="surface" fileNameRegex="surface"/>
+        <modelType type="dem" fileNameRegex="dem"/>
+
+</datastoreConfiguration>

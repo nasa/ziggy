@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+    <module name="importer" description="Hyperion importer" 
+        exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+
+    <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer"
+        instancePriority="5">
+        <pipelineParameter name="Sample classless parameter set"/>
+        <pipelineParameter name="ISOFIT module parameters"/>
+        <node moduleName="importer" startNewUow="true" 
+            uowGenerator="gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator"/>
+    </pipeline>
+        
+</pipelineDefinition>

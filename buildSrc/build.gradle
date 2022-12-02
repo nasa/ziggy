@@ -1,0 +1,61 @@
+/**
+ * This is the buildSrc/build.gradle file.  This should contain a minimal
+ * amount of dependencies as this is used by the build system itself.
+ */
+apply plugin: 'eclipse'
+apply plugin: 'java'
+
+defaultTasks 'assemble'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Needed to compile buildSrc.
+    compile 'com.google.guava:guava:23.+'
+    compile 'commons-io:commons-io:2.11.+'
+    compile 'org.apache.commons:commons-exec:1.+'
+    compile 'org.freemarker:freemarker:2.3.+'
+
+    // Needed to compile unit tests.
+    compile 'junit:junit:4.+'
+    compile 'org.mockito:mockito-core:1.10.+'
+
+    // The following stuff is needed in order to build custom gradle tasks and plugins.
+    compile gradleApi()
+    compile localGroovy()
+}
+
+eclipse {
+    classpath {
+        defaultOutputDir = file("$buildDir/eclipse")
+        // outputBaseDir = file("$buildDir/eclipse")
+        downloadSources = false
+        downloadJavadoc = false
+
+        // Gradle 4.4 now specifies all of the output directories, but puts
+        // them in the Eclipse default of "bin". There is a feature request
+        // to add classpath.outputBaseDir that has the same syntax and effect
+        // as the now-useless defaultOutputDir. In the meantime, update the
+        // path manually.
+        file.whenMerged {
+            entries.each { entry ->
+                if (entry.kind == "src" && entry.hasProperty("output")) {
+                    // The use of $buildDir does not return build.
+                    entry.output = "build/eclipse"
+                }
+            }
+        }
+    }
+}
+
+test {
+    testLogging  {
+        showStandardStreams = true
+    }
+}
+
+apply from: "script-plugins/hdf5.gradle"
+apply from: "script-plugins/wrapper.gradle"
+

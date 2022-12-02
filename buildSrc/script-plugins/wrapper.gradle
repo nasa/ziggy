@@ -1,0 +1,56 @@
+// Download and build the wrapper.
+
+import org.gradle.internal.os.OperatingSystem
+
+task buildWrapper() {
+    def version = "3.5.26"
+    def tmp = file("$buildDir/tmp/wrapper")
+    def bin = file("$buildDir/bin")
+    def lib = file("$buildDir/lib")
+    def format = ""
+    def libSuffix = ""
+
+    OperatingSystem os = OperatingSystem.current();
+    if (os.isLinux()) {
+        format = "linux-x86-64"
+        libSuffix = "so"
+    } else if (os.isMacOsX()) {
+        format = "macosx-universal-64"
+        libSuffix = "jnilib"
+    }
+    def wrapperBaseName = "wrapper-$format-$version"
+    def wrapperDir = file("$tmp/$wrapperBaseName")
+    def wrapperLib = "libwrapper.$libSuffix"
+
+    outputs.file "$bin/wrapper"
+    outputs.file "$wrapperLib"
+    outputs.file "$lib/wrapper.jar"
+
+    doLast() {
+        tmp.mkdirs()
+
+        // See https://wrapper.tanukisoftware.com/doc/english/versions.jsp to determine the URL.
+        exec {
+            workingDir tmp
+            commandLine "curl", "-o", "wrapper-${version}.tar.gz", "https://download.tanukisoftware.com/wrapper/$version/${wrapperBaseName}.tar.gz"
+        }
+        exec {
+            workingDir tmp
+            commandLine "tar", "-xf", "wrapper-${version}.tar.gz"
+        }
+        copy {
+            from("$wrapperDir/bin") {
+                include "wrapper"
+            }
+            into "$bin"
+        }
+        copy {
+            from("$wrapperDir/lib") {
+                include "$wrapperLib", "wrapper.jar"
+            }
+            into "$lib"
+        }
+    }
+}
+
+assemble.dependsOn buildWrapper

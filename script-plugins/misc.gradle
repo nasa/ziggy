@@ -1,0 +1,22 @@
+// Show all dependencies.
+task allDeps(type: DependencyReportTask) {}
+
+// Generate the Ziggy version information.
+import gov.nasa.ziggy.buildutil.ZiggyVersionGenerator
+
+task ziggyVersion(type: ZiggyVersionGenerator) {
+    outputFile = file("$buildDir/src/main/java/gov/nasa/ziggy/util/ZiggyVersion.java")
+    // TODO Add a development property to suppress false upToDateWhen setting
+    // It causes the world to recompile.
+    outputs.upToDateWhen{false}
+}
+
+sourceSets.main.java.srcDir file("$buildDir/src/main/java")
+compileJava.dependsOn ziggyVersion
+
+clean.doFirst() {
+    File workerPidFile = new File("build/bin/worker.pid");
+    if (workerPidFile.isFile()) {
+	throw new GradleException("Can't clean while cluster is running (see build/bin/worker.pid)")
+    }
+}

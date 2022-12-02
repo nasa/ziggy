@@ -1,0 +1,44 @@
+This is a sample model for the sample Ziggy pipeline. 
+
+It's a plain text file.
+
+A model can be anything: an ASCII file, a binary file, even a directory! The main thing
+about it is that, unlike data files, all versions of every model file are kept forever,
+and never get overwritten. 
+
+So how does that work? More to the point, how is it that this "model" can get read in
+over and over again and never get overwritten, even though it's got the same file name
+each time?
+
+The way it works is that every time a given model gets read into the datastore, the 
+resulting model file gets a version number and an import date appended to the file name.
+When the model is staged out to the task directories, the version number and import date
+are stripped off. In this way, we can manage different versions of a model that all have
+the same name and never have a problem!
+
+In some cases, though, the project may decide that a model is going to have a version
+number and/or version date in the filename. So for example, this file could have been
+called "sample-model-version-1-20220830.txt", and there's a way to define the model 
+name convention such that Ziggy knows that the version number and the datestamp 
+occur at specific points in the file name: specifically, define the model data type in
+pt-sample.xml as follows:
+
+<modelType type="versioned model" 
+           fileNameRegex="sample-model-version-([0-9]+)-([0-9]+).txt"
+           versionNumberGroup="1" timestampGroup="2" />
+
+This tells Ziggy that the first regex group should be used as the version number and the
+second should be used as the timestamp. 
+
+A big advantage of including the version number and version date in the filename is that
+if you do that, Ziggy can tell if you're reimporting a model that's already in the datastore,
+and prevent you from doing that. It also prevents you from taking a new model, giving it
+the model ID of the old model, and then importing that (which would cause the old model
+to get deleted, and we don't want that). Without that information, Ziggy will allow you
+to import the same model as many times as you like, and Ziggy will dutifully put a new
+version number and date on it and keep it forever. 
+
+The reason I didn't put a version number and version date into this model's name is that
+I wanted you, the user, to be able to run data receipt over and over again without any
+errors! If the model has a version number, then the 2nd time you try to import it, you'll
+get an error.

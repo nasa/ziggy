@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datastoreConfiguration>
+
+<!-- Data type definitions for the Ziggy sample pipeline. In addition to defining the
+     data types, the directory structure of the datastore is implicitly defined as
+     well. 
+-->
+
+    <!-- The raw data. The fileNameRegexForTaskDir is lookging for something like 
+    "some-filename-set-0-file-1.png", which is what the file name will be when the file
+    is put into the task directory. Meanwhile, the fileNameWithSubstitutionsForDatastore
+    will translate that to something like "L0/set-0/some-filename-file-1.png". Thus, 
+    in the datastore there will be a L0 directory; under that will be the set-0, set-1, 
+    etc., directories; within those are the data files. 
+    -->
+    <dataFileType name="raw data"
+        fileNameRegexForTaskDir="(\\S+)-(set-[0-9])-(file-[0-9]).png"
+        fileNameWithSubstitutionsForDatastore="$2/L0/$1-$3.png"
+    />
+    
+    <!-- Results from the first processing step. Here, the filename in the task directory
+         will be "perm-some-filename-set-0-file-1.png", and this will get translated to
+         "L1/set-0/some-filename-file-1.png". 
+    -->
+    <dataFileType name="permuted colors"
+        fileNameRegexForTaskDir="(\\S+)-(set-[0-9])-(file-[0-9])-perm.png"
+        fileNameWithSubstitutionsForDatastore="$2/L1/$1-$3.png"
+    />
+    
+    <!-- Results from processing step 2A (LR flip)
+    -->
+    <dataFileType name="left-right flipped"
+        fileNameRegexForTaskDir = "(\\S+)-(set-[0-9])-(file-[0-9])-perm-lrflip.png"
+        fileNameWithSubstitutionsForDatastore="$2/L2A/$1-$3.png"
+    />
+
+    <!-- Results from processing step 2B (UD flip).
+    -->
+    <dataFileType name="up-down flipped"
+        fileNameRegexForTaskDir = "(\\S+)-(set-[0-9])-(file-[0-9])-perm-udflip.png"
+        fileNameWithSubstitutionsForDatastore="$2/L2B/$1-$3.png"
+    />
+    
+    <!-- Results from the final processing step. 
+    -->
+    <dataFileType name="averaged image"
+        fileNameRegexForTaskDir="averaged-image-(set-[0-9]).png"
+        fileNameWithSubstitutionsForDatastore="$1/L3/averaged-image.png"
+    />
+    
+    <!-- Model type definition. -->
+    <modelType type="dummy model" fileNameRegex="sample-model.txt"/>
+
+</datastoreConfiguration>

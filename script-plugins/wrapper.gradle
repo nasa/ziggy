@@ -1,0 +1,17 @@
+task copyWrapper(type: Copy) {
+    from(file("$ziggyDependencies/bin")) {
+        include "wrapper"
+    }
+    into "$buildDir/bin"
+}
+
+assemble.dependsOn copyWrapper
+
+task copyWrapperLibs(type: Copy) {
+    from(file("$ziggyDependencies/lib")) {
+        include "libwrapper.*"
+    }
+    into "$buildDir/lib"
+}
+
+assemble.dependsOn copyWrapperLibs

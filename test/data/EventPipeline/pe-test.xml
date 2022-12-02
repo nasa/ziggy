@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineEventDefinition>
+
+    <pipelineEvent name="data-receipt" pipelineName="pipeline1"
+        enableOnClusterStart="true" directory="/some/directory/or/other"/>
+        
+    <pipelineEvent name="another-event-handler" pipelineName="pipeline2"
+        enableOnClusterStart="false" directory="/yet/another/directory" />
+
+</pipelineEventDefinition>
