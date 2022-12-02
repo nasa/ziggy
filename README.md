@@ -5,6 +5,7 @@
     <img src="doc/user-manual/images/ziggy-small-clear.png" width="133"/>
   </a>
 </div>
+<div style="text-align:center"><a href="doc/user-manual/user-manual.md">[Up]</a></div>
 
 # Super-Basic Introduction
 
@@ -80,3 +81,6 @@ If you are interested in contributing to Ziggy, please complete the NASA license
 
 * [doc/legal/NASA-Corporate-CLA.pdf](doc/legal/NASA-Corporate-CLA.pdf)
 * [doc/legal/NASA-Individual-CLA.pdf](doc/legal/NASA-Individual-CLA.pdf)
+
+<div style="text-align:right"><button onclick="doc/user-manual/system-requirements.md">[Next]</button></div>
+
