@@ -95,17 +95,17 @@ public class Acknowledgement implements HasXmlSchemaFilename {
     }
 
     /**
-	 * Writes the acknowledgement to the specified directory. The manifest name must
-	 * be set to a valid value; if not, a {@link PipelineException} will occur.
-	 *
-	 * @throws SecurityException
-	 * @throws NoSuchMethodException
-	 * @throws InvocationTargetException
-	 * @throws IllegalArgumentException
-	 */
-    public void write(Path directory)
-			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
-			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+     * Writes the acknowledgement to the specified directory. The manifest name must be set to a
+     * valid value; if not, a {@link PipelineException} will occur.
+     *
+     * @throws SecurityException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     * @throws IllegalArgumentException
+     */
+    public void write(Path directory) throws InstantiationException, IllegalAccessException,
+        SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
 
         ValidatingXmlManager<Acknowledgement> xmlManager = new ValidatingXmlManager<>(
             Acknowledgement.class);
@@ -141,8 +141,15 @@ public class Acknowledgement implements HasXmlSchemaFilename {
      * {@link DataReceiptStatus#VALID} for its transfer status. The purpose of this is to infer
      * whether the manifest has already been acknowledged, which can occur if the data receipt
      * process is interrupted after validation but prior to completion of file imports.
+     *
+     * @throws SecurityException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     * @throws IllegalArgumentException
      */
-    public static boolean validAcknowledgementExists(Path workingDir, Manifest manifest) {
+    public static boolean validAcknowledgementExists(Path workingDir, Manifest manifest)
+        throws IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+        SecurityException {
         Path acknowledgementPath = workingDir.resolve(nameFromManifestName(manifest));
         if (!Files.exists(acknowledgementPath)) {
             return false;

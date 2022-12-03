@@ -228,8 +228,8 @@ public class DataReceiptPipelineModule extends PipelineModule
                     "No manifest file present in directory " + dataImportPathForTask.toString());
             }
         } catch (InstantiationException | IllegalAccessException | IOException | SAXException
-				| JAXBException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-				| SecurityException e) {
+            | JAXBException | IllegalArgumentException | SecurityException
+            | InvocationTargetException | NoSuchMethodException e) {
             throw new PipelineException("Unable to read manifest from directory " + dataReceiptDir,
                 e);
         }
@@ -244,8 +244,9 @@ public class DataReceiptPipelineModule extends PipelineModule
         try {
             ack.write(dataImportPathForTask);
             log.info("Acknowledgement file written: " + ack.getName());
-		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+            | IllegalArgumentException | SecurityException | InvocationTargetException
+            | NoSuchMethodException e) {
             throw new PipelineException("Unable to write manifest acknowledgement", e);
         }
 
@@ -290,8 +291,8 @@ public class DataReceiptPipelineModule extends PipelineModule
             throw new PipelineException(
                 "Unable to find regular files in directory " + dataImportPathForTask.toString(),
                 e1);
-		} catch (NoSuchMethodException | InstantiationException | IllegalAccessException | SAXException
-				| InvocationTargetException | JAXBException e) {
+        } catch (InvocationTargetException | NoSuchMethodException | InstantiationException
+            | IllegalAccessException | SAXException | JAXBException e) {
             throw new PipelineException("Unable to write manifest acknowledgement", e);
         }
     }

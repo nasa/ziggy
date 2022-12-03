@@ -9,6 +9,8 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.Input;
+
 
 import gov.nasa.ziggy.buildutil.ZiggyCppPojo.BuildType;
 
@@ -279,6 +281,7 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setCppFilePaths(cppFilePaths);
     }
 
+    @Input
     public List<String> getCppFilePaths() {
         return ziggyCppPojo.getCppFilePaths();
     }
@@ -288,6 +291,7 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setIncludeFilePaths(includeFilePaths);
     }
 
+    @Input
     public List<String> getIncludeFilePaths() {
         return ziggyCppPojo.getIncludeFilePaths();
     }
@@ -297,6 +301,7 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setLibraryPaths(libraryPaths);
     }
 
+    @Input
     public List<String> getLibraryPaths() {
         return ziggyCppPojo.getLibraryPaths();
     }
@@ -306,6 +311,7 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setLibraries(libraries);
     }
 
+    @Input
     public List<String> getLibraries() {
         return ziggyCppPojo.getLibraries();
     }
@@ -316,6 +322,7 @@ public class ZiggyCpp extends DefaultTask {
         ;
     }
 
+    @Input
     public List<String> getCompileOptions() {
         return ziggyCppPojo.getCompileOptions();
     }
@@ -325,6 +332,7 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setLinkOptions(linkOptions);
     }
 
+    @Input
     public List<String> getLinkOptions() {
         return ziggyCppPojo.getLinkOptions();
     }
@@ -334,6 +342,7 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setOutputType(outputType);
     }
 
+    @Input
     public BuildType getOutputType() {
         return ziggyCppPojo.getOutputType();
     }
@@ -343,6 +352,7 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setOutputName(name);
     }
 
+    @Input
     public String getOutputName() {
         return ziggyCppPojo.getOutputName();
     }

@@ -17,6 +17,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
@@ -266,10 +267,10 @@ public class SubtaskExecutorTest {
             .pipelineConfigPath("/dev/null")
             .build();
         externalProcessExecutor = Mockito.spy(externalProcessExecutor);
-        Mockito.when(externalProcessExecutor.externalProcess(Mockito.any(Writer.class),
-            Mockito.any(Writer.class))).thenReturn(externalProcess);
-        Mockito.when(externalProcessExecutor.externalProcess(Mockito.isNull(),
-				Mockito.isNull())).thenReturn(externalProcess);
+        Mockito.when(externalProcessExecutor.externalProcess(ArgumentMatchers.isNull(),
+            ArgumentMatchers.isNull())).thenReturn(externalProcess);
+        Mockito.when(externalProcessExecutor.externalProcess(ArgumentMatchers.any(Writer.class),
+            ArgumentMatchers.any(Writer.class))).thenReturn(externalProcess);
     }
 
     private static class MockableExternalProcess extends ExternalProcess {

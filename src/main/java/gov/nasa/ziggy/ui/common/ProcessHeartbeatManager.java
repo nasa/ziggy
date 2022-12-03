@@ -244,14 +244,6 @@ public class ProcessHeartbeatManager {
         }
     }
 
-    /**
-     * Allows a subclass {such as @link InstrumentedWorkerHeartbeatManager} to supply a
-     * {@link ClusterController} instance that has customized behaviors for test.
-     */
-    protected void setClusterController(ClusterController clusterController) {
-        this.clusterController = clusterController;
-    }
-
     public static class NoHeartbeatException extends Exception {
 
         private static final long serialVersionUID = 20210310L;

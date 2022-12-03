@@ -148,7 +148,7 @@ public class BeanWrapper<T> {
     private T createInstance(boolean populate) throws PipelineException {
         try {
             @SuppressWarnings("unchecked")
-			T instance = (T) Class.forName(clazz).getDeclaredConstructor().newInstance();
+            T instance = (T) Class.forName(clazz).getDeclaredConstructor().newInstance();
             if (populate) {
                 populate(instance);
             }
@@ -349,7 +349,9 @@ public class BeanWrapper<T> {
                     // public bean access methods to a private member.
                     f.setAccessible(true);
                     if (!fieldClass.isArray()) {
-						f.set(instance, fieldClass.getDeclaredConstructor().newInstance());
+                        if (!fieldClass.isPrimitive()) {
+                            f.set(instance, fieldClass.getDeclaredConstructor().newInstance());
+                        }
                     } else {
                         Class<?> componentType = fieldClass.getComponentType();
                         f.set(instance, Array.newInstance(componentType, 0));
@@ -365,8 +367,8 @@ public class BeanWrapper<T> {
                         try {
                             Class<?> clazz = descriptor.getPropertyType();
                             if (!clazz.isArray()) {
-								descriptor.getWriteMethod().invoke(instance,
-										clazz.getDeclaredConstructor().newInstance());
+                                descriptor.getWriteMethod()
+                                    .invoke(instance, clazz.getDeclaredConstructor().newInstance());
                             } else {
                                 Class<?> componentType = clazz.getComponentType();
                                 descriptor.getWriteMethod()

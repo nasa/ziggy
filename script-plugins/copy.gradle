@@ -39,21 +39,3 @@ task copyLibs(type: Copy) {
 }
 
 assemble.dependsOn copyLibs
-
-task copyHdf5Lib(type: Copy) {
-    from(file("$ziggyDependencies/lib")) {
-        include "*hdf5*"
-    }
-    into "$buildDir/lib"
-}
-
-assemble.dependsOn copyHdf5Lib
-
-task copyHdf5Libs(type: Copy) {
-    from(file("$ziggyDependencies/lib")) {
-        include "jarhdf5-1.12.2.jar"
-    }
-    into "$buildDir/libs"
-}
-
-assemble.dependsOn copyHdf5Libs

@@ -216,13 +216,17 @@ public class Manifest implements HasXmlSchemaFilename {
     }
 
     /**
-	 * Writes the manifest to the specified directory. The manifest name must be set
-	 * to a valid value; if not, a {@link PipelineException} will occur.
-	 * @throws IllegalArgumentException
-	 */
-    public void write(Path directory)
-			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
-			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+     * Writes the manifest to the specified directory. The manifest name must be set to a valid
+     * value; if not, a {@link PipelineException} will occur.
+     *
+     * @throws SecurityException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     * @throws IllegalArgumentException
+     */
+    public void write(Path directory) throws InstantiationException, IllegalAccessException,
+        SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
 
         validateName(name);
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
@@ -233,8 +237,8 @@ public class Manifest implements HasXmlSchemaFilename {
     }
 
     public static Manifest readManifest(Path directory) throws InstantiationException,
-			IllegalAccessException, IOException, SAXException, JAXBException, IllegalArgumentException,
-			InvocationTargetException, NoSuchMethodException, SecurityException {
+        IllegalAccessException, IOException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
         Manifest manifest = null;
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, entry -> {
@@ -255,15 +259,19 @@ public class Manifest implements HasXmlSchemaFilename {
     }
 
     /**
-	 * Simple utility for manually generating a manifest from the contents of a
-	 * directory. First argument is the desired filename (including path, if not in
-	 * the working directory). Second argument is the dataset ID. Third argument is
-	 * the path to go to for the files that get manifested; if this is left out, the
-	 * working directory will be used.
-	 */
+     * Simple utility for manually generating a manifest from the contents of a directory. First
+     * argument is the desired filename (including path, if not in the working directory). Second
+     * argument is the dataset ID. Third argument is the path to go to for the files that get
+     * manifested; if this is left out, the working directory will be used.
+     *
+     * @throws SecurityException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     * @throws IllegalArgumentException
+     */
     public static void main(String[] args) throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
-			NoSuchMethodException, SecurityException {
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
         String manifestName = args[0];
         long datasetId = Long.parseLong(args[1]);
         String manifestDir = System.getProperty("user.dir");

@@ -167,6 +167,7 @@ javadoc {
 
 // Apply Ziggy Gradle script plugins.
 apply from: "script-plugins/copy.gradle"
+apply from: "script-plugins/copy-hdf5.gradle"
 apply from: "script-plugins/database-schemas.gradle"
 apply from: "script-plugins/eclipse.gradle"
 apply from: "script-plugins/gcc.gradle"
