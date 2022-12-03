@@ -45,7 +45,7 @@ dependencies {
     implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.+'
     implementation 'org.hibernate.javax.persistence:hibernate-jpa-2.0-api:1.0.+'
     implementation 'org.hibernate:hibernate-core:4.2.+'
-    implementation 'org.javassist:javassist:3.18.1-GA'
+    implementation 'org.javassist:javassist:3.29.2-GA'
     implementation 'org.jfree:jfreechart:1.0.+'
     implementation 'org.netbeans.api:org-netbeans-swing-outline:+'
     implementation 'org.tros:l2fprod-properties-editor:1.3.+'
