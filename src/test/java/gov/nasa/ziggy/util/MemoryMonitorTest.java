@@ -14,12 +14,13 @@ public class MemoryMonitorTest {
 
     private static final int MiB = 1024 * 1024;
     private static final long SECOND = 1000L;
-    private static final int CHUNK_SIZE = 100 * MiB;
+    private static final long CHUNK_SIZE = 100 * MiB;
     private MemoryMonitor monitor;
 
     @Before
     public void setup() {
-        monitor = new MemoryMonitor(CHUNK_SIZE, 1 * SECOND);
+        long monitorLimit = 5 * CHUNK_SIZE;
+        monitor = new MemoryMonitor(monitorLimit, 1 * SECOND);
         System.out.println("Monitored pool name: " + monitor.getMonitoredPoolName());
         monitor.startMonitoring();
     }
@@ -36,10 +37,9 @@ public class MemoryMonitorTest {
 
     @Test
     public void testOutOfMemory() {
-        byte[][] chunks = MemoryTestUtils.allocateAllChunksPossible(CHUNK_SIZE);
+        byte[][] chunks = MemoryTestUtils.allocateAllChunksPossible((int) CHUNK_SIZE);
 
-        System.out
-            .println(String.format("Allocated %d MiB", (long) chunks.length * CHUNK_SIZE / MiB));
+        System.out.println(String.format("Allocated %d MiB", chunks.length * CHUNK_SIZE / MiB));
         assertTrue(monitor.isThresholdExceeded());
 
         // Free up the allocated chunks and test that we are no longer under
