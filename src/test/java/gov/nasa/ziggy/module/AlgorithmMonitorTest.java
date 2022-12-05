@@ -10,7 +10,6 @@ import java.util.Map;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
@@ -354,7 +353,6 @@ public class AlgorithmMonitorTest extends ZiggyUnitTest {
 
     // Test the case where automatic submission would be called except that the
     // task is out of automatic resubmits.
-    @Ignore
     @Test
     public void testOutOfAutoResubmits()
         throws ConfigurationException, IOException, InterruptedException {
@@ -367,7 +365,7 @@ public class AlgorithmMonitorTest extends ZiggyUnitTest {
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
         stateFile.persist();
-        Thread.sleep(210L);
+        iterateAlgorithmMonitorRunMethod(3);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));
