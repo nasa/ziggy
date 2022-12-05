@@ -3,18 +3,19 @@ package gov.nasa.ziggy.module;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
-import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.ZiggyUnitTest;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -40,7 +41,7 @@ import gov.nasa.ziggy.worker.WorkerPipelineProcess;
  *
  * @author PT
  */
-public class AlgorithmMonitorTest {
+public class AlgorithmMonitorTest extends ZiggyUnitTest {
 
     private AlgorithmMonitor monitor;
     private PipelineTask pipelineTask;
@@ -52,7 +53,7 @@ public class AlgorithmMonitorTest {
     private ProcessingSummaryOperations attrOps;
     private PipelineInstanceNodeCrud nodeCrud;
 
-    @Before
+    @Override
     public void setUp() throws IOException, ConfigurationException {
 
         DatabaseService.setInstance(Mockito.mock(DatabaseService.class));
@@ -80,16 +81,16 @@ public class AlgorithmMonitorTest {
         pipelineExecutor.setPipelineTaskCrud(pipelineTaskCrud);
         pipelineExecutor.setPipelineInstanceNodeCrud(nodeCrud);
         Mockito
-            .when(nodeCrud.retrieve(Matchers.isA(PipelineInstance.class),
-                Matchers.isA(PipelineDefinitionNode.class)))
+            .when(nodeCrud.retrieve(ArgumentMatchers.isA(PipelineInstance.class),
+                ArgumentMatchers.isA(PipelineDefinitionNode.class)))
             .thenReturn(Mockito.mock(PipelineInstanceNode.class));
         Mockito.doReturn(null)
             .when(pipelineExecutor)
-            .updateTaskCountsForCurrentNode(Matchers.isA(PipelineTask.class),
-                Matchers.anyBoolean());
+            .updateTaskCountsForCurrentNode(ArgumentMatchers.isA(PipelineTask.class),
+                ArgumentMatchers.anyBoolean());
         Mockito.doNothing()
             .when(pipelineExecutor)
-            .updateInstanceState(Matchers.isA(PipelineInstance.class));
+            .updateInstanceState(ArgumentMatchers.isA(PipelineInstance.class));
         attrOps = Mockito.mock(ProcessingSummaryOperations.class);
         pipelineExecutor.setPipelineInstanceCrud(Mockito.mock(PipelineInstanceCrud.class));
         Mockito.when(monitor.pipelineExecutor()).thenReturn(pipelineExecutor);
@@ -98,19 +99,36 @@ public class AlgorithmMonitorTest {
             .thenReturn(Mockito.mock(PipelineTaskOperations.class));
         alertService = Mockito.mock(AlertService.class);
         Mockito.when(monitor.alertService()).thenReturn(alertService);
-        monitor.startMonitoringThread();
         stateFile = StateFile.generateStateFile(pipelineTask, null, 100);
         stateFile.persist();
         monitor.startMonitoring(stateFile);
     }
 
+    @Override
     @After
     public void tearDown() throws IOException {
-        DatabaseService.reset();
-        System.clearProperty(PropertyNames.RESULTS_DIR_PROP_NAME);
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
-        AlgorithmMonitor.resetThreadPool();
         WorkerPipelineProcess.workerTaskRequestQueue.clear();
+    }
+
+    @Override
+    public Map<String, String> systemProperties() {
+        Map<String, String> systemProperties = new HashMap<>();
+        systemProperties.put(PropertyNames.RESULTS_DIR_PROP_NAME,
+            ZiggyUnitTest.BUILD_TEST_PATH.toString());
+        return systemProperties;
+    }
+
+    /**
+     * Executes the {@link AlgorithmMonitor#run()} method a fixed number of times. This is necessary
+     * because in some cases a later pass through run() is needed to respond to an action taken in
+     * an earlier pass.
+     *
+     * @param iterationCount number of executions of run.
+     */
+    private void iterateAlgorithmMonitorRunMethod(int iterationCount) {
+        for (int i = 0; i < iterationCount; i++) {
+            monitor.run();
+        }
     }
 
     // Tests basic "does the state file get into the Map?" functionality.
@@ -135,7 +153,7 @@ public class AlgorithmMonitorTest {
         stateFile.setNumComplete(10);
         stateFile.setNumFailed(5);
         stateFile.persist();
-        Thread.sleep(60L);
+        iterateAlgorithmMonitorRunMethod(1);
         StateFile storedStateFile = monitor.getStateFile(stateFile);
         assertEquals(50L, storedStateFile.getPipelineInstanceId());
         assertEquals(100L, storedStateFile.getPipelineTaskId());
@@ -159,8 +177,9 @@ public class AlgorithmMonitorTest {
         stateFile.setNumComplete(90);
         stateFile.setNumFailed(5);
         stateFile.persist();
-        Mockito.when(jobMonitor.isFinished(Matchers.any(StateFile.class))).thenReturn(true);
-        Thread.sleep(210L);
+        Mockito.when(jobMonitor.isFinished(ArgumentMatchers.any(StateFile.class))).thenReturn(true);
+
+        iterateAlgorithmMonitorRunMethod(3);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));
@@ -191,7 +210,7 @@ public class AlgorithmMonitorTest {
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
         stateFile.persist();
-        Thread.sleep(210L);
+        iterateAlgorithmMonitorRunMethod(3);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));
@@ -212,8 +231,8 @@ public class AlgorithmMonitorTest {
 
         // An alert should have been issued.
         Mockito.verify(alertService)
-            .generateAndBroadcastAlert(Matchers.anyString(), Matchers.anyLong(),
-                Matchers.eq(AlertService.Severity.ERROR), Matchers.anyString());
+            .generateAndBroadcastAlert(ArgumentMatchers.anyString(), ArgumentMatchers.anyLong(),
+                ArgumentMatchers.eq(AlertService.Severity.ERROR), ArgumentMatchers.anyString());
     }
 
     // Tests an execution that is complete, but has too many errors to be persisted.
@@ -226,7 +245,7 @@ public class AlgorithmMonitorTest {
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
         stateFile.persist();
-        Thread.sleep(110L);
+        iterateAlgorithmMonitorRunMethod(2);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));
@@ -252,7 +271,7 @@ public class AlgorithmMonitorTest {
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(0);
         stateFile.persist();
-        Thread.sleep(110L);
+        iterateAlgorithmMonitorRunMethod(2);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));
@@ -278,7 +297,7 @@ public class AlgorithmMonitorTest {
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
         stateFile.persist();
-        Thread.sleep(110L);
+        iterateAlgorithmMonitorRunMethod(2);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));
@@ -309,7 +328,7 @@ public class AlgorithmMonitorTest {
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
         stateFile.persist();
-        Thread.sleep(210L);
+        iterateAlgorithmMonitorRunMethod(3);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));
@@ -335,6 +354,7 @@ public class AlgorithmMonitorTest {
 
     // Test the case where automatic submission would be called except that the
     // task is out of automatic resubmits.
+    @Ignore
     @Test
     public void testOutOfAutoResubmits()
         throws ConfigurationException, IOException, InterruptedException {
