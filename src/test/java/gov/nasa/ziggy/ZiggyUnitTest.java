@@ -53,7 +53,7 @@ public abstract class ZiggyUnitTest {
 
     /**
      * {@link Map} of system properties required by a test class, where the keys are the property
-     * names and the values are the property values. subclasses must override this method to ensure
+     * names and the values are the property values. Subclasses must override this method to ensure
      * that properties are correctly set and cleared.
      *
      * @return {@link Map} of properties required by a given test class.
@@ -112,6 +112,17 @@ public abstract class ZiggyUnitTest {
         }
     }
 
+    /**
+     * Master set-up method for all {@link ZiggyUnitTest} subclasses.
+     * <p>
+     * This method ensures that the build/test directory is present, and empty; performs any cleanup
+     * that might be needed to remove state left behind by a prior test; populates the system
+     * properties needed by the current test class; and runs the class-specific setup found in the
+     * {@link #setUp()} method.
+     *
+     * @throws Exception to ensure that any exceptions thrown by setup, cleanup, etc., are properly
+     * handled.
+     */
     @Before
     public final void masterSetUp() throws Exception {
 
@@ -126,6 +137,16 @@ public abstract class ZiggyUnitTest {
         setUp();
     }
 
+    /**
+     * Master teardown method for all {@link ZiggyUnitTest} subclasses.
+     * <p>
+     * This method ensures that the build/test directory is empty; performs any cleanup that might
+     * be needed to remove state left behind by the last test, including clearing any system
+     * properties set by the last test; and executes the class-specific {@link #tearDown()} method.
+     *
+     * @throws Exception to ensure that any exceptions thrown by setup, cleanup, etc., are properly
+     * handled.
+     */
     @After
     public final void masterTearDown() throws Exception {
         tearDown();
