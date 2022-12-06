@@ -5,32 +5,38 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
+
+import gov.nasa.ziggy.ZiggyUnitTest;
 
 /**
  * Unit tests for {@link LockManager}. Note that these tests are limited to a single process.
  */
-public class LockManagerTest {
+public class LockManagerTest extends ZiggyUnitTest {
 
-    private static final File LOCK_FILE_ONE = new File("build/test/LockManagerTest/one.lock");
-    private static final File LOCK_FILE_TWO = new File("build/test/LockManagerTest/two.lock");
+    private static final Path LOCK_FILE_ONE = ZiggyUnitTest.BUILD_TEST_PATH
+        .resolve("LockManagerTest")
+        .resolve("one.lock");
+    private static final Path LOCK_FILE_TWO = ZiggyUnitTest.BUILD_TEST_PATH
+        .resolve("LockManagerTest")
+        .resolve("two.lock");
 
-    @Before
-    public void setup() throws IOException {
+    @Override
+    public void setUp() throws IOException {
         createLockFile(LOCK_FILE_ONE);
         createLockFile(LOCK_FILE_TWO);
     }
 
-    @After
+    @Override
     public void tearDown() throws IOException {
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
+        LockManager.releaseAllLocks();
     }
 
-    private void createLockFile(File f) throws IOException {
+    private void createLockFile(Path p) throws IOException {
+        File f = p.toFile();
         f.delete();
         f.getParentFile().mkdirs();
         FileUtils.touch(f);
@@ -38,22 +44,18 @@ public class LockManagerTest {
 
     /**
      * Tests that a read lock does not block other readers.
+     *
+     * @throws InterruptedException
      */
     @Test
-    public void testReadLockDoesNotBlockReader() throws IOException {
-        LockManager.getReadLock(LOCK_FILE_ONE);
+    public void testReadLockDoesNotBlockReader() throws IOException, InterruptedException {
+        LockManager.getReadLock(LOCK_FILE_ONE.toFile());
         ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
         task.start();
-
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            // Ignore
-        }
-
-        LockManager.releaseReadLock(LOCK_FILE_ONE);
-
-        assertTrue(task.getDelay() < 100);
+        task.join();
+        assertTrue(task.isLockObtained());
+        assertFalse(task.isBlocked());
+        LockManager.releaseReadLock(LOCK_FILE_ONE.toFile());
     }
 
     /**
@@ -61,20 +63,17 @@ public class LockManagerTest {
      */
     @Test
     public void testWriteLockBlocksReader() throws IOException, InterruptedException {
-        LockManager.getWriteLockOrBlock(LOCK_FILE_ONE);
+        LockManager.getWriteLockOrBlock(LOCK_FILE_ONE.toFile());
         ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
         task.start();
-
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            // Ignore
+        while (!task.isLockAttempted()) {
         }
-
-        LockManager.releaseWriteLock(LOCK_FILE_ONE);
-
+        assertTrue(task.isBlocked());
+        assertFalse(task.isLockObtained());
+        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
         task.join();
-        assertTrue(task.getDelay() > 100);
+        assertFalse(task.isBlocked());
+        assertTrue(task.isLockObtained());
     }
 
     /**
@@ -83,20 +82,17 @@ public class LockManagerTest {
      */
     @Test
     public void tesNonBlockingtWriteLockBlocksReader() throws IOException, InterruptedException {
-        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE);
+        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
         ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
         task.start();
-
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            // Ignore
+        while (!task.isLockAttempted()) {
         }
-
-        LockManager.releaseWriteLock(LOCK_FILE_ONE);
-
+        assertTrue(task.isBlocked());
+        assertFalse(task.isLockObtained());
+        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
         task.join();
-        assertTrue(task.getDelay() > 100);
+        assertFalse(task.isBlocked());
+        assertTrue(task.isLockObtained());
     }
 
     /**
@@ -105,20 +101,17 @@ public class LockManagerTest {
      */
     @Test
     public void testWriteLockBlocksWriter() throws IOException, InterruptedException {
-        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE);
+        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
         BlockingWriterTask task = new BlockingWriterTask(LOCK_FILE_ONE);
         task.start();
-
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            // Ignore
+        while (!task.isLockAttempted()) {
         }
-
-        LockManager.releaseWriteLock(LOCK_FILE_ONE);
-
+        assertTrue(task.isBlocked());
+        assertFalse(task.isLockObtained());
+        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
         task.join();
-        assertTrue(task.getDelay() > 100);
+        assertFalse(task.isBlocked());
+        assertTrue(task.isLockObtained());
     }
 
     /**
@@ -127,21 +120,17 @@ public class LockManagerTest {
      */
     @Test
     public void testWriteLockDoesNotBlockWriter() throws IOException, InterruptedException {
-        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE);
+        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
         NonBlockingWriterTask task = new NonBlockingWriterTask(LOCK_FILE_ONE);
         task.start();
-
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            // Ignore
+        while (!task.isDoneTryingLock()) {
         }
-
-        LockManager.releaseWriteLock(LOCK_FILE_ONE);
-
+        assertFalse(task.isBlocked());
+        assertFalse(task.isLockObtained());
+        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
         task.join();
-        assertTrue(task.getDelay() < 100);
-        assertFalse(task.obtainedLock);
+        assertFalse(task.isBlocked());
+        assertFalse(task.isLockObtained());
     }
 
     /**
@@ -153,16 +142,28 @@ public class LockManagerTest {
         NonBlockingWriterTask task = new NonBlockingWriterTask(LOCK_FILE_ONE);
         task.start();
         task.join();
-        assertTrue(task.obtainedLock);
+        assertTrue(task.isLockObtained());
 
     }
 
+    /**
+     * Abstract parent class to all the classes that attempt to get various kinds of locks. The
+     * {@link AbstractTask} class provides a {@link #run()} method that attempts to obtain a lock
+     * and then releases it, meanwhile providing information to the user as to the current state of
+     * the attempt (attempt started, blocked, lock obtained, etc.). This allows the caller to test
+     * the state of the {@link AbstractTask} instance to make sure it's as expected.
+     *
+     * @author PT
+     */
     private static abstract class AbstractTask extends Thread {
 
-        private File lockFile;
-        private long lockDelay = 0;
+        private Path lockFile;
+        private boolean blocked = false;
+        private boolean lockObtained = false;
+        private boolean lockAttempted = false;
+        private boolean doneTryingLock = false;
 
-        public AbstractTask(File lockFile) {
+        public AbstractTask(Path lockFile) {
             this.lockFile = lockFile;
         }
 
@@ -173,81 +174,118 @@ public class LockManagerTest {
         @Override
         public void run() {
             try {
-                long start = System.currentTimeMillis();
+                blocked = true;
+                lockAttempted = true;
                 getLock();
-                lockDelay = System.currentTimeMillis() - start;
+                lockObtained = true;
+                blocked = false;
+                doneTryingLock = true;
                 releaseLock();
             } catch (IOException ex) {
                 System.err.println("Error waiting for read lock: " + ex);
                 ex.printStackTrace();
-                lockDelay = -1;
             }
         }
 
-        public long getDelay() {
-            return lockDelay;
+        protected Path getLockFile() {
+            return lockFile;
         }
 
-        protected File getLockFile() {
-            return lockFile;
+        public boolean isBlocked() {
+            return blocked;
+        }
+
+        public boolean isLockObtained() {
+            return lockObtained;
+        }
+
+        public boolean isLockAttempted() {
+            return lockAttempted;
+        }
+
+        public boolean isDoneTryingLock() {
+            return doneTryingLock;
         }
 
     }
 
+    /**
+     * Attempts to obtain a read lock.
+     *
+     * @author PT
+     */
     private static class ReaderTask extends AbstractTask {
 
-        public ReaderTask(File lockFile) {
+        public ReaderTask(Path lockFile) {
             super(lockFile);
         }
 
         @Override
         protected void getLock() throws IOException {
-            LockManager.getReadLock(getLockFile());
+            LockManager.getReadLock(getLockFile().toFile());
         }
 
         @Override
         protected void releaseLock() throws IOException {
-            LockManager.releaseReadLock(getLockFile());
+            LockManager.releaseReadLock(getLockFile().toFile());
         }
 
     }
 
+    /**
+     * Attempts to obtain a write lock but does not get blocked if it fails. This class has to have
+     * its own boolean that indicates whether the lock was obtained, and it overrides the
+     * {@link #isLockObtained()} method to use the subclass boolean rather than the abstract class
+     * boolean.
+     *
+     * @author PT
+     */
     private static class NonBlockingWriterTask extends AbstractTask {
 
         boolean obtainedLock;
 
-        public NonBlockingWriterTask(File lockFile) {
+        public NonBlockingWriterTask(Path lockFile) {
             super(lockFile);
         }
 
         @Override
         protected void getLock() throws IOException {
-            obtainedLock = LockManager.getWriteLockWithoutBlocking(getLockFile());
+            obtainedLock = LockManager.getWriteLockWithoutBlocking(getLockFile().toFile());
+        }
+
+        @Override
+        public boolean isLockObtained() {
+            return obtainedLock;
         }
 
         @Override
         protected void releaseLock() throws IOException {
             if (obtainedLock) {
-                LockManager.releaseWriteLock(getLockFile());
+                LockManager.releaseWriteLock(getLockFile().toFile());
             }
         }
 
     }
 
+    /**
+     * Attempts to obtain a write lock, and blocks until it obtains it.
+     *
+     * @author PT
+     */
     private static class BlockingWriterTask extends AbstractTask {
 
-        public BlockingWriterTask(File lockFile) {
+        public BlockingWriterTask(Path lockFile) {
             super(lockFile);
         }
 
         @Override
         protected void getLock() throws IOException {
-            LockManager.getWriteLockOrBlock(getLockFile());
+            LockManager.getWriteLockOrBlock(getLockFile().toFile());
         }
 
         @Override
         protected void releaseLock() throws IOException {
-            LockManager.releaseWriteLock(getLockFile());
+            LockManager.releaseWriteLock(getLockFile().toFile());
         }
 
     }

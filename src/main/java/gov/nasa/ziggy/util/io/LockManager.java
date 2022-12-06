@@ -23,19 +23,31 @@ public enum LockManager {
     /** The singleton instance. */
     INSTANCE();
 
-    private LockManager() {
+    LockManager() {
         ZiggyShutdownHook.addShutdownHook(() -> {
             try {
-                for (File f : readerChannels.keySet()) {
-                    releaseReadLock(f);
-                }
-                for (File f : writerChannels.keySet()) {
-                    releaseWriteLock(f);
-                }
-            } catch (Throwable e) {
-
+                releaseAllLocks();
+            } catch (IOException e) {
+                // We can swallow this exception because it occurs during a shutdown. Therefore,
+                // by definition there's nothing to be done because we're just trying to exit
+                // Ziggy...
             }
         });
+    }
+
+    /**
+     * Releases all locks held by the {@link LockManager} singleton instance. For use in testing and
+     * in the shutdown hook.
+     *
+     * @throws IOException if exception occurs when releasing locks.
+     */
+    static synchronized void releaseAllLocks() throws IOException {
+        for (File f : INSTANCE.readerChannels.keySet()) {
+            releaseReadLock(f);
+        }
+        for (File f : INSTANCE.writerChannels.keySet()) {
+            releaseWriteLock(f);
+        }
     }
 
     private Map<File, ReentrantReadWriteLock> locks = new HashMap<>();
