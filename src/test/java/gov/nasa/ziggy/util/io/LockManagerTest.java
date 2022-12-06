@@ -14,6 +14,9 @@ import gov.nasa.ziggy.ZiggyUnitTest;
 
 /**
  * Unit tests for {@link LockManager}. Note that these tests are limited to a single process.
+ *
+ * @author Mark Rose
+ * @author PT
  */
 public class LockManagerTest extends ZiggyUnitTest {
 
@@ -153,6 +156,7 @@ public class LockManagerTest extends ZiggyUnitTest {
      * the attempt (attempt started, blocked, lock obtained, etc.). This allows the caller to test
      * the state of the {@link AbstractTask} instance to make sure it's as expected.
      *
+     * @author Mark Rose
      * @author PT
      */
     private static abstract class AbstractTask extends Thread {
@@ -212,6 +216,7 @@ public class LockManagerTest extends ZiggyUnitTest {
     /**
      * Attempts to obtain a read lock.
      *
+     * @author Mark Rose
      * @author PT
      */
     private static class ReaderTask extends AbstractTask {
@@ -238,6 +243,7 @@ public class LockManagerTest extends ZiggyUnitTest {
      * {@link #isLockObtained()} method to use the subclass boolean rather than the abstract class
      * boolean.
      *
+     * @author Mark Rose
      * @author PT
      */
     private static class NonBlockingWriterTask extends AbstractTask {
@@ -270,6 +276,7 @@ public class LockManagerTest extends ZiggyUnitTest {
     /**
      * Attempts to obtain a write lock, and blocks until it obtains it.
      *
+     * @author Mark Rose
      * @author PT
      */
     private static class BlockingWriterTask extends AbstractTask {
