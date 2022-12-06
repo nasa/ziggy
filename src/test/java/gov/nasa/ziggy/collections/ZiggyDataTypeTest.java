@@ -29,7 +29,7 @@ import gov.nasa.ziggy.module.hdf5.PersistableSample1;
 import gov.nasa.ziggy.module.hdf5.PersistableSample2;
 
 /**
- * Unit tests for the {@link ZiggyDataType class.
+ * Unit tests for the {@link ZiggyDataType} class.
  *
  * @author PT
  */

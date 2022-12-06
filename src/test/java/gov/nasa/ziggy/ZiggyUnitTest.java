@@ -69,7 +69,8 @@ public abstract class ZiggyUnitTest {
      * @throws Exception to ensure that any checked exception in any concrete version of this method
      * is properly represented in the throws clause.
      */
-    public abstract void setUp() throws Exception;
+    public void setUp() throws Exception {
+    }
 
     /**
      * Teardowns that are specific to a given test class. Subclasses must override this method to
@@ -78,7 +79,8 @@ public abstract class ZiggyUnitTest {
      * @throws Exception to ensure that any checked exception in any concrete version of this method
      * is properly represented in the throws clause.
      */
-    public abstract void tearDown() throws Exception;
+    public void tearDown() throws Exception {
+    }
 
     /**
      * Clean up for test classes. Clears properties, tears down the database, resets the
