@@ -112,12 +112,6 @@ public class PipelineTaskCrudTest {
     public void testRetrieveTwoTasks() {
         DatabaseTransactionFactory.performTransaction(() -> {
             createTasksForPipeline("pipeline1", pipelineDef, moduleDef);
-            // Delay a bit so the next pipeline task will have a different creation time.
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                // Ignore
-            }
             createTasksForPipeline("pipeline2", pipelineDef, moduleDef);
             return null;
         });
