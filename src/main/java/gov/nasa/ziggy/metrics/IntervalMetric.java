@@ -39,10 +39,18 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      * @param key
      */
     public static IntervalMetric stop(String name, IntervalMetricKey key) {
+        return stop(name, key, System.currentTimeMillis());
+    }
+
+    /**
+     * Package-scoped method that sets the stop time based on an argument value. Used by the public
+     * {@link #stop(String, IntervalMetricKey)} method, and in unit tests.
+     */
+    static IntervalMetric stop(String name, IntervalMetricKey key, long stopTimeMillis) {
         GlobalThreadMetrics<IntervalMetric> m = getIntervalMetric(name);
-        m.getGlobalMetric().stop(key);
+        m.getGlobalMetric().stop(key, stopTimeMillis);
         if (m.getThreadMetric() != null) {
-            m.getThreadMetric().stop(key);
+            m.getThreadMetric().stop(key, stopTimeMillis);
         }
         return m.getThreadMetric();
     }
@@ -110,8 +118,8 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      *
      * @param key
      */
-    protected void stop(IntervalMetricKey key) {
-        addValue(System.currentTimeMillis() - key.getStartTime());
+    protected void stop(IntervalMetricKey key, long systemCurrentTimeMillis) {
+        addValue(systemCurrentTimeMillis - key.getStartTime());
     }
 
     @Override
