@@ -3,6 +3,8 @@ package gov.nasa.ziggy.metrics;
 import java.io.Serializable;
 import java.util.concurrent.Callable;
 
+import gov.nasa.ziggy.util.SystemTime;
+
 /**
  * Metric to measure elapsed time
  *
@@ -31,7 +33,7 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      * @return
      */
     public static IntervalMetricKey start() {
-        return new IntervalMetricKey(System.currentTimeMillis());
+        return new IntervalMetricKey(SystemTime.currentTimeMillis());
     }
 
     /**
@@ -39,18 +41,11 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      * @param key
      */
     public static IntervalMetric stop(String name, IntervalMetricKey key) {
-        return stop(name, key, System.currentTimeMillis());
-    }
-
-    /**
-     * Package-scoped method that sets the stop time based on an argument value. Used by the public
-     * {@link #stop(String, IntervalMetricKey)} method, and in unit tests.
-     */
-    static IntervalMetric stop(String name, IntervalMetricKey key, long stopTimeMillis) {
+        long stopTime = SystemTime.currentTimeMillis();
         GlobalThreadMetrics<IntervalMetric> m = getIntervalMetric(name);
-        m.getGlobalMetric().stop(key, stopTimeMillis);
+        m.getGlobalMetric().stop(key, stopTime);
         if (m.getThreadMetric() != null) {
-            m.getThreadMetric().stop(key, stopTimeMillis);
+            m.getThreadMetric().stop(key, stopTime);
         }
         return m.getThreadMetric();
     }
