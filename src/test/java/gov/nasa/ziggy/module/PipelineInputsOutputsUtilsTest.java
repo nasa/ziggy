@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,9 +42,6 @@ public class PipelineInputsOutputsUtilsTest {
     @After
     public void teardown() throws InterruptedException, IOException {
 
-        // Short nap to make sure write locks are cleared
-        Thread.sleep(10);
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
         System.clearProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME);
     }
 
