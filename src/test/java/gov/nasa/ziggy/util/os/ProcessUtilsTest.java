@@ -13,6 +13,7 @@ import org.junit.After;
 import org.junit.Test;
 
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.SystemTime;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -50,7 +51,7 @@ public class ProcessUtilsTest {
     public void testRunJava() throws Exception {
         subJavaProcess = ProcessUtils.runJava(ProcessUtilsTestProgram.class,
             Arrays.asList(new String[] { "44", "Hello world." }));
-        Thread.sleep(500);
+        subJavaProcess.waitFor();
 
         InputStream inputStream = subJavaProcess.getInputStream();
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
@@ -81,14 +82,19 @@ public class ProcessUtilsTest {
             psProcess.timeout(1000);
             psProcess.execute(false);
         }
-        Thread.sleep(10L);
-        childProcessIds = ProcessUtils.descendantProcessIds();
+        long startTime = SystemTime.currentTimeMillis();
+        while (SystemTime.currentTimeMillis() - startTime < 1000L
+            && childProcessIds.size() < nProcesses) {
+            childProcessIds = ProcessUtils.descendantProcessIds();
+        }
         assertEquals(nProcesses, childProcessIds.size());
         for (long processId : childProcessIds) {
             ProcessUtils.sendSigtermToProcess(processId);
-            Thread.sleep(25);
         }
-        childProcessIds = ProcessUtils.descendantProcessIds();
+        startTime = SystemTime.currentTimeMillis();
+        while (SystemTime.currentTimeMillis() - startTime < 1000L && childProcessIds.size() > 0) {
+            childProcessIds = ProcessUtils.descendantProcessIds();
+        }
         assertEquals(0, childProcessIds.size());
 
     }
