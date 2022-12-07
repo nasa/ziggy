@@ -15,14 +15,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.google.common.collect.ImmutableSet;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -33,7 +34,6 @@ import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Unit tests for {@link DefaultDataImporter} class.
@@ -43,6 +43,7 @@ import gov.nasa.ziggy.util.io.FileUtil;
 public class DefaultDataImporterTest {
 
     private PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
+    private Path testDirPath;
     private Path dataImporterPath;
     private Path dataImporterSubdirPath;
     private Path dirForImports;
@@ -51,14 +52,17 @@ public class DefaultDataImporterTest {
     private UnitOfWork subdirUow = new UnitOfWork();
     private PipelineDefinitionNode node = Mockito.mock(PipelineDefinitionNode.class);
 
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+
     @Before
     public void setUp() throws IOException {
 
         // Construct the necessary directories.
-        dataImporterPath = Paths.get(System.getProperty("user.dir"), "build", "test",
-            "data-import");
+        testDirPath = dirRule.testDirPath();
+        dataImporterPath = testDirPath.resolve("data-import");
         dataImporterPath.toFile().mkdirs();
-        datastoreRootPath = Paths.get(System.getProperty("user.dir"), "build", "test", "datastore");
+        datastoreRootPath = testDirPath.resolve("datastore");
         System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME,
             datastoreRootPath.toString());
         datastoreRootPath.toFile().mkdirs();
@@ -91,14 +95,6 @@ public class DefaultDataImporterTest {
     @After
     public void tearDown() throws IOException, InterruptedException {
         System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        // NB: execution is so fast that some deleteDirectory commands fail because
-        // (apparently) write-locks have not yet had time to release! Address this by
-        // adding a short nap.
-        Thread.sleep(10);
-        FileUtil.setPosixPermissionsRecursively(datastoreRootPath, "rwxrwxrwx");
-        FileUtil.setPosixPermissionsRecursively(dataImporterPath, "rwxrwxrwx");
-        FileUtils.forceDelete(datastoreRootPath.toFile());
-        FileUtils.forceDelete(dataImporterPath.getParent().toFile());
         System.clearProperty(PropertyNames.USE_SYMLINKS_PROP_NAME);
     }
 
