@@ -11,7 +11,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
 import org.junit.Before;
@@ -20,10 +19,12 @@ import org.junit.Test;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
 import gov.nasa.ziggy.services.messaging.MessageHandler;
+import gov.nasa.ziggy.ui.ClusterController;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager.HeartbeatManagerExternalMethods;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager.NoHeartbeatException;
 import gov.nasa.ziggy.ui.messaging.ConsoleMessageDispatcher;
 import gov.nasa.ziggy.ui.mon.master.Indicator;
+import gov.nasa.ziggy.util.SystemTime;
 
 /**
  * Unit tests for {@link ProcessHeartbeatManager} class.
@@ -36,13 +37,18 @@ public class ProcessHeartbeatManagerTest {
     private MessageHandler messageHandler;
     private ScheduledThreadPoolExecutor heartbeatGenerator;
     private HeartbeatManagerExternalMethods externalMethods;
+    private ClusterController clusterController;
 
     @Before
     public void setup() {
-        System.setProperty(PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME, Long.toString(100));
+        System.setProperty(PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME, Long.toString(0));
         System.setProperty(PropertyNames.DATABASE_SOFTWARE_PROP_NAME, "postgresql");
+        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, "build/test");
         messageHandler = new MessageHandler(new ConsoleMessageDispatcher(null, null, false));
         externalMethods = mock(HeartbeatManagerExternalMethods.class);
+        clusterController = mock(ClusterController.class);
+        when(clusterController.isDatabaseRunning()).thenReturn(true);
+        when(clusterController.isWorkerRunning()).thenReturn(true);
     }
 
     @After
@@ -66,8 +72,9 @@ public class ProcessHeartbeatManagerTest {
      */
     @Test
     public void testGoodStart() throws InterruptedException, NoHeartbeatException {
-        startHeartbeatGenerator();
-        manager = new ProcessHeartbeatManager(messageHandler, externalMethods);
+        manager = new ProcessHeartbeatManager(messageHandler, externalMethods, clusterController);
+        messageHandler.setLastHeartbeatTimeMillis(1L);
+        SystemTime.setUserTime(5L);
         manager.initialize();
         assertNotNull(manager.getHeartbeatListener());
         assertFalse(manager.getHeartbeatListener().isShutdown());
@@ -82,12 +89,27 @@ public class ProcessHeartbeatManagerTest {
      */
     @Test
     public void testGoodRunning() throws InterruptedException, NoHeartbeatException {
-        startHeartbeatGenerator();
-        manager = new ProcessHeartbeatManager(messageHandler, externalMethods);
+        manager = new ProcessHeartbeatManager(messageHandler, externalMethods, clusterController);
+
+        // Set conditions such that initialization believes that a heartbeat has been detected.
+        messageHandler.setLastHeartbeatTimeMillis(1L);
+        SystemTime.setUserTime(5L);
         manager.initialize();
-        Thread.sleep(200);
+
+        // Send 2 additional heartbeats at later times.
+        SystemTime.setUserTime(105L);
+        sendHeartbeat();
+        SystemTime.setUserTime(205L);
+        sendHeartbeat();
+        manager.checkForHeartbeat();
         verify(externalMethods, times(0)).setRmiIndicator(Indicator.State.AMBER);
-        Thread.sleep(200);
+
+        // Send 2 more heartbeats at even later times.
+        SystemTime.setUserTime(305L);
+        sendHeartbeat();
+        SystemTime.setUserTime(405L);
+        sendHeartbeat();
+        manager.checkForHeartbeat();
         verify(externalMethods, times(0)).setRmiIndicator(Indicator.State.AMBER);
         assertFalse(manager.getHeartbeatListener().isShutdown());
     }
@@ -98,7 +120,7 @@ public class ProcessHeartbeatManagerTest {
      */
     @Test
     public void testBadStart() {
-        manager = new ProcessHeartbeatManager(messageHandler, externalMethods);
+        manager = new ProcessHeartbeatManager(messageHandler, externalMethods, clusterController);
         try {
             manager.initialize();
             assertFalse(true);
@@ -120,10 +142,17 @@ public class ProcessHeartbeatManagerTest {
     public void testHeartbeatDetectorHearsNothing()
         throws InterruptedException, NoHeartbeatException {
         when(externalMethods.getProcessIdiotLightState()).thenReturn(Indicator.State.RED);
+
+        // Set conditions such that initialization believes that a heartbeat has been detected.
         messageHandler.setLastHeartbeatTimeMillis(1L);
-        manager = new ProcessHeartbeatManager(messageHandler, externalMethods);
+        SystemTime.setUserTime(5L);
+        manager = new ProcessHeartbeatManager(messageHandler, externalMethods, clusterController);
         manager.initialize();
-        Thread.sleep(305);
+        try {
+            manager.checkForHeartbeat();
+            assertFalse("NoHeartbeatException not detected", true);
+        } catch (NoHeartbeatException e) {
+        }
         assertNotNull(manager.getHeartbeatListener());
         verify(externalMethods).restartUiCommunicator();
         verify(externalMethods).setRmiIndicator(Indicator.State.GREEN);
@@ -143,14 +172,23 @@ public class ProcessHeartbeatManagerTest {
         throws InterruptedException, NoHeartbeatException {
         when(externalMethods.getProcessIdiotLightState()).thenReturn(Indicator.State.GREEN);
         messageHandler.setLastHeartbeatTimeMillis(1L);
-        manager = new ProcessHeartbeatManager(messageHandler, externalMethods);
+        SystemTime.setUserTime(5L);
+        manager = new ProcessHeartbeatManager(messageHandler, externalMethods, clusterController);
         manager.initialize();
+
+        // Note that we don't want to automatically go to reinitialization. Instead we want to
+        // simulate waiting in the initializer for a new heartbeat.
+        manager.setReinitializeOnMissedHeartbeat(false);
         assertFalse(manager.getHeartbeatListener().isShutdown());
-        Thread.sleep(210);
+        SystemTime.setUserTime(205L);
+        manager.checkForHeartbeat();
         assertEquals(0L, messageHandler.getLastHeartbeatTimeMillis());
         assertFalse(manager.getHeartbeatListener().isShutdown());
-        messageHandler.setLastHeartbeatTimeMillis(2L);
-        Thread.sleep(110);
+        SystemTime.setUserTime(305L);
+        messageHandler.setLastHeartbeatTimeMillis(300L);
+
+        // Here is where we simulate detecting the new heartbeat in the initializer.
+        manager.initialize();
         assertNotNull(manager.getHeartbeatListener());
         verify(externalMethods).setRmiIndicator(Indicator.State.AMBER);
         verify(externalMethods, times(0)).setRmiIndicator(Indicator.State.RED);
@@ -159,18 +197,8 @@ public class ProcessHeartbeatManagerTest {
 
     }
 
-    /**
-     * Starts the heartbeat generator. After it starts there is a 1 msec sleep because without it
-     * the good start unit test errors; apparently there is some latency in starting the heartbeat
-     * such that immediately going to tests means that a test can run before any heartbeats are
-     * generated and managed, but a 1 msec delay in starting tests avoids this outcome.
-     */
-    private void startHeartbeatGenerator() throws InterruptedException {
-        heartbeatGenerator = new ScheduledThreadPoolExecutor(1);
-        heartbeatGenerator.scheduleAtFixedRate(
-            () -> new WorkerHeartbeatMessage().handleMessage(messageHandler), 0,
-            WorkerHeartbeatMessage.heartbeatIntervalMillis(), TimeUnit.MILLISECONDS);
-        Thread.sleep(1);
+    private void sendHeartbeat() {
+        new WorkerHeartbeatMessage().handleMessage(messageHandler);
     }
 
 }

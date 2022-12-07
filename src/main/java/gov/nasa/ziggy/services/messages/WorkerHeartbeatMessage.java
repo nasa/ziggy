@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.messaging.MessageHandler;
 import gov.nasa.ziggy.services.process.StatusMessage;
+import gov.nasa.ziggy.util.SystemTime;
 
 /**
  * Provides a signal, with timestamp, from the worker to all clients currently in contact with the
@@ -44,7 +45,7 @@ public class WorkerHeartbeatMessage extends StatusMessage {
 
     public WorkerHeartbeatMessage() {
         log.debug("Worker heartbeat message generated");
-        heartbeatTimeMillis = System.currentTimeMillis();
+        heartbeatTimeMillis = SystemTime.currentTimeMillis();
     }
 
     /**

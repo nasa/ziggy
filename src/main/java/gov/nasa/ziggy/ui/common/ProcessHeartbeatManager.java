@@ -9,6 +9,7 @@ import gov.nasa.ziggy.ui.ClusterController;
 import gov.nasa.ziggy.ui.mon.master.Indicator;
 import gov.nasa.ziggy.ui.mon.master.MasterStatusPanel;
 import gov.nasa.ziggy.ui.mon.master.ProcessesIndicatorPanel;
+import gov.nasa.ziggy.util.SystemTime;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 
 /**
@@ -49,10 +50,11 @@ public class ProcessHeartbeatManager {
     private long lastHeartbeatTime;
     private HeartbeatManagerExternalMethods externalMethodsManager;
     private boolean isInitialized = false;
-    private ClusterController clusterController = new ClusterController(100, 1);
+    private ClusterController clusterController;
+    private boolean reinitializeOnMissedHeartbeat = true;
 
     public ProcessHeartbeatManager(MessageHandler messageHandler) {
-        this(messageHandler, new HeartbeatManagerExternalMethods());
+        this(messageHandler, new HeartbeatManagerExternalMethods(), new ClusterController(100, 1));
     }
 
     /**
@@ -64,10 +66,12 @@ public class ProcessHeartbeatManager {
      * @param externalMethodsManager
      */
     protected ProcessHeartbeatManager(MessageHandler messageHandler,
-        HeartbeatManagerExternalMethods externalMethodsManager) {
+        HeartbeatManagerExternalMethods externalMethodsManager,
+        ClusterController clusterController) {
         this.messageHandler = messageHandler;
         this.externalMethodsManager = externalMethodsManager;
         heartbeatIntervalMillis = messageHandler.heartbeatIntervalMillis();
+        this.clusterController = clusterController;
     }
 
     /**
@@ -82,9 +86,9 @@ public class ProcessHeartbeatManager {
             return;
         }
         // wait for one heartbeat interval to see if we get a heartbeat message
-        long t0 = System.currentTimeMillis();
+        long t0 = SystemTime.currentTimeMillis();
         while (messageHandler.getLastHeartbeatTimeMillis() == 0
-            && System.currentTimeMillis() - t0 < heartbeatIntervalMillis) {
+            && SystemTime.currentTimeMillis() - t0 < heartbeatIntervalMillis) {
         }
         if (messageHandler.getLastHeartbeatTimeMillis() > 0) {
             setRmiIndicator(Indicator.State.GREEN);
@@ -123,6 +127,9 @@ public class ProcessHeartbeatManager {
      */
     protected void startHeartbeatListener() {
         heartbeatListener = new ScheduledThreadPoolExecutor(1);
+        if (heartbeatIntervalMillis == 0) {
+            return;
+        }
         heartbeatListener.scheduleAtFixedRate(() -> {
             try {
                 checkForHeartbeat();
@@ -155,7 +162,9 @@ public class ProcessHeartbeatManager {
             messageHandler.resetLastHeartbeatTime();
             restartUiCommunicator();
             isInitialized = false;
-            initialize();
+            if (reinitializeOnMissedHeartbeat) {
+                initialize();
+            }
         }
         if (clusterController.isDatabaseRunning()) {
             setDatabaseIndicator(Indicator.State.GREEN);
@@ -188,6 +197,11 @@ public class ProcessHeartbeatManager {
     // For testing use only.
     protected void setClusterController(ClusterController clusterController) {
         this.clusterController = clusterController;
+    }
+
+    // For testing use only.
+    void setReinitializeOnMissedHeartbeat(boolean reinitialize) {
+        reinitializeOnMissedHeartbeat = reinitialize;
     }
 
     public static class HeartbeatManagerExternalMethods {
