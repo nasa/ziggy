@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](../../README.md)
-[[Up]](user-manual.md)
-[[Next]](pipeline-architecture.md)
+<a href="../../README.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="pipeline-architecture.md">[Next]</a>
 
 # Prerequisites and System Requirements
 
@@ -25,8 +21,6 @@ Ziggy requires the following computer language resources:
 - Java: JDK 1.8. Note that later versions of the JDK have some changes to their included libraries that have not yet been addressed in the Ziggy build system.
 - Perl 5.16 or later.
 - C/C++ compiler that supports the 2011 C++ standard. Historically we've used gcc but we expect that any compiler that's 2011-compliant will do. We've also used clang, just to prove that we could. 
-- Python 3 and Pip 3. Note that these are only for the sample pipeline, not for Ziggy itself.
+- Pythyon 3 and Pip 3. Note that these are only for the sample pipeline, not for Ziggy itself. 
 
-[[Previous]](../../README.md)
-[[Up]](user-manual.md)
-[[Next]](pipeline-architecture.md)
+<a href="../../README.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="pipeline-architecture.md">[Next]</a>

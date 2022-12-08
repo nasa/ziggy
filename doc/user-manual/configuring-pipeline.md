@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](downloading-and-building-ziggy.md)
-[[Up]](user-manual.md)
-[[Next]](module-parameters.md)
+<a href="downloading-and-building-ziggy.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="module-parameters.md">[Next]</a>
 
 ## Configuring a Pipeline
 
@@ -246,6 +242,4 @@ That said, if you're paying attention you've probably noticed that this article 
 
 These questions will be discussed in the article on [Building a Pipeline](building-pipeline.md).
 
-[[Previous]](downloading-and-building-ziggy.md)
-[[Up]](user-manual.md)
-[[Next]](module-parameters.md)
+<a href="downloading-and-building-ziggy.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="module-parameters.md">[Next]</a>

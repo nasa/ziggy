@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](data-file-types.md)
-[[Up]](configuring-pipeline.md)
-[[Next]](building-pipeline.md)
+<a href="data-file-types.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="building-pipeline.md">[Next]</a>
 
 ## Pipeline Definition
 
@@ -75,6 +71,4 @@ Each node can have `inputDataFileType`, `outputDataFileType`, and `modelType` el
 
 A node can have multiple output types (see for example the `flip` node in `pd-sample.xml`) or multiple input types (as in the `averaging` node). Each node can use any combination of model types it requires, and each model type can be provided to as many nodes as need it.
 
-[[Previous]](data-file-types.md)
-[[Up]](configuring-pipeline.md)
-[[Next]](building-pipeline.md)
+<a href="data-file-types.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="building-pipeline.md">[Next]</a>
