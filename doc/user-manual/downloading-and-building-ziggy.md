@@ -1,12 +1,12 @@
+<!-- -*-visual-line-*- -->
+
 ## Downloading and Building Ziggy
 
 Before you start, you should check out the [system requirements](system-requirements.md) article. This will ensure that you have the necessary hardware and software to follow the steps in this article. 
 
 ### Downloading Ziggy
 
-Ziggy's source code is stored on GitHub, which you probably know already since you're reading this document, which is also stored on GitHub along with Ziggy. A discussion of GitHub is way beyond the scope of this document, but the things you need to know to download Ziggy are a really small subset of that:
-
-TODO BW put in what we need to say about GitHub.
+Ziggy's source code is stored on GitHub, which you probably know already since you're reading this document, which is also stored on GitHub along with Ziggy. From Ziggy's [home page](https://github.com/nasa/ziggy), you can download the code in your favorite fashion. You can press the green Code button to obtain the URL to clone the repository with, for example, `git clone https://github.com/nasa/ziggy.git`. You can view the latest release in the [Releases](https://github.com/nasa/ziggy/releases), download the tarball using the link at the bottom of the release notes, and extract it with, for example, `tar -xf ziggy-0.2.0.tar.gz`).
 
 Once you've done that, you should see something like this in your Ziggy folder:
 
