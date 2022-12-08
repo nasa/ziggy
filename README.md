@@ -1,5 +1,11 @@
 <!-- -*-visual-line-*- -->
 
+<div style="float:right">
+  <a href="https://github.com/nasa/ziggy/">
+    <img src="doc/user-manual/images/ziggy-small-clear.png" width="133"/>
+  </a>
+</div>
+
 # Super-Basic Introduction
 
 ## What is Ziggy?
