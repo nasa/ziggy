@@ -143,7 +143,7 @@ public class ZiggyConfiguration {
     /**
      * Locates the pipeline config file via the PIPELINE_CONFIG_PATH environment variable. If no
      * environment variable is defined, or the file it points to does not exist, the default
-     * properties file (ziggy/config/ziggy.properties) will be used if it can be found.
+     * properties file (ziggy/etc/ziggy.properties) will be used if it can be found.
      */
     public static File getConfigServicesFile() {
         File configServicesFile = null;
@@ -154,8 +154,9 @@ public class ZiggyConfiguration {
             configServicesFile = new File(configFileEnvValue);
         }
         if (configServicesFile == null || !configServicesFile.exists()) {
-            Path ziggyDefaultConfig = Paths.get(ziggyRoot(), CONFIG_SERVICE_PROPERTIES_DEFAULT_DIR,
-                CONFIG_SERVICE_PROPERTIES_DEFAULT_FILE);
+            Path ziggyDefaultConfig = Paths.get(
+                ziggyRoot(System.getProperty(PropertyNames.CURRENT_DIR_PROP_NAME)),
+                CONFIG_SERVICE_PROPERTIES_DEFAULT_DIR, CONFIG_SERVICE_PROPERTIES_DEFAULT_FILE);
             configServicesFile = ziggyDefaultConfig.toFile();
         }
         if (!configServicesFile.exists()) {
@@ -165,14 +166,22 @@ public class ZiggyConfiguration {
         return configServicesFile;
     }
 
-    public static String ziggyRoot() {
-        String ziggyRoot = null;
-        String workingDir = System.getProperty(PropertyNames.CURRENT_DIR_PROP_NAME);
-        int ziggyLocation = workingDir.lastIndexOf(ZIGGY_RELATIVE_PATH);
-        if (ziggyLocation > 0) {
-            ziggyRoot = workingDir.substring(0, ziggyLocation + ZIGGY_RELATIVE_PATH.length());
+    public static String ziggyRoot(String directory) {
+        if (directory == null || directory.isEmpty()) {
+            return null;
         }
-        return ziggyRoot;
+
+        // Does this path appear to contain "ziggy"?
+        int ziggyLocation = directory.lastIndexOf(ZIGGY_RELATIVE_PATH);
+        if (ziggyLocation < 0) {
+            return null;
+        }
+
+        // Does the path have directories after "ziggy"?
+        int separatorLocation = directory.indexOf(File.separator, ziggyLocation);
+
+        // If so, remove them.
+        return separatorLocation > 0 ? directory.substring(0, separatorLocation) : directory;
     }
 
     /**
