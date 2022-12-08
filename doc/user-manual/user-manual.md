@@ -78,4 +78,4 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
     13.6.​ [Data Receipt Display](data-receipt-display.md)
 
-14. Contact Us
+14. [Contact Us](contact-us.md)
