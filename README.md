@@ -42,6 +42,10 @@ A few years later, Ames provided the data analysis pipeline for another transit 
 
 In the fullness of time, members of the Kepler and TESS team realized that there was an opportunity to take Spiffy and make it into a software package that was suitable for truly huge data volumes (terabytes per day, as compared to the terabytes per month rate of TESS) and easier to use than Spiffy or PI had been. This resulted in the development process that culminated in Ziggy.
 
+## Why Ziggy?
+
+The Ziggy authors are big fans of 80's rock bands and the explosions of styles and genres that occurred at that time. The album "The Rise and Fall of Ziggy Stardust and the Spiders from Mars" technically came out in 1972, but we would assert that this album was actually an example of 80's alternative rock, just one that happened to arrive almost a decade before the 1980's did. David Bowie was always ahead of his time that way.
+
 ## How do I put Ziggy to use?
 
 Glad you asked that! The intent of the [user manual](doc/user-manual/user-manual.md) is to take you through the process, step by step. Thus, we recommend starting at the first link and clicking your way down as you make progress.
