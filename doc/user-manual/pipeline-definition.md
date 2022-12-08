@@ -1,3 +1,5 @@
+<a href="data-file-types.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="building-pipeline.md">[Next]</a>
+
 ## Pipeline Definition
 
 The pipeline definition files are where all the pieces get put together. Ziggy expects these files to have names that start with "pd-" (for "Pipeline Definition"). In the case of the sample pipeline, the file is [config/pd-sample.xml](../../sample-pipeline/config/pd-sample.xml). There can be more than one pipeline definition file. These files define the pipelines themselves, but first they define the individual algorithm elements of the pipelines, the modules.
@@ -68,3 +70,5 @@ A given parameter set can be provided as a `moduleParameter` to any number of no
 Each node can have `inputDataFileType`, `outputDataFileType`, and `modelType` elements. This is how the user defines what file types are used for inputs, which for outputs, and which models are needed for each node. Here we see that the `raw data` type is used as input for `data-receipt` and for `permuter`. The `permuted colors` type is the output type for permuter, and it uses the `dummy model` model type. Thus: we have now defined the names of the files that will be used as the input to the permuter node, and the ones that will be produced as output.
 
 A node can have multiple output types (see for example the `flip` node in `pd-sample.xml`) or multiple input types (as in the `averaging` node). Each node can use any combination of model types it requires, and each model type can be provided to as many nodes as need it.
+
+<a href="data-file-types.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="building-pipeline.md">[Next]</a>

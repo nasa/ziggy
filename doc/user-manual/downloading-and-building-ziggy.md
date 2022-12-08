@@ -1,5 +1,7 @@
 <!-- -*-visual-line-*- -->
 
+<a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
+
 ## Downloading and Building Ziggy
 
 Before you start, you should check out the [system requirements](system-requirements.md) article. This will ensure that you have the necessary hardware and software to follow the steps in this article. 
@@ -103,3 +105,6 @@ Before we move on, a few useful details about building Ziggy:
 - Gradle has lots of commands (known in the lingo as "tasks") other than `test`. Most notably, the `./gradlew clean` command will delete the build directory so you can start the build over from the beginning. The `./gradlew build` command will first build the code and then run the unit tests. 
 
 If all is going well, you're now ready to move on to [defining your own pipeline](configuring-pipeline.md)!
+
+<a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
+

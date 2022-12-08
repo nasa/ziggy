@@ -1,3 +1,5 @@
+<a href="module-parameters.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="pipeline-definition.md">[Next]</a>
+
 ## Data File Types
 
 As the user, one of your jobs is to define, for Ziggy, the file naming patterns that are used for the inputs and outputs for each algorithm, and the file name patterns that are used for instrument models. The place for these definitions is in data file type XML files. These have names that start with "pt-" (for "Pipeline Data Type"); in the sample pipeline, the data file type definitions are in [config/pt-sample.xml](../../sample-pipeline/conf/pt-sample.xml).
@@ -129,3 +131,5 @@ In general, the user can include in the filename a version number; a timestamp; 
 One thing about supplying timestamp and version information in the filename is that it gives some additional protection against accidents. **Specifically: Ziggy will never import a model that has the same timestamp and version number as one already in the datastore.** Thus, you can never accidentally overwrite an existing model with a new one that's been accidentally given the same timestamp and version information.
 
 For models that don't provide that information in the filename, there's no protection against such an accident because there can't be any such protection. If you accidentally re-import an old version of `sample-model.txt`, Ziggy will assume it's a new version and store it with a new timestamp and version number. When Ziggy goes to process data, this version will be provided to the algorithms.
+
+<a href="module-parameters.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="pipeline-definition.md">[Next]</a>

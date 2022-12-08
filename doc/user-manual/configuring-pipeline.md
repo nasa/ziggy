@@ -1,3 +1,5 @@
+<a href="downloading-and-building-ziggy.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="module-parameters.md">[Next]</a>
+
 ## Configuring a Pipeline
 
 In this article, we'll walk through the process by which you can write your own pipeline and connect it to Ziggy. As we do so, we'll show how the sample pipeline addresses each of the steps, so you can see a concrete example. For this reason, it's probably worthwhile to have the sample-pipeline folder open as we go along (though we'll make use of screen shots, so it's not absolutely essential to have that open; just recommended).
@@ -239,3 +241,5 @@ That said, if you're paying attention you've probably noticed that this article 
 - You activate a Python environment, but -- where did that environment come from? What's in it?
 
 These questions will be discussed in the article on [Building a Pipeline](building-pipeline.md).
+
+<a href="downloading-and-building-ziggy.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="module-parameters.md">[Next]</a>

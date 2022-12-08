@@ -1,3 +1,5 @@
+<a href="system-requirements.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="downloading-and-building-ziggy.md">[Next]</a>
+
 ## Pipeline Architecture
 
 As a general matter, it's not necessary to know much about the inner workings of Ziggy in order to use it. In the sections below we cover the things you actually do need to know. 
@@ -10,3 +12,4 @@ The figure above shows Ziggy's architecture. Boxes in green (Algorithms, Pipelin
 
 A particular instance of the system above is called a **cluster**. A complete processing system may consist of more than one cluster: for example, the TESS processing pipeline has 4 clusters, each of which processes a different subset of TESS data. A single server can run multiple pipeline clusters, though that gets potentially messy. For now, let's stick with the assumption that on a given computer there's only one cluster in existence at a time.
 
+<a href="system-requirements.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="downloading-and-building-ziggy.md">[Next]</a>
