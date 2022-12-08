@@ -2,11 +2,11 @@
 
 ### Operating System
 
-Ziggy is supported on Linux and Mac OS. 
+Ziggy is supported on Linux and macOS.
 
 For Linux, the following versions have been tested: SLES 11, SLES 12, RHEL 7, RHEL 8, and Debian through version 11 (bullseye). That said, we expect that any relatively recent version of Linux will suffice. 
 
-For Mac OS, All versions from Snow Leopard (10.6) to Monterey (12.6) have been used to build and run Ziggy. Both Intel and Apple M1 CPUs have been used. Compability of Ventura (13.x) is to be determined. 
+For macOS, All versions from Snow Leopard (10.6) to Monterey (12.6) have been used to build and run Ziggy. Both Intel and Apple M1 CPUs have been used. Compability of Ventura (13.x) is to be determined.
 
 ### RAM and Disk Space
 
