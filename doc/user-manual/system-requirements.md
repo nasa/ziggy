@@ -21,6 +21,6 @@ Ziggy requires the following computer language resources:
 - Java: JDK 1.8 or later. 
 - Perl 5.16 or later.
 - C/C++ compiler that supports the 2011 C++ standard. Historically we've used gcc but we expect that any compiler that's 2011-compliant will do. We've also used clang, just to prove that we could. 
-- Pythyon 3 and Pip 3. Note that these are only for the sample pipeline, not for Ziggy itself. 
+- Python 3 and Pip 3. Note that these are only for the sample pipeline, not for Ziggy itself.
 
 <a href="../../README.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="pipeline-architecture.md">[Next]</a>

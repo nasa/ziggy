@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](hpc-cost.md)
-[[Up]](advanced-topics.md)
-[[Next]](data-receipt.md)
+<a href="hpc-cost.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt.md">[Next]</a>
 
 ## Deleting Tasks
 
@@ -30,6 +26,4 @@ As expected, it notifies you that the task stopped due to deletion and not due t
 
 This is the same idea, except it's the pop-up menu for the instance table, and you select `Delete all tasks`.
 
-[[Previous]](hpc-cost.md)
-[[Up]](advanced-topics.md)
-[[Next]](data-receipt.md)
+<a href="hpc-cost.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt.md">[Next]</a>

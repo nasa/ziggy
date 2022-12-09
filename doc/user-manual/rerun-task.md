@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](display-logs.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](advanced-topics.md)
+<a href="display-logs.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="advanced-topics.md">[Next]</a>
 
 ## Re-Run or Resume a Failed Task
 
@@ -58,6 +54,4 @@ If we re-run the task, it will re-run with the same values for all parameters (e
 
 In real life, it's possible that you'll encounter a situation like this one, in which a task fails and the only way to get it to run successfully is to change the values of some module parameters. In that case, you won't be able to re-run because re-run doesn't let you change the parameters. In that case, you'll need to change the parameters and use the triggers panel to start a new pipeline instance. In the more common cases (software bug that had to be fixed, failure due to some sort of hardware problem, etc.), re-running a task offers the possibility of getting failed subtasks to run to completion. 
 
-[[Previous]](display-logs.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](advanced-topics.md)
+<a href="display-logs.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="advanced-topics.md">[Next]</a>

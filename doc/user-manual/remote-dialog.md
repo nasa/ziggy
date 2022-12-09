@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](select-hpc.md)
-[[Up]](advanced-topics.md)
-[[Next]](hpc-cost.md)
+<a href="select-hpc.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="hpc-cost.md">[Next]</a>
 
 ## The Remote Execution Dialog Box
 
@@ -78,6 +74,4 @@ After some amount of fiddling around, you may reach a configuration that you lik
 
 Alternately, you may want to discard all your changes and start over tuning the remote configuration from the original values. To do this, select `Reset to DB Values`.
 
-[[Previous]](select-hpc.md)
-[[Up]](advanced-topics.md)
-[[Next]](hpc-cost.md)
+<a href="select-hpc.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="hpc-cost.md">[Next]</a>

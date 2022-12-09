@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](properties.md)
-[[Up]](user-manual.md)
-[[Next]](log-files.md)
+<a href="properties.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="log-files.md">[Next]</a>
 
 ## Troubleshooting Pipeline Execution
 
@@ -37,7 +33,5 @@ The first stop for understanding what went wrong is the log files. Ziggy produce
 
 In most cases, you wan't want or need to resort to manually pawing through log files. In most cases, you can use Ziggy for troubleshooting and to respond to problems.
 
-[[Previous]](properties.md)
-[[Up]](user-manual.md)
-[[Next]](log-files.md)
+<a href="properties.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="log-files.md">[Next]</a>
 

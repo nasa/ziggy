@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](monitoring.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](display-logs.md)
+<a href="monitoring.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="display-logs.md">[Next]</a>
 
 ## Alerts Panel
 
@@ -22,6 +18,4 @@ Once an alert arrives, the stoplight color will stay whatever color is appropria
 
 Alternately, once an alert is addressed you may want to get it completely out of the table of alerts. The `Clear` button will clear all alerts from the display and return the stoplight to green. 
 
-[[Previous]](monitoring.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](display-logs.md)
+<a href="monitoring.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="display-logs.md">[Next]</a>

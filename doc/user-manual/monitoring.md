@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](ziggy-gui-troubleshooting.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](alerts.md)
+<a href="ziggy-gui-troubleshooting.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="alerts.md">[Next]</a>
 
 ## Monitoring Tab
 
@@ -47,6 +43,4 @@ The colors on the left-hand panel match the colors of the stoplights at the top-
 | Processes | Not used            | All processes healthy | Process(es) in a failed state, attempting to recover | Process(es) in a failed state, recovery efforts failed |
 | Alerts    | Not used            | No new alerts         | New warning level alert(s)                           | New error-level alert(s)                               |
 
-[[Previous]](ziggy-gui-troubleshooting.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](alerts.md)
+<a href="ziggy-gui-troubleshooting.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="alerts.md">[Next]</a>

@@ -1,5 +1,7 @@
 <a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
 
+<a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
+
 ## Downloading and Building Ziggy
 
 Before you start, you should check out the [system requirements](system-requirements.md) article. This will ensure that you have the necessary hardware and software to follow the steps in this article. 
@@ -105,4 +107,3 @@ Before we move on, a few useful details about building Ziggy:
 If all is going well, you're now ready to move on to [defining your own pipeline](configuring-pipeline.md)!
 
 <a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
-

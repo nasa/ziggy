@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](task-configuration.md)
-[[Up]](intermediate-topics.md)
-[[Next]](troubleshooting.md)
+<a href="task-configuration.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="troubleshooting.md">[Next]</a>
 
 ## The Properties File
 
@@ -131,6 +127,4 @@ These properties control the behavior of Hibernate, the API that links Ziggy to 
 | hibernate.controller.driver_class   | Java class used by Hibernate to manage connections. Only needed if using a database application not supported by Ziggy. | Ziggy    |
 | hibernate.dialect                   | Database dialect used by Hibernate. Only needed if using a database application not supported by Ziggy. | Ziggy    |
 
-[[Previous]](task-configuration.md)
-[[Up]](intermediate-topics.md)
-[[Next]](troubleshooting.md)
+<a href="task-configuration.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="troubleshooting.md">[Next]</a>

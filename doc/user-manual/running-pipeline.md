@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](rdbms.md)
-[[Up]](user-manual.md)
-[[Next]](ziggy-gui.md)
+<a href="rdbms.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="ziggy-gui.md">[Next]</a>
 
 ## Running the Cluster
 
@@ -167,6 +163,4 @@ That said: don't do it now! Because you'll want the cluster running and the cons
 
 ... [use the console](ziggy-gui.md) to do some cool stuff!
 
-[[Previous]](rdbms.md)
-[[Up]](user-manual.md)
-[[Next]](ziggy-gui.md)
+<a href="rdbms.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="ziggy-gui.md">[Next]</a>

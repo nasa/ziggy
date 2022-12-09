@@ -1,10 +1,6 @@
-<!-- -*-visual-line-*- -->
+<a href="pipeline-definition.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="rdbms.md">[Next]</a>
 
-[[Previous]](pipeline-definition.md)
-[[Up]](user-manual.md)
-[[Next]](rdbms.md)
-
-## Building a Pipeline
+## Building Your Pipeline
 
 The question of whether your pipeline even needs a build system is one that only you can answer. If all the components of the pipeline are written in interpreted languages (Python, shell script, etc.), you might be able to get away without one!
 
@@ -156,6 +152,4 @@ Note that while going through all this exposition, we've also sneakily built the
 
 Unfortunately, before you get there, we'll need to talk some about [relational databases](rdbms.md).
 
-[[Previous]](pipeline-definition.md)
-[[Up]](user-manual.md)
-[[Next]](rdbms.md)
+<a href="pipeline-definition.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="rdbms.md">[Next]</a>

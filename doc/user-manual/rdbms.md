@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](building-pipeline.md)
-[[Up]](user-manual.md)
-[[Next]](running-pipeline.md)
+<a href="building-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="running-pipeline.md">[Next]</a>
 
 ## Setting up the Relational Database Management System (RDBMS)
 
@@ -115,6 +111,4 @@ As with a Postgresql system database, a database that uses some other RDBMS appl
 
 Now we move on to running a [pipeline in a cluster!](running-pipeline.md)
 
-[[Previous]](building-pipeline.md)
-[[Up]](user-manual.md)
-[[Next]](running-pipeline.md)
+<a href="building-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="running-pipeline.md">[Next]</a>

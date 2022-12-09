@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](running-pipeline.md)
-[[Up]](user-manual.md)
-[[Next]](start-pipeline.md)
+<a href="running-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="start-pipeline.md">[Next]</a>
 
 ## Using the Ziggy Console, Part 1
 
@@ -26,6 +22,4 @@ There's no law that says you have to run the pipeline straight through from its 
 
 How the user adjusts the user-adjustable parameters. 
 
-[[Previous]](running-pipeline.md)
-[[Up]](user-manual.md)
-[[Next]](start-pipeline.md)
+<a href="running-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="start-pipeline.md">[Next]</a>

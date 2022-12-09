@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](delete-tasks.md)
-[[Up]](advanced-topics.md)
-[[Next]](data-receipt-display.md)
+<a href="delete-tasks.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt-display.md">[Next]</a>
 
 ## Data Receipt Execution Flow
 
@@ -161,6 +157,4 @@ Ziggy also comes with a utility to generate manifests from the contents of a dir
 2. Dataset ID, required.
 3. Path to directory with files to be put into the manifest, optional (default: working directory).
 
-[[Previous]](delete-tasks.md)
-[[Up]](advanced-topics.md)
-[[Next]](data-receipt-display.md)
+<a href="delete-tasks.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt-display.md">[Next]</a>

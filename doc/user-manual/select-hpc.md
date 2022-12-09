@@ -1,10 +1,6 @@
-<!-- -*-visual-line-*- -->
+<a href="advanced-topics.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="remote-dialog.md">[Next]</a>
 
-[[Previous]](advanced-topics.md)
-[[Up]](advanced-topics.md)
-[[Next]](remote-dialog.md)
-
-## High Performance Computing Overview
+### High Performance Computing Overview
 
 Large data volumes and/or compute-intensive processing algorithms demand the use of equally large-scale  computing hardware to perform the processing. Fortunately, Ziggy supports the use of High Performance Computing (HPC) facilities.
 
@@ -95,7 +91,5 @@ Second: Ziggy allows you to automate the decision on whether a given number of s
 
 By using these two parameters, you can, in effect, tell Ziggy in advance about your decisions about whether to resubmit a task and whether to use remote execution even if the number of subtasks to process is fairly small.
 
-[[Previous]](advanced-topics.md)
-[[Up]](advanced-topics.md)
-[[Next]](remote-dialog.md)
+<a href="advanced-topics.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="remote-dialog.md">[Next]</a>
 

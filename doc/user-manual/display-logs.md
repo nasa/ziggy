@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](alerts.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](rerun-task.md)
+<a href="alerts.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="rerun-task.md">[Next]</a>
 
 ## Log Files Display
 
@@ -28,6 +24,4 @@ Here you can see the stack trace produced by the Python algorithm when it delibe
 
 Note that this is the same content we saw in the subtask algorithm log in the subtask directory (if you don't remember what I'm talking about, it's near the bottom of [the Log Files article](log-files.md)). The difference is that the file in the subtask directory only has the output from one subtask, while the task log has all the logging from all the subtasks plus additional logging from the Ziggy components that run and manage the algorithm execution.
 
-[[Previous]](alerts.md)
-[[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](rerun-task.md)
+<a href="alerts.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="rerun-task.md">[Next]</a>

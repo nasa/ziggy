@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](datastore-task-dir.md)
-[[Up]](intermediate-topics.md)
-[[Next]](properties.md)
+<a href="datastore-task-dir.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="properties.md">[Next]</a>
 
 ## The Task Configuration Parameter Sets
 
@@ -155,6 +151,4 @@ Note that this is a potentially dangerous option to use! The problem is that Zig
 
 The default for `maxAutoResubmits` is zero.
 
-[[Previous]](datastore-task-dir.md)
-[[Up]](intermediate-topics.md)
-[[Next]](properties.md)
+<a href="datastore-task-dir.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="properties.md">[Next]</a>

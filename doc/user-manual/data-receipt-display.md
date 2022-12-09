@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](data-receipt.md)
-[[Up]](advanced-topics.md)
-[[Next]](contact-us.md)
+<a href="data-receipt.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="contact-us.md">[Next]</a>
 
 ## Data Receipt Display
 
@@ -16,6 +12,4 @@ Double-clicking a row in the table brings up a display of all the files in the d
 
 Note that the file names are the datastore names. 
 
-[[Previous]](data-receipt.md)
-[[Up]](advanced-topics.md)
-[[Next]](contact-us.md)
+<a href="data-receipt.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="contact-us.md">[Next]</a>

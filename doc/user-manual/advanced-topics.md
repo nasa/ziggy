@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](rerun-task.md)
-[[Up]](user-manual.md)
-[[Next]](select-hpc.md)
+<a href="rerun-task.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="select-hpc.md">[Next]</a>
 
 ## Advanced Topics
 
@@ -76,8 +72,4 @@ What does Ziggy even do with its relational database?
 
 Relational Database
 
--->
-
-[[Previous]](rerun-task.md)
-[[Up]](user-manual.md)
-[[Next]](select-hpc.md)
+<a href="rerun-task.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="select-hpc.md">[Next]</a>

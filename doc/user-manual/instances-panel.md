@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](start-pipeline.md)
-[[Up]](ziggy-gui.md)
-[[Next]](start-end-nodes.md)
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="start-end-nodes.md">[Next]</a>
 
 ## The Instances Panel
 
@@ -212,6 +208,4 @@ Recall from the discussion on [Running the Cluster](running-pipeline.md) that th
 
 Both the instances table and the tasks table have a column labeled `P-time`. This represents the total "wall time" the instance or task has been running. Put simply, `P-time` is a timer or stopwatch that starts when the task or instance starts running, stops when the instance or task completes or fails, and starts again if the task or instance restarts. It's thus the total-to-date time spent processing, including any time spent in execution attempts that failed.
 
-[[Previous]](start-pipeline.md)
-[[Up]](ziggy-gui.md)
-[[Next]](start-end-nodes.md)
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="start-end-nodes.md">[Next]</a>

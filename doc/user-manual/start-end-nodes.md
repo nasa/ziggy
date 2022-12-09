@@ -1,8 +1,4 @@
-<!-- -*-visual-line-*- -->
-
-[[Previous]](instances-panel.md)
-[[Up]](ziggy-gui.md)
-[[Next]](change-param-values.md)
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="change-param-values.md">[Next]</a>
 
 ## Changing the Start and End Nodes
 
@@ -20,6 +16,4 @@ Now press the `Fire!` button and return to the `Instances` panel. The pipeline w
 
 As advertised, the pipeline ran again but this time it skipped data receipt and stopped short of the averaging tasks.
 
-[[Previous]](instances-panel.md)
-[[Up]](ziggy-gui.md)
-[[Next]](change-param-values.md)
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="change-param-values.md">[Next]</a>
