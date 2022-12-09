@@ -1,3 +1,5 @@
+<a href="select-hpc.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="hpc-cost.md">[Next]</a>
+
 ## The Remote Execution Dialog Box
 
 When you submit a job request to the batch system for an HPC facility, it typically wants you to specify your request in "machine-centric" units: how many compute nodes, of what kind, for how long? Meanwhile, what you know is something about the resources that each subtask will likely need (RAM and CPU hours), you may or may not know how many subtasks there are, and you probably care about things like, "How long will this take?", "How much will it cost?", and "How long will my jobs be stuck in the queue?"
@@ -71,3 +73,5 @@ This results in a cost even lower than what we saw before! This is because, in t
 After some amount of fiddling around, you may reach a configuration that you like, and you'd like to ensure that Ziggy uses that configuration when it actually submits your jobs. To make that happen, press the `Save to DB` button. Ziggy will update the `RemoteParameters` instance that goes with this node according to your settings.
 
 Alternately, you may want to discard all your changes and start over tuning the remote configuration from the original values. To do this, select `Reset to DB Values`.
+
+<a href="select-hpc.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="hpc-cost.md">[Next]</a>

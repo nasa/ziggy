@@ -1,3 +1,5 @@
+<a href="delete-tasks.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt-display.md">[Next]</a>
+
 ## Data Receipt Execution Flow
 
 Remember data receipt? Here's where we get into how it works. You'll want to know this when you're setting up data transfers in your own mission.
@@ -155,3 +157,4 @@ Ziggy also comes with a utility to generate manifests from the contents of a dir
 2. Dataset ID, required.
 3. Path to directory with files to be put into the manifest, optional (default: working directory).
 
+<a href="delete-tasks.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt-display.md">[Next]</a>

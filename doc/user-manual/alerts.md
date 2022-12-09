@@ -1,3 +1,5 @@
+<a href="monitoring.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="display-logs.md">[Next]</a>
+
 ## Alerts Panel
 
 Ziggy uses alerts to tell the pipeline operator that something has happened that they ought to know about. Alerts are displayed on the `Alerts` status panel. It looks like this:
@@ -15,3 +17,5 @@ Once an alert arrives, the stoplight color will stay whatever color is appropria
 ### Clearing Alerts
 
 Alternately, once an alert is addressed you may want to get it completely out of the table of alerts. The `Clear` button will clear all alerts from the display and return the stoplight to green. 
+
+<a href="monitoring.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="display-logs.md">[Next]</a>

@@ -1,3 +1,5 @@
+<a href="remote-dialog.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="delete-tasks.md">[Next]</a>
+
 ## HPC Cost Estimation
 
 The Remote Parameters Dialog allows you to get a prior estimate of the cost of processing a task on HPC. This is great, but a post-run estimate is also valuable. The post-run can differ from the pre-run for two reasons: First, the pre-run estimate might have been an overestimate, in which case the jobs would finish ahead of schedule and the true cost would be lower; alternately, if the jobs all ran out of wall time and the task was resubmitted, then the total cost will be higher than the pre-run estimate. 
@@ -13,3 +15,5 @@ Go to the Instances tab, right-click on an instance, and select the Cost estimat
 ![](images/hpc-cost-est.png)
 
 In our case, we ran all our tasks on the local system so all the estimates are zero! However: if you'd run on an HPC system, the `Cost Estimate` column would show the running total for each task during execution, and would show a final estimate after execution completed. 
+
+<a href="remote-dialog.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="delete-tasks.md">[Next]</a>

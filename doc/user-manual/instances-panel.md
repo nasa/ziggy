@@ -1,3 +1,5 @@
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="start-end-nodes.md">[Next]</a>
+
 ## The Instances Panel
 
 The instances panel is the single most useful part of Ziggy when it comes to monitoring execution, so it's worth some discussion of exactly what it's trying to tell you. In the process, we'll introduce some concepts that will remain vital as we move through Ziggy-land.
@@ -205,3 +207,5 @@ Recall from the discussion on [Running the Cluster](running-pipeline.md) that th
 ### P-Time
 
 Both the instances table and the tasks table have a column labeled `P-time`. This represents the total "wall time" the instance or task has been running. Put simply, `P-time` is a timer or stopwatch that starts when the task or instance starts running, stops when the instance or task completes or fails, and starts again if the task or instance restarts. It's thus the total-to-date time spent processing, including any time spent in execution attempts that failed.
+
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="start-end-nodes.md">[Next]</a>

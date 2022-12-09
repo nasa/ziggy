@@ -1,3 +1,5 @@
+<a href="alerts.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="rerun-task.md">[Next]</a>
+
 ## Log Files Display
 
 Ziggy provides a mechanism for viewing task logs that is more convenient than going to the `logs` directory and hunting around.
@@ -21,3 +23,5 @@ The log will always be opened with the view positioned at the end of the log, si
 Here you can see the stack trace produced by the Python algorithm when it deliberately threw an exception, and the Java stack trace that was generated when Ziggy detected that the algorithm had thrown an exception. As it happens, the log shows exactly what the problem is: the user set the parameter that tells subtask 0 to fail, and subtask 0 duly failed.
 
 Note that this is the same content we saw in the subtask algorithm log in the subtask directory (if you don't remember what I'm talking about, it's near the bottom of [the Log Files article](log-files.md)). The difference is that the file in the subtask directory only has the output from one subtask, while the task log has all the logging from all the subtasks plus additional logging from the Ziggy components that run and manage the algorithm execution.
+
+<a href="alerts.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="rerun-task.md">[Next]</a>

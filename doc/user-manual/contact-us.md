@@ -1,5 +1,7 @@
 <!-- -*-visual-line-*- -->
 
+<a href="data-receipt-display.md">[Previous]</a> <a href="user-manual.md">[Up]</a>
+
 ## Contact Us
 
 If you have problems with Ziggy, or suggestions for improving Ziggy, please create an Issue.
@@ -10,3 +12,6 @@ If you just want to send an email, we are:
 
 Peter Tenenbaum <Peter.Tenenbaum@nasa.gov> (but you can call him PT)  
 Bill Wohler <Bill.Wohler@nasa.gov>
+
+<a href="data-receipt-display.md">[Previous]</a> <a href="user-manual.md">[Up]</a>
+

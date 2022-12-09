@@ -1,3 +1,5 @@
+<a href="intermediate-topics.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="task-configuration.md">[Next]</a>
+
 ## The Datastore and the Task Directory
 
 The datastore is Ziggy's organized, permanent file storage system. The task directory is temporary file storage used by processing algorithms. Let's take a look at these now.
@@ -188,3 +190,5 @@ The advantages of the symlinks are fairly obvious:
 There are also situations in which the symlinks may not be a good idea:
 
 - It may be the case that you're using one computer to run the worker and database, and a different one to run the algorithms. In this situation, the datastore can be on a file system that's mounted on the worker machine but not the compute machine, in which case the symlink solution won't work (the compute node can't see the datastore, so it can't follow the link).
+
+<a href="intermediate-topics.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="task-configuration.md">[Next]</a>

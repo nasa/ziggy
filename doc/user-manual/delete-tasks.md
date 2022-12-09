@@ -1,3 +1,5 @@
+<a href="hpc-cost.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt.md">[Next]</a>
+
 ## Deleting Tasks
 
 Sometimes it's necessary to stop the execution of tasks after they start running. Tasks that are running as jobs under control of a batch system at an HPC facility will provide command line tools for this, but they're a hassle to use when you're trying to delete a large number of jobs. Trying to delete tasks running locally is likewise hassle-tastic. 
@@ -23,3 +25,5 @@ As expected, it notifies you that the task stopped due to deletion and not due t
 ### Delete all Tasks for an Instance
 
 This is the same idea, except it's the pop-up menu for the instance table, and you select `Delete all tasks`.
+
+<a href="hpc-cost.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="data-receipt.md">[Next]</a>

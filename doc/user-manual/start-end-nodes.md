@@ -1,3 +1,5 @@
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="change-param-values.md">[Next]</a>
+
 ## Changing the Start and End Nodes
 
 As you perform your data processing activities, it won't always be necessary to run the whole, entire pipeline. As a simple example: any time you're reprocessing, you won't need to re-run the data receipt step in any pipelines that start with data receipt.
@@ -13,3 +15,5 @@ Now press the `Fire!` button and return to the `Instances` panel. The pipeline w
 ![](images/gui-start-end-adjusted.png)
 
 As advertised, the pipeline ran again but this time it skipped data receipt and stopped short of the averaging tasks.
+
+<a href="start-pipeline.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="change-param-values.md">[Next]</a>

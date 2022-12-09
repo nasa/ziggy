@@ -1,3 +1,5 @@
+<a href="rdbms.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="ziggy-gui.md">[Next]</a>
+
 ## Running the Cluster
 
 At last, we are ready to start up the pipeline! First, though, we need to have a minor digression about the `runjava` program.
@@ -160,3 +162,5 @@ That said: don't do it now! Because you'll want the cluster running and the cons
 ### What's Next?
 
 ... [use the console](ziggy-gui.md) to do some cool stuff!
+
+<a href="rdbms.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="ziggy-gui.md">[Next]</a>

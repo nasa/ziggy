@@ -1,3 +1,5 @@
+<a href="running-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="start-pipeline.md">[Next]</a>
+
 ## Using the Ziggy Console, Part 1
 
 I ain't gonna lie to you: getting a full understanding of the Ziggy console is a tall order. For this reason, we've broken it down into several parts, and then broken those parts down into even smaller parts. Here in Part 1, we'll concentrate on things that are relevant to starting and running a pipeline under relatively normal circumstances. 
@@ -20,3 +22,4 @@ There's no law that says you have to run the pipeline straight through from its 
 
 How the user adjusts the user-adjustable parameters. 
 
+<a href="running-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="start-pipeline.md">[Next]</a>

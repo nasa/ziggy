@@ -1,3 +1,5 @@
+<a href="rerun-task.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="select-hpc.md">[Next]</a>
+
 ## Advanced Topics
 
 Here's where we get into some more fun stuff. Much of it is connected with the use of the console, so the advanced topics and Ziggy console section are combined. 
@@ -70,4 +72,4 @@ What does Ziggy even do with its relational database?
 
 Relational Database
 
--->
+<a href="rerun-task.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="select-hpc.md">[Next]</a>

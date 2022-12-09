@@ -1,3 +1,5 @@
+<a href="data-receipt.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="contact-us.md">[Next]</a>
+
 ## Data Receipt Display
 
 The console has the ability to display data receipt activities. From the `Configuration` tab, expand the `Data Receipt` folder and select `Available Datasets`. You'll see something like this:
@@ -9,3 +11,5 @@ Double-clicking a row in the table brings up a display of all the files in the d
 ![](images/data-receipt-list.png)
 
 Note that the file names are the datastore names. 
+
+<a href="data-receipt.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="contact-us.md">[Next]</a>

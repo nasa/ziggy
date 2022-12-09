@@ -82,6 +82,4 @@ If you are interested in contributing to Ziggy, please complete the NASA license
 * [doc/legal/NASA-Corporate-CLA.pdf](doc/legal/NASA-Corporate-CLA.pdf)
 * [doc/legal/NASA-Individual-CLA.pdf](doc/legal/NASA-Individual-CLA.pdf)
 
-
-
 <a href="doc/user-manual/user-manual.md">[Previous]</a> <a href="doc/user-manual/user-manual.md">[Up]</a> <a href="doc/user-manual/system-requirements.md">[Next]</a>

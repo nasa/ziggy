@@ -1,3 +1,5 @@
+<a href="log-files.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="monitoring.md">[Next]</a>
+
 ## Using the Ziggy Console, Part 2: Troubleshooting
 
 Here are some articles on things you can use the Ziggy console for that relate to troubleshooting and recovery from problems.
@@ -17,3 +19,5 @@ For any given task you can display the task's log files directly from the consol
 ### [Re-Run or Resume a Failed Task](rerun-task.md)
 
 Ziggy also gives you options when you've decided what you want to do about a failed task.
+
+<a href="log-files.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="monitoring.md">[Next]</a>

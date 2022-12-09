@@ -1,3 +1,5 @@
+<a href="properties.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="log-files.md">[Next]</a>
+
 ## Troubleshooting Pipeline Execution
 
 It's been said that the only things in life that are guaranteed are death and taxes, but software failures should probably be on that list as well. When you start setting up your own pipelines, sure as sugar you're going to encounter problems! Here's where we get started helping you figure out where it went wrong, why it went wrong, and how to get back on track.
@@ -30,3 +32,6 @@ The first stop for understanding what went wrong is the log files. Ziggy produce
 ### [Using the Ziggy GUI for Troubleshooting](ziggy-gui-troubleshootihng.md)
 
 In most cases, you wan't want or need to resort to manually pawing through log files. In most cases, you can use Ziggy for troubleshooting and to respond to problems.
+
+<a href="properties.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="log-files.md">[Next]</a>
+

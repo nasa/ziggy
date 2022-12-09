@@ -1,3 +1,5 @@
+<a href="change-param-values.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="datastore-task-dir.md">[Next]</a>
+
 ## Intermediate Topics
 
 Now that you've [successfully run a pipeline](start-pipeline.md), there are some other things you should look at before we move on to what happens when things don't go quite as well.
@@ -13,3 +15,5 @@ How Ziggy knows how to divide work up into tasks, and much, much more.
 ### [The Properties File](properties.md)
 
 Everything you never wanted to know about how Ziggy sets paths, but were forced to find out.
+
+<a href="change-param-values.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="datastore-task-dir.md">[Next]</a>

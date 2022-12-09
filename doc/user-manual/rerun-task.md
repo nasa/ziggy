@@ -1,3 +1,5 @@
+<a href="display-logs.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="advanced-topics.md">[Next]</a>
+
 ## Re-Run or Resume a Failed Task
 
 Let's assume at this point that you've investigated the cause of your failed task. Maybe you've made software changes that address the problem, so now you want to re-run the failed task. Or maybe you've decided that it's not worth the effort to try to salvage the failed subtasks but you would like to capture the results of the successful ones. In either case, the restart dialog is what you need to use. 
@@ -51,3 +53,5 @@ If the subtask had failed because of a real problem, we would be able to fix the
 If we re-run the task, it will re-run with the same values for all parameters (except for the remote execution parameters, but we're not using those at all for this example). This means that the `throw_exception_subtask_0 parameter` will still be true, and subtask 0 will fail again. 
 
 In real life, it's possible that you'll encounter a situation like this one, in which a task fails and the only way to get it to run successfully is to change the values of some module parameters. In that case, you won't be able to re-run because re-run doesn't let you change the parameters. In that case, you'll need to change the parameters and use the triggers panel to start a new pipeline instance. In the more common cases (software bug that had to be fixed, failure due to some sort of hardware problem, etc.), re-running a task offers the possibility of getting failed subtasks to run to completion. 
+
+<a href="display-logs.md">[Previous]</a> <a href="ziggy-gui-troubleshooting.md">[Up]</a> <a href="advanced-topics.md">[Next]</a>

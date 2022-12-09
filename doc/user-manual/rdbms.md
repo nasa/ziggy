@@ -1,3 +1,5 @@
+<a href="building-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="running-pipeline.md">[Next]</a>
+
 ## Setting up the Relational Database Management System (RDBMS)
 
 Ziggy uses a commercial off-the-shelf (COTS) database application to keep track of a lot of the details of pipeline operations and generally to provide permanent records of lots and lots of information. For this purpose, pretty much any RDBMS will suffice, but Ziggy "ships" with support for Postgresql. Postgresql is free and open-source, has great support and documentation, and performs well.
@@ -108,3 +110,5 @@ As with a Postgresql system database, a database that uses some other RDBMS appl
 ### Okay, What Next?
 
 Now we move on to running a [pipeline in a cluster!](running-pipeline.md)
+
+<a href="building-pipeline.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="running-pipeline.md">[Next]</a>

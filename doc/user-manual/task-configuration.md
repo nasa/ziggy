@@ -1,3 +1,5 @@
+<a href="datastore-task-dir.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="properties.md">[Next]</a>
+
 ## The Task Configuration Parameter Sets
 
 If you look back at [what happened when we ran the pipeline](start-pipeline.md), you'll note that each of the nodes after data receipt -- permuter, flip, and averaging -- had 2 tasks; and in each case there was one task with a `UOW` of 1 and another with `UOW` 2. You may have wondered: how does this work? How did Ziggy decide how to divide up the work into tasks?
@@ -148,3 +150,5 @@ Because of issues like these, Ziggy has the capacity to automatically resubmit a
 Note that this is a potentially dangerous option to use! The problem is that Ziggy can't tell the difference between a failure that a typical user would want to automatically resubmit, and a failure that is a real problem that needs human intervention (for example, a bug in the algorithm software). If the situation is in the second category, you can wind up with Ziggy resubmitting a task that's simply going to fail in exactly the same way as it did the first time it was submitted.
 
 The default for `maxAutoResubmits` is zero.
+
+<a href="datastore-task-dir.md">[Previous]</a> <a href="intermediate-topics.md">[Up]</a> <a href="properties.md">[Next]</a>

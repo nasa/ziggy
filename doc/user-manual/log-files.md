@@ -1,3 +1,5 @@
+<a href="troubleshooting.md">[Previous]</a> <a href="troubleshooting.md">[Up]</a> <a href="ziggy-gui-troubleshooting.md">[Next]</a>
+
 ## Log Files in Ziggy
 
 Ziggy produces a substantial number of different kinds of log files. All of them are in the logs directory under the main pipeline results directory, with one exception: the subtask algorithm log, which is in the subtask directory.
@@ -172,3 +174,5 @@ Well, the answer is: Ziggy automatically sends all the standard output from the 
 Why do it this way?
 
 Remember what we said earlier about subtask directories: sometimes it's helpful to copy them to a different file system on a different computer so that a subject matter expert can troubleshoot issues on the system they're familiar with (and one where they have write permissions for all the contents). By including all of the standard output from the subtask in the `stdout-0.log` file, we ensure that if the expert on the algorithm code wants to see all the output from the algorithm, it's right there for them. Even better, it's right there for them without all the "overhead" of logging messages that these experts won't be interested in (i.e., the rest of the algorithm log contents).
+
+<a href="troubleshooting.md">[Previous]</a> <a href="troubleshooting.md">[Up]</a> <a href="ziggy-gui-troubleshooting.md">[Next]</a>
