@@ -10,11 +10,13 @@ import java.util.Map;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
-import gov.nasa.ziggy.ZiggyUnitTest;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -32,7 +34,6 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.messages.WorkerTaskRequest;
-import gov.nasa.ziggy.util.io.Filenames;
 import gov.nasa.ziggy.worker.WorkerPipelineProcess;
 
 /**
@@ -40,7 +41,10 @@ import gov.nasa.ziggy.worker.WorkerPipelineProcess;
  *
  * @author PT
  */
-public class AlgorithmMonitorTest extends ZiggyUnitTest {
+public class AlgorithmMonitorTest {
+
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
 
     private AlgorithmMonitor monitor;
     private PipelineTask pipelineTask;
@@ -52,13 +56,12 @@ public class AlgorithmMonitorTest extends ZiggyUnitTest {
     private ProcessingSummaryOperations attrOps;
     private PipelineInstanceNodeCrud nodeCrud;
 
-    @Override
+    @Before
     public void setUp() throws IOException, ConfigurationException {
 
+        setSystemProperties();
         DatabaseService.setInstance(Mockito.mock(DatabaseService.class));
 
-        // Set the "pipeline results directory" to build/test
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, Filenames.BUILD_TEST);
         Files.createDirectories(DirectoryProperties.stateFilesDir());
         jobMonitor = Mockito.mock(JobMonitor.class);
         monitor = Mockito.spy(new AlgorithmMonitor(false));
@@ -103,18 +106,30 @@ public class AlgorithmMonitorTest extends ZiggyUnitTest {
         monitor.startMonitoring(stateFile);
     }
 
-    @Override
     @After
     public void tearDown() throws IOException {
         WorkerPipelineProcess.workerTaskRequestQueue.clear();
+        clearSystemProperties();
     }
 
-    @Override
+    // The following methods are here only temporarily, will be replaced with a Rule for system
+    // property handling.
     public Map<String, String> systemProperties() {
         Map<String, String> systemProperties = new HashMap<>();
-        systemProperties.put(PropertyNames.RESULTS_DIR_PROP_NAME,
-            ZiggyUnitTest.BUILD_TEST_PATH.toString());
+        systemProperties.put(PropertyNames.RESULTS_DIR_PROP_NAME, dirRule.testDirPath().toString());
         return systemProperties;
+    }
+
+    public void setSystemProperties() {
+        for (Map.Entry<String, String> systemProperty : systemProperties().entrySet()) {
+            System.setProperty(systemProperty.getKey(), systemProperty.getValue());
+        }
+    }
+
+    public void clearSystemProperties() {
+        for (String systemPropertyName : systemProperties().keySet()) {
+            System.clearProperty(systemPropertyName);
+        }
     }
 
     /**

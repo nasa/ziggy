@@ -8,9 +8,12 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTest;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 
 /**
  * Unit tests for {@link LockManager}. Note that these tests are limited to a single process.
@@ -18,22 +21,23 @@ import gov.nasa.ziggy.ZiggyUnitTest;
  * @author Mark Rose
  * @author PT
  */
-public class LockManagerTest extends ZiggyUnitTest {
+public class LockManagerTest {
 
-    private static final Path LOCK_FILE_ONE = ZiggyUnitTest.BUILD_TEST_PATH
-        .resolve("LockManagerTest")
-        .resolve("one.lock");
-    private static final Path LOCK_FILE_TWO = ZiggyUnitTest.BUILD_TEST_PATH
-        .resolve("LockManagerTest")
-        .resolve("two.lock");
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
 
-    @Override
+    private Path LOCK_FILE_ONE;
+    private Path LOCK_FILE_TWO;
+
+    @Before
     public void setUp() throws IOException {
+        LOCK_FILE_ONE = dirRule.testDirPath().resolve("one.lock");
+        LOCK_FILE_TWO = dirRule.testDirPath().resolve("two.lock");
         createLockFile(LOCK_FILE_ONE);
         createLockFile(LOCK_FILE_TWO);
     }
 
-    @Override
+    @After
     public void tearDown() throws IOException {
         LockManager.releaseAllLocks();
     }
