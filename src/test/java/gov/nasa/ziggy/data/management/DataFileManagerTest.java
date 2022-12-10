@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
@@ -20,17 +21,18 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.io.Files;
+//import com.google.common.io.Files;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.DataFileInfoSample1;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.DataFileInfoSample2;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.DataFileInfoSampleForDirs;
@@ -42,8 +44,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.uow.TaskConfigurationParameters;
-import gov.nasa.ziggy.util.io.FileUtil;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Test class for DataFileManager class.
@@ -56,7 +56,6 @@ public class DataFileManagerTest {
     private String taskDirRoot;
     private String taskDir;
     private String subtaskDir;
-    private String originalWorkingDir;
     private DataFileManager dataFileManager;
     private DataFileManager dataFileManager2;
     private static final long TASK_ID = 100L;
@@ -69,20 +68,23 @@ public class DataFileManagerTest {
     private DatastoreProducerConsumerCrud datastoreProducerConsumerCrud;
     private PipelineTaskCrud pipelineTaskCrud;
 
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+
     @Before
-    public void setup() {
-        File datastore = new File(Filenames.BUILD_TEST, "datastore");
-        datastore.mkdirs();
-        datastoreRoot = datastore.getAbsolutePath();
+    public void setup() throws IOException {
+        Path datastore = dirRule.testDirPath().resolve("datastore");
+        Files.createDirectories(datastore);
+        datastoreRoot = datastore.toAbsolutePath().toString();
         System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot);
-        File taskDirRoot = new File(Filenames.BUILD_TEST, "taskspace");
-        taskDirRoot.mkdirs();
-        this.taskDirRoot = taskDirRoot.getAbsolutePath();
+        Path taskDirRoot = dirRule.testDirPath().resolve("taskspace");
+        Files.createDirectories(taskDirRoot);
+        this.taskDirRoot = taskDirRoot.toAbsolutePath().toString();
         makeTaskDir("pa-5-10");
 
-        File externalTemp = new File(Filenames.BUILD_TEST, "tmp");
-        externalTemp.mkdirs();
-        externalTempDir = externalTemp.getAbsolutePath();
+        Path externalTemp = dirRule.testDirPath().resolve("tmp");
+        Files.createDirectories(externalTemp);
+        externalTempDir = externalTemp.toAbsolutePath().toString();
 
         // For some tests we will need a pipeline task and a DatastoreProducerConsumerCrud;
         // set that up now.
@@ -99,24 +101,13 @@ public class DataFileManagerTest {
         initializeDataFileManager2();
         DataFileTestUtils.initializeDataFileTypeSamples();
 
-        // capture the original working directory
-        originalWorkingDir = System.getProperty("user.dir");
-
     }
 
     @After
     public void teardown() throws InterruptedException, IOException {
         System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        // NB: execution is so fast that some deleteDirectory commands fail because
-        // (apparently) write-locks have not yet had time to release! Address this by
-        // adding a short nap.
-        Thread.sleep(10);
-        FileUtils.deleteDirectory(new File(taskDirRoot));
-        FileUtil.setPosixPermissionsRecursively(new File(datastoreRoot).toPath(), "rwxrwxrwx");
-        FileUtils.forceDelete(new File(Filenames.BUILD_TEST));
         System.clearProperty(PropertyNames.USE_SYMLINKS_PROP_NAME);
         System.clearProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME);
-        System.setProperty("user.dir", originalWorkingDir);
     }
 
     private void makeTaskDir(String taskDirName) {
@@ -1035,8 +1026,9 @@ public class DataFileManagerTest {
         // Now get only the ones that are appropriate for reprocessing
         taskConfig.setReprocess(false);
         Mockito
-            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(Matchers.<Set<Long>> any(),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(
+                ArgumentMatchers.<Set<Long>> any(),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(Lists.newArrayList(11L, 12L));
 
         paths = dataFileManager2.dataFilesForInputs(Paths.get(""), dataFileTypes, taskConfig);
@@ -1430,10 +1422,10 @@ public class DataFileManagerTest {
         File cal1 = new File(taskDir, "cal-1-1-A-20-results.h5");
         File cal2 = new File(taskDir, "cal-1-1-B-20-results.h5");
 
-        Files.move(pa1, new File(subtaskDir, pa1.getName()));
-        Files.move(pa2, new File(subtaskDir2, pa2.getName()));
-        Files.move(cal1, new File(subtaskDir, cal1.getName()));
-        Files.move(cal2, new File(subtaskDir2, cal2.getName()));
+        Files.move(pa1.toPath(), new File(subtaskDir, pa1.getName()).toPath());
+        Files.move(pa2.toPath(), new File(subtaskDir2, pa2.getName()).toPath());
+        Files.move(cal1.toPath(), new File(subtaskDir, cal1.getName()).toPath());
+        Files.move(cal2.toPath(), new File(subtaskDir2, cal2.getName()).toPath());
 
         // mark the first subtask directory as completed
         AlgorithmStateFiles asf = new AlgorithmStateFiles(new File(subtaskDir));
@@ -1546,10 +1538,10 @@ public class DataFileManagerTest {
         File cal1 = new File(taskDir, "cal-1-1-A-20-results.h5");
         File cal2 = new File(taskDir, "cal-1-1-B-20-results.h5");
 
-        Files.move(pa1, new File(subtaskDir, pa1.getName()));
-        Files.move(pa2, new File(subtaskDir2, pa2.getName()));
-        Files.move(cal1, new File(subtaskDir, cal1.getName()));
-        Files.move(cal2, new File(subtaskDir2, cal2.getName()));
+        Files.move(pa1.toPath(), new File(subtaskDir, pa1.getName()).toPath());
+        Files.move(pa2.toPath(), new File(subtaskDir2, pa2.getName()).toPath());
+        Files.move(cal1.toPath(), new File(subtaskDir, cal1.getName()).toPath());
+        Files.move(cal2.toPath(), new File(subtaskDir2, cal2.getName()).toPath());
 
         // mark the first subtask directory as completed
         AlgorithmStateFiles asf = new AlgorithmStateFiles(new File(subtaskDir));
@@ -1627,8 +1619,9 @@ public class DataFileManagerTest {
 
         // set up the pipeline task CRUD
         Mockito
-            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(Matchers.<Set<Long>> any(),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(
+                ArgumentMatchers.<Set<Long>> any(),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(Lists.newArrayList(11L, 12L));
 
         TaskConfigurationParameters tcp = new TaskConfigurationParameters();
@@ -1654,8 +1647,9 @@ public class DataFileManagerTest {
 
         // set up the pipeline task CRUD
         Mockito
-            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(Matchers.<Set<Long>> any(),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(
+                ArgumentMatchers.<Set<Long>> any(),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(Lists.newArrayList(10L, 11L, 12L));
 
         TaskConfigurationParameters tcp = new TaskConfigurationParameters();

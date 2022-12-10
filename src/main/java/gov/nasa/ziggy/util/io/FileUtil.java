@@ -243,21 +243,37 @@ public class FileUtil {
      * puts us back at trying to delete non-empty directories.
      *
      * @param directory top-level directory.
+     * @param force indicates that permissions should be changed, if necessary, to delete files and
+     * directories.
      * @throws IOException
      */
-    public static void cleanDirectoryTree(Path directory) throws IOException {
+    public static void cleanDirectoryTree(Path directory, boolean force) throws IOException {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path file : stream) {
                 if (Files.isDirectory(file)) {
-                    cleanDirectoryTree(file);
+                    if (force) {
+                        setPosixPermissionsRecursively(file, "rw-r--r--", "rwxr-xr-x");
+                    }
+                    cleanDirectoryTree(file, force);
                 }
                 Files.delete(file);
             }
         }
     }
 
+    public static void cleanDirectoryTree(Path directory) throws IOException {
+        cleanDirectoryTree(directory, false);
+    }
+
     public static void deleteDirectoryTree(Path directory) throws IOException {
-        cleanDirectoryTree(directory);
+        deleteDirectoryTree(directory, false);
+    }
+
+    public static void deleteDirectoryTree(Path directory, boolean force) throws IOException {
+        cleanDirectoryTree(directory, force);
+        if (force) {
+            setPosixPermissionsRecursively(directory, "rw-r--r--", "rwxr-xr-x");
+        }
         FileUtils.deleteDirectory(directory.toFile());
     }
 

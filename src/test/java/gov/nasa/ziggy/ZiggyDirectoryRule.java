@@ -54,7 +54,7 @@ public class ZiggyDirectoryRule implements TestRule {
             Files.createDirectories(testDirPath);
 
             // Clean the new directory prior to use.
-            FileUtil.cleanDirectoryTree(testDirPath);
+            FileUtil.cleanDirectoryTree(testDirPath, true);
 
             return new Statement() {
                 @Override
