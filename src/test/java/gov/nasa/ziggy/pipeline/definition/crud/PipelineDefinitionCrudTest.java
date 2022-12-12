@@ -6,10 +6,11 @@ import java.util.Date;
 import java.util.List;
 
 import org.hibernate.Query;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
@@ -56,10 +57,11 @@ public class PipelineDefinitionCrudTest {
     private PipelineModuleDefinition expectedModuleDef3;
     private ReflectionEquals comparer;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
-
         userCrud = new UserCrud();
         pipelineDefinitionCrud = new PipelineDefinitionCrud();
         pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
@@ -71,13 +73,6 @@ public class PipelineDefinitionCrudTest {
         comparer.excludeField(".*\\.nodesAndParamSets");
         comparer.excludeField(".*\\.childNodeNames");
         comparer.excludeField(".*\\.rootNodeNames");
-
-    }
-
-    @After
-    public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
-        DatabaseService.reset();
     }
 
     private PipelineDefinition populateObjects() {

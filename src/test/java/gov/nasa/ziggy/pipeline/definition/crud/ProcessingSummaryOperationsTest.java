@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
@@ -26,9 +26,11 @@ public class ProcessingSummaryOperationsTest {
 
     List<PipelineTask> tasks = new ArrayList<>();
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
 
         // Create some instances in the database.
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -45,11 +47,6 @@ public class ProcessingSummaryOperationsTest {
             tasks.add(pipelineTask2);
             return null;
         });
-    }
-
-    @After
-    public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

@@ -7,11 +7,11 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
@@ -25,9 +25,11 @@ public class ModelCrudTest {
 
     private ModelType modelType1, modelType2;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setup() {
-        ZiggyUnitTestUtils.setUpDatabase();
 
         // Set up a couple of model types and persist them to the database
         setUpModelTypes();
@@ -37,11 +39,6 @@ public class ModelCrudTest {
             modelCrud.create(modelType2);
             return null;
         });
-    }
-
-    @After
-    public void teardown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

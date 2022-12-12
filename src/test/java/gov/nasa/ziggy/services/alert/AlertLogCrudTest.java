@@ -7,12 +7,12 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 public class AlertLogCrudTest {
@@ -28,9 +28,11 @@ public class AlertLogCrudTest {
     private Date date6;
     private Date date7;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() throws Exception {
-        ZiggyUnitTestUtils.setUpDatabase();
         alertCrud = new AlertLogCrud();
 
         date1 = parser.parse("Jun-1-12 12:00:00");
@@ -40,11 +42,6 @@ public class AlertLogCrudTest {
         date5 = parser.parse("Sep-20-12 05:00:00");
         date6 = parser.parse("Sep-21-12 05:00:00");
         date7 = parser.parse("Oct-31-12 19:00:00");
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

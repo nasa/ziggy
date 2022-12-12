@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.xml.bind.UnmarshalException;
-
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.After;
@@ -26,7 +24,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
@@ -44,6 +42,7 @@ import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.ReflectionEquals;
 import gov.nasa.ziggy.util.io.Filenames;
+import jakarta.xml.bind.UnmarshalException;
 
 /**
  * @author Todd Klaus
@@ -61,9 +60,11 @@ public class ParametersOperationsTest {
     private ParameterTestClasses.TestParametersBar testParametersBar;
     private ParameterTestClasses.TestParametersBaz testParametersBaz;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
         String workingDir = System.getProperty("user.dir");
         Path homeDirPath = Paths.get(workingDir, "build");
         System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
@@ -71,7 +72,6 @@ public class ParametersOperationsTest {
 
     @After
     public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
         System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
     }
 

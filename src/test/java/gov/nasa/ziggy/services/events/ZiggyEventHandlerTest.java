@@ -30,8 +30,7 @@ import org.xml.sax.SAXException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
-import gov.nasa.ziggy.ZiggyDirectoryRule;
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.data.management.DataFileTypeImporter;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
@@ -84,7 +83,11 @@ public class ZiggyEventHandlerTest {
     private PipelineOperations pipelineOperations = Mockito.spy(PipelineOperations.class);
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
 
-    @Before
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
+	@SuppressWarnings("unchecked")
+	@Before
     public void setUp() throws IOException {
         testStatusSleepTime = 200L;
         testDataDir = dirRule.testDirPath().resolve(TEST_DATA_DIR);
@@ -134,7 +137,6 @@ public class ZiggyEventHandlerTest {
         ziggyEventHandler.setName("test-event");
 
         // Set up the database, including with the pipeline to be used by the event handler.
-        ZiggyUnitTestUtils.setUpDatabase();
         DatabaseTransactionFactory.performTransaction(() -> {
             new ParametersOperations().importParameterLibrary(
                 new File(TEST_DATA_SRC, "pl-event.xml"), null, ParamIoMode.STANDARD);
@@ -153,7 +155,6 @@ public class ZiggyEventHandlerTest {
     public void tearDown() throws IOException, InterruptedException {
         System.clearProperty("ziggy.home.dir");
         System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

@@ -13,9 +13,10 @@ import java.util.Set;
 import org.hibernate.Hibernate;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerTest;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -37,9 +38,11 @@ public class PipelineTaskOperationsTest {
     private QueueCommandManager cmdManager;
     private PipelineTaskOperations pipelineTaskOperations = spy(PipelineTaskOperations.class);
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
         System.setProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME,
             "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
 
@@ -49,7 +52,6 @@ public class PipelineTaskOperationsTest {
 
     @After
     public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
         System.clearProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME);
     }
 

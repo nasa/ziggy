@@ -7,7 +7,6 @@ import java.util.List;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.hibernate.exception.ConstraintViolationException;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,7 +14,7 @@ import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
@@ -31,15 +30,12 @@ public class UserCrudTest {
     private User joeOperator;
     private User maryMonitor;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() throws Exception {
-        ZiggyUnitTestUtils.setUpDatabase();
         userCrud = new UserCrud();
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Rule

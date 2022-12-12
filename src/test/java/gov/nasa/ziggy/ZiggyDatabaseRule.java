@@ -1,33 +1,101 @@
 package gov.nasa.ziggy;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
+import gov.nasa.ziggy.services.database.DatabaseController;
+import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+
 /**
  * Implements a {@link TestRule} for the set up and tear down of databases for use by unit tests. To
- * use, declare a field that refers to this rule as shown below. The test won't need to use that
- * field as database actions are typically performed within a
- * DatabaseTransactionFactory.performTransaction() lambda.
+ * use, declare a field that refers to this rule as shown.
  *
  * <pre>
  * &#64;Rule
  * public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
  * </pre>
  *
+ * The test doesn't need to use this field as database actions are typically performed within a
+ * DatabaseTransactionFactory.performTransaction() lambda, and the current implementation does not
+ * provide any additional informational methods.
+ * <p>
  * The {@code before()} method of this rule runs before the {@code @Before} method of the test so
  * that the database can be safely populated there.
+ * <p>
+ * This class is marked {@code @NotThreadSafe} as it manipulates system properties that are global
+ * across the JVM.
  *
  * @author Bill Wohler
  */
+@NotThreadSafe
 public class ZiggyDatabaseRule extends ExternalResource {
+
+    private String databaseSoftwareName;
+    private String hibernateConnectionPassword;
+    private String hibernateConnectionUrl;
+    private String hibernateConnectionUsername;
+    private String hibernateDialect;
+    private String hibernateJdbcBatchSize;
+    private String hibernateShowSql;
 
     @Override
     protected void before() throws Throwable {
-        ZiggyUnitTestUtils.setUpDatabase();
+        databaseSoftwareName = System.setProperty("database.software.name", "hsqldb");
+        DatabaseController databaseController = DatabaseController.newInstance();
+
+        hibernateConnectionPassword = System.setProperty("hibernate.connection.password", "");
+        hibernateConnectionUrl = System.setProperty("hibernate.connection.url",
+            "jdbc:hsqldb:mem:hsqldb-ziggy");
+        hibernateConnectionUsername = System.setProperty("hibernate.connection.username", "sa");
+
+        // For some reason, the unit tests won't run successfully without the Hibernate
+        // dialect being set as a system property, even though the actual pipelines
+        // function just fine without any dialect in the properties. Something to figure
+        // out and fix when possible.
+        hibernateDialect = System.setProperty("hibernate.dialect",
+            databaseController.sqlDialect().dialect());
+
+        hibernateJdbcBatchSize = System.setProperty("hibernate.jdbc.batch_size", "0");
+        hibernateShowSql = System.setProperty("hibernate.show_sql", "false");
+
+        DatabaseTransactionFactory.performTransaction(() -> {
+            databaseController.createDatabase();
+            return null;
+        });
     }
 
     @Override
     protected void after() {
-        ZiggyUnitTestUtils.tearDownDatabase();
+        DatabaseTransactionFactory.performTransaction(() -> {
+            DatabaseService.getInstance().clear();
+            return null;
+        });
+        DatabaseService.reset();
+
+        resetSystemProperty("database.software.name", databaseSoftwareName);
+        resetSystemProperty("hibernate.connection.password", hibernateConnectionPassword);
+        resetSystemProperty("hibernate.connection.url", hibernateConnectionUrl);
+        resetSystemProperty("hibernate.connection.username", hibernateConnectionUsername);
+        resetSystemProperty("hibernate.dialect", hibernateDialect);
+        resetSystemProperty("hibernate.jdbc.batch_size", hibernateJdbcBatchSize);
+        resetSystemProperty("hibernate.show_sql", hibernateShowSql);
+    }
+
+    /**
+     * Sets the given property to the given value. If {@code value} is {@code null}, the property is
+     * cleared.
+     *
+     * @param property the property to set
+     * @param value the value to set the property to, or {@code null} to clear the property
+     */
+    private void resetSystemProperty(String property, String value) {
+        if (value != null) {
+            System.setProperty(property, value);
+        } else {
+            System.clearProperty(property);
+        }
     }
 }

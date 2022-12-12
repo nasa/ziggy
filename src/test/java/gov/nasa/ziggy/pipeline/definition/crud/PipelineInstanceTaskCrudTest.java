@@ -12,11 +12,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.hibernate.Query;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
@@ -82,9 +83,11 @@ public class PipelineInstanceTaskCrudTest {
     private ParameterSet parameterSet;
     private PipelineModuleDefinition moduleDef;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
 
         userCrud = new UserCrud();
 
@@ -95,11 +98,6 @@ public class PipelineInstanceTaskCrudTest {
 
         pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
         parameterSetCrud = new ParameterSetCrud();
-    }
-
-    @After
-    public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     private void populateObjects() {

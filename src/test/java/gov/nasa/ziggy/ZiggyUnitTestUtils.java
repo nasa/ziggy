@@ -10,9 +10,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.services.database.DatabaseController;
-import gov.nasa.ziggy.services.database.DatabaseService;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.security.User;
 
 /**
@@ -23,45 +20,6 @@ import gov.nasa.ziggy.services.security.User;
  * @author Miles Cote
  */
 public class ZiggyUnitTestUtils {
-
-    public static void setUpDatabase() {
-
-        System.setProperty("database.software.name", "hsqldb");
-        DatabaseController databaseController = DatabaseController.newInstance();
-
-        // For some reason, the unit tests won't run successfully without the Hibernate
-        // dialect being set as a system property, even though the actual pipelines
-        // function just fine without any dialect in the properties. Something to figure
-        // out and fix when possible.
-        System.setProperty("hibernate.dialect", databaseController.sqlDialect().dialect());
-        System.setProperty("hibernate.jdbc.batch_size", "0");
-        System.setProperty("hibernate.show_sql", "false");
-        System.setProperty("hibernate.connection.url", "jdbc:hsqldb:mem:hsqldb-ziggy");
-        System.setProperty("hibernate.connection.username", "sa");
-        System.setProperty("hibernate.connection.password", "");
-
-        DatabaseTransactionFactory.performTransaction(() -> {
-            databaseController.createDatabase();
-            return null;
-        });
-    }
-
-    public static void tearDownDatabase() {
-
-        DatabaseTransactionFactory.performTransaction(() -> {
-            DatabaseService.getInstance().clear();
-            return null;
-        });
-        DatabaseService.reset();
-
-        System.clearProperty("hibernate.dialect");
-        System.clearProperty("hibernate.jdbc.batch_size");
-        System.clearProperty("hibernate.show_sql");
-        System.clearProperty("hibernate.connection.url");
-        System.clearProperty("hibernate.connection.username");
-        System.clearProperty("hibernate.connection.password");
-
-    }
 
     // The items below perform Hibernate initialization of lazy-loaded elements of a database
     // object. This is necessary because we need to be able to compare the objects with the

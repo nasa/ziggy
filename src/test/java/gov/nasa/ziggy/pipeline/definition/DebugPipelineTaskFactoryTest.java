@@ -2,25 +2,17 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import static org.junit.Assert.assertNotNull;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 
 /**
  * @author Sean McCaulif
  */
 public class DebugPipelineTaskFactoryTest {
-    @Before
-    public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
-    }
-
-    @After
-    public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
-    }
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     @Test
     public void testTaskFactory() throws Exception {

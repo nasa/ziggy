@@ -2,11 +2,11 @@ package gov.nasa.ziggy.services.configuration;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.services.config.KeyValuePair;
 import gov.nasa.ziggy.services.config.KeyValuePairCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
@@ -14,15 +14,12 @@ import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 public class KeyValuePairCrudTest {
     private KeyValuePairCrud keyValuePairCrud;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
         keyValuePairCrud = new KeyValuePairCrud();
-    }
-
-    @After
-    public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

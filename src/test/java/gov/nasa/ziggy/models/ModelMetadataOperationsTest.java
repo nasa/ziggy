@@ -8,9 +8,10 @@ import java.nio.file.Paths;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.services.config.PropertyNames;
 
@@ -18,9 +19,11 @@ import gov.nasa.ziggy.services.config.PropertyNames;
  * @author Todd Klaus
  */
 public class ModelMetadataOperationsTest {
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setUp() throws Exception {
-        ZiggyUnitTestUtils.setUpDatabase();
         String workingDir = System.getProperty("user.dir");
         Path homeDirPath = Paths.get(workingDir, "build");
         System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
@@ -28,7 +31,6 @@ public class ModelMetadataOperationsTest {
 
     @After
     public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
         System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
     }
 

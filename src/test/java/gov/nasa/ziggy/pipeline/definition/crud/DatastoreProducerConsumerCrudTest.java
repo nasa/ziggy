@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
@@ -40,18 +40,15 @@ public class DatastoreProducerConsumerCrudTest {
     private static final Path PATH_2 = Paths.get(FILE_NAME_2);
     private static final Path PATH_3 = Paths.get(FILE_NAME_3);
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setup() {
-        ZiggyUnitTestUtils.setUpDatabase();
         resultsOriginatorCrud = new DatastoreProducerConsumerCrud();
         pipelineTask = Mockito.mock(PipelineTask.class);
         Mockito.when(pipelineTask.getId()).thenReturn(TASK_ID);
 
-    }
-
-    @After
-    public void teardown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     /**

@@ -7,10 +7,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
@@ -31,15 +31,12 @@ import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
  */
 public class UnitOfWorkGeneratorTest {
 
-    @Before
-    public void setUp() {
-        ZiggyUnitTestUtils.setUpDatabase();
-    }
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     @After
     public void shutDown() {
         System.clearProperty(PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME);
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     /**
@@ -156,6 +153,7 @@ public class UnitOfWorkGeneratorTest {
      *
      * @author PT
      */
+    @SuppressWarnings("unused")
     private static class SampleUnitOfWorkIdentifier extends DefaultUnitOfWorkIdentifier {
 
         public SampleUnitOfWorkIdentifier() {

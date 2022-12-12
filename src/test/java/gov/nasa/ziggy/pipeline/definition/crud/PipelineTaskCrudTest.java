@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
@@ -43,9 +43,11 @@ public class PipelineTaskCrudTest {
     private PipelineModuleDefinition moduleDef;
     private PipelineDefinition pipelineDef;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setup() {
-        ZiggyUnitTestUtils.setUpDatabase();
         pipelineTaskCrud = new PipelineTaskCrud();
 
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -53,11 +55,6 @@ public class PipelineTaskCrudTest {
             pipelineDef = createPipelineDefinition(TEST_PIPELINE_NAME, moduleDef);
             return null;
         });
-    }
-
-    @After
-    public void teardown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     /**

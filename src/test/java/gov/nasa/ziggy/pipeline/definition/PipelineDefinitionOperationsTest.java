@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.hibernate.Hibernate;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
 import gov.nasa.ziggy.parameters.Parameters;
@@ -32,16 +32,13 @@ import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
  */
 public class PipelineDefinitionOperationsTest {
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @Before
     public void setup() {
         System.setProperty("ziggy.home.dir",
             Paths.get(System.getProperty("user.dir"), "build").toString());
-        ZiggyUnitTestUtils.setUpDatabase();
-    }
-
-    @After
-    public void tearDown() {
-        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test
