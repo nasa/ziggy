@@ -17,12 +17,13 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.google.common.io.Files;
 
-import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
@@ -34,6 +35,9 @@ public class ModelImporterTest {
 
     private ModelType modelType1, modelType2, modelType3;
     private File datastoreRoot, modelImportDirectory;
+
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     @Before
     public void setup() throws IOException {
@@ -70,9 +74,6 @@ public class ModelImporterTest {
         String filename3 = "simple-text.h5";
         ModelMetadata modelMetadata3 = new ModelMetadata(modelType3, filename3, "zinfandel", null);
 
-        // Initialize the database
-        ZiggyUnitTestUtils.setUpDatabase();
-
         // Initialize the datastore
         datastoreRoot = Files.createTempDir();
         modelImportDirectory = Files.createTempDir();
@@ -105,7 +106,6 @@ public class ModelImporterTest {
     @After
     public void teardown() throws IOException {
         System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        ZiggyUnitTestUtils.tearDownDatabase();
         FileUtils.deleteDirectory(datastoreRoot);
         FileUtils.deleteDirectory(modelImportDirectory);
     }
