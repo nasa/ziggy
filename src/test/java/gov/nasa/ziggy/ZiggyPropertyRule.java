@@ -66,7 +66,7 @@ public class ZiggyPropertyRule extends ExternalResource {
      * @param property the property to set
      * @param value the value to set the property to, or {@code null} to clear the property
      */
-    private void resetSystemProperty(String property, String value) {
+    public static void resetSystemProperty(String property, String value) {
         if (value != null) {
             System.setProperty(property, value);
         } else {

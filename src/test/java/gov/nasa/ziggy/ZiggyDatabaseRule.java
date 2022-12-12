@@ -1,5 +1,7 @@
 package gov.nasa.ziggy;
 
+import static gov.nasa.ziggy.ZiggyPropertyRule.resetSystemProperty;
+
 import javax.annotation.concurrent.NotThreadSafe;
 
 import org.junit.rules.ExternalResource;
@@ -8,7 +10,6 @@ import org.junit.rules.TestRule;
 import gov.nasa.ziggy.services.database.DatabaseController;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-
 /**
  * Implements a {@link TestRule} for the set up and tear down of databases for use by unit tests. To
  * use, declare a field that refers to this rule as shown.
@@ -82,20 +83,5 @@ public class ZiggyDatabaseRule extends ExternalResource {
         resetSystemProperty("hibernate.dialect", hibernateDialect);
         resetSystemProperty("hibernate.jdbc.batch_size", hibernateJdbcBatchSize);
         resetSystemProperty("hibernate.show_sql", hibernateShowSql);
-    }
-
-    /**
-     * Sets the given property to the given value. If {@code value} is {@code null}, the property is
-     * cleared.
-     *
-     * @param property the property to set
-     * @param value the value to set the property to, or {@code null} to clear the property
-     */
-    private void resetSystemProperty(String property, String value) {
-        if (value != null) {
-            System.setProperty(property, value);
-        } else {
-            System.clearProperty(property);
-        }
     }
 }
