@@ -9,8 +9,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 /**
  * Tests the {@link SecurityOperations} class.
@@ -22,13 +22,13 @@ public class SecurityOperationsTest {
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         securityOperations = new SecurityOperations();
     }
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     private void populateObjects() {

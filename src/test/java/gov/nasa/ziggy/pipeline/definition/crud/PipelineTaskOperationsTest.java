@@ -15,6 +15,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerTest;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -25,7 +26,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 /**
  * Unit tests for the {@link PipelineTaskOperations} class.
@@ -39,7 +39,7 @@ public class PipelineTaskOperationsTest {
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         System.setProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME,
             "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
 
@@ -49,7 +49,7 @@ public class PipelineTaskOperationsTest {
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
         System.clearProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME);
     }
 

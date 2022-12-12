@@ -10,6 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
@@ -22,7 +23,6 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrudTest;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 /**
  * Unit tests for {@link UnitOfWorkGenerator} class.
@@ -33,13 +33,13 @@ public class UnitOfWorkGeneratorTest {
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
     }
 
     @After
     public void shutDown() {
         System.clearProperty(PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME);
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     /**

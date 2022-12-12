@@ -10,9 +10,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.services.config.PropertyNames;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 /**
  * @author Todd Klaus
@@ -20,7 +20,7 @@ import gov.nasa.ziggy.services.database.TestUtils;
 public class ModelMetadataOperationsTest {
     @Before
     public void setUp() throws Exception {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         String workingDir = System.getProperty("user.dir");
         Path homeDirPath = Paths.get(workingDir, "build");
         System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
@@ -28,7 +28,7 @@ public class ModelMetadataOperationsTest {
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
         System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
     }
 

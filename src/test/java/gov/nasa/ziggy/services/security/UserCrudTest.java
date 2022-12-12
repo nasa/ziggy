@@ -15,9 +15,9 @@ import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 public class UserCrudTest {
     private static final Logger log = LoggerFactory.getLogger(UserCrudTest.class);
@@ -33,13 +33,13 @@ public class UserCrudTest {
 
     @Before
     public void setUp() throws Exception {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         userCrud = new UserCrud();
     }
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Rule

@@ -10,6 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
@@ -23,7 +24,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.TestModuleParameters;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
@@ -58,7 +58,7 @@ public class PipelineDefinitionCrudTest {
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
 
         userCrud = new UserCrud();
         pipelineDefinitionCrud = new PipelineDefinitionCrud();
@@ -76,7 +76,7 @@ public class PipelineDefinitionCrudTest {
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
         DatabaseService.reset();
     }
 
@@ -182,7 +182,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition apd = pipelineDefinitionCrud
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-                TestUtils.initializePipelineDefinition(apd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
 
             });
@@ -217,7 +217,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition apd = pipelineDefinitionCrud
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-                TestUtils.initializePipelineDefinition(apd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
             });
 
@@ -227,7 +227,7 @@ public class PipelineDefinitionCrudTest {
                 PipelineDefinition epd = createPipelineDefinition();
                 editPipelineDef(epd);
                 epd.setDirty(1);
-                TestUtils.initializePipelineDefinition(epd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(epd);
                 return epd;
             });
         // flush changes
@@ -274,7 +274,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition apd = pipelineDefinitionCrud
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-                TestUtils.initializePipelineDefinition(apd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
             });
 
@@ -324,7 +324,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition apd = pipelineDefinitionCrud
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-                TestUtils.initializePipelineDefinition(apd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
             });
 
@@ -373,7 +373,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition apd = pipelineDefinitionCrud
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-                TestUtils.initializePipelineDefinition(apd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
             });
 
@@ -418,7 +418,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition apd = pipelineDefinitionCrud
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-                TestUtils.initializePipelineDefinition(apd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
             });
 
@@ -466,7 +466,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition apd = pipelineDefinitionCrud
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-                TestUtils.initializePipelineDefinition(apd);
+                ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
             });
 

@@ -1,4 +1,4 @@
-package gov.nasa.ziggy.services.database;
+package gov.nasa.ziggy;
 
 import java.util.Collection;
 
@@ -10,6 +10,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.services.database.DatabaseController;
+import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.security.User;
 
 /**
@@ -19,7 +22,7 @@ import gov.nasa.ziggy.services.security.User;
  * @author Bill Wohler
  * @author Miles Cote
  */
-public class TestUtils {
+public class ZiggyUnitTestUtils {
 
     public static void setUpDatabase() {
 
@@ -85,7 +88,7 @@ public class TestUtils {
         initializePipelineInstance(node.getPipelineInstance());
         initializePipelineModuleDefinition(node.getPipelineModuleDefinition());
         Hibernate.initialize(node.getModuleParameterSets());
-        TestUtils.initializePipelineDefinitionNodes(
+        ZiggyUnitTestUtils.initializePipelineDefinitionNodes(
             node.getPipelineInstance().getPipelineDefinition().getRootNodes());
     }
 

@@ -17,6 +17,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
@@ -36,7 +37,6 @@ import gov.nasa.ziggy.pipeline.definition.TestPipelineParameters;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud.ClearStaleStateResults;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
@@ -84,7 +84,7 @@ public class PipelineInstanceTaskCrudTest {
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
 
         userCrud = new UserCrud();
 
@@ -99,7 +99,7 @@ public class PipelineInstanceTaskCrudTest {
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     private void populateObjects() {
@@ -242,7 +242,7 @@ public class PipelineInstanceTaskCrudTest {
         PipelineInstance actualPipelineInstance = (PipelineInstance) DatabaseTransactionFactory
             .performTransaction(() -> {
                 PipelineInstance pi = pipelineInstanceCrud.retrieve(pipelineInstance.getId());
-                TestUtils.initializePipelineInstance(pi);
+                ZiggyUnitTestUtils.initializePipelineInstance(pi);
                 return pi;
             });
 
@@ -269,7 +269,7 @@ public class PipelineInstanceTaskCrudTest {
             .performTransaction(() -> {
                 PipelineInstanceNode node = pipelineInstanceNodeCrud.retrieve(pipelineInstance,
                     pipelineDefNode1);
-                TestUtils.initializePipelineInstanceNode(node);
+                ZiggyUnitTestUtils.initializePipelineInstanceNode(node);
                 return node;
             });
 
@@ -295,7 +295,7 @@ public class PipelineInstanceTaskCrudTest {
                 List<PipelineInstanceNode> nodes = pipelineInstanceNodeCrud
                     .retrieveAll(pipelineInstance);
                 for (PipelineInstanceNode node : nodes) {
-                    TestUtils.initializePipelineInstanceNode(node);
+                    ZiggyUnitTestUtils.initializePipelineInstanceNode(node);
                 }
                 return nodes;
             });
@@ -322,7 +322,7 @@ public class PipelineInstanceTaskCrudTest {
         PipelineTask actualPipelineTask = (PipelineTask) DatabaseTransactionFactory
             .performTransaction(() -> {
                 PipelineTask pi = pipelineTaskCrud.retrieve(pipelineTask1.getId());
-                TestUtils.initializePipelineTask(pi);
+                ZiggyUnitTestUtils.initializePipelineTask(pi);
                 return pi;
             });
 
@@ -358,7 +358,7 @@ public class PipelineInstanceTaskCrudTest {
 
                 List<PipelineTask> tasks = pipelineTaskCrud.retrieveAll(taskIds);
                 for (PipelineTask task : tasks) {
-                    TestUtils.initializePipelineTask(task);
+                    ZiggyUnitTestUtils.initializePipelineTask(task);
                 }
                 return tasks;
             });
@@ -381,7 +381,7 @@ public class PipelineInstanceTaskCrudTest {
                 Set<Long> taskIds = new HashSet<>();
                 List<PipelineTask> tasks = pipelineTaskCrud.retrieveAll(taskIds);
                 for (PipelineTask task : tasks) {
-                    TestUtils.initializePipelineTask(task);
+                    ZiggyUnitTestUtils.initializePipelineTask(task);
                 }
                 return tasks;
             });
@@ -429,7 +429,7 @@ public class PipelineInstanceTaskCrudTest {
         PipelineInstance actualPipelineInstance = (PipelineInstance) DatabaseTransactionFactory
             .performTransaction(() -> {
                 PipelineInstance pi = pipelineInstanceCrud.retrieve(pipelineInstance.getId());
-                TestUtils.initializePipelineInstance(pi);
+                ZiggyUnitTestUtils.initializePipelineInstance(pi);
                 return pi;
             });
 
@@ -475,7 +475,7 @@ public class PipelineInstanceTaskCrudTest {
         PipelineTask actualPipelineTask = (PipelineTask) DatabaseTransactionFactory
             .performTransaction(() -> {
                 PipelineTask pt = pipelineTaskCrud.retrieve(pipelineTask1.getId());
-                TestUtils.initializePipelineTask(pt);
+                ZiggyUnitTestUtils.initializePipelineTask(pt);
                 return pt;
             });
 

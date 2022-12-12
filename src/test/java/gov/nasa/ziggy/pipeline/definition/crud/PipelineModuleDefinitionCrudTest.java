@@ -11,6 +11,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
@@ -20,7 +21,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.TestModuleParameters;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.util.ReflectionEquals;
@@ -50,7 +50,7 @@ public class PipelineModuleDefinitionCrudTest {
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
 
         userCrud = new UserCrud();
         pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
@@ -65,7 +65,7 @@ public class PipelineModuleDefinitionCrudTest {
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     private PipelineModuleDefinition populateObjects() {
@@ -154,7 +154,7 @@ public class PipelineModuleDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineModuleDefinition amd = pipelineModuleDefinitionCrud
                     .retrieveLatestVersionForName(TEST_MODULE_NAME_1);
-                TestUtils.initializePipelineModuleDefinition(amd);
+                ZiggyUnitTestUtils.initializePipelineModuleDefinition(amd);
                 return amd;
 
             });
@@ -193,7 +193,7 @@ public class PipelineModuleDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineModuleDefinition amd = pipelineModuleDefinitionCrud
                     .retrieveLatestVersionForName(TEST_MODULE_NAME_1);
-                TestUtils.initializePipelineModuleDefinition(amd);
+                ZiggyUnitTestUtils.initializePipelineModuleDefinition(amd);
                 return amd;
             });
 
@@ -246,7 +246,7 @@ public class PipelineModuleDefinitionCrudTest {
                     .retrieveAllVersionsForName(TEST_PARAM_SET_NAME_1);
                 assertEquals("paramSets size", 1, actualParamSets.size());
                 ParameterSet parameterSet = actualParamSets.get(0);
-                TestUtils.initializeUser(parameterSet.getAuditInfo().getLastChangedUser());
+                ZiggyUnitTestUtils.initializeUser(parameterSet.getAuditInfo().getLastChangedUser());
                 return actualParamSets.get(0);
             });
 

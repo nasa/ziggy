@@ -11,10 +11,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 /**
  * Unit tests for the ModelCrud class.
@@ -27,7 +27,7 @@ public class ModelCrudTest {
 
     @Before
     public void setup() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
 
         // Set up a couple of model types and persist them to the database
         setUpModelTypes();
@@ -41,7 +41,7 @@ public class ModelCrudTest {
 
     @After
     public void teardown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

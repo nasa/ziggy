@@ -26,6 +26,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
@@ -41,7 +42,6 @@ import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 import gov.nasa.ziggy.util.ReflectionEquals;
 import gov.nasa.ziggy.util.io.Filenames;
 
@@ -63,7 +63,7 @@ public class ParametersOperationsTest {
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         String workingDir = System.getProperty("user.dir");
         Path homeDirPath = Paths.get(workingDir, "build");
         System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
@@ -71,7 +71,7 @@ public class ParametersOperationsTest {
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
         System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
     }
 

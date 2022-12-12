@@ -17,11 +17,11 @@ import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 /**
  * Test class for {@link DatastoreProducerConsumerCrud}.
@@ -42,7 +42,7 @@ public class DatastoreProducerConsumerCrudTest {
 
     @Before
     public void setup() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         resultsOriginatorCrud = new DatastoreProducerConsumerCrud();
         pipelineTask = Mockito.mock(PipelineTask.class);
         Mockito.when(pipelineTask.getId()).thenReturn(TASK_ID);
@@ -51,7 +51,7 @@ public class DatastoreProducerConsumerCrudTest {
 
     @After
     public void teardown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     /**

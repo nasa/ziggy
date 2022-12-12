@@ -22,13 +22,13 @@ import org.mockito.Mockito;
 
 import com.google.common.io.Files;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 public class ModelImporterTest {
 
@@ -71,7 +71,7 @@ public class ModelImporterTest {
         ModelMetadata modelMetadata3 = new ModelMetadata(modelType3, filename3, "zinfandel", null);
 
         // Initialize the database
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
 
         // Initialize the datastore
         datastoreRoot = Files.createTempDir();
@@ -105,7 +105,7 @@ public class ModelImporterTest {
     @After
     public void teardown() throws IOException {
         System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
         FileUtils.deleteDirectory(datastoreRoot);
         FileUtils.deleteDirectory(modelImportDirectory);
     }

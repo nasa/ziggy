@@ -6,23 +6,23 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.services.config.KeyValuePair;
 import gov.nasa.ziggy.services.config.KeyValuePairCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 public class KeyValuePairCrudTest {
     private KeyValuePairCrud keyValuePairCrud;
 
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         keyValuePairCrud = new KeyValuePairCrud();
     }
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

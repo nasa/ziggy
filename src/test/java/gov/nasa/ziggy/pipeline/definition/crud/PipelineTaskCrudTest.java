@@ -13,6 +13,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
@@ -24,7 +25,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
@@ -45,7 +45,7 @@ public class PipelineTaskCrudTest {
 
     @Before
     public void setup() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         pipelineTaskCrud = new PipelineTaskCrud();
 
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -57,7 +57,7 @@ public class PipelineTaskCrudTest {
 
     @After
     public void teardown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     /**

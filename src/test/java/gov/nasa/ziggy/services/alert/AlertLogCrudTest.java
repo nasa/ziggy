@@ -12,8 +12,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 public class AlertLogCrudTest {
     private AlertLogCrud alertCrud;
@@ -30,7 +30,7 @@ public class AlertLogCrudTest {
 
     @Before
     public void setUp() throws Exception {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         alertCrud = new AlertLogCrud();
 
         date1 = parser.parse("Jun-1-12 12:00:00");
@@ -44,7 +44,7 @@ public class AlertLogCrudTest {
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

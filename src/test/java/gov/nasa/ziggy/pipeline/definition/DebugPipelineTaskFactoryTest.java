@@ -6,7 +6,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import gov.nasa.ziggy.services.database.TestUtils;
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 
 /**
  * @author Sean McCaulif
@@ -14,12 +14,12 @@ import gov.nasa.ziggy.services.database.TestUtils;
 public class DebugPipelineTaskFactoryTest {
     @Before
     public void setUp() {
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
     }
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

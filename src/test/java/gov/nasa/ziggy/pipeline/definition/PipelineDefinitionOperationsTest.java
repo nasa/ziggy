@@ -17,6 +17,7 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
 import gov.nasa.ziggy.parameters.Parameters;
@@ -24,7 +25,6 @@ import gov.nasa.ziggy.parameters.ParametersOperations;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 
 /**
  * Implements unit tests for the {@link PipelineDefinitionOperations} class. Because of the
@@ -36,12 +36,12 @@ public class PipelineDefinitionOperationsTest {
     public void setup() {
         System.setProperty("ziggy.home.dir",
             Paths.get(System.getProperty("user.dir"), "build").toString());
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
     }
 
     @After
     public void tearDown() {
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test

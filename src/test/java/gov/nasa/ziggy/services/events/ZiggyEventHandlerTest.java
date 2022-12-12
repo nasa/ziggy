@@ -30,6 +30,7 @@ import org.xml.sax.SAXException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.data.management.DataFileTypeImporter;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
@@ -53,7 +54,6 @@ import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.database.TestUtils;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -130,7 +130,7 @@ public class ZiggyEventHandlerTest {
         ziggyEventHandler.setName("test-event");
 
         // Set up the database, including with the pipeline to be used by the event handler.
-        TestUtils.setUpDatabase();
+        ZiggyUnitTestUtils.setUpDatabase();
         DatabaseTransactionFactory.performTransaction(() -> {
             new ParametersOperations().importParameterLibrary(
                 new File(TEST_DATA_SRC, "pl-event.xml"), null, ParamIoMode.STANDARD);
@@ -151,7 +151,7 @@ public class ZiggyEventHandlerTest {
         FileUtils.forceDelete(new File(Filenames.BUILD_TEST));
         System.clearProperty("ziggy.home.dir");
         System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
-        TestUtils.tearDownDatabase();
+        ZiggyUnitTestUtils.tearDownDatabase();
     }
 
     @Test
