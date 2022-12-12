@@ -18,18 +18,19 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.configuration.CompositeConfiguration;
-import org.apache.commons.io.FileUtils;
 import org.hibernate.Hibernate;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.data.management.DataFileTypeImporter;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
@@ -58,7 +59,6 @@ import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit tests for {@link ZiggyEventHandler}, {@link ZiggyEventStatus}, {@link ZiggyEvent}, and
@@ -68,7 +68,10 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class ZiggyEventHandlerTest {
 
-    public static final String TEST_DATA_DIR = "build/test/events";
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+
+    public static final String TEST_DATA_DIR = "events";
     public static final String TEST_DATA_SRC = "test/data/EventPipeline";
 
     public static long testStatusSleepTime;
@@ -81,16 +84,15 @@ public class ZiggyEventHandlerTest {
     private PipelineOperations pipelineOperations = Mockito.spy(PipelineOperations.class);
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
 
-	@SuppressWarnings("unchecked")
-	@Before
+    @Before
     public void setUp() throws IOException {
         testStatusSleepTime = 200L;
-        testDataDir = Paths.get(TEST_DATA_DIR);
+        testDataDir = dirRule.testDirPath().resolve(TEST_DATA_DIR);
         testDataDir.toFile().mkdirs();
         readyIndicator1 = testDataDir.resolve("gazelle.READY.mammal.1");
         readyIndicator2a = testDataDir.resolve("psittacus.READY.bird.2");
         readyIndicator2b = testDataDir.resolve("archosaur.READY.bird.2");
-        System.setProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME, TEST_DATA_DIR);
+        System.setProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME, testDataDir.toString());
 
         // Create the directories: they need to be there to get the DR UOW generator to
         // do the right thing.
@@ -120,10 +122,12 @@ public class ZiggyEventHandlerTest {
         Mockito.doReturn(pipelineExecutor).when(pipelineOperations).pipelineExecutor();
         Mockito.doReturn(dataReceiptUowGenerator)
             .when(pipelineExecutor)
-            .unitOfWorkGenerator(Matchers.any(PipelineDefinitionNode.class));
+            .unitOfWorkGenerator(ArgumentMatchers.any(PipelineDefinitionNode.class));
 
         // Don't allow the event handler to actually send tasks for the worker to start.
-        Mockito.doNothing().when(ziggyEventHandler).sendWorkerMessageForTasks(Matchers.anyList());
+        Mockito.doNothing()
+            .when(ziggyEventHandler)
+            .sendWorkerMessageForTasks(ArgumentMatchers.anyList());
 
         ziggyEventHandler.setPipelineName(pipelineName);
         ziggyEventHandler.setDirectory(testDataDir.toString());
@@ -147,8 +151,6 @@ public class ZiggyEventHandlerTest {
 
     @After
     public void tearDown() throws IOException, InterruptedException {
-        ziggyEventHandler.stop();
-        FileUtils.forceDelete(new File(Filenames.BUILD_TEST));
         System.clearProperty("ziggy.home.dir");
         System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
         ZiggyUnitTestUtils.tearDownDatabase();
@@ -181,10 +183,9 @@ public class ZiggyEventHandlerTest {
     }
 
     @Test
-    public void testReadXml()
-			throws InstantiationException, IllegalAccessException, SAXException,
-			jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
-			SecurityException {
+    public void testReadXml() throws InstantiationException, IllegalAccessException, SAXException,
+        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
         ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager = new ValidatingXmlManager<>(
             ZiggyEventHandlerFile.class);
         ZiggyEventHandlerFile eventFile = xmlManager
@@ -199,8 +200,6 @@ public class ZiggyEventHandlerTest {
     @Test
     public void testStartPipeline() throws IOException, InterruptedException {
 
-        ziggyEventHandler.start();
-
         // At this point, there should be no entries in the events database table
         DatabaseTransactionFactory.performTransaction(() -> {
             assertTrue(new ZiggyEventCrud().retrieveAllEvents().isEmpty());
@@ -213,7 +212,7 @@ public class ZiggyEventHandlerTest {
 
         // create the ready-indicator file
         Files.createFile(readyIndicator1);
-        Thread.sleep(240L);
+        ziggyEventHandler.run();
 
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> {
@@ -273,7 +272,7 @@ public class ZiggyEventHandlerTest {
         // Re-create the ready-indicator file to see that the pipeline gets
         // fired again
         Files.createFile(readyIndicator1);
-        Thread.sleep(240L);
+        ziggyEventHandler.run();
         events = (List<ZiggyEvent>) DatabaseTransactionFactory.performTransaction(() -> {
             List<ZiggyEvent> ziggyEvents = new ZiggyEventCrud().retrieveAllEvents();
             return ziggyEvents;
@@ -286,7 +285,6 @@ public class ZiggyEventHandlerTest {
 
         // create the ready-indicator file
         Files.createFile(readyIndicator1);
-        Thread.sleep(240L);
 
         // There should be no indication that the event handler acted.
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -298,8 +296,7 @@ public class ZiggyEventHandlerTest {
             return null;
         });
 
-        ziggyEventHandler.start();
-        Thread.sleep(700L);
+        ziggyEventHandler.run();
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
@@ -321,8 +318,6 @@ public class ZiggyEventHandlerTest {
     @Test
     public void testExceptionInRunnable() throws IOException, InterruptedException {
 
-        ziggyEventHandler.start();
-
         // Note that what we'd really like to do is to have an exception thrown by
         // startPipeline(), but that's a private method that therefore can't be
         // mocked. This is the next best thing -- a PipelineException that occurs
@@ -332,23 +327,20 @@ public class ZiggyEventHandlerTest {
 
         // create the ready-indicator file
         Files.createFile(readyIndicator1);
-        Thread.sleep(340L);
+        ziggyEventHandler.run();
 
         // The ready-indicator file should still be present and the event handler should
         // be disabled
         assertTrue(Files.exists(readyIndicator1));
-		Thread.sleep(50L);
         assertFalse(ziggyEventHandler.isRunning());
     }
 
     @Test
     public void testEventWithTwoReadyFiles() throws IOException, InterruptedException {
 
-        ziggyEventHandler.start();
-
         // create one ready-indicator file
         Files.createFile(readyIndicator2a);
-        Thread.sleep(240L);
+        ziggyEventHandler.run();
 
         // At this point, there should be no entries in the events database table
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -362,7 +354,7 @@ public class ZiggyEventHandlerTest {
 
         // When the second one is created, the event handler should act.
         Files.createFile(readyIndicator2b);
-        Thread.sleep(240L);
+        ziggyEventHandler.run();
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
@@ -431,12 +423,11 @@ public class ZiggyEventHandlerTest {
     @Test
     public void testSimultaneousEvents() throws IOException, InterruptedException {
 
-        ziggyEventHandler.start();
         Files.createFile(readyIndicator2a);
         Files.createFile(readyIndicator2b);
         Files.createFile(readyIndicator1);
 
-        Thread.sleep(240L);
+        ziggyEventHandler.run();
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
@@ -457,11 +448,9 @@ public class ZiggyEventHandlerTest {
             return null;
         });
 
-        ziggyEventHandler.start();
-
         // create one ready-indicator file.
         Files.createFile(testDataDir.resolve("null.READY.mammal.1"));
-        Thread.sleep(240L);
+        ziggyEventHandler.run();
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
