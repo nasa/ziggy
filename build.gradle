@@ -19,10 +19,6 @@ repositories {
     }
 }
 
-tasks.withType(JavaCompile) {
-    options.deprecation = true
-}
-
 dependencies {
     // Needed to compile ziggy.
     implementation 'com.github.librepdf:openpdf:1.3.+'
@@ -130,7 +126,9 @@ dependencies {
     // implementation 'org.jboss.jbossts:concurrent:4.+'
 }
 
-def numTests = 0
+tasks.withType(JavaCompile) {
+    options.deprecation = true
+}
 
 test {
     systemProperty "log4j2.configurationFile","$projectDir/test/data/logging/log4j2.xml"
@@ -138,8 +136,6 @@ test {
     
     forkEvery = 1
 
-    beforeTest {numTests++}
-    
     testLogging {
         events "failed", "skipped"
     }
