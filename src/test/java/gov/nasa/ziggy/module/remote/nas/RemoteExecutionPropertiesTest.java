@@ -20,13 +20,14 @@ import gov.nasa.ziggy.module.remote.RemoteExecutionProperties;
 public class RemoteExecutionPropertiesTest {
 
     @Rule
-    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(GROUP_PROPERTY, null);
+    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(GROUP_PROPERTY,
+        (String) null);
 
     @Rule
-    public ZiggyPropertyRule hostPropertyRule = new ZiggyPropertyRule(HOST_PROPERTY, null);
+    public ZiggyPropertyRule hostPropertyRule = new ZiggyPropertyRule(HOST_PROPERTY, (String) null);
 
     @Rule
-    public ZiggyPropertyRule userPropertyRule = new ZiggyPropertyRule(USER_PROPERTY, null);
+    public ZiggyPropertyRule userPropertyRule = new ZiggyPropertyRule(USER_PROPERTY, (String) null);
 
     @Test
     public void testPropertiesRetrieval() {

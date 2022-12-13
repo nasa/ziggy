@@ -29,7 +29,7 @@ public class NasQueueTimeMetricsTest {
 
     @Rule
     public ZiggyPropertyRule nasaDirectoratePropertyRule = new ZiggyPropertyRule(
-        NASA_DIRECTORATE_PROP_NAME, null);
+        NASA_DIRECTORATE_PROP_NAME, (String) null);
 
     @Before
     public void setup() {

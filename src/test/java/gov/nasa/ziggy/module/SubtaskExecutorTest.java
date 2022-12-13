@@ -57,7 +57,7 @@ public class SubtaskExecutorTest {
 
     @Rule
     public ZiggyPropertyRule moduleExeBinpathPropertyRule = new ZiggyPropertyRule(
-        MODULE_EXE_BINPATH_PROPERTY_NAME, null);
+        MODULE_EXE_BINPATH_PROPERTY_NAME, (String) null);
 
     @Rule
     public ZiggyPropertyRule moduleExeLibpathPropertyRule = new ZiggyPropertyRule(
@@ -65,7 +65,7 @@ public class SubtaskExecutorTest {
 
     @Rule
     public ZiggyPropertyRule moduleExeMcrrootPropertyRule = new ZiggyPropertyRule(
-        MODULE_EXE_MCRROOT_PROPERTY_NAME, null);
+        MODULE_EXE_MCRROOT_PROPERTY_NAME, (String) null);
 
     @Rule
     public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(

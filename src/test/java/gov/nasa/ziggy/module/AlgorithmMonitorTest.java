@@ -57,7 +57,7 @@ public class AlgorithmMonitorTest {
 
     @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        directoryRule.directory().toString());
+        directoryRule);
 
     @Before
     public void setUp() throws IOException, ConfigurationException {

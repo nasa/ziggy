@@ -94,7 +94,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Rule
     public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
-        PIPELINE_HOME_DIR_PROP_NAME, null);
+        PIPELINE_HOME_DIR_PROP_NAME, (String) null);
 
     @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
@@ -102,7 +102,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
-        null);
+        (String) null);
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(

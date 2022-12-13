@@ -37,7 +37,7 @@ public class UnitOfWorkGeneratorTest {
 
     @Rule
     public ZiggyPropertyRule pipelineDefaultUowIdentifierClassPropertyRule = new ZiggyPropertyRule(
-        PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME, null);
+        PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME, (String) null);
 
     /**
      * Tests that units of work are correctly generated; in particular, that the UOW generator and

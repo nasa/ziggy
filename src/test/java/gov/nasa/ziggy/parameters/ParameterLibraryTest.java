@@ -38,7 +38,7 @@ public class ParameterLibraryTest {
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, null);
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
     @Before
     public void setUp() {

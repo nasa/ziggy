@@ -58,11 +58,11 @@ public class DefaultDataImporterTest {
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule.directory().resolve("datastore").toString());
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
-        null);
+        (String) null);
 
     @Before
     public void setUp() throws IOException {

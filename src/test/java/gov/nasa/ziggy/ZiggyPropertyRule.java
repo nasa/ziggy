@@ -2,6 +2,8 @@ package gov.nasa.ziggy;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.File;
+
 import javax.annotation.concurrent.NotThreadSafe;
 
 import org.junit.rules.ExternalResource;
@@ -39,6 +41,8 @@ public class ZiggyPropertyRule extends ExternalResource {
 
     private String property;
     private String value;
+    private ZiggyDirectoryRule directoryRule;
+    private String subdirectory;
     private String previousValue;
 
     /**
@@ -48,14 +52,51 @@ public class ZiggyPropertyRule extends ExternalResource {
      * @param value the value to set the property to. This can be {@code null} to clear the property
      * before each test, and reset the property after each test. This is useful if a test modifies
      * the property or depends on the property being cleared.
+     * @throws NullPointerException if property is {@code null}
      */
     public ZiggyPropertyRule(String property, String value) {
         this.property = checkNotNull(property, "property");
         this.value = value;
     }
 
+    /**
+     * Creates a {@code ZiggyPropertyRule} with the given property and directory.
+     *
+     * @param property the non-{@code null} property to set
+     * @param directoryRule the non-{@code null} directory rule from which the directory is obtained
+     * and used as the value of the property
+     * @throws NullPointerException if property or directoryRule are {@code null}
+     */
+    public ZiggyPropertyRule(String property, ZiggyDirectoryRule directoryRule) {
+        this(property, directoryRule, null);
+    }
+
+    /**
+     * Creates a {@code ZiggyPropertyRule} with the given property and directory and subdirectory.
+     *
+     * @param property the non-{@code null} property to set
+     * @param directoryRule the non-{@code null} directory rule from which the directory is obtained
+     * and used as the value of the property
+     * @param subdirectory the subdirectory, which is appended to the directory and used as the
+     * value of the property; ignored if {@code null}
+     * @throws NullPointerException if property or directoryRule are {@code null}
+     */
+    public ZiggyPropertyRule(String property, ZiggyDirectoryRule directoryRule,
+        String subdirectory) {
+        this.property = checkNotNull(property, "property");
+        this.directoryRule = checkNotNull(directoryRule, "directoryRule");
+        this.subdirectory = subdirectory;
+    }
+
     @Override
     protected void before() throws Throwable {
+        if (directoryRule != null) {
+            value = directoryRule.directory().toString();
+            if (subdirectory != null) {
+                value += File.separator + subdirectory;
+            }
+        }
+
         if (value != null) {
             previousValue = System.setProperty(property, value);
         } else {

@@ -76,15 +76,15 @@ public class DataFileManagerTest {
         DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot);
 
     @Rule
-    public ZiggyPropertyRule userDirPropertyRule = new ZiggyPropertyRule("user.dir", null);
+    public ZiggyPropertyRule userDirPropertyRule = new ZiggyPropertyRule("user.dir", (String) null);
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
-        null);
+        (String) null);
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, null);
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
     @Before
     public void setup() {

@@ -31,16 +31,16 @@ public class ConfigurationServiceFactoryTest {
 
     @Rule
     public ZiggyPropertyRule myBooleanPropertyRule = new ZiggyPropertyRule(
-        "my.boolean.property", null);
+        "my.boolean.property", (String) null);
     @Rule
     public ZiggyPropertyRule myDoublePropertyRule = new ZiggyPropertyRule(
-        "my.double.property", null);
+        "my.double.property", (String) null);
     @Rule
     public ZiggyPropertyRule myIntPropertyRule = new ZiggyPropertyRule(
-        "my.int.property", null);
+        "my.int.property", (String) null);
     @Rule
     public ZiggyPropertyRule myStringPropertyRule = new ZiggyPropertyRule(
-        "my.string.property", null);
+        "my.string.property", (String) null);
 
     @Before
     public void before() throws PipelineException {
