@@ -15,6 +15,7 @@ import gov.nasa.ziggy.ui.messaging.PigMessageDispatcher;
 import gov.nasa.ziggy.ui.mon.alerts.AlertMessageTableModel;
 import gov.nasa.ziggy.ui.mon.master.Indicator;
 import gov.nasa.ziggy.ui.mon.master.WorkerStatusPanel;
+import gov.nasa.ziggy.util.SystemTime;
 
 /**
  * Assorted message handling classes for testing purposes.
@@ -64,7 +65,7 @@ public class MessageHandlersForTest {
          * necessary for the tests, but useful for when a human being is looking at the results.
          */
         private synchronized static long systemTimeOffset() {
-            long sysTime = System.currentTimeMillis();
+            long sysTime = SystemTime.currentTimeMillis();
             long scaledSysTime = sysTime / SYS_TIME_SCALING;
             return SYS_TIME_SCALING * scaledSysTime;
         }

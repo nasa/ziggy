@@ -19,14 +19,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import gov.nasa.ziggy.services.config.PropertyNames;
-import gov.nasa.ziggy.services.messages.WorkerShutdownMessage;
+import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ServerSideMessageHandlerForTest;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager;
-import gov.nasa.ziggy.ui.messaging.PigMessageDispatcher;
-import gov.nasa.ziggy.ui.mon.alerts.AlertMessageTableModel;
-import gov.nasa.ziggy.ui.mon.master.WorkerStatusPanel;
+import gov.nasa.ziggy.util.SystemTime;
+
 /**
  * Tests the RMI communication classes for Ziggy in the context where the client and server sides
  * (or UI and worker, if you prefer) are running in the same process and thus the same JVM.
@@ -52,7 +51,6 @@ public class RmiIntraProcessCommunicationTest {
     public void setup() {
         messageHandler1 = new ServerSideMessageHandlerForTest();
         messageHandler2 = new ClientSideMessageHandlerForTest();
-        System.setProperty(PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME, "100");
         registry = null;
     }
 
@@ -113,9 +111,12 @@ public class RmiIntraProcessCommunicationTest {
         UiCommunicator.setHeartbeatManager(heartbeatManager);
         UiCommunicator.initializeInstance(messageHandler2, port);
         WorkerCommunicator.broadcast(new MessageFromServer("first message"));
-        Thread.sleep(50);
         ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
+        long startTime = System.currentTimeMillis();
+        while (msg.getMessagesFromServer().size() == 0
+            && System.currentTimeMillis() < startTime + 1000L) {
+        }
         assertEquals(1, msg.getMessagesFromServer().size());
 
         // Emulate a worker crashing and coming back by resetting it and running the
@@ -126,20 +127,24 @@ public class RmiIntraProcessCommunicationTest {
 
         // This instance should have no MessageHandler service references from clients
         assertEquals(0, WorkerCommunicator.getClientMessageServiceStubs().size());
-        Thread.sleep(50);
 
         // IRL, the UiCommunicator will be restarted by the heartbeat monitor, but since
         // we're not using that here we have to manually restart it
         UiCommunicator.restart();
-        Thread.sleep(50);
-
+        startTime = System.currentTimeMillis();
+        while (WorkerCommunicator.getClientMessageServiceStubs().size() == 0
+            && System.currentTimeMillis() < startTime + 1000L) {
+        }
         // Now the worker should have a MessageHandlerService from the UiCommunicator
         assertEquals(1, WorkerCommunicator.getClientMessageServiceStubs().size());
 
         // The new worker can send a message to the UI
         WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
-        Thread.sleep(50);
+        startTime = System.currentTimeMillis();
         msg = (ClientSideMessageHandlerForTest) UiCommunicator.getMessageHandler();
+        while (msg.getMessagesFromServer().size() < 2
+            && System.currentTimeMillis() < startTime + 1000L) {
+        }
         assertEquals(2, msg.getMessagesFromServer().size());
         ServerSideMessageHandlerForTest msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator
             .getMessageHandler();
@@ -161,9 +166,12 @@ public class RmiIntraProcessCommunicationTest {
         UiCommunicator.setHeartbeatManager(heartbeatManager);
         UiCommunicator.initializeInstance(messageHandler2, port);
         WorkerCommunicator.broadcast(new MessageFromServer("first message"));
-        Thread.sleep(50);
         ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
+        long startTime = System.currentTimeMillis();
+        while (msg.getMessagesFromServer().size() == 0
+            && System.currentTimeMillis() < startTime + 1000L) {
+        }
         assertEquals(1, msg.getMessagesFromServer().size());
 
         // Emulate the shutdown of a UI by resetting the existing one
@@ -173,7 +181,10 @@ public class RmiIntraProcessCommunicationTest {
         UiCommunicator.setHeartbeatManager(heartbeatManager);
         UiCommunicator.initializeInstance(messageHandler2, port);
         UiCommunicator.stopHeartbeatListener();
-        Thread.sleep(50);
+        startTime = System.currentTimeMillis();
+        while (WorkerCommunicator.getClientMessageServiceStubs().size() < 2
+            && System.currentTimeMillis() < startTime + 1000L) {
+        }
 
         // there should now be 2 client services in the worker
         assertEquals(2, WorkerCommunicator.getClientMessageServiceStubs().size());
@@ -181,13 +192,11 @@ public class RmiIntraProcessCommunicationTest {
         // broadcast a message
         assertEquals(1, messageHandler2.getMessagesFromServer().size());
         WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
-        Thread.sleep(50);
+        startTime = System.currentTimeMillis();
+        while (messageHandler2.getMessagesFromServer().size() < 2
+            && System.currentTimeMillis() < startTime + 1000L) {
+        }
         assertEquals(2, messageHandler2.getMessagesFromServer().size());
-
-        // there should now be only 1 client service in the worker --
-        // note that for some reason the now-gone UiCommunicator doesn't
-        // throw a RemoteException when the worker sends it a message. ??
-//        assertEquals(1, WorkerCommunicator.getClientMessageServiceStubs().size());
 
         // the UI should be able to communicate with the worker as well
         ServerSideMessageHandlerForTest msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator
@@ -252,9 +261,8 @@ public class RmiIntraProcessCommunicationTest {
     public void testHeartbeatManagement() throws InterruptedException {
 
         // Start the server
-		ServerTest serverTest = new ServerTest();
-        serverTest.startServer(port, 2, false);
-        Thread.sleep(50);
+        ServerTest serverTest = new ServerTest();
+        serverTest.startServer(port, 2, true);
 
         // Start the heartbeat manager and communicator
         MessageHandler messageHandler = new MessageHandler(
@@ -263,21 +271,22 @@ public class RmiIntraProcessCommunicationTest {
             messageHandler);
         UiCommunicator.setHeartbeatManager(h);
         UiCommunicator.initializeInstance(messageHandler, port);
-
-        // Pause to let 5 heartbeat-check intervals go by
-        Thread.sleep(1100);
-
-        WorkerCommunicator.stopHeartbeatExecutor();
         UiCommunicator.stopHeartbeatListener();
 
-        // Start checking to see what the heartbeat handler did:
-        // there should be only 1 start (i.e., no restarts)
-        List<Long> messageHandlerStartTimes = h.getMessageHandlerStartTimes();
-        List<Long> localStartTimes = h.getLocalStartTimes();
-        assertEquals(1, messageHandlerStartTimes.size());
-        assertEquals(1, localStartTimes.size());
-        assertTrue(messageHandlerStartTimes.get(0) > 0);
-        assertEquals(messageHandlerStartTimes.get(0), localStartTimes.get(0));
+        // Simulate 10 heartbeats getting sent, and a detector that runs at 1/2 the rate
+        // of the heartbeat generator.
+        long startTime = SystemTime.currentTimeMillis();
+        long currentTime = startTime;
+        long heartbeatInterval = 100L;
+        for (int heartbeatDetectionCount = 0; heartbeatDetectionCount < 5; heartbeatDetectionCount++) {
+            currentTime += heartbeatInterval;
+            SystemTime.setUserTime(currentTime);
+            WorkerCommunicator.broadcast(new WorkerHeartbeatMessage());
+            currentTime += heartbeatInterval;
+            SystemTime.setUserTime(currentTime);
+            WorkerCommunicator.broadcast(new WorkerHeartbeatMessage());
+            h.checkForHeartbeat();
+        }
 
         // There should be 5 checks after starting, all good
         List<Boolean> checkStatus = h.getCheckStatus();
@@ -304,10 +313,9 @@ public class RmiIntraProcessCommunicationTest {
             assertEquals(messageHandlerHeartbeatTimesAtChecks.get(i),
                 localTimesAtChecks.get(i + 1));
             assertTrue(messageHandlerHeartbeatTimesAtChecks.get(i + 1)
-                - messageHandlerHeartbeatTimesAtChecks.get(i) > 190L);
+                - messageHandlerHeartbeatTimesAtChecks.get(i) > 199L);
             assertTrue(messageHandlerHeartbeatTimesAtChecks.get(i + 1)
-                - messageHandlerHeartbeatTimesAtChecks.get(i) < 210L);
-            assertTrue(localTimesAtChecks.get(i + 1) - localTimesAtChecks.get(i) < 210L);
+                - messageHandlerHeartbeatTimesAtChecks.get(i) < 201L);
         }
     }
 
