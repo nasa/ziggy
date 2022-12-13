@@ -45,9 +45,9 @@ public class ZiggyPropertyRule extends ExternalResource {
      * Creates a {@code ZiggyPropertyRule} with the given property and value.
      *
      * @param property the non-{@code null} property to set
-     * @param value the value to set the property to. This can be {@code null} to avoid setting the
-     * property before each test, but still reset the property after each test. This is useful if a
-     * test modifies the property.
+     * @param value the value to set the property to. This can be {@code null} to clear the property
+     * before each test, and reset the property after each test. This is useful if a test modifies
+     * the property or depends on the property being cleared.
      */
     public ZiggyPropertyRule(String property, String value) {
         this.property = checkNotNull(property, "property");
@@ -60,6 +60,7 @@ public class ZiggyPropertyRule extends ExternalResource {
             previousValue = System.setProperty(property, value);
         } else {
             previousValue = System.getProperty(property);
+            System.clearProperty(property);
         }
     }
 
