@@ -53,11 +53,11 @@ public class AlgorithmMonitorTest {
     private PipelineInstanceNodeCrud nodeCrud;
 
     @Rule
-    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        dirRule.testDirPath().toString());
+        directoryRule.directory().toString());
 
     @Before
     public void setUp() throws IOException, ConfigurationException {

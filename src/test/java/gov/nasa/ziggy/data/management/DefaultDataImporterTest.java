@@ -44,7 +44,7 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 public class DefaultDataImporterTest {
 
     private PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
-    private Path testDirPath;
+    private Path testDirectory;
     private Path dataImporterPath;
     private Path dataImporterSubdirPath;
     private Path dirForImports;
@@ -54,11 +54,11 @@ public class DefaultDataImporterTest {
     private PipelineDefinitionNode node = Mockito.mock(PipelineDefinitionNode.class);
 
     @Rule
-    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, dirRule.testDirPath().resolve("datastore").toString());
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule.directory().resolve("datastore").toString());
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
@@ -68,10 +68,10 @@ public class DefaultDataImporterTest {
     public void setUp() throws IOException {
 
         // Construct the necessary directories.
-        testDirPath = dirRule.testDirPath();
-        dataImporterPath = testDirPath.resolve("data-import");
+        testDirectory = directoryRule.directory();
+        dataImporterPath = testDirectory.resolve("data-import");
         dataImporterPath.toFile().mkdirs();
-        datastoreRootPath = testDirPath.resolve("datastore");
+        datastoreRootPath = testDirectory.resolve("datastore");
         datastoreRootPath.toFile().mkdirs();
         dataImporterSubdirPath = dataImporterPath.resolve("sub-dir");
         dataImporterSubdirPath.toFile().mkdirs();

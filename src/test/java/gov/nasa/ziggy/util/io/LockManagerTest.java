@@ -25,15 +25,15 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 public class LockManagerTest {
 
     @Rule
-    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     private Path LOCK_FILE_ONE;
     private Path LOCK_FILE_TWO;
 
     @Before
     public void setUp() throws IOException {
-        LOCK_FILE_ONE = dirRule.testDirPath().resolve("one.lock");
-        LOCK_FILE_TWO = dirRule.testDirPath().resolve("two.lock");
+        LOCK_FILE_ONE = directoryRule.directory().resolve("one.lock");
+        LOCK_FILE_TWO = directoryRule.directory().resolve("two.lock");
         createLockFile(LOCK_FILE_ONE);
         createLockFile(LOCK_FILE_TWO);
     }

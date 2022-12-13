@@ -30,13 +30,13 @@ public class ZiggyDirectoryRule implements TestRule {
     private static final String TEST_DIR_NAME = "test";
     private static final String ZIGGY_PKG_PREFIX = "gov.nasa.ziggy.";
 
-    private Path testDirPath;
+    private Path directory;
 
     /**
      * Returns the {@link Path} of the directory for the current test method.
      */
-    public Path testDirPath() {
-        return testDirPath;
+    public Path directory() {
+        return directory;
     }
 
     @Override
@@ -48,13 +48,13 @@ public class ZiggyDirectoryRule implements TestRule {
             ? fullClassName.substring(ZIGGY_PKG_PREFIX.length())
             : fullClassName;
         String methodName = description.getMethodName();
-        testDirPath = Paths.get(BUILD_DIR_NAME, TEST_DIR_NAME, className, methodName);
+        directory = Paths.get(BUILD_DIR_NAME, TEST_DIR_NAME, className, methodName);
 
         try {
-            Files.createDirectories(testDirPath);
+            Files.createDirectories(directory);
 
             // Clean the new directory prior to use.
-            FileUtil.cleanDirectoryTree(testDirPath, true);
+            FileUtil.cleanDirectoryTree(directory);
 
             return new Statement() {
                 @Override
@@ -63,9 +63,7 @@ public class ZiggyDirectoryRule implements TestRule {
                 }
             };
         } catch (IOException e) {
-            throw new PipelineException("Unable to create directory " + testDirPath.toString(), e);
+            throw new PipelineException("Unable to create directory " + directory.toString(), e);
         }
-
     }
-
 }
