@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import java.io.IOException;
 import java.rmi.AccessException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -16,8 +17,11 @@ import java.util.Set;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.TestEventDetector;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
@@ -46,6 +50,9 @@ public class RmiIntraProcessCommunicationTest {
     private int port = 4788;
     private Registry registry;
     private ProcessHeartbeatManager heartbeatManager = mock(ProcessHeartbeatManager.class);
+
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
 
     @Before
     public void setup() {
@@ -113,10 +120,10 @@ public class RmiIntraProcessCommunicationTest {
         WorkerCommunicator.broadcast(new MessageFromServer("first message"));
         ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
-        long startTime = System.currentTimeMillis();
-        while (msg.getMessagesFromServer().size() == 0
-            && System.currentTimeMillis() < startTime + 1000L) {
-        }
+        final ClientSideMessageHandlerForTest msgFinal = msg;
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return msgFinal.getMessagesFromServer().size() > 0;
+        });
         assertEquals(1, msg.getMessagesFromServer().size());
 
         // Emulate a worker crashing and coming back by resetting it and running the
@@ -131,20 +138,20 @@ public class RmiIntraProcessCommunicationTest {
         // IRL, the UiCommunicator will be restarted by the heartbeat monitor, but since
         // we're not using that here we have to manually restart it
         UiCommunicator.restart();
-        startTime = System.currentTimeMillis();
-        while (WorkerCommunicator.getClientMessageServiceStubs().size() == 0
-            && System.currentTimeMillis() < startTime + 1000L) {
-        }
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return WorkerCommunicator.getClientMessageServiceStubs().size() > 0;
+        });
+
         // Now the worker should have a MessageHandlerService from the UiCommunicator
         assertEquals(1, WorkerCommunicator.getClientMessageServiceStubs().size());
 
         // The new worker can send a message to the UI
         WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
-        startTime = System.currentTimeMillis();
         msg = (ClientSideMessageHandlerForTest) UiCommunicator.getMessageHandler();
-        while (msg.getMessagesFromServer().size() < 2
-            && System.currentTimeMillis() < startTime + 1000L) {
-        }
+        final ClientSideMessageHandlerForTest msgFinal2 = msg;
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return msgFinal2.getMessagesFromServer().size() > 0;
+        });
         assertEquals(2, msg.getMessagesFromServer().size());
         ServerSideMessageHandlerForTest msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator
             .getMessageHandler();
@@ -168,10 +175,10 @@ public class RmiIntraProcessCommunicationTest {
         WorkerCommunicator.broadcast(new MessageFromServer("first message"));
         ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
-        long startTime = System.currentTimeMillis();
-        while (msg.getMessagesFromServer().size() == 0
-            && System.currentTimeMillis() < startTime + 1000L) {
-        }
+        final ClientSideMessageHandlerForTest msgFinal = msg;
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return msgFinal.getMessagesFromServer().size() > 0;
+        });
         assertEquals(1, msg.getMessagesFromServer().size());
 
         // Emulate the shutdown of a UI by resetting the existing one
@@ -181,21 +188,18 @@ public class RmiIntraProcessCommunicationTest {
         UiCommunicator.setHeartbeatManager(heartbeatManager);
         UiCommunicator.initializeInstance(messageHandler2, port);
         UiCommunicator.stopHeartbeatListener();
-        startTime = System.currentTimeMillis();
-        while (WorkerCommunicator.getClientMessageServiceStubs().size() < 2
-            && System.currentTimeMillis() < startTime + 1000L) {
-        }
-
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return WorkerCommunicator.getClientMessageServiceStubs().size() >= 2;
+        });
         // there should now be 2 client services in the worker
         assertEquals(2, WorkerCommunicator.getClientMessageServiceStubs().size());
 
         // broadcast a message
         assertEquals(1, messageHandler2.getMessagesFromServer().size());
         WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
-        startTime = System.currentTimeMillis();
-        while (messageHandler2.getMessagesFromServer().size() < 2
-            && System.currentTimeMillis() < startTime + 1000L) {
-        }
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return messageHandler2.getMessagesFromServer().size() >= 2;
+        });
         assertEquals(2, messageHandler2.getMessagesFromServer().size());
 
         // the UI should be able to communicate with the worker as well
@@ -209,12 +213,14 @@ public class RmiIntraProcessCommunicationTest {
 
     /**
      * Tests communication when the worker and UI are running in the same JVM.
+     *
+     * @throws IOException
      */
     @Test
-    public void testIntraProcessCommunication() {
+    public void testIntraProcessCommunication() throws IOException {
 
-		ServerTest serverTest = new ServerTest();
-        serverTest.startServer(port, 2, true);
+        ServerTest serverTest = new ServerTest();
+        serverTest.startServer(port, 2, null);
         messageHandler1 = (ServerSideMessageHandlerForTest) WorkerCommunicator.getMessageHandler();
 
         // broadcast a message before the UiCommunicator has been initialized
@@ -256,13 +262,15 @@ public class RmiIntraProcessCommunicationTest {
 
     /**
      * Tests that heartbeats are properly sent, detected, and handled.
+     *
+     * @throws IOException
      */
     @Test
-    public void testHeartbeatManagement() throws InterruptedException {
+    public void testHeartbeatManagement() throws InterruptedException, IOException {
 
         // Start the server
         ServerTest serverTest = new ServerTest();
-        serverTest.startServer(port, 2, true);
+        serverTest.startServer(port, 2, null);
 
         // Start the heartbeat manager and communicator
         MessageHandler messageHandler = new MessageHandler(

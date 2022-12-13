@@ -115,9 +115,12 @@ public class WorkerCommunicator implements WorkerCommunicatorService {
             // Start the heartbeat messages
             log.info("Starting worker-UI heartbeat generator");
             heartbeatExecutor = new ScheduledThreadPoolExecutor(1);
-            heartbeatExecutor.scheduleAtFixedRate(
-                () -> WorkerCommunicator.broadcast(new WorkerHeartbeatMessage()), 0,
-                WorkerHeartbeatMessage.heartbeatIntervalMillis(), TimeUnit.MILLISECONDS);
+            long heartbeatIntervalMillis = WorkerHeartbeatMessage.heartbeatIntervalMillis();
+            if (heartbeatIntervalMillis > 0) {
+                heartbeatExecutor.scheduleAtFixedRate(
+                    () -> WorkerCommunicator.broadcast(new WorkerHeartbeatMessage()), 0,
+                    WorkerHeartbeatMessage.heartbeatIntervalMillis(), TimeUnit.MILLISECONDS);
+            }
             ZiggyShutdownHook.addShutdownHook(() -> {
                 if (heartbeatExecutor != null) {
                     log.info("SHUTDOWN: Stopping worker communicator");

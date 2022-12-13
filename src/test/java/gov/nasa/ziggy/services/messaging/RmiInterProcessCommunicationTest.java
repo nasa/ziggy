@@ -6,9 +6,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
-import java.rmi.AccessException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,8 +16,11 @@ import java.util.Set;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.TestEventDetector;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
@@ -39,8 +42,11 @@ public class RmiInterProcessCommunicationTest {
 
     private int port = 4788;
     private Process serverProcess;
-    String heartbeatIntervalMillis = "100";
+    String heartbeatIntervalMillis = "0";
     private ProcessHeartbeatManager heartbeatManager = mock(ProcessHeartbeatManager.class);
+
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
 
     @Before
     public void setup() {
@@ -49,8 +55,7 @@ public class RmiInterProcessCommunicationTest {
     }
 
     @After
-    public void teardown()
-        throws AccessException, RemoteException, NotBoundException, InterruptedException {
+    public void teardown() throws NotBoundException, InterruptedException, IOException {
 
         UiCommunicator.stopHeartbeatListener();
         if (WorkerCommunicator.isInitialized() && WorkerCommunicator.getRegistry() != null) {
@@ -58,6 +63,11 @@ public class RmiInterProcessCommunicationTest {
         }
         System.clearProperty(PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME);
         UiCommunicator.reset();
+        Files.createFile(dirRule.testDirPath().resolve(ServerTest.SHUT_DOWN_FILE_NAME));
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return Files
+                .exists(dirRule.testDirPath().resolve(ServerTest.SHUT_DOWN_DETECT_FILE_NAME));
+        });
         if (serverProcess != null) {
             serverProcess.destroy();
             serverProcess = null;
@@ -74,18 +84,20 @@ public class RmiInterProcessCommunicationTest {
         List<String> args = new ArrayList<>();
         args.add(Integer.toString(port));
         args.add(Integer.toString(2));
-        args.add("false");
-        args.add(heartbeatIntervalMillis);
+        args.add(dirRule.testDirPath().toString());
 
         serverProcess = ProcessUtils.runJava(ServerTest.class, args);
-        Thread.sleep(1000L);
-
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return Files.exists(dirRule.testDirPath().resolve(ServerTest.SERVER_READY_FILE_NAME));
+        });
         // now start the UiCommunicator with a ClientMessageHandler
 
         UiCommunicator.setHeartbeatManager(heartbeatManager);
         UiCommunicator.initializeInstance(new ClientSideMessageHandlerForTest(), port);
         UiCommunicator.stopHeartbeatListener();
+
         Registry registry = UiCommunicator.getRegistry();
+
         assertNotNull(registry);
         assertNotNull(UiCommunicator.getServerMessageHandlerStub());
         assertNotNull(UiCommunicator.getWorkerService());
@@ -96,10 +108,11 @@ public class RmiInterProcessCommunicationTest {
         MessageFromClient m2 = new MessageFromClient("stratocaster");
         UiCommunicator.send(m2);
 
-        Thread.sleep(50);
-
         ClientSideMessageHandlerForTest messageHandler = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return messageHandler.getMessagesFromServer().size() > 0;
+        });
         Set<MessageFromServer> messagesFromServer = messageHandler.getMessagesFromServer();
         assertEquals(1, messagesFromServer.size());
     }
@@ -114,26 +127,31 @@ public class RmiInterProcessCommunicationTest {
         List<String> args = new ArrayList<>();
         args.add(Integer.toString(port));
         args.add(Integer.toString(2));
-        args.add("false");
-        args.add(heartbeatIntervalMillis);
+        args.add(dirRule.testDirPath().toString());
 
         serverProcess = ProcessUtils.runJava(ServerTest.class, args);
-        Thread.sleep(1000L);
+        TestEventDetector.detectTestEvent(1000L, () -> {
+            return Files.exists(dirRule.testDirPath().resolve(ServerTest.SERVER_READY_FILE_NAME));
+        });
 
         // Start the heartbeat manager and communicator
         MessageHandler messageHandler = new MessageHandler(
-				new PigMessageDispatcherForTest(null, null, false));
+            new ConsoleMessageDispatcherForTest(null, null, false));
+        messageHandler.setLastHeartbeatTimeMillis(1L);
         InstrumentedWorkerHeartbeatManager h = new InstrumentedWorkerHeartbeatManager(
             messageHandler);
         UiCommunicator.setHeartbeatManager(h);
         UiCommunicator.initializeInstance(messageHandler, port);
 
         // Pause to let 5 heartbeat-check intervals go by
-        Thread.sleep(1100);
-        UiCommunicator.stopHeartbeatListener();
-
-        serverProcess.destroy();
-        serverProcess = null;
+        Path heartbeatFile = dirRule.testDirPath().resolve(ServerTest.SEND_HEARTBEAT_FILE_NAME);
+        for (int heartbeatCount = 0; heartbeatCount < 5; heartbeatCount++) {
+            Files.createFile(heartbeatFile);
+            TestEventDetector.detectTestEvent(1000L, () -> {
+                return !Files.exists(heartbeatFile);
+            });
+            h.checkForHeartbeat();
+        }
 
         // Start checking to see what the heartbeat handler did:
         // there should be only 1 start (i.e., no restarts)
@@ -142,7 +160,6 @@ public class RmiInterProcessCommunicationTest {
         assertEquals(1, messageHandlerStartTimes.size());
         assertEquals(1, localStartTimes.size());
         assertTrue(messageHandlerStartTimes.get(0) > 0);
-        assertEquals(messageHandlerStartTimes.get(0), localStartTimes.get(0));
 
         // There should be 5 checks after starting, all good
         List<Boolean> checkStatus = h.getCheckStatus();
@@ -151,29 +168,6 @@ public class RmiInterProcessCommunicationTest {
             assertTrue(status);
         }
 
-        // The check times should be within errors of 200 msec apart, and the
-        // manager's last detection time should be set to the message handler's
-        // last detection time from the preceding detection
-        //
-        // Note: the 1st and 2nd local heartbeat times can be significantly
-        // closer in time than 200 msec because the worker sends the UI a
-        // heartbeat immediately when the UI starts up, which can be at any
-        // time in the normal heartbeat cycle
-        List<Long> messageHandlerHeartbeatTimesAtChecks = h
-            .getMessageHandlerHeartbeatTimesAtChecks();
-        List<Long> localTimesAtChecks = h.getlocalHeartbeatTimesAtChecks();
-        assertEquals(5, messageHandlerHeartbeatTimesAtChecks.size());
-        assertEquals(5, localTimesAtChecks.size());
-
-        for (int i = 0; i < 3; i++) {
-            assertEquals(messageHandlerHeartbeatTimesAtChecks.get(i),
-                localTimesAtChecks.get(i + 1));
-            assertTrue(messageHandlerHeartbeatTimesAtChecks.get(i + 1)
-                - messageHandlerHeartbeatTimesAtChecks.get(i) > 190L);
-            assertTrue(messageHandlerHeartbeatTimesAtChecks.get(i + 1)
-                - messageHandlerHeartbeatTimesAtChecks.get(i) < 210L);
-            assertTrue(localTimesAtChecks.get(i + 1) - localTimesAtChecks.get(i) < 210L);
-        }
     }
 
 }

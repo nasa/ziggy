@@ -20,3 +20,10 @@ clean.doFirst() {
 	throw new GradleException("Can't clean while cluster is running (see build/bin/worker.pid)")
     }
 }
+
+task setBuildTestPermissions(type : Exec) {
+	workingDir "$buildDir/test"
+	commandLine "chmod", "-R", "u+wx", "."
+}
+
+clean.dependsOn setBuildTestPermissions
