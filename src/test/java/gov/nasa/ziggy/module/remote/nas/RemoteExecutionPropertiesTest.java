@@ -1,11 +1,15 @@
 package gov.nasa.ziggy.module.remote.nas;
 
+import static gov.nasa.ziggy.module.remote.RemoteExecutionProperties.GROUP_PROPERTY;
+import static gov.nasa.ziggy.module.remote.RemoteExecutionProperties.HOST_PROPERTY;
+import static gov.nasa.ziggy.module.remote.RemoteExecutionProperties.USER_PROPERTY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.RemoteExecutionProperties;
 
 /**
@@ -15,12 +19,14 @@ import gov.nasa.ziggy.module.remote.RemoteExecutionProperties;
  */
 public class RemoteExecutionPropertiesTest {
 
-    @After
-    public void teardown() {
-        System.clearProperty(RemoteExecutionProperties.GROUP_PROPERTY);
-        System.clearProperty(RemoteExecutionProperties.HOST_PROPERTY);
-        System.clearProperty(RemoteExecutionProperties.USER_PROPERTY);
-    }
+    @Rule
+    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(GROUP_PROPERTY, null);
+
+    @Rule
+    public ZiggyPropertyRule hostPropertyRule = new ZiggyPropertyRule(HOST_PROPERTY, null);
+
+    @Rule
+    public ZiggyPropertyRule userPropertyRule = new ZiggyPropertyRule(USER_PROPERTY, null);
 
     @Test
     public void testPropertiesRetrieval() {

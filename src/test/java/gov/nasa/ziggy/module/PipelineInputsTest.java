@@ -1,10 +1,11 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -12,11 +13,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileInfo;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.DataFileInfoSample1;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
@@ -36,20 +38,21 @@ public class PipelineInputsTest {
 
     private static final int subTaskIndex = 12;
     private static final String subTaskDirName = "st-" + subTaskIndex;
-    private String taskDir;
+    private String taskDir = new File(new File(Filenames.BUILD_TEST), "1-2-pa").getAbsolutePath();
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+
+    @Rule
+    public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, new File(taskDir, subTaskDirName).getAbsolutePath());
 
     @Before
     public void setup() {
 
         // Create the task dir and the subtask dir
-        File taskDirRoot = new File(Filenames.BUILD_TEST);
-        File taskDir = new File(taskDirRoot, "1-2-pa");
-        this.taskDir = taskDir.getAbsolutePath();
-        File subTaskDir = new File(taskDir, subTaskDirName);
-        subTaskDir.mkdirs();
-
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME,
-            subTaskDir.getAbsolutePath());
+        new File(ziggyTestWorkingDirPropertyRule.getProperty()).mkdirs();
 
         PipelineResultsSample1 p = new PipelineResultsSample1();
         p.setOriginator(100L);
@@ -66,7 +69,8 @@ public class PipelineInputsTest {
         h.writeFile(new File(taskDir, "cal-1-1-B-20-results.h5"), p, true);
 
         // add a task configuration file
-        TaskConfigurationManager taskConfigurationManager = new TaskConfigurationManager(taskDir);
+        TaskConfigurationManager taskConfigurationManager = new TaskConfigurationManager(
+            new File(taskDir));
         Set<String> wrongInstance = new TreeSet<>();
         wrongInstance.add("wrong");
         Set<String> rightInstance = new TreeSet<>();
@@ -79,14 +83,6 @@ public class PipelineInputsTest {
             taskConfigurationManager.addFilesForSubtask(wrongInstance);
         }
         taskConfigurationManager.persist();
-
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
-    }
-
-    @After
-    public void teardown() throws InterruptedException, IOException {
-        System.clearProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
     }
 
     /**

@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.uow;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -15,12 +16,13 @@ import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.google.common.io.Files;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.services.config.PropertyNames;
 
 /**
  * Unit test class for DefaultUnitOfWork.
@@ -29,18 +31,20 @@ import gov.nasa.ziggy.services.config.PropertyNames;
  */
 public class DatastoreDirectoryUnitOfWorkTest {
 
-    private Path datastoreRoot;
+    private Path datastoreRoot = Files.createTempDir().toPath();
     private Map<Class<? extends Parameters>, Parameters> parametersMap;
     private TaskConfigurationParameters taskConfigurationParameters;
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot.toString());
 
     @Before
     public void setup() {
 
-        // create the datastore
-        File datastore = Files.createTempDir();
+        // Create the datastore.
+        File datastore = datastoreRoot.toFile();
         datastore.mkdirs();
-        datastoreRoot = datastore.toPath();
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot.toString());
 
         // create some directories within the datastore
         File sector0001 = new File(datastore, "sector-0001");
@@ -80,13 +84,11 @@ public class DatastoreDirectoryUnitOfWorkTest {
         taskConfigurationParameters.setTaskDirectoryRegex("(sector-[0-9]{4})/cal/ccd-(1:[1234])");
         parametersMap = new HashMap<>();
         parametersMap.put(TaskConfigurationParameters.class, taskConfigurationParameters);
-
     }
 
     @After
     public void teardown() throws IOException {
         FileUtils.deleteDirectory(datastoreRoot.toFile());
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
     }
 
     /**

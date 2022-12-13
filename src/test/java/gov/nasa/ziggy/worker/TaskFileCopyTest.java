@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.worker;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -7,16 +8,17 @@ import java.io.File;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.Filenames;
 
 public class TaskFileCopyTest {
@@ -38,10 +40,13 @@ public class TaskFileCopyTest {
     private File binFile;
     private File metricsFile;
 
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        ROOT_WORKING_DIR);
+
     public void setUp() throws Exception {
         // make a working copy for the test
 
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, ROOT_WORKING_DIR);
         File src = new File(SOURCE_DIR, TASK_DIR_NAME);
         workingDir = DirectoryProperties.taskDataDir().resolve(TASK_DIR_NAME).toFile();
         archiveDir = new File(ARCHIVE_DIR, TASK_DIR_NAME);
@@ -62,7 +67,6 @@ public class TaskFileCopyTest {
     @After
     public void tearDown() throws Exception {
         try {
-            System.clearProperty(PropertyNames.RESULTS_DIR_PROP_NAME);
             FileUtils.forceDelete(workingDir);
             FileUtils.forceDelete(archiveDir);
             FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));

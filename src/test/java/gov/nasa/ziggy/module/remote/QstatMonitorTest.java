@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.module.remote;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -8,14 +9,14 @@ import static org.junit.Assert.assertTrue;
 import java.util.Map;
 import java.util.Set;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.services.config.PropertyNames;
 
 /**
  * Unit test class for QstatMonitor class, QstatQuery class, and the builder for the QstatMonitor
@@ -27,23 +28,18 @@ public class QstatMonitorTest {
 
     private QueueCommandManager cmdManager;
 
+    @Rule
+    public ZiggyPropertyRule queueCommandClassPropertyRule = new ZiggyPropertyRule(
+        QUEUE_COMMAND_CLASS_PROP_NAME,
+        "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
+
     @Before
     public void setup() {
 
         // make sure that we have an instance of the command manager that we can use
-        System.setProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME,
-            "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
         cmdManager = Mockito.spy(QueueCommandManager.newInstance());
         Mockito.when(cmdManager.hostname()).thenReturn("host1");
         Mockito.when(cmdManager.user()).thenReturn("user");
-    }
-
-    @After
-    public void teardown() {
-
-        // remove the system properties that direct the factory to use a test class
-        // for the command manager
-        System.clearProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME);
     }
 
     /**

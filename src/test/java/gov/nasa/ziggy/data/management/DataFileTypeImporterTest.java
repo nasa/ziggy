@@ -1,22 +1,21 @@
 package gov.nasa.ziggy.data.management;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
 import com.google.common.collect.ImmutableList;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -36,17 +35,9 @@ public class DataFileTypeImporterTest {
     private DataFileTypeCrud dataFileTypeCrud = Mockito.mock(DataFileTypeCrud.class);
     private ModelCrud modelCrud = Mockito.mock(ModelCrud.class);
 
-    @Before
-    public void setUp() {
-        String workingDir = System.getProperty("user.dir");
-        Path homeDirPath = Paths.get(workingDir, "build");
-        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
-    }
-
-    @After
-    public void tearDown() {
-        System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
-    }
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
 
     // Basic functionality -- multiple files, multiple definitions, get imported
     @Test

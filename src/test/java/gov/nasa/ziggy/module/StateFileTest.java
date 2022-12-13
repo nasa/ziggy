@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -12,11 +13,13 @@ import java.nio.file.Files;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.MockitoAnnotations;
 
 import com.google.common.collect.ImmutableList;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.StateFile.State;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
@@ -27,7 +30,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.Filenames;
 
 /**
@@ -59,16 +61,18 @@ public class StateFileTest {
         StateFile.PREFIX + "2.2.foo.INITIALIZED_1-0-0",
         StateFile.PREFIX + "1.2.foo.INITIALIZED_1-0-0", };
 
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        RESULTS_DIRECTORY);
+
     @Before
     public void setUp() throws IOException {
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, RESULTS_DIRECTORY);
         Files.createDirectories(DirectoryProperties.stateFilesDir());
         workingDirectory = DirectoryProperties.stateFilesDir().toFile();
     }
 
     @After
     public void tearDown() throws IOException {
-        System.clearProperty(PropertyNames.RESULTS_DIR_PROP_NAME);
         FileUtils.deleteDirectory(new File(RESULTS_DIRECTORY));
     }
 

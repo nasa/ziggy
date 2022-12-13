@@ -1,12 +1,11 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.junit.After;
@@ -17,6 +16,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -31,7 +31,6 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.messages.WorkerTaskRequest;
 import gov.nasa.ziggy.worker.WorkerPipelineProcess;
@@ -43,9 +42,6 @@ import gov.nasa.ziggy.worker.WorkerPipelineProcess;
  */
 public class AlgorithmMonitorTest {
 
-    @Rule
-    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
-
     private AlgorithmMonitor monitor;
     private PipelineTask pipelineTask;
     private StateFile stateFile;
@@ -56,10 +52,16 @@ public class AlgorithmMonitorTest {
     private ProcessingSummaryOperations attrOps;
     private PipelineInstanceNodeCrud nodeCrud;
 
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        dirRule.testDirPath().toString());
+
     @Before
     public void setUp() throws IOException, ConfigurationException {
 
-        setSystemProperties();
         DatabaseService.setInstance(Mockito.mock(DatabaseService.class));
 
         Files.createDirectories(DirectoryProperties.stateFilesDir());
@@ -109,27 +111,6 @@ public class AlgorithmMonitorTest {
     @After
     public void tearDown() throws IOException {
         WorkerPipelineProcess.workerTaskRequestQueue.clear();
-        clearSystemProperties();
-    }
-
-    // The following methods are here only temporarily, will be replaced with a Rule for system
-    // property handling.
-    public Map<String, String> systemProperties() {
-        Map<String, String> systemProperties = new HashMap<>();
-        systemProperties.put(PropertyNames.RESULTS_DIR_PROP_NAME, dirRule.testDirPath().toString());
-        return systemProperties;
-    }
-
-    public void setSystemProperties() {
-        for (Map.Entry<String, String> systemProperty : systemProperties().entrySet()) {
-            System.setProperty(systemProperty.getKey(), systemProperty.getValue());
-        }
-    }
-
-    public void clearSystemProperties() {
-        for (String systemPropertyName : systemProperties().keySet()) {
-            System.clearProperty(systemPropertyName);
-        }
     }
 
     /**

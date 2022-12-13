@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.models;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -24,20 +25,27 @@ import org.mockito.Mockito;
 import com.google.common.io.Files;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 public class ModelImporterTest {
 
-    private ModelType modelType1, modelType2, modelType3;
-    private File datastoreRoot, modelImportDirectory;
+    private ModelType modelType1;
+    private ModelType modelType2;
+    private ModelType modelType3;
+    private File datastoreRoot = Files.createTempDir(); // TODO Convert to ZiggyDirectoryRule
+    private File modelImportDirectory;
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot.getAbsolutePath());
 
     @Before
     public void setup() throws IOException {
@@ -75,10 +83,7 @@ public class ModelImporterTest {
         ModelMetadata modelMetadata3 = new ModelMetadata(modelType3, filename3, "zinfandel", null);
 
         // Initialize the datastore
-        datastoreRoot = Files.createTempDir();
         modelImportDirectory = Files.createTempDir();
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME,
-            datastoreRoot.getAbsolutePath());
 
         // Create the database objects
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -105,8 +110,7 @@ public class ModelImporterTest {
 
     @After
     public void teardown() throws IOException {
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        FileUtils.deleteDirectory(datastoreRoot);
+        // TODO Switch to ZiggyDirectoryRule: FileUtils.deleteDirectory(datastoreRoot);
         FileUtils.deleteDirectory(modelImportDirectory);
     }
 

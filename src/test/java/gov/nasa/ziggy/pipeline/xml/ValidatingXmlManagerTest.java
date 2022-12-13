@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.pipeline.xml;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
@@ -7,11 +9,12 @@ import java.nio.file.Paths;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.xml.sax.SAXException;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.Filenames;
 import jakarta.xml.bind.UnmarshalException;
 
@@ -25,12 +28,13 @@ public class ValidatingXmlManagerTest {
     private File invalidXmlFile;
     private File validXmlFile;
 
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
+
     @Before
     public void setUp() {
-
         String workingDir = System.getProperty("user.dir");
-        Path homeDirPath = Paths.get(workingDir, "build");
-        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
         Path invalidXmlPath = Paths.get(workingDir, "test", "data", "configuration",
             "invalid-pipeline-definition.xml");
         invalidXmlFile = invalidXmlPath.toFile();
@@ -41,7 +45,6 @@ public class ValidatingXmlManagerTest {
 
     @After
     public void tearDown() throws IOException {
-        System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
         FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
@@ -64,7 +67,6 @@ public class ValidatingXmlManagerTest {
         ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
             PipelineDefinitionFile.class);
         xmlManager.unmarshal(validXmlFile);
-
     }
 
 }

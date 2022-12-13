@@ -3,6 +3,8 @@ package gov.nasa.ziggy.data.management;
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.simpleTypeContent;
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -17,9 +19,11 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.xml.sax.SAXException;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.FileUtil;
@@ -38,21 +42,23 @@ public class ManifestTest {
     private Path testDataDir;
     private ChecksumType checksumType = Manifest.CHECKSUM_TYPE;
 
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+
     @Before
     public void setUp() {
         testDataDir = Paths.get(TEST_DATA_DIR);
         testDataDir.toFile().mkdirs();
-        String workingDir = System.getProperty("user.dir");
-        Path homeDirPath = Paths.get(workingDir, "build");
-        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
     }
 
     @After
     public void tearDown() throws IOException, InterruptedException {
         FileUtils.forceDelete(testDataDir.getParent().toFile());
-        System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
     }
 
     @Test

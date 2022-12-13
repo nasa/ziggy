@@ -1,5 +1,11 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.MODULE_EXE_BINPATH_PROPERTY_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.MODULE_EXE_LIBPATH_PROPERTY_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.MODULE_EXE_MCRROOT_PROPERTY_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -16,11 +22,13 @@ import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyNames;
@@ -38,35 +46,46 @@ public class SubtaskExecutorTest {
     // Note: this is a relatively limited unit test class. Unfortunately, some of the methods
     // (in particular execAlgorithm) simply do too much for me to write a tractable unit test
     // at the present time.
-    private File rootDir;
-    private File taskDir;
-    private File subTaskDir;
+    private File rootDir = new File(Filenames.BUILD_TEST);
+    private File taskDir = new File(rootDir, "10-20-pa");
+    private File subTaskDir = new File(taskDir, "st-0");
     private SubtaskExecutor externalProcessExecutor;
     private ExternalProcess externalProcess;
     private TaskConfigurationManager taskConfigurationManager = new TaskConfigurationManager();
-    private File binDir;
-    private File buildDir;
+    private File buildDir = new File(rootDir, "build");
+    private File binDir = new File(buildDir, "bin");
+
+    @Rule
+    public ZiggyPropertyRule moduleExeBinpathPropertyRule = new ZiggyPropertyRule(
+        MODULE_EXE_BINPATH_PROPERTY_NAME, null);
+
+    @Rule
+    public ZiggyPropertyRule moduleExeLibpathPropertyRule = new ZiggyPropertyRule(
+        MODULE_EXE_LIBPATH_PROPERTY_NAME, "path1" + File.pathSeparator + "path2");
+
+    @Rule
+    public ZiggyPropertyRule moduleExeMcrrootPropertyRule = new ZiggyPropertyRule(
+        MODULE_EXE_MCRROOT_PROPERTY_NAME, null);
+
+    @Rule
+    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
+        PIPELINE_HOME_DIR_PROP_NAME, buildDir.getAbsolutePath());
+
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        new File(rootDir, "results").getAbsolutePath());
+
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, "/path/to/ziggy/build");
 
     @Before
     public void setup() throws IOException, ConfigurationException {
-        rootDir = new File(Filenames.BUILD_TEST);
-        taskDir = new File(rootDir, "10-20-pa");
-        subTaskDir = new File(taskDir, "st-0");
         subTaskDir.mkdirs();
-        buildDir = new File(rootDir, "build");
-        binDir = new File(buildDir, "bin");
         binDir.mkdirs();
         File paFile = new File(binDir, "pa");
         paFile.createNewFile();
-        File resultsDir = new File(rootDir, "results");
-        resultsDir.mkdirs();
-
-        // force some configurations
-        System.setProperty(PropertyNames.MODULE_EXE_LIBPATH_PROPERTY_NAME,
-            "path1" + File.pathSeparator + "path2");
-        System.setProperty(PropertyNames.PIPELINE_HOME_DIR_PROP_NAME, buildDir.getAbsolutePath());
-        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, "/path/to/ziggy/build");
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, resultsDir.getAbsolutePath());
+        new File(resultsDirPropertyRule.getProperty()).mkdirs();
 
         // Create the state file directory
         Files.createDirectories(DirectoryProperties.stateFilesDir());
@@ -80,11 +99,6 @@ public class SubtaskExecutorTest {
     @After
     public void teardown() throws IOException {
         FileUtils.deleteDirectory(rootDir);
-        System.clearProperty(PropertyNames.MODULE_EXE_LIBPATH_PROPERTY_NAME);
-        System.clearProperty(PropertyNames.MODULE_EXE_BINPATH_PROPERTY_NAME);
-        System.clearProperty(PropertyNames.PIPELINE_HOME_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.MODULE_EXE_MCRROOT_PROPERTY_NAME);
     }
 
     @Test

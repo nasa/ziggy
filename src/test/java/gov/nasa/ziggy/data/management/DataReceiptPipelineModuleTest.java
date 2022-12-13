@@ -1,5 +1,11 @@
 package gov.nasa.ziggy.data.management;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.USE_SYMLINKS_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -23,7 +29,6 @@ import java.util.concurrent.Executors;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -33,7 +38,7 @@ import org.xml.sax.SAXException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
-import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
 import gov.nasa.ziggy.models.ModelImporter;
@@ -51,7 +56,6 @@ import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -66,10 +70,12 @@ import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
 public class DataReceiptPipelineModuleTest {
 
     private PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
-    private Path dataImporterPath;
+    private Path dataImporterPath = Paths.get(System.getProperty("user.dir"), "build", "test",
+        "data-import");
     private Path dataImporterSubdirPath;
     private Path modelImporterSubdirPath;
-    private Path datastoreRootPath;
+    private Path datastoreRootPath = Paths.get(System.getProperty("user.dir"), "build", "test",
+        "datastore");
     private UnitOfWork singleUow = new UnitOfWork();
     private UnitOfWork dataSubdirUow = new UnitOfWork();
     private UnitOfWork modelSubdirUow = new UnitOfWork();
@@ -79,7 +85,28 @@ public class DataReceiptPipelineModuleTest {
     private ExecutorService execThread;
 
     @Rule
-    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
+        DATA_RECEIPT_DIR_PROP_NAME, dataImporterPath.toString());
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRootPath.toString());
+
+    @Rule
+    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
+        PIPELINE_HOME_DIR_PROP_NAME, null);
+
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        Paths.get(System.getProperty("user.dir"), "build", "test").toString());
+
+    @Rule
+    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
+        null);
+
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
 
     @Before
     public void setUp() throws IOException {
@@ -91,13 +118,7 @@ public class DataReceiptPipelineModuleTest {
         DataFileTestUtils.initializeDataFileTypeSamples();
 
         // Construct the necessary directories.
-        dataImporterPath = dirRule.testDirPath().resolve("data-import");
         dataImporterPath.toFile().mkdirs();
-        System.setProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME, dataImporterPath.toString());
-        datastoreRootPath = dirRule.testDirPath().resolve("datastore");
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME,
-            datastoreRootPath.toString());
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, dirRule.testDirPath().toString());
         datastoreRootPath.toFile().mkdirs();
         dataImporterSubdirPath = dataImporterPath.resolve("sub-dir");
         dataImporterSubdirPath.toFile().mkdirs();
@@ -121,10 +142,6 @@ public class DataReceiptPipelineModuleTest {
         modelImporterSubdirPath = dataImporterPath.resolve("models-sub-dir");
         modelImporterSubdirPath.toFile().mkdirs();
 
-        String workingDir = System.getProperty("user.dir");
-        Path homeDirPath = Paths.get(workingDir, "build");
-        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
-
         // construct the files for import
         constructFilesForImport();
 
@@ -145,21 +162,27 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the executor service
         execThread = Executors.newFixedThreadPool(1);
-
     }
 
     @After
     public void shutDown() throws InterruptedException, IOException {
         Thread.interrupted();
         execThread.shutdownNow();
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.USE_SYMLINKS_PROP_NAME);
-        System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.PIPELINE_HOME_DIR_PROP_NAME);
+        // NB: execution is so fast that some deleteDirectory commands fail because
+        // (apparently) write-locks have not yet had time to release! Address this by
+        // adding a short nap.
+        Thread.sleep(10);
+        FileUtil.setPosixPermissionsRecursively(datastoreRootPath, "rwxrwxrwx");
+        FileUtil.setPosixPermissionsRecursively(dataImporterPath, "rwxrwxrwx");
+        FileUtils.forceDelete(datastoreRootPath.toFile());
+        FileUtils.forceDelete(dataImporterPath.getParent().toFile());
+        if (Files.exists(DirectoryProperties.manifestsDir())) {
+            FileUtil.setPosixPermissionsRecursively(DirectoryProperties.manifestsDir(),
+                "rwxrwxrwx");
+            FileUtils.forceDelete(DirectoryProperties.manifestsDir().toFile());
+        }
 
         AlertService.setInstance(null);
-
     }
 
     @Test

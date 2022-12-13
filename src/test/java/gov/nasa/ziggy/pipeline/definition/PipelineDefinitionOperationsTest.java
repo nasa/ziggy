@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -10,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.hibernate.Hibernate;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
 import gov.nasa.ziggy.parameters.Parameters;
@@ -35,11 +36,9 @@ public class PipelineDefinitionOperationsTest {
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
-    @Before
-    public void setup() {
-        System.setProperty("ziggy.home.dir",
-            Paths.get(System.getProperty("user.dir"), "build").toString());
-    }
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
 
     @Test
     public void testMultipleDefaultParamSets() throws Exception {

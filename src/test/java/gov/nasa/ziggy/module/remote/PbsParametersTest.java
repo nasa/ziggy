@@ -2,9 +2,11 @@ package gov.nasa.ziggy.module.remote;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+
+import gov.nasa.ziggy.ZiggyPropertyRule;
 
 /**
  * Unit test class for {@link PbsParameters} class.
@@ -17,6 +19,10 @@ public class PbsParametersTest {
     private RemoteNodeDescriptor descriptor;
     private PbsParameters pbsParameters;
 
+    @Rule
+    public ZiggyPropertyRule pleiadesGroupPropertyRule = new ZiggyPropertyRule("pleiades.group",
+        "12345");
+
     @Before
     public void setup() {
         descriptor = RemoteNodeDescriptor.SANDY_BRIDGE;
@@ -26,13 +32,6 @@ public class PbsParametersTest {
         remoteParameters.setGigsPerSubtask(6);
         remoteParameters.setSubtaskMaxWallTimeHours(4.5);
         remoteParameters.setSubtaskTypicalWallTimeHours(0.5);
-
-        System.setProperty("pleiades.group", "12345");
-    }
-
-    @After
-    public void teardown() {
-        System.clearProperty("pleiades.group");
     }
 
     @Test

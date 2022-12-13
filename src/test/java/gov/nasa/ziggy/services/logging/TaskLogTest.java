@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.services.logging;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -19,16 +20,17 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.logging.TaskLog.LogType;
 import gov.nasa.ziggy.util.io.Filenames;
 
@@ -69,12 +71,17 @@ public class TaskLogTest {
 
     private Long timestamp;
 
+    @Rule
+    public ZiggyPropertyRule log4j2ConfigurationFilePropertyRule = new ZiggyPropertyRule(
+        "log4j2.configurationFile", LOG4J_CONFIG_FILE);
+
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        new File(System.getProperty("user.dir"), "build/test").getAbsolutePath());
+
     @Before
     public void setup() {
-        System.setProperty("log4j2.configurationFile", LOG4J_CONFIG_FILE);
         log = LoggerFactory.getLogger(FileAppenderTest.class);
-        File resultsDir = new File(System.getProperty("user.dir"), "build/test");
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, resultsDir.getAbsolutePath());
         algorithmDirectory = DirectoryProperties.algorithmLogsDir().toFile();
         algorithmDirectory.mkdirs();
         taskLogDirectory = DirectoryProperties.taskLogDir().toFile();
@@ -84,7 +91,6 @@ public class TaskLogTest {
 
     @After
     public void teardown() throws InterruptedException, URISyntaxException, IOException {
-        System.clearProperty("log4j2.configurationFile");
         if (expectedTaskLogFile1 != null) {
             expectedTaskLogFile1.delete();
         }
@@ -108,8 +114,6 @@ public class TaskLogTest {
         }
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
         context.setConfigLocation(new URI(LOG4J_CONFIG_FILE));
-        System.clearProperty(PropertyNames.RESULTS_DIR_PROP_NAME);
-        System.clearProperty("log4j2.configurationFile");
         FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 

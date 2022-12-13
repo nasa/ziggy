@@ -1,27 +1,25 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-//import com.google.common.io.Files;
-
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineResultsSample1;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.Filenames;
 
 /**
@@ -33,42 +31,31 @@ public class PipelineOutputsTest {
 
     private static final int subTaskIndex = 12;
     private static final String subTaskDirName = "st-" + subTaskIndex;
-    private String taskDir;
+    private String taskDir = new File(new File(Filenames.BUILD_TEST), "100-200-pa")
+        .getAbsolutePath();
     private String filename = ModuleInterfaceUtils.outputsFileName("pa", 0);
     private String otherFilename = ModuleInterfaceUtils.outputsFileName("pa", 2);
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+
+    @Rule
+    public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, new File(taskDir, subTaskDirName).getAbsolutePath());
 
     @Before
 	public void setup() throws IOException {
 
         // Create the task dir and the subtask dir
-		File taskRootDir = new File(Filenames.BUILD_TEST);
-		Files.createDirectories(taskRootDir.toPath());
-        this.taskRootDir = taskRootDir.getAbsolutePath();
-        File taskDir = new File(taskRootDir, "100-200-pa");
-        this.taskDir = taskDir.getAbsolutePath();
-        File subTaskDir = new File(taskDir, subTaskDirName);
-        subTaskDir.mkdirs();
-
-        // change to the subtask dir and save a results file
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME,
-            subTaskDir.getAbsolutePath());
+        new File(ziggyTestWorkingDirPropertyRule.getProperty()).mkdirs();
 
         // create the outputs object and save to a file
         PipelineOutputsSample1 p = new PipelineOutputsSample1();
         p.populateTaskResults();
         Hdf5ModuleInterface h = new Hdf5ModuleInterface();
-		h.writeFile(new File(System.getProperty("user.dir"), filename), p, true);
-		h.writeFile(new File(System.getProperty("user.dir"), otherFilename), p, true);
-
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
-
-    }
-
-    @After
-    public void teardown() throws InterruptedException, IOException {
-        // Short nap to make sure write locks are cleared
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME);
+        h.writeFile(DirectoryProperties.workingDir().resolve(filename).toFile(), p, true);
+        h.writeFile(DirectoryProperties.workingDir().resolve(otherFilename).toFile(), p, true);
     }
 
     /**

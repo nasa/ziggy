@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition.crud;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -11,12 +12,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.hibernate.Hibernate;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerTest;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -25,7 +26,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 /**
@@ -41,18 +41,15 @@ public class PipelineTaskOperationsTest {
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
+    @Rule
+    public ZiggyPropertyRule queueCommandClassPropertyRule = new ZiggyPropertyRule(
+        QUEUE_COMMAND_CLASS_PROP_NAME,
+        "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
+
     @Before
     public void setUp() {
-        System.setProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME,
-            "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
-
         cmdManager = spy(QueueCommandManager.newInstance());
         when(pipelineTaskOperations.queueCommandManager()).thenReturn(cmdManager);
-    }
-
-    @After
-    public void tearDown() {
-        System.clearProperty(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME);
     }
 
     @Test

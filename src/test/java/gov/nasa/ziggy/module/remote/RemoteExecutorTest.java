@@ -1,7 +1,8 @@
 package gov.nasa.ziggy.module.remote;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -15,8 +16,10 @@ import java.util.concurrent.Future;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.TaskConfigurationManager;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -24,7 +27,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.SingleThreadExecutor;
 import gov.nasa.ziggy.uow.TaskConfigurationParameters;
@@ -48,11 +50,14 @@ public class RemoteExecutorTest {
     private static Future<Void> futureVoid;
     private static TaskConfigurationParameters tcp;
 
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        "build/test");
+
     @SuppressWarnings("unchecked")
     @Before
     public void setup() throws InterruptedException, ExecutionException {
 
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, "build/test");
         File taskDir = new File("build/test/task-data/10-50-modulename");
         taskDir.mkdirs();
         new File(taskDir, "st-0").mkdirs();
@@ -100,7 +105,6 @@ public class RemoteExecutorTest {
         new File("build/test/task-data/10-50-modulename").delete();
         new File("build/test/task-data").delete();
         FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
-        System.clearProperty(PropertyNames.RESULTS_DIR_PROP_NAME);
     }
 
     @Test

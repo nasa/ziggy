@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.util.io;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -17,9 +19,10 @@ import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 
 /**
  * Tests the {@link FileUtil} class.
@@ -33,6 +36,14 @@ public class FileUtilTest {
     private File testSubdir;
     private File testSubdirRegularFile;
 
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+
+    @Rule
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+        "/path/to/pipeline-results");
+
     @Before
     public void setUp() throws IOException {
         testDir = new File(Filenames.BUILD_TEST);
@@ -45,8 +56,6 @@ public class FileUtilTest {
         testSubdir.mkdir();
         testSubdirRegularFile = new File(testSubdir, "another-regular-file.txt");
         FileUtils.touch(testSubdirRegularFile);
-        System.setProperty(PropertyNames.RESULTS_DIR_PROP_NAME, "/path/to/pipeline-results");
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
     }
 
     @After
@@ -56,8 +65,6 @@ public class FileUtilTest {
             FileUtils.cleanDirectory(testSubdir);
         }
         FileUtils.cleanDirectory(testDir);
-        System.clearProperty(PropertyNames.RESULTS_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
         FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 

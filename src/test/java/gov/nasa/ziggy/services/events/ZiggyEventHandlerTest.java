@@ -2,6 +2,8 @@ package gov.nasa.ziggy.services.events;
 
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -31,6 +33,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTypeImporter;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
@@ -52,7 +55,6 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
@@ -86,7 +88,14 @@ public class ZiggyEventHandlerTest {
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
-	@SuppressWarnings("unchecked")
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
+
+    @Rule
+    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
+        DATA_RECEIPT_DIR_PROP_NAME, TEST_DATA_DIR);
+
 	@Before
     public void setUp() throws IOException {
         testStatusSleepTime = 200L;
@@ -95,7 +104,6 @@ public class ZiggyEventHandlerTest {
         readyIndicator1 = testDataDir.resolve("gazelle.READY.mammal.1");
         readyIndicator2a = testDataDir.resolve("psittacus.READY.bird.2");
         readyIndicator2b = testDataDir.resolve("archosaur.READY.bird.2");
-        System.setProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME, testDataDir.toString());
 
         // Create the directories: they need to be there to get the DR UOW generator to
         // do the right thing.
@@ -103,9 +111,6 @@ public class ZiggyEventHandlerTest {
         Files.createDirectory(testDataDir.resolve("psittacus"));
         Files.createDirectory(testDataDir.resolve("archosaur"));
 
-        String workingDir = System.getProperty("user.dir");
-        Path distDirPath = Paths.get(workingDir, "build");
-        System.setProperty("ziggy.home.dir", distDirPath.toString());
         ClassWrapper<UnitOfWorkGenerator> dataReceiptUowGenerator = new ClassWrapper<>(
             DataReceiptUnitOfWorkGenerator.class);
 
@@ -153,8 +158,8 @@ public class ZiggyEventHandlerTest {
 
     @After
     public void tearDown() throws IOException, InterruptedException {
-        System.clearProperty("ziggy.home.dir");
-        System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
+        ziggyEventHandler.stop();
+        FileUtils.forceDelete(new File(Filenames.BUILD_TEST));
     }
 
     @Test

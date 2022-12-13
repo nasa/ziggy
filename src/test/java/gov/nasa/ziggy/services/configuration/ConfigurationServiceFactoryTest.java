@@ -8,8 +8,10 @@ import java.util.List;
 
 import org.apache.commons.configuration.Configuration;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
@@ -26,6 +28,19 @@ public class ConfigurationServiceFactoryTest {
 
     /** The number of threads accessing a property that does not exist. */
     private static final int NUM_NONEXISTENT_PROPERTY_READERS = 4;
+
+    @Rule
+    public ZiggyPropertyRule myBooleanPropertyRule = new ZiggyPropertyRule(
+        "my.boolean.property", null);
+    @Rule
+    public ZiggyPropertyRule myDoublePropertyRule = new ZiggyPropertyRule(
+        "my.double.property", null);
+    @Rule
+    public ZiggyPropertyRule myIntPropertyRule = new ZiggyPropertyRule(
+        "my.int.property", null);
+    @Rule
+    public ZiggyPropertyRule myStringPropertyRule = new ZiggyPropertyRule(
+        "my.string.property", null);
 
     @Before
     public void before() throws PipelineException {

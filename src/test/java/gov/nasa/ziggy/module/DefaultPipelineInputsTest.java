@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -19,11 +21,13 @@ import java.util.stream.Stream;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.DataFileManager;
 import gov.nasa.ziggy.data.management.DataFileType;
@@ -63,7 +67,7 @@ public class DefaultPipelineInputsTest {
     private PipelineDefinitionNode pipelineDefinitionNode;
     private PipelineInstance pipelineInstance;
     private PipelineInstanceNode pipelineInstanceNode;
-    private File datastore;
+    private File datastore = new File(Filenames.BUILD_TEST, "datastore");
     private File taskWorkspace;
     private File taskDir;
     private DataFileManager mockedDataFileManager;
@@ -74,6 +78,14 @@ public class DefaultPipelineInputsTest {
     private UnitOfWork uow;
     private File dataDir;
     private AlertService alertService;
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, datastore.getAbsolutePath());
+
+    @Rule
+    public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, null);
 
     @Before
     public void setup() throws IOException {
@@ -91,8 +103,6 @@ public class DefaultPipelineInputsTest {
                 Boolean.toString(false), ZiggyDataType.ZIGGY_BOOLEAN));
 
         // Set up a temporary directory for the datastore and one for the task-directory
-        datastore = new File(Filenames.BUILD_TEST, "datastore");
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, datastore.getAbsolutePath());
         dataDir = new File(datastore, "sector-0001/ccd-1:1/pa");
         dataDir.mkdirs();
         taskWorkspace = new File(Filenames.BUILD_TEST, "taskspace");
@@ -153,8 +163,6 @@ public class DefaultPipelineInputsTest {
 
     @After
     public void teardown() throws IOException {
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME);
         FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 

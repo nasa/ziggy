@@ -1,16 +1,16 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.util.io.Filenames;
 
 /**
@@ -22,27 +22,17 @@ public class PipelineInputsOutputsUtilsTest {
 
     private static final int subTaskIndex = 12;
     private static final String subTaskDirName = "st-" + subTaskIndex;
-    private String taskDir;
+    private String taskDir = new File(new File(Filenames.BUILD_TEST), "1-2-pa").getAbsolutePath();
+
+    @Rule
+    public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, new File(taskDir, subTaskDirName).getAbsolutePath());
 
     @Before
     public void setup() {
 
         // Create the task dir and the subtask dir
-        File taskDirRoot = new File(Filenames.BUILD_TEST);
-        File taskDir = new File(taskDirRoot, "1-2-pa");
-        this.taskDir = taskDir.getAbsolutePath();
-        File subTaskDir = new File(taskDir, subTaskDirName);
-        subTaskDir.mkdirs();
-
-        // change to the task dir and save a results file
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME,
-            subTaskDir.getAbsolutePath());
-    }
-
-    @After
-    public void teardown() throws InterruptedException, IOException {
-
-        System.clearProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME);
+        new File(ziggyTestWorkingDirPropertyRule.getProperty()).mkdirs();
     }
 
     /**

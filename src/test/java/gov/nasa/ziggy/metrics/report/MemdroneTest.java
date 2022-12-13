@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.metrics.report;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -12,9 +13,10 @@ import java.util.Date;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.io.Filenames;
 
@@ -26,15 +28,13 @@ public class MemdroneTest {
     private static final long INSTANCE_ID_2 = 16L;
     private static final String RESULTS_DIR = Filenames.BUILD_TEST;
 
-    @Before
-    public void setup() {
-        System.setProperty("pipeline.results.dir", RESULTS_DIR);
-    }
+    @Rule
+    public ZiggyPropertyRule pipelineResultsDirPropertyRule = new ZiggyPropertyRule(
+        RESULTS_DIR_PROP_NAME, RESULTS_DIR);
 
     @After
     public void teardown() throws IOException {
         FileUtils.forceDelete(Paths.get(RESULTS_DIR).toFile());
-        System.clearProperty("pipeline.results.dir");
     }
 
     @Test

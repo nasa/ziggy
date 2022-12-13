@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.uow;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -17,10 +18,11 @@ import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.events.ZiggyEventLabels;
 import gov.nasa.ziggy.util.io.Filenames;
 
@@ -31,18 +33,20 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class DataReceiptUnitOfWorkGeneratorTest {
 
-    private Path dataImporterPath;
+    private Path dataImporterPath = Paths.get(System.getProperty("user.dir"), "build", "test",
+        "data-import");
     Map<Class<? extends Parameters>, Parameters> parametersMap;
     TaskConfigurationParameters taskConfig;
+
+    @Rule
+    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
+        DATA_RECEIPT_DIR_PROP_NAME, dataImporterPath.toString());
 
     @Before
     public void setUp() throws IOException {
 
         // Create the data receipt main directory.
-        dataImporterPath = Paths.get(System.getProperty("user.dir"), "build", "test",
-            "data-import");
         dataImporterPath.toFile().mkdirs();
-        System.setProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME, dataImporterPath.toString());
 
         // Create some subdirectories.
         Files.createDirectory(dataImporterPath.resolve("subdir-1"));
@@ -59,7 +63,6 @@ public class DataReceiptUnitOfWorkGeneratorTest {
 
     @After
     public void tearDown() throws IOException {
-        System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
         FileUtils.forceDelete(dataImporterPath.toFile());
         FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }

@@ -1,12 +1,13 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -24,11 +25,13 @@ import java.util.Collections;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.google.common.io.Files;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
@@ -44,7 +47,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**
@@ -68,6 +70,18 @@ public class ExternalProcessPipelineModuleTest {
     private AlgorithmExecutor ae;
     private TestPipelineModule t;
     private DatastoreProducerConsumerCrud dpcc;
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+
+    @Rule
+    public ZiggyPropertyRule piProcessingHaltStepPropertyRule = new ZiggyPropertyRule(
+        "pi.processing.halt.step", null);
+
+    @Rule
+    public ZiggyPropertyRule piWorkerAllowPartialTasksPropertyRule = new ZiggyPropertyRule(
+        "pi.worker.allowPartialTasks", null);
 
     @Before
     public void setup() {
@@ -100,17 +114,12 @@ public class ExternalProcessPipelineModuleTest {
         DatabaseService.setInstance(ds);
         dpcc = mock(DatastoreProducerConsumerCrud.class);
         when(dpcc.retrieveFilesConsumedByTask(100L)).thenReturn(Collections.emptySet());
-        System.clearProperty("pi.processing.halt.step");
         t = new TestPipelineModule(p, RunMode.STANDARD);
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
     }
 
     @After
     public void teardown() throws IOException {
         FileUtils.deleteDirectory(taskDir);
-        System.clearProperty("pi.processing.halt.step");
-        System.clearProperty("pi.worker.allowPartialTasks");
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
         DatabaseService.reset();
     }
 

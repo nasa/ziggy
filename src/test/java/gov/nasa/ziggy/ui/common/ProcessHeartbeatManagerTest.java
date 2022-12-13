@@ -1,5 +1,8 @@
 package gov.nasa.ziggy.ui.common;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATABASE_SOFTWARE_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -10,13 +13,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.file.Paths;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
 import gov.nasa.ziggy.services.messaging.MessageHandler;
 import gov.nasa.ziggy.ui.ClusterController;
@@ -39,11 +44,21 @@ public class ProcessHeartbeatManagerTest {
     private HeartbeatManagerExternalMethods externalMethods;
     private ClusterController clusterController;
 
+    @Rule
+    public ZiggyPropertyRule heartbeatIntervalPropertyRule = new ZiggyPropertyRule(
+        HEARTBEAT_INTERVAL_PROP_NAME, Long.toString(0));
+
+    @Rule
+    public ZiggyPropertyRule databaseSoftwarePropertyRule = new ZiggyPropertyRule(
+        DATABASE_SOFTWARE_PROP_NAME, "postgresql");
+
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME,
+        Paths.get(System.getProperty("user.dir"), "build", "test").toString());
+
     @Before
     public void setup() {
-        System.setProperty(PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME, Long.toString(0));
-        System.setProperty(PropertyNames.DATABASE_SOFTWARE_PROP_NAME, "postgresql");
-        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, "build/test");
         messageHandler = new MessageHandler(new ConsoleMessageDispatcher(null, null, false));
         externalMethods = mock(HeartbeatManagerExternalMethods.class);
         clusterController = mock(ClusterController.class);
@@ -61,8 +76,6 @@ public class ProcessHeartbeatManagerTest {
             heartbeatGenerator.shutdownNow();
             heartbeatGenerator = null;
         }
-        System.clearProperty(PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME);
-        System.clearProperty(PropertyNames.DATABASE_SOFTWARE_PROP_NAME);
     }
 
     /**

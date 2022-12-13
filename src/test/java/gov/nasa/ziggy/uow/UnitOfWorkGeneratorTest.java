@@ -1,16 +1,17 @@
 package gov.nasa.ziggy.uow;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
@@ -34,10 +35,9 @@ public class UnitOfWorkGeneratorTest {
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
-    @After
-    public void shutDown() {
-        System.clearProperty(PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME);
-    }
+    @Rule
+    public ZiggyPropertyRule pipelineDefaultUowIdentifierClassPropertyRule = new ZiggyPropertyRule(
+        PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME, null);
 
     /**
      * Tests that units of work are correctly generated; in particular, that the UOW generator and
@@ -81,7 +81,6 @@ public class UnitOfWorkGeneratorTest {
      */
     @Test
     public void testExternalDefaultIdentifier() {
-
         System.setProperty(PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME,
             "gov.nasa.ziggy.uow.UnitOfWorkGeneratorTest$SampleUnitOfWorkIdentifier");
         Class<?> generator = UnitOfWorkGenerator

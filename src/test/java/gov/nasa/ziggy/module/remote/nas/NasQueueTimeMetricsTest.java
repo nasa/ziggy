@@ -1,15 +1,17 @@
 package gov.nasa.ziggy.module.remote.nas;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.NASA_DIRECTORATE_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.process.ExternalProcess;
@@ -25,6 +27,10 @@ public class NasQueueTimeMetricsTest {
     private ExternalProcess externalProcess;
     private static final String QS_MOCK_OUTPUT_FILE = "test/data/NasQueueTimeMetrics/qs.csv";
 
+    @Rule
+    public ZiggyPropertyRule nasaDirectoratePropertyRule = new ZiggyPropertyRule(
+        NASA_DIRECTORATE_PROP_NAME, null);
+
     @Before
     public void setup() {
         externalProcess = mock(ExternalProcess.class);
@@ -33,11 +39,6 @@ public class NasQueueTimeMetricsTest {
             .when(instance)
             .externalProcess(Matchers.any(String.class));
         NasQueueTimeMetrics.setSingletonInstance(instance);
-    }
-
-    @After
-    public void teardown() {
-        System.clearProperty(PropertyNames.NASA_DIRECTORATE_PROP_NAME);
     }
 
     @Test

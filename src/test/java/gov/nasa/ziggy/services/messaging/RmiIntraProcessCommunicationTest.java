@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.services.messaging;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -20,10 +21,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.TestEventDetector;
-import gov.nasa.ziggy.ZiggyDirectoryRule;
-import gov.nasa.ziggy.services.config.PropertyNames;
-import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ServerSideMessageHandlerForTest;
@@ -52,7 +50,8 @@ public class RmiIntraProcessCommunicationTest {
     private ProcessHeartbeatManager heartbeatManager = mock(ProcessHeartbeatManager.class);
 
     @Rule
-    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
+    public ZiggyPropertyRule heartbeatIntervalPropertyRule = new ZiggyPropertyRule(
+        HEARTBEAT_INTERVAL_PROP_NAME, "100");
 
     @Before
     public void setup() {
@@ -72,7 +71,6 @@ public class RmiIntraProcessCommunicationTest {
         if (registry != null) {
             UnicastRemoteObject.unexportObject(registry, true);
         }
-        System.clearProperty(PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME);
         UiCommunicator.reset();
         messageHandler1 = null;
         messageHandler2 = null;

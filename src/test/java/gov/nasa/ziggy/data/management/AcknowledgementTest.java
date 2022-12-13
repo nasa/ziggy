@@ -4,6 +4,8 @@ import static gov.nasa.ziggy.data.management.Manifest.manifestEntryAckEntryEqual
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.simpleTypeContent;
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -19,15 +21,16 @@ import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -42,22 +45,24 @@ public class AcknowledgementTest {
 
     private Path testDataDir;
 
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
+
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+
     @Before
     public void setUp() {
         testDataDir = Paths.get(TEST_DATA_DIR);
         testDataDir.toFile().mkdirs();
-        String workingDir = System.getProperty("user.dir");
-        Path homeDirPath = Paths.get(workingDir, "build");
-        System.setProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME, homeDirPath.toString());
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
         AlertService.setInstance(Mockito.mock(AlertService.class));
     }
 
     @After
     public void tearDown() throws IOException, InterruptedException {
         FileUtils.forceDelete(testDataDir.getParent().toFile());
-        System.clearProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
         AlertService.setInstance(null);
     }
 
@@ -240,7 +245,7 @@ public class AcknowledgementTest {
     @Test
     public void testSchema() throws IOException {
 
-        Path schemaPath = Paths.get(System.getProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME),
+        Path schemaPath = Paths.get(ziggyHomeDirPropertyRule.getProperty(),
             "schema", "xml", new Acknowledgement().getXmlSchemaFilename());
         List<String> schemaContent = Files.readAllLines(schemaPath);
 

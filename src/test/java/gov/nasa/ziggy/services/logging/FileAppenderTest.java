@@ -17,10 +17,12 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.util.io.Filenames;
 
 public class FileAppenderTest {
@@ -29,16 +31,18 @@ public class FileAppenderTest {
     private static Logger log;
     private File appenderFile;
 
+    @Rule
+    public ZiggyPropertyRule log4j2ConfigurationFilePropertyRule = new ZiggyPropertyRule(
+        "log4j2.configurationFile", LOG4J_CONFIG_FILE);
+
     @Before
     public void setup() {
         appenderFile = new File("build/test", "file-appender.log");
-        System.setProperty("log4j2.configurationFile", LOG4J_CONFIG_FILE);
         log = LoggerFactory.getLogger(FileAppenderTest.class);
     }
 
     @After
     public void teardown() throws IOException {
-        System.clearProperty("log4j2.configurationFile");
         appenderFile.delete();
         FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }

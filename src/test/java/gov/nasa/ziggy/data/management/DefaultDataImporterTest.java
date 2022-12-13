@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.data.management;
 
+import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.USE_SYMLINKS_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -15,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,12 +25,12 @@ import org.mockito.Mockito;
 import com.google.common.collect.ImmutableSet;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -55,6 +56,14 @@ public class DefaultDataImporterTest {
     @Rule
     public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
 
+    @Rule
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, dirRule.testDirPath().resolve("datastore").toString());
+
+    @Rule
+    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
+        null);
+
     @Before
     public void setUp() throws IOException {
 
@@ -63,8 +72,6 @@ public class DefaultDataImporterTest {
         dataImporterPath = testDirPath.resolve("data-import");
         dataImporterPath.toFile().mkdirs();
         datastoreRootPath = testDirPath.resolve("datastore");
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME,
-            datastoreRootPath.toString());
         datastoreRootPath.toFile().mkdirs();
         dataImporterSubdirPath = dataImporterPath.resolve("sub-dir");
         dataImporterSubdirPath.toFile().mkdirs();
@@ -90,12 +97,6 @@ public class DefaultDataImporterTest {
         Mockito.when(node.getInputDataFileTypes())
             .thenReturn(ImmutableSet.of(DataFileTestUtils.dataFileTypeSample1,
                 DataFileTestUtils.dataFileTypeSample2));
-    }
-
-    @After
-    public void tearDown() throws IOException, InterruptedException {
-        System.clearProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME);
-        System.clearProperty(PropertyNames.USE_SYMLINKS_PROP_NAME);
     }
 
     @Test
