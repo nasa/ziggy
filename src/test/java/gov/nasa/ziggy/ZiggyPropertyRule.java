@@ -7,6 +7,15 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
+/*
+ * Idea: If multiple properties need to be set, perhaps it would be more convenient to put them in
+ * one rule. If so, add constructors that take multiple name/value pairs as varargs or a map. In
+ * this case, add a getProperty(String) method to return the current value of the given property. I
+ * imagine that the existing getProperty() method should throw an IllegalStateException if more than
+ * one property is defined. This would then make a nice superclass for subclasses with a number of
+ * predefined properties.
+ */
+
 /**
  * Implements a {@link TestRule} for the setting and resetting of properties for use by unit tests.
  * To use, declare a field that refers to this rule as shown.
