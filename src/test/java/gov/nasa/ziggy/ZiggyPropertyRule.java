@@ -17,8 +17,8 @@ import org.junit.rules.TestRule;
  * </pre>
  *
  * For convenience, this rule provides a {@link #getProperty} method to access the current property
- * and a {@link #getPreviousProperty} method to access the value of the property before the test
- * started.
+ * value and a {@link #getPreviousProperty} method to access the value of the property before the
+ * test started.
  * <p>
  * This class is marked {@code @NotThreadSafe} as it manipulates system properties that are global
  * across the JVM.
@@ -72,5 +72,19 @@ public class ZiggyPropertyRule extends ExternalResource {
         } else {
             System.clearProperty(property);
         }
+    }
+
+    /**
+     * Returns the value of the property set by this rule.
+     */
+    public String getProperty() {
+        return value;
+    }
+
+    /**
+     * Returns the previous value of the property before it was set by this rule.
+     */
+    public String getPreviousProperty() {
+        return previousValue;
     }
 }
