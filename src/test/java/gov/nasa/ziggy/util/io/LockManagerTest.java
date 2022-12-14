@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 
 /**
@@ -73,8 +74,9 @@ public class LockManagerTest {
         LockManager.getWriteLockOrBlock(LOCK_FILE_ONE.toFile());
         ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
         task.start();
-        while (!task.isLockAttempted()) {
-        }
+        TestEventDetector.detectTestEvent(500L, () -> {
+            return task.isLockAttempted();
+        });
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
@@ -92,8 +94,9 @@ public class LockManagerTest {
         LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
         ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
         task.start();
-        while (!task.isLockAttempted()) {
-        }
+        TestEventDetector.detectTestEvent(500L, () -> {
+            return task.isLockAttempted();
+        });
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
@@ -111,8 +114,9 @@ public class LockManagerTest {
         LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
         BlockingWriterTask task = new BlockingWriterTask(LOCK_FILE_ONE);
         task.start();
-        while (!task.isLockAttempted()) {
-        }
+        TestEventDetector.detectTestEvent(500L, () -> {
+            return task.isLockAttempted();
+        });
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
@@ -130,8 +134,9 @@ public class LockManagerTest {
         LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
         NonBlockingWriterTask task = new NonBlockingWriterTask(LOCK_FILE_ONE);
         task.start();
-        while (!task.isDoneTryingLock()) {
-        }
+        TestEventDetector.detectTestEvent(500L, () -> {
+            return task.isDoneTryingLock();
+        });
         assertFalse(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());

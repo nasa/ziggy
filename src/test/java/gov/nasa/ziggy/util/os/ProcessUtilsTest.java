@@ -12,8 +12,8 @@ import java.util.Set;
 import org.junit.After;
 import org.junit.Test;
 
+import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.services.process.ExternalProcess;
-import gov.nasa.ziggy.util.SystemTime;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -82,20 +82,18 @@ public class ProcessUtilsTest {
             psProcess.timeout(1000);
             psProcess.execute(false);
         }
-        long startTime = SystemTime.currentTimeMillis();
-        while (SystemTime.currentTimeMillis() - startTime < 1000L
-            && childProcessIds.size() < nProcesses) {
-            childProcessIds = ProcessUtils.descendantProcessIds();
-        }
+        TestEventDetector.detectTestEvent(500L, () -> {
+            return ProcessUtils.descendantProcessIds().size() >= nProcesses;
+        });
+        childProcessIds = ProcessUtils.descendantProcessIds();
         assertEquals(nProcesses, childProcessIds.size());
         for (long processId : childProcessIds) {
             ProcessUtils.sendSigtermToProcess(processId);
         }
-        startTime = SystemTime.currentTimeMillis();
-        while (SystemTime.currentTimeMillis() - startTime < 1000L && childProcessIds.size() > 0) {
-            childProcessIds = ProcessUtils.descendantProcessIds();
-        }
-        assertEquals(0, childProcessIds.size());
+        TestEventDetector.detectTestEvent(500L, () -> {
+            return ProcessUtils.descendantProcessIds().size() == 0;
+        });
+        assertEquals(0, ProcessUtils.descendantProcessIds().size());
 
     }
 
