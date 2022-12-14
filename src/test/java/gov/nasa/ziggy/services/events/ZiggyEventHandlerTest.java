@@ -69,9 +69,6 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
  */
 public class ZiggyEventHandlerTest {
 
-    @Rule
-    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
-
     public static final String TEST_DATA_DIR = "events";
     public static final String TEST_DATA_SRC = "test/data/EventPipeline";
 
@@ -158,8 +155,8 @@ public class ZiggyEventHandlerTest {
 
     @After
     public void tearDown() throws IOException, InterruptedException {
-        ziggyEventHandler.stop();
-        FileUtils.forceDelete(new File(Filenames.BUILD_TEST));
+        System.clearProperty("ziggy.home.dir");
+        System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
     }
 
     @Test
