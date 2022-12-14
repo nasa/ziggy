@@ -17,12 +17,12 @@ import java.nio.file.Paths;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.xml.sax.SAXException;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.services.config.PropertyNames;
@@ -40,7 +40,11 @@ public class ManifestTest {
     public static final String TEST_DATA_SRC = "test/data/configuration";
 
     private Path testDataDir;
+    private Path subDir;
     private ChecksumType checksumType = Manifest.CHECKSUM_TYPE;
+
+    @Rule
+    public ZiggyDirectoryRule ziggyDirectoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
@@ -52,27 +56,24 @@ public class ManifestTest {
 
     @Before
     public void setUp() {
-        testDataDir = Paths.get(TEST_DATA_DIR);
+        testDataDir = ziggyDirectoryRule.directory().resolve(TEST_DATA_DIR);
+//        testDataDir = Paths.get(TEST_DATA_DIR);
         testDataDir.toFile().mkdirs();
-    }
-
-    @After
-    public void tearDown() throws IOException, InterruptedException {
-        FileUtils.forceDelete(testDataDir.getParent().toFile());
+        subDir = testDataDir.resolve("sub-directory");
     }
 
     @Test
     public void testGenerateFromFiles() throws IOException {
 
         // Copy all the files from the source directory
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR));
+        FileUtils.copyDirectory(new File(TEST_DATA_SRC), testDataDir.toFile());
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR, "sub-directory"));
+        Files.createDirectory(subDir);
+        FileUtils.copyDirectory(new File(TEST_DATA_SRC), subDir.toFile());
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         assertEquals(100L, manifest.getDatasetId());
@@ -87,15 +88,14 @@ public class ManifestTest {
     public void testGenerateFromSymlinks() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), Paths.get(TEST_DATA_DIR));
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            Paths.get(TEST_DATA_DIR, "sub-directory"));
+        Files.createDirectory(subDir);
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), subDir);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         assertEquals(100L, manifest.getDatasetId());
@@ -108,18 +108,18 @@ public class ManifestTest {
 
     @Test
     public void testWriteAndReadManifest() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
-			NoSuchMethodException, SecurityException {
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Copy all the files from the source directory
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR));
+        FileUtils.copyDirectory(new File(TEST_DATA_SRC), testDataDir.toFile());
 
         // Create a couple of files that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR, "sub-directory"));
+        Files.createDirectory(subDir);
+        FileUtils.copyDirectory(new File(TEST_DATA_SRC), subDir.toFile());
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -139,19 +139,18 @@ public class ManifestTest {
 
     @Test
     public void testWriteAndReadManifestSymlinks() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
-			NoSuchMethodException, SecurityException {
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), Paths.get(TEST_DATA_DIR));
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            Paths.get(TEST_DATA_DIR, "sub-directory"));
+        Files.createDirectory(subDir);
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), subDir);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");

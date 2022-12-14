@@ -8,17 +8,15 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Date;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.util.Iso8601Formatter;
-import gov.nasa.ziggy.util.io.Filenames;
 
 public class MemdroneTest {
 
@@ -26,22 +24,23 @@ public class MemdroneTest {
     private static final String BINARY_NAME_2 = "pa";
     private static final long INSTANCE_ID_1 = 15L;
     private static final long INSTANCE_ID_2 = 16L;
-    private static final String RESULTS_DIR = Filenames.BUILD_TEST;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule pipelineResultsDirPropertyRule = new ZiggyPropertyRule(
-        RESULTS_DIR_PROP_NAME, RESULTS_DIR);
+        RESULTS_DIR_PROP_NAME, directoryRule);
 
     @After
     public void teardown() throws IOException {
-        FileUtils.forceDelete(Paths.get(RESULTS_DIR).toFile());
     }
 
     @Test
     public void testMemdronePath() throws IOException, InterruptedException {
 
         Memdrone memdrone = new Memdrone(BINARY_NAME_1, INSTANCE_ID_1);
-        Path memRootPath = Paths.get(RESULTS_DIR, "logs", "memdrone");
+        Path memRootPath = directoryRule.directory().resolve("logs").resolve("memdrone");
         assertFalse(Files.exists(memRootPath));
 
         Date d1 = new Date();

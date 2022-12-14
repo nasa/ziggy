@@ -10,8 +10,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Test class for PipelineInputsOutputsUtils methods.
@@ -20,19 +20,23 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class PipelineInputsOutputsUtilsTest {
 
-    private static final int subTaskIndex = 12;
-    private static final String subTaskDirName = "st-" + subTaskIndex;
-    private String taskDir = new File(new File(Filenames.BUILD_TEST), "1-2-pa").getAbsolutePath();
+    private String taskDir;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, new File(taskDir, subTaskDirName).getAbsolutePath());
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
     @Before
     public void setup() {
 
+        taskDir = directoryRule.directory().resolve("1-2-pa").toString();
+        String workingDir = directoryRule.directory().resolve("1-2-pa").resolve("st-12").toString();
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir);
         // Create the task dir and the subtask dir
-        new File(ziggyTestWorkingDirPropertyRule.getProperty()).mkdirs();
+        new File(workingDir).mkdirs();
     }
 
     /**
@@ -41,7 +45,7 @@ public class PipelineInputsOutputsUtilsTest {
     @Test
     public void testTaskDir() {
         Path taskDir = PipelineInputsOutputsUtils.taskDir();
-        assertEquals(this.taskDir, taskDir.toAbsolutePath().toString());
+        assertEquals(this.taskDir, taskDir.toString());
     }
 
     /**

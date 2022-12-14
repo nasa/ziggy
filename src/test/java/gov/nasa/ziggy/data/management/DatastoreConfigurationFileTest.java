@@ -14,14 +14,12 @@ import java.util.Set;
 import javax.xml.transform.Result;
 import javax.xml.transform.stream.StreamResult;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.util.io.Filenames;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -38,21 +36,16 @@ public class DatastoreConfigurationFileTest {
     private File xmlUnmarshalingFile;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, Filenames.BUILD_TEST);
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, directoryRule);
 
     @Before
     public void setUp() {
-
-        // Set the working directory
         xmlUnmarshalingFile = new File("test/data/datastore/pd-test-1.xml");
-        new File(Filenames.BUILD_TEST).mkdirs();
-        schemaFile = new File(Filenames.BUILD_TEST, "pipeline-file.xsd");
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
+        schemaFile = directoryRule.directory().resolve("pipeline-file.xsd").toFile();
     }
 
     @Test

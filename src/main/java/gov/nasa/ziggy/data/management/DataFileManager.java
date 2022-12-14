@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -198,23 +199,24 @@ public class DataFileManager {
      */
     public Map<DataFileType, Set<Path>> copyDataFilesByTypeToTaskDirectory(Path datastoreSubDir,
         Set<DataFileType> dataFileTypes, TaskConfigurationParameters taskConfig) {
-        return copyDataFilesByTypeToTaskDirectory(datastoreDataFilesMap(datastoreSubDir, dataFileTypes),
-            taskConfig);
+        return copyDataFilesByTypeToTaskDirectory(
+            datastoreDataFilesMap(datastoreSubDir, dataFileTypes), taskConfig);
     }
-    
+
     /**
      * Copies data files from the datastore to the task directory.
-     * @param datastoreDataFilesMap files to be copied, in the form of a {@link Map}
-     * that uses {@link DataFileType} as its key and a {@link Set} of data file {@link Path}
-     * instances as the map values. 
-     * @param taskConfig {@link TaskConfigurationParameters} instance. 
+     *
+     * @param datastoreDataFilesMap files to be copied, in the form of a {@link Map} that uses
+     * {@link DataFileType} as its key and a {@link Set} of data file {@link Path} instances as the
+     * map values.
+     * @param taskConfig {@link TaskConfigurationParameters} instance.
      */
     public Map<DataFileType, Set<Path>> copyDataFilesByTypeToTaskDirectory(
-        Map<DataFileType, Set<Path>> datastoreDataFilesMap, TaskConfigurationParameters taskConfig) {
+        Map<DataFileType, Set<Path>> datastoreDataFilesMap,
+        TaskConfigurationParameters taskConfig) {
 
         Map<DataFileType, Set<Path>> datastoreFilesMap = copyDataFilesByTypeToDestination(
-            datastoreDataFilesMap, RegexType.TASK_DIR,
-            taskDirCopyType, taskConfig);
+            datastoreDataFilesMap, RegexType.TASK_DIR, taskDirCopyType, taskConfig);
         Set<Path> datastoreFiles = new HashSet<>();
         for (Set<Path> paths : datastoreFilesMap.values()) {
             datastoreFiles.addAll(paths);
@@ -539,8 +541,9 @@ public class DataFileManager {
         for (DataFileInfo dataFileInfo : dataFiles) {
             Path taskDirLocation = taskDirectory.resolve(dataFileInfo.getName());
             try {
-                if (Files.isRegularFile(taskDirLocation)) {
+                if (Files.isRegularFile(taskDirLocation) || Files.isSymbolicLink(taskDirLocation)) {
                     Files.deleteIfExists(taskDirLocation);
+
                 } else {
                     FileUtils.deleteDirectory(taskDirLocation.toFile());
                 }
@@ -551,6 +554,7 @@ public class DataFileManager {
                     e);
             }
         }
+
     }
 
     /**
@@ -1068,7 +1072,8 @@ public class DataFileManager {
         private static void checkout(Path src, Path dest) {
             checkNotNull(src, "src");
             checkNotNull(dest, "dest");
-            checkArgument(Files.exists(src), "Source file " + src + " does not exist");
+            checkArgument(Files.exists(src, LinkOption.NOFOLLOW_LINKS),
+                "Source file " + src + " does not exist");
         }
 
     }
@@ -1094,7 +1099,7 @@ public class DataFileManager {
 
     /**
      * Convenient container for the datastore and task dir paths for a given data file.
-     * 
+     *
      * @author PT
      */
     private static class DatastoreAndTaskDirPaths {

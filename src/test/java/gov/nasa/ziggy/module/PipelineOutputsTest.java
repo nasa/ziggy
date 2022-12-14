@@ -14,13 +14,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineResultsSample1;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Test class for PipelineOutputs.
@@ -29,12 +29,12 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class PipelineOutputsTest {
 
-    private static final int subTaskIndex = 12;
-    private static final String subTaskDirName = "st-" + subTaskIndex;
-    private String taskDir = new File(new File(Filenames.BUILD_TEST), "100-200-pa")
-        .getAbsolutePath();
+    private String taskDir;
     private String filename = ModuleInterfaceUtils.outputsFileName("pa", 0);
     private String otherFilename = ModuleInterfaceUtils.outputsFileName("pa", 2);
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
@@ -42,13 +42,19 @@ public class PipelineOutputsTest {
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, new File(taskDir, subTaskDirName).getAbsolutePath());
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
     @Before
 	public void setup() throws IOException {
 
+        taskDir = directoryRule.directory().resolve("100-200-pa").toString();
+        String workingDir = directoryRule.directory()
+            .resolve("100-200-pa")
+            .resolve("st-12")
+            .toString();
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir);
         // Create the task dir and the subtask dir
-        new File(ziggyTestWorkingDirPropertyRule.getProperty()).mkdirs();
+        new File(workingDir).mkdirs();
 
         // create the outputs object and save to a file
         PipelineOutputsSample1 p = new PipelineOutputsSample1();

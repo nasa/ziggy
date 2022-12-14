@@ -18,6 +18,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileInfo;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.DataFileInfoSample1;
@@ -27,7 +28,6 @@ import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineResultsSample2;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.PropertyNames;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Test class for PipelineInputs.
@@ -36,23 +36,27 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class PipelineInputsTest {
 
-    private static final int subTaskIndex = 12;
-    private static final String subTaskDirName = "st-" + subTaskIndex;
-    private String taskDir = new File(new File(Filenames.BUILD_TEST), "1-2-pa").getAbsolutePath();
+    private String taskDir;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
+    public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
 
-    @Rule
-    public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, new File(taskDir, subTaskDirName).getAbsolutePath());
-
     @Before
     public void setup() {
 
+        taskDir = directoryRule.directory().resolve("1-2-pa").toString();
+        String workingDir = directoryRule.directory().resolve("1-2-pa").resolve("st-12").toString();
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir);
         // Create the task dir and the subtask dir
-        new File(ziggyTestWorkingDirPropertyRule.getProperty()).mkdirs();
+        new File(workingDir).mkdirs();
 
         PipelineResultsSample1 p = new PipelineResultsSample1();
         p.setOriginator(100L);
@@ -124,7 +128,7 @@ public class PipelineInputsTest {
         pipelineInputs.writeSubTaskInputs(0);
         Hdf5ModuleInterface h = new Hdf5ModuleInterface();
         PipelineInputsSample inputsFromFile = new PipelineInputsSample();
-        File subTaskDir = new File(taskDir, subTaskDirName);
+        File subTaskDir = new File(taskDir, "st-12");
         h.readFile(new File(subTaskDir, "pa-inputs-0.h5"), inputsFromFile, true);
         assertEquals(105.3, inputsFromFile.getDvalue(), 1e-9);
     }
@@ -136,7 +140,7 @@ public class PipelineInputsTest {
     public void testSubTaskIndex() {
         PipelineInputsSample pipelineInputs = new PipelineInputsSample();
         int st = pipelineInputs.subtaskIndex();
-        assertEquals(subTaskIndex, st);
+        assertEquals(12, st);
     }
 
     /**
@@ -183,7 +187,7 @@ public class PipelineInputsTest {
         assertTrue(writtenInputsFile.exists());
 
         System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME,
-            new File(taskDirFile, subTaskDirName).getAbsolutePath());
+            new File(taskDirFile, "st-12").getAbsolutePath());
         pipelineInputs = new PipelineInputsSample();
         assertEquals(0.0, pipelineInputs.getDvalue(), 1e-9);
         pipelineInputs.readFromTaskDir();

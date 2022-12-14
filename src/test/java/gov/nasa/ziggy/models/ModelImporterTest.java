@@ -15,16 +15,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.google.common.io.Files;
-
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
@@ -37,19 +34,23 @@ public class ModelImporterTest {
     private ModelType modelType1;
     private ModelType modelType2;
     private ModelType modelType3;
-    private File datastoreRoot = Files.createTempDir(); // TODO Convert to ZiggyDirectoryRule
+    private File datastoreRoot;
     private File modelImportDirectory;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot.getAbsolutePath());
+    public ZiggyPropertyRule ziggyDatastorePropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 
     @Before
     public void setup() throws IOException {
 
+        datastoreRoot = new File(ziggyDatastorePropertyRule.getProperty());
         // Set up the model type 1 to have a model ID in its name, which is a simple integer,
         // and a timestamp in its name
         modelType1 = new ModelType();
@@ -83,7 +84,8 @@ public class ModelImporterTest {
         ModelMetadata modelMetadata3 = new ModelMetadata(modelType3, filename3, "zinfandel", null);
 
         // Initialize the datastore
-        modelImportDirectory = Files.createTempDir();
+        modelImportDirectory = directoryRule.directory().resolve("modelImportDirectory").toFile();
+        modelImportDirectory.mkdirs();
 
         // Create the database objects
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -106,12 +108,6 @@ public class ModelImporterTest {
         new File(modelImportDirectory, "tess2020321141517-12345_025-geometry.xml").createNewFile();
         new File(modelImportDirectory, "calibration-4.12.19.h5").createNewFile();
         new File(modelImportDirectory, "simple-text.h5").createNewFile();
-    }
-
-    @After
-    public void teardown() throws IOException {
-        // TODO Switch to ZiggyDirectoryRule: FileUtils.deleteDirectory(datastoreRoot);
-        FileUtils.deleteDirectory(modelImportDirectory);
     }
 
     @Test
@@ -310,7 +306,7 @@ public class ModelImporterTest {
             "tess2020321141517-12345_025-geometry.xml");
         Mockito.doThrow(IOException.class)
             .when(modelImporter)
-            .moveOrSymlink(srcFileToFlunk, destFileToFlunk);
+            .moveOrSymlink(srcFileToFlunk.toAbsolutePath(), destFileToFlunk);
 
         // Perform the import
         DatabaseTransactionFactory.performTransaction(() -> {

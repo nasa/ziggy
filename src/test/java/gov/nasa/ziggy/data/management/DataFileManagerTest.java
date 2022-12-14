@@ -72,11 +72,11 @@ public class DataFileManagerTest {
     private PipelineTaskCrud pipelineTaskCrud;
 
     @Rule
-    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot);
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
-    public ZiggyPropertyRule userDirPropertyRule = new ZiggyPropertyRule("user.dir", (String) null);
+    public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
+        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot);
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
@@ -87,12 +87,16 @@ public class DataFileManagerTest {
         ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
     @Before
-    public void setup() {
-        new File(datastoreRoot).mkdirs();
-        System.setProperty(PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot);
-        Path taskDirRoot = dirRule.testDirPath().resolve("taskspace");
+    public void setup() throws IOException {
+        Path datastore = Paths.get(datastoreRootDirPropertyRule.getProperty());
+        Files.createDirectories(datastore);
+//        datastoreRoot = datastore.toAbsolutePath().toString();
+        datastoreRoot = datastore.toString();
+
+        Path taskDirRoot = directoryRule.directory().resolve("taskspace");
         Files.createDirectories(taskDirRoot);
-        this.taskDirRoot = taskDirRoot.toAbsolutePath().toString();
+//        this.taskDirRoot = taskDirRoot.toAbsolutePath().toString();
+        this.taskDirRoot = taskDirRoot.toString();
         makeTaskDir("pa-5-10");
 
         Path externalTemp = dirRule.testDirPath().resolve("tmp");
@@ -1686,7 +1690,7 @@ public class DataFileManagerTest {
         sample1.createNewFile();
         sample2.createNewFile();
 
-        System.setProperty("user.dir", subtaskDir);
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
 
         // Files of the type of the DataFileTypeSample1 should be found.
         assertTrue(dataFileManager2.workingDirHasFilesOfTypes(

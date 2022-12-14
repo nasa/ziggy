@@ -26,6 +26,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
@@ -40,10 +41,13 @@ import gov.nasa.ziggy.util.io.FileUtil;
  */
 public class AcknowledgementTest {
 
-    public static final String TEST_DATA_DIR = "build/test/manifest";
+    public static final String TEST_DATA_DIR = "manifest";
     public static final String TEST_DATA_SRC = "test/data/configuration";
 
     private Path testDataDir;
+
+    @Rule
+    public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
@@ -55,14 +59,12 @@ public class AcknowledgementTest {
 
     @Before
     public void setUp() {
-        testDataDir = Paths.get(TEST_DATA_DIR);
-        testDataDir.toFile().mkdirs();
+        testDataDir = dirRule.directory().resolve(TEST_DATA_DIR);
         AlertService.setInstance(Mockito.mock(AlertService.class));
     }
 
     @After
     public void tearDown() throws IOException, InterruptedException {
-        FileUtils.forceDelete(testDataDir.getParent().toFile());
         AlertService.setInstance(null);
     }
 
@@ -70,7 +72,7 @@ public class AcknowledgementTest {
     public void testGenerateAcknowledgement() throws IOException {
 
         // Copy all the files from the source directory
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR));
+        FileUtils.copyDirectory(new File(TEST_DATA_SRC), testDataDir.toFile());
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -87,7 +89,7 @@ public class AcknowledgementTest {
     public void testGenerateAcknowledgementFromSymlinks() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), Paths.get(TEST_DATA_DIR));
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
@@ -95,7 +97,7 @@ public class AcknowledgementTest {
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
         FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            Paths.get(TEST_DATA_DIR, "sub-directory"));
+            testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -112,7 +114,7 @@ public class AcknowledgementTest {
     public void testFailedTransferStatus() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), Paths.get(TEST_DATA_DIR));
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
@@ -120,7 +122,7 @@ public class AcknowledgementTest {
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
         FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            Paths.get(TEST_DATA_DIR, "sub-directory"));
+            testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -145,7 +147,7 @@ public class AcknowledgementTest {
     public void testFailedSizeValidation() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), Paths.get(TEST_DATA_DIR));
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
@@ -153,7 +155,7 @@ public class AcknowledgementTest {
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
         FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            Paths.get(TEST_DATA_DIR, "sub-directory"));
+            testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -180,7 +182,7 @@ public class AcknowledgementTest {
     public void testFailedChecksumValidation() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), Paths.get(TEST_DATA_DIR));
+        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
@@ -188,7 +190,7 @@ public class AcknowledgementTest {
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
         FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            Paths.get(TEST_DATA_DIR, "sub-directory"));
+            testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -212,12 +214,13 @@ public class AcknowledgementTest {
     }
 
     @Test
-    public void testXmlRoundTrip() throws IOException, InstantiationException,
-			IllegalAccessException, SAXException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
-			InvocationTargetException, NoSuchMethodException, SecurityException {
+    public void testXmlRoundTrip()
+        throws IOException, InstantiationException, IllegalAccessException, SAXException,
+        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
 
         // Copy all the files from the source directory
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), new File(TEST_DATA_DIR));
+        FileUtils.copyDirectory(new File(TEST_DATA_SRC), testDataDir.toFile());
 
         // Create a manifest based on the directory contents
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
@@ -245,8 +248,8 @@ public class AcknowledgementTest {
     @Test
     public void testSchema() throws IOException {
 
-        Path schemaPath = Paths.get(ziggyHomeDirPropertyRule.getProperty(),
-            "schema", "xml", new Acknowledgement().getXmlSchemaFilename());
+        Path schemaPath = Paths.get(ziggyHomeDirPropertyRule.getProperty(), "schema", "xml",
+            new Acknowledgement().getXmlSchemaFilename());
         List<String> schemaContent = Files.readAllLines(schemaPath);
 
         assertContains(schemaContent,

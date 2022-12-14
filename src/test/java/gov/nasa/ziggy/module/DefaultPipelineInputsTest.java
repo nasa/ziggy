@@ -18,8 +18,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,6 +25,7 @@ import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.DataFileManager;
@@ -52,7 +51,6 @@ import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit test class for DefaultPipelineInputs.
@@ -67,7 +65,7 @@ public class DefaultPipelineInputsTest {
     private PipelineDefinitionNode pipelineDefinitionNode;
     private PipelineInstance pipelineInstance;
     private PipelineInstanceNode pipelineInstanceNode;
-    private File datastore = new File(Filenames.BUILD_TEST, "datastore");
+    private File datastore;
     private File taskWorkspace;
     private File taskDir;
     private DataFileManager mockedDataFileManager;
@@ -80,8 +78,11 @@ public class DefaultPipelineInputsTest {
     private AlertService alertService;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, datastore.getAbsolutePath());
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
@@ -102,10 +103,12 @@ public class DefaultPipelineInputsTest {
             new TypedParameter(DatastoreDirectoryUnitOfWorkGenerator.SINGLE_SUBTASK_PROPERTY_NAME,
                 Boolean.toString(false), ZiggyDataType.ZIGGY_BOOLEAN));
 
+        datastore = new File(datastoreRootDirPropertyRule.getProperty());
         // Set up a temporary directory for the datastore and one for the task-directory
         dataDir = new File(datastore, "sector-0001/ccd-1:1/pa");
         dataDir.mkdirs();
-        taskWorkspace = new File(Filenames.BUILD_TEST, "taskspace");
+        taskWorkspace = directoryRule.directory().resolve("taskspace").toFile();
+//        taskWorkspace = new File(Filenames.BUILD_TEST, "taskspace");
         taskDir = new File(taskWorkspace, "10-20-csci");
         taskDir.mkdirs();
 
@@ -159,11 +162,6 @@ public class DefaultPipelineInputsTest {
         // constructor that takes as argument the objects we want to replace.
         defaultPipelineInputs = new DefaultPipelineInputs(mockedDataFileManager, alertService);
 
-    }
-
-    @After
-    public void teardown() throws IOException {
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     /**

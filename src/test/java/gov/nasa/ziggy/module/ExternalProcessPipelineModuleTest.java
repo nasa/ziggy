@@ -22,15 +22,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.google.common.io.Files;
-
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
@@ -72,6 +70,8 @@ public class ExternalProcessPipelineModuleTest {
     private DatastoreProducerConsumerCrud dpcc;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
 
@@ -105,7 +105,8 @@ public class ExternalProcessPipelineModuleTest {
         c = mock(PipelineTaskCrud.class);
         when(c.retrieve(100L)).thenReturn(p);
         ih = mock(TaskConfigurationManager.class);
-        taskDir = Files.createTempDir();
+        taskDir = directoryRule.directory().toFile();
+        taskDir.mkdirs();
         tal = mock(TestAlgorithmLifecycle.class);
         when(tal.getTaskDir(true)).thenReturn(taskDir);
         when(tal.getTaskDir(false)).thenReturn(taskDir);
@@ -119,7 +120,6 @@ public class ExternalProcessPipelineModuleTest {
 
     @After
     public void teardown() throws IOException {
-        FileUtils.deleteDirectory(taskDir);
         DatabaseService.reset();
     }
 

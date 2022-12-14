@@ -110,6 +110,7 @@ public class AlgorithmMonitorTest {
 
     @After
     public void tearDown() throws IOException {
+        DatabaseService.reset();
         WorkerPipelineProcess.workerTaskRequestQueue.clear();
     }
 

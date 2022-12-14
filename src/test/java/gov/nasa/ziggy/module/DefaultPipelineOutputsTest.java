@@ -14,8 +14,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -23,6 +21,7 @@ import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileManager;
 import gov.nasa.ziggy.data.management.DataFileType;
@@ -31,7 +30,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.PropertyNames;
-import gov.nasa.ziggy.util.io.Filenames;
 
 public class DefaultPipelineOutputsTest {
 
@@ -39,7 +37,7 @@ public class DefaultPipelineOutputsTest {
     private DataFileType resultsDataFileType;
     private PipelineTask pipelineTask;
     private PipelineDefinitionNode pipelineDefinitionNode;
-    private File datastore = new File(Filenames.BUILD_TEST, "datastore");
+    private File datastore;
     private File taskWorkspace;
     private File taskDir;
     private DataFileManager mockedDataFileManager;
@@ -47,8 +45,11 @@ public class DefaultPipelineOutputsTest {
     private DefaultPipelineOutputs defaultPipelineOutputs;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, datastore.getAbsolutePath());
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
@@ -57,11 +58,12 @@ public class DefaultPipelineOutputsTest {
     @Before
     public void setup() throws IOException {
 
+        datastore = new File(datastoreRootDirPropertyRule.getProperty());
         // Set up a temporary directory for the datastore and one for the task-directory
         datastore.mkdirs();
         File dataDir = new File(datastore, "sector-0001/ccd-1:1/pa");
         dataDir.mkdirs();
-        taskWorkspace = new File(Filenames.BUILD_TEST, "taskspace");
+        taskWorkspace = directoryRule.directory().resolve("taskspace").toFile();
         taskWorkspace.mkdirs();
         taskDir = new File(taskWorkspace, "10-20-csci");
         taskDir.mkdirs();
@@ -104,11 +106,6 @@ public class DefaultPipelineOutputsTest {
         new File(subtaskDir, "sector-0001-ccd-1:1-tic-001234567-results.h5").createNewFile();
         new File(subtaskDir, "sector-0001-ccd-1:1-tic-765432100-results.h5").createNewFile();
 
-    }
-
-    @After
-    public void teardown() throws IOException {
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     /**
