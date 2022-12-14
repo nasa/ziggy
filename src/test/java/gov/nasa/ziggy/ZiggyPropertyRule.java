@@ -2,7 +2,7 @@ package gov.nasa.ziggy;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.File;
+import java.nio.file.Path;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -91,10 +91,11 @@ public class ZiggyPropertyRule extends ExternalResource {
     @Override
     protected void before() throws Throwable {
         if (directoryRule != null) {
-            value = directoryRule.directory().toString();
+            Path directory = directoryRule.directory();
             if (subdirectory != null) {
-                value += File.separator + subdirectory;
+                directory = directory.resolve(subdirectory);
             }
+            value = directory.toString();
         }
 
         if (value != null) {
