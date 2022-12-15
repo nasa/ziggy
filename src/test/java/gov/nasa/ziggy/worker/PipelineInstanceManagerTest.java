@@ -377,7 +377,7 @@ public class PipelineInstanceManagerTest {
         long dt = completeTimeMillis - startTimeMillis;
 
         // Make the interval long enough to tolerate some overhead time
-        assertTrue(dt > 85 && dt <= 98);
+        assertTrue(dt > 85 && dt <= 105);
 
     }
 
