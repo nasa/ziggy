@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.pipeline.definition;
 
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.XmlUtils.assertContains;
+import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -10,6 +10,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 
+import javax.xml.transform.Result;
+import javax.xml.transform.stream.StreamResult;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+
+import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.data.management.DataFileTestUtils;
+import gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -18,17 +28,6 @@ import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlRootElement;
-import javax.xml.transform.Result;
-import javax.xml.transform.stream.StreamResult;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import gov.nasa.ziggy.data.management.DataFileTestUtils;
-import gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit tests for {@link PipelineModuleDefinition} class. These test the XML mapping, as the rest of
@@ -38,24 +37,23 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class PipelineModuleDefinitionTest {
 
-    private String workingDirName;
     private PipelineMod module1, module2;
     private File xmlFile;
     private String module1XmlString, module2XmlString;
     private File xmlUnmarshalingFile1, xmlUnmarshalingFile2;
     private File schemaFile;
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Before
     public void setUp() {
 
         // Set the working directory
-        workingDirName = System.getProperty("user.dir");
-        xmlUnmarshalingFile1 = new File(workingDirName + "/test/data/configuration/module1.xml");
-        xmlUnmarshalingFile2 = new File(workingDirName + "/test/data/configuration/module2.xml");
-        String workingDir = workingDirName + "/build/test";
-        new File(workingDir).mkdirs();
-        xmlFile = new File(workingDir, "modules.xml");
-        schemaFile = new File(workingDir, "modules.xsd");
+        xmlUnmarshalingFile1 = new File("test/data/configuration/module1.xml");
+        xmlUnmarshalingFile2 = new File("test/data/configuration/module2.xml");
+        xmlFile = directoryRule.directory().resolve("modules.xml").toFile();
+        schemaFile = directoryRule.directory().resolve("modules.xml").toFile();
 
         // Module 1 uses defaults for everything possible
         module1 = new PipelineMod("module 1");
@@ -82,13 +80,6 @@ public class PipelineModuleDefinitionTest {
             + "inputsClass=\"gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample\" "
             + "outputsClass=\"gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1\" "
             + "exeTimeoutSecs=\"300\" minMemoryMegaBytes=\"400\"/>";
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        xmlFile.delete();
-        schemaFile.delete();
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test

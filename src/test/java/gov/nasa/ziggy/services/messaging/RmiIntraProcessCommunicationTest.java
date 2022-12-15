@@ -50,8 +50,7 @@ public class RmiIntraProcessCommunicationTest {
     private ProcessHeartbeatManager heartbeatManager = mock(ProcessHeartbeatManager.class);
 
     @Rule
-    public ZiggyPropertyRule heartbeatIntervalPropertyRule = new ZiggyPropertyRule(
-        HEARTBEAT_INTERVAL_PROP_NAME, "100");
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Before
     public void setup() {

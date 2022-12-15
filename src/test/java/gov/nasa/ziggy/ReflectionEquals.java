@@ -1,4 +1,4 @@
-package gov.nasa.ziggy.util;
+package gov.nasa.ziggy;
 
 import static org.junit.Assert.fail;
 

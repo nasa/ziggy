@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -17,7 +17,7 @@ import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 
 import gov.nasa.ziggy.module.DefaultPipelineInputs;
 import gov.nasa.ziggy.module.PipelineInputs;
@@ -121,8 +121,8 @@ public class PipelineTaskInformationTest {
         uowList.add(u1);
         uowList.add(u2);
         doReturn(uowList).when(pipelineTaskInformation)
-            .unitsOfWork(Matchers.<ClassWrapper<UnitOfWorkGenerator>> any(),
-                Matchers.<Map<Class<? extends Parameters>, Parameters>> any());
+            .unitsOfWork(ArgumentMatchers.<ClassWrapper<UnitOfWorkGenerator>> any(),
+                ArgumentMatchers.<Map<Class<? extends Parameters>, Parameters>> any());
 
         // Set up pipeline task generation
         p1.setId(1L);

@@ -4,7 +4,6 @@ import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,16 +14,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.services.events.ZiggyEventLabels;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit tests for the {@link DataReceiptUnitOfWorkGenerator} class.
@@ -33,18 +30,21 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class DataReceiptUnitOfWorkGeneratorTest {
 
-    private Path dataImporterPath = Paths.get(System.getProperty("user.dir"), "build", "test",
-        "data-import");
+    private Path dataImporterPath;
     Map<Class<? extends Parameters>, Parameters> parametersMap;
     TaskConfigurationParameters taskConfig;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
-        DATA_RECEIPT_DIR_PROP_NAME, dataImporterPath.toString());
+        DATA_RECEIPT_DIR_PROP_NAME, directoryRule, "data-import");
 
     @Before
     public void setUp() throws IOException {
 
+        dataImporterPath = Paths.get(dataReceiptDirPropertyRule.getProperty());
         // Create the data receipt main directory.
         dataImporterPath.toFile().mkdirs();
 
@@ -59,12 +59,6 @@ public class DataReceiptUnitOfWorkGeneratorTest {
         taskConfig = new TaskConfigurationParameters();
         taskConfig.setTaskDirectoryRegex("(subdir-[0-9]+)");
         parametersMap.put(TaskConfigurationParameters.class, taskConfig);
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        FileUtils.forceDelete(dataImporterPath.toFile());
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test

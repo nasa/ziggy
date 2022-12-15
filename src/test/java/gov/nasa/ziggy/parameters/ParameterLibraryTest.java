@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.parameters;
 
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.XmlUtils.assertContains;
+import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;

@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Sets;
 
+import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
@@ -20,7 +21,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.uow.UnitOfWork;
-import gov.nasa.ziggy.util.ReflectionEquals;
 
 /**
  * @author Sean McCauliff

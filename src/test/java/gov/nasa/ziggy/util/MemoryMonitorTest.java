@@ -7,6 +7,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.MemoryTestUtils;
+
 /**
  * Unit tests for {@link MemoryMonitor}.
  */

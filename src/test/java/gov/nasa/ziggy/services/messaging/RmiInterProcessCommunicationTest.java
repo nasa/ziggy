@@ -45,8 +45,7 @@ public class RmiInterProcessCommunicationTest {
     private ProcessHeartbeatManager heartbeatManager = mock(ProcessHeartbeatManager.class);
 
     @Rule
-    public ZiggyPropertyRule heartbeatIntervalPropertyRule = new ZiggyPropertyRule(
-        HEARTBEAT_INTERVAL_PROP_NAME, heartbeatIntervalMillis);
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Before
     public void setup() {
@@ -61,10 +60,10 @@ public class RmiInterProcessCommunicationTest {
             WorkerCommunicator.shutdown();
         }
         UiCommunicator.reset();
-        Files.createFile(dirRule.testDirPath().resolve(ServerTest.SHUT_DOWN_FILE_NAME));
+        Files.createFile(directoryRule.directory().resolve(ServerTest.SHUT_DOWN_FILE_NAME));
         TestEventDetector.detectTestEvent(1000L, () -> {
             return Files
-                .exists(dirRule.testDirPath().resolve(ServerTest.SHUT_DOWN_DETECT_FILE_NAME));
+                .exists(directoryRule.directory().resolve(ServerTest.SHUT_DOWN_DETECT_FILE_NAME));
         });
         if (serverProcess != null) {
             serverProcess.destroy();
@@ -82,11 +81,12 @@ public class RmiInterProcessCommunicationTest {
         List<String> args = new ArrayList<>();
         args.add(Integer.toString(port));
         args.add(Integer.toString(2));
-        args.add(dirRule.testDirPath().toString());
+        args.add(directoryRule.directory().toString());
 
         serverProcess = ProcessUtils.runJava(ServerTest.class, args);
         TestEventDetector.detectTestEvent(1000L, () -> {
-            return Files.exists(dirRule.testDirPath().resolve(ServerTest.SERVER_READY_FILE_NAME));
+            return Files
+                .exists(directoryRule.directory().resolve(ServerTest.SERVER_READY_FILE_NAME));
         });
         // now start the UiCommunicator with a ClientMessageHandler
 
@@ -125,11 +125,12 @@ public class RmiInterProcessCommunicationTest {
         List<String> args = new ArrayList<>();
         args.add(Integer.toString(port));
         args.add(Integer.toString(2));
-        args.add(dirRule.testDirPath().toString());
+        args.add(directoryRule.directory().toString());
 
         serverProcess = ProcessUtils.runJava(ServerTest.class, args);
         TestEventDetector.detectTestEvent(1000L, () -> {
-            return Files.exists(dirRule.testDirPath().resolve(ServerTest.SERVER_READY_FILE_NAME));
+            return Files
+                .exists(directoryRule.directory().resolve(ServerTest.SERVER_READY_FILE_NAME));
         });
 
         // Start the heartbeat manager and communicator
@@ -142,7 +143,7 @@ public class RmiInterProcessCommunicationTest {
         UiCommunicator.initializeInstance(messageHandler, port);
 
         // Pause to let 5 heartbeat-check intervals go by
-        Path heartbeatFile = dirRule.testDirPath().resolve(ServerTest.SEND_HEARTBEAT_FILE_NAME);
+        Path heartbeatFile = directoryRule.directory().resolve(ServerTest.SEND_HEARTBEAT_FILE_NAME);
         for (int heartbeatCount = 0; heartbeatCount < 5; heartbeatCount++) {
             Files.createFile(heartbeatFile);
             TestEventDetector.detectTestEvent(1000L, () -> {

@@ -10,6 +10,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
@@ -29,7 +30,6 @@ import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.util.ReflectionEquals;
 
 /**
  * Tests for {@link PipelineDefinitionCrud} Tests that objects can be stored, retrieved, and edited

@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import gov.nasa.ziggy.util.ReflectionEquals;
+import gov.nasa.ziggy.ReflectionEquals;
 
 public class PipelineDefinitionNodePathTest {
     /**

@@ -11,8 +11,8 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableSet;
 
+import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.util.ReflectionEquals;
 
 /**
  * @author Todd Klaus

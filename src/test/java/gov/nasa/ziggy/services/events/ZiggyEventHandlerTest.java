@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.services.events;
 
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.XmlUtils.assertContains;
+import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
@@ -21,7 +21,6 @@ import java.util.Set;
 
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.hibernate.Hibernate;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -83,6 +82,9 @@ public class ZiggyEventHandlerTest {
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     @Rule
@@ -93,10 +95,10 @@ public class ZiggyEventHandlerTest {
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
         DATA_RECEIPT_DIR_PROP_NAME, TEST_DATA_DIR);
 
-	@Before
+    @Before
     public void setUp() throws IOException {
         testStatusSleepTime = 200L;
-        testDataDir = dirRule.testDirPath().resolve(TEST_DATA_DIR);
+        testDataDir = directoryRule.directory().resolve(TEST_DATA_DIR);
         testDataDir.toFile().mkdirs();
         readyIndicator1 = testDataDir.resolve("gazelle.READY.mammal.1");
         readyIndicator2a = testDataDir.resolve("psittacus.READY.bird.2");
@@ -151,12 +153,6 @@ public class ZiggyEventHandlerTest {
                 ImmutableList.of(new File(TEST_DATA_SRC, "pd-event.xml")));
             return null;
         });
-    }
-
-    @After
-    public void tearDown() throws IOException, InterruptedException {
-        System.clearProperty("ziggy.home.dir");
-        System.clearProperty(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
     }
 
     @Test

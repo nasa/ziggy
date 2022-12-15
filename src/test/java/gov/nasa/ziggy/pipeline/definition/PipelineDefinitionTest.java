@@ -1,11 +1,11 @@
 package gov.nasa.ziggy.pipeline.definition;
 
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.compareParameterSetReferences;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.compareXmlReferences;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.nodeContent;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.pipelineContent;
+import static gov.nasa.ziggy.XmlUtils.assertContains;
+import static gov.nasa.ziggy.XmlUtils.compareParameterSetReferences;
+import static gov.nasa.ziggy.XmlUtils.compareXmlReferences;
+import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.XmlUtils.nodeContent;
+import static gov.nasa.ziggy.XmlUtils.pipelineContent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -16,6 +16,19 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.List;
 
+import javax.xml.transform.Result;
+import javax.xml.transform.stream.StreamResult;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+
+import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.parameters.DefaultParameters;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
+import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -24,20 +37,6 @@ import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlRootElement;
-import javax.xml.transform.Result;
-import javax.xml.transform.stream.StreamResult;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import gov.nasa.ziggy.parameters.DefaultParameters;
-import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
-import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
-import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
-import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit tests for {@link PipelineDefinition} class. These tests exercise the XML interface, since
@@ -48,21 +47,19 @@ import gov.nasa.ziggy.util.io.Filenames;
 public class PipelineDefinitionTest {
 
     private PipelineDef pipelineDefinition1;
-    private String workingDirName;
     private File xmlFile;
     private File xmlUnmarshalingFile;
     private File schemaFile;
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Before
     public void setUp() {
 
-        workingDirName = System.getProperty("user.dir");
-        xmlUnmarshalingFile = new File(
-            workingDirName + "/test/data/configuration/pipeline-definition.xml");
-        String workingDir = workingDirName + "/build/test";
-        new File(workingDir).mkdirs();
-        xmlFile = new File(workingDir, "pipeline-definition.xml");
-        schemaFile = new File(workingDir, "pipeline-definition.xsd");
+        xmlUnmarshalingFile = new File("test/data/configuration/pipeline-definition.xml");
+        xmlFile = directoryRule.directory().resolve("pipeline-definition.xml").toFile();
+        schemaFile = directoryRule.directory().resolve("pipeline-definition.xsd").toFile();
 
         // Create some nodes
         PipelineDefinitionNode node1 = new PipelineDefinitionNode(new ModuleName("module 1"), null);
@@ -108,13 +105,6 @@ public class PipelineDefinitionTest {
             new ParameterSet("Pipeline parameters"));
         pipelineDefinition1.setInstancePriority(2);
 
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        xmlFile.delete();
-        schemaFile.delete();
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test

@@ -6,6 +6,9 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
@@ -15,7 +18,6 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.FileAppender;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -23,28 +25,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.util.io.Filenames;
 
 public class FileAppenderTest {
 
     private static final String LOG4J_CONFIG_FILE = "test/data/logging/log4j2.xml";
     private static Logger log;
     private File appenderFile;
+    private Path testClassDir;
 
     @Rule
     public ZiggyPropertyRule log4j2ConfigurationFilePropertyRule = new ZiggyPropertyRule(
         "log4j2.configurationFile", LOG4J_CONFIG_FILE);
 
+    // Important note:
+    // For some reason, when this class is refactored to use the ZiggyDirectoryRule, the
+    // test fails. However, when the content of the ZiggyDirectoryRule is implemented in
+    // the class and its methods as discrete statements, the test passes! For now, we've
+    // decided to live with this mystery.
     @Before
-    public void setup() {
-        appenderFile = new File("build/test", "file-appender.log");
+    public void setup() throws IOException {
+        testClassDir = Paths.get("build", "test", "services.logging.FileAppenderTest");
+        Files.createDirectories(testClassDir);
         log = LoggerFactory.getLogger(FileAppenderTest.class);
-    }
-
-    @After
-    public void teardown() throws IOException {
-        appenderFile.delete();
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test
@@ -55,14 +57,18 @@ public class FileAppenderTest {
         LoggerConfig lc = c.getLoggerConfig("");
         lc.setLevel(Level.ALL);
 
-        File appenderFile = new File("build/test", "file-appender.log");
+        Path testDir = testClassDir.resolve("testFileAppender");
+        Files.createDirectories(testDir);
+        appenderFile = testDir.resolve("file-appender.log").toFile();
+        if (appenderFile.exists()) {
+            appenderFile.delete();
+        }
 
         FileAppender taskLog = FileAppender.newBuilder()
             .withFileName(appenderFile.getAbsolutePath())
             .setName("file-appender.log")
             .build();
         taskLog.start();
-
         lc.addAppender(taskLog, Level.ALL, null);
 
         log.info("Here is a test message with INFO level");

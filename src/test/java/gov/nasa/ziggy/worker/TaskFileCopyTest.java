@@ -7,27 +7,20 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.util.io.Filenames;
 
 public class TaskFileCopyTest {
 
-    private static final Logger log = LoggerFactory.getLogger(TaskFileCopyTest.class);
-
     private static final String SOURCE_DIR = "test/data/TaskFileCopy/src";
-    private static final String ROOT_WORKING_DIR = "/tmp";
-    private static final String ARCHIVE_DIR = Filenames.BUILD_TEST + "/archive";
 
     private static final int PIPELINE_INSTANCE_ID = 17;
     private static final int PIPELINE_TASK_ID = 65;
@@ -41,15 +34,18 @@ public class TaskFileCopyTest {
     private File metricsFile;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        ROOT_WORKING_DIR);
+        directoryRule);
 
     public void setUp() throws Exception {
-        // make a working copy for the test
 
+        archiveDir = directoryRule.directory().resolve("archive").toFile();
         File src = new File(SOURCE_DIR, TASK_DIR_NAME);
         workingDir = DirectoryProperties.taskDataDir().resolve(TASK_DIR_NAME).toFile();
-        archiveDir = new File(ARCHIVE_DIR, TASK_DIR_NAME);
+        archiveDir = new File(archiveDir, TASK_DIR_NAME);
         binFile = new File(archiveDir.getAbsolutePath(), "st-0/debug-outputs-0.bin");
         metricsFile = new File(archiveDir.getAbsolutePath(), "st-0/metrics-0.ser");
 
@@ -62,17 +58,6 @@ public class TaskFileCopyTest {
         }
 
         FileUtils.copyDirectory(src, workingDir);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        try {
-            FileUtils.forceDelete(workingDir);
-            FileUtils.forceDelete(archiveDir);
-            FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
-        } catch (Exception e) {
-            log.error("failed to delete dirs, caught: " + e);
-        }
     }
 
     @Test
@@ -135,6 +120,5 @@ public class TaskFileCopyTest {
             assertTrue("workingDir exist = TRUE", workingDir.exists());
         }
 
-        tearDown();
     }
 }

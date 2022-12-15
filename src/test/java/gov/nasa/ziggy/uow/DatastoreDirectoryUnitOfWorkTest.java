@@ -19,8 +19,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.google.common.io.Files;
-
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.parameters.Parameters;
 
@@ -31,17 +30,21 @@ import gov.nasa.ziggy.parameters.Parameters;
  */
 public class DatastoreDirectoryUnitOfWorkTest {
 
-    private Path datastoreRoot = Files.createTempDir().toPath();
+    private Path datastoreRoot;
     private Map<Class<? extends Parameters>, Parameters> parametersMap;
     private TaskConfigurationParameters taskConfigurationParameters;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot.toString());
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule);
 
     @Before
     public void setup() {
 
+        datastoreRoot = directoryRule.directory();
         // Create the datastore.
         File datastore = datastoreRoot.toFile();
         datastore.mkdirs();

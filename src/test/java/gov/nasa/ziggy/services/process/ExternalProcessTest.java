@@ -8,13 +8,14 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 
 import org.apache.commons.exec.CommandLine;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
@@ -25,20 +26,17 @@ public class ExternalProcessTest {
     private File exe;
     private File workingDir;
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Before
     public void before() throws Exception {
-        workingDir = new File("build/test");
-        workingDir.mkdirs();
-        exeDir = new File("build/bin").getCanonicalFile();
+        workingDir = directoryRule.directory().toFile();
+        exeDir = Paths.get("build", "bin").toFile().getCanonicalFile();
         exe = new File(exeDir, "testprog");
         if (!exe.exists()) {
             throw new IllegalStateException("Can't find test program \"" + exe + "\".");
         }
-    }
-
-    @After
-	public void after() throws IOException, InterruptedException {
-        FileUtils.forceDelete(workingDir);
     }
 
     private CommandLine command(int retcode, int sleeptime, boolean crashFlag, boolean touchFile)
@@ -58,7 +56,7 @@ public class ExternalProcessTest {
         p.logStdOut(true);
         p.logStdErr(true);
 
-		int rc = p.run(true, 1000);
+        int rc = p.run(true, 1000);
         assertEquals("return code from external process,", 0, rc);
     }
 
@@ -69,7 +67,7 @@ public class ExternalProcessTest {
         p.logStdOut(true);
         p.logStdErr(true);
 
-		int rc = p.run(true, 1000);
+        int rc = p.run(true, 1000);
         assertTrue(rc != 0);
 
     }
@@ -77,11 +75,11 @@ public class ExternalProcessTest {
     @Test
     public void testExeFail() throws Exception {
         ExternalProcess p = ExternalProcess.simpleExternalProcess(command(1, 0, false, false));
-		p.setWorkingDirectory(exeDir);
+        p.setWorkingDirectory(exeDir);
         p.logStdOut(true);
         p.logStdErr(true);
 
-		int rc = p.run(true, 1000);
+        int rc = p.run(true, 1000);
         assertEquals(1, rc);
 
     }
@@ -100,7 +98,7 @@ public class ExternalProcessTest {
         p.logStdOut(true);
         p.logStdErr(true);
 
-		int rc = p.run(true, 1000);
+        int rc = p.run(true, 1000);
 
         assertEquals("return code from external process,", 0, rc);
         File touchFile = new File(workingDir.getCanonicalFile(), "touch.txt");
@@ -122,7 +120,7 @@ public class ExternalProcessTest {
         commandLine.addArgument("0");
         p.setCommandLine(commandLine);
 
-		int rc = p.run(true, 1000);
+        int rc = p.run(true, 1000);
         assertEquals(0, rc);
         String stdoutString = p.getStdoutString();
         String stderrString = p.getStderrString();
@@ -135,7 +133,7 @@ public class ExternalProcessTest {
     @Test
     public void testExecute() throws IOException {
         ExternalProcess p = new ExternalProcess(true, null, true, null);
-		p.setWorkingDirectory(workingDir.getCanonicalFile());
+        p.setWorkingDirectory(workingDir.getCanonicalFile());
         p.writeStdErr(true);
         p.writeStdOut(true);
 
@@ -146,7 +144,7 @@ public class ExternalProcessTest {
         commandLine.addArgument("0");
         p.setCommandLine(commandLine);
 
-		int rc = p.execute();
+        int rc = p.execute();
         assertEquals(0, rc);
     }
 

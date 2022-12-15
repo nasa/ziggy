@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.pipeline.definition;
 
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.XmlUtils.assertContains;
+import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -9,19 +9,18 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 
+import javax.xml.transform.Result;
+import javax.xml.transform.stream.StreamResult;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
 import jakarta.xml.bind.Unmarshaller;
-import javax.xml.transform.Result;
-import javax.xml.transform.stream.StreamResult;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit tests for {@link PipelineDefinitionFile} class.
@@ -30,25 +29,18 @@ import gov.nasa.ziggy.util.io.Filenames;
  */
 public class PipelineDefinitionFileTest {
 
-    private String workingDirName;
     private File schemaFile;
     private File xmlUnmarshalingFile;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Before
     public void setUp() {
 
         // Set the working directory
-        workingDirName = System.getProperty("user.dir");
-        xmlUnmarshalingFile = new File(workingDirName + "/test/data/configuration/pd-hyperion.xml");
-        String workingDir = workingDirName + "/build/test";
-        new File(workingDir).mkdirs();
-        schemaFile = new File(workingDir, "pipeline-file.xsd");
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        schemaFile.delete();
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
+        xmlUnmarshalingFile = new File("test/data/configuration/pd-hyperion.xml");
+        schemaFile = directoryRule.directory().resolve("pipeline-file.xsd").toFile();
     }
 
     @Test

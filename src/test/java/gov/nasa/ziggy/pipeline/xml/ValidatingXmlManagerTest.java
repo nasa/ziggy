@@ -7,7 +7,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,7 +14,6 @@ import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
-import gov.nasa.ziggy.util.io.Filenames;
 import jakarta.xml.bind.UnmarshalException;
 
 /**
@@ -34,18 +32,11 @@ public class ValidatingXmlManagerTest {
 
     @Before
     public void setUp() {
-        String workingDir = System.getProperty("user.dir");
-        Path invalidXmlPath = Paths.get(workingDir, "test", "data", "configuration",
+        Path invalidXmlPath = Paths.get("test", "data", "configuration",
             "invalid-pipeline-definition.xml");
         invalidXmlFile = invalidXmlPath.toFile();
-        Path validXmlPath = Paths.get(workingDir, "test", "data", "configuration",
-            "pd-hyperion.xml");
+        Path validXmlPath = Paths.get("test", "data", "configuration", "pd-hyperion.xml");
         validXmlFile = validXmlPath.toFile();
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test(expected = UnmarshalException.class)

@@ -1,4 +1,4 @@
-package gov.nasa.ziggy.util;
+package gov.nasa.ziggy;
 
 import java.util.ArrayList;
 import java.util.List;

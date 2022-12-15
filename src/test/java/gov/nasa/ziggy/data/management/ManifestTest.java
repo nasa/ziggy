@@ -1,8 +1,8 @@
 package gov.nasa.ziggy.data.management;
 
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.simpleTypeContent;
+import static gov.nasa.ziggy.XmlUtils.assertContains;
+import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.XmlUtils.simpleTypeContent;
 import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;

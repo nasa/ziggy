@@ -1,8 +1,8 @@
 package gov.nasa.ziggy.pipeline.definition;
 
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
-import static gov.nasa.ziggy.pipeline.definition.XmlUtils.nodeContent;
+import static gov.nasa.ziggy.XmlUtils.assertContains;
+import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.XmlUtils.nodeContent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -13,6 +13,19 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.xml.transform.Result;
+import javax.xml.transform.stream.StreamResult;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+
+import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.pipeline.xml.XmlReference;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
+import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -21,20 +34,6 @@ import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlRootElement;
-import javax.xml.transform.Result;
-import javax.xml.transform.stream.StreamResult;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import gov.nasa.ziggy.pipeline.xml.XmlReference;
-import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
-import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
-import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
-import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit tests for {@link PipelineDefinitionNode} class. These are primarily tests of the XML
@@ -50,16 +49,16 @@ public class PipelineDefinitionNodeTest {
     private File xmlUnmarshalingFile;
     private File schemaFile;
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Before
     public void setUp() {
 
         // Set the working directory
-        workingDirName = System.getProperty("user.dir");
-        xmlUnmarshalingFile = new File(workingDirName + "/test/data/configuration/node.xml");
-        String workingDir = workingDirName + "/build/test";
-        new File(workingDir).mkdirs();
-        xmlFile = new File(workingDir, "node.xml");
-        schemaFile = new File(workingDir, "node.xsd");
+        xmlUnmarshalingFile = new File("test/data/configuration/node.xml");
+        xmlFile = directoryRule.directory().resolve("node.xml").toFile();
+        schemaFile = directoryRule.directory().resolve("node.xsd").toFile();
 
         // Construct a new node for the test
         node = new Node(new ModuleName("module 1"), null);
@@ -74,13 +73,6 @@ public class PipelineDefinitionNodeTest {
         xmlReferences.add(new ModelTypeReference("calibration constants"));
         node.setXmlReferences(xmlReferences);
 
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        xmlFile.delete();
-        schemaFile.delete();
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test

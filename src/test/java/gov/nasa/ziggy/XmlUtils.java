@@ -1,4 +1,4 @@
-package gov.nasa.ziggy.pipeline.definition;
+package gov.nasa.ziggy;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import gov.nasa.ziggy.pipeline.definition.ParameterSetName;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
 
 /**

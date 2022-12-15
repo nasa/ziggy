@@ -17,11 +17,11 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 
 /**
@@ -37,6 +37,9 @@ public class FileUtilTest {
     private File testSubdirRegularFile;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
 
@@ -46,9 +49,9 @@ public class FileUtilTest {
 
     @Before
     public void setUp() throws IOException {
-        testDir = new File(Filenames.BUILD_TEST);
+        testDir = directoryRule.directory().toFile();
         testDir.mkdir();
-        archiveDir = new File(Filenames.BUILD_TEST, "testTar");
+        archiveDir = new File(testDir, "testTar");
         archiveDir.mkdir();
         testRegularFile = new File(testDir, "regular-file.txt");
         FileUtils.touch(testRegularFile);
@@ -56,16 +59,6 @@ public class FileUtilTest {
         testSubdir.mkdir();
         testSubdirRegularFile = new File(testSubdir, "another-regular-file.txt");
         FileUtils.touch(testSubdirRegularFile);
-    }
-
-    @After
-    public void TearDown() throws IOException {
-        FileUtil.setPosixPermissionsRecursively(testDir.toPath(), "rwxr--r--");
-        if (testSubdir.exists()) {
-            FileUtils.cleanDirectory(testSubdir);
-        }
-        FileUtils.cleanDirectory(testDir);
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test
