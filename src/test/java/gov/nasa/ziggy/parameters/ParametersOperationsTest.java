@@ -41,7 +41,6 @@ import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.util.io.Filenames;
 import jakarta.xml.bind.UnmarshalException;
 
 /**
@@ -303,7 +302,8 @@ public class ParametersOperationsTest {
         DatabaseTransactionFactory.performTransaction(() -> {
 
             // export the library
-            File invalidExportDir = new File(Filenames.BUILD_TEST, "invalid-param-lib");
+            File invalidExportDir = directoryRule.directory().resolve("invalid-param-lib").toFile();
+            // File invalidExportDir = new File(Filenames.BUILD_TEST, "invalid-param-lib");
             FileUtils.forceMkdir(invalidExportDir);
             // should throw IllegalArgumentException
             paramOps.exportParameterLibrary(invalidExportDir.getAbsolutePath(), null,

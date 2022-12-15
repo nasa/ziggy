@@ -111,7 +111,6 @@ public class DefaultPipelineInputsTest {
         dataDir = new File(datastore, "sector-0001/ccd-1:1/pa");
         dataDir.mkdirs();
         taskWorkspace = directoryRule.directory().resolve("taskspace").toFile();
-//        taskWorkspace = new File(Filenames.BUILD_TEST, "taskspace");
         taskDir = new File(taskWorkspace, "10-20-csci");
         taskDir.mkdirs();
 
