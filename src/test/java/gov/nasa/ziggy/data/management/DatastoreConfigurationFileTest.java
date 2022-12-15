@@ -17,6 +17,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -41,6 +42,10 @@ public class DatastoreConfigurationFileTest {
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
         ZIGGY_TEST_WORKING_DIR_PROP_NAME, directoryRule);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(ziggyTestWorkingDirPropertyRule);
 
     @Before
     public void setUp() {

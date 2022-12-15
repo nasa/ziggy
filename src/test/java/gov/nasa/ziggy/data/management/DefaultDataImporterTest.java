@@ -20,6 +20,7 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.Mockito;
 
 import com.google.common.collect.ImmutableSet;
@@ -59,6 +60,10 @@ public class DefaultDataImporterTest {
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(datastoreRootDirPropertyRule);
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,

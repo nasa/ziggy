@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
@@ -54,6 +55,10 @@ public class DefaultPipelineOutputsTest {
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
         ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(datastoreRootDirPropertyRule);
 
     @Before
     public void setup() throws IOException {

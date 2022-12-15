@@ -31,6 +31,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
@@ -107,6 +108,12 @@ public class DataReceiptPipelineModuleTest {
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
         ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(dataReceiptDirPropertyRule)
+        .around(datastoreRootDirPropertyRule)
+        .around(resultsDirPropertyRule);
 
     @Before
     public void setUp() throws IOException {

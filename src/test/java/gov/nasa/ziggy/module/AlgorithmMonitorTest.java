@@ -12,6 +12,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -58,6 +59,10 @@ public class AlgorithmMonitorTest {
     @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
         directoryRule);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(resultsDirPropertyRule);
 
     @Before
     public void setUp() throws IOException, ConfigurationException {

@@ -28,6 +28,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -86,16 +87,18 @@ public class DataFileManagerTest {
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
         ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(datastoreRootDirPropertyRule);
+
     @Before
     public void setup() throws IOException {
         Path datastore = Paths.get(datastoreRootDirPropertyRule.getProperty());
         Files.createDirectories(datastore);
-//        datastoreRoot = datastore.toAbsolutePath().toString();
         datastoreRoot = datastore.toString();
 
         Path taskDirRoot = directoryRule.directory().resolve("taskspace");
         Files.createDirectories(taskDirRoot);
-//        this.taskDirRoot = taskDirRoot.toAbsolutePath().toString();
         this.taskDirRoot = taskDirRoot.toString();
         makeTaskDir("pa-5-10");
 

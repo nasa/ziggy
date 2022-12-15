@@ -13,6 +13,7 @@ import java.util.Date;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -31,6 +32,10 @@ public class MemdroneTest {
     @Rule
     public ZiggyPropertyRule pipelineResultsDirPropertyRule = new ZiggyPropertyRule(
         RESULTS_DIR_PROP_NAME, directoryRule);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(pipelineResultsDirPropertyRule);
 
     @After
     public void teardown() throws IOException {

@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
@@ -46,6 +47,10 @@ public class ModelImporterTest {
     @Rule
     public ZiggyPropertyRule ziggyDatastorePropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(ziggyDatastorePropertyRule);
 
     @Before
     public void setup() throws IOException {
