@@ -36,10 +36,8 @@ public class DatastoreConfigurationFileTest {
     private File schemaFile;
     private File xmlUnmarshalingFile;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
         ZIGGY_TEST_WORKING_DIR_PROP_NAME, directoryRule);
 

@@ -85,11 +85,11 @@ public class DataReceiptPipelineModuleTest {
 
     private ExecutorService execThread;
 
-    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
         DATA_RECEIPT_DIR_PROP_NAME, dataImporterPath.toString());
 
-    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, datastoreRootPath.toString());
 
@@ -97,7 +97,6 @@ public class DataReceiptPipelineModuleTest {
     public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
         PIPELINE_HOME_DIR_PROP_NAME, (String) null);
 
-    @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
         Paths.get(System.getProperty("user.dir"), "build", "test").toString());
 

@@ -24,7 +24,20 @@ import org.junit.rules.TestRule;
  *
  * <pre>
  * &#64;Rule
- * public ZiggyPropertyRule propPropertyRule = new ZiggyPropertyRule("prop", "value");
+ * public ZiggyPropertyRule fooPropertyRule = new ZiggyPropertyRule("foo", "value");
+ * </pre>
+ *
+ * If one of the constructors that takes a {@link ZiggyDirectoryRule} is used, drop the
+ * {@code @Rule} on the property rule as well as the directory rule (to prevent them from being run
+ * twice) and add a chain to ensure that the directory rule is executed first. Additional property
+ * rules can added to the chain. For example:
+ *
+ * <pre>
+ * public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+ * public ZiggyPropertyRule fooPropertyRule = new ZiggyPropertyRule("foo", "value");
+ *
+ * &#64;Rule
+ * public final RuleChain ruleChain = RuleChain.outerRule(directoryRule).around(fooPropertyRule);
  * </pre>
  *
  * For convenience, this rule provides a {@link #getProperty} method to access the current property
@@ -46,7 +59,8 @@ public class ZiggyPropertyRule extends ExternalResource {
     private String previousValue;
 
     /**
-     * Creates a {@code ZiggyPropertyRule} with the given property and value.
+     * Creates a {@code ZiggyPropertyRule} with the given property and value. See class
+     * documentation for usage.
      *
      * @param property the non-{@code null} property to set
      * @param value the value to set the property to. This can be {@code null} to clear the property
@@ -60,7 +74,8 @@ public class ZiggyPropertyRule extends ExternalResource {
     }
 
     /**
-     * Creates a {@code ZiggyPropertyRule} with the given property and directory.
+     * Creates a {@code ZiggyPropertyRule} with the given property and directory. See class
+     * documentation for usage.
      *
      * @param property the non-{@code null} property to set
      * @param directoryRule the non-{@code null} directory rule from which the directory is obtained
@@ -73,6 +88,7 @@ public class ZiggyPropertyRule extends ExternalResource {
 
     /**
      * Creates a {@code ZiggyPropertyRule} with the given property and directory and subdirectory.
+     * See class documentation for usage.
      *
      * @param property the non-{@code null} property to set
      * @param directoryRule the non-{@code null} directory rule from which the directory is obtained

@@ -53,10 +53,8 @@ public class AlgorithmMonitorTest {
     private ProcessingSummaryOperations attrOps;
     private PipelineInstanceNodeCrud nodeCrud;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
         directoryRule);
 

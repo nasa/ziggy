@@ -54,10 +54,8 @@ public class DefaultDataImporterTest {
     private UnitOfWork subdirUow = new UnitOfWork();
     private PipelineDefinitionNode node = Mockito.mock(PipelineDefinitionNode.class);
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 

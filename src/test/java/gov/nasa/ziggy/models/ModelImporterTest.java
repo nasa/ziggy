@@ -38,13 +38,11 @@ public class ModelImporterTest {
     private File datastoreRoot;
     private File modelImportDirectory;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
-    @Rule
     public ZiggyPropertyRule ziggyDatastorePropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 

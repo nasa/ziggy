@@ -26,10 +26,8 @@ public class MemdroneTest {
     private static final long INSTANCE_ID_1 = 15L;
     private static final long INSTANCE_ID_2 = 16L;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
     public ZiggyPropertyRule pipelineResultsDirPropertyRule = new ZiggyPropertyRule(
         RESULTS_DIR_PROP_NAME, directoryRule);
 
