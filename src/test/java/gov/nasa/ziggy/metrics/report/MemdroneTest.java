@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Date;
 
-import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -34,10 +33,6 @@ public class MemdroneTest {
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
         .around(pipelineResultsDirPropertyRule);
-
-    @After
-    public void teardown() throws IOException {
-    }
 
     @Test
     public void testMemdronePath() throws IOException, InterruptedException {

@@ -134,8 +134,6 @@ test {
     systemProperty "log4j2.configurationFile","$projectDir/test/data/logging/log4j2.xml"
     systemProperty "java.library.path", "$ziggyDependencies/lib"
     
-    forkEvery = 1
-
     testLogging {
         events "failed", "skipped"
     }

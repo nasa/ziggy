@@ -8,8 +8,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -25,6 +25,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -32,7 +33,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.logging.TaskLog.LogType;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Unit test for {@link TaskLog}
@@ -61,15 +61,12 @@ public class TaskLogTest {
     private static final int NEXT_JOB_INDEX = 11;
 
     private File expectedTaskLogFile1;
-    private File expectedTaskLogFile2;
     private File algorithmLog1;
-    private File algorithmLog2;
-
-    private File algorithmDirectory;
-    private File taskLogDirectory;
-    private File stateFileDirectory;
 
     private Long timestamp;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule log4j2ConfigurationFilePropertyRule = new ZiggyPropertyRule(
@@ -77,44 +74,17 @@ public class TaskLogTest {
 
     @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        new File(System.getProperty("user.dir"), "build/test").getAbsolutePath());
+        directoryRule);
 
     @Before
     public void setup() {
         log = LoggerFactory.getLogger(FileAppenderTest.class);
-        algorithmDirectory = DirectoryProperties.algorithmLogsDir().toFile();
-        algorithmDirectory.mkdirs();
-        taskLogDirectory = DirectoryProperties.taskLogDir().toFile();
-        taskLogDirectory.mkdirs();
-        stateFileDirectory = DirectoryProperties.stateFilesDir().toFile();
     }
 
     @After
     public void teardown() throws InterruptedException, URISyntaxException, IOException {
-        if (expectedTaskLogFile1 != null) {
-            expectedTaskLogFile1.delete();
-        }
-        if (expectedTaskLogFile2 != null) {
-            expectedTaskLogFile2.delete();
-        }
-        if (algorithmLog1 != null) {
-            algorithmLog1.delete();
-        }
-        if (algorithmLog2 != null) {
-            algorithmLog2.delete();
-        }
-        if (algorithmDirectory != null) {
-            algorithmDirectory.delete();
-        }
-        if (taskLogDirectory != null) {
-            taskLogDirectory.delete();
-        }
-        if (stateFileDirectory != null) {
-            stateFileDirectory.delete();
-        }
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
         context.setConfigLocation(new URI(LOG4J_CONFIG_FILE));
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test
@@ -168,12 +138,11 @@ public class TaskLogTest {
 
         // create a couple of algorithm logs
         algorithmLog1 = createAlgorithmTaskLog(INSTANCE_ID, TASK_ID, JOB_INDEX, STEP_INDEX_1);
-        algorithmLog2 = createAlgorithmTaskLog(INSTANCE_ID, TASK_ID, NEXT_JOB_INDEX, STEP_INDEX_1);
+        createAlgorithmTaskLog(INSTANCE_ID, TASK_ID, NEXT_JOB_INDEX, STEP_INDEX_1);
 
         // create a log file for the Java persisting step
-        expectedTaskLogFile2 = createAndPopulateTaskLog(THREAD_NUMBER_1, INSTANCE_ID, TASK_ID,
-            STEP_INDEX_0, "extremely long test message", THREAD_NUMBER_2, TEST_LOG_MESSAGE_2)
-                .toFile();
+        createAndPopulateTaskLog(THREAD_NUMBER_1, INSTANCE_ID, TASK_ID, STEP_INDEX_0,
+            "extremely long test message", THREAD_NUMBER_2, TEST_LOG_MESSAGE_2).toFile();
 
         // Try to get TaskLogInformation for each of the created files
         Set<TaskLogInformation> taskLogInformationSet = TaskLog.searchForLogFiles(INSTANCE_ID,
@@ -193,8 +162,11 @@ public class TaskLogTest {
 
         // Create a log file for the algorithm
         algorithmLog1 = createAndPopulateTaskLog(
-            Paths.get("build/test/logs/algorithm/2-42-testexename.0-1.log"), THREAD_NUMBER_1,
-            TEST_LOG_MESSAGE_1, THREAD_NUMBER_2, TEST_LOG_MESSAGE_2).toFile();
+            directoryRule.directory()
+                .resolve("logs")
+                .resolve("algorithm")
+                .resolve("2-42-testexename.0-1.log"),
+            THREAD_NUMBER_1, TEST_LOG_MESSAGE_1, THREAD_NUMBER_2, TEST_LOG_MESSAGE_2).toFile();
 
         assertTrue("log file exists", algorithmLog1.exists());
 
@@ -300,7 +272,11 @@ public class TaskLogTest {
         throws IOException {
         PipelineTask task = createPipelineTask(instanceId, taskId, jobIndex, stepIndex);
         String algorithmLogFilename = task.logFilename(jobIndex);
-        File algorithmLogFile = new File(algorithmDirectory, algorithmLogFilename);
+        Files.createDirectories(DirectoryProperties.algorithmLogsDir());
+        File algorithmLogFile = DirectoryProperties.algorithmLogsDir()
+            .resolve(algorithmLogFilename)
+            .toFile();
+//        File algorithmLogFile = new File(algorithmDirectory, algorithmLogFilename);
         algorithmLogFile.createNewFile();
         return algorithmLogFile;
 

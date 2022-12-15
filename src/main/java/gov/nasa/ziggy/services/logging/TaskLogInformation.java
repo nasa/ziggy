@@ -69,7 +69,7 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         LogType logType = null;
         File taskFileDir = taskFile.getAbsoluteFile().getParentFile();
         for (LogType type : LogType.values()) {
-            if (taskFileDir.equals(type.logDir().toFile())) {
+            if (taskFileDir.equals(type.logDir().toFile().getAbsoluteFile())) {
                 logType = type;
                 break;
             }

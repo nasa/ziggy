@@ -6,11 +6,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,10 +35,6 @@ public class TaskConfigurationManagerTest {
         t5 = new TreeSet<>();
         t6 = new TreeSet<>();
         single = new TreeSet<>();
-    }
-
-    @After
-    public void teardown() throws IOException {
     }
 
     /**

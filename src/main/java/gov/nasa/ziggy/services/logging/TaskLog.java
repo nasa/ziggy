@@ -31,7 +31,6 @@ import gov.nasa.ziggy.module.LocalAlgorithmExecutor;
 import gov.nasa.ziggy.module.remote.Qsub;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
  * This class manages the creation and use of log files for pipeline infrastructure purposes.
@@ -119,10 +118,10 @@ public class TaskLog {
             ThreadContext.put(THREAD_NAME_KEY, "thread-" + threadId);
         }
 
-        log.info("taskLogDir=" + TaskLog.getTaskLogDir());
-        Path taskLogDirFile = TaskLog.getTaskLogDir();
+        taskLogDir = DirectoryProperties.taskLogDir();
+        log.info("taskLogDir=" + taskLogDir);
         String taskLogFilename = pipelineTask.logFilename(LOCAL_LOG_FILE_JOB_INDEX);
-        taskLogFile = taskLogDirFile.resolve(taskLogFilename);
+        taskLogFile = taskLogDir.resolve(taskLogFilename);
         log.debug("file: " + taskLogFile);
         logType = LogType.ZIGGY;
     }
@@ -135,15 +134,6 @@ public class TaskLog {
         taskLogFile = Paths.get(logfile);
         taskLogDir = taskLogFile.getParent();
         logType = LogType.ALGORITHM;
-    }
-
-    private static synchronized Path getTaskLogDir() {
-        if (taskLogDir == null) {
-            ZiggyConfiguration.getInstance();
-            taskLogDir = DirectoryProperties.taskLogDir();
-            log.debug("taskLogDir: " + taskLogDir);
-        }
-        return taskLogDir;
     }
 
     /**

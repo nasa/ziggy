@@ -6,15 +6,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -87,11 +84,6 @@ public class DatastoreDirectoryUnitOfWorkTest {
         taskConfigurationParameters.setTaskDirectoryRegex("(sector-[0-9]{4})/cal/ccd-(1:[1234])");
         parametersMap = new HashMap<>();
         parametersMap.put(TaskConfigurationParameters.class, taskConfigurationParameters);
-    }
-
-    @After
-    public void teardown() throws IOException {
-        FileUtils.deleteDirectory(datastoreRoot.toFile());
     }
 
     /**

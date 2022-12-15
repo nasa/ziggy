@@ -11,7 +11,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.module.ModuleFatalProcessingException;
@@ -158,9 +158,9 @@ public class PipelineInstanceManagerTest {
         pipelineInstanceManager.initialize(wftr);
 
         Mockito
-            .when(pipelineOperations.fireTrigger(Matchers.any(PipelineDefinition.class),
-                Matchers.anyString(), Matchers.any(PipelineDefinitionNode.class),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+                ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(new InstanceAndTasks(instance0, taskList));
         pipelineInstanceManager.fireTrigger();
 
@@ -187,9 +187,9 @@ public class PipelineInstanceManagerTest {
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(Matchers.any(PipelineDefinition.class),
-                Matchers.anyString(), Matchers.any(PipelineDefinitionNode.class),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+                ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(new InstanceAndTasks(instance0, taskList))
             .thenReturn(new InstanceAndTasks(instance1, taskList))
             .thenReturn(new InstanceAndTasks(instance2, taskList))
@@ -227,9 +227,9 @@ public class PipelineInstanceManagerTest {
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(Matchers.any(PipelineDefinition.class),
-                Matchers.anyString(), Matchers.any(PipelineDefinitionNode.class),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+                ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(new InstanceAndTasks(instance0, taskList))
             .thenReturn(new InstanceAndTasks(instance1, taskList))
             .thenReturn(new InstanceAndTasks(instance2, taskList))
@@ -275,9 +275,9 @@ public class PipelineInstanceManagerTest {
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(Matchers.any(PipelineDefinition.class),
-                Matchers.anyString(), Matchers.any(PipelineDefinitionNode.class),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+                ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(new InstanceAndTasks(instance0, taskList))
             .thenReturn(new InstanceAndTasks(instance1, taskList))
             .thenReturn(new InstanceAndTasks(instance2, taskList))
@@ -365,9 +365,9 @@ public class PipelineInstanceManagerTest {
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(Matchers.any(PipelineDefinition.class),
-                Matchers.anyString(), Matchers.any(PipelineDefinitionNode.class),
-                Matchers.any(PipelineDefinitionNode.class)))
+            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+                ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
+                ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(new InstanceAndTasks(instance0, taskList))
             .thenReturn(new InstanceAndTasks(instance1, taskList));
 
