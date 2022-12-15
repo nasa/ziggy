@@ -7,12 +7,11 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import com.google.common.io.Files;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 
 /**
  * Unit test class for ProcessingFailureSummary class.
@@ -24,10 +23,13 @@ public class ProcessingFailureSummaryTest {
     private File taskDir;
     private final String moduleName = "modulename";
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Before
     public void setup() {
 
-        taskDir = Files.createTempDir();
+        taskDir = directoryRule.directory().toFile();
         File subTaskDir = new File(taskDir, "st-0");
         subTaskDir.mkdirs();
         subTaskDir = new File(taskDir, "st-3");
@@ -35,11 +37,6 @@ public class ProcessingFailureSummaryTest {
         subTaskDir = new File(taskDir, "st-200");
         subTaskDir.mkdirs();
 
-    }
-
-    @After
-    public void teardown() throws IOException {
-        FileUtils.deleteDirectory(taskDir);
     }
 
     /**

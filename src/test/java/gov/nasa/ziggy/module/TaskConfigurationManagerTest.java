@@ -10,13 +10,12 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import com.google.common.io.Files;
-
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
 
@@ -25,9 +24,12 @@ public class TaskConfigurationManagerTest {
     private File taskDir;
     private Set<String> t1, t2, t3, t4, t5, t6, single;
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Before
     public void setup() {
-        taskDir = Files.createTempDir();
+        taskDir = directoryRule.directory().toFile();
         t1 = new TreeSet<>();
         t2 = new TreeSet<>();
         t3 = new TreeSet<>();
@@ -39,7 +41,6 @@ public class TaskConfigurationManagerTest {
 
     @After
     public void teardown() throws IOException {
-        FileUtils.deleteDirectory(taskDir);
     }
 
     /**

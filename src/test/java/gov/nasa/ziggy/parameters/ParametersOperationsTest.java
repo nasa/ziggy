@@ -18,11 +18,13 @@ import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.core.IsInstanceOf;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
@@ -51,12 +53,15 @@ public class ParametersOperationsTest {
     private static final String TEST_PARAMETERS_BAR = "testParametersBar";
     private static final String TEST_PARAMETERS_BAZ = "testParametersBaz";
 
-    private final File libraryFile = new File(Filenames.BUILD_TEST, "param-lib/param-lib.xml");
+    private File libraryFile;
 
     private ParameterTestClasses.TestParameters testParameters;
     private ParameterTestClasses.TestParametersFoo testParametersFoo;
     private ParameterTestClasses.TestParametersBar testParametersBar;
     private ParameterTestClasses.TestParametersBaz testParametersBaz;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
@@ -67,6 +72,14 @@ public class ParametersOperationsTest {
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
+
+    @Before
+    public void setUp() {
+        libraryFile = directoryRule.directory()
+            .resolve("param-lib")
+            .resolve("param-lib.xml")
+            .toFile();
+    }
 
     private void createLibrary() {
         PipelineConfigurator pc = new PipelineConfigurator();

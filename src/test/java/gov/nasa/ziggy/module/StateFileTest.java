@@ -1,3 +1,4 @@
+
 package gov.nasa.ziggy.module;
 
 import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
@@ -11,7 +12,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -19,6 +19,7 @@ import org.mockito.MockitoAnnotations;
 
 import com.google.common.collect.ImmutableList;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.StateFile.State;
 import gov.nasa.ziggy.module.remote.PbsParameters;
@@ -30,7 +31,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Implements unit tests for {@link StateFile}.
@@ -49,7 +49,6 @@ public class StateFileTest {
     private static final double GIGS_PER_SUBTASK = 1.5;
     public static final String REQUESTED_WALL_TIME = "4:30:00";
 
-    private static final String RESULTS_DIRECTORY = Filenames.BUILD_TEST;
     private static File workingDirectory;
 
     private static final String[] NAMES = { StateFile.PREFIX + "1.2.foo.INITIALIZED_1-0-0",
@@ -62,8 +61,11 @@ public class StateFileTest {
         StateFile.PREFIX + "1.2.foo.INITIALIZED_1-0-0", };
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        RESULTS_DIRECTORY);
+        directoryRule);
 
     @Before
     public void setUp() throws IOException {
@@ -71,17 +73,12 @@ public class StateFileTest {
         workingDirectory = DirectoryProperties.stateFilesDir().toFile();
     }
 
-    @After
-    public void tearDown() throws IOException {
-        FileUtils.deleteDirectory(new File(RESULTS_DIRECTORY));
-    }
-
     @Test
     public void testConstructors() {
         StateFile stateFile = createStateFile();
         testStateFileProperties(new StateFile(stateFile));
 
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         PipelineTask pipelineTask = createPipelineTask();
         PbsParameters pbsParameters = createPbsParameters();
 

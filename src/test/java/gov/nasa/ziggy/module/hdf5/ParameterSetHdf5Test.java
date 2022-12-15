@@ -7,10 +7,10 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.Rule;
 import org.junit.Test;
 
-import com.google.common.io.Files;
-
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.parameters.Parameters;
 
@@ -22,9 +22,12 @@ import gov.nasa.ziggy.parameters.Parameters;
  */
 public class ParameterSetHdf5Test {
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Test
     public void serializeAndDeserialize() {
-        File testDir = Files.createTempDir();
+        File testDir = directoryRule.directory().toFile();
         ParsTester parsTester = new ParsTester();
         Hdf5ModuleInterface hdf5ModuleInterface = new Hdf5ModuleInterface();
         File hTest = new File(testDir, "hdf5-pars-test.h5");

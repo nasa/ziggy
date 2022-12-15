@@ -8,7 +8,7 @@ import static org.mockito.Mockito.spy;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -37,7 +37,7 @@ public class NasQueueTimeMetricsTest {
         instance = spy(NasQueueTimeMetrics.class);
         Mockito.doReturn(externalProcess)
             .when(instance)
-            .externalProcess(Matchers.any(String.class));
+            .externalProcess(ArgumentMatchers.any(String.class));
         NasQueueTimeMetrics.setSingletonInstance(instance);
     }
 

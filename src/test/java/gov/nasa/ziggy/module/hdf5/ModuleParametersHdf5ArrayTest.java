@@ -5,20 +5,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import com.google.common.io.Files;
-
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
@@ -37,18 +34,16 @@ public class ModuleParametersHdf5ArrayTest {
     private ModInterfaceTester testArticle;
     private File workingDir;
 
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
     @Before
     public void setup() {
 
-        workingDir = Files.createTempDir();
+        workingDir = directoryRule.directory().toFile();
         workingDir.mkdirs();
         testArticle = new ModInterfaceTester();
         testArticle.setModuleParameters(populateModuleParameters());
-    }
-
-    @After
-    public void teardown() throws IOException {
-        FileUtils.deleteDirectory(workingDir);
     }
 
     @Test
@@ -61,7 +56,7 @@ public class ModuleParametersHdf5ArrayTest {
         AbstractHdf5Array h3 = AbstractHdf5Array.newInstance(testArticle.getModuleParameters());
         assertTrue(h3 instanceof ModuleParametersHdf5Array);
 
-        Class clazz = testArticle.getClass();
+        Class<? extends ModInterfaceTester> clazz = testArticle.getClass();
         h1 = AbstractHdf5Array.newInstance(clazz.getDeclaredField("primitiveValue"));
         assertTrue(h1 instanceof PrimitiveHdf5Array);
         h2 = AbstractHdf5Array.newInstance(clazz.getDeclaredField("persistableValue"));

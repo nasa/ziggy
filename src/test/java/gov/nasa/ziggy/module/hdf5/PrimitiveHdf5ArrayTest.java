@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,8 +33,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.module.hdf5.AbstractHdf5Array.ReturnAs;
 import hdf.hdf5lib.H5;
@@ -58,16 +59,15 @@ public class PrimitiveHdf5ArrayTest {
     String stringTestField;
     double doubleScalar;
 
-    // since this involves files, we should use a temporary folder that will
-    // get deleted when each test is complete
     @Rule
-    public TemporaryFolder tFolder = new TemporaryFolder();
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Before
     public void setup() throws HDF5LibraryException, NullPointerException, IOException {
 
         // create an HDF5 file in the temporary folder
-        hdf5File = tFolder.newFile("hdf5TestFile.h5");
+        Files.createDirectories(directoryRule.directory());
+        hdf5File = directoryRule.directory().resolve("hdf5TestFile.h5").toFile();
         fileId = H5.H5Fcreate(hdf5File.getAbsolutePath(), HDF5Constants.H5F_ACC_TRUNC, H5P_DEFAULT,
             H5P_DEFAULT);
     }

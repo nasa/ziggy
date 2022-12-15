@@ -19,21 +19,18 @@ import java.util.List;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.ExecuteException;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.process.ExternalProcess;
-import gov.nasa.ziggy.util.io.Filenames;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
@@ -46,14 +43,17 @@ public class SubtaskExecutorTest {
     // Note: this is a relatively limited unit test class. Unfortunately, some of the methods
     // (in particular execAlgorithm) simply do too much for me to write a tractable unit test
     // at the present time.
-    private File rootDir = new File(Filenames.BUILD_TEST);
-    private File taskDir = new File(rootDir, "10-20-pa");
-    private File subTaskDir = new File(taskDir, "st-0");
+    private File rootDir;
+    private File taskDir;
+    private File subTaskDir;
     private SubtaskExecutor externalProcessExecutor;
     private ExternalProcess externalProcess;
     private TaskConfigurationManager taskConfigurationManager = new TaskConfigurationManager();
-    private File buildDir = new File(rootDir, "build");
-    private File binDir = new File(buildDir, "bin");
+    private File buildDir;
+    private File binDir;
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule moduleExeBinpathPropertyRule = new ZiggyPropertyRule(
@@ -69,11 +69,11 @@ public class SubtaskExecutorTest {
 
     @Rule
     public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
-        PIPELINE_HOME_DIR_PROP_NAME, buildDir.getAbsolutePath());
+        PIPELINE_HOME_DIR_PROP_NAME, (String) null);
 
     @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        new File(rootDir, "results").getAbsolutePath());
+        (String) null);
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
@@ -81,11 +81,20 @@ public class SubtaskExecutorTest {
 
     @Before
     public void setup() throws IOException, ConfigurationException {
+
+        rootDir = directoryRule.directory().toFile();
+        taskDir = new File(rootDir, "10-20-pa");
+        subTaskDir = new File(taskDir, "st-0");
         subTaskDir.mkdirs();
+        buildDir = new File(rootDir, "build");
+        binDir = new File(buildDir, "bin");
         binDir.mkdirs();
         File paFile = new File(binDir, "pa");
         paFile.createNewFile();
-        new File(resultsDirPropertyRule.getProperty()).mkdirs();
+
+        System.setProperty(PIPELINE_HOME_DIR_PROP_NAME, buildDir.toString());
+        System.setProperty(RESULTS_DIR_PROP_NAME, new File(rootDir, "results").getAbsolutePath());
+        new File(System.getProperty(RESULTS_DIR_PROP_NAME)).mkdirs();
 
         // Create the state file directory
         Files.createDirectories(DirectoryProperties.stateFilesDir());
@@ -94,11 +103,6 @@ public class SubtaskExecutorTest {
         StateFile stateFile = new StateFile("pa", 10, 20);
         stateFile.setPfeArrivalTimeMillis(System.currentTimeMillis());
         stateFile.persist();
-    }
-
-    @After
-    public void teardown() throws IOException {
-        FileUtils.deleteDirectory(rootDir);
     }
 
     @Test
@@ -227,7 +231,6 @@ public class SubtaskExecutorTest {
      * Tests that an error in the inputs-outputs command results in the subtask being marked as
      * failed without any attempt to execute the main algorithm command.
      */
-    @SuppressWarnings("unchecked")
     @Test
     public void testInputsErrorSetsErrorStatus() throws Exception {
         setUpMockedObjects();
@@ -242,11 +245,10 @@ public class SubtaskExecutorTest {
         assertEquals(1, retCode);
         assertTrue(new File(subTaskDir, ".FAILED").exists());
         Mockito.verify(externalProcessExecutor, Mockito.never())
-            .runCommandline(Matchers.anyList(), Matchers.any(String.class),
-                Matchers.any(String.class));
+            .runCommandline(ArgumentMatchers.anyList(), ArgumentMatchers.any(String.class),
+                ArgumentMatchers.any(String.class));
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testRunCommandLine() throws Exception {
 
@@ -260,7 +262,7 @@ public class SubtaskExecutorTest {
         CommandLine commandLine = externalProcessExecutor.commandLine();
         Mockito.verify(externalProcess).setWorkingDirectory(subTaskDir);
         Mockito.verify(externalProcess).setCommandLine(commandLine);
-        Mockito.verify(externalProcess).setEnvironment(Matchers.anyMap());
+        Mockito.verify(externalProcess).setEnvironment(ArgumentMatchers.anyMap());
         String cmdString = commandLine.toString();
         assertEquals(0, retCode);
 

@@ -13,12 +13,12 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.TaskConfigurationManager;
@@ -30,7 +30,6 @@ import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.SingleThreadExecutor;
 import gov.nasa.ziggy.uow.TaskConfigurationParameters;
-import gov.nasa.ziggy.util.io.Filenames;
 
 /**
  * Class that provides unit tests for the {@link RemoteExecutor} abstract class.
@@ -51,14 +50,20 @@ public class RemoteExecutorTest {
     private static TaskConfigurationParameters tcp;
 
     @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        "build/test");
+        directoryRule);
 
     @SuppressWarnings("unchecked")
     @Before
     public void setup() throws InterruptedException, ExecutionException {
 
-        File taskDir = new File("build/test/task-data/10-50-modulename");
+        File taskDir = directoryRule.directory()
+            .resolve("task-data")
+            .resolve("10-50-modulename")
+            .toFile();
         taskDir.mkdirs();
         new File(taskDir, "st-0").mkdirs();
         new File(taskDir, "st-1").mkdirs();
@@ -100,11 +105,6 @@ public class RemoteExecutorTest {
     public void teardown() throws IOException {
         SingleThreadExecutor.reset();
         DatabaseService.reset();
-        new File("build/test/task-data/10-50-modulename/st-0").delete();
-        new File("build/test/task-data/10-50-modulename/st-1").delete();
-        new File("build/test/task-data/10-50-modulename").delete();
-        new File("build/test/task-data").delete();
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
     }
 
     @Test

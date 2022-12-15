@@ -12,8 +12,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.module.PipelineException;
 import hdf.hdf5lib.H5;
 import hdf.hdf5lib.HDF5Constants;
@@ -35,16 +35,14 @@ public class Hdf5ModuleInterfaceTest {
     String stringTestField;
     double doubleScalar;
 
-    // since this involves files, we should use a temporary folder that will
-    // get deleted when each test is complete
     @Rule
-    public TemporaryFolder tFolder = new TemporaryFolder();
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Before
     public void setup() throws HDF5LibraryException, NullPointerException, IOException {
 
         // create an HDF5 file in the temporary folder
-        hdf5File = tFolder.newFile("hdf5TestFile.h5");
+        hdf5File = directoryRule.directory().resolve("hdf5TestFile.h5").toFile();
         fileId = H5.H5Fcreate(hdf5File.getAbsolutePath(), HDF5Constants.H5F_ACC_TRUNC, H5P_DEFAULT,
             H5P_DEFAULT);
     }
@@ -84,7 +82,7 @@ public class Hdf5ModuleInterfaceTest {
     @Test
     public void testWriteAndReadFile() throws HDF5LibraryException, IOException {
 
-        hdf5File = tFolder.newFile("hdf5WriteTestFile.h5");
+        hdf5File = directoryRule.directory().resolve("hdf5WriteTestFile.h5").toFile();
         PersistableSample2 persistableTest2 = generatePersistableTest2Object();
         moduleInterface.writeFile(hdf5File, persistableTest2, false);
         PersistableSample2 recoveredTestValues = new PersistableSample2();
@@ -102,7 +100,8 @@ public class Hdf5ModuleInterfaceTest {
         assertTrue(persistableTest2.equals(recoveredTestValues));
 
         // now do it with arg 3 of the writer set to true
-        hdf5File = tFolder.newFile("hdf5WriteTestFile2.h5");
+
+        hdf5File = directoryRule.directory().resolve("hdf5WriteTestFile2.h5").toFile();
         persistableTest2 = generatePersistableTest2Object();
         moduleInterface.writeFile(hdf5File, persistableTest2, true);
         recoveredTestValues = new PersistableSample2();
@@ -118,7 +117,7 @@ public class Hdf5ModuleInterfaceTest {
 
     @Test(expected = PipelineException.class)
     public void testErrorOnFileWithMissingField() throws IOException {
-        hdf5File = tFolder.newFile("hdf5WriteTestFile.h5");
+        hdf5File = directoryRule.directory().resolve("hdf5WriteTestFile.h5").toFile();
         PersistableSample2 persistableTest2 = generatePersistableTest2Object();
         moduleInterface.writeFile(hdf5File, persistableTest2, false);
         PersistableSample2 recoveredTestValues = new PersistableSample2();

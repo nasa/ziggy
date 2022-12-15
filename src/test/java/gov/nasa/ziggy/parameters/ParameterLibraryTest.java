@@ -2,7 +2,6 @@ package gov.nasa.ziggy.parameters;
 
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.assertContains;
 import static gov.nasa.ziggy.pipeline.definition.XmlUtils.complexTypeContent;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -13,14 +12,11 @@ import java.util.List;
 import javax.xml.transform.Result;
 import javax.xml.transform.stream.StreamResult;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.util.io.Filenames;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -37,22 +33,14 @@ public class ParameterLibraryTest {
     private File xmlUnmarshalingFile;
 
     @Rule
-    public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Before
     public void setUp() {
 
         // Set the working directory
         xmlUnmarshalingFile = new File("test/data/paramlib/pl-hyperion.xml");
-        new File(Filenames.BUILD_TEST).mkdirs();
-        schemaFile = new File(Filenames.BUILD_TEST, "param-lib.xsd");
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        schemaFile.delete();
-        FileUtils.deleteDirectory(new File(Filenames.BUILD_TEST));
+        schemaFile = directoryRule.directory().resolve("param-lib.xsd").toFile();
     }
 
     @Test
