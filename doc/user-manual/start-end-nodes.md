@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](start-pipeline.md)
+[[Previous]](instances-panel.md)
 [[Up]](ziggy-gui.md)
 [[Next]](change-param-values.md)
 
@@ -20,6 +20,6 @@ Now press the `Fire!` button and return to the `Instances` panel. The pipeline w
 
 As advertised, the pipeline ran again but this time it skipped data receipt and stopped short of the averaging tasks.
 
-[[Previous]](start-pipeline.md)
+[[Previous]](instances-panel.md)
 [[Up]](ziggy-gui.md)
 [[Next]](change-param-values.md)
