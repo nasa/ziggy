@@ -18,9 +18,9 @@ import java.util.regex.Pattern;
 
 import org.junit.Test;
 
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.RegexEditor.FindAction;
 import gov.nasa.ziggy.util.io.FileUtil;
-import gov.nasa.ziggy.util.io.Filenames;
 
 public class RegexEditorTest {
     private static final String SIMPLE_REGEX = "^([0-9]*)(?:[^0-9]*)([0-9]*)(?:.*)$";
@@ -129,7 +129,7 @@ public class RegexEditorTest {
     @Test
     public void findAndReplaceReverse() throws IOException {
         File tmpFile = null;
-        File buildTmp = new File(Filenames.BUILD_TMP);
+        File buildTmp = DirectoryProperties.tmpDir().toFile();
         Writer output = null;
         BufferedReader input = null;
         try {
@@ -155,7 +155,7 @@ public class RegexEditorTest {
     @Test
     public void findAndUpdate() throws IOException {
         File tmpFile = null;
-        File buildTmp = new File(Filenames.BUILD_TMP);
+        File buildTmp = DirectoryProperties.tmpDir().toFile();
         Writer output = null;
         BufferedReader input = null;
         try {

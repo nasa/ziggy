@@ -14,7 +14,7 @@ import org.apache.commons.io.LineIterator;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 
-import gov.nasa.ziggy.util.io.Filenames;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 
 /**
  * Regular expression processing of text and text files.
@@ -132,7 +132,8 @@ public class RegexEditor {
         FindAction action) throws IOException {
         File output = null;
         if (filters != null) {
-            output = new File(Filenames.BUILD_TMP, FilenameUtils.getBaseName(sourceDir.toString()));
+            output = new File(DirectoryProperties.tmpDir().toFile(),
+                FilenameUtils.getBaseName(sourceDir.toString()));
             if (output.exists()) {
                 FileUtils.forceDelete(output);
             }
@@ -142,7 +143,7 @@ public class RegexEditor {
                     FileFilterUtils.directoryFileFilter());
                 if (files != null) {
                     File outputFile = null;
-                    File buildTmp = new File(Filenames.BUILD_TMP);
+                    File buildTmp = DirectoryProperties.tmpDir().toFile();
                     for (File file : files) {
                         outputFile = findAndReplace(file, pattern, action, buildTmp);
                         FileUtils.copyFile(outputFile, new File(output, file.getName()));

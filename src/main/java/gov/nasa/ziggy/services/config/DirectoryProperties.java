@@ -43,6 +43,8 @@ public class DirectoryProperties {
 
     private static final String BUILD = "build";
 
+    private static final String TMP = "tmp";
+
     public static Path pipelineResultsDir() {
         return Paths
             .get(ZiggyConfiguration.getInstance().getString(PropertyNames.RESULTS_DIR_PROP_NAME));
@@ -122,6 +124,10 @@ public class DirectoryProperties {
 
     public static Path ziggySchemaBuildDir() {
         return ziggyCodeBuildDir().resolve(SCHEMA_DIR_RELATIVE_PATH);
+    }
+
+    public static Path tmpDir() {
+        return ziggyCodeBuildDir().resolve(TMP);
     }
 
     public static Path databaseLogDir() {
