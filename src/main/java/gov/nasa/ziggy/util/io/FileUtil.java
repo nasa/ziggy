@@ -36,16 +36,33 @@ public class FileUtil {
 
     private static final Logger log = LoggerFactory.getLogger(FileUtil.class);
 
+    public static final String FILE_OVERWRITE_PERMISSIONS = "rw-rw-r--";
+    public static final String DIR_OVERWRITE_PERMISSIONS = "rwxrwxr-x";
+    public static final String FILE_READONLY_PERMISSIONS = "r--r--r--";
+    public static final String DIR_READONLY_PERMISSIONS = "r-xr-xr-x";
+
     /**
-     * Recursively sets permissions on all files and directories that lie under a given top-level
-     * directory.
+     * Applies write protection to a directory tree. All directories will have permissions set to
+     * {@link #DIR_READONLY_PERMISSIONS}; all regular files will have permissions set to
+     * {@link #FILE_READONLY_PERMISSIONS}.
      *
-     * @param top Location of the top-level directory.
-     * @param permissions POSIX-style string of permissions (i.e., "rwxr-xr--").
+     * @param top root of directory tree.
+     * @throws IOException
      */
-    public static void setPosixPermissionsRecursively(Path top, String permissions)
-        throws IOException {
-        setPosixPermissionsRecursively(top, permissions, permissions);
+    public static void writeProtectDirectoryTree(Path top) throws IOException {
+        setPosixPermissionsRecursively(top, FILE_READONLY_PERMISSIONS, DIR_READONLY_PERMISSIONS);
+    }
+
+    /**
+     * Prepares a directory tree for overwrites. All directories will have permissions set to
+     * {@link #DIR_OVERWRITE_PERMISSIONS}; all regular files will have permissions set to
+     * {@link #FILE_OVERWRITE_PERMISSIONS}.
+     *
+     * @param top root of directory tree.
+     * @throws IOException
+     */
+    public static void prepareDirectoryTreeForOverwrites(Path top) throws IOException {
+        setPosixPermissionsRecursively(top, FILE_OVERWRITE_PERMISSIONS, DIR_OVERWRITE_PERMISSIONS);
     }
 
     /**
@@ -248,12 +265,12 @@ public class FileUtil {
      * @throws IOException
      */
     public static void cleanDirectoryTree(Path directory, boolean force) throws IOException {
+        if (force) {
+            prepareDirectoryTreeForOverwrites(directory);
+        }
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path file : stream) {
                 if (Files.isDirectory(file)) {
-                    if (force) {
-                        setPosixPermissionsRecursively(file, "rw-r--r--", "rwxr-xr-x");
-                    }
                     cleanDirectoryTree(file, force);
                 }
                 Files.delete(file);

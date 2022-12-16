@@ -165,15 +165,31 @@ public class FileUtilTest {
         assertEquals("r--------", PosixFilePermissions
             .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
 
-        // Set permissions loosely and uniformly for directories and files
-        FileUtil.setPosixPermissionsRecursively(testDir.toPath(), "rwxrwxrwx");
-        assertEquals("rwxrwxrwx",
+    }
+
+    @Test
+    public void testOverwriteAndReadOnlyPermissions() throws IOException {
+
+        assertNotEquals("r-x------",
             PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
-        assertEquals("rwxrwxrwx",
+        FileUtil.prepareDirectoryTreeForOverwrites(testDir.toPath());
+        assertEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
+        assertEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
             PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
-        assertEquals("rwxrwxrwx",
+        assertEquals(FileUtil.FILE_OVERWRITE_PERMISSIONS,
             PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
-        assertEquals("rwxrwxrwx", PosixFilePermissions
+        assertEquals(FileUtil.FILE_OVERWRITE_PERMISSIONS, PosixFilePermissions
+            .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
+
+        FileUtil.writeProtectDirectoryTree(testDir.toPath());
+        assertEquals(FileUtil.DIR_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
+        assertEquals(FileUtil.DIR_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
+        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
+        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS, PosixFilePermissions
             .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
 
     }

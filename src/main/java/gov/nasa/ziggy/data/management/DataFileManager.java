@@ -70,10 +70,6 @@ import gov.nasa.ziggy.util.io.FileUtil;
  */
 public class DataFileManager {
 
-    public static final String OVERWRITE_PERMISSIONS = "rwxrwxr-x";
-    public static final String FILE_PERMISSIONS = "r--r--r--";
-    public static final String DIR_PERMISSIONS = "r-xr-xr-x";
-
     private static final Predicate<? super File> WITH_RESULTS = AlgorithmStateFiles::hasResults;
     private static final Predicate<? super File> WITHOUT_RESULTS = WITH_RESULTS.negate();
 
@@ -1010,11 +1006,11 @@ public class DataFileManager {
                 checkout(src, dest);
                 Path trueSrc = DataFileManager.realSourceFile(src);
                 if (Files.exists(dest)) {
-                    FileUtil.setPosixPermissionsRecursively(dest, OVERWRITE_PERMISSIONS);
+                    FileUtil.prepareDirectoryTreeForOverwrites(dest);
                 }
                 Files.move(trueSrc, dest, StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
-                FileUtil.setPosixPermissionsRecursively(dest, FILE_PERMISSIONS, DIR_PERMISSIONS);
+                FileUtil.writeProtectDirectoryTree(dest);
                 if (src != trueSrc) {
                     Files.delete(src);
                     Files.createSymbolicLink(trueSrc, dest);
@@ -1094,30 +1090,6 @@ public class DataFileManager {
             Files.delete(src);
         } else {
             DatastoreCopyType.MOVE.copy(src, dest);
-        }
-    }
-
-    /**
-     * Convenient container for the datastore and task dir paths for a given data file.
-     *
-     * @author PT
-     */
-    private static class DatastoreAndTaskDirPaths {
-
-        private final Path datastorePath;
-        private final Path taskDirPath;
-
-        public DatastoreAndTaskDirPaths(Path datastorePath, Path taskDirPath) {
-            this.datastorePath = datastorePath;
-            this.taskDirPath = taskDirPath;
-        }
-
-        public Path getDatastorePath() {
-            return datastorePath;
-        }
-
-        public Path getTaskDirPath() {
-            return taskDirPath;
         }
     }
 
