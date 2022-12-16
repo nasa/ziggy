@@ -1,4 +1,6 @@
-<a href="remote-dialog.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="delete-tasks.md">[Next]</a>
+[[Previous]](remote-dialog.md)
+[[Up]](advanced-topics.md)
+[[Next]](delete-tasks.md)
 
 ## HPC Cost Estimation
 
@@ -16,4 +18,6 @@ Go to the Instances tab, right-click on an instance, and select the Cost estimat
 
 In our case, we ran all our tasks on the local system so all the estimates are zero! However: if you'd run on an HPC system, the `Cost Estimate` column would show the running total for each task during execution, and would show a final estimate after execution completed. 
 
-<a href="remote-dialog.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="delete-tasks.md">[Next]</a>
+[[Previous]](remote-dialog.md)
+[[Up]](advanced-topics.md)
+[[Next]](delete-tasks.md)

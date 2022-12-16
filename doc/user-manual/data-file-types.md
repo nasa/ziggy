@@ -1,4 +1,6 @@
-<a href="module-parameters.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="pipeline-definition.md">[Next]</a>
+[[Previous]](module-parameters.md)
+[[Up]](configuring-pipeline.md)
+[[Next]](pipeline-definition.md)
 
 ## Data File Types
 
@@ -132,4 +134,6 @@ One thing about supplying timestamp and version information in the filename is t
 
 For models that don't provide that information in the filename, there's no protection against such an accident because there can't be any such protection. If you accidentally re-import an old version of `sample-model.txt`, Ziggy will assume it's a new version and store it with a new timestamp and version number. When Ziggy goes to process data, this version will be provided to the algorithms.
 
-<a href="module-parameters.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="pipeline-definition.md">[Next]</a>
+[[Previous]](module-parameters.md)
+[[Up]](configuring-pipeline.md)
+[[Next]](pipeline-definition.md)

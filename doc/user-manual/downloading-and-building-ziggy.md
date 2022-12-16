@@ -1,6 +1,8 @@
 <!-- -*-visual-line-*- -->
 
-<a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
+[[Previous]](pipeline-architecture.md)
+[[Up]](user-manual.md)
+[[Next]](configuring-pipeline.md)
 
 ## Downloading and Building Ziggy
 
@@ -106,4 +108,6 @@ Before we move on, a few useful details about building Ziggy:
 
 If all is going well, you're now ready to move on to [defining your own pipeline](configuring-pipeline.md)!
 
-<a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
+[[Previous]](pipeline-architecture.md)
+[[Up]](user-manual.md)
+[[Next]](configuring-pipeline.md)

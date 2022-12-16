@@ -1,4 +1,6 @@
-<a href="ziggy-gui.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="instances-panel.md">[Next]</a>
+[[Previous]](ziggy-gui.md)
+[[Up]](ziggy-gui.md)
+[[Next]](instances-panel.md)
 
 ## Starting a Pipeline
 
@@ -54,4 +56,6 @@ The pipeline and worker lights are grey again, the instance and all the tasks sh
 
 At this point, you'd probably like an explanation of just what everything on the `Instances` panel is trying to tell you. If so, read on! Specifically, the article on [The Instances Panel](instances-panel.md).
 
-<a href="ziggy-gui.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="instances-panel.md">[Next]</a>
+[[Previous]](ziggy-gui.md)
+[[Up]](ziggy-gui.md)
+[[Next]](instances-panel.md)

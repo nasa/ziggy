@@ -1,4 +1,6 @@
-<a href="log-files.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="monitoring.md">[Next]</a>
+[[Previous]](log-files.md)
+[[Up]](user-manual.md)
+[[Next]](monitoring.md)
 
 ## Using the Ziggy Console, Part 2: Troubleshooting
 
@@ -20,4 +22,6 @@ For any given task you can display the task's log files directly from the consol
 
 Ziggy also gives you options when you've decided what you want to do about a failed task.
 
-<a href="log-files.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="monitoring.md">[Next]</a>
+[[Previous]](log-files.md)
+[[Up]](user-manual.md)
+[[Next]](monitoring.md)
