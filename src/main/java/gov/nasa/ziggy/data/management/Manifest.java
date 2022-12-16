@@ -62,6 +62,7 @@ import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
@@ -274,13 +275,13 @@ public class Manifest implements HasXmlSchemaFilename {
         InvocationTargetException, NoSuchMethodException, SecurityException {
         String manifestName = args[0];
         long datasetId = Long.parseLong(args[1]);
-        String manifestDir = System.getProperty("user.dir");
+        String manifestDir = SystemUtils.USER_DIR;
         if (args.length > 2) {
             manifestDir = args[2];
         }
         Manifest manifest = Manifest.generateManifest(Paths.get(manifestDir), datasetId);
         manifest.setName(manifestName);
-        manifest.write(Paths.get(System.getProperty("user.dir")));
+        manifest.write(Paths.get(SystemUtils.USER_DIR));
     }
 
     public long getId() {

@@ -433,7 +433,7 @@ public class PipelineOperations {
         PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
         PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
 
-        String nl = System.getProperty("line.separator");
+        String nl = System.lineSeparator();
         StringBuilder report = new StringBuilder();
 
         report.append("Instance ID: " + instance.getId() + nl);
@@ -500,7 +500,7 @@ public class PipelineOperations {
      * @return
      */
     public String generateTriggerReport(PipelineDefinition pipelineDefinition) {
-        String nl = System.getProperty("line.separator");
+        String nl = System.lineSeparator();
         StringBuilder report = new StringBuilder();
         ParameterSetCrud paramSetCrud = new ParameterSetCrud();
         PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
@@ -649,7 +649,7 @@ public class PipelineOperations {
      */
     public void appendParameterSetToReport(StringBuilder report, ParameterSet paramSet,
         String indent, boolean csvMode) {
-        String nl = System.getProperty("line.separator");
+        String nl = System.lineSeparator();
         String paramsIndent = indent + "  ";
         BeanWrapper<Parameters> parameters = paramSet.getParameters();
         String parameterClassName = "";

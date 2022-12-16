@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.commons.lang3.SystemUtils;
 import org.hibernate.Hibernate;
 import org.junit.Before;
 import org.junit.Rule;
@@ -89,7 +90,7 @@ public class ZiggyEventHandlerTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
 
     @Rule
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
@@ -157,7 +158,7 @@ public class ZiggyEventHandlerTest {
 
     @Test
     public void testSchema() throws IOException {
-        Path schemaPath = Paths.get(System.getProperty("ziggy.home.dir"), "schema", "xml",
+        Path schemaPath = Paths.get(System.getProperty(ZIGGY_HOME_DIR_PROP_NAME), "schema", "xml",
             new ZiggyEventHandlerFile().getXmlSchemaFilename());
         List<String> schemaContent = Files.readAllLines(schemaPath);
 

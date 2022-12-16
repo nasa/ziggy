@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.hibernate.Hibernate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,14 +39,13 @@ public class PipelineDefinitionOperationsTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(System.getProperty("user.dir"), "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
 
     @Test
     public void testMultipleDefaultParamSets() throws Exception {
 
         // Define the path to the pipeline definitions directory
-        Path pipelineDefsDir = Paths.get(System.getProperty("user.dir"), "test", "data",
-            "classwrapper");
+        Path pipelineDefsDir = Paths.get(SystemUtils.USER_DIR, "test", "data", "classwrapper");
 
         // Read in the parameter library
         DatabaseTransactionFactory.performTransaction(() -> {

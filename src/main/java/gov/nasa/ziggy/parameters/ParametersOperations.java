@@ -408,7 +408,7 @@ public class ParametersOperations {
     }
 
     private String formatProps(Set<TypedParameter> typedProperties) {
-        String nl = System.getProperty("line.separator");
+        String nl = System.lineSeparator();
         StringBuilder report = new StringBuilder();
 
         for (TypedParameter typedProperty : typedProperties) {

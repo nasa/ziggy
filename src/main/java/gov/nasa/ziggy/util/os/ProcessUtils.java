@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,8 +117,7 @@ public class ProcessUtils {
         RuntimeMXBean rmx = ManagementFactory.getRuntimeMXBean();
         String classPath = rmx.getClassPath();
         List<String> javaCommandLineParameters = rmx.getInputArguments();
-        String javaExe = System.getProperty("java.home") + File.separator + "bin" + File.separator
-            + "java";
+        String javaExe = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
 
         List<String> commandList = new ArrayList<>();
         StringBuilder cmd = new StringBuilder();

@@ -29,6 +29,7 @@ import javax.swing.SwingConstants;
 import javax.swing.plaf.metal.MetalLookAndFeel;
 
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -216,7 +217,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame {
         UserCrudProxy userCrud = new UserCrudProxy();
         if (requireLogin) {
 
-            currentUser = userCrud.retrieveUser(System.getProperty("user.name"));
+            currentUser = userCrud.retrieveUser(SystemUtils.USER_NAME);
 
             if (currentUser == null) {
                 log.error("Exceeded max login attempts");

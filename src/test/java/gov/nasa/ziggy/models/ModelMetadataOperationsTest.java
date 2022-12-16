@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 
 import java.nio.file.Paths;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -22,8 +23,7 @@ public class ModelMetadataOperationsTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME,
-        Paths.get(System.getProperty("user.dir"), "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
 
     @Test
     public void testReport() {

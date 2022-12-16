@@ -3,6 +3,8 @@ package gov.nasa.ziggy.services.config;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.apache.commons.lang3.SystemUtils;
+
 /**
  * Provides one-stop shopping for various directory locations based on properties.
  *
@@ -206,7 +208,7 @@ public class DirectoryProperties {
     public static Path workingDir() {
         return Paths.get(ZiggyConfiguration.getInstance()
             .getString(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME,
-                System.getProperty("user.dir")));
+                SystemUtils.USER_DIR));
     }
 
     public static Path datastoreRootDir() {

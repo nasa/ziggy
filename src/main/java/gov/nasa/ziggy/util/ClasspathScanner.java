@@ -19,6 +19,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -239,7 +240,7 @@ public class ClasspathScanner {
             }
         } else {
             log.debug("parsing java.class.path");
-            StringTokenizer st = new StringTokenizer(System.getProperty("java.class.path"),
+            StringTokenizer st = new StringTokenizer(SystemUtils.JAVA_CLASS_PATH,
                 File.pathSeparator);
             while (st.hasMoreTokens()) {
                 String filename = st.nextToken();

@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 import java.nio.file.Paths;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -54,8 +55,7 @@ public class ProcessHeartbeatManagerTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME,
-        Paths.get(System.getProperty("user.dir"), "build", "test").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build", "test").toString());
 
     @Before
     public void setup() {

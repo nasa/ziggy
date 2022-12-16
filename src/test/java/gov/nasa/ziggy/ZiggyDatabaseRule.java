@@ -1,6 +1,11 @@
 package gov.nasa.ziggy;
 
 import static gov.nasa.ziggy.ZiggyPropertyRule.resetSystemProperty;
+import static gov.nasa.ziggy.services.config.PropertyNames.DATABASE_SOFTWARE_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_DIALECT_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_PASSWD_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_URL_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_USERNAME_PROP_NAME;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -44,19 +49,19 @@ public class ZiggyDatabaseRule extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
-        databaseSoftwareName = System.setProperty("database.software.name", "hsqldb");
+        databaseSoftwareName = System.setProperty(DATABASE_SOFTWARE_PROP_NAME, "hsqldb");
         DatabaseController databaseController = DatabaseController.newInstance();
 
-        hibernateConnectionPassword = System.setProperty("hibernate.connection.password", "");
-        hibernateConnectionUrl = System.setProperty("hibernate.connection.url",
+        hibernateConnectionPassword = System.setProperty(HIBERNATE_PASSWD_PROP_NAME, "");
+        hibernateConnectionUrl = System.setProperty(HIBERNATE_URL_PROP_NAME,
             "jdbc:hsqldb:mem:hsqldb-ziggy");
-        hibernateConnectionUsername = System.setProperty("hibernate.connection.username", "sa");
+        hibernateConnectionUsername = System.setProperty(HIBERNATE_USERNAME_PROP_NAME, "sa");
 
         // For some reason, the unit tests won't run successfully without the Hibernate
         // dialect being set as a system property, even though the actual pipelines
         // function just fine without any dialect in the properties. Something to figure
         // out and fix when possible.
-        hibernateDialect = System.setProperty("hibernate.dialect",
+        hibernateDialect = System.setProperty(HIBERNATE_DIALECT_PROP_NAME,
             databaseController.sqlDialect().dialect());
 
         hibernateJdbcBatchSize = System.setProperty("hibernate.jdbc.batch_size", "0");

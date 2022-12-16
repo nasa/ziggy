@@ -3,6 +3,7 @@ package gov.nasa.ziggy.services.process;
 import java.net.UnknownHostException;
 
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tanukisoftware.wrapper.WrapperManager;
@@ -78,9 +79,9 @@ public abstract class AbstractPipelineProcess {
         ZiggyBuild.logVersionInfo(log);
 
         log.info("jvm version:");
-        log.info("  java.runtime.name=" + System.getProperty("java.runtime.name"));
+        log.info("  java.runtime.name=" + SystemUtils.JAVA_RUNTIME_NAME);
         log.info("  sun.boot.library.path=" + System.getProperty("sun.boot.library.path"));
-        log.info("  java.vm.version=" + System.getProperty("java.vm.version"));
+        log.info("  java.vm.version=" + SystemUtils.JAVA_VM_VERSION);
 
         log.info("Initializing ConfigurationService...");
         Configuration configService = ZiggyConfiguration.getInstance();

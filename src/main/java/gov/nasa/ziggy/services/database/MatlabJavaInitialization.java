@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.core.config.ConfigurationFactory;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.logging.log4j.core.config.DefaultConfiguration;
@@ -87,9 +88,9 @@ public class MatlabJavaInitialization {
             }
 
             log.info("jvm version:");
-            log.info("  java.runtime.name=" + System.getProperty("java.runtime.name"));
+            log.info("  java.runtime.name=" + SystemUtils.JAVA_RUNTIME_NAME);
             log.info("  sun.boot.library.path=" + System.getProperty("sun.boot.library.path"));
-            log.info("  java.vm.version=" + System.getProperty("java.vm.version"));
+            log.info("  java.vm.version=" + SystemUtils.JAVA_VM_VERSION);
 
             ZiggyBuild.logVersionInfo(log);
 

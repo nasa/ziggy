@@ -48,6 +48,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,9 +149,9 @@ public class ComputeNodeMaster implements Runnable {
         ZiggyBuild.logVersionInfo(log);
 
         log.info("jvm version:");
-        log.info("  java.runtime.name=" + System.getProperty("java.runtime.name"));
+        log.info("  java.runtime.name=" + SystemUtils.JAVA_RUNTIME_NAME);
         log.info("  sun.boot.library.path=" + System.getProperty("sun.boot.library.path"));
-        log.info("  java.vm.version=" + System.getProperty("java.vm.version"));
+        log.info("  java.vm.version=" + SystemUtils.JAVA_VM_VERSION);
 
         // It's possible that this node isn't starting until all of the subtasks are
         // complete! In that case, it should just exit without doing anything else.

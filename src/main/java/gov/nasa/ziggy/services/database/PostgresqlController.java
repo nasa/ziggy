@@ -173,7 +173,7 @@ public class PostgresqlController extends DatabaseController {
         // config file and a setting of the lock file directory.
         log.info("Creating configuration file in " + dataDir().toString());
         Path configPath = dataDir().resolve(CONFIG_FILE_NAME);
-        String newline = System.getProperty("line.separator");
+        String newline = System.lineSeparator();
         StringBuilder confFileContents = new StringBuilder();
         confFileContents.append("unix_socket_directories = '" + lockFileDir + "'" + newline);
         if (DirectoryProperties.databaseConfFile() != null) {

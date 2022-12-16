@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.module;
 
 import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_HALT_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -657,7 +658,7 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltInitialize() {
 
         // Set the desired stopping point
-        System.setProperty("pi.processing.halt.step", "I");
+        System.setProperty(PIPELINE_HALT_PROP_NAME, "I");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
@@ -680,7 +681,7 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltMarshaling() {
 
         // Set the desired stopping point
-        System.setProperty("pi.processing.halt.step", "M");
+        System.setProperty(PIPELINE_HALT_PROP_NAME, "M");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
@@ -703,7 +704,7 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltAlgorithmComplete() {
 
         // Set the desired stopping point
-        System.setProperty("pi.processing.halt.step", "Ac");
+        System.setProperty(PIPELINE_HALT_PROP_NAME, "Ac");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
@@ -727,7 +728,7 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltStoring() {
 
         // Set the desired stopping point
-        System.setProperty("pi.processing.halt.step", "S");
+        System.setProperty(PIPELINE_HALT_PROP_NAME, "S");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
@@ -751,7 +752,7 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltAlgorithmSubmitting() {
 
         // Set the desired stopping point
-        System.setProperty("pi.processing.halt.step", "As");
+        System.setProperty(PIPELINE_HALT_PROP_NAME, "As");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
@@ -776,7 +777,7 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltAlgorithmQueued() {
 
         // Set the desired stopping point
-        System.setProperty("pi.processing.halt.step", "Aq");
+        System.setProperty(PIPELINE_HALT_PROP_NAME, "Aq");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);

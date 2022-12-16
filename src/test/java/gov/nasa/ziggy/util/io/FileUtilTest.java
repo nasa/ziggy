@@ -17,6 +17,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,7 +68,7 @@ public class FileUtilTest {
         // Get a file to find size of
         Path testDirPath = testDir.toPath();
         Path testSubdirPath = testSubdir.toPath();
-        Path codeRoot = Paths.get(System.getProperty("user.dir"));
+        Path codeRoot = Paths.get(SystemUtils.USER_DIR);
         Path testSrcFile = codeRoot
             .resolve(Paths.get("test", "data", "configuration", "pipeline-definition.xml"));
         Path testFile = testDir.toPath().resolve("pipeline-definition.xml");
