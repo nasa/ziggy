@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](../../README.md)
 [[Up]](user-manual.md)
 [[Next]](pipeline-architecture.md)

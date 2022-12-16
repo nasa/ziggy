@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](intermediate-topics.md)
 [[Up]](intermediate-topics.md)
 [[Next]](task-configuration.md)

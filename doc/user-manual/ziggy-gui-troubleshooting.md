@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](log-files.md)
 [[Up]](user-manual.md)
 [[Next]](monitoring.md)

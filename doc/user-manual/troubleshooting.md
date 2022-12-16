@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](properties.md)
 [[Up]](user-manual.md)
 [[Next]](log-files.md)

@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](running-pipeline.md)
 [[Up]](user-manual.md)
 [[Next]](start-pipeline.md)

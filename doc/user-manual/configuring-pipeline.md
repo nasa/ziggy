@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](downloading-and-building-ziggy.md)
 [[Up]](user-manual.md)
 [[Next]](module-parameters.md)

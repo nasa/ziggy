@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](ziggy-gui.md)
 [[Up]](ziggy-gui.md)
 [[Next]](instances-panel.md)

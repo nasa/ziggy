@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](datastore-task-dir.md)
 [[Up]](intermediate-topics.md)
 [[Next]](properties.md)

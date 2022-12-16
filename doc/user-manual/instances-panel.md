@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](start-pipeline.md)
 [[Up]](ziggy-gui.md)
 [[Next]](start-end-nodes.md)

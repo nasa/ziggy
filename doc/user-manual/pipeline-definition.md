@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](data-file-types.md)
 [[Up]](configuring-pipeline.md)
 [[Next]](building-pipeline.md)

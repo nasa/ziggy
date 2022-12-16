@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](pipeline-definition.md)
 [[Up]](user-manual.md)
 [[Next]](rdbms.md)

@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](rdbms.md)
 [[Up]](user-manual.md)
 [[Next]](ziggy-gui.md)

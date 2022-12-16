@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](troubleshooting.md)
 [[Up]](troubleshooting.md)
 [[Next]](ziggy-gui-troubleshooting.md)
