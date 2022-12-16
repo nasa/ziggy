@@ -78,7 +78,7 @@ public class ExternalProcessPipelineModuleTest {
 
     @Rule
     public ZiggyPropertyRule piProcessingHaltStepPropertyRule = new ZiggyPropertyRule(
-        "pi.processing.halt.step", (String) null);
+        PIPELINE_HALT_PROP_NAME, (String) null);
 
     @Rule
     public ZiggyPropertyRule piWorkerAllowPartialTasksPropertyRule = new ZiggyPropertyRule(
