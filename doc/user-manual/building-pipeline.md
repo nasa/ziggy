@@ -4,7 +4,7 @@
 [[Up]](user-manual.md)
 [[Next]](rdbms.md)
 
-## Building Your Pipeline
+## Building a Pipeline
 
 The question of whether your pipeline even needs a build system is one that only you can answer. If all the components of the pipeline are written in interpreted languages (Python, shell script, etc.), you might be able to get away without one!
 
