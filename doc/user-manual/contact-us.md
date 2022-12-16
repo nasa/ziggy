@@ -1,6 +1,7 @@
 <!-- -*-visual-line-*- -->
 
-<a href="data-receipt-display.md">[Previous]</a> <a href="user-manual.md">[Up]</a>
+[[Previous]](data-receipt-display.md)
+[[Up]](user-manual.md)
 
 ## Contact Us
 
@@ -13,5 +14,5 @@ If you just want to send an email, we are:
 Peter Tenenbaum <Peter.Tenenbaum@nasa.gov> (but you can call him PT)  
 Bill Wohler <Bill.Wohler@nasa.gov>
 
-<a href="data-receipt-display.md">[Previous]</a> <a href="user-manual.md">[Up]</a>
-
+[[Previous]](data-receipt-display.md)
+[[Up]](user-manual.md)

@@ -1,4 +1,6 @@
-<a href="change-param-values.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="datastore-task-dir.md">[Next]</a>
+[[Previous]](change-param-values.md)
+[[Up]](user-manual.md)
+[[Next]](datastore-task-dir.md)
 
 ## Intermediate Topics
 
@@ -16,4 +18,6 @@ How Ziggy knows how to divide work up into tasks, and much, much more.
 
 Everything you never wanted to know about how Ziggy sets paths, but were forced to find out.
 
-<a href="change-param-values.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="datastore-task-dir.md">[Next]</a>
+[[Previous]](change-param-values.md)
+[[Up]](user-manual.md)
+[[Next]](datastore-task-dir.md)

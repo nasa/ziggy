@@ -1,4 +1,6 @@
-<a href="configuring-pipeline.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="data-file-types.md">[Next]</a>
+[[Previous]](configuring-pipeline.md)
+[[Up]](configuring-pipeline.md)
+[[Next]](data-file-types.md)
 
 ## Module Parameters
 
@@ -39,4 +41,6 @@ Each individual parameter in a set has a name, a value, and a type. The allowed 
 
 Note that both the parameter set name and the parameter name can have whitespace in them. However, when the parameter sets are provided to the algorithm, as shown in the article on [Configuring a Pipeline](configuring-pipeline.md), it's done in a context that doesn't allow for whitespace. As a result, the parameter set names and parameter names will have any whitespace replaced with underscore ("_") characters. In my opinion, this is a recipe for confusion and annoying software bugs: you have two different names for parameters and/or parameter sets, but they're *almost* the same, and you need to remember exactly what the difference is and which part of the system uses each of the names. Still, if you want to do this, you can, which is why we're showing you how to do it (and then telling you not to).
 
-<a href="configuring-pipeline.md">[Previous]</a> <a href="configuring-pipeline.md">[Up]</a> <a href="data-file-types.md">[Next]</a>
+[[Previous]](configuring-pipeline.md)
+[[Up]](configuring-pipeline.md)
+[[Next]](data-file-types.md)

@@ -1,4 +1,6 @@
-<a href="advanced-topics.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="remote-dialog.md">[Next]</a>
+[[Previous]](advanced-topics.md)
+[[Up]](advanced-topics.md)
+[[Next]](remote-dialog.md)
 
 ### High Performance Computing Overview
 
@@ -91,5 +93,7 @@ Second: Ziggy allows you to automate the decision on whether a given number of s
 
 By using these two parameters, you can, in effect, tell Ziggy in advance about your decisions about whether to resubmit a task and whether to use remote execution even if the number of subtasks to process is fairly small.
 
-<a href="advanced-topics.md">[Previous]</a> <a href="advanced-topics.md">[Up]</a> <a href="remote-dialog.md">[Next]</a>
+[[Previous]](advanced-topics.md)
+[[Up]](advanced-topics.md)
+[[Next]](remote-dialog.md)
 

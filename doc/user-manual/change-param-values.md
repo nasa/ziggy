@@ -1,4 +1,6 @@
-<a href="start-end-nodes.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="intermediate-topics.md">[Next]</a>
+[[Previous]](start-end-nodes.md)
+[[Up]](ziggy-gui.md)
+[[Next]](intermediate-topics.md)
 
 ## Changing Module Parameter Values
 
@@ -28,4 +30,6 @@ This allows you to edit the array elements, remove them, add elements, etc., in 
 
 If you were to now run the sample pipeline, when you returned to the parameter library window, version 1 of `Algorithm Parameters` will show as locked.
 
-<a href="start-end-nodes.md">[Previous]</a> <a href="ziggy-gui.md">[Up]</a> <a href="intermediate-topics.md">[Next]</a>
+[[Previous]](start-end-nodes.md)
+[[Up]](ziggy-gui.md)
+[[Next]](intermediate-topics.md)

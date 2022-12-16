@@ -1,4 +1,6 @@
-<a href="pipeline-definition.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="rdbms.md">[Next]</a>
+[[Previous]](pipeline-definition.md)
+[[Up]](user-manual.md)
+[[Next]](rdbms.md)
 
 ## Building Your Pipeline
 
@@ -152,4 +154,6 @@ Note that while going through all this exposition, we've also sneakily built the
 
 Unfortunately, before you get there, we'll need to talk some about [relational databases](rdbms.md).
 
-<a href="pipeline-definition.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="rdbms.md">[Next]</a>
+[[Previous]](pipeline-definition.md)
+[[Up]](user-manual.md)
+[[Next]](rdbms.md)
