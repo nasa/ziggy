@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](start-end-nodes.md)
 [[Up]](ziggy-gui.md)
 [[Next]](intermediate-topics.md)

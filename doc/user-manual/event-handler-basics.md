@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 ## Event Handler Basics
 
 So far we've talked about Ziggy pipelines as being completely driven by human-in-the-loop control: a pipeline operator is required to launch any pipelines, after which the pipeline runs without further human assistance until it either completes or fails. This is acceptable at the scale of the sample pipeline that ships with Ziggy for demonstration purposes. As the volume of data increases, and more relevantly as the frequency of data deliveries increases, this becomes less desirable. At some data volume it becomes essential for Ziggy to have its own system for determining that some action is required and initiating that action without any help from a human.

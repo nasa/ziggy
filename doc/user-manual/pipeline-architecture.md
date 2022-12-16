@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](system-requirements.md)
 [[Up]](user-manual.md)
 [[Next]](downloading-and-building-ziggy.md)

@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](select-hpc.md)
 [[Up]](advanced-topics.md)
 [[Next]](hpc-cost.md)

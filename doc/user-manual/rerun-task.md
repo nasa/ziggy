@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](display-logs.md)
 [[Up]](ziggy-gui-troubleshooting.md)
 [[Next]](advanced-topics.md)

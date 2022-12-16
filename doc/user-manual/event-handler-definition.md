@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 ## Defining Event Handlers
 
 Defining an event handler is surprisingly easy. At least, it's surprising to me. Maybe it will be to you as well.

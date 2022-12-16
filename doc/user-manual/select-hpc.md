@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](advanced-topics.md)
 [[Up]](advanced-topics.md)
 [[Next]](remote-dialog.md)

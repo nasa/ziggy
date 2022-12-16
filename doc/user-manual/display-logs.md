@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](alerts.md)
 [[Up]](ziggy-gui-troubleshooting.md)
 [[Next]](rerun-task.md)

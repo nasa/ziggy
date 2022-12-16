@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 ## Remote Parameters
 
 The way that you set up a pipeline module to run on a remote (i.e., high-performance computing / cloud computing) system is to create a `ParameterSet` of the `RemoteParameters` class, and then make it a module parameter set for the desired node.

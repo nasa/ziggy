@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](module-parameters.md)
 [[Up]](configuring-pipeline.md)
 [[Next]](pipeline-definition.md)

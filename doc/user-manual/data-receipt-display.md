@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](data-receipt.md)
 [[Up]](advanced-topics.md)
 [[Next]](contact-us.md)

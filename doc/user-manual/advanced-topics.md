@@ -1,3 +1,5 @@
+<!-- -*-visual-line-*- -->
+
 [[Previous]](rerun-task.md)
 [[Up]](user-manual.md)
 [[Next]](select-hpc.md)
