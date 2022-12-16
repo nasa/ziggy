@@ -10,7 +10,7 @@ I ain't gonna lie to you: getting a full understanding of the Ziggy console is a
 
 As we go through it, we'll always use the sample pipeline to show what we're talking about in the most concrete way we can. 
 
-### [Start a Pipeline](start-pipeline.md)
+### [Starting a Pipeline](start-pipeline.md)
 
 This is probably the first thing you want to do: see an actual pipeline run! 
 
@@ -18,11 +18,11 @@ This is probably the first thing you want to do: see an actual pipeline run!
 
 Watch what Ziggyy is doing in real time.
 
-### [Change the Start and End Nodes](start-end-nodes.md)
+### [Changing the Start and End Nodes](start-end-nodes.md)
 
 There's no law that says you have to run the pipeline straight through from its first node to its last.
 
-### [Change Module Parameter Values](change-param-values.md)
+### [Changing Module Parameter Values](change-param-values.md)
 
 How the user adjusts the user-adjustable parameters. 
 
