@@ -47,7 +47,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -352,7 +351,7 @@ public class DefaultPipelineInputsTest {
 
         // move to the st-0 subtask directory
         Path subtaskDir = Paths.get(taskDir.getAbsolutePath(), "st-0");
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
 
         new DefaultPipelineInputs(mockedDataFileManager, alertService).populateSubTaskInputs();
 
@@ -393,7 +392,7 @@ public class DefaultPipelineInputsTest {
         // data is getting processed someplace
 
         subtaskDir = Paths.get(taskDir.getAbsolutePath(), "st-1");
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
 
         new DefaultPipelineInputs(mockedDataFileManager, alertService).populateSubTaskInputs();
 
@@ -439,7 +438,7 @@ public class DefaultPipelineInputsTest {
 
         // move to the st-0 subtask directory
         Path subtaskDir = Paths.get(taskDir.getAbsolutePath(), "st-0");
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
 
         defaultPipelineInputs.populateSubTaskInputs();
 

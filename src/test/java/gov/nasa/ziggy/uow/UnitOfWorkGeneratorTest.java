@@ -22,7 +22,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrudTest;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 /**
@@ -81,7 +80,7 @@ public class UnitOfWorkGeneratorTest {
      */
     @Test
     public void testExternalDefaultIdentifier() {
-        System.setProperty(PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME,
+        System.setProperty(PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME,
             "gov.nasa.ziggy.uow.UnitOfWorkGeneratorTest$SampleUnitOfWorkIdentifier");
         Class<?> generator = UnitOfWorkGenerator
             .defaultUnitOfWorkGenerator(PipelineTaskCrudTest.TestModule.class);

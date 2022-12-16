@@ -104,6 +104,7 @@ public class ZiggyEventHandlerTest {
         readyIndicator1 = testDataDir.resolve("gazelle.READY.mammal.1");
         readyIndicator2a = testDataDir.resolve("psittacus.READY.bird.2");
         readyIndicator2b = testDataDir.resolve("archosaur.READY.bird.2");
+        System.setProperty(DATA_RECEIPT_DIR_PROP_NAME, testDataDir.toString());
 
         // Create the directories: they need to be there to get the DR UOW generator to
         // do the right thing.

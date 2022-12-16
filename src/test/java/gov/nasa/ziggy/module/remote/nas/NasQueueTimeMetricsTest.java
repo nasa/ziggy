@@ -13,7 +13,6 @@ import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 
 /**
@@ -43,7 +42,7 @@ public class NasQueueTimeMetricsTest {
 
     @Test
     public void testArmdMetrics() {
-        System.setProperty(PropertyNames.NASA_DIRECTORATE_PROP_NAME, "ARMD");
+        System.setProperty(NASA_DIRECTORATE_PROP_NAME, "ARMD");
         instance.populate(QS_MOCK_OUTPUT_FILE);
         testValues(RemoteNodeDescriptor.SANDY_BRIDGE, 53.8, 1.0);
         testValues(RemoteNodeDescriptor.IVY_BRIDGE, 197.5, 122.4);
@@ -56,7 +55,7 @@ public class NasQueueTimeMetricsTest {
 
     @Test
     public void testHeomdMetrics() {
-        System.setProperty(PropertyNames.NASA_DIRECTORATE_PROP_NAME, "HEOMD");
+        System.setProperty(NASA_DIRECTORATE_PROP_NAME, "HEOMD");
         instance.populate(QS_MOCK_OUTPUT_FILE);
         testValues(RemoteNodeDescriptor.SANDY_BRIDGE, 278.4, 2.0);
         testValues(RemoteNodeDescriptor.IVY_BRIDGE, 218.9, 2.6);
@@ -69,7 +68,7 @@ public class NasQueueTimeMetricsTest {
 
     @Test
     public void testSmdMetrics() {
-        System.setProperty(PropertyNames.NASA_DIRECTORATE_PROP_NAME, "SMD");
+        System.setProperty(NASA_DIRECTORATE_PROP_NAME, "SMD");
         instance.populate(QS_MOCK_OUTPUT_FILE);
         testValues(RemoteNodeDescriptor.SANDY_BRIDGE, 175.7, 15.6);
         testValues(RemoteNodeDescriptor.IVY_BRIDGE, 199.8, 31.7);

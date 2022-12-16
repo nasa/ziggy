@@ -27,7 +27,6 @@ import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineResultsSample1;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineResultsSample2;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.services.config.PropertyNames;
 
 /**
  * Test class for PipelineInputs.
@@ -179,14 +178,14 @@ public class PipelineInputsTest {
         pipelineInputs.populateSubTaskInputs();
         File taskDirFile = new File(taskDir);
         String taskDirRoot = taskDirFile.getParent();
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME, taskDirRoot);
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, taskDirRoot);
         PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
         Mockito.when(pipelineTask.getModuleName()).thenReturn("pa");
         pipelineInputs.writeToTaskDir(pipelineTask, taskDirFile);
         File writtenInputsFile = new File(taskDirFile, "pa-inputs.h5");
         assertTrue(writtenInputsFile.exists());
 
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME,
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME,
             new File(taskDirFile, "st-12").getAbsolutePath());
         pipelineInputs = new PipelineInputsSample();
         assertEquals(0.0, pipelineInputs.getDvalue(), 1e-9);

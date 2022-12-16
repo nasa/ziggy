@@ -26,7 +26,6 @@ import org.xml.sax.SAXException;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBException;
 
@@ -171,7 +170,7 @@ public class ManifestTest {
 
     @Test
     public void testSchema() throws IOException {
-        Path schemaPath = Paths.get(System.getProperty(PropertyNames.ZIGGY_HOME_DIR_PROP_NAME),
+        Path schemaPath = Paths.get(System.getProperty(ZIGGY_HOME_DIR_PROP_NAME),
             "schema", "xml", new Manifest().getXmlSchemaFilename());
         List<String> schemaContent = Files.readAllLines(schemaPath);
 

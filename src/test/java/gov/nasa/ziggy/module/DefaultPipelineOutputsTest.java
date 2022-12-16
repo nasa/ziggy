@@ -30,7 +30,6 @@ import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.config.PropertyNames;
 
 public class DefaultPipelineOutputsTest {
 
@@ -129,7 +128,7 @@ public class DefaultPipelineOutputsTest {
 
         // Go to the subtask directory
         Path subtaskDir = taskDir.toPath().resolve("st-0");
-        System.setProperty(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
 
         // Populate the task results
         defaultPipelineOutputs.populateTaskResults();

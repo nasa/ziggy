@@ -29,7 +29,6 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
@@ -123,7 +122,7 @@ public class SubtaskExecutorTest {
         assertEquals("path1" + File.pathSeparator + "path2", e.libPath());
 
         // with MATLAB paths defined
-        System.setProperty(PropertyNames.MODULE_EXE_MCRROOT_PROPERTY_NAME, "/path/to/mcr/v22");
+        System.setProperty(MODULE_EXE_MCRROOT_PROPERTY_NAME, "/path/to/mcr/v22");
         e = new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
@@ -181,7 +180,7 @@ public class SubtaskExecutorTest {
         new File(binDir3, "pa").createNewFile();
         String binPath = phonyBinDir1 + File.pathSeparator + phonyBinDir2 + File.pathSeparator
             + binDir3;
-        System.setProperty(PropertyNames.MODULE_EXE_BINPATH_PROPERTY_NAME, binPath);
+        System.setProperty(MODULE_EXE_BINPATH_PROPERTY_NAME, binPath);
         SubtaskExecutor e = new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
