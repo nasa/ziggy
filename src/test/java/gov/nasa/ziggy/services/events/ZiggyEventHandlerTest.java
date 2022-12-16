@@ -2,6 +2,7 @@ package gov.nasa.ziggy.services.events;
 
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
@@ -70,7 +71,7 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 public class ZiggyEventHandlerTest {
 
     public static final String TEST_DATA_DIR = "events";
-    public static final String TEST_DATA_SRC = "test/data/EventPipeline";
+    public static final String TEST_DATA_SRC = TEST_DATA.resolve("EventPipeline").toString();
 
     public static long testStatusSleepTime;
 

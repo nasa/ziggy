@@ -1,8 +1,10 @@
 package gov.nasa.ziggy.data.management;
 
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.junit.Rule;
@@ -25,12 +27,16 @@ import jakarta.xml.bind.JAXBException;
  */
 public class DataFileTypeImporterTest {
 
-    private static final String FILE_1 = "test/data/datastore/pd-test-1.xml";
-    private static final String FILE_2 = "test/data/datastore/pd-test-2.xml";
+    private static final Path DATASTORE = TEST_DATA.resolve("datastore");
+    private static final String FILE_1 = DATASTORE.resolve("pd-test-1.xml").toString();
+
+    private static final String FILE_2 = DATASTORE.resolve("pd-test-2.xml").toString();
     private static final String NO_SUCH_FILE = "no-such-file.xml";
-    private static final String NOT_REGULAR_FILE = "test/data/configuration";
-    private static final String INVALID_FILE_1 = "test/data/datastore/pd-test-invalid-type.xml";
-    private static final String INVALID_FILE_2 = "test/data/datastore/pd-test-invalid-xml.xml";
+    private static final String NOT_REGULAR_FILE = TEST_DATA.resolve("configuration").toString();
+    private static final String INVALID_FILE_1 = DATASTORE.resolve("pd-test-invalid-type.xml")
+        .toString();
+    private static final String INVALID_FILE_2 = DATASTORE.resolve("pd-test-invalid-xml")
+        .toString();
 
     private DataFileTypeCrud dataFileTypeCrud = Mockito.mock(DataFileTypeCrud.class);
     private ModelCrud modelCrud = Mockito.mock(ModelCrud.class);

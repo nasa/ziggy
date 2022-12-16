@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.parameters;
 
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -304,7 +305,6 @@ public class ParametersOperationsTest {
 
             // export the library
             File invalidExportDir = directoryRule.directory().resolve("invalid-param-lib").toFile();
-            // File invalidExportDir = new File(Filenames.BUILD_TEST, "invalid-param-lib");
             FileUtils.forceMkdir(invalidExportDir);
             // should throw IllegalArgumentException
             paramOps.exportParameterLibrary(invalidExportDir.getAbsolutePath(), null,
@@ -322,15 +322,18 @@ public class ParametersOperationsTest {
     @Test(expected = UnmarshalException.class)
     public void testNonexistentParameter() throws Exception {
         ParametersOperations ops = new ParametersOperations();
-        ops.importParameterLibrary("src/test/resources/bad-parameter-library.xml",
-            Collections.emptyList(), ParamIoMode.STANDARD);
+        ops.importParameterLibrary(Paths.get("src")
+            .resolve("test")
+            .resolve("resources")
+            .resolve("bad-parameter-library.xml")
+            .toString(), Collections.emptyList(), ParamIoMode.STANDARD);
     }
 
     @Test
     public void testImportFromFile() throws Exception {
         ParametersOperations ops = new ParametersOperations();
-        List<ParameterSetDescriptor> paramsDescriptors = ops
-            .importParameterLibrary("test/data/paramlib/test.xml", null, ParamIoMode.NODB);
+        List<ParameterSetDescriptor> paramsDescriptors = ops.importParameterLibrary(
+            TEST_DATA.resolve("paramlib").resolve("test.xml").toString(), null, ParamIoMode.NODB);
         assertEquals(4, paramsDescriptors.size());
         for (ParameterSetDescriptor descriptor : paramsDescriptors) {
             assertEquals(ParameterSetDescriptor.State.CREATE, descriptor.getState());
@@ -412,7 +415,8 @@ public class ParametersOperationsTest {
         // Import the initial parameter library and persist to the database
         DatabaseTransactionFactory.performTransaction(() -> {
             ParametersOperations ops = new ParametersOperations();
-            ops.importParameterLibrary("test/data/paramlib/test.xml", null, ParamIoMode.STANDARD);
+            ops.importParameterLibrary(TEST_DATA.resolve("paramlib").resolve("test.xml").toString(),
+                null, ParamIoMode.STANDARD);
             return null;
         });
 
@@ -421,7 +425,8 @@ public class ParametersOperationsTest {
         List<ParameterSetDescriptor> descriptors = (List<ParameterSetDescriptor>) DatabaseTransactionFactory
             .performTransaction(() -> {
                 ParametersOperations ops = new ParametersOperations();
-                return ops.importParameterLibrary("test/data/paramlib/pl-overrides.xml", null,
+                return ops.importParameterLibrary(
+                    TEST_DATA.resolve("paramlib").resolve("pl-overrides.xml").toString(), null,
                     ParamIoMode.STANDARD);
             });
 
@@ -492,7 +497,8 @@ public class ParametersOperationsTest {
         // Import the initial parameter library and persist to the database
         DatabaseTransactionFactory.performTransaction(() -> {
             ParametersOperations ops = new ParametersOperations();
-            ops.importParameterLibrary("test/data/paramlib/test.xml", null, ParamIoMode.STANDARD);
+            ops.importParameterLibrary(TEST_DATA.resolve("paramlib").resolve("test.xml").toString(),
+                null, ParamIoMode.STANDARD);
             return null;
         });
 
@@ -501,8 +507,9 @@ public class ParametersOperationsTest {
         List<ParameterSetDescriptor> descriptors = (List<ParameterSetDescriptor>) DatabaseTransactionFactory
             .performTransaction(() -> {
                 ParametersOperations ops = new ParametersOperations();
-                return ops.importParameterLibrary(
-                    "test/data/paramlib/pl-replacement-param-sets.xml", null, ParamIoMode.STANDARD);
+                return ops.importParameterLibrary(TEST_DATA.resolve("paramlib")
+                    .resolve("pl-replacement-param-sets.xml")
+                    .toString(), null, ParamIoMode.STANDARD);
             });
 
         assertEquals(5, descriptors.size());
@@ -580,7 +587,8 @@ public class ParametersOperationsTest {
     @Test(expected = IllegalArgumentException.class)
     public void testMismatchedParameterImportException() throws Exception {
         ParametersOperations ops = new ParametersOperations();
-        ops.importParameterLibrary("test/data/paramlib/params-mismatch.xml", null,
+        ops.importParameterLibrary(
+            TEST_DATA.resolve("paramlib").resolve("params-mismatch.xml").toString(), null,
             ParamIoMode.STANDARD);
     }
 
@@ -591,12 +599,14 @@ public class ParametersOperationsTest {
         // Import the initial parameter library and persist to the database
         DatabaseTransactionFactory.performTransaction(() -> {
             ParametersOperations ops = new ParametersOperations();
-            ops.importParameterLibrary("test/data/paramlib/test.xml", null, ParamIoMode.STANDARD);
+            ops.importParameterLibrary(TEST_DATA.resolve("paramlib").resolve("test.xml").toString(),
+                null, ParamIoMode.STANDARD);
             return null;
         });
 
         ParametersOperations ops = new ParametersOperations();
-        ops.importParameterLibrary("test/data/paramlib/pl-override-mismatch.xml", null,
+        ops.importParameterLibrary(
+            TEST_DATA.resolve("paramlib").resolve("pl-override-mismatch.xml").toString(), null,
             ParamIoMode.STANDARD);
     }
 
@@ -607,12 +617,14 @@ public class ParametersOperationsTest {
         // Import the initial parameter library and persist to the database
         DatabaseTransactionFactory.performTransaction(() -> {
             ParametersOperations ops = new ParametersOperations();
-            ops.importParameterLibrary("test/data/paramlib/test.xml", null, ParamIoMode.STANDARD);
+            ops.importParameterLibrary(TEST_DATA.resolve("paramlib").resolve("test.xml").toString(),
+                null, ParamIoMode.STANDARD);
             return null;
         });
 
         ParametersOperations ops = new ParametersOperations();
-        ops.importParameterLibrary("test/data/paramlib/pl-override-bad-type.xml", null,
+        ops.importParameterLibrary(
+            TEST_DATA.resolve("paramlib").resolve("pl-override-bad-type.xml").toString(), null,
             ParamIoMode.STANDARD);
     }
 
@@ -623,12 +635,14 @@ public class ParametersOperationsTest {
         // Import the initial parameter library and persist to the database
         DatabaseTransactionFactory.performTransaction(() -> {
             ParametersOperations ops = new ParametersOperations();
-            ops.importParameterLibrary("test/data/paramlib/test.xml", null, ParamIoMode.STANDARD);
+            ops.importParameterLibrary(TEST_DATA.resolve("paramlib").resolve("test.xml").toString(),
+                null, ParamIoMode.STANDARD);
             return null;
         });
 
         ParametersOperations ops = new ParametersOperations();
-        ops.importParameterLibrary("test/data/paramlib/pl-override-new-param-set.xml", null,
+        ops.importParameterLibrary(
+            TEST_DATA.resolve("paramlib").resolve("pl-override-new-param-set.xml").toString(), null,
             ParamIoMode.STANDARD);
     }
 

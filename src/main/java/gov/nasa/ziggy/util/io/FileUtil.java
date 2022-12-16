@@ -266,7 +266,7 @@ public class FileUtil {
      */
     public static void cleanDirectoryTree(Path directory, boolean force) throws IOException {
         if (force) {
-            prepareDirectoryTreeForOverwrites(directory);
+            setPosixPermissionsRecursively(directory, "rw-r--r--", "rwxr-xr-x");
         }
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path file : stream) {

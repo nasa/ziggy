@@ -15,6 +15,7 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -31,12 +32,14 @@ public class DatastoreDirectoryUnitOfWorkTest {
     private Map<Class<? extends Parameters>, Parameters> parametersMap;
     private TaskConfigurationParameters taskConfigurationParameters;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR_PROP_NAME, directoryRule);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(datastoreRootDirPropertyRule);
 
     @Before
     public void setup() {
@@ -44,7 +47,6 @@ public class DatastoreDirectoryUnitOfWorkTest {
         datastoreRoot = directoryRule.directory();
         // Create the datastore.
         File datastore = datastoreRoot.toFile();
-        datastore.mkdirs();
 
         // create some directories within the datastore
         File sector0001 = new File(datastore, "sector-0001");

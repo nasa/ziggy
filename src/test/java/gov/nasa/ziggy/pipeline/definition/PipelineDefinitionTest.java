@@ -6,6 +6,7 @@ import static gov.nasa.ziggy.XmlUtils.compareXmlReferences;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.XmlUtils.nodeContent;
 import static gov.nasa.ziggy.XmlUtils.pipelineContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -57,7 +58,9 @@ public class PipelineDefinitionTest {
     @Before
     public void setUp() {
 
-        xmlUnmarshalingFile = new File("test/data/configuration/pipeline-definition.xml");
+        xmlUnmarshalingFile = TEST_DATA.resolve("configuration")
+            .resolve("pipeline-definition.xml")
+            .toFile();
         xmlFile = directoryRule.directory().resolve("pipeline-definition.xml").toFile();
         schemaFile = directoryRule.directory().resolve("pipeline-definition.xsd").toFile();
 

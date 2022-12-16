@@ -1,5 +1,7 @@
 package gov.nasa.ziggy;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 
 import org.hibernate.Hibernate;
@@ -84,5 +86,12 @@ public class ZiggyUnitTestUtils {
         Hibernate.initialize(user.getRoles());
         Hibernate.initialize(user.getPrivileges());
     }
+
+    /**
+     * Location of test/data relative to the working directory (assumed to be the main Ziggy
+     * directory, since that's where both Eclipse and Gradle set the working directory when they run
+     * tests).
+     */
+    public static final Path TEST_DATA = Paths.get("test", "data");
 
 }

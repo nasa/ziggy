@@ -2,6 +2,7 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -39,7 +40,9 @@ public class PipelineDefinitionFileTest {
     public void setUp() {
 
         // Set the working directory
-        xmlUnmarshalingFile = new File("test/data/configuration/pd-hyperion.xml");
+        xmlUnmarshalingFile = TEST_DATA.resolve("configuration")
+            .resolve("pd-hyperion.xml")
+            .toFile();
         schemaFile = directoryRule.directory().resolve("pipeline-file.xsd").toFile();
     }
 

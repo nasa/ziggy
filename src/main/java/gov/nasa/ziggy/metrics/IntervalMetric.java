@@ -113,8 +113,8 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      *
      * @param key
      */
-    protected void stop(IntervalMetricKey key, long systemCurrentTimeMillis) {
-        addValue(systemCurrentTimeMillis - key.getStartTime());
+    protected void stop(IntervalMetricKey key, long stopTime) {
+        addValue(stopTime - key.getStartTime());
     }
 
     @Override

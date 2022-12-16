@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.services.logging;
 
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -24,7 +25,9 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 
 public class FileAppenderTest {
 
-    private static final String LOG4J_CONFIG_FILE = "test/data/logging/log4j2.xml";
+    private static final String LOG4J_CONFIG_FILE = TEST_DATA.resolve("logging")
+        .resolve("log4j2.xml")
+        .toString();
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();

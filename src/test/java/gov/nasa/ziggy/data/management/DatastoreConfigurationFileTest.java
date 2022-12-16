@@ -2,6 +2,7 @@ package gov.nasa.ziggy.data.management;
 
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 
@@ -47,7 +48,7 @@ public class DatastoreConfigurationFileTest {
 
     @Before
     public void setUp() {
-        xmlUnmarshalingFile = new File("test/data/datastore/pd-test-1.xml");
+        xmlUnmarshalingFile = TEST_DATA.resolve("datastore").resolve("pd-test-1.xml").toFile();
         schemaFile = directoryRule.directory().resolve("pipeline-file.xsd").toFile();
     }
 

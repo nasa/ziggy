@@ -8,7 +8,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,7 +15,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -31,11 +29,11 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
  * @author Bill Wohler
  */
 public class FileUtilTest {
-    private File testDir;
-    private File archiveDir;
-    private File testRegularFile;
-    private File testSubdir;
-    private File testSubdirRegularFile;
+    private Path testDir;
+    private Path archiveDir;
+    private Path testRegularFile;
+    private Path testSubdir;
+    private Path testSubdirRegularFile;
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
@@ -50,42 +48,39 @@ public class FileUtilTest {
 
     @Before
     public void setUp() throws IOException {
-        testDir = directoryRule.directory().toFile();
-        testDir.mkdir();
-        archiveDir = new File(testDir, "testTar");
-        archiveDir.mkdir();
-        testRegularFile = new File(testDir, "regular-file.txt");
-        FileUtils.touch(testRegularFile);
-        testSubdir = new File(testDir, "sub-dir");
-        testSubdir.mkdir();
-        testSubdirRegularFile = new File(testSubdir, "another-regular-file.txt");
-        FileUtils.touch(testSubdirRegularFile);
+        testDir = directoryRule.directory();
+        archiveDir = testDir.resolve("testTar");
+        Files.createDirectories(archiveDir);
+        testRegularFile = testDir.resolve("regular-file.txt");
+        Files.createFile(testRegularFile);
+        testSubdir = testDir.resolve("sub-dir");
+        Files.createDirectories(testSubdir);
+        testSubdirRegularFile = testSubdir.resolve("another-regular-file.txt");
+        Files.createFile(testSubdirRegularFile);
     }
 
     @Test
     public void testRegularFilesInDirTree() throws IOException {
 
         // Get a file to find size of
-        Path testDirPath = testDir.toPath();
-        Path testSubdirPath = testSubdir.toPath();
+        Path testDirPath = testDir;
         Path codeRoot = Paths.get(SystemUtils.USER_DIR);
         Path testSrcFile = codeRoot
             .resolve(Paths.get("test", "data", "configuration", "pipeline-definition.xml"));
-        Path testFile = testDir.toPath().resolve("pipeline-definition.xml");
+        Path testFile = testDir.resolve("pipeline-definition.xml");
         Files.copy(testSrcFile, testFile);
 
         // Real file in a subdirectory
-        new File(testDir, "sub-dir").mkdirs();
-        Path subDirTestFile = testSubdirPath.resolve(Paths.get("pipeline-definition.xml"));
+        Path subDirTestFile = testSubdir.resolve(Paths.get("pipeline-definition.xml"));
         Files.copy(testSrcFile, subDirTestFile);
 
         // Symlinked file in a real directory
-        Files.createSymbolicLink(
-            testSubdirPath.resolve(Paths.get("pipeline-definition-symlink.xml")), testSrcFile);
+        Files.createSymbolicLink(testSubdir.resolve(Paths.get("pipeline-definition-symlink.xml")),
+            testSrcFile);
 
         // Symbolic link to a directory
         Path symlinkSubdir = testDirPath.resolve(Paths.get("symlink-sub-dir"));
-        Files.createSymbolicLink(symlinkSubdir, testSubdirPath.toAbsolutePath());
+        Files.createSymbolicLink(symlinkSubdir, testSubdir.toAbsolutePath());
 
         Map<Path, Path> regularFiles = FileUtil.regularFilesInDirTree(testDirPath);
         assertEquals(8, regularFiles.size());
@@ -95,14 +90,14 @@ public class FileUtilTest {
         assertNotNull(valuePath);
         assertEquals(testFile.toAbsolutePath(), valuePath);
 
-        valuePath = regularFiles.get(testDirPath.relativize(testRegularFile.toPath()));
+        valuePath = regularFiles.get(testDirPath.relativize(testRegularFile));
         assertNotNull(valuePath);
-        assertEquals(testRegularFile.toPath().toAbsolutePath(), valuePath);
+        assertEquals(testRegularFile.toAbsolutePath(), valuePath);
 
         // sub-dir directory
-        valuePath = regularFiles.get(testDirPath.relativize(testSubdirRegularFile.toPath()));
+        valuePath = regularFiles.get(testDirPath.relativize(testSubdirRegularFile));
         assertNotNull(valuePath);
-        assertEquals(testSubdirRegularFile.toPath().toAbsolutePath(), valuePath);
+        assertEquals(testSubdirRegularFile.toAbsolutePath(), valuePath);
 
         valuePath = regularFiles.get(testDirPath.relativize(subDirTestFile));
         assertNotNull(valuePath);
@@ -155,51 +150,35 @@ public class FileUtilTest {
 
         // Set permissions restrictively
         assertNotEquals("r-x------",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
-        FileUtil.setPosixPermissionsRecursively(testDir.toPath(), "r--------", "r-x------");
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir)));
+        FileUtil.setPosixPermissionsRecursively(testDir, "r--------", "r-x------");
         assertEquals("r-x------",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir)));
         assertEquals("r-x------",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir)));
         assertEquals("r--------",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
-        assertEquals("r--------", PosixFilePermissions
-            .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile)));
+        assertEquals("r--------",
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdirRegularFile)));
 
-    }
-
-    @Test
-    public void testOverwriteAndReadOnlyPermissions() throws IOException {
-
-        assertNotEquals("r-x------",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
-        FileUtil.prepareDirectoryTreeForOverwrites(testDir.toPath());
-        assertEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
-        assertEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
-        assertEquals(FileUtil.FILE_OVERWRITE_PERMISSIONS,
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
-        assertEquals(FileUtil.FILE_OVERWRITE_PERMISSIONS, PosixFilePermissions
-            .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
-
-        FileUtil.writeProtectDirectoryTree(testDir.toPath());
-        assertEquals(FileUtil.DIR_READONLY_PERMISSIONS,
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
-        assertEquals(FileUtil.DIR_READONLY_PERMISSIONS,
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
-        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS,
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
-        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS, PosixFilePermissions
-            .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
+        // Set permissions loosely and uniformly for directories and files
+        FileUtil.setPosixPermissionsRecursively(testDir, "rwxrwxrwx");
+        assertEquals("rwxrwxrwx",
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir)));
+        assertEquals("rwxrwxrwx",
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir)));
+        assertEquals("rwxrwxrwx",
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile)));
+        assertEquals("rwxrwxrwx",
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdirRegularFile)));
 
     }
 
     @Test
     public void testCleanDirectoryTree() throws IOException {
-        FileUtil.cleanDirectoryTree(testDir.toPath());
-        assertTrue(testDir.exists());
-        assertFalse(archiveDir.exists());
-        assertFalse(testSubdir.exists());
+        FileUtil.cleanDirectoryTree(testDir);
+        assertTrue(Files.isDirectory(testDir));
+        assertFalse(Files.exists(archiveDir));
+        assertFalse(Files.exists(testSubdir));
     }
 }

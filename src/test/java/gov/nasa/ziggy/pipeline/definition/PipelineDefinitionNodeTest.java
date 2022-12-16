@@ -3,6 +3,7 @@ package gov.nasa.ziggy.pipeline.definition;
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.XmlUtils.nodeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -43,7 +44,6 @@ import jakarta.xml.bind.annotation.XmlRootElement;
  */
 public class PipelineDefinitionNodeTest {
 
-    private String workingDirName;
     private Node node;
     private File xmlFile;
     private File xmlUnmarshalingFile;
@@ -56,7 +56,7 @@ public class PipelineDefinitionNodeTest {
     public void setUp() {
 
         // Set the working directory
-        xmlUnmarshalingFile = new File("test/data/configuration/node.xml");
+        xmlUnmarshalingFile = TEST_DATA.resolve("configuration").resolve("node.xml").toFile();
         xmlFile = directoryRule.directory().resolve("node.xml").toFile();
         schemaFile = directoryRule.directory().resolve("node.xsd").toFile();
 

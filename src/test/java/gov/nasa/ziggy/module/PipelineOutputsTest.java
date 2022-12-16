@@ -7,6 +7,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -29,7 +32,7 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
  */
 public class PipelineOutputsTest {
 
-    private String taskDir;
+    private Path taskDir;
     private String filename = ModuleInterfaceUtils.outputsFileName("pa", 0);
     private String otherFilename = ModuleInterfaceUtils.outputsFileName("pa", 2);
 
@@ -45,16 +48,13 @@ public class PipelineOutputsTest {
         ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
 
     @Before
-	public void setup() throws IOException {
+    public void setup() throws IOException {
 
-        taskDir = directoryRule.directory().resolve("100-200-pa").toString();
-        String workingDir = directoryRule.directory()
-            .resolve("100-200-pa")
-            .resolve("st-12")
-            .toString();
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir);
+        taskDir = directoryRule.directory().resolve("100-200-pa");
+        Path workingDir = taskDir.resolve("st-12");
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir.toString());
         // Create the task dir and the subtask dir
-        new File(workingDir).mkdirs();
+        Files.createDirectories(workingDir);
 
         // create the outputs object and save to a file
         PipelineOutputsSample1 p = new PipelineOutputsSample1();
@@ -109,7 +109,7 @@ public class PipelineOutputsTest {
         for (int i = 0; i < 3; i++) {
             String fname = "pa-001234567-" + i + "-results.h5";
             PipelineResultsSample1 pr = new PipelineResultsSample1();
-            h.readFile(new File(taskDir, fname), pr, true);
+            h.readFile(taskDir.resolve(fname).toFile(), pr, true);
             assertEquals(200L, pr.getOriginator());
             assertEquals(ivalues[i], pr.getValue());
         }

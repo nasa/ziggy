@@ -22,7 +22,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -66,7 +65,6 @@ public class PrimitiveHdf5ArrayTest {
     public void setup() throws HDF5LibraryException, NullPointerException, IOException {
 
         // create an HDF5 file in the temporary folder
-        Files.createDirectories(directoryRule.directory());
         hdf5File = directoryRule.directory().resolve("hdf5TestFile.h5").toFile();
         fileId = H5.H5Fcreate(hdf5File.getAbsolutePath(), HDF5Constants.H5F_ACC_TRUNC, H5P_DEFAULT,
             H5P_DEFAULT);

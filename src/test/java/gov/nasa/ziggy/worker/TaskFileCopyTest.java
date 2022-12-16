@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.worker;
 
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -9,6 +10,7 @@ import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -20,7 +22,9 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 
 public class TaskFileCopyTest {
 
-    private static final String SOURCE_DIR = "test/data/TaskFileCopy/src";
+    private static final String SOURCE_DIR = TEST_DATA.resolve("TaskFileCopy")
+        .resolve("src")
+        .toString();
 
     private static final int PIPELINE_INSTANCE_ID = 17;
     private static final int PIPELINE_TASK_ID = 65;
@@ -33,12 +37,14 @@ public class TaskFileCopyTest {
     private File binFile;
     private File metricsFile;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
         directoryRule);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(resultsDirPropertyRule);
 
     public void setUp() throws Exception {
 

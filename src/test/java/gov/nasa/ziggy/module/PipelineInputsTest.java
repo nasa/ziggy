@@ -6,6 +6,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +38,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  */
 public class PipelineInputsTest {
 
-    private String taskDir;
+    private Path taskDir;
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
@@ -49,31 +52,31 @@ public class PipelineInputsTest {
         DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
 
     @Before
-    public void setup() {
+    public void setup() throws IOException {
 
-        taskDir = directoryRule.directory().resolve("1-2-pa").toString();
-        String workingDir = directoryRule.directory().resolve("1-2-pa").resolve("st-12").toString();
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir);
+        taskDir = directoryRule.directory().resolve("1-2-pa");
+        Path workingDir = taskDir.resolve("st-12");
+        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir.toString());
         // Create the task dir and the subtask dir
-        new File(workingDir).mkdirs();
+        Files.createDirectories(workingDir);
 
         PipelineResultsSample1 p = new PipelineResultsSample1();
         p.setOriginator(100L);
         p.setValue(-50);
         Hdf5ModuleInterface h = new Hdf5ModuleInterface();
-        h.writeFile(new File(taskDir, "pa-001234567-20-results.h5"), p, true);
+        h.writeFile(taskDir.resolve("pa-001234567-20-results.h5").toFile(), p, true);
         p = new PipelineResultsSample1();
         p.setOriginator(100L);
         p.setValue(-30);
-        h.writeFile(new File(taskDir, "pa-765432100-20-results.h5"), p, true);
+        h.writeFile(taskDir.resolve("pa-765432100-20-results.h5").toFile(), p, true);
         PipelineResultsSample2 p2 = new PipelineResultsSample2();
         p2.setOriginator(99L);
         p2.setFvalue(92.7F);
-        h.writeFile(new File(taskDir, "cal-1-1-B-20-results.h5"), p, true);
+        h.writeFile(taskDir.resolve("cal-1-1-B-20-results.h5").toFile(), p, true);
 
         // add a task configuration file
         TaskConfigurationManager taskConfigurationManager = new TaskConfigurationManager(
-            new File(taskDir));
+            taskDir.toFile());
         Set<String> wrongInstance = new TreeSet<>();
         wrongInstance.add("wrong");
         Set<String> rightInstance = new TreeSet<>();
@@ -127,8 +130,8 @@ public class PipelineInputsTest {
         pipelineInputs.writeSubTaskInputs(0);
         Hdf5ModuleInterface h = new Hdf5ModuleInterface();
         PipelineInputsSample inputsFromFile = new PipelineInputsSample();
-        File subTaskDir = new File(taskDir, "st-12");
-        h.readFile(new File(subTaskDir, "pa-inputs-0.h5"), inputsFromFile, true);
+        Path subTaskDir = taskDir.resolve("st-12");
+        h.readFile(subTaskDir.resolve("pa-inputs-0.h5").toFile(), inputsFromFile, true);
         assertEquals(105.3, inputsFromFile.getDvalue(), 1e-9);
     }
 
@@ -176,7 +179,7 @@ public class PipelineInputsTest {
     public void testReadWriteToTaskDir() {
         PipelineInputsSample pipelineInputs = new PipelineInputsSample();
         pipelineInputs.populateSubTaskInputs();
-        File taskDirFile = new File(taskDir);
+        File taskDirFile = taskDir.toFile();
         String taskDirRoot = taskDirFile.getParent();
         System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, taskDirRoot);
         PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);

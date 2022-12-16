@@ -3,6 +3,7 @@ package gov.nasa.ziggy.data.management;
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.XmlUtils.simpleTypeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.data.management.Manifest.manifestEntryAckEntryEquals;
 import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
@@ -43,7 +44,7 @@ import gov.nasa.ziggy.util.io.FileUtil;
 public class AcknowledgementTest {
 
     public static final String TEST_DATA_DIR = "manifest";
-    public static final String TEST_DATA_SRC = "test/data/configuration";
+    public static final String TEST_DATA_SRC = TEST_DATA.resolve("configuration").toString();
 
     private Path testDataDir;
 

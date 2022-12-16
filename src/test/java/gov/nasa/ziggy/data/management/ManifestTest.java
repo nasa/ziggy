@@ -3,6 +3,7 @@ package gov.nasa.ziggy.data.management;
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.XmlUtils.simpleTypeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
@@ -36,8 +37,8 @@ import jakarta.xml.bind.JAXBException;
  */
 public class ManifestTest {
 
-    public static final String TEST_DATA_DIR = "build/test/manifest";
-    public static final String TEST_DATA_SRC = "test/data/configuration";
+    public static final String TEST_DATA_DIR = "manifest";
+    public static final String TEST_DATA_SRC = TEST_DATA.resolve("configuration").toString();
 
     private Path testDataDir;
     private Path subDir;
@@ -57,7 +58,6 @@ public class ManifestTest {
     @Before
     public void setUp() {
         testDataDir = ziggyDirectoryRule.directory().resolve(TEST_DATA_DIR);
-//        testDataDir = Paths.get(TEST_DATA_DIR);
         testDataDir.toFile().mkdirs();
         subDir = testDataDir.resolve("sub-directory");
     }
@@ -170,8 +170,8 @@ public class ManifestTest {
 
     @Test
     public void testSchema() throws IOException {
-        Path schemaPath = Paths.get(System.getProperty(ZIGGY_HOME_DIR_PROP_NAME),
-            "schema", "xml", new Manifest().getXmlSchemaFilename());
+        Path schemaPath = Paths.get(System.getProperty(ZIGGY_HOME_DIR_PROP_NAME), "schema", "xml",
+            new Manifest().getXmlSchemaFilename());
         List<String> schemaContent = Files.readAllLines(schemaPath);
 
         assertContains(schemaContent, "<xs:element name=\"manifest\" type=\"manifest\"/>");

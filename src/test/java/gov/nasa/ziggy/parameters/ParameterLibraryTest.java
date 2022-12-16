@@ -2,6 +2,7 @@ package gov.nasa.ziggy.parameters;
 
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -39,7 +40,7 @@ public class ParameterLibraryTest {
     public void setUp() {
 
         // Set the working directory
-        xmlUnmarshalingFile = new File("test/data/paramlib/pl-hyperion.xml");
+        xmlUnmarshalingFile = TEST_DATA.resolve("paramlib").resolve("pl-hyperion.xml").toFile();
         schemaFile = directoryRule.directory().resolve("param-lib.xsd").toFile();
     }
 

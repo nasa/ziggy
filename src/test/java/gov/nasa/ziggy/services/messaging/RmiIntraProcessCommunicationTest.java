@@ -18,10 +18,10 @@ import java.util.Set;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.TestEventDetector;
+import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ServerSideMessageHandlerForTest;
@@ -48,9 +48,6 @@ public class RmiIntraProcessCommunicationTest {
     private int port = 4788;
     private Registry registry;
     private ProcessHeartbeatManager heartbeatManager = mock(ProcessHeartbeatManager.class);
-
-    @Rule
-    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Before
     public void setup() {

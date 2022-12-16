@@ -2,12 +2,14 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import javax.xml.transform.Result;
@@ -50,8 +52,9 @@ public class PipelineModuleDefinitionTest {
     public void setUp() {
 
         // Set the working directory
-        xmlUnmarshalingFile1 = new File("test/data/configuration/module1.xml");
-        xmlUnmarshalingFile2 = new File("test/data/configuration/module2.xml");
+        Path xmlUnmarshalingPath = TEST_DATA.resolve("configuration");
+        xmlUnmarshalingFile1 = xmlUnmarshalingPath.resolve("module1.xml").toFile();
+        xmlUnmarshalingFile2 = xmlUnmarshalingPath.resolve("module2.xml").toFile();
         xmlFile = directoryRule.directory().resolve("modules.xml").toFile();
         schemaFile = directoryRule.directory().resolve("modules.xml").toFile();
 

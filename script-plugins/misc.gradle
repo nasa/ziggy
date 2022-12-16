@@ -22,8 +22,7 @@ clean.doFirst() {
 }
 
 task setBuildTestPermissions(type : Exec) {
-	workingDir "$buildDir/test"
-	commandLine "chmod", "-R", "u+wx", "."
+	commandLine "chmod", "-R", "u+wx", "$buildDir/test"
 }
 
 clean.dependsOn setBuildTestPermissions

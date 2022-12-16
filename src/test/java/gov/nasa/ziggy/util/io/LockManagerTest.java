@@ -27,15 +27,15 @@ public class LockManagerTest {
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    private Path LOCK_FILE_ONE;
-    private Path LOCK_FILE_TWO;
+    private Path lockFileOne;
+    private Path lockFileTwo;
 
     @Before
     public void setUp() throws IOException {
-        LOCK_FILE_ONE = directoryRule.directory().resolve("one.lock");
-        LOCK_FILE_TWO = directoryRule.directory().resolve("two.lock");
-        createLockFile(LOCK_FILE_ONE);
-        createLockFile(LOCK_FILE_TWO);
+        lockFileOne = directoryRule.directory().resolve("one.lock");
+        lockFileTwo = directoryRule.directory().resolve("two.lock");
+        createLockFile(lockFileOne);
+        createLockFile(lockFileTwo);
     }
 
     @After
@@ -57,13 +57,13 @@ public class LockManagerTest {
      */
     @Test
     public void testReadLockDoesNotBlockReader() throws IOException, InterruptedException {
-        LockManager.getReadLock(LOCK_FILE_ONE.toFile());
-        ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
+        LockManager.getReadLock(lockFileOne.toFile());
+        ReaderTask task = new ReaderTask(lockFileOne);
         task.start();
         task.join();
         assertTrue(task.isLockObtained());
         assertFalse(task.isBlocked());
-        LockManager.releaseReadLock(LOCK_FILE_ONE.toFile());
+        LockManager.releaseReadLock(lockFileOne.toFile());
     }
 
     /**
@@ -71,15 +71,15 @@ public class LockManagerTest {
      */
     @Test
     public void testWriteLockBlocksReader() throws IOException, InterruptedException {
-        LockManager.getWriteLockOrBlock(LOCK_FILE_ONE.toFile());
-        ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
+        LockManager.getWriteLockOrBlock(lockFileOne.toFile());
+        ReaderTask task = new ReaderTask(lockFileOne);
         task.start();
         TestEventDetector.detectTestEvent(500L, () -> {
             return task.isLockAttempted();
         });
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
-        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
+        LockManager.releaseWriteLock(lockFileOne.toFile());
         task.join();
         assertFalse(task.isBlocked());
         assertTrue(task.isLockObtained());
@@ -91,15 +91,15 @@ public class LockManagerTest {
      */
     @Test
     public void tesNonBlockingtWriteLockBlocksReader() throws IOException, InterruptedException {
-        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
-        ReaderTask task = new ReaderTask(LOCK_FILE_ONE);
+        LockManager.getWriteLockWithoutBlocking(lockFileOne.toFile());
+        ReaderTask task = new ReaderTask(lockFileOne);
         task.start();
         TestEventDetector.detectTestEvent(500L, () -> {
             return task.isLockAttempted();
         });
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
-        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
+        LockManager.releaseWriteLock(lockFileOne.toFile());
         task.join();
         assertFalse(task.isBlocked());
         assertTrue(task.isLockObtained());
@@ -111,15 +111,15 @@ public class LockManagerTest {
      */
     @Test
     public void testWriteLockBlocksWriter() throws IOException, InterruptedException {
-        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
-        BlockingWriterTask task = new BlockingWriterTask(LOCK_FILE_ONE);
+        LockManager.getWriteLockWithoutBlocking(lockFileOne.toFile());
+        BlockingWriterTask task = new BlockingWriterTask(lockFileOne);
         task.start();
         TestEventDetector.detectTestEvent(500L, () -> {
             return task.isLockAttempted();
         });
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
-        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
+        LockManager.releaseWriteLock(lockFileOne.toFile());
         task.join();
         assertFalse(task.isBlocked());
         assertTrue(task.isLockObtained());
@@ -131,15 +131,15 @@ public class LockManagerTest {
      */
     @Test
     public void testWriteLockDoesNotBlockWriter() throws IOException, InterruptedException {
-        LockManager.getWriteLockWithoutBlocking(LOCK_FILE_ONE.toFile());
-        NonBlockingWriterTask task = new NonBlockingWriterTask(LOCK_FILE_ONE);
+        LockManager.getWriteLockWithoutBlocking(lockFileOne.toFile());
+        NonBlockingWriterTask task = new NonBlockingWriterTask(lockFileOne);
         task.start();
         TestEventDetector.detectTestEvent(500L, () -> {
             return task.isDoneTryingLock();
         });
         assertFalse(task.isBlocked());
         assertFalse(task.isLockObtained());
-        LockManager.releaseWriteLock(LOCK_FILE_ONE.toFile());
+        LockManager.releaseWriteLock(lockFileOne.toFile());
         task.join();
         assertFalse(task.isBlocked());
         assertFalse(task.isLockObtained());
@@ -151,7 +151,7 @@ public class LockManagerTest {
     @Test
     public void testNonBlockingWriteLockReturnValue() throws InterruptedException {
 
-        NonBlockingWriterTask task = new NonBlockingWriterTask(LOCK_FILE_ONE);
+        NonBlockingWriterTask task = new NonBlockingWriterTask(lockFileOne);
         task.start();
         task.join();
         assertTrue(task.isLockObtained());

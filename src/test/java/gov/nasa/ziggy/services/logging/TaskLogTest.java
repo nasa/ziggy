@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.services.logging;
 
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -22,6 +23,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +43,9 @@ import gov.nasa.ziggy.services.logging.TaskLog.LogType;
  * @author PT
  */
 public class TaskLogTest {
-    private static final String LOG4J_CONFIG_FILE = "test/data/logging/log4j2.xml";
+    private static final String LOG4J_CONFIG_FILE = TEST_DATA.resolve("logging")
+        .resolve("log4j2.xml")
+        .toString();
     private static Logger log;
 
     private static final String TEST_LOG_MESSAGE_1 = "test log message 1";
@@ -65,16 +69,18 @@ public class TaskLogTest {
 
     private Long timestamp;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule log4j2ConfigurationFilePropertyRule = new ZiggyPropertyRule(
         "log4j2.configurationFile", LOG4J_CONFIG_FILE);
 
-    @Rule
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
         directoryRule);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(resultsDirPropertyRule);
 
     @Before
     public void setup() {

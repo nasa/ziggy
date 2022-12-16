@@ -17,6 +17,7 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -34,12 +35,14 @@ public class DataReceiptUnitOfWorkGeneratorTest {
     Map<Class<? extends Parameters>, Parameters> parametersMap;
     TaskConfigurationParameters taskConfig;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
         DATA_RECEIPT_DIR_PROP_NAME, directoryRule, "data-import");
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(dataReceiptDirPropertyRule);
 
     @Before
     public void setUp() throws IOException {
