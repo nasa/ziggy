@@ -160,6 +160,11 @@ task runByNameTest(type: Test) {
     }
 }
 
+// Task specified by the Ziggy Software Management Plan (SMP) to run all tests.
+task testAll
+
+testAll.dependsOn test, integrationTest
+
 javadoc {
     title = "Ziggy API"
     options.overview = "src/main/java/overview.html"
