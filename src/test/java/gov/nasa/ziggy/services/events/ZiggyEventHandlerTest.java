@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.configuration.CompositeConfiguration;
-import org.apache.commons.lang3.SystemUtils;
 import org.hibernate.Hibernate;
 import org.junit.Before;
 import org.junit.Rule;
@@ -56,6 +55,7 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
@@ -91,7 +91,7 @@ public class ZiggyEventHandlerTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
@@ -218,8 +218,7 @@ public class ZiggyEventHandlerTest {
 
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> {
-                List<ZiggyEvent> ziggyEvents = new ZiggyEventCrud().retrieveAllEvents();
-                return ziggyEvents;
+                return new ZiggyEventCrud().retrieveAllEvents();
             });
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
@@ -276,8 +275,7 @@ public class ZiggyEventHandlerTest {
         Files.createFile(readyIndicator1);
         ziggyEventHandler.run();
         events = (List<ZiggyEvent>) DatabaseTransactionFactory.performTransaction(() -> {
-            List<ZiggyEvent> ziggyEvents = new ZiggyEventCrud().retrieveAllEvents();
-            return ziggyEvents;
+            return new ZiggyEventCrud().retrieveAllEvents();
         });
         assertEquals(2, events.size());
     }
@@ -303,8 +301,7 @@ public class ZiggyEventHandlerTest {
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> {
-                List<ZiggyEvent> ziggyEvents = new ZiggyEventCrud().retrieveAllEvents();
-                return ziggyEvents;
+                return new ZiggyEventCrud().retrieveAllEvents();
             });
 
         // Now we should see an event in the database.
@@ -361,8 +358,7 @@ public class ZiggyEventHandlerTest {
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> {
-                List<ZiggyEvent> ziggyEvents = new ZiggyEventCrud().retrieveAllEvents();
-                return ziggyEvents;
+                return new ZiggyEventCrud().retrieveAllEvents();
             });
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
@@ -434,8 +430,7 @@ public class ZiggyEventHandlerTest {
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> {
-                List<ZiggyEvent> ziggyEvents = new ZiggyEventCrud().retrieveAllEvents();
-                return ziggyEvents;
+                return new ZiggyEventCrud().retrieveAllEvents();
             });
         assertEquals(2, events.size());
     }
@@ -457,8 +452,7 @@ public class ZiggyEventHandlerTest {
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> {
-                List<ZiggyEvent> ziggyEvents = new ZiggyEventCrud().retrieveAllEvents();
-                return ziggyEvents;
+                return new ZiggyEventCrud().retrieveAllEvents();
             });
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);

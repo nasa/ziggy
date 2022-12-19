@@ -200,11 +200,9 @@ public class ProcessHeartbeatManagerTest {
         verify(externalMethods, times(0)).setRmiIndicator(Indicator.State.RED);
         verify(externalMethods, times(2)).setRmiIndicator(Indicator.State.GREEN);
         assertFalse(manager.getHeartbeatListener().isShutdown());
-
     }
 
     private void sendHeartbeat() {
         new WorkerHeartbeatMessage().handleMessage(messageHandler);
     }
-
 }

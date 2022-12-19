@@ -5,12 +5,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.hibernate.Hibernate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -20,12 +18,14 @@ import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.parameters.ParametersOperations;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 /**
@@ -39,13 +39,13 @@ public class PipelineDefinitionOperationsTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Test
     public void testMultipleDefaultParamSets() throws Exception {
 
         // Define the path to the pipeline definitions directory
-        Path pipelineDefsDir = Paths.get(SystemUtils.USER_DIR, "test", "data", "classwrapper");
+        Path pipelineDefsDir = ZiggyUnitTestUtils.TEST_DATA.resolve("classwrapper");
 
         // Read in the parameter library
         DatabaseTransactionFactory.performTransaction(() -> {
@@ -89,10 +89,8 @@ public class PipelineDefinitionOperationsTest {
 
         // Create a pipeline instance for this pipeline
         PipelineInstance pipelineInstance = (PipelineInstance) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new PipelineExecutor().launch(pipelineDef, "instance-name", null, null)
-                    .getPipelineInstance();
-            });
+            .performTransaction(() -> new PipelineExecutor().launch(pipelineDef, "instance-name", null, null)
+                .getPipelineInstance());
 
         Map<ClassWrapper<Parameters>, ParameterSet> pipelineParameters = pipelineInstance
             .getPipelineParameterSets();

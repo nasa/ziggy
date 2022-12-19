@@ -15,13 +15,13 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.ZiggyUnitTestUtils;
 
 /**
  * Tests the {@link FileUtil} class.
@@ -64,9 +64,8 @@ public class FileUtilTest {
 
         // Get a file to find size of
         Path testDirPath = testDir;
-        Path codeRoot = Paths.get(SystemUtils.USER_DIR);
-        Path testSrcFile = codeRoot
-            .resolve(Paths.get("test", "data", "configuration", "pipeline-definition.xml"));
+        Path testSrcFile = ZiggyUnitTestUtils.TEST_DATA.resolve("configuration")
+            .resolve("pipeline-definition.xml");
         Path testFile = testDir.resolve("pipeline-definition.xml");
         Files.copy(testSrcFile, testFile);
 

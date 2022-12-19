@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Before;
 import org.junit.Rule;
@@ -42,6 +41,7 @@ import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import jakarta.xml.bind.UnmarshalException;
 
@@ -69,7 +69,7 @@ public class ParametersOperationsTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();

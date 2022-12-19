@@ -5,7 +5,6 @@ import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_N
 import static org.junit.Assert.assertEquals;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,6 +17,7 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -43,7 +43,7 @@ public class DataFileTypeImporterTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get("build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
 
     // Basic functionality -- multiple files, multiple definitions, get imported
     @Test

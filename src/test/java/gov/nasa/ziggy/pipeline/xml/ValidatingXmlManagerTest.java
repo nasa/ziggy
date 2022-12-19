@@ -7,7 +7,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,6 +14,7 @@ import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import jakarta.xml.bind.UnmarshalException;
 
 /**
@@ -29,7 +29,7 @@ public class ValidatingXmlManagerTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Before
     public void setUp() {

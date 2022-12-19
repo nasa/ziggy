@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SystemUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,6 +33,7 @@ import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -53,7 +53,7 @@ public class AcknowledgementTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build").toString());
+        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
