@@ -2,7 +2,6 @@ package gov.nasa.ziggy.ui.common;
 
 import static gov.nasa.ziggy.services.config.PropertyNames.DATABASE_SOFTWARE_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -13,10 +12,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.nio.file.Paths;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -52,10 +49,6 @@ public class ProcessHeartbeatManagerTest {
     @Rule
     public ZiggyPropertyRule databaseSoftwarePropertyRule = new ZiggyPropertyRule(
         DATABASE_SOFTWARE_PROP_NAME, "postgresql");
-
-    @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, Paths.get(SystemUtils.USER_DIR, "build", "test").toString());
 
     @Before
     public void setup() {
