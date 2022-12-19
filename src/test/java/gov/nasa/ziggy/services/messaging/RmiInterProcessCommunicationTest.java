@@ -19,8 +19,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
-import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.RunByNameTestCategory;
+import gov.nasa.ziggy.TestEventDetector;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.PigMessageDispatcherForTest;
@@ -37,6 +40,7 @@ import gov.nasa.ziggy.util.os.ProcessUtils;
  *
  * @author PT
  */
+@Category(RunByNameTestCategory.class)
 public class RmiInterProcessCommunicationTest {
 
     private int port = 4788;
@@ -104,8 +108,7 @@ public class RmiInterProcessCommunicationTest {
 
         ClientSideMessageHandlerForTest messageHandler = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
-        TestEventDetector.detectTestEvent(1000L,
-            () -> messageHandler.getMessagesFromServer().size() > 0);
+        TestEventDetector.detectTestEvent(1000L, () -> (messageHandler.getMessagesFromServer().size() > 0));
         Set<MessageFromServer> messagesFromServer = messageHandler.getMessagesFromServer();
         assertEquals(1, messagesFromServer.size());
     }

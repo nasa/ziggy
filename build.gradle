@@ -137,21 +137,27 @@ test {
     testLogging {
         events "failed", "skipped"
     }
-    
-    // The RMI tests appear to have an ordering sensitivity. To wit,
-    // If Intra- runs before Inter-, they all run successfully. 
-    // If Inter- runs before Intra-, Intra- tests all fail. 
-    // Nonetheless, these tests are good to have for interactive use,
-    // as they allow to troubleshoot RMI problems more simply. Thus,
-    // we leave that class out of gradle test but keep it around in case
-    // we need it. 
-    filter {
-        excludeTestsMatching "*RmiIntra*"
+    useJUnit {
+        excludeCategories 'gov.nasa.ziggy.IntegrationTestCategory'
     }
 }
 
-test.doLast() {
-    println "\n Total tests: ${numTests}"
+// Execute tests marked with @Category(IntegrationTestCategory.class).
+task integrationTest(type: Test) {
+    useJUnit {
+        includeCategories 'gov.nasa.ziggy.IntegrationTestCategory'
+        excludeCategories 'gov.nasa.ziggy.RunByNameTestCategory'
+    }
+}
+
+// Execute tests marked with @Category(RunByNameTestCategory.class).
+// These tests are typically run explicitly with the --tests option
+// since they don't play well with others. For example:
+// gradle runByNameTests --tests *RmiInterProcessCommunicationTest
+task runByNameTest(type: Test) {
+    useJUnit {
+        includeCategories 'gov.nasa.ziggy.RunByNameTestCategory'
+    }
 }
 
 javadoc {
