@@ -74,9 +74,7 @@ public class LockManagerTest {
         LockManager.getWriteLockOrBlock(lockFileOne.toFile());
         ReaderTask task = new ReaderTask(lockFileOne);
         task.start();
-        TestEventDetector.detectTestEvent(500L, () -> {
-            return task.isLockAttempted();
-        });
+        TestEventDetector.detectTestEvent(500L, () -> task.isLockAttempted());
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(lockFileOne.toFile());
@@ -94,9 +92,7 @@ public class LockManagerTest {
         LockManager.getWriteLockWithoutBlocking(lockFileOne.toFile());
         ReaderTask task = new ReaderTask(lockFileOne);
         task.start();
-        TestEventDetector.detectTestEvent(500L, () -> {
-            return task.isLockAttempted();
-        });
+        TestEventDetector.detectTestEvent(500L, () -> task.isLockAttempted());
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(lockFileOne.toFile());
@@ -114,9 +110,7 @@ public class LockManagerTest {
         LockManager.getWriteLockWithoutBlocking(lockFileOne.toFile());
         BlockingWriterTask task = new BlockingWriterTask(lockFileOne);
         task.start();
-        TestEventDetector.detectTestEvent(500L, () -> {
-            return task.isLockAttempted();
-        });
+        TestEventDetector.detectTestEvent(500L, () -> task.isLockAttempted());
         assertTrue(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(lockFileOne.toFile());
@@ -134,9 +128,7 @@ public class LockManagerTest {
         LockManager.getWriteLockWithoutBlocking(lockFileOne.toFile());
         NonBlockingWriterTask task = new NonBlockingWriterTask(lockFileOne);
         task.start();
-        TestEventDetector.detectTestEvent(500L, () -> {
-            return task.isDoneTryingLock();
-        });
+        TestEventDetector.detectTestEvent(500L, () -> task.isDoneTryingLock());
         assertFalse(task.isBlocked());
         assertFalse(task.isLockObtained());
         LockManager.releaseWriteLock(lockFileOne.toFile());

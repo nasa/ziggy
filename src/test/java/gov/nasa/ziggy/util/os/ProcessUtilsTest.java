@@ -82,17 +82,15 @@ public class ProcessUtilsTest {
             psProcess.timeout(1000);
             psProcess.execute(false);
         }
-        TestEventDetector.detectTestEvent(500L, () -> {
-            return ProcessUtils.descendantProcessIds().size() >= nProcesses;
-        });
+        TestEventDetector.detectTestEvent(500L,
+            () -> ProcessUtils.descendantProcessIds().size() >= nProcesses);
         childProcessIds = ProcessUtils.descendantProcessIds();
         assertEquals(nProcesses, childProcessIds.size());
         for (long processId : childProcessIds) {
             ProcessUtils.sendSigtermToProcess(processId);
         }
-        TestEventDetector.detectTestEvent(500L, () -> {
-            return ProcessUtils.descendantProcessIds().size() == 0;
-        });
+        TestEventDetector.detectTestEvent(500L,
+            () -> ProcessUtils.descendantProcessIds().size() == 0);
         assertEquals(0, ProcessUtils.descendantProcessIds().size());
 
     }

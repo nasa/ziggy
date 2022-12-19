@@ -61,10 +61,8 @@ public class RmiInterProcessCommunicationTest {
         }
         UiCommunicator.reset();
         Files.createFile(directoryRule.directory().resolve(ServerTest.SHUT_DOWN_FILE_NAME));
-        TestEventDetector.detectTestEvent(1000L, () -> {
-            return Files
-                .exists(directoryRule.directory().resolve(ServerTest.SHUT_DOWN_DETECT_FILE_NAME));
-        });
+        TestEventDetector.detectTestEvent(1000L, () -> Files
+            .exists(directoryRule.directory().resolve(ServerTest.SHUT_DOWN_DETECT_FILE_NAME)));
         if (serverProcess != null) {
             serverProcess.destroy();
             serverProcess = null;
@@ -84,10 +82,8 @@ public class RmiInterProcessCommunicationTest {
         args.add(directoryRule.directory().toString());
 
         serverProcess = ProcessUtils.runJava(ServerTest.class, args);
-        TestEventDetector.detectTestEvent(1000L, () -> {
-            return Files
-                .exists(directoryRule.directory().resolve(ServerTest.SERVER_READY_FILE_NAME));
-        });
+        TestEventDetector.detectTestEvent(1000L, () -> Files
+            .exists(directoryRule.directory().resolve(ServerTest.SERVER_READY_FILE_NAME)));
         // now start the UiCommunicator with a ClientMessageHandler
 
         UiCommunicator.setHeartbeatManager(heartbeatManager);
@@ -108,9 +104,8 @@ public class RmiInterProcessCommunicationTest {
 
         ClientSideMessageHandlerForTest messageHandler = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
-        TestEventDetector.detectTestEvent(1000L, () -> {
-            return messageHandler.getMessagesFromServer().size() > 0;
-        });
+        TestEventDetector.detectTestEvent(1000L,
+            () -> messageHandler.getMessagesFromServer().size() > 0);
         Set<MessageFromServer> messagesFromServer = messageHandler.getMessagesFromServer();
         assertEquals(1, messagesFromServer.size());
     }
@@ -128,10 +123,8 @@ public class RmiInterProcessCommunicationTest {
         args.add(directoryRule.directory().toString());
 
         serverProcess = ProcessUtils.runJava(ServerTest.class, args);
-        TestEventDetector.detectTestEvent(1000L, () -> {
-            return Files
-                .exists(directoryRule.directory().resolve(ServerTest.SERVER_READY_FILE_NAME));
-        });
+        TestEventDetector.detectTestEvent(1000L, () -> Files
+            .exists(directoryRule.directory().resolve(ServerTest.SERVER_READY_FILE_NAME)));
 
         // Start the heartbeat manager and communicator
         MessageHandler messageHandler = new MessageHandler(
@@ -146,9 +139,7 @@ public class RmiInterProcessCommunicationTest {
         Path heartbeatFile = directoryRule.directory().resolve(ServerTest.SEND_HEARTBEAT_FILE_NAME);
         for (int heartbeatCount = 0; heartbeatCount < 5; heartbeatCount++) {
             Files.createFile(heartbeatFile);
-            TestEventDetector.detectTestEvent(1000L, () -> {
-                return !Files.exists(heartbeatFile);
-            });
+            TestEventDetector.detectTestEvent(1000L, () -> !Files.exists(heartbeatFile));
             h.checkForHeartbeat();
         }
 

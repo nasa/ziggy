@@ -16,9 +16,8 @@ import gov.nasa.ziggy.util.SystemTime;
  * Example:
  *
  * <pre>
- * boolean eventDetected = TestEventDetector.detectTestEvent(1000L, () -> {
- *     return (Files.exists(Paths.get("foo.txt")));
- * });
+ * boolean eventDetected = TestEventDetector.detectTestEvent(1000L,
+ *     () -> Files.exists(Paths.get("foo.txt")));
  * </pre>
  *
  * will wait for up to 1000 milliseconds for the file "foo.txt" to appear in the working directory.
