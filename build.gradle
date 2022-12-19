@@ -10,7 +10,7 @@ apply plugin: 'java'
 // See comment for ziggyDependencies in gradle.properties.
 ext.ziggyDependencies = "$rootDir/$ziggyDependencies"
 
-defaultTasks "assemble"
+defaultTasks "build"
 
 repositories {
     mavenCentral()
