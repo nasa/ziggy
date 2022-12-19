@@ -21,8 +21,11 @@ clean.doFirst() {
     }
 }
 
-task setBuildTestPermissions(type : Exec) {
-	commandLine "chmod", "-R", "u+wx", "$buildDir/test"
+// Some tests create readonly directories. Make them writable so they can be deleted.
+task fixTestPermissions(type : Exec) {
+    onlyIf { file("$buildDir/test").exists() }
+
+    commandLine "chmod", "-R", "u+wx", "$buildDir/test"
 }
 
-clean.dependsOn setBuildTestPermissions
+clean.dependsOn fixTestPermissions
