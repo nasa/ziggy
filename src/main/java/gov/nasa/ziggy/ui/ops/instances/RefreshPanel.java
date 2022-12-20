@@ -20,7 +20,6 @@ public class RefreshPanel extends javax.swing.JPanel {
     private RefreshPanelListener listener = null;
 
     public RefreshPanel() {
-        super();
         initGUI();
     }
 

@@ -119,7 +119,7 @@ public class TaskLogTest {
 
     @Test
     public void testAlgorithmLogEnum() {
-        PipelineTask task = createPipelineTask(INSTANCE_ID, TASK_ID, JOB_INDEX, STEP_INDEX_4);
+        PipelineTask task = createPipelineTask(INSTANCE_ID, TASK_ID, STEP_INDEX_4);
         String algorithmLogFilename = task.logFilename(JOB_INDEX);
 
         Matcher matcher = TaskLogInformation.LOG_FILE_NAME_PATTERN.matcher(algorithmLogFilename);
@@ -233,20 +233,20 @@ public class TaskLogTest {
     private Path createAndPopulateTaskLog(Path taskFileName, int threadNumber, String message,
         int altThreadNumber, String altLogMessage) {
         TaskLog taskLog = new TaskLog(taskFileName.toString());
-        populateTaskLog(taskLog, threadNumber, message, altThreadNumber, altLogMessage);
+        populateTaskLog(taskLog, message, altThreadNumber, altLogMessage);
         return taskLog.getTaskLogFile();
     }
 
     private Path createAndPopulateTaskLog(int threadNumber, int instanceId, int taskId,
         int stepIndex, String message, int altThreadNumber, String altLogMessage) {
         TaskLog taskLog = new TaskLog(threadNumber,
-            createPipelineTask(instanceId, taskId, 0, stepIndex));
-        populateTaskLog(taskLog, threadNumber, message, altThreadNumber, altLogMessage);
+            createPipelineTask(instanceId, taskId, stepIndex));
+        populateTaskLog(taskLog, message, altThreadNumber, altLogMessage);
         return taskLog.getTaskLogFile();
     }
 
-    private void populateTaskLog(TaskLog taskLog, int threadNumber, String message,
-        int altThreadNumber, String altLogMessage) {
+    private void populateTaskLog(TaskLog taskLog, String message, int altThreadNumber,
+        String altLogMessage) {
         taskLog.startLogging();
 
         log.info(message);
@@ -259,8 +259,7 @@ public class TaskLogTest {
         taskLog.endLogging();
     }
 
-    private PipelineTask createPipelineTask(int instanceId, int taskId, int jobIndex,
-        int stepIndex) {
+    private PipelineTask createPipelineTask(int instanceId, int taskId, int stepIndex) {
         PipelineTask task = new PipelineTask();
         PipelineInstance instance = new PipelineInstance();
         instance.setId(instanceId);
@@ -276,7 +275,7 @@ public class TaskLogTest {
 
     private File createAlgorithmTaskLog(int instanceId, int taskId, int jobIndex, int stepIndex)
         throws IOException {
-        PipelineTask task = createPipelineTask(instanceId, taskId, jobIndex, stepIndex);
+        PipelineTask task = createPipelineTask(instanceId, taskId, stepIndex);
         String algorithmLogFilename = task.logFilename(jobIndex);
         Files.createDirectories(DirectoryProperties.algorithmLogsDir());
         File algorithmLogFile = DirectoryProperties.algorithmLogsDir()

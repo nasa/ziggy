@@ -94,8 +94,7 @@ public class TaskConfigurationManager implements Serializable {
     }
 
     public int numInputs() {
-        int numInputs = 0;
-        numInputs = subtaskCount;
+        int numInputs = subtaskCount;
         log.info("numSubTaskInSeq: " + numInputs);
         return numInputs;
     }
@@ -130,7 +129,7 @@ public class TaskConfigurationManager implements Serializable {
 
     @Override
     public String toString() {
-        return new String("SINGLE:[" + 0 + "," + (subtaskCount - 1) + "]");
+        return ("SINGLE:[" + 0 + "," + (subtaskCount - 1) + "]");
     }
 
     public void persist() {
@@ -226,9 +225,8 @@ public class TaskConfigurationManager implements Serializable {
         result = prime * result + (filesForSubtasks == null ? 0 : filesForSubtasks.hashCode());
         result = prime * result
             + (inputsClass == null ? 0 : inputsClass.getCanonicalName().hashCode());
-        result = prime * result
+        return prime * result
             + (outputsClass == null ? 0 : outputsClass.getCanonicalName().hashCode());
-        return result;
     }
 
     @Override
@@ -240,10 +238,8 @@ public class TaskConfigurationManager implements Serializable {
             return false;
         }
         TaskConfigurationManager other = (TaskConfigurationManager) obj;
-        if (subtaskCount != other.subtaskCount) {
-            return false;
-        }
-        if (!Objects.equals(filesForSubtasks, other.filesForSubtasks)) {
+        if ((subtaskCount != other.subtaskCount)
+            || !Objects.equals(filesForSubtasks, other.filesForSubtasks)) {
             return false;
         }
         if (inputsClass == null) {

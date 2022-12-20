@@ -117,11 +117,11 @@ public class PipelineInstanceManager {
     public void fireTrigger() {
         // loop over repeats
         while (repeats < maxRepeats) {
-            String currentInstanceName = instanceName;
+            StringBuilder currentInstanceName = new StringBuilder().append(instanceName);
             if (maxRepeats > 1) {
-                currentInstanceName = currentInstanceName + ":-" + Integer.toString(repeats);
+                currentInstanceName.append(":-").append(Integer.toString(repeats));
             }
-            final String finalCurrentInstanceName = currentInstanceName;
+            final String finalCurrentInstanceName = currentInstanceName.toString();
             final List<PipelineTask> pipelineTasks = new ArrayList<>();
             // Create a database transaction and within it fire the trigger
             performTransaction(() -> {
@@ -142,13 +142,12 @@ public class PipelineInstanceManager {
             // if we're not on the last repeat, we need to start the waiting
             if (repeats < maxRepeats - 1) {
                 try {
-                    if (waitAndCheckStatus()) {
-                        repeats++;
-                    } else {
+                    if (!waitAndCheckStatus()) {
                         throw new ModuleFatalProcessingException(
                             "Unable to start pipeline repeat " + (repeats + 1)
                                 + " due to errored status of pipeline repeat " + repeats);
                     }
+                    repeats++;
                 } catch (InterruptedException e) {
                     throw new ModuleFatalProcessingException(
                         "Unable to start pipeline repeat " + (repeats + 1)
@@ -322,7 +321,7 @@ public class PipelineInstanceManager {
      *
      * @author PT
      */
-    private class LoopStatus {
+    private static class LoopStatus {
         private boolean keepLooping = true;
         private boolean instanceCompleted = false;
 

@@ -369,9 +369,6 @@ public class DefaultPipelineInputsTest {
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-flux.h5"));
                 assertFalse(
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
-                assertTrue(
-                    subtaskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
-                assertTrue(subtaskDirFileNames.contains("calibration-4.12.9.h5"));
             } else {
                 subtask0DataFiles = "765432100";
                 assertFalse(
@@ -382,10 +379,9 @@ public class DefaultPipelineInputsTest {
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-flux.h5"));
                 assertTrue(
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
-                assertTrue(
-                    subtaskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
-                assertTrue(subtaskDirFileNames.contains("calibration-4.12.9.h5"));
             }
+            assertTrue(subtaskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
+            assertTrue(subtaskDirFileNames.contains("calibration-4.12.9.h5"));
         }
 
         // Now do the same thing in the st-1 directory to make sure that all of the
@@ -409,9 +405,6 @@ public class DefaultPipelineInputsTest {
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-flux.h5"));
                 assertTrue(
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
-                assertTrue(
-                    subtaskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
-                assertTrue(subtaskDirFileNames.contains("calibration-4.12.9.h5"));
             } else {
                 assertTrue(
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-001234567-flux.h5"));
@@ -421,10 +414,9 @@ public class DefaultPipelineInputsTest {
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-flux.h5"));
                 assertFalse(
                     subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
-                assertTrue(
-                    subtaskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
-                assertTrue(subtaskDirFileNames.contains("calibration-4.12.9.h5"));
             }
+            assertTrue(subtaskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
+            assertTrue(subtaskDirFileNames.contains("calibration-4.12.9.h5"));
         }
     }
 
@@ -632,7 +624,7 @@ public class DefaultPipelineInputsTest {
 
     public static class Params2 implements Parameters {
         private String dmy3 = "dummy string";
-        private boolean[] dmy4 = new boolean[] { true, false };
+        private boolean[] dmy4 = { true, false };
 
         public String getDmy3() {
             return dmy3;

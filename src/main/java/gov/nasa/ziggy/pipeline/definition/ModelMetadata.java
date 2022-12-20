@@ -12,16 +12,16 @@ import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
 import gov.nasa.ziggy.models.SemanticVersionNumber;
 import gov.nasa.ziggy.util.Iso8601Formatter;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Entity used to track revisions of models used in the system for data accountability purposes.
@@ -152,14 +152,12 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
             Matcher matcher = modelType.pattern().matcher(modelName);
             matcher.matches();
             version = matcher.group(modelType.getVersionNumberGroup());
+        } else if (currentRegistryMetadata != null) {
+            int currentRegistryVersionInt = Integer
+                .parseInt(currentRegistryMetadata.getModelRevision());
+            version = Integer.toString(++currentRegistryVersionInt);
         } else {
-            if (currentRegistryMetadata != null) {
-                int currentRegistryVersionInt = Integer
-                    .parseInt(currentRegistryMetadata.getModelRevision());
-                version = Integer.toString(++currentRegistryVersionInt);
-            } else {
-                version = "1";
-            }
+            version = "1";
         }
         return version;
     }
@@ -272,8 +270,8 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
             comparisonValue = new SemanticVersionNumber(modelRevision)
                 .compareTo(new SemanticVersionNumber(other.modelRevision));
         } else {
-            comparisonValue = Integer.compare(Integer.valueOf(modelRevision),
-                Integer.valueOf(other.modelRevision));
+            comparisonValue = Integer.compare(Integer.parseInt(modelRevision),
+                Integer.parseInt(other.modelRevision));
         }
         return comparisonValue;
     }
@@ -282,7 +280,7 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
         return new Date();
     }
 
-    private class DateAdapter extends XmlAdapter<XMLGregorianCalendar, Date> {
+    private static class DateAdapter extends XmlAdapter<XMLGregorianCalendar, Date> {
 
         @Override
         public Date unmarshal(XMLGregorianCalendar v) throws Exception {

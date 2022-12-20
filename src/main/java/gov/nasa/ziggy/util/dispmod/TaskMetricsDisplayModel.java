@@ -96,7 +96,8 @@ public class TaskMetricsDisplayModel extends DisplayModel {
     public String getColumnName(int column) {
         if (column == 0) {
             return "Module";
-        } else if (column == 1) {
+        }
+        if (column == 1) {
             return "Total";
         } else if (column == numColumns - 1) {
             return "Other";
@@ -116,7 +117,8 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
         if (columnIndex == 0) {
             return row.getModuleName(); // module name
-        } else if (columnIndex == 1) {
+        }
+        if (columnIndex == 1) {
             return formatDuration(row.getTaskMetrics().getTotalProcessingTimeMillis()); // total
         } else if (columnIndex == numColumns - 1) {
             return categoryValuesString(row.getTaskMetrics().getUnallocatedTime());
@@ -135,9 +137,8 @@ public class TaskMetricsDisplayModel extends DisplayModel {
             double categoryPercent = categoryValues.getPercent();
             return String.format("%s (%4.1f%%)", formatDuration(categoryTimeMillis),
                 categoryPercent);
-        } else {
-            return "--";
         }
+        return "--";
     }
 
     private String formatDuration(long durationMillis) {
@@ -173,10 +174,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
             if (this == obj) {
                 return true;
             }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
+            if ((obj == null) || (getClass() != obj.getClass())) {
                 return false;
             }
             ModuleTaskMetrics other = (ModuleTaskMetrics) obj;

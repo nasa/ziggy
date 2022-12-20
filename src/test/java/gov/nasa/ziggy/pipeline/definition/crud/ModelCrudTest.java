@@ -45,9 +45,7 @@ public class ModelCrudTest {
     public void retrieveUnlockedRegistryWhenEmpty() {
 
         ModelRegistry registry = (ModelRegistry) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ModelCrud().retrieveUnlockedRegistry();
-            });
+            .performTransaction(() -> new ModelCrud().retrieveUnlockedRegistry());
         assertEquals(1L, registry.getId());
         assertFalse(registry.isLocked());
 
@@ -57,9 +55,7 @@ public class ModelCrudTest {
     public void retrieveCurrentRegistryWhenEmpty() {
 
         ModelRegistry registry = (ModelRegistry) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ModelCrud().retrieveCurrentRegistry();
-            });
+            .performTransaction(() -> new ModelCrud().retrieveCurrentRegistry());
         assertEquals(1L, registry.getId());
         assertFalse(registry.isLocked());
 
@@ -115,9 +111,7 @@ public class ModelCrudTest {
 
         @SuppressWarnings("unchecked")
         List<ModelType> modelTypes = (List<ModelType>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ModelCrud().retrieveAllModelTypes();
-            });
+            .performTransaction(() -> new ModelCrud().retrieveAllModelTypes());
         assertEquals(2, modelTypes.size());
         assertTrue(modelTypes.contains(modelType1));
         assertTrue(modelTypes.contains(modelType2));
@@ -129,9 +123,7 @@ public class ModelCrudTest {
 
         @SuppressWarnings("unchecked")
         Map<String, ModelType> modelTypeMap = (Map<String, ModelType>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ModelCrud().retrieveModelTypeMap();
-            });
+            .performTransaction(() -> new ModelCrud().retrieveModelTypeMap());
         assertEquals(2, modelTypeMap.size());
         assertEquals(modelType1, modelTypeMap.get("geometry"));
         assertEquals(modelType2, modelTypeMap.get("read-noise"));

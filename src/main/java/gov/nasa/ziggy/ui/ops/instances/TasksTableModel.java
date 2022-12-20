@@ -56,7 +56,7 @@ public class TasksTableModel extends AbstractDatabaseModel {
     }
 
     public void loadFromDatabase(boolean forceUpdate) {
-        SwingWorker<Void, Void> swingWorker = new SwingWorker<Void, Void>() {
+        SwingWorker<Void, Void> swingWorker = new SwingWorker<>() {
 
             @Override
             protected Void doInBackground() throws Exception {

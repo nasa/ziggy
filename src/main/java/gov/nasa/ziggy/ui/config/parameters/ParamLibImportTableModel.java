@@ -138,27 +138,24 @@ public class ParamLibImportTableModel extends AbstractTableModel {
     public boolean isCellEditable(int rowIndex, int columnIndex) {
         if (columnIndex == 0) {
             return true;
-        } else {
-            return super.isCellEditable(rowIndex, columnIndex);
         }
+        return super.isCellEditable(rowIndex, columnIndex);
     }
 
     @Override
     public void setValueAt(Object value, int rowIndex, int columnIndex) {
-        if (columnIndex == 0) {
-            Boolean newInclude = (Boolean) value;
-            includeFlags.set(rowIndex, newInclude);
-        } else {
+        if (columnIndex != 0) {
             throw new IllegalArgumentException("read-only columnIndex = " + columnIndex);
         }
+        Boolean newInclude = (Boolean) value;
+        includeFlags.set(rowIndex, newInclude);
     }
 
     @Override
     public Class<?> getColumnClass(int columnIndex) {
         if (columnIndex == 0) {
             return Boolean.class;
-        } else {
-            return super.getColumnClass(columnIndex);
         }
+        return super.getColumnClass(columnIndex);
     }
 }

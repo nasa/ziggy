@@ -70,9 +70,8 @@ public class Retry<V> {
 
         if (exception != null) {
             throw exception;
-        } else {
-            return null;
         }
+        return null;
     }
 
     public String getMetricPrefix() {

@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.models;
 
+import java.util.Objects;
+
 /**
  * Manages semantic version numbers for models that use them.
  * <p>
@@ -60,7 +62,8 @@ public class SemanticVersionNumber implements Comparable<SemanticVersionNumber> 
     public int compareTo(SemanticVersionNumber o) {
         if (major != o.major) {
             return major - o.major;
-        } else if (minor != o.minor) {
+        }
+        if (minor != o.minor) {
             return minor - o.minor;
         } else {
             return patch - o.patch;
@@ -93,12 +96,7 @@ public class SemanticVersionNumber implements Comparable<SemanticVersionNumber> 
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + major;
-        result = prime * result + minor;
-        result = prime * result + patch;
-        return result;
+        return Objects.hash(major, minor, patch);
     }
 
     @Override
@@ -106,10 +104,7 @@ public class SemanticVersionNumber implements Comparable<SemanticVersionNumber> 
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         SemanticVersionNumber other = (SemanticVersionNumber) obj;

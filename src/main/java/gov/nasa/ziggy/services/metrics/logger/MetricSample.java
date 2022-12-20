@@ -13,7 +13,6 @@ public class MetricSample {
 
     public MetricSample(String metricName, Class<? extends Metric> metricClass, String source,
         Date timestamp, float value) {
-        super();
         this.metricName = metricName;
         this.metricClass = metricClass;
         this.source = source;

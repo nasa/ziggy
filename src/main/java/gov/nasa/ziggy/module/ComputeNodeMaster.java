@@ -328,7 +328,6 @@ public class ComputeNodeMaster implements Runnable {
         // If all RemoteSubtaskMasters are done we can exit monitoring
         if (subtaskMasters.availablePermits() == coresPerNode) {
             endMonitoring();
-            return;
         }
     }
 

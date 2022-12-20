@@ -259,9 +259,7 @@ public class AlgorithmMonitor implements Runnable {
             .filter(s -> s.getName().startsWith(StateFile.PREFIX))
             .filter(s -> !corruptedStateFileNames.contains(s.getName()))
             .collect(Collectors.toList());
-        List<File> finalResult = new LinkedList<>();
-        finalResult.addAll(filteredFiles);
-        return finalResult;
+        return new LinkedList<>(filteredFiles);
     }
 
     private void performStateFileChecks(StateFile oldState, StateFile remoteState)
@@ -309,18 +307,12 @@ public class AlgorithmMonitor implements Runnable {
                 state.remove(key);
                 jobMonitor().endMonitoring(remoteState);
             }
-        } else {
-
-            // Some job failures leave the state file untouched.
-            // If this happens, the QstatMonitor can determine that
-            // in fact the job is no longer running. In this case,
-            // set the state file to FAILED. Then in the next pass
-            // through this loop, standard handling for a failed job
-            // can be applied.
-            if (jobMonitor().isFinished(remoteState)) {
-                moveStateFileToCompleteState(remoteState);
-            }
-
+        } else if (jobMonitor().isFinished(remoteState)) {
+            // Some job failures leave the state file untouched. If this happens, the QstatMonitor
+            // can determine that in fact the job is no longer running. In this case, set the state
+            // file to FAILED. Then in the next pass through this loop, standard handling for a
+            // failed job can be applied.
+            moveStateFileToCompleteState(remoteState);
         }
     }
 

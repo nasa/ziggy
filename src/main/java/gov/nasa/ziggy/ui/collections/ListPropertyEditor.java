@@ -54,7 +54,7 @@ public class ListPropertyEditor extends AbstractPropertyEditor {
         if (currentValues != null) {
             dialog.setSelectedIndices(selectedIndicesFromOldValues());
         }
-        dialog.addListSelectionListener(lev -> listChanged(lev));
+        dialog.addListSelectionListener(this::listChanged);
         dialog.setTitle(title);
         dialog.setLocationRelativeTo(tableUi);
         dialog.pack();

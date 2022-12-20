@@ -86,8 +86,9 @@ public class DataFileTypeImporter {
         this.dryrun = dryrun;
         try {
             xmlManager = new ValidatingXmlManager<>(DatastoreConfigurationFile.class);
-		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+            | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class DatastoreConfigurationFile", e);
         }
@@ -177,8 +178,7 @@ public class DataFileTypeImporter {
         List<String> dataFileTypeNames = dataFileTypes.stream()
             .map(DataFileType::getName)
             .collect(Collectors.toList());
-        Set<String> uniqueDataFileTypeNames = new HashSet<>();
-        uniqueDataFileTypeNames.addAll(dataFileTypeNames);
+        Set<String> uniqueDataFileTypeNames = new HashSet<>(dataFileTypeNames);
         if (dataFileTypeNames.size() != uniqueDataFileTypeNames.size()) {
             throw new IllegalStateException(
                 "Unable to persist data file types due to duplicate names");

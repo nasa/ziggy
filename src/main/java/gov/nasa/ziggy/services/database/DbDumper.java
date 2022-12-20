@@ -38,8 +38,8 @@ public class DbDumper {
 
     private static final String FIELD_SEPARATOR = ",";
     private static final String COLUMN_EXPRESSION_SEPARATOR = "?";
-    private static final String[] ALL_TABLES = new String[] { "%" };
-    private static final String[] NO_COLUMNS = new String[] {};
+    private static final String[] ALL_TABLES = { "%" };
+    private static final String[] NO_COLUMNS = {};
 
     private final ConnectInfo connectInfo;
     private Connection connection;
@@ -420,21 +420,21 @@ public class DbDumper {
             msg += "\n" + s;
         }
         for (String table : tableNames) {
-            String s = "";
+            StringBuilder s = new StringBuilder();
             int exRows = -1;
             int acRows = -1;
-            s += "\nTable " + table;
+            s.append("\nTable ").append(table);
             if (ex.tableNames.contains(table)) {
                 exRows = ex.rowCount.get(table);
-                s += ": expected has " + exRows + " rows";
+                s.append(": expected has ").append(exRows).append(" rows");
             } else {
-                s += " (table missing in expected)";
+                s.append(" (table missing in expected)");
             }
             if (ac.tableNames.contains(table)) {
                 acRows = ac.rowCount.get(table);
-                s += ": actual has " + acRows + " rows";
+                s.append(": actual has ").append(acRows).append(" rows");
             } else {
-                s += " (table missing in actual)";
+                s.append(" (table missing in actual)");
             }
             Integer n = diffCount.get(table);
             int diffs = 0;
@@ -442,10 +442,10 @@ public class DbDumper {
                 diffs = diffCount.get(table);
             }
             if (diffs > 0) {
-                s += ": differences found in " + diffs + " rows.";
+                s.append(": differences found in ").append(diffs).append(" rows.");
             }
             if (exRows != acRows || diffs > 0) {
-                msg += s;
+                msg += s.toString();
             }
         }
         if (0 != allDiffs.length()) {
@@ -457,17 +457,14 @@ public class DbDumper {
                     + String.format("%,d", totalDiffValues);
             }
             String comma = "";
-            String potentialExcludeColumns = "";
-            List<String> tabCols = new ArrayList<>();
-            for (String colName : diffColumns) {
-                tabCols.add(colName);
-            }
+            StringBuilder potentialExcludeColumns = new StringBuilder();
+            List<String> tabCols = new ArrayList<>(diffColumns);
             Collections.sort(tabCols);
             for (String tabCol : tabCols) {
-                potentialExcludeColumns += comma + "\"" + tabCol + "\"";
+                potentialExcludeColumns.append(comma).append("\"").append(tabCol).append("\"");
                 comma = ",\n";
             }
-            msg += "\n\nColumns to consider for exclusion:\n" + potentialExcludeColumns;
+            msg += "\n\nColumns to consider for exclusion:\n" + potentialExcludeColumns.toString();
         }
         if (0 != msg.length()) {
             throw exception(msg);
@@ -524,7 +521,7 @@ public class DbDumper {
         private String line = "";
         private final Set<String> tableNames = new TreeSet<>();
         private String tableName = "";
-        private String[] columnNames = new String[0];
+        private String[] columnNames = {};
         private int lines = 0;
         private int rowsInTable = 0;
         private final Map<String, Integer> rowCount = new HashMap<>();
@@ -538,7 +535,8 @@ public class DbDumper {
                 return "";
             }
             try {
-                if (null == (line = in.readLine())) {
+                line = in.readLine();
+                if (null == line) {
                     eof = true;
                     line = "";
                 }

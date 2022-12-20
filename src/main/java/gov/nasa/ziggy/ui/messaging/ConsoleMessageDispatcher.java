@@ -24,13 +24,11 @@ public class ConsoleMessageDispatcher implements ClientMessageHandler {
 
     private final AlertMessageTableModel alertMessageTableModel;
     private final WorkerStatusPanel processesStatusPanel;
-    private final boolean shutdownEnabled;
 
     public ConsoleMessageDispatcher(AlertMessageTableModel tableModel,
         WorkerStatusPanel statusPanel, boolean shutdownEnabled) {
         alertMessageTableModel = tableModel;
         processesStatusPanel = statusPanel;
-        this.shutdownEnabled = shutdownEnabled;
     }
 
     // methods that handle message classes

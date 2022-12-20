@@ -14,7 +14,6 @@ public class RealTextField extends FilteredTextField {
     private static final long serialVersionUID = 20210811L;
 
     public RealTextField() {
-        super();
     }
 
     public RealTextField(Document doc, String text, int columns) {

@@ -103,13 +103,12 @@ public class ZiggyNamingStrategy implements NamingStrategy {
         String associatedEntityTable, String propertyName) {
         if (tableName != null) {
             return tableName;
-        } else {
-            // use of a stringbuffer to workaround a JDK bug
-            return new StringBuffer(ownerEntityTable).append("_")
-                .append(associatedEntityTable != null ? associatedEntityTable
-                    : StringHelper.unqualify(propertyName))
-                .toString();
         }
+        // use of a stringbuffer to workaround a JDK bug
+        return new StringBuffer(ownerEntityTable).append("_")
+            .append(associatedEntityTable != null ? associatedEntityTable
+                : StringHelper.unqualify(propertyName))
+            .toString();
     }
 
     /**
@@ -130,7 +129,7 @@ public class ZiggyNamingStrategy implements NamingStrategy {
      * @return
      */
     protected static String addUnderscores(String name) {
-        StringBuffer buf = new StringBuffer(name.replace('.', '_'));
+        StringBuilder buf = new StringBuilder(name.replace('.', '_'));
         for (int i = 1; i < buf.length() - 1; i++) {
             if (Character.isLowerCase(buf.charAt(i - 1)) && Character.isUpperCase(buf.charAt(i))
                 && Character.isLowerCase(buf.charAt(i + 1))) {

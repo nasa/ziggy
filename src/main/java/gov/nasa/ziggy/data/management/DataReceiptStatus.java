@@ -43,7 +43,8 @@ public enum DataReceiptStatus {
         public DataReceiptStatus and(DataReceiptStatus other) {
             if (other.equals(PRESENT) || other.equals(VALID)) {
                 return VALID;
-            } else if (other.equals(ABSENT) || other.equals(INVALID)) {
+            }
+            if (other.equals(ABSENT) || other.equals(INVALID)) {
                 return INVALID;
             } else {
                 throw new IllegalArgumentException(
@@ -57,7 +58,8 @@ public enum DataReceiptStatus {
         public DataReceiptStatus and(DataReceiptStatus other) {
             if (other.equals(PRESENT) || other.equals(VALID)) {
                 return VALID;
-            } else if (other.equals(ABSENT) || other.equals(INVALID)) {
+            }
+            if (other.equals(ABSENT) || other.equals(INVALID)) {
                 return INVALID;
             } else {
                 throw new IllegalArgumentException(

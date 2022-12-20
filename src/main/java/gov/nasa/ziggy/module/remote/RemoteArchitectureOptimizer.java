@@ -140,8 +140,8 @@ public enum RemoteArchitectureOptimizer {
     public static RemoteArchitectureOptimizer fromName(String name) {
         RemoteArchitectureOptimizer option = null;
         for (RemoteArchitectureOptimizer o : RemoteArchitectureOptimizer.values()) {
-            String cleanedUpOptimizerName = o.toString().replaceAll("_", "");
-            String cleanedUpRequestName = name.toString().replaceAll("_", "");
+            String cleanedUpOptimizerName = o.toString().replace("_", "");
+            String cleanedUpRequestName = name.toString().replace("_", "");
             if (cleanedUpRequestName.toUpperCase().contentEquals(cleanedUpOptimizerName)) {
                 option = o;
             }

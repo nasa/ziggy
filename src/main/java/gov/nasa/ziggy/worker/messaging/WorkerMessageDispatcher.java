@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler.ZiggyEventHandlerInfoForDisplay;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.logging.TaskLogInformation;
@@ -109,7 +110,7 @@ public class WorkerMessageDispatcher implements WorkerMessageHandler {
         WorkerPipelineProcess.ziggyEventHandlers()
             .stream()
             .filter(s -> s.getName().equals(handlerName))
-            .forEach(s -> s.toggleStatus());
+            .forEach(ZiggyEventHandler::toggleStatus);
     }
 
     @Override

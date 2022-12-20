@@ -39,8 +39,7 @@ public class SampleList {
             final int prime = 31;
             int result = 1;
             result = prime * result + getOuterType().hashCode();
-            result = prime * result + (int) (time ^ time >>> 32);
-            return result;
+            return prime * result + (int) (time ^ time >>> 32);
         }
 
         @Override
@@ -48,10 +47,7 @@ public class SampleList {
             if (this == obj) {
                 return true;
             }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
+            if ((obj == null) || (getClass() != obj.getClass())) {
                 return false;
             }
             Sample other = (Sample) obj;
@@ -142,11 +138,10 @@ public class SampleList {
             } else {
                 sum += currentSample.value;
                 count += 1.0;
-                if (sampleIterator.hasNext()) {
-                    currentSample = sampleIterator.next();
-                } else {
+                if (!sampleIterator.hasNext()) {
                     break; // no more samples
                 }
+                currentSample = sampleIterator.next();
             }
         }
 
@@ -186,7 +181,7 @@ public class SampleList {
         TimeSeries series = new TimeSeries(name, Millisecond.class);
 
         for (Sample sample : samples) {
-			series.addOrUpdate(new Millisecond(new Date(sample.time)), sample.value);
+            series.addOrUpdate(new Millisecond(new Date(sample.time)), sample.value);
         }
 
         return series;

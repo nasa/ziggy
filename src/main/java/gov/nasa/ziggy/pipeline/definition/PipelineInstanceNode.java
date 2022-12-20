@@ -142,16 +142,14 @@ public class PipelineInstanceNode {
         if (numTasks > 0) {
             if (numCompletedTasks == numTasks) {
                 nodeState = PipelineInstance.State.COMPLETED;
-            } else {
-                if (numFailedTasks > 0) {
-                    if (numFailedTasks + numCompletedTasks == numSubmittedTasks) {
-                        nodeState = PipelineInstance.State.ERRORS_STALLED;
-                    } else {
-                        nodeState = PipelineInstance.State.ERRORS_RUNNING;
-                    }
+            } else if (numFailedTasks > 0) {
+                if (numFailedTasks + numCompletedTasks == numSubmittedTasks) {
+                    nodeState = PipelineInstance.State.ERRORS_STALLED;
                 } else {
-                    nodeState = PipelineInstance.State.PROCESSING;
+                    nodeState = PipelineInstance.State.ERRORS_RUNNING;
                 }
+            } else {
+                nodeState = PipelineInstance.State.PROCESSING;
             }
         }
         return nodeState;

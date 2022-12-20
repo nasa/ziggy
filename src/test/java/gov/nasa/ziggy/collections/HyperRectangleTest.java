@@ -19,9 +19,9 @@ public class HyperRectangleTest {
      */
     @Test
     public void testConstructor() {
-        int[] aSize = new int[] { 3, 4, 6 };
-        int[] size = new int[] { 1, 2, 6 };
-        int[] offset = new int[] { 1, 2, 0 };
+        int[] aSize = { 3, 4, 6 };
+        int[] size = { 1, 2, 6 };
+        int[] offset = { 1, 2, 0 };
         HyperRectangle hr = new HyperRectangle(aSize, size, offset);
         assertEquals(aSize, hr.getFullArraySize());
         assertEquals(size, hr.getSize());
@@ -79,9 +79,9 @@ public class HyperRectangleTest {
 
     @Test
     public void testOffsetCombination() {
-        int[] aSize = new int[] { 3, 4, 6 };
-        int[] size = new int[] { 1, 2, 6 };
-        int[] offset = new int[] { 1, 2, 0 };
+        int[] aSize = { 3, 4, 6 };
+        int[] size = { 1, 2, 6 };
+        int[] offset = { 1, 2, 0 };
         HyperRectangle hr = new HyperRectangle(aSize, size, offset);
         int[] o2 = hr.getOffset(new int[] { 0, 1, 2 });
         assertTrue(Arrays.equals(new int[] { 1, 3, 2 }, o2));
@@ -89,9 +89,9 @@ public class HyperRectangleTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testOffsetCombinationError() {
-        int[] aSize = new int[] { 3, 4, 6 };
-        int[] size = new int[] { 1, 2, 6 };
-        int[] offset = new int[] { 1, 2, 0 };
+        int[] aSize = { 3, 4, 6 };
+        int[] size = { 1, 2, 6 };
+        int[] offset = { 1, 2, 0 };
         HyperRectangle hr = new HyperRectangle(aSize, size, offset);
         hr.getOffset(new int[] { 1, 2 });
     }

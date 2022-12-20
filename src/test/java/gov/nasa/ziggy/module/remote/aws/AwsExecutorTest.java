@@ -21,8 +21,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 public class AwsExecutorTest {
 
     @Rule
-    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(GROUP_PROPERTY,
-        "12345");
+    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(GROUP_PROPERTY, "12345");
 
     @Test
     public void testGeneratePbsParameters() {

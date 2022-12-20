@@ -73,8 +73,7 @@ public class SqlRunner implements Closeable {
         String username = getPropertyChecked(config, PropertyNames.HIBERNATE_USERNAME_PROP_NAME);
         String password = getPropertyChecked(config, PropertyNames.HIBERNATE_PASSWD_PROP_NAME);
 
-        SqlRunner sqlRunner = new SqlRunner(new ConnectInfo(driver, url, username, password));
-        return sqlRunner;
+        return new SqlRunner(new ConnectInfo(driver, url, username, password));
     }
 
     public static SqlRunner newInstance() throws Exception {

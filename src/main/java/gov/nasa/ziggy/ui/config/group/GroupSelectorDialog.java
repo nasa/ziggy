@@ -56,9 +56,8 @@ public class GroupSelectorDialog extends javax.swing.JDialog {
 
         if (!dialog.cancelled) {
             return dialog.getSelectedGroup();
-        } else {
-            return null;
         }
+        return null;
     }
 
     public Group getSelectedGroup() {
@@ -66,9 +65,8 @@ public class GroupSelectorDialog extends javax.swing.JDialog {
 
         if (selectedIndex != -1) {
             return groupListModel.getElementAt(selectedIndex);
-        } else {
-            return null;
         }
+        return null;
     }
 
     private void selectButtonActionPerformed(ActionEvent evt) {

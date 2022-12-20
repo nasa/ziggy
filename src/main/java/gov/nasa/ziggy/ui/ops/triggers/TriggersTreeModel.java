@@ -2,6 +2,7 @@ package gov.nasa.ziggy.ui.ops.triggers;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -132,9 +133,8 @@ public class TriggersTreeModel extends DefaultTreeModel implements ConsoleDataba
         // sort groups alphabetically
 
         Set<Group> groupsSet = triggers.keySet();
-        List<Group> groupsList = new ArrayList<>();
-        groupsList.addAll(groupsSet);
-        Collections.sort(groupsList, (o1, o2) -> o1.getName().compareTo(o2.getName()));
+        List<Group> groupsList = new ArrayList<>(groupsSet);
+        Collections.sort(groupsList, Comparator.comparing(Group::getName));
 
         for (Group group : groupsList) {
             DefaultMutableTreeNode groupNode = new DefaultMutableTreeNode(group.getName());

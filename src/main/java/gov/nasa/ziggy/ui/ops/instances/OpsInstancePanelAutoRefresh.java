@@ -66,7 +66,7 @@ public class OpsInstancePanelAutoRefresh implements Runnable {
         Thread.currentThread().setName("OpsInstancePanelAutoRefresh");
 
         // All the rest of the action happens in the SwingWorker
-        SwingWorker<Void, Void> swingWorker = new SwingWorker<Void, Void>() {
+        SwingWorker<Void, Void> swingWorker = new SwingWorker<>() {
 
             @Override
             protected Void doInBackground() throws Exception {

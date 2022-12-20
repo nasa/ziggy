@@ -252,8 +252,7 @@ public class ClasspathScanner {
     }
 
     private String convertPathToPackageName(String path) {
-        String packageName = path.replace(File.separatorChar, '.');
-        return packageName;
+        return path.replace(File.separatorChar, '.');
     }
 
     /**

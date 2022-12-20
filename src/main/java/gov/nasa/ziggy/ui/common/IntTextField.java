@@ -14,7 +14,6 @@ public class IntTextField extends FilteredTextField {
     private static final long serialVersionUID = 20210811L;
 
     public IntTextField() {
-        super();
     }
 
     public IntTextField(Document doc, String text, int columns) {

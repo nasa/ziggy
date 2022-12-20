@@ -24,8 +24,6 @@ public class UsersViewEditPanel extends AbstractViewEditPanel {
     private final UserCrudProxy userCrud;
 
     public UsersViewEditPanel() throws PipelineUIException {
-        super();
-
         userCrud = new UserCrudProxy();
 
         initGUI();

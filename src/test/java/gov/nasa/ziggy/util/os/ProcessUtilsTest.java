@@ -50,7 +50,7 @@ public class ProcessUtilsTest {
     @Test
     public void testRunJava() throws Exception {
         subJavaProcess = ProcessUtils.runJava(ProcessUtilsTestProgram.class,
-            Arrays.asList(new String[] { "44", "Hello world." }));
+            Arrays.asList("44", "Hello world."));
         subJavaProcess.waitFor();
 
         InputStream inputStream = subJavaProcess.getInputStream();

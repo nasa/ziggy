@@ -44,7 +44,6 @@ public class ValidityTestingFormattedTextField extends JFormattedTextField {
     private boolean emptyIsValid = false;
 
     public ValidityTestingFormattedTextField() {
-        super();
         initGUI();
     }
 

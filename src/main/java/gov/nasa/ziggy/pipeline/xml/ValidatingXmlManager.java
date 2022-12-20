@@ -30,14 +30,14 @@ public class ValidatingXmlManager<T extends HasXmlSchemaFilename> {
     private final Unmarshaller unmarshaller;
     private final Marshaller marshaller;
 
-    public ValidatingXmlManager(Class<T> clazz)
-			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
-			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+    public ValidatingXmlManager(Class<T> clazz) throws InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Generate a schema for validation
         SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
         String ziggySchemaDir = DirectoryProperties.ziggySchemaDir().toString();
-		String schemaFilename = clazz.getDeclaredConstructor().newInstance().getXmlSchemaFilename();
+        String schemaFilename = clazz.getDeclaredConstructor().newInstance().getXmlSchemaFilename();
         Path schemaPath = Paths.get(ziggySchemaDir, "xml", schemaFilename);
         Schema schema = schemaFactory.newSchema(schemaPath.toFile());
 

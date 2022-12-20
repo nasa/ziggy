@@ -10,7 +10,6 @@ public class TestBean2 implements Parameters {
     private String b = "b";
 
     public TestBean2(String a, String b) {
-        super();
         this.a = a;
         this.b = b;
     }

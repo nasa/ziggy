@@ -92,7 +92,7 @@ public class MessageDialog extends javax.swing.JDialog {
         if (closeButton == null) {
             closeButton = new JButton();
             closeButton.setText("close");
-            closeButton.addActionListener(evt -> closeButtonActionPerformed(evt));
+            closeButton.addActionListener(this::closeButtonActionPerformed);
         }
         return closeButton;
     }

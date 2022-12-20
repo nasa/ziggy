@@ -18,9 +18,8 @@ public abstract class TreeContainerNode {
     }
 
     public void init(DefaultMutableTreeNode node) {
-        DefaultMutableTreeNode loading = null;
+        DefaultMutableTreeNode loading = new DefaultMutableTreeNode("Loading...");
 
-        loading = new DefaultMutableTreeNode("Loading...");
         node.add(loading);
     }
 

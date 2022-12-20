@@ -26,10 +26,6 @@ import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.persistence.Transient;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.PropertyConverter;
@@ -52,6 +48,10 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Handles a single type of Ziggy event. Ziggy events are a system that automatically starts
@@ -129,7 +129,7 @@ public class ZiggyEventHandler implements Runnable {
     private ScheduledExecutorService watcherThread;
 
     public ZiggyEventHandler() {
-        ZiggyShutdownHook.addShutdownHook(() -> stop());
+        ZiggyShutdownHook.addShutdownHook(this::stop);
     }
 
     /**
@@ -504,10 +504,7 @@ public class ZiggyEventHandler implements Runnable {
             if (this == obj) {
                 return true;
             }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
+            if ((obj == null) || (getClass() != obj.getClass())) {
                 return false;
             }
             ReadyFile other = (ReadyFile) obj;

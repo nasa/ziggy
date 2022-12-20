@@ -269,7 +269,7 @@ public class DataReceiptPipelineModule extends PipelineModule
                 .regularFilesInDirTree(dataImportPathForTask);
             List<String> filenamesInDirTree = regularFilesInDirTree.keySet()
                 .stream()
-                .map(s -> s.toString())
+                .map(Path::toString)
                 .collect(Collectors.toList());
             filenamesInDirTree.removeAll(namesOfValidFiles);
             filenamesInDirTree.remove(manifest.getName());
@@ -316,7 +316,7 @@ public class DataReceiptPipelineModule extends PipelineModule
 
         importDataFiles(datastoreRoot);
 
-        importModels(datastoreRoot);
+        importModels();
 
         if (!allFilesImported) {
             throw new PipelineException("File import failures detected");
@@ -405,7 +405,7 @@ public class DataReceiptPipelineModule extends PipelineModule
      * that imports that run across multiple tasks, with model imports in each task, will not result
      * in a corrupted model registry.
      */
-    private void importModels(Path datastoreRootPath) {
+    private void importModels() {
         synchronized (DataReceiptPipelineModule.class) {
 
             Path dataReceiptPath = Paths.get(dataReceiptDir);

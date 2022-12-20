@@ -49,7 +49,7 @@ public class TaskInformationDialog extends JDialog {
         private static final long serialVersionUID = 20210818L;
 
         private static final String MAX_PARALLEL_SUBTASK_HEADER = "Max Parallel Subtasks";
-        private static final String[] ALL_COLUMN_HEADERS = new String[] { "", "UOW", "Subtasks",
+        private static final String[] ALL_COLUMN_HEADERS = { "", "UOW", "Subtasks",
             MAX_PARALLEL_SUBTASK_HEADER };
         String[] columnHeaders;
         List<SubtaskInformation> subtaskInfo;

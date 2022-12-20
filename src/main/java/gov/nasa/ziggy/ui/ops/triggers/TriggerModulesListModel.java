@@ -58,9 +58,8 @@ public class TriggerModulesListModel extends AbstractListModel<String>
 
         if (selectedIndex != -1) {
             return pipelineNodes.get(selectedIndex);
-        } else {
-            return null;
         }
+        return null;
     }
 
     public PipelineDefinitionNode getTriggerNodeAt(int index) {

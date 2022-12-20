@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.module.hdf5;
 
+import java.util.Objects;
+
 import gov.nasa.ziggy.module.io.Persistable;
 
 /**
@@ -11,7 +13,7 @@ public class PersistableSample3 implements Persistable {
 
     private String stringVar = "This is a string";
     private int intVar = 5;
-    private Integer boxedIntVar = Integer.valueOf(10);
+    private Integer boxedIntVar = 10;
     private boolean boolVar = true;
     private Boolean boxedBoolVar = Boolean.FALSE;
     private EnumTest enumScalar = EnumTest.FIRST;
@@ -66,15 +68,7 @@ public class PersistableSample3 implements Persistable {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + (boolVar ? 1231 : 1237);
-        result = prime * result + (boxedBoolVar == null ? 0 : boxedBoolVar.hashCode());
-        result = prime * result + (boxedIntVar == null ? 0 : boxedIntVar.hashCode());
-        result = prime * result + (enumScalar == null ? 0 : enumScalar.hashCode());
-        result = prime * result + intVar;
-        result = prime * result + (stringVar == null ? 0 : stringVar.hashCode());
-        return result;
+        return Objects.hash(boolVar, boxedBoolVar, boxedIntVar, enumScalar, intVar, stringVar);
     }
 
     @Override
@@ -82,28 +76,17 @@ public class PersistableSample3 implements Persistable {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         PersistableSample3 other = (PersistableSample3) obj;
         if (boolVar != other.boolVar) {
             return false;
         }
-        if (boxedBoolVar == null) {
-            if (other.boxedBoolVar != null) {
-                return false;
-            }
-        } else if (!boxedBoolVar.equals(other.boxedBoolVar)) {
+        if (!Objects.equals(boxedBoolVar, other.boxedBoolVar)) {
             return false;
         }
-        if (boxedIntVar == null) {
-            if (other.boxedIntVar != null) {
-                return false;
-            }
-        } else if (!boxedIntVar.equals(other.boxedIntVar)) {
+        if (!Objects.equals(boxedIntVar, other.boxedIntVar)) {
             return false;
         }
         if (enumScalar != other.enumScalar) {
@@ -112,11 +95,7 @@ public class PersistableSample3 implements Persistable {
         if (intVar != other.intVar) {
             return false;
         }
-        if (stringVar == null) {
-            if (other.stringVar != null) {
-                return false;
-            }
-        } else if (!stringVar.equals(other.stringVar)) {
+        if (!Objects.equals(stringVar, other.stringVar)) {
             return false;
         }
         return true;

@@ -239,7 +239,7 @@ public class WorkerPipelineProcess extends AbstractPipelineProcess {
 
     public static Set<ZiggyEventHandlerInfoForDisplay> serializableZiggyEventHandlers() {
         return ziggyEventHandlers.stream()
-            .map(s -> new ZiggyEventHandlerInfoForDisplay(s))
+            .map(ZiggyEventHandlerInfoForDisplay::new)
             .collect(Collectors.toSet());
     }
 

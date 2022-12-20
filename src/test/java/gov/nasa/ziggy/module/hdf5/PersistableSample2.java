@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module.hdf5;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
@@ -34,8 +35,7 @@ public class PersistableSample2 implements Persistable {
         result = prime * result + Arrays.deepHashCode(persistableArray2);
         result = prime * result + (persistableList == null ? 0 : persistableList.hashCode());
         result = prime * result + (persistableScalar1 == null ? 0 : persistableScalar1.hashCode());
-        result = prime * result + (persistableScalar2 == null ? 0 : persistableScalar2.hashCode());
-        return result;
+        return prime * result + (persistableScalar2 == null ? 0 : persistableScalar2.hashCode());
     }
 
     @Override
@@ -43,10 +43,7 @@ public class PersistableSample2 implements Persistable {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         PersistableSample2 other = (PersistableSample2) obj;
@@ -60,25 +57,13 @@ public class PersistableSample2 implements Persistable {
         if (!Arrays.deepEquals(persistableArray2, other.persistableArray2)) {
             return false;
         }
-        if (persistableList == null) {
-            if (other.persistableList != null) {
-                return false;
-            }
-        } else if (!persistableList.equals(other.persistableList)) {
+        if (!Objects.equals(persistableList, other.persistableList)) {
             return false;
         }
-        if (persistableScalar1 == null) {
-            if (other.persistableScalar1 != null) {
-                return false;
-            }
-        } else if (!persistableScalar1.equals(other.persistableScalar1)) {
+        if (!Objects.equals(persistableScalar1, other.persistableScalar1)) {
             return false;
         }
-        if (persistableScalar2 == null) {
-            if (other.persistableScalar2 != null) {
-                return false;
-            }
-        } else if (!persistableScalar2.equals(other.persistableScalar2)) {
+        if (!Objects.equals(persistableScalar2, other.persistableScalar2)) {
             return false;
         }
         return true;

@@ -226,10 +226,7 @@ public class PipelineInstance implements PipelineExecutionTime {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         final PipelineInstance other = (PipelineInstance) obj;
@@ -275,10 +272,9 @@ public class PipelineInstance implements PipelineExecutionTime {
         if (pipelineParamSet != null) {
             log.debug("Pipeline parameters for class: " + parametersClass + " found");
             return pipelineParamSet.parametersInstance();
-        } else {
-            throw new PipelineException("Pipeline parameters for class: " + parametersClass
-                + " not found in PipelineInstance");
         }
+        throw new PipelineException(
+            "Pipeline parameters for class: " + parametersClass + " not found in PipelineInstance");
     }
 
     /**
@@ -376,9 +372,7 @@ public class PipelineInstance implements PipelineExecutionTime {
         ModelRegistry modelRegistry = getModelRegistry();
         ModelMetadata modelMetadata = modelRegistry.getMetadataForType(modelType);
         int dataSetId = Integer.parseInt(modelMetadata.getModelRevision());
-        T model = modelCrud.retrieveByExternalId(dataSetId);
-
-        return model;
+        return modelCrud.retrieveByExternalId(dataSetId);
     }
 
     public String getModelDescription(String modelType) {

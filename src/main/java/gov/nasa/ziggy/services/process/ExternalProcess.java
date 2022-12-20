@@ -459,9 +459,8 @@ public class ExternalProcess {
     public Class<? extends LogOutputStream> outputLogClass() {
         if (outputLog != null) {
             return outputLog.getClass();
-        } else {
-            return null;
         }
+        return null;
     }
 
     /**
@@ -470,9 +469,8 @@ public class ExternalProcess {
     public Class<? extends LogOutputStream> errorLogClass() {
         if (errorLog != null) {
             return errorLog.getClass();
-        } else {
-            return null;
         }
+        return null;
     }
 
     /**

@@ -638,7 +638,7 @@ public class RemoteExecutionDialog extends JDialog {
             currentOptimizer = null;
         } catch (Exception f) {
             boolean handled = false;
-            if (f instanceof IllegalStateException | f instanceof PipelineException) {
+            if (f instanceof IllegalStateException || f instanceof PipelineException) {
                 handled = handlePbsParametersException(f.getStackTrace());
             }
             if (!handled) {

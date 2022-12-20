@@ -53,24 +53,20 @@ public class PipelineInstanceCrudProxy extends CrudProxy {
 
     public PipelineInstance retrieve(final long id) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        PipelineInstance result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineInstanceCrud crud = new PipelineInstanceCrud();
-                PipelineInstance r = crud.retrieve(id);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineInstanceCrud crud = new PipelineInstanceCrud();
+            PipelineInstance r = crud.retrieve(id);
+            return r;
+        });
     }
 
     public List<PipelineInstance> retrieve() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineInstance> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineInstanceCrud crud = new PipelineInstanceCrud();
-                List<PipelineInstance> r = crud.retrieveAll();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineInstanceCrud crud = new PipelineInstanceCrud();
+            List<PipelineInstance> r = crud.retrieveAll();
+            return r;
+        });
     }
 
     public List<PipelineInstance> retrieve(final PipelineInstanceFilter filter) {
@@ -79,23 +75,19 @@ public class PipelineInstanceCrudProxy extends CrudProxy {
 
     public List<PipelineInstance> retrieve(final PipelineInstanceFilter filter, boolean silent) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineInstance> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineInstanceCrud crud = new PipelineInstanceCrud();
-                List<PipelineInstance> r = crud.retrieve(filter);
-                return r;
-            }, silent);
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineInstanceCrud crud = new PipelineInstanceCrud();
+            List<PipelineInstance> r = crud.retrieve(filter);
+            return r;
+        }, silent);
     }
 
     public List<PipelineInstance> retrieveAllActive() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineInstance> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineInstanceCrud crud = new PipelineInstanceCrud();
-                List<PipelineInstance> r = crud.retrieveAllActive();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineInstanceCrud crud = new PipelineInstanceCrud();
+            List<PipelineInstance> r = crud.retrieveAllActive();
+            return r;
+        });
     }
 }

@@ -134,10 +134,8 @@ public class PipelineGraphCanvas extends JPanel {
             PipelineNodeWidget widget = new PipelineNodeWidget(node, parentNode);
             canvasPane.add(widget);
             widget.setBounds(nodeBounds);
-        } else { // LINES
-            if (parentBounds != null) {
-                drawArrow(node.isStartNewUow(), g2, parentBounds, nodeBounds);
-            }
+        } else if (parentBounds != null) {
+            drawArrow(node.isStartNewUow(), g2, parentBounds, nodeBounds);
         }
 
         int childColumn = column;
@@ -312,8 +310,7 @@ public class PipelineGraphCanvas extends JPanel {
                 }
 
                 // copy selected node's nextNodes to new node's nextNodes
-                List<PipelineDefinitionNode> newNodeNextNodes = new ArrayList<>();
-                newNodeNextNodes.addAll(currentNextNodes);
+                List<PipelineDefinitionNode> newNodeNextNodes = new ArrayList<>(currentNextNodes);
                 newNode.setNextNodes(newNodeNextNodes);
 
                 // set selected node's nextNodes to new node

@@ -6,7 +6,6 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
@@ -87,21 +86,4 @@ public class MemdroneLog {
     public Map<String, DescriptiveStatistics> getLogContents() {
         return logContents;
     }
-
-    private static void dumpTopTen(TopNList topTenList) throws Exception {
-        Format f = new BytesFormat();
-        List<TopNListElement> list = topTenList.getList();
-        int index = 1;
-
-        for (TopNListElement element : list) {
-            String value = f.format(element.getValue());
-            System.out.println(index + " - " + element.getLabel() + ": " + value);
-            index++;
-        }
-    }
-
-    private static void usage() {
-        System.out.println("memdrone TASK_DIR");
-    }
-
 }

@@ -14,7 +14,6 @@ public class ToolTipBorderJPanel extends JPanel {
     private static final long serialVersionUID = 20210812L;
 
     public ToolTipBorderJPanel() {
-        super();
     }
 
     public ToolTipBorderJPanel(boolean isDoubleBuffered) {

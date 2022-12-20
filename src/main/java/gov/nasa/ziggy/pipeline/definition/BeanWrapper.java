@@ -405,12 +405,11 @@ public class BeanWrapper<T> {
                 instanceParameters.add(new TypedParameter(property));
             }
             return instanceParameters;
-        } else {
-            try {
-                return describeBean(instance);
-            } catch (Exception e) {
-                throw new PipelineException("failed to describe bean, caught e = " + e, e);
-            }
+        }
+        try {
+            return describeBean(instance);
+        } catch (Exception e) {
+            throw new PipelineException("failed to describe bean, caught e = " + e, e);
         }
     }
 
@@ -491,9 +490,8 @@ public class BeanWrapper<T> {
     public boolean isInitialized() {
         if (initialized == null) {
             return false;
-        } else {
-            return initialized;
         }
+        return initialized;
     }
 
     public void setInitialized(boolean set) {

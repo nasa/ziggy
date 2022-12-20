@@ -139,8 +139,7 @@ public class ParameterSetHdf5Test {
             checkVars = checkVars && value3.size() == 3;
             checkVars = checkVars && value3.get(0).equals("something");
             checkVars = checkVars && value3.get(1).equals("happening");
-            checkVars = checkVars && value3.get(2).equals("here");
-            return checkVars;
+            return checkVars && value3.get(2).equals("here");
         }
     }
 

@@ -995,7 +995,7 @@ public class ExternalProcessPipelineModuleTest {
         }
 
         void setDoneLoopingValue(boolean v) {
-            marshalingReturn = Boolean.valueOf(v);
+            marshalingReturn = v;
         }
 
         // Allows the processing main loop to either run normally or else skip execution

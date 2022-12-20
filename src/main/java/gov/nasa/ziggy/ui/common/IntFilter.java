@@ -12,7 +12,7 @@ public class IntFilter extends NumericFilter {
     // Pattern matcher for a non-negative integer -- contains only digits, no
     // decimal point or minus sign needed.
     static final Pattern POSITIVE_INT_PATTERN = Pattern.compile("\\d*");
-    static final Pattern[] PATTERNS = new Pattern[] { POSITIVE_INT_PATTERN };
+    static final Pattern[] PATTERNS = { POSITIVE_INT_PATTERN };
 
     @Override
     protected Pattern[] patterns() {

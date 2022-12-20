@@ -57,13 +57,13 @@ public class MacOSXMemInfo extends AbstractMemInfo {
         if (intString.endsWith("B")) {
             value += Integer.valueOf(intString.substring(0, intString.length() - 1)) / 1024;
         } else if (intString.endsWith("K")) {
-            value += Integer.valueOf(intString.substring(0, intString.length() - 1));
+            value += Integer.parseInt(intString.substring(0, intString.length() - 1));
         } else if (intString.endsWith("M")) {
             value += Integer.valueOf(intString.substring(0, intString.length() - 1)) * 1024;
         } else if (intString.endsWith("G")) {
             value += Integer.valueOf(intString.substring(0, intString.length() - 1)) * 1024 * 1024;
         } else {
-            value += Integer.valueOf(intString);
+            value += Integer.parseInt(intString);
         }
         return value;
     }

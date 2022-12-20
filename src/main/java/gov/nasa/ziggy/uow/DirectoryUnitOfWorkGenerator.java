@@ -57,10 +57,9 @@ public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerato
             Class<?> cls = Class.forName(clazz);
             if (DirectoryUnitOfWorkGenerator.class.isAssignableFrom(cls)) {
                 return uow.getParameter(DIRECTORY_PROPERTY_NAME).getString();
-            } else {
-                throw new PipelineException(
-                    "Class " + clazz + " not a subclass of DirectoryUnitOfWorkGenerator");
             }
+            throw new PipelineException(
+                "Class " + clazz + " not a subclass of DirectoryUnitOfWorkGenerator");
         } catch (ClassNotFoundException e) {
             throw new PipelineException("Generator class " + clazz + " not found", e);
         }

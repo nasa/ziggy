@@ -17,12 +17,10 @@ public class AlertLogCrudProxy extends CrudProxy {
 
     public List<AlertLog> retrieveForPipelineInstance(final long pipelineInstanceId) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<AlertLog> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                AlertLogCrud crud = new AlertLogCrud();
-                List<AlertLog> result1 = crud.retrieveForPipelineInstance(pipelineInstanceId);
-                return result1;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            AlertLogCrud crud = new AlertLogCrud();
+            List<AlertLog> result1 = crud.retrieveForPipelineInstance(pipelineInstanceId);
+            return result1;
+        });
     }
 }

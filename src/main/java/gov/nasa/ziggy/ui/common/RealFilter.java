@@ -16,8 +16,7 @@ public class RealFilter extends NumericFilter {
         .compile("[+]?(\\d+|\\d+\\.\\d+|\\.\\d+|\\d+\\.)([eE]\\d+)?");
     static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
     static final Pattern EMPTY_PATTERN = Pattern.compile("");
-    static final Pattern[] PATTERNS = new Pattern[] { POSITIVE_REAL_PATTERN, WHITESPACE_PATTERN,
-        EMPTY_PATTERN };
+    static final Pattern[] PATTERNS = { POSITIVE_REAL_PATTERN, WHITESPACE_PATTERN, EMPTY_PATTERN };
 
     @Override
     protected Pattern[] patterns() {

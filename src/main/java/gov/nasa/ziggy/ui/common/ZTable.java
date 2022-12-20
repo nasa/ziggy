@@ -110,9 +110,8 @@ public class ZTable extends ETable {
     public TableCellRenderer getCellRenderer(int row, int column) {
         if (textWrappingEnabled && getColumnClass(column) != Boolean.class) {
             return textWrapTableCellRenderer;
-        } else {
-            return super.getCellRenderer(row, column);
         }
+        return super.getCellRenderer(row, column);
     }
 
     private float columnWidth(int columnIndex) {
@@ -150,8 +149,7 @@ public class ZTable extends ETable {
             height += layout.getAscent() + 2 * layout.getDescent();
             descent = layout.getDescent();
         }
-        int intHeight = (int) (height + descent);
-        return intHeight;
+        return (int) (height + descent);
     }
 
     /**

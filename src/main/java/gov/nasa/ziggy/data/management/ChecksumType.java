@@ -4,9 +4,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import jakarta.xml.bind.annotation.XmlEnum;
-
 import org.apache.commons.codec.digest.DigestUtils;
+
+import jakarta.xml.bind.annotation.XmlEnum;
 
 /**
  * Defines the supported checksum types. These are a subset of the types available in

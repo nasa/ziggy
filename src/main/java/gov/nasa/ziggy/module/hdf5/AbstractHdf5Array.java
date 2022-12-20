@@ -62,9 +62,8 @@ public abstract class AbstractHdf5Array {
         }
         if (object instanceof Field) {
             return AbstractHdf5Array.getFieldInstance((Field) object);
-        } else {
-            return AbstractHdf5Array.getObjectInstance(object);
         }
+        return AbstractHdf5Array.getObjectInstance(object);
     }
 
     /**
@@ -122,9 +121,7 @@ public abstract class AbstractHdf5Array {
      */
     public static boolean isEmpty(Object object) {
         boolean isEmpty = false;
-        if (object == null) {
-            isEmpty = true;
-        } else if (object.getClass() == null) {
+        if ((object == null) || (object.getClass() == null)) {
             isEmpty = true;
         } else if (List.class.isAssignableFrom(object.getClass())) {
             List<?> objList = (List<?>) object;
@@ -384,9 +381,7 @@ public abstract class AbstractHdf5Array {
         H5.H5Sclose(dataSpaceId);
         H5.H5Aclose(attributeId);
 
-        // convert the byte array to a String
-        String attributeValue = new String(attributeValueBytes, CHARSET);
-        return attributeValue;
+        return new String(attributeValueBytes, CHARSET);
 
     }
 
@@ -419,11 +414,10 @@ public abstract class AbstractHdf5Array {
     static Object getArrayMember(Object arrayCurrentLevel, long[] location) {
         if (location.length == 1) {
             return getArrayMember(arrayCurrentLevel, (int) location[0]);
-        } else {
-            long[] newLocation = Arrays.copyOfRange(location, 1, location.length);
-            Object[] objectArray = (Object[]) arrayCurrentLevel;
-            return getArrayMember(objectArray[(int) location[0]], newLocation);
         }
+        long[] newLocation = Arrays.copyOfRange(location, 1, location.length);
+        Object[] objectArray = (Object[]) arrayCurrentLevel;
+        return getArrayMember(objectArray[(int) location[0]], newLocation);
     }
 
     /**
@@ -453,11 +447,10 @@ public abstract class AbstractHdf5Array {
     }
 
     public void setArrayObject(Object arrayObject) {
-        if (this.arrayObject == null) {
-            setArray(arrayObject);
-        } else {
+        if (this.arrayObject != null) {
             throw new PipelineException("Contents of Hdf5Array cannot be changed");
         }
+        setArray(arrayObject);
     }
 
     public Class<? extends Object> getAuxiliaryClass() {

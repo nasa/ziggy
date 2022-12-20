@@ -48,7 +48,7 @@ public class RemovableArrayList<T> extends ArrayList<T> {
      * Inserts data at the speciried location.
      */
     public void insertAt(int start, final T[] data) {
-        Collection<T> tmpCollection = new Collection<T>() {
+        Collection<T> tmpCollection = new Collection<>() {
             @Override
             public boolean add(T e) {
                 throw new IllegalStateException("Read only.");

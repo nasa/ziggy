@@ -76,14 +76,13 @@ public class GroupsDialog extends javax.swing.JDialog {
 
         editor.setVisible(true);
 
-        if (!editor.isCancelled) {
-            if (editor.defaultCheckBox.isSelected()) {
-                return Group.DEFAULT_GROUP;
-            } else {
-                return editor.getSelectedGroup();
-            }
-        } else {
+        if (editor.isCancelled) {
             return null;
+        }
+        if (editor.defaultCheckBox.isSelected()) {
+            return Group.DEFAULT_GROUP;
+        } else {
+            return editor.getSelectedGroup();
         }
     }
 
@@ -184,9 +183,8 @@ public class GroupsDialog extends javax.swing.JDialog {
         int selectedIndex = groupsList.getSelectedIndex();
         if (selectedIndex >= 0) {
             return groupsListModel.get(selectedIndex);
-        } else {
-            return null;
         }
+        return null;
     }
 
     private static Window findParentWindow(Component c) {
@@ -242,7 +240,7 @@ public class GroupsDialog extends javax.swing.JDialog {
         if (okButton == null) {
             okButton = new JButton();
             okButton.setText("ok");
-            okButton.addActionListener(evt -> okButtonActionPerformed(evt));
+            okButton.addActionListener(this::okButtonActionPerformed);
         }
         return okButton;
     }
@@ -251,7 +249,7 @@ public class GroupsDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }
@@ -291,7 +289,7 @@ public class GroupsDialog extends javax.swing.JDialog {
             groupsListModel = new GenericListModel<>();
             groupsList = new JList<>();
             groupsList.setModel(groupsListModel);
-            groupsList.addListSelectionListener(evt -> groupsListValueChanged(evt));
+            groupsList.addListSelectionListener(this::groupsListValueChanged);
         }
         return groupsList;
     }
@@ -299,7 +297,7 @@ public class GroupsDialog extends javax.swing.JDialog {
     private JTextField getNewGroupTextField() {
         if (newGroupTextField == null) {
             newGroupTextField = new JTextField();
-            newGroupTextField.addActionListener(evt -> newGroupTextFieldActionPerformed(evt));
+            newGroupTextField.addActionListener(this::newGroupTextFieldActionPerformed);
         }
         return newGroupTextField;
     }
@@ -308,7 +306,7 @@ public class GroupsDialog extends javax.swing.JDialog {
         if (addButton == null) {
             addButton = new JButton();
             addButton.setText("+");
-            addButton.addActionListener(evt -> addButtonActionPerformed(evt));
+            addButton.addActionListener(this::addButtonActionPerformed);
         }
         return addButton;
     }
@@ -317,7 +315,7 @@ public class GroupsDialog extends javax.swing.JDialog {
         if (removeButton == null) {
             removeButton = new JButton();
             removeButton.setText("-");
-            removeButton.addActionListener(evt -> removeButtonActionPerformed(evt));
+            removeButton.addActionListener(this::removeButtonActionPerformed);
         }
         return removeButton;
     }
@@ -348,7 +346,7 @@ public class GroupsDialog extends javax.swing.JDialog {
         if (defaultCheckBox == null) {
             defaultCheckBox = new JCheckBox();
             defaultCheckBox.setText("default group");
-            defaultCheckBox.addActionListener(evt -> defaultCheckBoxActionPerformed(evt));
+            defaultCheckBox.addActionListener(this::defaultCheckBoxActionPerformed);
         }
         return defaultCheckBox;
     }

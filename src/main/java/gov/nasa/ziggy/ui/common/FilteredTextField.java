@@ -16,7 +16,6 @@ public abstract class FilteredTextField extends JTextField {
     private static final long serialVersionUID = 20210811L;
 
     public FilteredTextField() {
-        super();
     }
 
     public FilteredTextField(Document doc, String text, int columns) {

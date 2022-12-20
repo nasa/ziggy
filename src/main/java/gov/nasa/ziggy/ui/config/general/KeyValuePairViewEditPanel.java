@@ -27,7 +27,6 @@ public class KeyValuePairViewEditPanel extends AbstractViewEditPanel {
     // getTableModel)
 
     public KeyValuePairViewEditPanel() throws PipelineUIException {
-        super();
         initGUI();
     }
 

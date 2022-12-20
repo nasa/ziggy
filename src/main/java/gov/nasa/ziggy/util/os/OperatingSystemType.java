@@ -54,21 +54,20 @@ public enum OperatingSystemType {
     }
 
     public CpuInfo getCpuInfo() throws Exception {
-		return cpuInfoClass.getDeclaredConstructor().newInstance();
+        return cpuInfoClass.getDeclaredConstructor().newInstance();
     }
 
     public MemInfo getMemInfo() throws Exception {
-		return memInfoClass.getDeclaredConstructor().newInstance();
+        return memInfoClass.getDeclaredConstructor().newInstance();
     }
 
     public ProcInfo getProcInfo(long pid) throws Exception {
         Class<?>[] procInfoArgs = new Class[] { long.class };
-        ProcInfo procInfo = procInfoClass.getConstructor(procInfoArgs).newInstance(pid);
-        return procInfo;
+        return procInfoClass.getConstructor(procInfoArgs).newInstance(pid);
     }
 
     public ProcInfo getProcInfo() throws Exception {
-		return procInfoClass.getDeclaredConstructor().newInstance();
+        return procInfoClass.getDeclaredConstructor().newInstance();
     }
 
     public static final OperatingSystemType byName(String name) {

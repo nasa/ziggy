@@ -75,7 +75,7 @@ public class HsqldbController extends ScriptedDatabaseController {
 
     @Override
     public void dropDatabase() {
-        cleanDB();
+        cleanDb();
     }
 
     @Override

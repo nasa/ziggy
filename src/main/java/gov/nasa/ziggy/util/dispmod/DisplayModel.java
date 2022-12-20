@@ -69,7 +69,6 @@ public abstract class DisplayModel {
     }
 
     public static double getProcessingMillis(Date start, Date end) {
-        double processingMillis = 0.0;
         long startMillis = start.getTime();
         long endMillis = end.getTime();
 
@@ -81,31 +80,25 @@ public abstract class DisplayModel {
             startMillis = System.currentTimeMillis();
         }
 
-        processingMillis = endMillis - startMillis;
-
-        return processingMillis;
+        return endMillis - startMillis;
     }
 
     public static double getProcessingHours(Date start, Date end) {
         double processingMillis = getProcessingMillis(start, end);
-        double processingHours = processingMillis / (1000.0 * 60.0 * 60.0);
-
-        return processingHours;
+        return processingMillis / (1000.0 * 60.0 * 60.0);
     }
 
     protected String formatDouble(double d) {
-		if (Double.isNaN(d)) {
+        if (Double.isNaN(d)) {
             return "-";
-        } else {
-            return String.format("%.3f", d);
         }
+        return String.format("%.3f", d);
     }
 
     public static String formatDate(Date d) {
         if (d.getTime() == 0) {
             return "-";
-        } else {
-            return dateFormat.format(d);
         }
+        return dateFormat.format(d);
     }
 }

@@ -207,8 +207,7 @@ public class DirectoryProperties {
      */
     public static Path workingDir() {
         return Paths.get(ZiggyConfiguration.getInstance()
-            .getString(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME,
-                SystemUtils.USER_DIR));
+            .getString(PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME, SystemUtils.USER_DIR));
     }
 
     public static Path datastoreRootDir() {

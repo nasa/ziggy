@@ -64,15 +64,13 @@ public class TaskSummaryDisplayModel extends DisplayModel {
                 }
             case 5: // SubTasks
                 if (isTotalsRow) {
-                    String allTotals = taskStates.getTotalSubTaskTotalCount() + " / "
+                    return taskStates.getTotalSubTaskTotalCount() + " / "
                         + taskStates.getTotalSubTaskCompleteCount() + " / "
                         + taskStates.getTotalSubTaskFailedCount();
-                    return allTotals;
                 } else {
-                    String moduleTotals = moduleSummary.getSubTaskTotalCount() + " / "
+                    return moduleSummary.getSubTaskTotalCount() + " / "
                         + moduleSummary.getSubTaskCompleteCount() + " / "
                         + moduleSummary.getSubTaskFailedCount();
-                    return moduleTotals;
                 }
             default:
                 throw new IllegalArgumentException("Unexpected value: " + columnIndex);
@@ -108,9 +106,8 @@ public class TaskSummaryDisplayModel extends DisplayModel {
     public int getRowCount() {
         if (taskStates != null) {
             return taskStates.getModuleNames().size() + 1;
-        } else {
-            return 0;
         }
+        return 0;
     }
 
     public TasksStates getTaskStates() {

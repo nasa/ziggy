@@ -325,19 +325,17 @@ public class PipelineExecutor {
             // completed successfully
             instance.setState(PipelineInstance.State.COMPLETED);
             instance.stopExecutionClock();
-        } else {
-            if (state.getNumFailedTasks() > 0) {
-                if (state.getNumFailedTasks() + state.getNumCompletedTasks() == state
-                    .getNumSubmittedTasks()) {
-                    instance.setState(PipelineInstance.State.ERRORS_STALLED);
-                    instance.stopExecutionClock();
-                } else {
-                    instance.setState(PipelineInstance.State.ERRORS_RUNNING);
-                }
+        } else if (state.getNumFailedTasks() > 0) {
+            if (state.getNumFailedTasks() + state.getNumCompletedTasks() == state
+                .getNumSubmittedTasks()) {
+                instance.setState(PipelineInstance.State.ERRORS_STALLED);
+                instance.stopExecutionClock();
             } else {
-                // situation normal
-                instance.setState(PipelineInstance.State.PROCESSING);
+                instance.setState(PipelineInstance.State.ERRORS_RUNNING);
             }
+        } else {
+            // situation normal
+            instance.setState(PipelineInstance.State.PROCESSING);
         }
 
         log.info("updateInstanceState: all nodes: numTasks/numSubmittedTasks/numCompletedTasks/numFailedTasks =  "
@@ -478,14 +476,13 @@ public class PipelineExecutor {
             pipelineParameterSets);
 
         for (ClassWrapper<Parameters> moduleParameterClass : uowModuleParameterSets.keySet()) {
-            if (!compositeParameterSets.containsKey(moduleParameterClass)) {
-                compositeParameterSets.put(moduleParameterClass,
-                    uowModuleParameterSets.get(moduleParameterClass));
-            } else {
+            if (compositeParameterSets.containsKey(moduleParameterClass)) {
                 throw new PipelineException(
                     "Configuration Error: Module parameter and pipeline parameter Maps both contain a value for parameter class: "
                         + moduleParameterClass);
             }
+            compositeParameterSets.put(moduleParameterClass,
+                uowModuleParameterSets.get(moduleParameterClass));
         }
 
         Map<Class<? extends Parameters>, Parameters> uowParams = new HashMap<>();

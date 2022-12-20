@@ -171,7 +171,7 @@ public class RegexEditor {
             throw new IllegalArgumentException("regexs is zero length");
         }
 
-        StringBuffer compoundExpression = new StringBuffer();
+        StringBuilder compoundExpression = new StringBuilder();
         for (String regex : regexs) {
             if (compoundExpression.length() > 0) {
                 compoundExpression.append("|");
@@ -182,7 +182,6 @@ public class RegexEditor {
     }
 
     public static Pattern createCompoundPattern(List<String> regexs) {
-        Pattern pattern = Pattern.compile(createCompoundRegex(regexs));
-        return pattern;
+        return Pattern.compile(createCompoundRegex(regexs));
     }
 }

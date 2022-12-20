@@ -12,7 +12,6 @@ public class TestBean implements Parameters {
     private String[] d = { "a", "b", "c" };
 
     public TestBean(int a, String b, int[] c, String[] d) {
-        super();
         this.a = a;
         this.b = b;
         this.c = c;

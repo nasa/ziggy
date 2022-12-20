@@ -5,6 +5,7 @@ import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
@@ -66,10 +67,7 @@ public class ModuleName {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         final ModuleName other = (ModuleName) obj;

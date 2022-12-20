@@ -84,13 +84,12 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
         // If the exit code was nonzero, throw an exception here that will mark the pipeline
         // as having failed
         if (exitCode != 0) {
-            if (ZiggyShutdownHook.shutdownInProgress()) {
-                log.error("Task " + pipelineTask.getId()
-                    + " processing incomplete due to worker shutdown");
-            } else {
+            if (!ZiggyShutdownHook.shutdownInProgress()) {
                 throw new PipelineException(
                     "Local processing of task " + pipelineTask.getId() + " failed");
             }
+            log.error(
+                "Task " + pipelineTask.getId() + " processing incomplete due to worker shutdown");
         }
     }
 

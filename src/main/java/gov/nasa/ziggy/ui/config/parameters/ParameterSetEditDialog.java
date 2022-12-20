@@ -339,7 +339,7 @@ public class ParameterSetEditDialog extends javax.swing.JDialog {
         if (saveButton == null) {
             saveButton = new JButton();
             saveButton.setText("Save");
-            saveButton.addActionListener(evt -> saveButtonActionPerformed(evt));
+            saveButton.addActionListener(this::saveButtonActionPerformed);
         }
         return saveButton;
     }
@@ -348,7 +348,7 @@ public class ParameterSetEditDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("Cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }
@@ -369,7 +369,7 @@ public class ParameterSetEditDialog extends javax.swing.JDialog {
         if (importButton == null) {
             importButton = new JButton();
             importButton.setText("Import");
-            importButton.addActionListener(evt -> importButtonActionPerformed(evt));
+            importButton.addActionListener(this::importButtonActionPerformed);
         }
         return importButton;
     }
@@ -378,7 +378,7 @@ public class ParameterSetEditDialog extends javax.swing.JDialog {
         if (exportButton == null) {
             exportButton = new JButton();
             exportButton.setText("Export");
-            exportButton.addActionListener(evt -> exportButtonActionPerformed(evt));
+            exportButton.addActionListener(this::exportButtonActionPerformed);
         }
         return exportButton;
     }
@@ -387,7 +387,7 @@ public class ParameterSetEditDialog extends javax.swing.JDialog {
         if (defaultsButton == null) {
             defaultsButton = new JButton();
             defaultsButton.setText("Replace with Defaults");
-            defaultsButton.addActionListener(evt -> defaultsButtonActionPerformed(evt));
+            defaultsButton.addActionListener(this::defaultsButtonActionPerformed);
         }
         return defaultsButton;
     }

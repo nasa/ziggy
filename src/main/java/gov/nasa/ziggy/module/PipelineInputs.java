@@ -192,7 +192,7 @@ public abstract class PipelineInputs implements Persistable {
             String subTaskDirName = userDir.getName();
             Matcher m = pattern.matcher(subTaskDirName);
             m.matches();
-			subTaskIndex = Integer.valueOf(m.group(1));
+            subTaskIndex = Integer.valueOf(m.group(1));
         }
         return subTaskIndex;
     }

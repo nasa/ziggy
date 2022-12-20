@@ -152,7 +152,9 @@ public class NasQueueTimeMetrics {
     private Set<ArchitectureQueueTimeMetrics> parseQsCsv(String file, String nasaDivision) {
 
         Set<ArchitectureQueueTimeMetrics> metricsAllArchitectures = new HashSet<>();
-		CSVFormat format = CSVFormat.Builder.create(CSVFormat.EXCEL).setRecordSeparator("\n").build();
+        CSVFormat format = CSVFormat.Builder.create(CSVFormat.EXCEL)
+            .setRecordSeparator("\n")
+            .build();
         try (CSVParser parser = format.parse(new FileReader(new File(file)))) {
             List<CSVRecord> csvRecords = parser.getRecords();
             CSVRecord divisionsRecord = csvRecords.get(0);
@@ -220,8 +222,8 @@ public class NasQueueTimeMetrics {
             String expansionString) {
 
             archName = archString;
-            runoutTime = Double.valueOf(runoutString);
-            expansion = Double.valueOf(expansionString);
+            runoutTime = Double.parseDouble(runoutString);
+            expansion = Double.parseDouble(expansionString);
         }
 
         @Override
@@ -234,10 +236,7 @@ public class NasQueueTimeMetrics {
             if (this == obj) {
                 return true;
             }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
+            if ((obj == null) || (getClass() != obj.getClass())) {
                 return false;
             }
             ArchitectureQueueTimeMetrics other = (ArchitectureQueueTimeMetrics) obj;

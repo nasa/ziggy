@@ -40,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -360,7 +361,7 @@ public class ClusterController {
                     .listFiles(
                         (FilenameFilter) (dir, name) -> (name.startsWith(PARAM_LIBRARY_PREFIX)
                             && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(parameterFiles, (f1, f2) -> f1.getName().compareTo(f2.getName()));
+                Arrays.sort(parameterFiles, Comparator.comparing(File::getName));
                 ParametersOperations paramsOps = new ParametersOperations();
                 for (File parameterFile : parameterFiles) {
                     log.info("INIT: importing library " + parameterFile.getName());
@@ -372,7 +373,7 @@ public class ClusterController {
                 File[] dataTypeFiles = pipelineDefsDir.toFile()
                     .listFiles((FilenameFilter) (dir,
                         name) -> (name.startsWith(TYPE_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(dataTypeFiles, (f1, f2) -> f1.getName().compareTo(f2.getName()));
+                Arrays.sort(dataTypeFiles, Comparator.comparing(File::getName));
                 List<String> dataTypeFileNames = new ArrayList<>(dataTypeFiles.length);
                 for (File dataTypeFile : dataTypeFiles) {
                     log.info("INIT: adding " + dataTypeFile.getName() + " to imports list");
@@ -386,8 +387,7 @@ public class ClusterController {
                     .listFiles(
                         (FilenameFilter) (dir, name) -> (name.startsWith(PIPELINE_DEF_FILE_PREFIX)
                             && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(pipelineDefinitionFiles,
-                    (f1, f2) -> f1.getName().compareTo(f2.getName()));
+                Arrays.sort(pipelineDefinitionFiles, Comparator.comparing(File::getName));
                 List<File> pipelineDefFileList = new ArrayList<>();
                 for (File pipelineDefinitionFile : pipelineDefinitionFiles) {
                     log.info(
@@ -402,8 +402,7 @@ public class ClusterController {
                     .listFiles((FilenameFilter) (dir,
                         name) -> (name.startsWith(EVENT_HANDLER_DEF_FILE_PREFIX)
                             && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(handlerDefinitionFiles,
-                    (f1, f2) -> f1.getName().compareTo(f2.getName()));
+                Arrays.sort(handlerDefinitionFiles, Comparator.comparing(File::getName));
                 new ZiggyEventHandlerDefinitionImporter(handlerDefinitionFiles).importFromFiles();
 
                 return null;
@@ -528,11 +527,10 @@ public class ClusterController {
             throw new PipelineException("Cannot start cluster; cluster already running");
         }
         if (!isInitialized()) {
-            if (force) {
-                log.warn("Attempting to start uninitialized cluster");
-            } else {
+            if (!force) {
                 throw new PipelineException("Cannot start cluster; cluster not initialized");
             }
+            log.warn("Attempting to start uninitialized cluster");
         }
 
         try {
@@ -616,16 +614,15 @@ public class ClusterController {
     }
 
     private void startPipelineConsole() {
-        if (isClusterRunning()) {
-            String consoleCommand = DirectoryProperties.ziggyBinDir()
-                .resolve(RUNJAVA_CONSOLE_COMMAND)
-                .toString();
-            log.debug("Command line: " + consoleCommand);
-            ExternalProcess.simpleExternalProcess(consoleCommand).execute(false);
-        } else {
+        if (!isClusterRunning()) {
             throw new PipelineException(
                 "Cannot start pipeline console when cluster is not running");
         }
+        String consoleCommand = DirectoryProperties.ziggyBinDir()
+            .resolve(RUNJAVA_CONSOLE_COMMAND)
+            .toString();
+        log.debug("Command line: " + consoleCommand);
+        ExternalProcess.simpleExternalProcess(consoleCommand).execute(false);
     }
 
     private static void usageAndExit(Options options, Throwable e) {

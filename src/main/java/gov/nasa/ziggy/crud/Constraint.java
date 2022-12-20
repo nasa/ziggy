@@ -3,6 +3,7 @@ package gov.nasa.ziggy.crud;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,10 +39,10 @@ public class Constraint {
 
         private String s;
 
-        private Conjunction() {
+        Conjunction() {
         }
 
-        private Conjunction(String s) {
+        Conjunction(String s) {
             this.s = s;
         }
 
@@ -80,7 +81,7 @@ public class Constraint {
 
         private String op;
 
-        private Operator(String op) {
+        Operator(String op) {
             this.op = op;
         }
 
@@ -134,10 +135,9 @@ public class Constraint {
         this.operator = operator;
         this.value = value;
 
-        if (value.equals("null")) {
-            if (operator != Operator.EQUAL && operator != Operator.NOT_EQUAL) {
-                throw new IllegalArgumentException("Operator must be = or != if value is null");
-            }
+        if (value.equals("null")
+            && (operator != Operator.EQUAL && operator != Operator.NOT_EQUAL)) {
+            throw new IllegalArgumentException("Operator must be = or != if value is null");
         }
     }
 
@@ -284,13 +284,7 @@ public class Constraint {
 
     @Override
     public int hashCode() {
-        final int PRIME = 31;
-        int result = 1;
-        result = PRIME * result + (columnName == null ? 0 : columnName.hashCode());
-        result = PRIME * result + (operator == null ? 0 : operator.hashCode());
-        result = PRIME * result + (conjunction == null ? 0 : conjunction.hashCode());
-        result = PRIME * result + (value == null ? 0 : value.hashCode());
-        return result;
+        return Objects.hash(columnName, operator, conjunction, value);
     }
 
     @Override
@@ -298,39 +292,20 @@ public class Constraint {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         final Constraint other = (Constraint) obj;
-        if (columnName == null) {
-            if (other.columnName != null) {
-                return false;
-            }
-        } else if (!columnName.equals(other.columnName)) {
+        if (!Objects.equals(columnName, other.columnName)) {
             return false;
         }
-        if (operator == null) {
-            if (other.operator != null) {
-                return false;
-            }
-        } else if (!operator.equals(other.operator)) {
+        if (!Objects.equals(operator, other.operator)) {
             return false;
         }
-        if (conjunction == null) {
-            if (other.conjunction != null) {
-                return false;
-            }
-        } else if (!conjunction.equals(other.conjunction)) {
+        if (!Objects.equals(conjunction, other.conjunction)) {
             return false;
         }
-        if (value == null) {
-            if (other.value != null) {
-                return false;
-            }
-        } else if (!value.equals(other.value)) {
+        if (!Objects.equals(value, other.value)) {
             return false;
         }
         return true;
@@ -431,7 +406,8 @@ public class Constraint {
             if (matcher.start() != end) {
                 // We only allow leading whitespace, not garbage.
                 throw new ParseException("Unrecognized characters in \"" + s + "\"", end);
-            } else if (end > 0 && matcher.group(1).length() == 0) {
+            }
+            if (end > 0 && matcher.group(1).length() == 0) {
                 // The conjunction is only optional in the first occurrence.
                 throw new ParseException("Missing conjunction in \"" + s + "\"", matcher.start());
             }

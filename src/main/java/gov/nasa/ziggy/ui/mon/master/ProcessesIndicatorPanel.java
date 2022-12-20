@@ -115,7 +115,7 @@ public class ProcessesIndicatorPanel extends IndicatorPanel {
     // the need for this method.
     public static void addWorkerDataComponents() {
 
-        SwingWorker<WorkerResources, Void> swingWorker = new SwingWorker<WorkerResources, Void>() {
+        SwingWorker<WorkerResources, Void> swingWorker = new SwingWorker<>() {
 
             @Override
             protected WorkerResources doInBackground() throws Exception {

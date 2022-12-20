@@ -133,37 +133,102 @@ public class ZiggyConsole {
             InstancesDisplayModel instancesDisplayModel = new InstancesDisplayModel(instances);
 
             instancesDisplayModel.print(System.out, "Pipeline Instances");
+        } else if (args[1].equals("c")) {
+            List<PipelineInstance> activeInstances = pipelineInstanceCrud.retrieveAllActive();
+            System.out.println("Cancelling Active Instances:");
+            for (PipelineInstance instance : activeInstances) {
+                System.out.println(" " + instance.getName());
+            }
+            pipelineInstanceCrud.cancelAllActive();
         } else {
-            if (args[1].equals("c")) {
-                List<PipelineInstance> activeInstances = pipelineInstanceCrud.retrieveAllActive();
-                System.out.println("Cancelling Active Instances:");
-                for (PipelineInstance instance : activeInstances) {
-                    System.out.println(" " + instance.getName());
-                }
-                pipelineInstanceCrud.cancelAllActive();
+            long id = -1;
+            try {
+                id = Long.parseLong(args[1]);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid ID: " + args[1]);
+                usage();
+                System.exit(-1);
+            }
+
+            PipelineInstance instance = pipelineInstanceCrud.retrieve(id);
+
+            if (instance == null) {
+                System.err.println("No instance found with ID = " + id);
+                System.exit(-1);
+            }
+
+            InstancesDisplayModel instancesDisplayModel = new InstancesDisplayModel(instance);
+            instancesDisplayModel.print(System.out, "Instance Summary");
+            System.out.println();
+
+            if (args.length == 2) {
+                // i[nstance] ID : display status and task count summary of
+                // specified pipeline instance
+
+                PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
+                List<PipelineTask> tasks = pipelineTaskCrud.retrieveTasksForInstance(instance);
+
+                Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
+                    .processingSummaries(tasks);
+                displayTaskSummary(tasks, taskAttrs);
             } else {
-                long id = -1;
-                try {
-                    id = Long.parseLong(args[1]);
-                } catch (NumberFormatException e) {
-                    System.err.println("Invalid ID: " + args[1]);
-                    usage();
-                    System.exit(-1);
-                }
+                String subCommand = args[2];
 
-                PipelineInstance instance = pipelineInstanceCrud.retrieve(id);
+                if (subCommand.equals("full") || subCommand.equals("f")) {
+                    // i[nstance] ID f[ull]: display status of all tasks for
+                    // specified pipeline instance
 
-                if (instance == null) {
-                    System.err.println("No instance found with ID = " + id);
-                    System.exit(-1);
-                }
+                    PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
+                    List<PipelineTask> tasks = pipelineTaskCrud.retrieveTasksForInstance(instance);
+                    Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
+                        .processingSummaries(tasks);
 
-                InstancesDisplayModel instancesDisplayModel = new InstancesDisplayModel(instance);
-                instancesDisplayModel.print(System.out, "Instance Summary");
-                System.out.println();
+                    displayTaskSummary(tasks, taskAttrs);
+                    TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(tasks, taskAttrs);
+                    tasksDisplayModel.print(System.out, "Pipeline Tasks");
+                } else if (subCommand.equals("reset")) {
+                    if (args.length < 4) {
+                        System.err.println("The reset command requires an additional arg: "
+                            + printCommandLine(args));
+                        usage();
+                        System.exit(-1);
+                    }
 
-                if (args.length == 2) {
-                    // i[nstance] ID : display status and task count summary of
+                    String taskType = args[3];
+
+                    if (taskType.equals("s")) {
+                        resetPipelineInstance(instance, false, null);
+                    } else if (taskType.equals("a")) {
+                        resetPipelineInstance(instance, true, null);
+                    } else if (taskType.matches(".*\\d.*")) {
+                        // If the arg contains a digit, then assume it's a list of taskIds
+                        resetPipelineInstance(instance, true, taskType);
+                    } else {
+                        System.err.println("Unknown reset arg: " + printCommandLine(args));
+                        usage();
+                        System.exit(-1);
+                    }
+                } else if (subCommand.equals("report") || subCommand.equals("r")) {
+                    // i[nstance] ID r[eport]: display report for specified
+                    // pipeline instance
+
+                    PipelineOperations ops = new PipelineOperations();
+                    String report = ops.generatePedigreeReport(instance);
+                    System.out.println(report);
+                    PerformanceReport perfReport = new PerformanceReport(instance.getId(),
+                        DirectoryProperties.taskDataDir().toFile(), null);
+                    perfReport.generateReport();
+                } else if (subCommand.equals("alerts") || subCommand.equals("a")) {
+                    // i[nstance] ID a[lerts]: display alerts for specified
+                    // pipeline instance
+
+                    AlertLogCrud alertLogCrud = new AlertLogCrud();
+                    List<AlertLog> alerts = alertLogCrud
+                        .retrieveForPipelineInstance(instance.getId());
+                    AlertLogDisplayModel alertLogDisplayModel = new AlertLogDisplayModel(alerts);
+                    alertLogDisplayModel.print(System.out, "Alerts");
+                } else if (subCommand.equals("statistics") || subCommand.equals("s")) {
+                    // i[nstance] ID s[statistics]: display processing time statistics for
                     // specified pipeline instance
 
                     PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
@@ -171,115 +236,43 @@ public class ZiggyConsole {
 
                     Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
                         .processingSummaries(tasks);
-                    displayTaskSummary(tasks, taskAttrs);
-                } else {
-                    String subCommand = args[2];
 
-                    if (subCommand.equals("full") || subCommand.equals("f")) {
-                        // i[nstance] ID f[ull]: display status of all tasks for
-                        // specified pipeline instance
+                    TasksStates tasksStates = displayTaskSummary(tasks, taskAttrs);
+                    List<String> orderedModuleNames = tasksStates.getModuleNames();
 
-                        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-                        List<PipelineTask> tasks = pipelineTaskCrud
-                            .retrieveTasksForInstance(instance);
-                        Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
-                            .processingSummaries(tasks);
+                    PipelineStatsDisplayModel pipelineStatsDisplayModel = new PipelineStatsDisplayModel(
+                        tasks, orderedModuleNames);
+                    pipelineStatsDisplayModel.print(System.out, "Processing Time Statistics");
 
-                        displayTaskSummary(tasks, taskAttrs);
-                        TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(tasks,
-                            taskAttrs);
-                        tasksDisplayModel.print(System.out, "Pipeline Tasks");
-                    } else if (subCommand.equals("reset")) {
-                        if (args.length < 4) {
-                            System.err.println("The reset command requires an additional arg: "
-                                + printCommandLine(args));
-                            usage();
-                            System.exit(-1);
-                        }
+                    TaskMetricsDisplayModel taskMetricsDisplayModel = new TaskMetricsDisplayModel(
+                        tasks, orderedModuleNames);
+                    taskMetricsDisplayModel.print(System.out,
+                        "Processing Time Breakdown (completed tasks only)");
+                } else if (subCommand.equals("errors") || subCommand.equals("e")) {
+                    // i[nstance] ID e[rrors]: display status and worker logs for all failed
+                    // tasks for specified pipeline instance
 
-                        String taskType = args[3];
+                    PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
+                    List<PipelineTask> tasks = pipelineTaskCrud.retrieveAll(instance,
+                        PipelineTask.State.ERROR);
 
-                        if (taskType.equals("s")) {
-                            resetPipelineInstance(instance, false, null);
-                        } else if (taskType.equals("a")) {
-                            resetPipelineInstance(instance, true, null);
-                        } else if (taskType.matches(".*\\d.*")) {
-                            // If the arg contains a digit, then assume it's a list of taskIds
-                            resetPipelineInstance(instance, true, taskType);
-                        } else {
-                            System.err.println("Unknown reset arg: " + printCommandLine(args));
-                            usage();
-                            System.exit(-1);
-                        }
-                    } else if (subCommand.equals("report") || subCommand.equals("r")) {
-                        // i[nstance] ID r[eport]: display report for specified
-                        // pipeline instance
+                    Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
+                        .processingSummaries(tasks);
 
-                        PipelineOperations ops = new PipelineOperations();
-                        String report = ops.generatePedigreeReport(instance);
-                        System.out.println(report);
-                        PerformanceReport perfReport = new PerformanceReport(instance.getId(),
-                            DirectoryProperties.taskDataDir().toFile(), null);
-                        perfReport.generateReport();
-                    } else if (subCommand.equals("alerts") || subCommand.equals("a")) {
-                        // i[nstance] ID a[lerts]: display alerts for specified
-                        // pipeline instance
+                    for (PipelineTask task : tasks) {
+                        TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(task,
+                            taskAttrs.get(task.getId()));
+                        tasksDisplayModel.print(System.out, "Task Summary");
 
-                        AlertLogCrud alertLogCrud = new AlertLogCrud();
-                        List<AlertLog> alerts = alertLogCrud
-                            .retrieveForPipelineInstance(instance.getId());
-                        AlertLogDisplayModel alertLogDisplayModel = new AlertLogDisplayModel(
-                            alerts);
-                        alertLogDisplayModel.print(System.out, "Alerts");
-                    } else if (subCommand.equals("statistics") || subCommand.equals("s")) {
-                        // i[nstance] ID s[statistics]: display processing time statistics for
-                        // specified pipeline instance
-
-                        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-                        List<PipelineTask> tasks = pipelineTaskCrud
-                            .retrieveTasksForInstance(instance);
-
-                        Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
-                            .processingSummaries(tasks);
-
-                        TasksStates tasksStates = displayTaskSummary(tasks, taskAttrs);
-                        List<String> orderedModuleNames = tasksStates.getModuleNames();
-
-                        PipelineStatsDisplayModel pipelineStatsDisplayModel = new PipelineStatsDisplayModel(
-                            tasks, orderedModuleNames);
-                        pipelineStatsDisplayModel.print(System.out, "Processing Time Statistics");
-
-                        TaskMetricsDisplayModel taskMetricsDisplayModel = new TaskMetricsDisplayModel(
-                            tasks, orderedModuleNames);
-                        taskMetricsDisplayModel.print(System.out,
-                            "Processing Time Breakdown (completed tasks only)");
-                    } else if (subCommand.equals("errors") || subCommand.equals("e")) {
-                        // i[nstance] ID e[rrors]: display status and worker logs for all failed
-                        // tasks for specified pipeline instance
-
-                        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-                        List<PipelineTask> tasks = pipelineTaskCrud.retrieveAll(instance,
-                            PipelineTask.State.ERROR);
-
-                        Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
-                            .processingSummaries(tasks);
-
-                        for (PipelineTask task : tasks) {
-                            TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(task,
-                                taskAttrs.get(task.getId()));
-                            tasksDisplayModel.print(System.out, "Task Summary");
-
-                            System.out.println();
-                            System.out.println("Worker log: ");
+                        System.out.println();
+                        System.out.println("Worker log: ");
 
 //                            System.out.println(WorkerTaskLogRequest.requestTaskLog(task));
-                        }
-                    } else {
-                        System.err
-                            .println("Unknown instance subcommand: " + printCommandLine(args));
-                        usage();
-                        System.exit(-1);
                     }
+                } else {
+                    System.err.println("Unknown instance subcommand: " + printCommandLine(args));
+                    usage();
+                    System.exit(-1);
                 }
             }
         }

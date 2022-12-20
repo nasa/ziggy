@@ -45,35 +45,29 @@ public class PipelineModuleDefinitionCrudProxy extends CrudProxy {
 
     public List<PipelineModuleDefinition> retrieveAll() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineModuleDefinition> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
-                List<PipelineModuleDefinition> r = crud.retrieveAll();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
+            List<PipelineModuleDefinition> r = crud.retrieveAll();
+            return r;
+        });
     }
 
     public PipelineModuleDefinition retrieveLatestVersionForName(final ModuleName name) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        PipelineModuleDefinition result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
-                PipelineModuleDefinition r = crud.retrieveLatestVersionForName(name);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
+            PipelineModuleDefinition r = crud.retrieveLatestVersionForName(name);
+            return r;
+        });
     }
 
     public List<PipelineModuleDefinition> retrieveLatestVersions() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineModuleDefinition> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
-                List<PipelineModuleDefinition> r = crud.retrieveLatestVersions();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
+            List<PipelineModuleDefinition> r = crud.retrieveLatestVersions();
+            return r;
+        });
     }
 
 }

@@ -67,9 +67,9 @@ public class CrudProxyExecutor {
         return executeSynchronousDatabaseTransaction(task, false);
     }
 
+    @SuppressWarnings("unchecked")
     public <T> T executeSynchronousDatabaseTransaction(Callable<T> task, boolean silent) {
-        @SuppressWarnings("unchecked")
-        T result = (T) DatabaseTransactionFactory
+        return (T) DatabaseTransactionFactory
             .performTransactionInThread(new DatabaseTransaction<T>() {
                 @Override
                 public boolean silent() {
@@ -86,7 +86,6 @@ public class CrudProxyExecutor {
                     return task.call();
                 }
             });
-        return result;
     }
 
     /**

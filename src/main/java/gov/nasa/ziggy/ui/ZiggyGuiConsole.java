@@ -227,7 +227,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame {
     }
 
     private ZiggyGuiConsole() {
-        super();
         initGUI();
     }
 

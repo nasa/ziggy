@@ -182,11 +182,8 @@ public class PipelineInstanceTaskCrudTest {
     private PipelineInstanceNode createPipelineInstanceNode(PipelineDefinitionNode pipelineDefNode,
         int numTasks, int numSubmittedTasks, int numCompletedTasks, int numFailedTasks)
         throws PipelineException {
-        PipelineInstanceNode pipelineInstanceNode = new PipelineInstanceNode(pipelineInstance,
-            pipelineDefNode, moduleDef, numTasks, numSubmittedTasks, numCompletedTasks,
-            numFailedTasks);
-
-        return pipelineInstanceNode;
+        return new PipelineInstanceNode(pipelineInstance, pipelineDefNode, moduleDef, numTasks,
+            numSubmittedTasks, numCompletedTasks, numFailedTasks);
     }
 
     private PipelineTask createPipelineTask(PipelineInstanceNode parentPipelineInstanceNode)
@@ -202,18 +199,14 @@ public class PipelineInstanceTaskCrudTest {
         Query q = DatabaseService.getInstance()
             .getSession()
             .createQuery("select count(*) from PipelineInstance");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     private int pipelineTaskCount() {
         Query q = DatabaseService.getInstance()
             .getSession()
             .createQuery("select count(*) from PipelineTask");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     private int pipelineTaskWithErrorsCount() {
@@ -221,9 +214,7 @@ public class PipelineInstanceTaskCrudTest {
             .getSession()
             .createQuery("select count(*) from PipelineTask where state = :state");
         q.setParameter("state", PipelineTask.State.ERROR);
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     /**
@@ -506,8 +497,8 @@ public class PipelineInstanceTaskCrudTest {
     public void testRetrieveByDateStatesTypes() {
         populateObjects();
 
-        State[] states = new State[] { State.INITIALIZED };
-        String[] types = new String[] { "foo" }; // wrong
+        State[] states = { State.INITIALIZED };
+        String[] types = { "foo" }; // wrong
         List<PipelineInstance> pipelineInstances = pipelineInstanceCrud.retrieve(new Date(0),
             new Date(Long.MAX_VALUE), states, types);
         assertEquals(0, pipelineInstances.size());

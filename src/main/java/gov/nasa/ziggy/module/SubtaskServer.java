@@ -90,7 +90,7 @@ public class SubtaskServer implements Runnable {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("Request [type=");
             sb.append(type);
             sb.append(", subtaskIndex=");
@@ -122,7 +122,7 @@ public class SubtaskServer implements Runnable {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("Response [status=");
             sb.append(status);
             sb.append(", subTaskIndex=");

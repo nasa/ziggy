@@ -45,8 +45,9 @@ public class ParametersOperations {
     public ParametersOperations() {
         try {
             xmlManager = new ValidatingXmlManager<>(ParameterLibrary.class);
-		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+            | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class ParameterLibrary", e);
         }
@@ -213,7 +214,8 @@ public class ParametersOperations {
             if (currentParamSet == null && library.isOverrideOnly()) {
                 throw new UnsupportedOperationException("Cannot apply overrides to parameter set "
                     + name + " due to absence of parameter set in database");
-            } else if (currentParamSet == null) {
+            }
+            if (currentParamSet == null) {
                 // If there's no parameter set in the database, create one
                 createNewParameterSet(desc, ioMode);
             } else if (library.isOverrideOnly()) {
@@ -348,15 +350,14 @@ public class ParametersOperations {
             log.debug("name: " + databaseParameterSet.getName().getName()
                 + " contents match parameter library, no update needed");
             return ParameterSetDescriptor.State.SAME;
-        } else {
-            log.debug("name: " + databaseParameterSet.getName()
-                + " contents do not match parameter library, update needed");
-            if (ioMode == ParamIoMode.STANDARD) {
-                pipelineOps.updateParameterSet(databaseParameterSet, newParameters.getInstance(),
-                    false);
-            }
-            return ParameterSetDescriptor.State.UPDATE;
         }
+        log.debug("name: " + databaseParameterSet.getName()
+            + " contents do not match parameter library, update needed");
+        if (ioMode == ParamIoMode.STANDARD) {
+            pipelineOps.updateParameterSet(databaseParameterSet, newParameters.getInstance(),
+                false);
+        }
+        return ParameterSetDescriptor.State.UPDATE;
     }
 
     private boolean skipParameterSetDescriptor(ParameterSetDescriptor desc,

@@ -205,15 +205,12 @@ public class Indicator extends javax.swing.JPanel {
             if (indicator == null) {
                 continue;
             }
-            if (indicator.getState() == State.GREEN) {
-                if (sumState == State.GRAY) {
-                    sumState = State.GREEN;
-                }
+            if ((indicator.getState() == State.GREEN) && (sumState == State.GRAY)) {
+                sumState = State.GREEN;
             }
-            if (indicator.getState() == State.AMBER) {
-                if (sumState == State.GRAY || sumState == State.GREEN) {
-                    sumState = State.AMBER;
-                }
+            if ((indicator.getState() == State.AMBER)
+                && (sumState == State.GRAY || sumState == State.GREEN)) {
+                sumState = State.AMBER;
             }
             if (indicator.getState() == State.RED) {
                 sumState = State.RED;

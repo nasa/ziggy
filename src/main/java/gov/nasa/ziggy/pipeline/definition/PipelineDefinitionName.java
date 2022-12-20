@@ -5,6 +5,7 @@ import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**

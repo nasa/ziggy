@@ -49,9 +49,8 @@ public class InstanceModulesListModel extends AbstractListModel<String>
 
         if (selectedIndex != -1) {
             return pipelineNodes.get(selectedIndex);
-        } else {
-            return null;
         }
+        return null;
     }
 
     @Override

@@ -113,9 +113,8 @@ public class ZiggyArrayUtilsTest {
 
     @Test
     public void testUnboxAndBox() throws ClassNotFoundException {
-        Float[][][] boxedFloatArray = {
-            { { new Float(1), new Float(2) }, { new Float(3), new Float(4) } },
-            { { new Float(5), new Float(6) }, { new Float(7), new Float(8) } } };
+        Float[][][] boxedFloatArray = { { { (float) 1, (float) 2 }, { (float) 3, (float) 4 } },
+            { { (float) 5, (float) 6 }, { (float) 7, (float) 8 } } };
         float[][][] testArray = { { { 1, 2 }, { 3, 4 } }, { { 5, 6 }, { 7, 8 } } };
         Object unboxedArray = ZiggyArrayUtils.unbox(boxedFloatArray);
         assertTrue(Arrays.deepEquals((Object[]) unboxedArray, (Object[]) testArray));
@@ -367,7 +366,7 @@ public class ZiggyArrayUtilsTest {
 
     @Test
     public void testArrayOfTrue() {
-        long[] size = new long[] { 3L, 4L, 5L };
+        long[] size = { 3L, 4L, 5L };
         boolean[][][] a1 = (boolean[][][]) ZiggyArrayUtils.arrayOfTrue(size);
         for (boolean[][] b1 : a1) {
             for (boolean[] b2 : b1) {
@@ -485,7 +484,7 @@ public class ZiggyArrayUtilsTest {
             .getValue(new String[] { "failure", "success!", "disaster" }, new int[] { 1 })));
 
         // boxed
-        double[] dArray = new double[] { 100, 3.5, -100 };
+        double[] dArray = { 100, 3.5, -100 };
         Object boxedDArray = ZiggyArrayUtils.box(dArray);
         expectedValue = Double.valueOf(3.5);
         assertTrue(expectedValue.equals(ZiggyArrayUtils.getValue(boxedDArray, new int[] { 1 })));

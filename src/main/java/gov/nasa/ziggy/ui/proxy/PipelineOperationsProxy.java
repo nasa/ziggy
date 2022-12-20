@@ -3,9 +3,6 @@ package gov.nasa.ziggy.ui.proxy;
 import java.io.File;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.TriggerValidationResults;
@@ -24,21 +21,16 @@ import gov.nasa.ziggy.ui.models.DatabaseModelRegistry;
  * @author Todd Klaus
  */
 public class PipelineOperationsProxy extends CrudProxy {
-    private static final Logger log = LoggerFactory.getLogger(PipelineOperationsProxy.class);
 
     public PipelineOperationsProxy() {
     }
 
     public ParameterSet retrieveLatestParameterSet(final ParameterSetName parameterSetName) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        ParameterSet result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineOperations pipelineOps = new PipelineOperations();
-                ParameterSet paramSet = pipelineOps.retrieveLatestParameterSet(parameterSetName);
-
-                return paramSet;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineOperations pipelineOps = new PipelineOperations();
+            return pipelineOps.retrieveLatestParameterSet(parameterSetName);
+        });
     }
 
     /**
@@ -52,15 +44,10 @@ public class PipelineOperationsProxy extends CrudProxy {
     public Set<ClassWrapper<Parameters>> retrieveRequiredParameterClassesForNode(
         final PipelineDefinitionNode pipelineNode) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        Set<ClassWrapper<Parameters>> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineOperations pipelineOps = new PipelineOperations();
-                Set<ClassWrapper<Parameters>> requiredParams = pipelineOps
-                    .retrieveRequiredParameterClassesForNode(pipelineNode);
-
-                return requiredParams;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineOperations pipelineOps = new PipelineOperations();
+            return pipelineOps.retrieveRequiredParameterClassesForNode(pipelineNode);
+        });
     }
 
     /**
@@ -69,14 +56,10 @@ public class PipelineOperationsProxy extends CrudProxy {
      */
     public String generatePedigreeReport(final PipelineInstance instance) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        String result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineOperations pipelineOps = new PipelineOperations();
-                String report = pipelineOps.generatePedigreeReport(instance);
-
-                return report;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineOperations pipelineOps = new PipelineOperations();
+            return pipelineOps.generatePedigreeReport(instance);
+        });
     }
 
     /**
@@ -100,14 +83,10 @@ public class PipelineOperationsProxy extends CrudProxy {
      */
     public String generateTriggerReport(final PipelineDefinition pipelineDefinition) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        String result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineOperations pipelineOps = new PipelineOperations();
-                String report = pipelineOps.generateTriggerReport(pipelineDefinition);
-
-                return report;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineOperations pipelineOps = new PipelineOperations();
+            return pipelineOps.generateTriggerReport(pipelineDefinition);
+        });
     }
 
     /**
@@ -119,27 +98,20 @@ public class PipelineOperationsProxy extends CrudProxy {
      */
     public String generateParameterLibraryReport(final boolean csvMode) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        String result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineOperations pipelineOps = new PipelineOperations();
-                String report = pipelineOps.generateParameterLibraryReport(csvMode);
-
-                return report;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineOperations pipelineOps = new PipelineOperations();
+            return pipelineOps.generateParameterLibraryReport(csvMode);
+        });
     }
 
     public ParameterSet updateParameterSet(final ParameterSet parameterSet,
         final Parameters newParameters, final String newDescription, final boolean forceSave) {
         verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        ParameterSet result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineOperations pipelineOps = new PipelineOperations();
-                ParameterSet updatedParamSet = pipelineOps.updateParameterSet(parameterSet,
-                    newParameters, newDescription, forceSave);
-                return updatedParamSet;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineOperations pipelineOps = new PipelineOperations();
+            return pipelineOps.updateParameterSet(parameterSet, newParameters, newDescription,
+                forceSave);
+        });
     }
 
     /**
@@ -170,11 +142,9 @@ public class PipelineOperationsProxy extends CrudProxy {
      */
     public TriggerValidationResults validateTrigger(final PipelineDefinition pipelineDefinition) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        TriggerValidationResults result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronous(() -> {
-                PipelineOperations pipelineOps = new PipelineOperations();
-                return pipelineOps.validateTrigger(pipelineDefinition);
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronous(() -> {
+            PipelineOperations pipelineOps = new PipelineOperations();
+            return pipelineOps.validateTrigger(pipelineDefinition);
+        });
     }
 }

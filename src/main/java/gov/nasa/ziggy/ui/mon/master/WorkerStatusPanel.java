@@ -53,7 +53,6 @@ public class WorkerStatusPanel extends StatusPanel {
     private DefaultMutableTreeNode rootTreeNode;
 
     public WorkerStatusPanel() {
-        super();
         initGUI();
     }
 
@@ -200,7 +199,7 @@ public class WorkerStatusPanel extends StatusPanel {
         return processesOutline;
     }
 
-    private class RenderData implements RenderDataProvider {
+    private static class RenderData implements RenderDataProvider {
         @Override
         public java.awt.Color getBackground(Object o) {
             return null;
@@ -213,7 +212,8 @@ public class WorkerStatusPanel extends StatusPanel {
 
             if (userObject instanceof String) {
                 return (String) userObject;
-            } else if (userObject instanceof StatusNode) {
+            }
+            if (userObject instanceof StatusNode) {
                 StatusNode node = (StatusNode) userObject;
                 return node.toString();
             } else {

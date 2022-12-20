@@ -302,9 +302,7 @@ public class OpsInstancesPanel extends javax.swing.JPanel {
 
         int selectedIndex = selectedTasksIndices.get(0);
         int selectedModelRow = tasksTable.convertRowIndexToModel(selectedIndex);
-        PipelineTask task = tasksTableModel.getPipelineTaskForRow(selectedModelRow);
-
-        return task;
+        return tasksTableModel.getPipelineTaskForRow(selectedModelRow);
     }
 
     private ZTable getTasksTable() {

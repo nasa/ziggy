@@ -85,7 +85,7 @@ public class PrimitiveHdf5ArrayTest {
         // is called during the object constructor.
 
         // instantiate with boxed primitive scalar value
-        PrimitiveHdf5Array a1 = new PrimitiveHdf5Array(new Double(41.5));
+        PrimitiveHdf5Array a1 = new PrimitiveHdf5Array(Double.valueOf(41.5));
         double[] scalarArray = { 41.5 };
         assertTrue(Arrays.equals(scalarArray, (double[]) a1.getArrayObject()));
         assertTrue(Arrays.equals(new long[] { 1 }, a1.getDimensions()));
@@ -109,8 +109,7 @@ public class PrimitiveHdf5ArrayTest {
         assertEquals(ZIGGY_FLOAT, a2.getDataTypeToSave());
 
         // instantiate with array of boxed balues
-        Integer[][] boxedIntArray = { { new Integer(1), new Integer(4) },
-            { new Integer(3), new Integer(100) } };
+        Integer[][] boxedIntArray = { { 1, 4 }, { 3, 100 } };
         int[][] expectedArray = { { 1, 4 }, { 3, 100 } };
         PrimitiveHdf5Array a3 = new PrimitiveHdf5Array(boxedIntArray);
         assertFalse(a3.isScalar());
@@ -287,7 +286,7 @@ public class PrimitiveHdf5ArrayTest {
     public void testToJava() throws NoSuchFieldException, SecurityException {
         PrimitiveHdf5Array a1 = new PrimitiveHdf5Array(
             PersistableSample1.class.getDeclaredField("doubleScalar"));
-        a1.setArray(new Double(53.5));
+        a1.setArray(Double.valueOf(53.5));
         assertTrue(Arrays.equals((double[]) a1.getArrayObject(), new double[] { 53.5 }));
         Object o1 = a1.toJava();
         assertEquals(Double.class, o1.getClass());
@@ -368,10 +367,9 @@ public class PrimitiveHdf5ArrayTest {
         throws NullPointerException, HDF5Exception, NoSuchFieldException, SecurityException {
 
         String fieldName = "intArrayTestField";
-        long fieldGroupId = 0;
 
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         Hdf5ModuleInterface.writeDataTypeAttribute(fieldGroupId, ZIGGY_INT, fieldName);
 
         // create a 3-d array of integer values
@@ -421,10 +419,9 @@ public class PrimitiveHdf5ArrayTest {
     public void testWriteAndReadBooleanArray()
         throws HDF5LibraryException, NullPointerException, NoSuchFieldException, SecurityException {
         String fieldName = "booleanArrayTestField";
-        long fieldGroupId = 0;
 
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // create an array of boolean values
         boolean[] booleanTestArray = { true, false, true };
@@ -469,10 +466,9 @@ public class PrimitiveHdf5ArrayTest {
     public void testWriteAndReadStringArray()
         throws NullPointerException, HDF5Exception, NoSuchFieldException, SecurityException {
         String fieldName = "stringArrayTestField";
-        long fieldGroupId = 0;
 
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         Hdf5ModuleInterface.writeDataTypeAttribute(fieldGroupId, ZIGGY_STRING, fieldName);
 
         // create an array of Strings
@@ -513,10 +509,9 @@ public class PrimitiveHdf5ArrayTest {
     @Test
     public void testWriteScalarString() throws NullPointerException, HDF5Exception {
         String fieldName = "stringTestField";
-        long fieldGroupId = 0;
 
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // create a string
         String scalarString = "scalar";
@@ -557,16 +552,15 @@ public class PrimitiveHdf5ArrayTest {
     public void testReadScalarField()
         throws HDF5LibraryException, NullPointerException, NoSuchFieldException, SecurityException {
 
-        Double dScalar = new Double(53.5);
+        Double dScalar = 53.5;
         PrimitiveHdf5Array unboxedField = (PrimitiveHdf5Array) AbstractHdf5Array
             .newInstance(this.getClass().getDeclaredField("doubleScalar"));
         PrimitiveHdf5Array persistableField = (PrimitiveHdf5Array) AbstractHdf5Array
             .newInstance(dScalar);
 
-        long fieldGroupId = 0;
-
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, "doubleScalar", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, "doubleScalar", H5P_DEFAULT, H5P_DEFAULT,
+            H5P_DEFAULT);
         Hdf5ModuleInterface.writeDataTypeAttribute(fieldGroupId, ZIGGY_DOUBLE, "doubleScalar");
         persistableField.write(fieldGroupId, "doubleScalar");
         H5.H5Gclose(fieldGroupId);
@@ -603,10 +597,9 @@ public class PrimitiveHdf5ArrayTest {
             .newInstance(pTest1.intList);
         PrimitiveHdf5Array iListResult = (PrimitiveHdf5Array) AbstractHdf5Array
             .newInstance(pTest1.getClass().getDeclaredField("intList"));
-        long fieldGroupId = 0;
 
         // create a parent group for the list
-        fieldGroupId = H5.H5Gcreate(fileId, "intList", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, "intList", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         Hdf5ModuleInterface.writeDataTypeAttribute(fieldGroupId, ZIGGY_INT, "intList");
         iListPData.write(fieldGroupId, "intList");
         H5.H5Gclose(fieldGroupId);
@@ -814,11 +807,9 @@ public class PrimitiveHdf5ArrayTest {
         assertTrue(Arrays.equals(new int[] { 3, 2, 1 }, hI.getnRectangles()));
         assertTrue(Arrays.equals(new int[] { 1, 3, 5 }, hI.getSize()));
         assertTrue(Arrays.equals(new int[] { 1, 1, 5 }, hI.getLastSize()));
-        PrimitiveHdf5Array.Hyperslab h = null;
-
         assertTrue(hI.hasNext());
 
-        h = hI.next();
+        PrimitiveHdf5Array.Hyperslab h = hI.next();
         assertTrue(Arrays.equals(new long[] { 1, 3, 5 }, h.hyperslabBlock()));
         assertTrue(Arrays.equals(new long[] { 0, 0, 0 }, h.hyperslabStart()));
         assertTrue(Arrays.equals(new int[] { 3, 4, 5 }, h.getFullArraySize()));

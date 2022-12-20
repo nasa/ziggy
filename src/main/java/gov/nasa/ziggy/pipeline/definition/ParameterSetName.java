@@ -5,10 +5,10 @@ import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
  * {@link PipelineDefinition} and {@link PipelineDefinitionNode} use {@link ParameterSetName} to
@@ -87,10 +87,7 @@ public class ParameterSetName extends XmlReference {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         ParameterSetName other = (ParameterSetName) obj;

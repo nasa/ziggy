@@ -103,15 +103,15 @@ public class InstanceMetricsReport {
         JFreeChart histogram = generateHistogram("instance", subTaskExecTimes);
 
         if (histogram != null) {
-            chart2Png(histogram,
-                new File(rootDirectory, "exec-time-hist-" + rootDirectory.getName() + ".png"));
+//            chart2Png(histogram,
+//                new File(rootDirectory, "exec-time-hist-" + rootDirectory.getName() + ".png"));
             instancePdfRenderer.printChart(histogram, CHART_WIDTH, CHART_HEIGHT);
         } else {
             instancePdfRenderer.printText("No data points available");
         }
 
         JFreeChart boxNWhiskers = generateBoxAndWhiskers();
-        chart2Png(boxNWhiskers, new File(rootDirectory, "exec-time-bnw-instance.png"));
+//        chart2Png(boxNWhiskers, new File(rootDirectory, "exec-time-bnw-instance.png"));
 
         instancePdfRenderer.printChart(boxNWhiskers, CHART_WIDTH, CHART_HEIGHT);
 
@@ -119,13 +119,13 @@ public class InstanceMetricsReport {
         taskPdfRenderer.close();
     }
 
-    private void chart2Png(JFreeChart chart, File outputPngFile) throws Exception {
+//    private void chart2Png(JFreeChart chart, File outputPngFile) throws Exception {
 //        FileOutputStream fos = new FileOutputStream(outputPngFile);
 //        BufferedOutputStream bos = new BufferedOutputStream(fos);
 //        ChartUtilities.writeChartAsPNG(bos, chart, 800, 600);
 //        bos.close();
 //        fos.close();
-    }
+//    }
 
     private void parseFiles() throws Exception {
         File[] taskDirs = rootDirectory
@@ -188,8 +188,8 @@ public class InstanceMetricsReport {
             JFreeChart histogram = generateHistogram(taskDirName, taskExecTimes);
 
             if (histogram != null) {
-                chart2Png(histogram,
-                    new File(rootDirectory, "exec-time-hist-" + taskDirName + ".png"));
+//                chart2Png(histogram,
+//                    new File(rootDirectory, "exec-time-hist-" + taskDirName + ".png"));
                 taskPdfRenderer.printChart(histogram, CHART_WIDTH, CHART_HEIGHT);
                 taskPdfRenderer.newPage();
             } else {

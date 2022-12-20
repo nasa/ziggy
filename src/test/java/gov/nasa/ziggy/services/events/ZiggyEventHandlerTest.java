@@ -217,9 +217,7 @@ public class ZiggyEventHandlerTest {
         ziggyEventHandler.run();
 
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ZiggyEventCrud().retrieveAllEvents();
-            });
+            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
         assertEquals(1L, event.getPipelineInstanceId());
@@ -274,9 +272,8 @@ public class ZiggyEventHandlerTest {
         // fired again
         Files.createFile(readyIndicator1);
         ziggyEventHandler.run();
-        events = (List<ZiggyEvent>) DatabaseTransactionFactory.performTransaction(() -> {
-            return new ZiggyEventCrud().retrieveAllEvents();
-        });
+        events = (List<ZiggyEvent>) DatabaseTransactionFactory
+            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
         assertEquals(2, events.size());
     }
 
@@ -300,9 +297,7 @@ public class ZiggyEventHandlerTest {
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ZiggyEventCrud().retrieveAllEvents();
-            });
+            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
 
         // Now we should see an event in the database.
         assertEquals(1, events.size());
@@ -357,9 +352,7 @@ public class ZiggyEventHandlerTest {
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ZiggyEventCrud().retrieveAllEvents();
-            });
+            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
         assertEquals(1L, event.getPipelineInstanceId());
@@ -429,9 +422,7 @@ public class ZiggyEventHandlerTest {
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ZiggyEventCrud().retrieveAllEvents();
-            });
+            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
         assertEquals(2, events.size());
     }
 
@@ -451,9 +442,7 @@ public class ZiggyEventHandlerTest {
 
         @SuppressWarnings("unchecked")
         List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                return new ZiggyEventCrud().retrieveAllEvents();
-            });
+            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
         assertEquals(1L, event.getPipelineInstanceId());

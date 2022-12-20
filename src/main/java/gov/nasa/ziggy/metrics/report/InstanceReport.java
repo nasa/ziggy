@@ -93,9 +93,8 @@ public class InstanceReport extends Report {
     private String dateToDateString(java.util.Date date) {
         if (date.getTime() == 0) {
             return "--";
-        } else {
-            return date.toString();
         }
+        return date.toString();
     }
 
     private void generateTransferStats(List<PipelineInstanceNode> nodes) throws Exception {

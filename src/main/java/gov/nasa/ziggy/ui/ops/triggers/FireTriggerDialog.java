@@ -212,7 +212,7 @@ public class FireTriggerDialog extends javax.swing.JDialog {
             fireButton.setText("Fire!");
             fireButton.setFont(new java.awt.Font("Dialog", 1, 16));
             fireButton.setForeground(new java.awt.Color(255, 0, 0));
-            fireButton.addActionListener(evt -> fireButtonActionPerformed(evt));
+            fireButton.addActionListener(this::fireButtonActionPerformed);
         }
         return fireButton;
     }
@@ -221,7 +221,7 @@ public class FireTriggerDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }
@@ -285,8 +285,7 @@ public class FireTriggerDialog extends javax.swing.JDialog {
         if (unlimitedRepsCheckBox == null) {
             unlimitedRepsCheckBox = new JCheckBox();
             unlimitedRepsCheckBox.setText("Unlimited");
-            unlimitedRepsCheckBox
-                .addActionListener(evt -> unlimitedRepsCheckBoxActionPerformed(evt));
+            unlimitedRepsCheckBox.addActionListener(this::unlimitedRepsCheckBoxActionPerformed);
         }
         return unlimitedRepsCheckBox;
     }
@@ -449,8 +448,7 @@ public class FireTriggerDialog extends javax.swing.JDialog {
         if (overrideStartCheckBox == null) {
             overrideStartCheckBox = new JCheckBox();
             overrideStartCheckBox.setText("Override Start");
-            overrideStartCheckBox
-                .addActionListener(evt -> overrideStartCheckBoxActionPerformed(evt));
+            overrideStartCheckBox.addActionListener(this::overrideStartCheckBoxActionPerformed);
         }
         return overrideStartCheckBox;
     }
@@ -515,7 +513,7 @@ public class FireTriggerDialog extends javax.swing.JDialog {
         if (overrideEndCheckBox == null) {
             overrideEndCheckBox = new JCheckBox();
             overrideEndCheckBox.setText("Override Stop");
-            overrideEndCheckBox.addActionListener(evt -> overrideEndCheckBoxActionPerformed(evt));
+            overrideEndCheckBox.addActionListener(this::overrideEndCheckBoxActionPerformed);
         }
         return overrideEndCheckBox;
     }
@@ -548,10 +546,7 @@ public class FireTriggerDialog extends javax.swing.JDialog {
             if (this == obj) {
                 return true;
             }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
+            if ((obj == null) || (getClass() != obj.getClass())) {
                 return false;
             }
             RepetitionsAndDelay other = (RepetitionsAndDelay) obj;

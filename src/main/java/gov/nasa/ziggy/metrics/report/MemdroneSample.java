@@ -50,26 +50,25 @@ public class MemdroneSample {
         if (elements.length != 9) {
             log.warn("Parse error, num elements != 11 : " + memdroneLogLine);
             return false;
-        } else {
-            String timestampString = elements[0] + " " + // day of week
-                elements[1] + " " + // month
-                elements[2] + " " + // date
-                elements[3] + " " + // time
-                elements[4] + " " + // TZ
-                elements[5]; // year
-            processId = elements[6];
-            processName = elements[8];
-
-            try {
-                timestampMillis = parseDate(timestampString);
-                memoryKilobytes = Integer.parseInt(elements[7]);
-
-            } catch (Exception e) {
-                log.warn("Parse error: " + e);
-                return false;
-            }
-            return true;
         }
+        String timestampString = elements[0] + " " + // day of week
+            elements[1] + " " + // month
+            elements[2] + " " + // date
+            elements[3] + " " + // time
+            elements[4] + " " + // TZ
+            elements[5]; // year
+        processId = elements[6];
+        processName = elements[8];
+
+        try {
+            timestampMillis = parseDate(timestampString);
+            memoryKilobytes = Integer.parseInt(elements[7]);
+
+        } catch (Exception e) {
+            log.warn("Parse error: " + e);
+            return false;
+        }
+        return true;
     }
 
     private long parseDate(String s) throws ParseException {

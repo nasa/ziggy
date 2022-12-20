@@ -14,7 +14,6 @@ public class LabelValue extends javax.swing.JPanel {
     private String value = "value";
 
     public LabelValue() {
-        super();
         initGUI();
     }
 

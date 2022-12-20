@@ -26,10 +26,9 @@ public interface JobMonitor {
     static JobMonitor newInstance(String username, boolean remoteJobs) {
         if (remoteJobs) {
             return new QstatMonitor(username, System.getenv("HOST"));
-        } else {
-            return new JobMonitor() {
-            };
         }
+        return new JobMonitor() {
+        };
     }
 
     default void addToMonitoring(StateFile stateFile) {

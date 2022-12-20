@@ -123,8 +123,8 @@ public class AlertLogCrudTest {
         populateObjects();
 
         // Test that empty components means that all components are considered.
-        String[] components = new String[0];
-        String[] severities = new String[0];
+        String[] components = {};
+        String[] severities = {};
         List<AlertLog> alerts = alertCrud.retrieve(date2, date6, components, severities);
         assertEquals(6, alerts.size());
 

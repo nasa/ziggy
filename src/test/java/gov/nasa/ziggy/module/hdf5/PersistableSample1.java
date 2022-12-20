@@ -3,6 +3,7 @@ package gov.nasa.ziggy.module.hdf5;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 import gov.nasa.ziggy.module.io.Persistable;
@@ -34,8 +35,7 @@ public class PersistableSample1 implements Persistable {
         result = prime * result + (enumScalar == null ? 0 : enumScalar.hashCode());
         result = prime * result + Arrays.hashCode(floatArray1);
         result = prime * result + (intList == null ? 0 : intList.hashCode());
-        result = prime * result + Arrays.deepHashCode(longArray2);
-        return result;
+        return prime * result + Arrays.deepHashCode(longArray2);
     }
 
     @Override
@@ -43,21 +43,14 @@ public class PersistableSample1 implements Persistable {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         PersistableSample1 other = (PersistableSample1) obj;
         if (!Arrays.deepEquals(booleanArray3, other.booleanArray3)) {
             return false;
         }
-        if (boxedFloatScalar == null) {
-            if (other.boxedFloatScalar != null) {
-                return false;
-            }
-        } else if (!boxedFloatScalar.equals(other.boxedFloatScalar)) {
+        if (!Objects.equals(boxedFloatScalar, other.boxedFloatScalar)) {
             return false;
         }
         if (Double.doubleToLongBits(doubleScalar) != Double.doubleToLongBits(other.doubleScalar)) {
@@ -69,11 +62,7 @@ public class PersistableSample1 implements Persistable {
         if (!Arrays.equals(floatArray1, other.floatArray1)) {
             return false;
         }
-        if (intList == null) {
-            if (other.intList != null) {
-                return false;
-            }
-        } else if (!intList.equals(other.intList)) {
+        if (!Objects.equals(intList, other.intList)) {
             return false;
         }
         if (!Arrays.deepEquals(longArray2, other.longArray2)) {
@@ -104,7 +93,7 @@ public class PersistableSample1 implements Persistable {
 
         // start with the scalars
         persistableObject.doubleScalar = rng.nextDouble();
-        persistableObject.boxedFloatScalar = Float.valueOf(rng.nextFloat());
+        persistableObject.boxedFloatScalar = rng.nextFloat();
 
         // now the 1-d arrays
         float[] floatArray1 = new float[float1Size1];
@@ -137,7 +126,7 @@ public class PersistableSample1 implements Persistable {
         List<Integer> intList = new ArrayList<>();
         persistableObject.intList = intList;
         for (int i = 0; i < integerSize; i++) {
-            intList.add(Integer.valueOf(rng.nextInt()));
+            intList.add(rng.nextInt());
         }
 
         return persistableObject;

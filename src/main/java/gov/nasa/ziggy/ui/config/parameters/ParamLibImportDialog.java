@@ -197,7 +197,7 @@ public class ParamLibImportDialog extends javax.swing.JDialog {
         if (importButton == null) {
             importButton = new JButton();
             importButton.setText("import");
-            importButton.addActionListener(evt -> importButtonActionPerformed(evt));
+            importButton.addActionListener(this::importButtonActionPerformed);
         }
         return importButton;
     }
@@ -206,7 +206,7 @@ public class ParamLibImportDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }
@@ -254,7 +254,7 @@ public class ParamLibImportDialog extends javax.swing.JDialog {
         if (reportButton == null) {
             reportButton = new JButton();
             reportButton.setText("report");
-            reportButton.addActionListener(evt -> reportButtonActionPerformed(evt));
+            reportButton.addActionListener(this::reportButtonActionPerformed);
         }
         return reportButton;
     }

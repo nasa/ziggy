@@ -74,7 +74,8 @@ public class ZiggyArrayUtils {
         String className = null;
         if (field.getType().isArray()) {
             return isBoxedPrimitive(field.getType());
-        } else if (field.getType().getName().equals("java.util.List")) {
+        }
+        if (field.getType().getName().equals("java.util.List")) {
             Type genericType = field.getGenericType();
             ParameterizedType pt = (ParameterizedType) genericType;
             className = pt.getActualTypeArguments()[0].getTypeName();
@@ -146,10 +147,8 @@ public class ZiggyArrayUtils {
             }
 
         }
-        long[] arrayDimensions = new long[arrayDimensionList.size()];
-        arrayDimensions = Longs.toArray(arrayDimensionList);
-        return arrayDimensions;
 
+        return Longs.toArray(arrayDimensionList);
     }
 
     /**
@@ -258,9 +257,8 @@ public class ZiggyArrayUtils {
     static ZiggyDataType castDataType(Object castType) {
         if (isEnumClass(castType)) {
             return ZiggyDataType.ZIGGY_ENUM;
-        } else {
-            return (ZiggyDataType) castType;
         }
+        return (ZiggyDataType) castType;
     }
 
     /**
@@ -456,12 +454,10 @@ public class ZiggyArrayUtils {
 
                 // in this case, we have the correct name for the class
                 return Array.newInstance(Class.forName(arrayClass), length);
-            } else {
-
-                // in this case we want a 1-d array of primitives, so we
-                // cannot use the class name...
-                return Array.newInstance(ziggyDataType.getJavaClass(), length);
             }
+            // in this case we want a 1-d array of primitives, so we
+            // cannot use the class name...
+            return Array.newInstance(ziggyDataType.getJavaClass(), length);
         } catch (NegativeArraySizeException | ClassNotFoundException e) {
             throw new PipelineException("Unable to construct new array for class " + arrayClass, e);
         }
@@ -507,17 +503,15 @@ public class ZiggyArrayUtils {
                     arrayStringBuilder.append(ziggyDataType.getJavaTypeCharacter());
                 }
         }
-        String arrayClass = arrayStringBuilder.toString();
-        return arrayClass;
+        return arrayStringBuilder.toString();
     }
 
     @SuppressWarnings("rawtypes")
     static boolean isEnumClass(Object obj) {
         if (obj instanceof Class) {
             return getDataTypeFromClass((Class) obj).equals(ZIGGY_ENUM);
-        } else {
-            return false;
         }
+        return false;
     }
 
     /**
@@ -551,9 +545,7 @@ public class ZiggyArrayUtils {
         ArrayRecursionLevel nextLevel = (obj, i) -> populateWithTrue(obj);
         ArrayRecursionLevel lowestLevel = (array1, c) -> {
             boolean[] bools = (boolean[]) array1;
-            for (int i = 0; i < bools.length; i++) {
-                bools[i] = true;
-            }
+            Arrays.fill(bools, true);
         };
         arrayLevelRecursionMaster(array, nextLevel, lowestLevel);
     }
@@ -608,7 +600,7 @@ public class ZiggyArrayUtils {
         // the ragged return value needs to be both accessed and mutated by
         // the nextLevel object, but it also has to be effectively final; the
         // only way I've found to do this is to make it a boolean[1] array
-        boolean[] ragged = new boolean[] { false };
+        boolean[] ragged = { false };
         long[] fullArraySize = getArraySize(array);
         int nDims = fullArraySize.length;
         long[] subarraySize = ArrayUtils.subarray(fullArraySize, 1, nDims);

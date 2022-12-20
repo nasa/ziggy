@@ -2,12 +2,11 @@ package gov.nasa.ziggy.pipeline.xml;
 
 import java.util.Objects;
 
+import gov.nasa.ziggy.data.management.DataFileType;
+import gov.nasa.ziggy.pipeline.definition.ModelType;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
-
-import gov.nasa.ziggy.data.management.DataFileType;
-import gov.nasa.ziggy.pipeline.definition.ModelType;
 
 /**
  * Defines a named reference to a Java object in an XML file. This allows the XML files that define
@@ -51,10 +50,7 @@ public class XmlReference {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         XmlReference other = (XmlReference) obj;

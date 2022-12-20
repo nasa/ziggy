@@ -233,9 +233,8 @@ public abstract class QueueCommandManager {
         boolean matches = matcher.matches();
         if (matches && matcher.groupCount() >= groupNumber) {
             return matcher.group(groupNumber);
-        } else {
-            return null;
         }
+        return null;
     }
 
     /**

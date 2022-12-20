@@ -176,9 +176,8 @@ public class TaskLog {
                     matcher.group(TaskLogInformation.INSTANCE_ID_GROUP_NUMBER)) == instanceId
                     && Integer
                         .valueOf(matcher.group(TaskLogInformation.TASK_ID_GROUP_NUMBER)) == taskId;
-            } else {
-                return false;
             }
+            return false;
         });
     }
 
@@ -206,11 +205,10 @@ public class TaskLog {
     }
 
     private static ThreadContextMapFilter threadContextMapFilter() {
-        ThreadContextMapFilter t = ThreadContextMapFilter.createFilter(
+        return ThreadContextMapFilter.createFilter(
             new KeyValuePair[] {
                 new KeyValuePair(THREAD_NAME_KEY, ThreadContext.get(THREAD_NAME_KEY)) },
             "and", Filter.Result.ACCEPT, Filter.Result.DENY);
-        return t;
     }
 
     public void endLogging() {

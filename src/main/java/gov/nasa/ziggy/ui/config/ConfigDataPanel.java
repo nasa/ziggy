@@ -68,7 +68,6 @@ public class ConfigDataPanel extends javax.swing.JPanel {
     }
 
     public ConfigDataPanel() {
-        super();
         initGUI();
     }
 
@@ -271,7 +270,6 @@ public class ConfigDataPanel extends javax.swing.JPanel {
         private final Image image;
 
         public ScalingImagePanel(Image image) {
-            super();
             this.image = image;
         }
 

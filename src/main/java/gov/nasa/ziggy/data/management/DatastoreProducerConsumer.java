@@ -3,6 +3,7 @@ package gov.nasa.ziggy.data.management;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -129,10 +130,7 @@ public class DatastoreProducerConsumer {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + (filename == null ? 0 : filename.hashCode());
-        return result;
+        return Objects.hash(filename);
     }
 
     @Override
@@ -144,11 +142,7 @@ public class DatastoreProducerConsumer {
             return false;
         }
         DatastoreProducerConsumer other = (DatastoreProducerConsumer) obj;
-        if (filename == null) {
-            if (other.filename != null) {
-                return false;
-            }
-        } else if (!filename.equals(other.filename)) {
+        if (!Objects.equals(filename, other.filename)) {
             return false;
         }
         return true;

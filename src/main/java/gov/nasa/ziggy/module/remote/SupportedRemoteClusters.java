@@ -28,7 +28,7 @@ public enum SupportedRemoteClusters {
     private static SupportedRemoteClusters defaultCluster = NAS;
     private Class<? extends RemoteExecutor> remoteExecutorClass;
 
-    private SupportedRemoteClusters(Class<? extends RemoteExecutor> remoteExecutorClass) {
+    SupportedRemoteClusters(Class<? extends RemoteExecutor> remoteExecutorClass) {
         this.remoteExecutorClass = remoteExecutorClass;
     }
 

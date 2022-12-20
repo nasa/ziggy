@@ -54,17 +54,16 @@ public class PipelineDefinitionNodePath {
         int pathIndex) {
         int childIndex = path.get(pathIndex);
 
-        if (childIndex < nodes.size()) {
-            PipelineDefinitionNode node = nodes.get(childIndex);
-
-            if (pathIndex < path.size() - 1) {
-                return definitionNodeAt(node.getNextNodes(), pathIndex + 1);
-            } else {
-                // last element of the path
-                return node;
-            }
-        } else {
+        if (childIndex >= nodes.size()) {
             return null;
+        }
+        PipelineDefinitionNode node = nodes.get(childIndex);
+
+        if (pathIndex < path.size() - 1) {
+            return definitionNodeAt(node.getNextNodes(), pathIndex + 1);
+        } else {
+            // last element of the path
+            return node;
         }
     }
 
@@ -100,10 +99,7 @@ public class PipelineDefinitionNodePath {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         final PipelineDefinitionNodePath other = (PipelineDefinitionNodePath) obj;

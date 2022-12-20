@@ -178,7 +178,7 @@ public class TextualReportDialog extends javax.swing.JDialog {
         if (saveButton == null) {
             saveButton = new JButton();
             saveButton.setText("save to file");
-            saveButton.addActionListener(evt -> saveButtonActionPerformed(evt));
+            saveButton.addActionListener(this::saveButtonActionPerformed);
         }
         return saveButton;
     }

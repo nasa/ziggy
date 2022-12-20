@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -173,7 +174,7 @@ public class QueueCommandManagerTest {
         // set up the returns for the qstat commands that are looking for the tasks in
         // the queue -- NB, there is no job in the queue for task 3.
         String jobName = task1.taskBaseName();
-        String[] grepArgs = new String[] { new String(jobName) };
+        String[] grepArgs = { new String(jobName) };
         mockQstatCall("-u user", grepArgs, qstatOutputLine(task1, 1234567L));
         jobName = task2.taskBaseName();
         grepArgs = new String[] { new String(jobName) };
@@ -241,7 +242,7 @@ public class QueueCommandManagerTest {
 
         // Mock a return that has both the select value and the wall time value
         mockQstatCall("-xf 1234567",
-            new String[] { "Resource_List.select", "resources_used.walltime" }, new String[0]);
+            new String[] { "Resource_List.select", "resources_used.walltime" });
         RemoteJob.RemoteJobQstatInfo info = cmdManager.remoteJobQstatInfo(1234567);
         assertEquals(0, info.getNodes());
         assertNull(info.getModel());
@@ -264,9 +265,8 @@ public class QueueCommandManagerTest {
 
     // generates the output line from qstat for a given task name and job ID
     private String qstatOutputLine(PipelineTask task, long jobId) {
-        String s = String.format("%d.batch user low    %s   5   5 04:00 F 02:33  254%%", jobId,
+        return String.format("%d.batch user low    %s   5   5 04:00 F 02:33  254%%", jobId,
             task.taskBaseName());
-        return s;
     }
 
     // Mocks the cmdManager in this test to return the correct list of strings when
@@ -285,9 +285,7 @@ public class QueueCommandManagerTest {
         String[] grepArgs, String... responses) {
         List<String> replies = new ArrayList<>();
         if (responses != null) {
-            for (String response : responses) {
-                replies.add(response);
-            }
+            Collections.addAll(replies, responses);
         }
         Mockito.doReturn(replies).when(cmdManager).qstat(command, grepArgs);
     }
@@ -296,9 +294,7 @@ public class QueueCommandManagerTest {
         String... responses) {
         List<String> replies = new ArrayList<>();
         if (responses != null) {
-            for (String response : responses) {
-                replies.add(response);
-            }
+            Collections.addAll(replies, responses);
         }
         Mockito.doReturn(replies).when(cmdManager).qstat(command, (String[]) null);
     }

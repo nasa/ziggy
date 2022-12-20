@@ -40,11 +40,10 @@ public class PipelineInstanceIdOperations {
     public long validPipelineInstanceId() {
         if (instanceParameterValid()) {
             return pipelineInstanceId;
-        } else {
-            return new PipelineTaskCrud().retrieveLatestForModule(pipelineModuleName)
-                .getPipelineInstance()
-                .getId();
         }
+        return new PipelineTaskCrud().retrieveLatestForModule(pipelineModuleName)
+            .getPipelineInstance()
+            .getId();
     }
 
     /**
@@ -58,11 +57,9 @@ public class PipelineInstanceIdOperations {
             List<PipelineTask> tasks = new PipelineTaskCrud()
                 .retrieveTasksForModuleAndInstance(pipelineModuleName, pipelineInstanceId);
             return tasks != null && !tasks.isEmpty();
-        } else {
-            PipelineTask dvTask = new PipelineTaskCrud()
-                .retrieveLatestForModule(pipelineModuleName);
-            return dvTask != null;
         }
+        PipelineTask dvTask = new PipelineTaskCrud().retrieveLatestForModule(pipelineModuleName);
+        return dvTask != null;
     }
 
     public long getPipelineInstanceId() {

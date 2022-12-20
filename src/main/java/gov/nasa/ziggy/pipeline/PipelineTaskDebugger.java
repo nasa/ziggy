@@ -167,21 +167,10 @@ public class PipelineTaskDebugger {
                         log.error(
                             "Configured pipelineModule must implement ExternalProcessPipelineModule.");
                     }
-                } catch (NoSuchMethodException nsme) {
-                    log.error(nsme.getMessage(), nsme);
-                    throw nsme;
-                } catch (SecurityException se) {
-                    log.error(se.getMessage(), se);
-                    throw se;
-                } catch (IllegalAccessException iae) {
-                    log.error(iae.getMessage(), iae);
-                    throw iae;
-                } catch (IllegalArgumentException iae) {
-                    log.error(iae.getMessage(), iae);
-                    throw iae;
-                } catch (InvocationTargetException ite) {
-                    log.error(ite.getMessage(), ite);
-                    throw ite;
+                } catch (NoSuchMethodException | SecurityException | IllegalAccessException
+                    | IllegalArgumentException | InvocationTargetException e) {
+                    log.error(e.getMessage(), e);
+                    throw e;
                 }
             }
 
@@ -259,15 +248,8 @@ public class PipelineTaskDebugger {
             moduleName = pipelineModule.getClass()
                 .getDeclaredMethod("getModuleName")
                 .invoke(pipelineModule);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        } catch (SecurityException e) {
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
+            | NoSuchMethodException | SecurityException e) {
             e.printStackTrace();
         }
         if (moduleName instanceof String) {

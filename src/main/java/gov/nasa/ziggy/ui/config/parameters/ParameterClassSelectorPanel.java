@@ -26,18 +26,15 @@ public class ParameterClassSelectorPanel extends javax.swing.JPanel {
     private ParameterClassListModel paramClassListModel;
 
     public ParameterClassSelectorPanel() {
-        super();
         initGUI();
     }
 
     public ClassWrapper<Parameters> getSelectedElement() {
         int selectedIndex = paramClassList.getSelectedIndex();
         if (selectedIndex != -1) {
-            ClassWrapper<Parameters> selected = paramClassListModel.getElementAt(selectedIndex);
-            return selected;
-        } else {
-            return null;
+            return paramClassListModel.getElementAt(selectedIndex);
         }
+        return null;
     }
 
     private void initGUI() {

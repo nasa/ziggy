@@ -286,8 +286,8 @@ public class PipelineDefinitionTest {
     @XmlAccessorType(XmlAccessType.NONE)
     private static class PipelineDef extends PipelineDefinition {
 
+        @SuppressWarnings("unused")
         public PipelineDef() {
-
         }
 
         public PipelineDef(String name) {

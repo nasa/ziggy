@@ -98,7 +98,7 @@ public class WorkerTaskRequestDispatcher implements StatusReporter {
     public void processMessage(WorkerTaskRequest workerRequest) {
         threadContext.setRequest(workerRequest);
         taskId = workerRequest.getTaskId();
-        taskLog = initializeTaskLog(workerRequest.getInstanceId(), workerRequest.getTaskId());
+        taskLog = initializeTaskLog(workerRequest.getTaskId());
 
         IntervalMetricKey key = IntervalMetric.start();
 
@@ -217,7 +217,7 @@ public class WorkerTaskRequestDispatcher implements StatusReporter {
         }
     }
 
-    private TaskLog initializeTaskLog(long instanceId, long taskId) {
+    private TaskLog initializeTaskLog(long taskId) {
         PipelineTaskCrud crud = new PipelineTaskCrud();
         PipelineTask pipelineTask = (PipelineTask) DatabaseTransactionFactory
             .performTransaction(() -> {
@@ -262,7 +262,7 @@ public class WorkerTaskRequestDispatcher implements StatusReporter {
      */
     private boolean preProcessing(boolean doTransitionOnlyOverride) throws Exception {
 
-        boolean doTransitionOnly = (boolean) DatabaseTransactionFactory.performTransaction(() -> {
+        return (boolean) DatabaseTransactionFactory.performTransaction(() -> {
             PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
             PipelineInstance pipelineInstance = pipelineInstanceCrud
                 .retrieve(threadContext.getRequest().getInstanceId());
@@ -317,8 +317,6 @@ public class WorkerTaskRequestDispatcher implements StatusReporter {
             }
             return transitionOnly;
         });
-
-        return doTransitionOnly;
     }
 
     /**
@@ -642,11 +640,9 @@ public class WorkerTaskRequestDispatcher implements StatusReporter {
         String currentPipelineTaskId = currentPipelineTask == null ? "-"
             : "" + currentPipelineTask.getId();
 
-        WorkerStatusMessage message = new WorkerStatusMessage(threadNumber,
-            threadContext.getState().toString(), currentPipelineInstanceId, currentPipelineTaskId,
-            threadContext.getModule(), threadContext.getModuleUow(),
-            threadContext.getProcessingStartTimeMillis());
-        return message;
+        return new WorkerStatusMessage(threadNumber, threadContext.getState().toString(),
+            currentPipelineInstanceId, currentPipelineTaskId, threadContext.getModule(),
+            threadContext.getModuleUow(), threadContext.getProcessingStartTimeMillis());
     }
 
 }

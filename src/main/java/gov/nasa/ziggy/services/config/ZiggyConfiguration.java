@@ -135,9 +135,8 @@ public class ZiggyConfiguration {
     private static String getEnvVar(String envVarName) {
         if (System.getProperty("org.gradle.test.worker") != null) {
             return null;
-        } else {
-            return System.getenv(envVarName);
         }
+        return System.getenv(envVarName);
     }
 
     /**

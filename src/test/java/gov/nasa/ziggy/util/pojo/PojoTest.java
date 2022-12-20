@@ -188,18 +188,15 @@ public class PojoTest {
     private static Method getWriteMethod(Field field, Object object) {
         PropertyDescriptor propertyDescriptor = getPropertyDescriptor(field, object);
 
-        Method writeMethod = propertyDescriptor.getWriteMethod();
-        return writeMethod;
+        return propertyDescriptor.getWriteMethod();
     }
 
     private static String trimPrefix(String methodName) {
         String trimmedMethodName;
         if (methodName.startsWith("is")) {
-            trimmedMethodName = methodName.substring(2, methodName.length());
-        } else if (methodName.startsWith("get")) {
-            trimmedMethodName = methodName.substring(3, methodName.length());
-        } else if (methodName.startsWith("set")) {
-            trimmedMethodName = methodName.substring(3, methodName.length());
+            trimmedMethodName = methodName.substring(2);
+        } else if (methodName.startsWith("get") || methodName.startsWith("set")) {
+            trimmedMethodName = methodName.substring(3);
         } else {
             throw new IllegalArgumentException(
                 "Unexpected methodName." + "\n  methodName: " + methodName);
@@ -222,8 +219,7 @@ public class PojoTest {
     private static Method getReadMethod(Field field, Object object) {
         PropertyDescriptor propertyDescriptor = getPropertyDescriptor(field, object);
 
-        Method readMethod = propertyDescriptor.getReadMethod();
-        return readMethod;
+        return propertyDescriptor.getReadMethod();
     }
 
     private static Object createTestValue(Field field) {

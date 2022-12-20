@@ -138,7 +138,7 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         int nDims = 0;
         while (className.substring(0, 1).equals("[")) {
             nDims++;
-            className = className.substring(1, className.length());
+            className = className.substring(1);
         }
         return nDims;
     }
@@ -290,10 +290,9 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         Object emptyReturn = null;
 
         if (returnAs.equals(ReturnAs.SCALAR)) {
-            if (dataTypeOfReturn == ZiggyDataType.ZIGGY_STRING
-                || dataTypeOfReturn == ZiggyDataType.ZIGGY_ENUM) {
-                emptyReturn = null;
-            } else if (dataTypeOfReturn == ZiggyDataType.ZIGGY_CHAR) {
+            if ((dataTypeOfReturn == ZiggyDataType.ZIGGY_STRING
+                || dataTypeOfReturn == ZiggyDataType.ZIGGY_ENUM)
+                || (dataTypeOfReturn == ZiggyDataType.ZIGGY_CHAR)) {
                 emptyReturn = null;
             } else {
                 emptyReturn = dataTypeOfReturn.boxedZero();
@@ -306,9 +305,7 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         }
         if (returnAs.equals(ReturnAs.ARRAY)) {
             long[] arraySize = new long[nDimensionsToReturn];
-            for (int i = 0; i < arraySize.length; i++) {
-                arraySize[i] = 0;
-            }
+            Arrays.fill(arraySize, 0);
             emptyReturn = ZiggyArrayUtils.constructFullArray(arraySize, dataTypeOfReturn,
                 boxReturn);
         }
@@ -487,13 +484,7 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         } catch (NullPointerException | IllegalArgumentException | HDF5Exception e) {
             throw new PipelineException(
                 "Unable to write primitive array from field " + fieldName + " to HDF5 group", e);
-        } catch (IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (SecurityException e) {
+        } catch (IllegalAccessException | NoSuchFieldException | SecurityException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
@@ -570,16 +561,8 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         } catch (HDF5Exception e) {
             throw new PipelineException(
                 "Unable to read numeric array from HDF5 for field " + getFieldName(), e);
-        } catch (IllegalArgumentException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (SecurityException e) {
+        } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException
+            | SecurityException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
@@ -809,19 +792,18 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
                         (int) subArraySize[0], getDataType(slab0));
                 }
                 putHyperslab(array0[location0], subArraySize, subArrayLocation, slab0[0]);
-            } else {
-                // non-singleton, need to copy / move the data over from the slab to the main array
-                if (slabSize.length > 1) {
-                    // subunits are arrays
-                    Object[] array0 = (Object[]) array;
-                    Object[] slab0 = (Object[]) slabArray;
-                    for (int i = 0; i < slabSize[0]; i++) {
-                        array0[location0 + i] = slab0[i];
-                    }
-                } else {
-                    // subunits are primitives
-                    System.arraycopy(slabArray, 0, array, location0, (int) slabSize[0]);
+            } else // non-singleton, need to copy / move the data over from the slab to the main
+                   // array
+            if (slabSize.length > 1) {
+                // subunits are arrays
+                Object[] array0 = (Object[]) array;
+                Object[] slab0 = (Object[]) slabArray;
+                for (int i = 0; i < slabSize[0]; i++) {
+                    array0[location0 + i] = slab0[i];
                 }
+            } else {
+                // subunits are primitives
+                System.arraycopy(slabArray, 0, array, location0, (int) slabSize[0]);
             }
         }
 

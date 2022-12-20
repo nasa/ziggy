@@ -37,7 +37,6 @@ public class DataReceiptPanel extends JPanel implements MouseListener {
     private DataReceiptTableModel tableModel;
 
     public DataReceiptPanel() {
-        super();
         initGUI();
         tableModel.loadFromDatabase();
     }

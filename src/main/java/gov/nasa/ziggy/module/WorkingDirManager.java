@@ -27,8 +27,7 @@ public class WorkingDirManager {
 
     public static String workingDirParent() {
 
-        String workingDirParent = DirectoryProperties.taskDataDir().toString();
-        return workingDirParent;
+        return DirectoryProperties.taskDataDir().toString();
     }
 
     public static File workingDirBaseName(PipelineTask pipelineTask) {

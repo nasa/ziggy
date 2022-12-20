@@ -68,10 +68,9 @@ public enum RemoteQueueDescriptor {
                 unsortedDescriptors.add(descriptor);
             }
         }
-        List<RemoteQueueDescriptor> sortedDescriptors = unsortedDescriptors.stream()
+        return unsortedDescriptors.stream()
             .sorted(RemoteQueueDescriptor::compareByMaxTime)
             .collect(Collectors.toList());
-        return sortedDescriptors;
     }
 
     private static int compareByMaxTime(RemoteQueueDescriptor d1, RemoteQueueDescriptor d2) {

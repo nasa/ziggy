@@ -54,9 +54,7 @@ public class PipelineOperations {
      */
     public PipelineModuleDefinition retrieveLatestModuleDefinition(ModuleName moduleName) {
         PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
-        PipelineModuleDefinition latestModuleDef = crud.retrieveLatestVersionForName(moduleName);
-
-        return latestModuleDef;
+        return crud.retrieveLatestVersionForName(moduleName);
     }
 
     /**
@@ -67,9 +65,7 @@ public class PipelineOperations {
      */
     public ParameterSet retrieveLatestParameterSet(String parameterSetName) {
         ParameterSetCrud crud = new ParameterSetCrud();
-        ParameterSet latestParameterSet = crud.retrieveLatestVersionForName(parameterSetName);
-
-        return latestParameterSet;
+        return crud.retrieveLatestVersionForName(parameterSetName);
     }
 
     /**
@@ -80,9 +76,7 @@ public class PipelineOperations {
      */
     public ParameterSet retrieveLatestParameterSet(ParameterSetName parameterSetName) {
         ParameterSetCrud crud = new ParameterSetCrud();
-        ParameterSet latestParameterSet = crud.retrieveLatestVersionForName(parameterSetName);
-
-        return latestParameterSet;
+        return crud.retrieveLatestVersionForName(parameterSetName);
     }
 
     /**
@@ -351,10 +345,10 @@ public class PipelineOperations {
             boolean found = false;
 
             // check at the module level first
-            if (moduleParameterSetNames.keySet().contains(classWrapper)) {
+            if (moduleParameterSetNames.containsKey(classWrapper)) {
                 paramSetName = moduleParameterSetNames.get(classWrapper);
                 found = true;
-            } else if (pipelineParameterSetNames.keySet().contains(classWrapper)) {
+            } else if (pipelineParameterSetNames.containsKey(classWrapper)) {
                 // then at the pipeline level
                 paramSetName = pipelineParameterSetNames.get(classWrapper);
                 found = true;
@@ -690,9 +684,8 @@ public class PipelineOperations {
 
     public Map<ClassWrapper<Parameters>, ParameterSet> retrieveParameterSets(
         PipelineDefinition pipelineDefinition, String moduleName) {
-        Map<ClassWrapper<Parameters>, ParameterSetName> parameterSetNameMap = new HashMap<>();
-        parameterSetNameMap.putAll(pipelineDefinition.getPipelineParameterSetNames());
-
+        Map<ClassWrapper<Parameters>, ParameterSetName> parameterSetNameMap = new HashMap<>(
+            pipelineDefinition.getPipelineParameterSetNames());
         for (PipelineDefinitionNode pipelineDefinitionNode : pipelineDefinition.getNodes()) {
             if (pipelineDefinitionNode.getModuleName().getName().equals(moduleName)) {
                 parameterSetNameMap.putAll(pipelineDefinitionNode.getModuleParameterSetNames());

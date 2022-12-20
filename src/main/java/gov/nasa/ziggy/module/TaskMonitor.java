@@ -137,7 +137,6 @@ public class TaskMonitor {
 
             if (stateFile.getNumComplete() + stateFile.getNumFailed() == stateFile.getNumTotal()) {
                 log.info("All subtasks complete or errored, marking state file COMPLETE");
-                stateFile.setState(StateFile.State.COMPLETE);
             } else {
                 // If there is a shortfall, consider the missing sub-tasks failed
                 int missing = stateFile.getNumTotal()
@@ -145,8 +144,8 @@ public class TaskMonitor {
 
                 log.info("Missing subtasks, forcing state to FAILED, missing=" + missing);
                 stateFile.setNumFailed(stateFile.getNumFailed() + missing);
-                stateFile.setState(StateFile.State.COMPLETE);
             }
+            stateFile.setState(StateFile.State.COMPLETE);
 
             updateStateFile(previousStateFile);
         } finally {

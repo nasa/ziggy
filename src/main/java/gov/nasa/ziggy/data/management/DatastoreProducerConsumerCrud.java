@@ -40,7 +40,6 @@ import gov.nasa.ziggy.services.database.DatabaseService;
 public class DatastoreProducerConsumerCrud extends AbstractCrud {
 
     public DatastoreProducerConsumerCrud() {
-        super();
     }
 
     public DatastoreProducerConsumerCrud(DatabaseService dbService) {
@@ -215,10 +214,9 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
      *
      * @return
      */
+    @SuppressWarnings("unchecked")
     public List<DatastoreProducerConsumer> retrieveAll() {
         Criteria q = createCriteria(DatastoreProducerConsumer.class);
-        @SuppressWarnings("unchecked")
-        List<DatastoreProducerConsumer> r = q.list();
-        return r;
+        return q.list();
     }
 }

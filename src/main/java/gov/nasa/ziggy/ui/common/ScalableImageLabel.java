@@ -9,6 +9,8 @@ import javax.swing.JLabel;
 
 public class ScalableImageLabel extends JLabel {
 
+    private static final long serialVersionUID = 20221220L;
+
     private Image originalImage;
 
     @Override

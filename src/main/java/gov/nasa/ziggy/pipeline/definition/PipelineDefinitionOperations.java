@@ -62,8 +62,9 @@ public class PipelineDefinitionOperations {
     public PipelineDefinitionOperations() {
         try {
             xmlManager = new ValidatingXmlManager<>(PipelineDefinitionFile.class);
-		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+            | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class PipelineDefinitionFile", e);
         }
@@ -301,12 +302,11 @@ public class PipelineDefinitionOperations {
                     missingDataFileTypes.add(xmlReference.getName());
                 }
             }
-            if (missingDataFileTypes.isEmpty()) {
-                xmlNode.addAllInputDataFileTypes(dataFileTypes);
-            } else {
+            if (!missingDataFileTypes.isEmpty()) {
                 throw new PipelineException(xmlNode.getModuleName().getName()
                     + " missing input data file type names: " + missingDataFileTypes.toString());
             }
+            xmlNode.addAllInputDataFileTypes(dataFileTypes);
 
             missingDataFileTypes = new HashSet<>();
             dataFileTypes = new HashSet<>();
@@ -318,12 +318,11 @@ public class PipelineDefinitionOperations {
                     missingDataFileTypes.add(xmlReference.getName());
                 }
             }
-            if (missingDataFileTypes.isEmpty()) {
-                xmlNode.addAllOutputDataFileTypes(dataFileTypes);
-            } else {
+            if (!missingDataFileTypes.isEmpty()) {
                 throw new PipelineException(xmlNode.getModuleName().getName()
                     + " missing output data file type names: " + missingDataFileTypes.toString());
             }
+            xmlNode.addAllOutputDataFileTypes(dataFileTypes);
 
             // model types
             Set<String> missingModelTypes = new HashSet<>();
@@ -336,12 +335,11 @@ public class PipelineDefinitionOperations {
                     missingModelTypes.add(xmlReference.getName());
                 }
             }
-            if (missingModelTypes.isEmpty()) {
-                xmlNode.addAllModelTypes(modelTypes);
-            } else {
+            if (!missingModelTypes.isEmpty()) {
                 throw new PipelineException(xmlNode.getModuleName().getName()
                     + " missing model type names: " + missingModelTypes.toString());
             }
+            xmlNode.addAllModelTypes(modelTypes);
             pipelineRootNodes.add(xmlNode);
 
             // Child nodes
@@ -366,11 +364,10 @@ public class PipelineDefinitionOperations {
             String xmlParamName = pipelineParamSetName.getName();
             ParameterSet parameterSet = paramCrud.retrieveLatestVersionForName(xmlParamName);
 
-            if (parameterSet != null) {
-                parameterSets.put(new ClassWrapper<>(parameterSet), pipelineParamSetName);
-            } else {
+            if (parameterSet == null) {
                 throw new PipelineException("No parameter set found for name: " + xmlParamName);
             }
+            parameterSets.put(new ClassWrapper<>(parameterSet), pipelineParamSetName);
         }
         return parameterSets;
     }

@@ -136,16 +136,15 @@ public class ValueMetric extends Metric implements Serializable {
 
     @Override
     public synchronized void merge(Metric other) {
-        if (other instanceof ValueMetric) {
-            ValueMetric otherVm = (ValueMetric) other;
-            count += otherVm.count;
-            sum += otherVm.sum;
-            max = Math.max(max, otherVm.max);
-            min = Math.min(min, otherVm.min);
-        } else {
+        if (!(other instanceof ValueMetric)) {
             throw new IllegalArgumentException(
                 "Specified Metric is not a ValueMetric, type=" + other.getClass().getName());
         }
+        ValueMetric otherVm = (ValueMetric) other;
+        count += otherVm.count;
+        sum += otherVm.sum;
+        max = Math.max(max, otherVm.max);
+        min = Math.min(min, otherVm.min);
     }
 
     @Override
@@ -163,8 +162,7 @@ public class ValueMetric extends Metric implements Serializable {
         result = prime * result + count;
         result = prime * result + (int) (max ^ max >>> 32);
         result = prime * result + (int) (min ^ min >>> 32);
-        result = prime * result + (int) (sum ^ sum >>> 32);
-        return result;
+        return prime * result + (int) (sum ^ sum >>> 32);
     }
 
     @Override
@@ -172,10 +170,7 @@ public class ValueMetric extends Metric implements Serializable {
         if (this == obj) {
             return true;
         }
-        if (!super.equals(obj)) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if (!super.equals(obj) || (getClass() != obj.getClass())) {
             return false;
         }
         final ValueMetric other = (ValueMetric) obj;

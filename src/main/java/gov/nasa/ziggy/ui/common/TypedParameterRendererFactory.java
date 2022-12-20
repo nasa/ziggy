@@ -38,8 +38,7 @@ public class TypedParameterRendererFactory implements PropertyRendererFactory {
      * renderers from the {@link PropertyRendererRegistry} are used.
      */
     @Override
-    public TableCellRenderer createTableCellRenderer(Class clazz) {
+    public TableCellRenderer createTableCellRenderer(Class<? extends Object> clazz) {
         return new PropertyRendererRegistry().getRenderer(clazz);
     }
-
 }

@@ -24,7 +24,6 @@ public abstract class HibernateDatabaseServiceBase extends DatabaseService {
     protected Configuration hibernateConfig = null;
 
     public HibernateDatabaseServiceBase() {
-        super();
     }
 
     /**

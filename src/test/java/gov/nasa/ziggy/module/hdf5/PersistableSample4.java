@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.module.hdf5;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 public class PersistableSample4 {
 
@@ -34,12 +35,8 @@ public class PersistableSample4 {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + (persistableTest2 == null ? 0 : persistableTest2.hashCode());
-        result = prime * result + (persistableTest3 == null ? 0 : persistableTest3.hashCode());
-        result = prime * result + Arrays.hashCode(persistableTest3Array);
-        return result;
+        return Objects.hash(persistableTest2, persistableTest3,
+            Arrays.hashCode(persistableTest3Array));
     }
 
     @Override
@@ -47,25 +44,14 @@ public class PersistableSample4 {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         PersistableSample4 other = (PersistableSample4) obj;
-        if (persistableTest2 == null) {
-            if (other.persistableTest2 != null) {
-                return false;
-            }
-        } else if (!persistableTest2.equals(other.persistableTest2)) {
+        if (!Objects.equals(persistableTest2, other.persistableTest2)) {
             return false;
         }
-        if (persistableTest3 == null) {
-            if (other.persistableTest3 != null) {
-                return false;
-            }
-        } else if (!persistableTest3.equals(other.persistableTest3)) {
+        if (!Objects.equals(persistableTest3, other.persistableTest3)) {
             return false;
         }
         if (!Arrays.equals(persistableTest3Array, other.persistableTest3Array)) {

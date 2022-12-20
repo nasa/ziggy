@@ -3,12 +3,11 @@ package gov.nasa.ziggy.services.events;
 import java.util.ArrayList;
 import java.util.List;
 
+import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
-
-import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 
 /**
  * Models an XML file with {@link ZiggyEventHandler} definitions.

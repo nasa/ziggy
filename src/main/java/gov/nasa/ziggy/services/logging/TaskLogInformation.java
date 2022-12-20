@@ -55,10 +55,10 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         }
         Matcher matcher = LOG_FILE_NAME_PATTERN.matcher(filename);
         matcher.matches();
-        instanceId = Integer.valueOf(matcher.group(INSTANCE_ID_GROUP_NUMBER));
-        taskId = Integer.valueOf(matcher.group(TASK_ID_GROUP_NUMBER));
-        taskLogIndex = Integer.valueOf(matcher.group(TASK_LOG_INDEX_NUMBER));
-        jobIndex = Integer.valueOf(matcher.group(JOB_INDEX_GROUP_NUMBER));
+        instanceId = Integer.parseInt(matcher.group(INSTANCE_ID_GROUP_NUMBER));
+        taskId = Integer.parseInt(matcher.group(TASK_ID_GROUP_NUMBER));
+        taskLogIndex = Integer.parseInt(matcher.group(TASK_LOG_INDEX_NUMBER));
+        jobIndex = Integer.parseInt(matcher.group(JOB_INDEX_GROUP_NUMBER));
         fullPath = taskFile.getAbsolutePath();
         logSizeBytes = taskFile.length();
         lastModified = taskFile.lastModified();
@@ -84,9 +84,8 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         String valueInEngineeringNotation = IntegerFormatter.engineeringNotation(logSizeBytes);
         if (logSizeBytes <= 999) {
             return valueInEngineeringNotation + " Bytes";
-        } else {
-            return valueInEngineeringNotation + "Bytes";
         }
+        return valueInEngineeringNotation + "Bytes";
     }
 
     public String lastModifiedDateTime() {

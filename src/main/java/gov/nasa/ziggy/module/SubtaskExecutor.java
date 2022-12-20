@@ -390,8 +390,6 @@ public class SubtaskExecutor {
      */
     int runInputsOutputsCommand(Class<?> inputsOutputsClass) throws IOException {
 
-        int retCode = -1;
-
         // Locate the runjava executable, which can be someplace other than the bin directories for
         // the pipeline.
         String runjavaCommand = DirectoryProperties.ziggyBinDir() + "/runjava";
@@ -424,8 +422,7 @@ public class SubtaskExecutor {
         externalProcess.setEnvironment(mergeWithEnvironment(EnvironmentUtils.getProcEnvironment()));
 
         log.info("Executing command: " + commandLine.toString());
-        retCode = externalProcess.execute();
-        return retCode;
+        return externalProcess.execute();
     }
 
     int runCommandline(List<String> commandline, String logPrefix, String logSuffix)
@@ -506,8 +503,7 @@ public class SubtaskExecutor {
     }
 
     private Map<String, String> mergeWithEnvironment(Map<String, String> additionalEnvironment) {
-        Map<String, String> fullEnvironment = new HashMap<>();
-        fullEnvironment.putAll(additionalEnvironment);
+        Map<String, String> fullEnvironment = new HashMap<>(additionalEnvironment);
         fullEnvironment.putAll(environment);
 
         return fullEnvironment;

@@ -88,8 +88,7 @@ public class ArrayEditorTableModel extends AbstractTableModel {
             case 0:
                 return rowIndex;
             case 1:
-                Object object = elements.get(rowIndex);
-                return object;
+                return elements.get(rowIndex);
             default:
                 throw new IllegalArgumentException("invalid columnIndex = " + columnIndex);
         }

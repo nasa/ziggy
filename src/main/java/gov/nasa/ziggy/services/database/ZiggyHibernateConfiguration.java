@@ -82,12 +82,11 @@ public class ZiggyHibernateConfiguration {
                 String key = (String) okey;
                 String value = hibernateProperties.getProperty(key);
 
-                if (value != null) {
-                    log.debug("copying property, key=" + key + ", value=" + value);
-                    hibernateConfig.setProperty(key, value);
-                } else {
+                if (value == null) {
                     throw new PipelineException("Property values must not be null, key=" + key);
                 }
+                log.debug("copying property, key=" + key + ", value=" + value);
+                hibernateConfig.setProperty(key, value);
             }
         } else {
             // Get the props from the from the ConfigurationService.

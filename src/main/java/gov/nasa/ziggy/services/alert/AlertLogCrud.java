@@ -51,9 +51,7 @@ public class AlertLogCrud extends AbstractCrud {
         query.setProjection(Projections
             .distinct(Projections.groupProperty("alertData.sourceComponent").as("component")));
         query.addOrder(Order.asc("component"));
-        List<String> components = list(query);
-
-        return components;
+        return list(query);
     }
 
     /**
@@ -68,9 +66,7 @@ public class AlertLogCrud extends AbstractCrud {
         query.setProjection(
             Projections.distinct(Projections.groupProperty("alertData.severity").as("severity")));
         query.addOrder(Order.asc("severity"));
-        List<String> severities = list(query);
-
-        return severities;
+        return list(query);
     }
 
     /**
@@ -137,9 +133,7 @@ public class AlertLogCrud extends AbstractCrud {
         query.addOrder(Order.asc("alertData.severity"));
         query.addOrder(Order.asc("alertData.timestamp"));
 
-        List<AlertLog> results = list(query);
-
-        return results;
+        return list(query);
     }
 
     /**
@@ -155,9 +149,7 @@ public class AlertLogCrud extends AbstractCrud {
         query.addEntity(AlertLog.class);
         query.setLong("pipelineInstanceId", pipelineInstanceId);
 
-        List<AlertLog> results = list(query);
-
-        return results;
+        return list(query);
     }
 
     /**
@@ -176,7 +168,6 @@ public class AlertLogCrud extends AbstractCrud {
         Criteria query = createCriteria(AlertLog.class);
         query.add(Restrictions.in("alertData.sourceTaskId", taskIds));
 
-        List<AlertLog> rv = list(query);
-        return rv;
+        return list(query);
     }
 }

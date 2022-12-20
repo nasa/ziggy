@@ -31,7 +31,7 @@ public enum ZiggyDataType {
         ZiggyDataTypeConstants.BOOLEAN_DUMMY_TYPE, "H5T_NATIVE_INT8") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Boolean.valueOf(((boolean[]) array1d)[location]);
+            return Boolean.valueOf(((boolean[]) array1d)[location]);
         }
 
         @Override
@@ -46,7 +46,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object boxedZero() {
-			return Boolean.valueOf(false);
+            return Boolean.valueOf(false);
         }
 
         @Override
@@ -76,8 +76,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-			Object typedValue = StringUtils.isEmpty(value) ? Boolean.valueOf(false) : Boolean.valueOf(value);
-            return typedValue;
+            return StringUtils.isEmpty(value) ? Boolean.valueOf(false) : Boolean.valueOf(value);
         }
 
     },
@@ -85,7 +84,7 @@ public enum ZiggyDataType {
         HDF5Constants.H5T_NATIVE_INT8, "H5T_NATIVE_INT8") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Byte.valueOf(((byte[]) array1d)[location]);
+            return Byte.valueOf(((byte[]) array1d)[location]);
         }
 
         @Override
@@ -100,7 +99,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object boxedZero() {
-			return Byte.valueOf((byte) 0);
+            return Byte.valueOf((byte) 0);
         }
 
         @Override
@@ -139,7 +138,7 @@ public enum ZiggyDataType {
         HDF5Constants.H5T_NATIVE_INT16, "H5T_NATIVE_INT16") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Short.valueOf(((short[]) array1d)[location]);
+            return Short.valueOf(((short[]) array1d)[location]);
         }
 
         @Override
@@ -154,7 +153,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object boxedZero() {
-			return Short.valueOf((short) 0);
+            return Short.valueOf((short) 0);
         }
 
         @Override
@@ -193,7 +192,7 @@ public enum ZiggyDataType {
         HDF5Constants.H5T_NATIVE_INT32, "H5T_NATIVE_INT32") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Integer.valueOf(((int[]) array1d)[location]);
+            return Integer.valueOf(((int[]) array1d)[location]);
         }
 
         @Override
@@ -208,7 +207,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object boxedZero() {
-			return Integer.valueOf(0);
+            return Integer.valueOf(0);
         }
 
         @Override
@@ -247,7 +246,7 @@ public enum ZiggyDataType {
         HDF5Constants.H5T_NATIVE_INT64, "H5T_NATIVE_INT64") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Long.valueOf(((long[]) array1d)[location]);
+            return Long.valueOf(((long[]) array1d)[location]);
         }
 
         @Override
@@ -262,7 +261,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object boxedZero() {
-			return Long.valueOf(0);
+            return Long.valueOf(0);
         }
 
         @Override
@@ -301,7 +300,7 @@ public enum ZiggyDataType {
         HDF5Constants.H5T_NATIVE_FLOAT, "H5T_NATIVE_FLOAT") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Float.valueOf(((float[]) array1d)[location]);
+            return Float.valueOf(((float[]) array1d)[location]);
         }
 
         @Override
@@ -316,7 +315,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object boxedZero() {
-			return Float.valueOf(0);
+            return Float.valueOf(0);
         }
 
         @Override
@@ -355,7 +354,7 @@ public enum ZiggyDataType {
         HDF5Constants.H5T_NATIVE_DOUBLE, "H5T_NATIVE_DOUBLE") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Double.valueOf(((double[]) array1d)[location]);
+            return Double.valueOf(((double[]) array1d)[location]);
         }
 
         @Override
@@ -370,7 +369,7 @@ public enum ZiggyDataType {
 
         @Override
         public Object boxedZero() {
-			return Double.valueOf(0);
+            return Double.valueOf(0);
         }
 
         @Override
@@ -568,7 +567,7 @@ public enum ZiggyDataType {
         HDF5Constants.H5T_NATIVE_INT16, "H5T_NATIVE_INT16") {
         @Override
         protected Object getArrayMember(Object array1d, int location) {
-			return Character.valueOf(((char[]) array1d)[location]);
+            return Character.valueOf(((char[]) array1d)[location]);
         }
 
         @Override
@@ -956,9 +955,8 @@ public enum ZiggyDataType {
 
         if (isArray) {
             return arrayToString(obj, dataType);
-        } else {
-            return dataType.scalarToString(obj);
         }
+        return dataType.scalarToString(obj);
     }
 
     /**
@@ -1001,9 +999,8 @@ public enum ZiggyDataType {
 
         if (!isArray) {
             return dataType.typedValue(value);
-        } else {
-            return ZiggyArrayUtils.stringToArray(value, dataType);
         }
+        return ZiggyArrayUtils.stringToArray(value, dataType);
     }
 
     public static int elementSizeBytes(ZiggyDataType dataType)

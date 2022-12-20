@@ -342,9 +342,8 @@ public class Memdrone {
     private Date date() {
         if (date == null) {
             return new Date();
-        } else {
-            return date;
         }
+        return date;
     }
 
     // This method is for test purposes only

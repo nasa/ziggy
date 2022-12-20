@@ -75,8 +75,7 @@ public class DefaultPipelineOutputs extends PipelineOutputs {
         DefaultPipelineInputs inputs = new DefaultPipelineInputs();
         String filename = ModuleInterfaceUtils.inputsFileName(moduleName());
         hdf5ModuleInterface.readFile(new File(taskDir.toFile(), filename), inputs, true);
-        Set<DataFileType> dataFileTypes = new HashSet<>();
-        dataFileTypes.addAll(inputs.getOutputDataFileTypes());
+        Set<DataFileType> dataFileTypes = new HashSet<>(inputs.getOutputDataFileTypes());
         return dataFileTypes;
     }
 

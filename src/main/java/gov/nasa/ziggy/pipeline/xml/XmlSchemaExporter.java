@@ -104,16 +104,16 @@ public class XmlSchemaExporter {
 
         @SuppressWarnings("unused")
         public PipelineDefinitionSchemaResolver() {
-            super();
             schemaFilename = DEFAULT_XSD_FILE_NAME;
         }
 
         public PipelineDefinitionSchemaResolver(Class<? extends HasXmlSchemaFilename> clazz) {
-            super();
             try {
-				schemaFilename = clazz.getDeclaredConstructor().newInstance().getXmlSchemaFilename();
-			} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
-					| InvocationTargetException | NoSuchMethodException | SecurityException e) {
+                schemaFilename = clazz.getDeclaredConstructor()
+                    .newInstance()
+                    .getXmlSchemaFilename();
+            } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
                 throw new PipelineException(
                     "Unable to generate schema resolver for class " + clazz.getName(), e);
             }

@@ -155,7 +155,7 @@ public class TypedParameterTest {
         assertEquals("200", t.getString());
 
         t = new TypedParameter("dummy", "100.", "doublearray");
-        double[] newValue = new double[] { 100, 200, 300 };
+        double[] newValue = { 100, 200, 300 };
         t.setValue(newValue);
         v = t.getValue();
         assertTrue(v instanceof double[]);

@@ -29,8 +29,6 @@ public class RolesViewEditPanel extends AbstractViewEditPanel {
     private final UserCrudProxy userCrud;
 
     public RolesViewEditPanel() throws PipelineUIException {
-        super();
-
         userCrud = new UserCrudProxy();
 
         initGUI();

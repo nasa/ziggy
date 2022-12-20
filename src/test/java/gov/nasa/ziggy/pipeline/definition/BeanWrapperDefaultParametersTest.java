@@ -149,8 +149,7 @@ public class BeanWrapperDefaultParametersTest {
         assertEquals(BeanWrapper.propertyValueByName(b1.getTypedProperties()), m);
         Set<TypedParameter> t = b1.getTypedProperties();
         assertEquals(2, t.size());
-        List<TypedParameter> tl = new ArrayList<>();
-        tl.addAll(t);
+        List<TypedParameter> tl = new ArrayList<>(t);
         TypedParameter tl0 = tl.get(0);
         if (tl0.getName().equals("abcd")) {
             assertEquals("efgh", tl0.getValue());

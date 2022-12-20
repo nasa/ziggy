@@ -389,7 +389,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
         if (editModulesButton == null) {
             editModulesButton = new JButton();
             editModulesButton.setText("Edit Parameters");
-            editModulesButton.addActionListener(evt -> editModulesButtonActionPerformed(evt));
+            editModulesButton.addActionListener(this::editModulesButtonActionPerformed);
         }
         return editModulesButton;
     }
@@ -398,7 +398,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
         if (infoButton == null) {
             infoButton = new JButton();
             infoButton.setText("Task Information");
-            infoButton.addActionListener(evt -> infoButtonActionPerformed(evt));
+            infoButton.addActionListener(this::infoButtonActionPerformed);
         }
         return infoButton;
     }
@@ -420,7 +420,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
     private JButton getRemoteButton() {
         if (remoteButton == null) {
             remoteButton = new JButton("Remote Execution");
-            remoteButton.addActionListener(evt -> remoteButtonActionPerformed(evt));
+            remoteButton.addActionListener(this::remoteButtonActionPerformed);
         }
         return remoteButton;
     }
@@ -471,7 +471,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
         if (saveButton == null) {
             saveButton = new JButton();
             saveButton.setText("Save");
-            saveButton.addActionListener(evt -> saveButtonActionPerformed(evt));
+            saveButton.addActionListener(this::saveButtonActionPerformed);
         }
         return saveButton;
     }
@@ -480,7 +480,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }
@@ -565,7 +565,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
         if (validateButton == null) {
             validateButton = new JButton();
             validateButton.setText("validate");
-            validateButton.addActionListener(evt -> validateButtonActionPerformed(evt));
+            validateButton.addActionListener(this::validateButtonActionPerformed);
         }
         return validateButton;
     }
@@ -576,7 +576,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
             syncButton.setText("Re-sync");
             syncButton.setToolTipText(
                 "Re-sync module list with latest version of the pipeline definition");
-            syncButton.addActionListener(evt -> syncButtonActionPerformed(evt));
+            syncButton.addActionListener(this::syncButtonActionPerformed);
         }
         return syncButton;
     }
@@ -585,7 +585,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
         if (reportButton == null) {
             reportButton = new JButton();
             reportButton.setText("report");
-            reportButton.addActionListener(evt -> reportButtonActionPerformed(evt));
+            reportButton.addActionListener(this::reportButtonActionPerformed);
         }
         return reportButton;
     }
@@ -594,7 +594,7 @@ public class EditTriggerDialog extends javax.swing.JDialog {
         if (exportButton == null) {
             exportButton = new JButton();
             exportButton.setText("export params");
-            exportButton.addActionListener(evt -> exportButtonActionPerformed(evt));
+            exportButton.addActionListener(this::exportButtonActionPerformed);
         }
         return exportButton;
     }

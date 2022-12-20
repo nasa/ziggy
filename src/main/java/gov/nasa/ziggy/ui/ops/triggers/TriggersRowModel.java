@@ -42,41 +42,40 @@ public class TriggersRowModel implements RowModel {
         treeModel.validityCheck();
         Object node = ((DefaultMutableTreeNode) treeNode).getUserObject();
 
-        if (node instanceof PipelineDefinition) {
-            PipelineDefinition trigger = (PipelineDefinition) node;
-
-            AuditInfo auditInfo = trigger.getAuditInfo();
-
-            User lastChangedUser = null;
-            Date lastChangedTime = null;
-
-            if (auditInfo != null) {
-                lastChangedUser = auditInfo.getLastChangedUser();
-                lastChangedTime = auditInfo.getLastChangedTime();
-            }
-
-            switch (columnIndex) {
-                case 0:
-                    return trigger.getName();
-                case 1:
-                    if (lastChangedUser != null) {
-                        return lastChangedUser.getLoginName();
-                    } else {
-                        return "---";
-                    }
-                case 2:
-                    if (lastChangedTime != null) {
-                        return lastChangedTime;
-                    } else {
-                        return "---";
-                    }
-                case 3:
-                    return trigger.getNodes().size();
-                default:
-                    throw new IllegalArgumentException("Unexpected value: " + columnIndex);
-            }
-        } else {
+        if (!(node instanceof PipelineDefinition)) {
             return "";
+        }
+        PipelineDefinition trigger = (PipelineDefinition) node;
+
+        AuditInfo auditInfo = trigger.getAuditInfo();
+
+        User lastChangedUser = null;
+        Date lastChangedTime = null;
+
+        if (auditInfo != null) {
+            lastChangedUser = auditInfo.getLastChangedUser();
+            lastChangedTime = auditInfo.getLastChangedTime();
+        }
+
+        switch (columnIndex) {
+            case 0:
+                return trigger.getName();
+            case 1:
+                if (lastChangedUser != null) {
+                    return lastChangedUser.getLoginName();
+                } else {
+                    return "---";
+                }
+            case 2:
+                if (lastChangedTime != null) {
+                    return lastChangedTime;
+                } else {
+                    return "---";
+                }
+            case 3:
+                return trigger.getNodes().size();
+            default:
+                throw new IllegalArgumentException("Unexpected value: " + columnIndex);
         }
     }
 

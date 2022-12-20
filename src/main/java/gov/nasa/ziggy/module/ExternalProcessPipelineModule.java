@@ -514,7 +514,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
             long totalTime = 0;
 
             Metric metric = threadMetrics.get(metricName);
-            if (metric != null && metric instanceof ValueMetric) {
+            if (metric instanceof ValueMetric) {
                 ValueMetric iMetric = (ValueMetric) metric;
                 totalTime = iMetric.getSum();
             } else {

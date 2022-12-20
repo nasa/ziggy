@@ -20,21 +20,20 @@ public abstract class TimestampFile {
     }
 
     public static boolean create(File directory, Event name, long timestamp) {
-        if (delete(directory, name)) {
-            String filename = String.format("%s.%d", name.toString(), timestamp);
-            File f = new File(directory, filename);
-            try {
-                boolean result = f.createNewFile();
-                f.setReadable(true, false);
-                return result;
-            } catch (IOException e) {
-                log.warn(
-                    String.format("failed to create timestamp file, dir=%s, file=%s, caught e = %s",
-                        directory, filename, e),
-                    e);
-                return false;
-            }
-        } else {
+        if (!delete(directory, name)) {
+            return false;
+        }
+        String filename = String.format("%s.%d", name.toString(), timestamp);
+        File f = new File(directory, filename);
+        try {
+            boolean result = f.createNewFile();
+            f.setReadable(true, false);
+            return result;
+        } catch (IOException e) {
+            log.warn(
+                String.format("failed to create timestamp file, dir=%s, file=%s, caught e = %s",
+                    directory, filename, e),
+                e);
             return false;
         }
     }
@@ -114,8 +113,7 @@ public abstract class TimestampFile {
                 String.format("Missing or invalid timestamp files, startTime=%s, finishTime=%s",
                     startTime, finishTime));
             return 0;
-        } else {
-            return finishTime - startTime;
         }
+        return finishTime - startTime;
     }
 }

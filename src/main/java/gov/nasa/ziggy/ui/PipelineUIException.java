@@ -6,7 +6,6 @@ package gov.nasa.ziggy.ui;
 @SuppressWarnings("serial")
 public class PipelineUIException extends Exception {
     public PipelineUIException() {
-        super();
         // TODO Auto-generated constructor stub
     }
 

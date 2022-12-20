@@ -34,7 +34,6 @@ public class ReflectionEquals {
     private final Set<Pattern> excludedFieldPatterns = new HashSet<>();
 
     public ReflectionEquals() {
-        super();
     }
 
     /**
@@ -104,34 +103,32 @@ public class ReflectionEquals {
             if (expectedObject instanceof Object[]) {
                 expectedArray = (Object[]) expectedObject;
                 actualArray = (Object[]) actualObject;
+            } else if (expectedObject instanceof boolean[]) {
+                expectedArray = ArrayUtils.toObject((boolean[]) expectedObject);
+                actualArray = ArrayUtils.toObject((boolean[]) actualObject);
+            } else if (expectedObject instanceof byte[]) {
+                expectedArray = ArrayUtils.toObject((byte[]) expectedObject);
+                actualArray = ArrayUtils.toObject((byte[]) actualObject);
+            } else if (expectedObject instanceof char[]) {
+                expectedArray = ArrayUtils.toObject((char[]) expectedObject);
+                actualArray = ArrayUtils.toObject((char[]) actualObject);
+            } else if (expectedObject instanceof double[]) {
+                expectedArray = ArrayUtils.toObject((double[]) expectedObject);
+                actualArray = ArrayUtils.toObject((double[]) actualObject);
+            } else if (expectedObject instanceof float[]) {
+                expectedArray = ArrayUtils.toObject((float[]) expectedObject);
+                actualArray = ArrayUtils.toObject((float[]) actualObject);
+            } else if (expectedObject instanceof int[]) {
+                expectedArray = ArrayUtils.toObject((int[]) expectedObject);
+                actualArray = ArrayUtils.toObject((int[]) actualObject);
+            } else if (expectedObject instanceof long[]) {
+                expectedArray = ArrayUtils.toObject((long[]) expectedObject);
+                actualArray = ArrayUtils.toObject((long[]) actualObject);
+            } else if (expectedObject instanceof short[]) {
+                expectedArray = ArrayUtils.toObject((short[]) expectedObject);
+                actualArray = ArrayUtils.toObject((short[]) actualObject);
             } else {
-                if (expectedObject instanceof boolean[]) {
-                    expectedArray = ArrayUtils.toObject((boolean[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((boolean[]) actualObject);
-                } else if (expectedObject instanceof byte[]) {
-                    expectedArray = ArrayUtils.toObject((byte[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((byte[]) actualObject);
-                } else if (expectedObject instanceof char[]) {
-                    expectedArray = ArrayUtils.toObject((char[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((char[]) actualObject);
-                } else if (expectedObject instanceof double[]) {
-                    expectedArray = ArrayUtils.toObject((double[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((double[]) actualObject);
-                } else if (expectedObject instanceof float[]) {
-                    expectedArray = ArrayUtils.toObject((float[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((float[]) actualObject);
-                } else if (expectedObject instanceof int[]) {
-                    expectedArray = ArrayUtils.toObject((int[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((int[]) actualObject);
-                } else if (expectedObject instanceof long[]) {
-                    expectedArray = ArrayUtils.toObject((long[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((long[]) actualObject);
-                } else if (expectedObject instanceof short[]) {
-                    expectedArray = ArrayUtils.toObject((short[]) expectedObject);
-                    actualArray = ArrayUtils.toObject((short[]) actualObject);
-                } else {
-                    fail(message + ": unknown array type");
-                }
+                fail(message + ": unknown array type");
             }
 
             compareArrays(message, fullyQualifiedFieldName, expectedArray, actualArray);
@@ -154,11 +151,8 @@ public class ReflectionEquals {
             Map<?, ?> actualMap = (Map<?, ?>) actualObject;
 
             compareMaps(message, fullyQualifiedFieldName, expectedMap, actualMap);
-        } else if (expectedClass.isPrimitive()) {
+        } else if (expectedClass.isPrimitive() || !expectedClass.getName().startsWith("gov.nasa")) {
             // just use assertEquals
-            org.junit.Assert.assertEquals(message, expectedObject, actualObject);
-        } else if (!expectedClass.getName().startsWith("gov.nasa")) {
-            // for non-NASA classes, just use JUnit assertEquals
             org.junit.Assert.assertEquals(message, expectedObject, actualObject);
         } else {
             /*
@@ -222,20 +216,18 @@ public class ReflectionEquals {
 
         // first try getX
         try {
-            getterMethod = object.getClass().getMethod(getGetterName, new Class[0]);
+            getterMethod = object.getClass().getMethod(getGetterName);
             getterMethod.setAccessible(true);
-            Object value = getterMethod.invoke(object, new Object[0]);
-            return value;
+            return getterMethod.invoke(object);
         } catch (Exception e) {
             log.debug("No getter method found for field: " + field.getName());
         }
 
         // then try isX
         try {
-            getterMethod = object.getClass().getMethod(isGetterName, new Class[0]);
+            getterMethod = object.getClass().getMethod(isGetterName);
             getterMethod.setAccessible(true);
-            Object value = getterMethod.invoke(object, new Object[0]);
-            return value;
+            return getterMethod.invoke(object);
         } catch (Exception e) {
             log.debug("No getter method found for field: " + field.getName());
         }
@@ -247,9 +239,7 @@ public class ReflectionEquals {
         StringBuilder getBuffer = new StringBuilder(prefix);
         getBuffer.append(fieldName.substring(0, 1).toUpperCase());
         getBuffer.append(fieldName.substring(1));
-        String getterName = getBuffer.toString();
-
-        return getterName;
+        return getBuffer.toString();
     }
 
     private boolean matchesExcludeFilter(String fieldName) {
@@ -296,12 +286,10 @@ public class ReflectionEquals {
         org.junit.Assert.assertEquals(message + ".size()", expectedCollection.size(),
             actualCollection.size());
 
-        Iterator<?> expectedIterator = expectedCollection.iterator();
         Iterator<?> actualIterator = actualCollection.iterator();
         int index = 0;
 
-        while (expectedIterator.hasNext()) {
-            Object expectedElement = expectedIterator.next();
+        for (Object expectedElement : expectedCollection) {
             Object actualElement = actualIterator.next();
 
             compareObjects(message + "[" + index + "]", fullyQualifiedFieldName, expectedElement,
@@ -321,10 +309,7 @@ public class ReflectionEquals {
         Map<?, ?> actualMap) throws IllegalAccessException {
         org.junit.Assert.assertEquals(message + ".size()", expectedMap.size(), actualMap.size());
 
-        Iterator<?> expectedKeyIterator = expectedMap.keySet().iterator();
-
-        while (expectedKeyIterator.hasNext()) {
-            Object key = expectedKeyIterator.next();
+        for (Object key : expectedMap.keySet()) {
             Object expectedValue = expectedMap.get(key);
             Object actualValue = actualMap.get(key);
 

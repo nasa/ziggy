@@ -8,14 +8,14 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.persistence.Transient;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import gov.nasa.ziggy.module.io.ProxyIgnore;
 import gov.nasa.ziggy.util.RegexBackslashManager;
 import gov.nasa.ziggy.util.RegexGroupCounter;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Defines a model type and properties of its file name convention.
@@ -76,11 +76,7 @@ public class ModelType implements Comparable<ModelType> {
             throw new IllegalStateException(
                 "Version number group " + versionNumberGroup + " does not exist in model " + type);
         }
-        if (timestampGroup > groupCount) {
-            throw new IllegalStateException(
-                "Timestamp group " + versionNumberGroup + " does not exist in model " + type);
-        }
-        if (versionNumberGroup <= 0 && semanticVersionNumber) {
+        if ((timestampGroup > groupCount) || (versionNumberGroup <= 0 && semanticVersionNumber)) {
             throw new IllegalStateException(
                 "Timestamp group " + versionNumberGroup + " does not exist in model " + type);
 
@@ -103,9 +99,8 @@ public class ModelType implements Comparable<ModelType> {
         boolean matches = matcher.matches();
         if (matches && versionNumberGroup > 0) {
             return matcher.group(versionNumberGroup);
-        } else {
-            return "";
         }
+        return "";
     }
 
     public String getType() {
@@ -158,10 +153,7 @@ public class ModelType implements Comparable<ModelType> {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         ModelType other = (ModelType) obj;

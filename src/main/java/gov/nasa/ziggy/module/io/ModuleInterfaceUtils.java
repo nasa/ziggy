@@ -5,16 +5,15 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.regex.Pattern;
 
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.annotation.XmlRootElement;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.matlab.MatlabErrorReturn;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 /**
  * Utilities for use in the interface between Ziggy and the processing modules. These tools relate
@@ -111,8 +110,7 @@ public class ModuleInterfaceUtils {
     }
 
     public static File errorFile(File dataDir, String filenamePrefix, int seqNum) {
-        File errorFile = new File(dataDir, errorFileName(filenamePrefix, seqNum));
-        return errorFile;
+        return new File(dataDir, errorFileName(filenamePrefix, seqNum));
     }
 
     public static File errorFile(File dataDir, String filenamePrefix) {

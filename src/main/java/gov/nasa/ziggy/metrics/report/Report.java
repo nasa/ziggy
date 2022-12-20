@@ -148,7 +148,7 @@ public abstract class Report {
 
         addCell(topTenTable, "Top 10", true, 2);
 
-        int[] indexOrder = new int[] { 0, 5, 1, 6, 2, 7, 3, 8, 4, 9 };
+        int[] indexOrder = { 0, 5, 1, 6, 2, 7, 3, 8, 4, 9 };
 
         for (int elementIndex : indexOrder) {
             int displayIndex = elementIndex + 1;

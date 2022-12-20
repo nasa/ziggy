@@ -124,7 +124,7 @@ public class PipelineModuleDefinitionTest {
             "<xs:complexType name=\"pipelineModuleDefinition\">");
         assertContains(moduleDefContent, "<xs:sequence/>");
 
-        String[] moduleDefAttributes = new String[] {
+        String[] moduleDefAttributes = {
             "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>",
             "<xs:attribute name=\"description\" type=\"xs:string\"/>",
             "<xs:attribute name=\"pipelineModuleClass\" type=\"xs:string\"/>",
@@ -161,13 +161,12 @@ public class PipelineModuleDefinitionTest {
     @XmlAccessorType(XmlAccessType.NONE)
     private static class PipelineMod extends PipelineModuleDefinition {
 
+        @SuppressWarnings("unused")
         public PipelineMod() {
-
         }
 
         public PipelineMod(String name) {
             super(name);
         }
     }
-
 }

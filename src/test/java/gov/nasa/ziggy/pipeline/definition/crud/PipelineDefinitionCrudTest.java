@@ -77,40 +77,36 @@ public class PipelineDefinitionCrudTest {
 
     private PipelineDefinition populateObjects() {
 
-        PipelineDefinition pipelineDef = (PipelineDefinition) DatabaseTransactionFactory
-            .performTransaction(() -> {
+        return (PipelineDefinition) DatabaseTransactionFactory.performTransaction(() -> {
 
-                // create users
-                adminUser = new User("admin", "Administrator", "admin@example.com", "x111");
-                userCrud.createUser(adminUser);
+            // create users
+            adminUser = new User("admin", "Administrator", "admin@example.com", "x111");
+            userCrud.createUser(adminUser);
 
-                operatorUser = new User("ops", "Operator", "ops@example.com", "x112");
-                userCrud.createUser(operatorUser);
+            operatorUser = new User("ops", "Operator", "ops@example.com", "x112");
+            userCrud.createUser(operatorUser);
 
-                // create a module param set def
-                expectedParamSet = new ParameterSet(new AuditInfo(adminUser, new Date()),
-                    "test mps1");
-                expectedParamSet
-                    .setParameters(new BeanWrapper<Parameters>(new TestModuleParameters()));
-                parameterSetCrud.create(expectedParamSet);
+            // create a module param set def
+            expectedParamSet = new ParameterSet(new AuditInfo(adminUser, new Date()), "test mps1");
+            expectedParamSet.setParameters(new BeanWrapper<Parameters>(new TestModuleParameters()));
+            parameterSetCrud.create(expectedParamSet);
 
-                // create a few module defs
-                expectedModuleDef1 = new PipelineModuleDefinition("Test-1");
-                pipelineModuleDefinitionCrud.create(expectedModuleDef1);
+            // create a few module defs
+            expectedModuleDef1 = new PipelineModuleDefinition("Test-1");
+            pipelineModuleDefinitionCrud.create(expectedModuleDef1);
 
-                expectedModuleDef2 = new PipelineModuleDefinition("Test-2");
-                pipelineModuleDefinitionCrud.create(expectedModuleDef2);
+            expectedModuleDef2 = new PipelineModuleDefinition("Test-2");
+            pipelineModuleDefinitionCrud.create(expectedModuleDef2);
 
-                expectedModuleDef3 = new PipelineModuleDefinition("Test-3");
-                pipelineModuleDefinitionCrud.create(expectedModuleDef3);
+            expectedModuleDef3 = new PipelineModuleDefinition("Test-3");
+            pipelineModuleDefinitionCrud.create(expectedModuleDef3);
 
-                // create a pipeline def
-                PipelineDefinition pd = createPipelineDefinition();
-                pipelineDefinitionCrud.create(pd);
+            // create a pipeline def
+            PipelineDefinition pd = createPipelineDefinition();
+            pipelineDefinitionCrud.create(pd);
 
-                return pd;
-            });
-        return pipelineDef;
+            return pd;
+        });
     }
 
     private PipelineDefinition createPipelineDefinition() {
@@ -139,26 +135,20 @@ public class PipelineDefinitionCrudTest {
         DatabaseService databaseService = DatabaseService.getInstance();
         Query q = databaseService.getSession()
             .createQuery("select count(*) from PipelineDefinitionNode");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     private int pipelineModuleDefinitionCount() {
         DatabaseService databaseService = DatabaseService.getInstance();
         Query q = databaseService.getSession()
             .createQuery("select count(*) from PipelineModuleDefinition");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     private int pipelineModuleParamSetCount() {
         DatabaseService databaseService = DatabaseService.getInstance();
         Query q = databaseService.getSession().createQuery("select count(*) from ParameterSet");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     /**

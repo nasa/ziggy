@@ -35,23 +35,19 @@ public class KeyValuePairCrudProxy extends CrudProxy {
 
     public KeyValuePair retrieve(final String key) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        KeyValuePair result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                KeyValuePairCrud crud = new KeyValuePairCrud();
-                KeyValuePair result1 = crud.retrieve(key);
-                return result1;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            KeyValuePairCrud crud = new KeyValuePairCrud();
+            KeyValuePair result1 = crud.retrieve(key);
+            return result1;
+        });
     }
 
     public List<KeyValuePair> retrieveAll() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<KeyValuePair> results = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                KeyValuePairCrud crud = new KeyValuePairCrud();
-                List<KeyValuePair> r = crud.retrieveAll();
-                return r;
-            });
-        return results;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            KeyValuePairCrud crud = new KeyValuePairCrud();
+            List<KeyValuePair> r = crud.retrieveAll();
+            return r;
+        });
     }
 }

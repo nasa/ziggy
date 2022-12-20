@@ -114,8 +114,7 @@ public class WorkerTaskRequest extends PipelineMessage implements Comparable<Wor
     public int compareTo(WorkerTaskRequest o) {
         if (priority != o.getPriority()) {
             return priority - o.getPriority();
-        } else {
-            return (int) (taskId - o.getTaskId());
         }
+        return (int) (taskId - o.getTaskId());
     }
 }

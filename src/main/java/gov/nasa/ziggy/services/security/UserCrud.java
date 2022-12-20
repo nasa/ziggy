@@ -54,15 +54,13 @@ public class UserCrud extends AbstractCrud {
     }
 
     public List<Role> retrieveAllRoles() {
-        List<Role> results = list(createQuery("from Role"));
-        return results;
+        return list(createQuery("from Role"));
     }
 
     public Role retrieveRole(String roleName) {
         Query query = createQuery("from Role where name = :roleName");
         query.setString("roleName", roleName);
-        Role role = uniqueResult(query);
-        return role;
+        return uniqueResult(query);
     }
 
     public void deleteRole(Role role) {

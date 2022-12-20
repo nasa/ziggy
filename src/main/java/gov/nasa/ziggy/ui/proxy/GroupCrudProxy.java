@@ -31,14 +31,12 @@ public class GroupCrudProxy extends CrudProxy {
 
     public List<Group> retrieveAll() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<Group> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                GroupCrud crud = new GroupCrud();
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            GroupCrud crud = new GroupCrud();
 
-                List<Group> result1 = crud.retrieveAll();
+            List<Group> result1 = crud.retrieveAll();
 
-                return result1;
-            });
-        return result;
+            return result1;
+        });
     }
 }

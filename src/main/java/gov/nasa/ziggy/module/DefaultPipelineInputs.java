@@ -258,7 +258,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
         // Now we need to identify the files in each set that match a file in the shortest
         // set. First step: construct a set of file base names.
         Set<String> baseNames = shortestSetOfPaths.stream()
-            .map(s -> baseName(s))
+            .map(this::baseName)
             .collect(Collectors.toSet());
 
         // Here is where we handle the case of mismatched file set lengths.

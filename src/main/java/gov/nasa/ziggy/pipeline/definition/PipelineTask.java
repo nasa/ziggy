@@ -292,15 +292,15 @@ public class PipelineTask implements PipelineExecutionTime {
             } else {
                 return null;
             }
-        } else if (pipelineParamSet != null && moduleParamSet != null) {
+        }
+        if (pipelineParamSet != null && moduleParamSet != null) {
             throw new PipelineException("Parameters for class: " + parametersClass
                 + " found in both pipeline parameters and module parameters");
         }
         if (moduleParamSet != null) {
             return moduleParamSet;
-        } else {
-            return pipelineParamSet;
         }
+        return pipelineParamSet;
     }
 
     public int maxFailedSubtasks() {
@@ -323,13 +323,10 @@ public class PipelineTask implements PipelineExecutionTime {
     public int getModelExternalId(String modelType) {
         ModelRegistry modelRegistry = getPipelineInstance().getModelRegistry();
         ModelMetadata modelMetadata = modelRegistry.getMetadataForType(modelType);
-        int externalId = -1;
-
-        if (modelMetadata != null) {
-            externalId = Integer.parseInt(modelMetadata.getModelRevision());
-        } else {
+        if (modelMetadata == null) {
             throw new PipelineException("No model metadata found for modelType=" + modelType);
         }
+        int externalId = Integer.parseInt(modelMetadata.getModelRevision());
 
         return externalId;
     }
@@ -522,9 +519,8 @@ public class PipelineTask implements PipelineExecutionTime {
         if (workerHost != null && workerHost.length() > 0) {
             String host = HostNameUtils.callerHostNameOrLocalhost(workerHost);
             return host + ":" + workerThread;
-        } else {
-            return "-";
         }
+        return "-";
     }
 
     public boolean isTransitionComplete() {

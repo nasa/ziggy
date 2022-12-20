@@ -340,7 +340,7 @@ public class PipelineNodeEditDialog extends javax.swing.JDialog {
             startNewUowCheckBox = new JCheckBox();
             startNewUowCheckBox.setText("Start new unit of work");
             startNewUowCheckBox.setSelected(pipelineNode.isStartNewUow());
-            startNewUowCheckBox.addActionListener(evt -> startNewUowCheckBoxActionPerformed(evt));
+            startNewUowCheckBox.addActionListener(this::startNewUowCheckBoxActionPerformed);
             startNewUowCheckBox.setEnabled(!pipeline.isLocked());
         }
         return startNewUowCheckBox;

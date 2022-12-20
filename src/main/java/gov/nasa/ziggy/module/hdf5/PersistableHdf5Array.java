@@ -124,7 +124,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
 
             // Special case: instances of the Parameters interface
             Object object0 = listObject.get(0);
-            Class arrayClass = object0.getClass();
+            Class<?> arrayClass = object0.getClass();
             if (object0 instanceof Parameters) {
                 arrayClass = Parameters.class;
             }
@@ -213,9 +213,8 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
     public long[] nextArrayLocation() {
         if (arrayIterator.hasNext()) {
             return arrayIterator.next();
-        } else {
-            return null;
         }
+        return null;
     }
 
     /**
@@ -357,7 +356,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
 
                 long fieldGroupId = H5.H5Gcreate(fileId, field.getName(), H5P_DEFAULT, H5P_DEFAULT,
                     H5P_DEFAULT);
-				groupIds.add(Long.valueOf(fieldGroupId));
+                groupIds.add(fieldGroupId);
                 writeFieldOrderAttribute(fieldGroupId, iField);
                 iField++;
 
@@ -402,7 +401,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
     /**
      * Write the actual class name of a Parameters subclass as an attribute.
      */
-    public void setParameterClassNameAttribute(long groupId, Class clazz) {
+    public void setParameterClassNameAttribute(long groupId, Class<?> clazz) {
         writeStringAttribute(groupId, Hdf5ModuleInterface.PARAMETER_CLASS_NAME_ATT_NAME,
             clazz.getName());
     }
@@ -717,7 +716,6 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      */
     Object newPersistableObject(String className) {
         try {
-            @SuppressWarnings("unchecked")
             Constructor<?> constructor = Class.forName(className).getDeclaredConstructor();
             constructor.setAccessible(true);
             return constructor.newInstance();

@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -129,15 +130,14 @@ public class QstatMonitor implements JobMonitor {
 
     public Set<Long> allIncompleteJobIds(String taskName) {
         Set<QstatEntry> qstatEntries = taskNameQstatEntryMap.get(taskName);
-        if (!qstatEntries.isEmpty()) {
-            Set<Long> ids = new TreeSet<>();
-            for (QstatEntry entry : qstatEntries) {
-                ids.add(entry.getId());
-            }
-            return ids;
-        } else {
+        if (qstatEntries.isEmpty()) {
             return new HashSet<>();
         }
+        Set<Long> ids = new TreeSet<>();
+        for (QstatEntry entry : qstatEntries) {
+            ids.add(entry.getId());
+        }
+        return ids;
 
     }
 
@@ -155,10 +155,7 @@ public class QstatMonitor implements JobMonitor {
 
         // get all the qstat entries, if any, for the specified task name
         List<String> qstatLines = cmdManager.getQstatInfoByTaskName(owner, taskName);
-        if (qstatLines.isEmpty()) {
-            return Collections.emptySet();
-        }
-        if (qstatLines.size() == 1 && qstatLines.get(0).isEmpty()) {
+        if (qstatLines.isEmpty() || (qstatLines.size() == 1 && qstatLines.get(0).isEmpty())) {
             return Collections.emptySet();
         }
 
@@ -252,16 +249,15 @@ public class QstatMonitor implements JobMonitor {
     public boolean isFinished(StateFile stateFile) {
         boolean isFinished = true;
         Set<QstatEntry> entries = taskNameQstatEntryMap.get(stateFile.taskBaseName());
-        if (!entries.isEmpty()) {
-            for (QstatEntry entry : entries) {
-                String stat = entry.getStatus();
-                boolean jobFinished = stat.equals("E") || stat.equals("F");
-                isFinished = isFinished && jobFinished;
-            }
-            return isFinished;
-        } else {
+        if (entries.isEmpty()) {
             return false;
         }
+        for (QstatEntry entry : entries) {
+            String stat = entry.getStatus();
+            boolean jobFinished = stat.equals("E") || stat.equals("F");
+            isFinished = isFinished && jobFinished;
+        }
+        return isFinished;
     }
 
     /**
@@ -353,7 +349,7 @@ public class QstatMonitor implements JobMonitor {
             // The job ID has an ID # followed by ".<name>".
             String jobId = qstatLineParts[QueueCommandManager.ID_INDEX];
             String[] jobIdParts = jobId.split("\\.");
-            id = Long.valueOf(jobIdParts[0]);
+            id = Long.parseLong(jobIdParts[0]);
 
             // The name, owner, and status are simple strings.
             status = qstatLineParts[QueueCommandManager.STATUS_INDEX];
@@ -385,10 +381,7 @@ public class QstatMonitor implements JobMonitor {
 
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + (int) (id ^ id >>> 32);
-            return result;
+            return Objects.hash(id);
         }
 
         @Override
@@ -396,10 +389,7 @@ public class QstatMonitor implements JobMonitor {
             if (this == obj) {
                 return true;
             }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
+            if ((obj == null) || (getClass() != obj.getClass())) {
                 return false;
             }
             QstatEntry other = (QstatEntry) obj;

@@ -240,7 +240,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
         if (okButton == null) {
             okButton = new JButton();
             okButton.setText("ok");
-            okButton.addActionListener(evt -> okButtonActionPerformed(evt));
+            okButton.addActionListener(this::okButtonActionPerformed);
         }
         return okButton;
     }
@@ -249,7 +249,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }
@@ -279,7 +279,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
             addButton.setText("+");
             addButton.setToolTipText(
                 "Insert the specified element before the selected row (or at the end if no row is selected)");
-            addButton.addActionListener(evt -> addButtonActionPerformed(evt));
+            addButton.addActionListener(this::addButtonActionPerformed);
         }
         return addButton;
     }
@@ -289,7 +289,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
             removeButton = new JButton();
             removeButton.setText("-");
             removeButton.setToolTipText("Remove the element at the selected row");
-            removeButton.addActionListener(evt -> removeButtonActionPerformed(evt));
+            removeButton.addActionListener(this::removeButtonActionPerformed);
         }
         return removeButton;
     }
@@ -333,7 +333,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
     private JTextField getAddTextField() {
         if (addTextField == null) {
             addTextField = new JTextField();
-            addTextField.addActionListener(evt -> addTextFieldActionPerformed(evt));
+            addTextField.addActionListener(this::addTextFieldActionPerformed);
         }
         return addTextField;
     }
@@ -342,7 +342,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
         if (importButton == null) {
             importButton = new JButton();
             importButton.setText("import");
-            importButton.addActionListener(evt -> importButtonActionPerformed(evt));
+            importButton.addActionListener(this::importButtonActionPerformed);
         }
         return importButton;
     }
@@ -351,7 +351,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
         if (exportButton == null) {
             exportButton = new JButton();
             exportButton.setText("export");
-            exportButton.addActionListener(evt -> exportButtonActionPerformed(evt));
+            exportButton.addActionListener(this::exportButtonActionPerformed);
         }
         return exportButton;
     }

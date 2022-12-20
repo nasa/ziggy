@@ -65,14 +65,12 @@ public class UserEditPanel extends javax.swing.JPanel {
     private final UserCrudProxy userCrud;
 
     public UserEditPanel(User user) {
-        super();
         this.user = user;
         userCrud = new UserCrudProxy();
         initGUI();
     }
 
     public UserEditPanel() {
-        super();
         user = new User();
         userCrud = new UserCrudProxy();
         initGUI();

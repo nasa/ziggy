@@ -18,7 +18,7 @@ import gov.nasa.ziggy.ui.models.AbstractDatabaseModel;
 public class PipelineNodesTableModel extends AbstractDatabaseModel {
     private static final Logger log = LoggerFactory.getLogger(PipelineNodesTableModel.class);
 
-    private class NodeWrapper {
+    private static class NodeWrapper {
         public PipelineDefinitionNode node;
         public PipelineDefinitionNode predecessorNode;
         public String predecessorId;

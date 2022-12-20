@@ -24,7 +24,7 @@ public class TaskConfigurationParameters implements Parameters {
     private int maxAutoResubmits;
 
     @ProxyIgnore
-    private long[] reprocessingTasksExclude = new long[0];
+    private long[] reprocessingTasksExclude = {};
 
     public String getTaskDirectoryRegex() {
         return taskDirectoryRegex;

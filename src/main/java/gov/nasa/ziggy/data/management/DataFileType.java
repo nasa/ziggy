@@ -18,16 +18,16 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.persistence.Transient;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
 import gov.nasa.ziggy.util.RegexBackslashManager;
 import gov.nasa.ziggy.util.RegexGroupCounter;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Defines a data file type. A data file type is a named object that has the following properties:
@@ -208,8 +208,7 @@ public class DataFileType implements Persistable {
             int groupNumber = Integer.parseInt(groupNumberString.substring(1));
             substitutionList.add(groupNumber);
         }
-        Set<Integer> substitutionSet = new HashSet<>();
-        substitutionSet.addAll(substitutionList);
+        Set<Integer> substitutionSet = new HashSet<>(substitutionList);
         boolean subNumbersOkay = true;
         for (int i = 1; i <= substitutionSet.size(); i++) {
             if (!substitutionSet.contains(i)) {
@@ -425,10 +424,7 @@ public class DataFileType implements Persistable {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         DataFileType other = (DataFileType) obj;

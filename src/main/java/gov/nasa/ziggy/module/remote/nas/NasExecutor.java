@@ -1,8 +1,5 @@
 package gov.nasa.ziggy.module.remote.nas;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteExecutor;
@@ -16,8 +13,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  * @author PT
  */
 public class NasExecutor extends RemoteExecutor {
-
-    private static final Logger log = LoggerFactory.getLogger(NasExecutor.class);
 
     public NasExecutor(PipelineTask pipelineTask) {
         super(pipelineTask);

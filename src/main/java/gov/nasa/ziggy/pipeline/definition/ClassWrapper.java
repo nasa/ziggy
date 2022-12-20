@@ -101,7 +101,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     @SuppressWarnings("unchecked")
     public T newInstance() throws PipelineException {
         try {
-			return (T) Class.forName(unmangledClassName()).getDeclaredConstructor().newInstance();
+            return (T) Class.forName(unmangledClassName()).getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new PipelineException("failed to instantiate instance with className="
                 + unmangledClassName() + ", caught e = " + e, e);
@@ -122,11 +122,10 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
             .getDeclaredConstructor(classArguments);
     }
 
+    @SuppressWarnings("unchecked")
     public Class<T> getClazz() {
         try {
-            @SuppressWarnings("unchecked")
-            Class<T> c = (Class<T>) Class.forName(unmangledClassName());
-            return c;
+            return (Class<T>) Class.forName(unmangledClassName());
         } catch (Exception e) {
             throw new PipelineException("failed to instantiate instance with className="
                 + unmangledClassName() + ", caught e = " + e, e);
@@ -150,9 +149,8 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     public boolean isInitialized() {
         if (initialized == null) {
             return false;
-        } else {
-            return initialized;
         }
+        return initialized;
     }
 
     @Override
@@ -170,10 +168,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         final ClassWrapper<?> other = (ClassWrapper<?>) obj;
@@ -215,5 +210,4 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
         }
 
     }
-
 }

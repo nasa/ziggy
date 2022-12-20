@@ -173,10 +173,9 @@ public enum RemoteNodeDescriptor {
                 unsortedDescriptors.add(descriptor);
             }
         }
-        List<RemoteNodeDescriptor> sortedDescriptors = unsortedDescriptors.stream()
+        return unsortedDescriptors.stream()
             .sorted(RemoteNodeDescriptor::compareByCost)
             .collect(Collectors.toList());
-        return sortedDescriptors;
     }
 
     /**
@@ -191,10 +190,9 @@ public enum RemoteNodeDescriptor {
                 unsortedDescriptors.add(descriptor);
             }
         }
-        List<RemoteNodeDescriptor> sortedDescriptors = unsortedDescriptors.stream()
+        return unsortedDescriptors.stream()
             .sorted(RemoteNodeDescriptor::compareByCores)
             .collect(Collectors.toList());
-        return sortedDescriptors;
     }
 
     private static int compareByCost(RemoteNodeDescriptor d1, RemoteNodeDescriptor d2) {
@@ -218,10 +216,9 @@ public enum RemoteNodeDescriptor {
                 unsortedDescriptors.add(descriptor);
             }
         }
-        List<RemoteNodeDescriptor> sortedDescriptors = unsortedDescriptors.stream()
+        return unsortedDescriptors.stream()
             .sorted(RemoteNodeDescriptor::compareByRamThenCost)
             .collect(Collectors.toList());
-        return sortedDescriptors;
     }
 
     private static int compareByRamThenCost(RemoteNodeDescriptor d1, RemoteNodeDescriptor d2) {

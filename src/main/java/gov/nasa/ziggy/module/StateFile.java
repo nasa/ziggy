@@ -281,7 +281,7 @@ public class StateFile implements Comparable<StateFile> {
         while (propertyNamesIterator.hasNext()) {
             propertyNames.add(propertyNamesIterator.next());
         }
-        propertyNames.sort(null);
+        Collections.sort(propertyNames);
         return propertyNames;
 
     }
@@ -369,7 +369,7 @@ public class StateFile implements Comparable<StateFile> {
             if (!match.getName().equals(stateFileName)) {
                 String nameSansPrefix = match.getName().substring(PREFIX.length());
                 String newName = "old." + nameSansPrefix + "." + iso8601Date + "."
-                    + Integer.valueOf(fileCounter).toString();
+                    + Integer.toString(fileCounter);
                 File newFile = new File(stateFileDir, newName);
                 match.renameTo(newFile);
                 log.warn("File " + match.getName() + " in directory " + stateFileDir
@@ -551,7 +551,8 @@ public class StateFile implements Comparable<StateFile> {
         if (matches == null) {
             throw new IllegalStateException(
                 "No state file matching " + invariantPart + "* in directory " + directory);
-        } else if (matches.length > 1) {
+        }
+        if (matches.length > 1) {
             throw new IllegalStateException("More than one state file matches " + invariantPart
                 + "* in directory " + directory);
         }

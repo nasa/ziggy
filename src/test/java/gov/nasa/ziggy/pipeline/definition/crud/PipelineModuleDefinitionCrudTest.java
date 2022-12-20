@@ -65,25 +65,23 @@ public class PipelineModuleDefinitionCrudTest {
     }
 
     private PipelineModuleDefinition populateObjects() {
-        PipelineModuleDefinition moduleDef = (PipelineModuleDefinition) DatabaseTransactionFactory
-            .performTransaction(() -> {
+        return (PipelineModuleDefinition) DatabaseTransactionFactory.performTransaction(() -> {
 
-                // create users
-                adminUser = new User("admin", "Administrator", "admin@example.com", "x111");
-                userCrud.createUser(adminUser);
+            // create users
+            adminUser = new User("admin", "Administrator", "admin@example.com", "x111");
+            userCrud.createUser(adminUser);
 
-                operatorUser = new User("ops", "Operator", "ops@example.com", "x112");
-                userCrud.createUser(operatorUser);
+            operatorUser = new User("ops", "Operator", "ops@example.com", "x112");
+            userCrud.createUser(operatorUser);
 
-                ParameterSet paramSet = createParameterSet(TEST_PARAM_SET_NAME_1);
-                parameterSetCrud.create(paramSet);
+            ParameterSet paramSet = createParameterSet(TEST_PARAM_SET_NAME_1);
+            parameterSetCrud.create(paramSet);
 
-                PipelineModuleDefinition pmd = createPipelineModuleDefinition();
-                pipelineModuleDefinitionCrud.create(pmd);
+            PipelineModuleDefinition pmd = createPipelineModuleDefinition();
+            pipelineModuleDefinitionCrud.create(pmd);
 
-                return pmd;
-            });
-        return moduleDef;
+            return pmd;
+        });
     }
 
     private ParameterSet createParameterSet(String name) {
@@ -93,46 +91,36 @@ public class PipelineModuleDefinitionCrudTest {
     }
 
     private PipelineModuleDefinition createPipelineModuleDefinition() {
-        PipelineModuleDefinition moduleDef = new PipelineModuleDefinition(
-            new AuditInfo(adminUser, new Date()), TEST_MODULE_NAME_1);
-
-        return moduleDef;
+        return new PipelineModuleDefinition(new AuditInfo(adminUser, new Date()),
+            TEST_MODULE_NAME_1);
     }
 
     private int pipelineModuleDefinitionCount() {
         Query q = DatabaseService.getInstance()
             .getSession()
             .createQuery("select count(*) from PipelineModuleDefinition");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     private int pipelineModuleParamSetCount() {
         Query q = DatabaseService.getInstance()
             .getSession()
             .createQuery("select count(*) from ParameterSet");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     private int paramSetNameCount() {
         Query q = DatabaseService.getInstance()
             .getSession()
             .createQuery("select count(*) from ParameterSetName");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     private int moduleNameCount() {
         Query q = DatabaseService.getInstance()
             .getSession()
             .createQuery("select count(*) from ModuleName");
-        int count = ((Long) q.uniqueResult()).intValue();
-
-        return count;
+        return ((Long) q.uniqueResult()).intValue();
     }
 
     /**

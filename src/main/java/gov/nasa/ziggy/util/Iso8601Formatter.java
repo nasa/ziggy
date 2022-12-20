@@ -23,7 +23,7 @@ import java.util.TimeZone;
 public final class Iso8601Formatter {
 
     private static final ThreadLocal<Map<String, SimpleDateFormat>> dateFormatters = ThreadLocal
-        .withInitial(() -> new HashMap<>());
+        .withInitial(HashMap::new);
 
     /** The {@link SimpleDateFormat} format string for a date-only formatter. */
     private static final String DATE_FORMAT_STRING = "yyyy-MM-dd";

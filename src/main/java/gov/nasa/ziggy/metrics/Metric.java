@@ -286,9 +286,8 @@ public abstract class Metric implements Serializable {
 
         if (threadMap != null) {
             return threadMap.get(name);
-        } else {
-            return null;
         }
+        return null;
     }
 
     protected static boolean threadMetricsEnabled() {
@@ -369,9 +368,7 @@ public abstract class Metric implements Serializable {
         long now = System.currentTimeMillis();
         metricsLogger.info("SNAPSHOT-START@" + now);
 
-        Iterator<String> prefixIt = prefixes.iterator();
-        while (prefixIt.hasNext()) {
-            String prefix = prefixIt.next();
+        for (String prefix : prefixes) {
             Iterator<String> it = Metric.metricsIterator(prefix);
             logWithIterator(it);
         }

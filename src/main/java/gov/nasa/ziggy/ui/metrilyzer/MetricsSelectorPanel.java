@@ -196,7 +196,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         if (addButton == null) {
             addButton = new JButton();
             addButton.setText(">");
-            addButton.addActionListener(evt -> addButtonActionPerformed(evt));
+            addButton.addActionListener(this::addButtonActionPerformed);
         }
         return addButton;
     }
@@ -205,7 +205,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         if (removeButton == null) {
             removeButton = new JButton();
             removeButton.setText("<");
-            removeButton.addActionListener(evt -> removeButtonActionPerformed(evt));
+            removeButton.addActionListener(this::removeButtonActionPerformed);
         }
         return removeButton;
     }
@@ -244,7 +244,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         if (windowLeftButton == null) {
             windowLeftButton = new JButton();
             windowLeftButton.setText("<");
-            windowLeftButton.addActionListener(evt -> windowLeftButtonActionPerformed(evt));
+            windowLeftButton.addActionListener(this::windowLeftButtonActionPerformed);
         }
         return windowLeftButton;
     }
@@ -253,7 +253,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         if (windowRightButton == null) {
             windowRightButton = new JButton();
             windowRightButton.setText(">");
-            windowRightButton.addActionListener(evt -> windowRightButtonActionPerformed(evt));
+            windowRightButton.addActionListener(this::windowRightButtonActionPerformed);
         }
         return windowRightButton;
     }
@@ -263,7 +263,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
             plotButton = new JButton();
             plotButton.setText("Plot");
             plotButton.setFont(new java.awt.Font("Dialog", 1, 14));
-            plotButton.addActionListener(evt -> plotButtonActionPerformed(evt));
+            plotButton.addActionListener(this::plotButtonActionPerformed);
         }
         return plotButton;
     }
@@ -283,7 +283,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         if (loadButton == null) {
             loadButton = new JButton();
             loadButton.setText("Load");
-            loadButton.addActionListener(evt -> loadButtonActionPerformed(evt));
+            loadButton.addActionListener(this::loadButtonActionPerformed);
         }
         return loadButton;
     }

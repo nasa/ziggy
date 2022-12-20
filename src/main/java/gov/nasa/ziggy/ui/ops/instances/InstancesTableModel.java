@@ -17,7 +17,7 @@ import gov.nasa.ziggy.util.dispmod.InstancesDisplayModel;
 
 @SuppressWarnings("serial")
 public class InstancesTableModel extends AbstractDatabaseModel {
-    @SuppressWarnings("unused")
+
     private static final Logger log = LoggerFactory.getLogger(InstancesTableModel.class);
 
     private final InstancesDisplayModel instancesDisplayModel = new InstancesDisplayModel();
@@ -32,7 +32,7 @@ public class InstancesTableModel extends AbstractDatabaseModel {
 
     @Override
     public void loadFromDatabase() {
-        SwingWorker<Void, Void> swingWorker = new SwingWorker<Void, Void>() {
+        SwingWorker<Void, Void> swingWorker = new SwingWorker<>() {
 
             @Override
             protected Void doInBackground() throws Exception {

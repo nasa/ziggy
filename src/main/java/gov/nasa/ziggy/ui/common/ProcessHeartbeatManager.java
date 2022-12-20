@@ -90,20 +90,19 @@ public class ProcessHeartbeatManager {
         while (messageHandler.getLastHeartbeatTimeMillis() == 0
             && SystemTime.currentTimeMillis() - t0 < heartbeatIntervalMillis) {
         }
-        if (messageHandler.getLastHeartbeatTimeMillis() > 0) {
-            setRmiIndicator(Indicator.State.GREEN);
-            lastHeartbeatTime = messageHandler.getLastHeartbeatTimeMillis();
-            if (heartbeatListener == null) {
-                startHeartbeatListener();
-            }
-            isInitialized = true;
-        } else {
+        if (messageHandler.getLastHeartbeatTimeMillis() <= 0) {
             setRmiIndicator(Indicator.State.RED);
             if (heartbeatListener != null) {
                 heartbeatListener.shutdownNow();
             }
             throw new NoHeartbeatException("Unable to detect worker heartbeat messages");
         }
+        setRmiIndicator(Indicator.State.GREEN);
+        lastHeartbeatTime = messageHandler.getLastHeartbeatTimeMillis();
+        if (heartbeatListener == null) {
+            startHeartbeatListener();
+        }
+        isInitialized = true;
     }
 
     /**

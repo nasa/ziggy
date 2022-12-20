@@ -8,7 +8,6 @@ import gov.nasa.ziggy.module.PipelineException;
 @SuppressWarnings("serial")
 public class ConsoleSecurityException extends PipelineException {
     public ConsoleSecurityException() {
-        super();
     }
 
     public ConsoleSecurityException(String message, Throwable cause) {

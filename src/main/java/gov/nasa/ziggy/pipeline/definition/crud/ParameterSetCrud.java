@@ -69,7 +69,7 @@ public class ParameterSetCrud extends AbstractCrud {
 
     public List<ParameterSet> visibleParameterSets(List<ParameterSet> allParameterSets) {
         return allParameterSets.stream()
-            .filter(s -> s.visibleParameterSet())
+            .filter(ParameterSet::visibleParameterSet)
             .collect(Collectors.toList());
     }
 

@@ -3,7 +3,6 @@ package gov.nasa.ziggy.services.messages;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -37,7 +36,8 @@ public class DeleteTasksRequest extends PipelineMessage {
     private final List<Long> taskIds = new ArrayList<>();
 
     public DeleteTasksRequest(List<PipelineTask> pipelineTasks) {
-        taskIds.addAll(pipelineTasks.stream().map(s -> s.getId()).collect(Collectors.toList()));
+        taskIds
+            .addAll(pipelineTasks.stream().map(PipelineTask::getId).collect(Collectors.toList()));
     }
 
     @Override
@@ -61,13 +61,9 @@ public class DeleteTasksRequest extends PipelineMessage {
     public boolean deleteTasks() throws IOException {
 
         log.info("Starting DeleteTasksRequest.deleteTasks()");
-        // Start by going through the queued tasks (tasks that are submitted but not yet running).
-        Iterator<WorkerTaskRequest> taskIterator = WorkerPipelineProcess.workerTaskRequestQueue
-            .iterator();
         List<WorkerTaskRequest> tasksForDeletion = new ArrayList<>();
         Set<Long> taskIdsForDeletion = new HashSet<>();
-        while (taskIterator.hasNext()) {
-            WorkerTaskRequest request = taskIterator.next();
+        for (WorkerTaskRequest request : WorkerPipelineProcess.workerTaskRequestQueue) {
             if (taskIds.contains(request.getTaskId())) {
                 tasksForDeletion.add(request);
                 taskIdsForDeletion.add(request.getTaskId());
@@ -117,11 +113,9 @@ public class DeleteTasksRequest extends PipelineMessage {
 
         // Locate any tasks that have completed while the delete request was working its way
         // through the system.
-        taskIdsForDeletion
-            .addAll((List<Long>) DatabaseTransactionFactory.performTransactionInThread(() -> {
-                return new PipelineTaskCrud().retrieveIdsForTasksInState(taskIds,
-                    PipelineTask.State.COMPLETED);
-            }));
+        taskIdsForDeletion.addAll((List<Long>) DatabaseTransactionFactory
+            .performTransactionInThread(() -> new PipelineTaskCrud()
+                .retrieveIdsForTasksInState(taskIds, PipelineTask.State.COMPLETED)));
 
         // Notify the caller as to whether all the tasks were located in local execution.
         return taskIdsForDeletion.containsAll(taskIds);

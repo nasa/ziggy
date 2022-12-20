@@ -39,9 +39,8 @@ public class ParameterSetSelectorPanel extends javax.swing.JPanel {
 
         if (selectedIndex != -1) {
             return paramSetListModel.getElementAt(selectedIndex);
-        } else {
-            return null;
         }
+        return null;
     }
 
     private void initGUI() {

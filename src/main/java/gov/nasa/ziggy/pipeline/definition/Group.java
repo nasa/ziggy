@@ -39,9 +39,8 @@ public class Group {
     public String getName() {
         if (name == null) {
             return "";
-        } else {
-            return name;
         }
+        return name;
     }
 
     public void setName(String name) {
@@ -79,10 +78,7 @@ public class Group {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         final Group other = (Group) obj;

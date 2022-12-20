@@ -44,7 +44,6 @@ public class ZiggyEventHandlerPanel extends JPanel implements MouseListener {
     private EventHandlerTableModel tableModel;
 
     public ZiggyEventHandlerPanel() {
-        super();
         initGUI();
         getTableModel().update();
     }
@@ -149,8 +148,8 @@ public class ZiggyEventHandlerPanel extends JPanel implements MouseListener {
 
         private static final long serialVersionUID = 20220707L;
 
-        private static final String[] COLUMN_HEADERS = new String[] { "Name", "Directory",
-            "Pipeline", "Enabled" };
+        private static final String[] COLUMN_HEADERS = { "Name", "Directory", "Pipeline",
+            "Enabled" };
 
         List<ZiggyEventHandlerInfoForDisplay> eventHandlers = new ArrayList<>();
 

@@ -41,24 +41,20 @@ public class UserCrudProxy extends CrudProxy {
 
     public Role retrieveRole(final String roleName) {
         verifyPrivileges(Privilege.USER_ADMIN);
-        Role result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                UserCrud crud = new UserCrud();
-                Role r = crud.retrieveRole(roleName);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            UserCrud crud = new UserCrud();
+            Role r = crud.retrieveRole(roleName);
+            return r;
+        });
     }
 
     public List<Role> retrieveAllRoles() {
         verifyPrivileges(Privilege.USER_ADMIN);
-        List<Role> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                UserCrud crud = new UserCrud();
-                List<Role> r = crud.retrieveAllRoles();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            UserCrud crud = new UserCrud();
+            List<Role> r = crud.retrieveAllRoles();
+            return r;
+        });
     }
 
     public void deleteRole(final Role role) {
@@ -81,24 +77,20 @@ public class UserCrudProxy extends CrudProxy {
 
     public User retrieveUser(final String loginName) {
         verifyPrivileges(Privilege.USER_ADMIN);
-        User result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                UserCrud crud = new UserCrud();
-                User r = crud.retrieveUser(loginName);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            UserCrud crud = new UserCrud();
+            User r = crud.retrieveUser(loginName);
+            return r;
+        });
     }
 
     public List<User> retrieveAllUsers() {
         verifyPrivileges(Privilege.USER_ADMIN);
-        List<User> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                UserCrud crud = new UserCrud();
-                List<User> r = crud.retrieveAllUsers();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            UserCrud crud = new UserCrud();
+            List<User> r = crud.retrieveAllUsers();
+            return r;
+        });
     }
 
     public void deleteUser(final User user) {

@@ -222,35 +222,29 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
      * @return a {@link Criteria} object
      */
     public Criteria createCriteria(Class<?> persistentClass) {
-        Criteria query = getSession().createCriteria(persistentClass);
-
-        return query;
+        return getSession().createCriteria(persistentClass);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <E> List<E> list(Query query) {
-        @SuppressWarnings("unchecked")
-        List<E> list = query.list();
-        return list;
+        return query.list();
     }
 
+    @SuppressWarnings("unchecked")
     public <E> List<E> list(Criteria criteria) {
-        @SuppressWarnings("unchecked")
-        List<E> list = criteria.list();
-        return list;
+        return criteria.list();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> T uniqueResult(Query query) {
-        @SuppressWarnings("unchecked")
-        T t = (T) query.uniqueResult();
-        return t;
+        return (T) query.uniqueResult();
     }
 
+    @SuppressWarnings("unchecked")
     protected <T> T uniqueResult(Criteria criteria) {
-        @SuppressWarnings("unchecked")
-        T t = (T) criteria.uniqueResult();
-        return t;
+        return (T) criteria.uniqueResult();
     }
 
     /**
@@ -353,8 +347,7 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
         Criteria criteria = createCriteria(clazz);
         criteria.setProjection(Projections.max("id"));
         T maxDatabaseId = uniqueResult(criteria);
-        T maxId = maxDatabaseId != null ? maxDatabaseId : (T) Integer.valueOf(-1);
-        return maxId;
+        return maxDatabaseId != null ? maxDatabaseId : (T) Integer.valueOf(-1);
     }
 
     /**
@@ -369,10 +362,9 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
     private <T extends Number> T tableIdForAssignment(ExternalIdAssignable table) {
 
         T maxDatabaseId = retrieveMaxDatabaseId(table);
-        T assignedId = maxDatabaseId.intValue() >= table.minAllowedAssignedIdNumber()
+        return maxDatabaseId.intValue() >= table.minAllowedAssignedIdNumber()
             ? (T) Integer.valueOf(maxDatabaseId.intValue() + 1)
             : (T) Integer.valueOf(table.minAllowedAssignedIdNumber());
-        return assignedId;
     }
 
     /**
@@ -386,7 +378,6 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
 
         // default is to use the table's ID
         int tableId = table.externalId();
-        int id = tableId != 0 ? tableId : tableIdForAssignment(table).intValue();
-        return id;
+        return tableId != 0 ? tableId : tableIdForAssignment(table).intValue();
     }
 }

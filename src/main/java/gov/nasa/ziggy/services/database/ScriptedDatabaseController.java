@@ -78,7 +78,7 @@ public abstract class ScriptedDatabaseController extends DatabaseController {
                 // Try to run the drop script (ignoring errors), just in
                 // case someone didn't clean up after themselves...
                 log.info("trying clean script: " + dropScript());
-                cleanDB(false);
+                cleanDbInternal();
             } catch (Throwable t) {
                 log.warn(t.getMessage(), t);
             }
@@ -104,17 +104,17 @@ public abstract class ScriptedDatabaseController extends DatabaseController {
         }
     }
 
-    public void cleanDB() {
+    public void cleanDb() {
         if (sqlRunner().getCachedConnection() == null) {
             sqlRunner().connect();
         }
-        cleanDB(true);
+        cleanDbInternal();
     }
 
     /**
      * Make best effort to run drop script (errors are ignored)
      */
-    private void cleanDB(boolean logErrors) {
+    private void cleanDbInternal() {
         if (sqlRunner().getCachedConnection() == null) {
             return;
         }

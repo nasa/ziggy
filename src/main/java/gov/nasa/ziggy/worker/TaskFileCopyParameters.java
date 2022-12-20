@@ -20,7 +20,7 @@ public class TaskFileCopyParameters implements Parameters {
      * Files with any of the specified suffixes will be excluded from the copy. Wildcards should not
      * be used ('.txt' not '*.txt').
      */
-    private String[] excludeWildcards = new String[0];
+    private String[] excludeWildcards = {};
 
     /**
      * If true, an exception is thrown if the copy fails

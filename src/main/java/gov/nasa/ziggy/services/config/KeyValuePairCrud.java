@@ -31,9 +31,7 @@ public class KeyValuePairCrud extends AbstractCrud {
     }
 
     public List<KeyValuePair> retrieveAll() {
-        List<KeyValuePair> results = list(
-            databaseService.getSession().createQuery("from KeyValuePair"));
-        return results;
+        return list(databaseService.getSession().createQuery("from KeyValuePair"));
     }
 
     public String retrieveValue(String key) {
@@ -48,8 +46,7 @@ public class KeyValuePairCrud extends AbstractCrud {
         Query query = databaseService.getSession()
             .createQuery("from KeyValuePair where key = :key");
         query.setString("key", key);
-        KeyValuePair keyValuePair = uniqueResult(query);
-        return keyValuePair;
+        return uniqueResult(query);
     }
 
     public void create(KeyValuePair keyValuePair) {

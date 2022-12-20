@@ -52,7 +52,6 @@ public class ModuleEditDialog extends javax.swing.JDialog {
     private JLabel versionLabel;
     private JTextField exeTimeoutTextField;
     private JLabel exeTimeoutLabel;
-    private JTextField exeNameTextField;
     private JLabel descLabel;
     private JButton cancelButton;
     private JButton saveButton;

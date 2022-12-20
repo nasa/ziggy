@@ -46,9 +46,8 @@ public class EditParametersDialog extends javax.swing.JDialog {
 
         if (!dialog.cancelled) {
             return dialog.parametersPanel.getParameters();
-        } else {
-            return null;
         }
+        return null;
     }
 
     private void saveButtonActionPerformed() {

@@ -112,7 +112,7 @@ public class ParameterSetViewPanel extends javax.swing.JPanel {
         if (viewParamSetButton == null) {
             viewParamSetButton = new JButton();
             viewParamSetButton.setText("view parameters");
-            viewParamSetButton.addActionListener(evt -> viewParamSetButtonActionPerformed(evt));
+            viewParamSetButton.addActionListener(this::viewParamSetButtonActionPerformed);
         }
         return viewParamSetButton;
     }

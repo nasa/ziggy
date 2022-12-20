@@ -19,10 +19,6 @@ import javax.persistence.ManyToOne;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Version;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import gov.nasa.ziggy.module.DefaultPipelineInputs;
 import gov.nasa.ziggy.module.DefaultPipelineOutputs;
@@ -31,6 +27,10 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.PipelineInputs;
 import gov.nasa.ziggy.module.PipelineOutputs;
 import gov.nasa.ziggy.parameters.Parameters;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * This class models a pipeline module, which consists of an algorithm and the parameters that
@@ -325,10 +325,7 @@ public class PipelineModuleDefinition {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         PipelineModuleDefinition other = (PipelineModuleDefinition) obj;
@@ -344,8 +341,7 @@ public class PipelineModuleDefinition {
         equalModule = equalModule && Objects.equals(name, other.name);
         equalModule = equalModule && Objects.equals(outputsClass, other.outputsClass);
         equalModule = equalModule && Objects.equals(pipelineModuleClass, other.pipelineModuleClass);
-        equalModule = equalModule && version == other.version;
-        return equalModule;
+        return equalModule && version == other.version;
     }
 
 }

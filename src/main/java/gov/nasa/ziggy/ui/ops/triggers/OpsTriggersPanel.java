@@ -64,7 +64,6 @@ public class OpsTriggersPanel extends javax.swing.JPanel {
     private JButton expandAllButton;
 
     public OpsTriggersPanel() {
-        super();
         initGUI();
     }
 

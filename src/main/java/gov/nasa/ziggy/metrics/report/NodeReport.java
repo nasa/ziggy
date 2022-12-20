@@ -147,9 +147,8 @@ public class NodeReport extends Report {
     protected String formatValue(String category, double value) {
         if (categoryIsTime(category)) {
             return formatTime((long) value);
-        } else {
-            return String.format("%.2f", value);
         }
+        return String.format("%.2f", value);
     }
 
     public boolean categoryIsTime(String category) {

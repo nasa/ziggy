@@ -21,7 +21,6 @@ public class TasksControlPanel extends javax.swing.JPanel implements RefreshPane
     private JButton refreshButton;
 
     public TasksControlPanel() {
-        super();
         initGUI();
     }
 
@@ -66,7 +65,7 @@ public class TasksControlPanel extends javax.swing.JPanel implements RefreshPane
         if (refreshButton == null) {
             refreshButton = new JButton();
             refreshButton.setText("refresh");
-            refreshButton.addActionListener(evt -> refreshButtonActionPerformed(evt));
+            refreshButton.addActionListener(this::refreshButtonActionPerformed);
         }
         return refreshButton;
     }

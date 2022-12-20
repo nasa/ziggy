@@ -47,7 +47,6 @@ abstract class MetricTypeListModel extends DefaultComboBoxModel<String> {
         return types.size();
     }
 
-    @SuppressWarnings("unchecked")
     public void add(MetricType metricType) {
         int insertIndex = Collections.binarySearch(types, metricType);
         if (insertIndex >= 0) {
@@ -65,7 +64,6 @@ abstract class MetricTypeListModel extends DefaultComboBoxModel<String> {
         return mt;
     }
 
-    @SuppressWarnings("unchecked")
     public List<MetricType> getTypes() {
         return types;
     }

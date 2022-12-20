@@ -71,7 +71,7 @@ public class ParameterSetsViewEditPanel extends AbstractClonableViewEditPanel {
             JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options,
             options[0]);
 
-        boolean csvMode = n == 0 ? false : true;
+        boolean csvMode = (n == 0) == false;
 
         PipelineOperationsProxy ops = new PipelineOperationsProxy();
         String report = ops.generateParameterLibraryReport(csvMode);
@@ -161,14 +161,13 @@ public class ParameterSetsViewEditPanel extends AbstractClonableViewEditPanel {
 
         ParameterSet newParameterSet = ParameterSetNewDialog.createParameterSet();
 
-        if (newParameterSet != null) {
-            ParameterSetCrudProxy paramSetCrud = new ParameterSetCrudProxy();
-            paramSetCrud.save(newParameterSet);
-            parameterSetsTableModel.loadFromDatabase();
-        } else {
+        if (newParameterSet == null) {
             // user cancelled
             return;
         }
+        ParameterSetCrudProxy paramSetCrud = new ParameterSetCrudProxy();
+        paramSetCrud.save(newParameterSet);
+        parameterSetsTableModel.loadFromDatabase();
 
         log.debug("doNew() - end");
     }

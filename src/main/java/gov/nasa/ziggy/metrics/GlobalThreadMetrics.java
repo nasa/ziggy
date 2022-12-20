@@ -35,13 +35,10 @@ class GlobalThreadMetrics<T extends Metric> {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        GlobalThreadMetrics other = (GlobalThreadMetrics) obj;
+        GlobalThreadMetrics<?> other = (GlobalThreadMetrics<?>) obj;
         return Objects.equals(globalMetric, other.globalMetric)
             && Objects.equals(threadMetric, other.threadMetric);
     }

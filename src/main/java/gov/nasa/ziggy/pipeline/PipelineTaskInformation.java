@@ -224,14 +224,13 @@ public class PipelineTaskInformation {
 
         for (ClassWrapper<Parameters> moduleParameterClass : instanceNode.getModuleParameterSets()
             .keySet()) {
-            if (!compositeParameterSets.containsKey(moduleParameterClass)) {
-                compositeParameterSets.put(moduleParameterClass,
-                    instanceNode.getModuleParameterSets().get(moduleParameterClass));
-            } else {
+            if (compositeParameterSets.containsKey(moduleParameterClass)) {
                 throw new PipelineException(
                     "Configuration Error: Module parameter and pipeline parameter Maps both contain a value for parameter class: "
                         + moduleParameterClass);
             }
+            compositeParameterSets.put(moduleParameterClass,
+                instanceNode.getModuleParameterSets().get(moduleParameterClass));
         }
 
         // Set the flag that indicates whether this module limits the number of subtasks that

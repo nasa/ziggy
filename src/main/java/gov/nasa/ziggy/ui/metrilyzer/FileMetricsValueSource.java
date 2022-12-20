@@ -45,10 +45,8 @@ class FileMetricsValueSource implements MetricsValueSource {
         // TODO: could probably break this off after seeing a date
         // greater than the date we are interested in.
         for (MetricValue metricDelta : metricIt) {
-            if (metricDelta.getTimestamp().before(windowStart)) {
-                continue;
-            }
-            if (metricDelta.getTimestamp().after(windowEnd)) {
+            if (metricDelta.getTimestamp().before(windowStart)
+                || metricDelta.getTimestamp().after(windowEnd)) {
                 continue;
             }
             MetricType metricType = metricDelta.getMetricType();

@@ -24,8 +24,6 @@ public class KeyValuePairCrudTest {
 
     @Test
     public void testCreate() throws Exception {
-        String value = null;
-
         // store
         DatabaseTransactionFactory.performTransaction(() -> {
             keyValuePairCrud.create(new KeyValuePair("key1", "value1"));
@@ -33,17 +31,14 @@ public class KeyValuePairCrudTest {
         });
 
         // retrieve
-        value = (String) DatabaseTransactionFactory.performTransaction(() -> {
-            return keyValuePairCrud.retrieveValue("key1");
-        });
+        String value = (String) DatabaseTransactionFactory
+            .performTransaction(() -> keyValuePairCrud.retrieveValue("key1"));
 
         assertEquals("value", "value1", value);
     }
 
     @Test
     public void testUpdate() throws Exception {
-        String value = null;
-
         // store
         DatabaseTransactionFactory.performTransaction(() -> {
             keyValuePairCrud.create(new KeyValuePair("key1", "value1"));
@@ -58,9 +53,8 @@ public class KeyValuePairCrudTest {
         });
 
         // retrieve
-        value = (String) DatabaseTransactionFactory.performTransaction(() -> {
-            return keyValuePairCrud.retrieveValue("key1");
-        });
+        String value = (String) DatabaseTransactionFactory
+            .performTransaction(() -> keyValuePairCrud.retrieveValue("key1"));
 
         assertEquals("value", "value2", value);
     }

@@ -26,7 +26,6 @@ public class IndicatorDataPanel extends javax.swing.JPanel {
     }
 
     public IndicatorDataPanel() {
-        super();
         initGUI();
     }
 

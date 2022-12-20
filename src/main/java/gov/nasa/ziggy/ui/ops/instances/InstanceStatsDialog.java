@@ -141,7 +141,7 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
         if (closeButton == null) {
             closeButton = new JButton();
             closeButton.setText("<html><b>close</b></html>");
-            closeButton.addActionListener(evt -> closeButtonActionPerformed(evt));
+            closeButton.addActionListener(this::closeButtonActionPerformed);
         }
         return closeButton;
     }
@@ -209,7 +209,7 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
         if (refreshButton == null) {
             refreshButton = new JButton();
             refreshButton.setText("refresh");
-            refreshButton.addActionListener(evt -> refreshButtonActionPerformed(evt));
+            refreshButton.addActionListener(this::refreshButtonActionPerformed);
         }
         return refreshButton;
     }

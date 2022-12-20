@@ -59,31 +59,30 @@ public class RestartDialog extends javax.swing.JDialog {
         dialog.setVisible(true); // blocks until user presses a button
         RestartAttributes restartAttrs = null;
 
-        if (!dialog.cancelled) {
-            Map<String, RestartAttributes> moduleMap = dialog.restartTableModel.getModuleMap();
-
-            for (PipelineTask failedTask : failedTasks) {
-                String moduleName = failedTask.getModuleName();
-
-                ProcessingSummary attrs = taskAttrs.get(failedTask.getId());
-                String pState = ProcessingState.INITIALIZING.toString();
-
-                if (attrs != null) {
-                    pState = attrs.getProcessingState().shortName();
-                }
-
-                String key = RestartAttributes.key(moduleName, pState);
-
-                restartAttrs = moduleMap.get(key);
-
-                log.info("Set task " + failedTask.getId() + " restartMode to "
-                    + restartAttrs.getSelectedRestartMode());
-            }
-            return restartAttrs.getSelectedRestartMode();
-        } else {
+        if (dialog.cancelled) {
             log.info("Restart cancelled by user");
             return null;
         }
+        Map<String, RestartAttributes> moduleMap = dialog.restartTableModel.getModuleMap();
+
+        for (PipelineTask failedTask : failedTasks) {
+            String moduleName = failedTask.getModuleName();
+
+            ProcessingSummary attrs = taskAttrs.get(failedTask.getId());
+            String pState = ProcessingState.INITIALIZING.toString();
+
+            if (attrs != null) {
+                pState = attrs.getProcessingState().shortName();
+            }
+
+            String key = RestartAttributes.key(moduleName, pState);
+
+            restartAttrs = moduleMap.get(key);
+
+            log.info("Set task " + failedTask.getId() + " restartMode to "
+                + restartAttrs.getSelectedRestartMode());
+        }
+        return restartAttrs.getSelectedRestartMode();
     }
 
     private void restartButtonActionPerformed(ActionEvent evt) {
@@ -136,7 +135,7 @@ public class RestartDialog extends javax.swing.JDialog {
         if (restartButton == null) {
             restartButton = new JButton();
             restartButton.setText("Restart");
-            restartButton.addActionListener(evt -> restartButtonActionPerformed(evt));
+            restartButton.addActionListener(this::restartButtonActionPerformed);
         }
         return restartButton;
     }
@@ -145,7 +144,7 @@ public class RestartDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }
@@ -180,9 +179,8 @@ public class RestartDialog extends javax.swing.JDialog {
 
                     if (modelColumn == 3) {
                         return editors.get(row);
-                    } else {
-                        return super.getCellEditor(row, column);
                     }
+                    return super.getCellEditor(row, column);
                 }
             };
         }

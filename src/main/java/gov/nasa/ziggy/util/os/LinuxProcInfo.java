@@ -47,7 +47,7 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
 
     @Override
     public List<Long> getChildPids(String name) throws IOException {
-        int currentPid = Integer.valueOf(get("Pid"));
+        int currentPid = Integer.parseInt(get("Pid"));
         File procDir = new File("/proc");
         File[] procFiles = procDir.listFiles();
         List<Long> childPids = new LinkedList<>();
@@ -74,7 +74,7 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
 
     @Override
     public long getParentPid() {
-        return Integer.valueOf(get("PPid"));
+        return Integer.parseInt(get("PPid"));
     }
 
     @Override

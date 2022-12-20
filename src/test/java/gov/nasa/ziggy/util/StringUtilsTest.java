@@ -60,9 +60,9 @@ public class StringUtilsTest {
         String s = StringUtils.toHexString(new byte[0], 0, 0);
         assertEquals("", s);
 
-        byte[] md5 = new byte[] { (byte) 0xcd, (byte) 0xe1, (byte) 0xb9, (byte) 0x6c, (byte) 0x1b,
-            (byte) 0x79, (byte) 0xfc, (byte) 0x62, (byte) 0x18, (byte) 0x55, (byte) 0x28,
-            (byte) 0x3e, (byte) 0xae, (byte) 0x37, (byte) 0x0d, (byte) 0x0c };
+        byte[] md5 = { (byte) 0xcd, (byte) 0xe1, (byte) 0xb9, (byte) 0x6c, (byte) 0x1b, (byte) 0x79,
+            (byte) 0xfc, (byte) 0x62, (byte) 0x18, (byte) 0x55, (byte) 0x28, (byte) 0x3e,
+            (byte) 0xae, (byte) 0x37, (byte) 0x0d, (byte) 0x0c };
         assertEquals(16, md5.length);
         s = StringUtils.toHexString(md5, 0, md5.length);
         assertEquals("cde1b96c1b79fc621855283eae370d0c", s);

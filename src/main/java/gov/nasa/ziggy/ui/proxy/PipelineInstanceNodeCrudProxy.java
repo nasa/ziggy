@@ -18,23 +18,19 @@ public class PipelineInstanceNodeCrudProxy extends CrudProxy {
 
     public PipelineInstanceNode retrieve(final long id) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        PipelineInstanceNode result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineInstanceNodeCrud crud = new PipelineInstanceNodeCrud();
-                PipelineInstanceNode r = crud.retrieve(id);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineInstanceNodeCrud crud = new PipelineInstanceNodeCrud();
+            PipelineInstanceNode r = crud.retrieve(id);
+            return r;
+        });
     }
 
     public List<PipelineInstanceNode> retrieveAll(final PipelineInstance pipelineInstance) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineInstanceNode> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineInstanceNodeCrud crud = new PipelineInstanceNodeCrud();
-                List<PipelineInstanceNode> r = crud.retrieveAll(pipelineInstance);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineInstanceNodeCrud crud = new PipelineInstanceNodeCrud();
+            List<PipelineInstanceNode> r = crud.retrieveAll(pipelineInstance);
+            return r;
+        });
     }
 }

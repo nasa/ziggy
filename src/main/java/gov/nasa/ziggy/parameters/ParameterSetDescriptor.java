@@ -137,9 +137,8 @@ public class ParameterSetDescriptor {
     public String shortClassName() {
         if (className != null) {
             return className.substring(className.lastIndexOf(".") + 1);
-        } else {
-            return "null";
         }
+        return "null";
     }
 
     public void setClassName(String className) {

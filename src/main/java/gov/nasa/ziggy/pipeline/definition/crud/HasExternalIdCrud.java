@@ -39,9 +39,7 @@ public interface HasExternalIdCrud<T extends HasExternalId>
             + getExternalIdFieldName() + " = :externalIdParam ");
         q.setParameter("externalIdParam", externalId);
 
-        T receivable = uniqueResult(q);
-
-        return receivable;
+        return uniqueResult(q);
     }
 
     /**
@@ -55,9 +53,7 @@ public interface HasExternalIdCrud<T extends HasExternalId>
             + getExternalIdFieldName() + " in (select max(" + getExternalIdFieldName() + ") from "
             + getHibernateClassName() + ")");
 
-        T receivable = uniqueResult(q);
-
-        return receivable;
+        return uniqueResult(q);
     }
 
     /**
@@ -74,9 +70,8 @@ public interface HasExternalIdCrud<T extends HasExternalId>
         Integer maxId = uniqueResult(q);
         if (maxId == null) {
             return -1;
-        } else {
-            return maxId;
         }
+        return maxId;
     }
 
     default boolean idInDatabase(int idNumber) {
@@ -85,9 +80,8 @@ public interface HasExternalIdCrud<T extends HasExternalId>
         List<Integer> ids = list(q);
         if (ids == null || ids.isEmpty()) {
             return false;
-        } else {
-            return ids.contains(Integer.valueOf(idNumber));
         }
+        return ids.contains(Integer.valueOf(idNumber));
     }
 
 }

@@ -156,9 +156,8 @@ public class ConfigTree extends JTree implements TreeSelectionListener, TreeExpa
         log.debug("treeExpanded(TreeExpansionEvent) - start");
 
         log.debug("treeExpanded, event=" + event);
-        DefaultMutableTreeNode node = null;
         TreePath path = event.getPath();
-        node = (DefaultMutableTreeNode) path.getLastPathComponent();
+        DefaultMutableTreeNode node = (DefaultMutableTreeNode) path.getLastPathComponent();
         log.debug("expanded node = " + node);
 
         Object userObject = node.getUserObject();

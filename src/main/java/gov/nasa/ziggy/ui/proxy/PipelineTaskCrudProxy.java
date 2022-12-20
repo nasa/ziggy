@@ -30,13 +30,11 @@ public class PipelineTaskCrudProxy extends CrudProxy {
 
     public PipelineTask retrieve(final long id) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        PipelineTask result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineTaskCrud crud = new PipelineTaskCrud();
-                PipelineTask r = crud.retrieve(id);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineTaskCrud crud = new PipelineTaskCrud();
+            PipelineTask r = crud.retrieve(id);
+            return r;
+        });
     }
 
     public List<PipelineTask> retrieveAll(final PipelineInstance instance) {
@@ -45,41 +43,35 @@ public class PipelineTaskCrudProxy extends CrudProxy {
 
     public List<PipelineTask> retrieveAll(final PipelineInstance instance, boolean silent) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineTask> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineTaskCrud crud = new PipelineTaskCrud();
-                List<PipelineTask> r = crud.retrieveTasksForInstance(instance);
-                for (PipelineTask task : r) {
-                    Hibernate.initialize(task.getSummaryMetrics());
-                    Hibernate.initialize(task.getExecLog());
-                    Hibernate.initialize(task.getProducerTaskIds());
-                }
-                return r;
-            }, silent);
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineTaskCrud crud = new PipelineTaskCrud();
+            List<PipelineTask> r = crud.retrieveTasksForInstance(instance);
+            for (PipelineTask task : r) {
+                Hibernate.initialize(task.getSummaryMetrics());
+                Hibernate.initialize(task.getExecLog());
+                Hibernate.initialize(task.getProducerTaskIds());
+            }
+            return r;
+        }, silent);
     }
 
     public List<PipelineTask> retrieveAll(final PipelineInstance instance,
         final PipelineTask.State state) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineTask> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineTaskCrud crud = new PipelineTaskCrud();
-                List<PipelineTask> r = crud.retrieveAll(instance, state);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineTaskCrud crud = new PipelineTaskCrud();
+            List<PipelineTask> r = crud.retrieveAll(instance, state);
+            return r;
+        });
     }
 
     public List<PipelineTask> retrieveAll(final Collection<Long> taskIds) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineTask> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineTaskCrud crud = new PipelineTaskCrud();
-                List<PipelineTask> r = crud.retrieveAll(taskIds);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineTaskCrud crud = new PipelineTaskCrud();
+            List<PipelineTask> r = crud.retrieveAll(taskIds);
+            return r;
+        });
     }
 
 }

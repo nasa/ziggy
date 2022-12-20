@@ -8,6 +8,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.WindowConstants;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.factories.Borders;
@@ -55,7 +56,7 @@ public class AboutDialog extends javax.swing.JDialog {
 
     private JPanel getButtonPanel() {
         JButton closeButton = new JButton("OK");
-        closeButton.addActionListener((event) -> {
+        closeButton.addActionListener(event -> {
             setVisible(false);
             dispose();
         });
@@ -71,7 +72,7 @@ public class AboutDialog extends javax.swing.JDialog {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame();
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
             AboutDialog dialog = new AboutDialog(frame);
             dialog.setVisible(true);
             frame.dispose();

@@ -57,9 +57,8 @@ public class SubtaskAllocator {
         if (!found) {
             log.warn("failed to remove subtaskIndex: " + subTaskIndex);
             return false;
-        } else {
-            return true;
         }
+        return true;
     }
 
     /**

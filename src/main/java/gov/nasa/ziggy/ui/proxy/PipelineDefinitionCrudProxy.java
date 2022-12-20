@@ -55,64 +55,56 @@ public class PipelineDefinitionCrudProxy extends CrudProxy {
 
     public PipelineDefinition retrieveLatestVersionForName(final String name) {
         verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        PipelineDefinition result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
-                PipelineDefinition result1 = crud.retrieveLatestVersionForName(name);
-                result1.buildPaths();
-                initializePipelineDefinitionNodes(result1);
-                return result1;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
+            PipelineDefinition result1 = crud.retrieveLatestVersionForName(name);
+            result1.buildPaths();
+            initializePipelineDefinitionNodes(result1);
+            return result1;
+        });
     }
 
     public PipelineDefinition retrieveLatestVersionForName(final PipelineDefinitionName name) {
         verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        PipelineDefinition result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
-                PipelineDefinition result1 = crud.retrieveLatestVersionForName(name);
-                result1.buildPaths();
-                initializePipelineDefinitionNodes(result1);
-                return result1;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
+            PipelineDefinition result1 = crud.retrieveLatestVersionForName(name);
+            result1.buildPaths();
+            initializePipelineDefinitionNodes(result1);
+            return result1;
+        });
     }
 
     public List<PipelineDefinition> retrieveLatestVersions() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineDefinition> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
 
-                List<PipelineDefinition> result1 = crud.retrieveLatestVersions();
+            List<PipelineDefinition> result1 = crud.retrieveLatestVersions();
 
-                for (PipelineDefinition pipelineDefinition : result1) {
-                    pipelineDefinition.buildPaths();
-                    initializePipelineDefinitionNodes(pipelineDefinition);
-                }
+            for (PipelineDefinition pipelineDefinition : result1) {
+                pipelineDefinition.buildPaths();
+                initializePipelineDefinitionNodes(pipelineDefinition);
+            }
 
-                return result1;
-            });
-        return result;
+            return result1;
+        });
     }
 
     public List<PipelineDefinition> retrieveAll() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<PipelineDefinition> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
 
-                List<PipelineDefinition> result1 = crud.retrieveAll();
+            List<PipelineDefinition> result1 = crud.retrieveAll();
 
-                for (PipelineDefinition pipelineDefinition : result1) {
-                    pipelineDefinition.buildPaths();
-                    initializePipelineDefinitionNodes(pipelineDefinition);
-                }
+            for (PipelineDefinition pipelineDefinition : result1) {
+                pipelineDefinition.buildPaths();
+                initializePipelineDefinitionNodes(pipelineDefinition);
+            }
 
-                return result1;
-            });
-        return result;
+            return result1;
+        });
     }
 
     public void saveChanges(PipelineDefinition pipelineDefinition) {

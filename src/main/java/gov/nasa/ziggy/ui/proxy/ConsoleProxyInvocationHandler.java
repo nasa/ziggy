@@ -4,6 +4,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -29,9 +30,7 @@ public class ConsoleProxyInvocationHandler implements InvocationHandler {
         List<Class<?>> rv = new ArrayList<>();
         for (Class<?> i = o.getClass(); i != null; i = i.getSuperclass()) {
             Class<?>[] interfaces = i.getInterfaces();
-            for (Class<?> interf : interfaces) {
-                rv.add(interf);
-            }
+            Collections.addAll(rv, interfaces);
         }
 
         Class<?>[] array = new Class[rv.size()];
@@ -55,9 +54,8 @@ public class ConsoleProxyInvocationHandler implements InvocationHandler {
     @Override
     public Object invoke(final Object proxy, final Method method, final Object[] args)
         throws Throwable {
-        return getCrudProxyExecutor().executeSynchronousDatabaseTransaction(() -> {
-            return method.invoke(targetObject, args);
-        });
+        return getCrudProxyExecutor()
+            .executeSynchronousDatabaseTransaction(() -> method.invoke(targetObject, args));
     }
 
     private CrudProxyExecutor getCrudProxyExecutor() {

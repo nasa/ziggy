@@ -101,12 +101,11 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
             // to perform the subdivision into hyperslabs at a higher dimension, and this dimension
             // we should do 1 per hyperslab; alternately, if nRows > 0, we are done with this
             // activity and can return
-            if (nRows == 0) {
-                nominalSize[iDim] = 1;
-            } else {
+            if (nRows != 0) {
                 nominalSize[iDim] = (int) nRows;
                 break;
             }
+            nominalSize[iDim] = 1;
         }
         return nominalSize;
     }
@@ -189,11 +188,10 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
         // to return false)
         for (int iDim = counter.length - 1; iDim >= 0; iDim--) {
             counter[iDim]++;
-            if (counter[iDim] == nRectangles[iDim] && iDim > 0) {
-                counter[iDim] = 0;
-            } else {
+            if ((counter[iDim] != nRectangles[iDim]) || (iDim <= 0)) {
                 break;
             }
+            counter[iDim] = 0;
         }
         return slab;
     }

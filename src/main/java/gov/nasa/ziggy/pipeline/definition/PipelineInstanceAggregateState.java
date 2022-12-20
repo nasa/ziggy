@@ -77,16 +77,10 @@ public class PipelineInstanceAggregateState {
             return false;
         }
         final PipelineInstanceAggregateState other = (PipelineInstanceAggregateState) obj;
-        if (!Objects.equals(numCompletedTasks, other.numCompletedTasks)) {
-            return false;
-        }
-        if (!Objects.equals(numFailedTasks, other.numFailedTasks)) {
-            return false;
-        }
-        if (!Objects.equals(numSubmittedTasks, other.numSubmittedTasks)) {
-            return false;
-        }
-        if (!Objects.equals(numTasks, other.numTasks)) {
+        if (!Objects.equals(numCompletedTasks, other.numCompletedTasks)
+            || !Objects.equals(numFailedTasks, other.numFailedTasks)
+            || !Objects.equals(numSubmittedTasks, other.numSubmittedTasks)
+            || !Objects.equals(numTasks, other.numTasks)) {
             return false;
         }
         return true;

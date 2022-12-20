@@ -70,13 +70,11 @@ public class InstancesControlPanel extends javax.swing.JPanel {
 
     /* for Jigloo use only */
     public InstancesControlPanel() {
-        super();
         filter = new PipelineInstanceFilter();
         initGUI();
     }
 
     public InstancesControlPanel(PipelineInstanceFilter filter) {
-        super();
         this.filter = filter;
         initGUI();
     }
@@ -323,7 +321,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             statesCheckBox = new JCheckBox();
             statesCheckBox.setText("States");
             statesCheckBox.setSelected(filter.getStates() != null);
-            statesCheckBox.addActionListener(evt -> statesCheckBoxActionPerformed(evt));
+            statesCheckBox.addActionListener(this::statesCheckBoxActionPerformed);
         }
         return statesCheckBox;
     }
@@ -393,7 +391,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             ageCheckBox = new JCheckBox();
             ageCheckBox.setText("Age");
             ageCheckBox.setSelected(filter.getAgeDays() != 0);
-            ageCheckBox.addActionListener(evt -> ageCheckBoxActionPerformed(evt));
+            ageCheckBox.addActionListener(this::ageCheckBoxActionPerformed);
         }
         return ageCheckBox;
     }
@@ -446,7 +444,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             nameCheckBox.setText("Name");
             String name = filter.getNameContains();
             nameCheckBox.setSelected(name != null && name.length() > 0);
-            nameCheckBox.addActionListener(evt -> nameCheckBoxActionPerformed(evt));
+            nameCheckBox.addActionListener(this::nameCheckBoxActionPerformed);
         }
         return nameCheckBox;
     }
@@ -532,7 +530,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             day1Button = new JButton();
             day1Button.setText("1d");
             day1Button.setEnabled(filter.getAgeDays() > 0);
-            day1Button.addActionListener(evt -> day1ButtonActionPerformed(evt));
+            day1Button.addActionListener(this::day1ButtonActionPerformed);
         }
         return day1Button;
     }
@@ -542,7 +540,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             day5Button = new JButton();
             day5Button.setText("5d");
             day5Button.setEnabled(filter.getAgeDays() > 0);
-            day5Button.addActionListener(evt -> day5ButtonActionPerformed(evt));
+            day5Button.addActionListener(this::day5ButtonActionPerformed);
         }
         return day5Button;
     }
@@ -552,7 +550,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             day10Button = new JButton();
             day10Button.setText("10d");
             day10Button.setEnabled(filter.getAgeDays() > 0);
-            day10Button.addActionListener(evt -> day10ButtonActionPerformed(evt));
+            day10Button.addActionListener(this::day10ButtonActionPerformed);
         }
         return day10Button;
     }
@@ -562,7 +560,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             day30Button = new JButton();
             day30Button.setText("30d");
             day30Button.setEnabled(filter.getAgeDays() > 0);
-            day30Button.addActionListener(evt -> day30ButtonActionPerformed(evt));
+            day30Button.addActionListener(this::day30ButtonActionPerformed);
         }
         return day30Button;
     }
@@ -572,7 +570,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             day90Button = new JButton();
             day90Button.setText("90d");
             day90Button.setEnabled(filter.getAgeDays() > 0);
-            day90Button.addActionListener(evt -> day90ButtonActionPerformed(evt));
+            day90Button.addActionListener(this::day90ButtonActionPerformed);
         }
         return day90Button;
     }
@@ -602,7 +600,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
         if (clearFiltersButton == null) {
             clearFiltersButton = new JButton();
             clearFiltersButton.setText("clear filters");
-            clearFiltersButton.addActionListener(evt -> clearFiltersButtonActionPerformed(evt));
+            clearFiltersButton.addActionListener(this::clearFiltersButtonActionPerformed);
         }
         return clearFiltersButton;
     }
@@ -611,7 +609,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
         if (refreshNowButton == null) {
             refreshNowButton = new JButton();
             refreshNowButton.setText("refresh");
-            refreshNowButton.addActionListener(evt -> refreshNowButtonActionPerformed(evt));
+            refreshNowButton.addActionListener(this::refreshNowButtonActionPerformed);
         }
         return refreshNowButton;
     }

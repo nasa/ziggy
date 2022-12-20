@@ -57,7 +57,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new boolean[5];
         testObject.array2 = new boolean[5][5];
         testObject.array3 = new boolean[5][5][5];
-        testObject.boxedScalar = new Boolean(true);
+        testObject.boxedScalar = Boolean.valueOf(true);
         testObject.boxedArray1 = new Boolean[5];
         testObject.boxedArray2 = new Boolean[5][5];
         testObject.boxedArray3 = new Boolean[5][5][5];
@@ -67,7 +67,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new byte[5];
         testObject.array2 = new byte[5][5];
         testObject.array3 = new byte[5][5][5];
-        testObject.boxedScalar = new Byte((byte) 1);
+        testObject.boxedScalar = Byte.valueOf((byte) 1);
         testObject.boxedArray1 = new Byte[5];
         testObject.boxedArray2 = new Byte[5][5];
         testObject.boxedArray3 = new Byte[5][5][5];
@@ -77,7 +77,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new short[5];
         testObject.array2 = new short[5][5];
         testObject.array3 = new short[5][5][5];
-        testObject.boxedScalar = new Short((short) 1);
+        testObject.boxedScalar = Short.valueOf((short) 1);
         testObject.boxedArray1 = new Short[5];
         testObject.boxedArray2 = new Short[5][5];
         testObject.boxedArray3 = new Short[5][5][5];
@@ -87,7 +87,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new int[5];
         testObject.array2 = new int[5][5];
         testObject.array3 = new int[5][5][5];
-        testObject.boxedScalar = new Integer(1);
+        testObject.boxedScalar = Integer.valueOf(1);
         testObject.boxedArray1 = new Integer[5];
         testObject.boxedArray2 = new Integer[5][5];
         testObject.boxedArray3 = new Integer[5][5][5];
@@ -97,7 +97,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new long[5];
         testObject.array2 = new long[5][5];
         testObject.array3 = new long[5][5][5];
-        testObject.boxedScalar = new Long(1);
+        testObject.boxedScalar = Long.valueOf(1);
         testObject.boxedArray1 = new Long[5];
         testObject.boxedArray2 = new Long[5][5];
         testObject.boxedArray3 = new Long[5][5][5];
@@ -107,7 +107,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new float[5];
         testObject.array2 = new float[5][5];
         testObject.array3 = new float[5][5][5];
-        testObject.boxedScalar = new Float(1);
+        testObject.boxedScalar = Float.valueOf(1);
         testObject.boxedArray1 = new Float[5];
         testObject.boxedArray2 = new Float[5][5];
         testObject.boxedArray3 = new Float[5][5][5];
@@ -117,7 +117,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new double[5];
         testObject.array2 = new double[5][5];
         testObject.array3 = new double[5][5][5];
-        testObject.boxedScalar = new Double(1);
+        testObject.boxedScalar = Double.valueOf(1);
         testObject.boxedArray1 = new Double[5];
         testObject.boxedArray2 = new Double[5][5];
         testObject.boxedArray3 = new Double[5][5][5];
@@ -127,7 +127,7 @@ public class ZiggyDataTypeTest {
         testObject.array1 = new String[5];
         testObject.array2 = new String[5][5];
         testObject.array3 = new String[5][5][5];
-        testObject.boxedScalar = new String("whatever");
+        testObject.boxedScalar = "whatever";
         testObject.boxedArray1 = new String[5];
         testObject.boxedArray2 = new String[5][5];
         testObject.boxedArray3 = new String[5][5][5];
@@ -226,7 +226,7 @@ public class ZiggyDataTypeTest {
         double[][] doubleArray2 = new double[5][5];
         truncatedName = truncateClassName(doubleArray2.getClass().getName());
         assertEquals("D", truncatedName);
-        Boolean z = new Boolean(true);
+        Boolean z = true;
         truncatedName = truncateClassName(z.getClass().getName());
         assertEquals("java.lang.Boolean", truncatedName);
         Float[] boxedFloatArray = new Float[5];
@@ -242,8 +242,7 @@ public class ZiggyDataTypeTest {
 
     @Test
     public void testUnboxAndCast() {
-        Double[] boxedDoubleArray1 = { new Double(5), new Double(4), new Double(3), new Double(2),
-            new Double(1) };
+        Double[] boxedDoubleArray1 = { (double) 5, (double) 4, (double) 3, (double) 2, (double) 1 };
         byte[] byteArray1 = new byte[5];
         ZiggyDataType.castBoxedNumericToUnboxedNumeric(boxedDoubleArray1, byteArray1);
         assertTrue(Arrays.equals(byteArray1,
@@ -266,8 +265,7 @@ public class ZiggyDataTypeTest {
         ZiggyDataType.castBoxedNumericToUnboxedNumeric(boxedDoubleArray1, floatArray1);
         assertTrue(Arrays.equals(floatArray1, new float[] { 5, 4, 3, 2, 1 }));
 
-        Float[] boxedFloatArray1 = { new Float(5), new Float(4), new Float(3), new Float(2),
-            new Float(1) };
+        Float[] boxedFloatArray1 = { (float) 5, (float) 4, (float) 3, (float) 2, (float) 1 };
         double[] doubleArray1 = new double[5];
         ZiggyDataType.castBoxedNumericToUnboxedNumeric(boxedFloatArray1, doubleArray1);
         assertTrue(Arrays.equals(doubleArray1, new double[] { 5, 4, 3, 2, 1 }));

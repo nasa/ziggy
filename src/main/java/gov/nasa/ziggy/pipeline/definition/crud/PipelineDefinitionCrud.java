@@ -35,9 +35,7 @@ public class PipelineDefinitionCrud extends AbstractCrud {
     public List<PipelineDefinition> retrieveAll() {
         Query query = createQuery("from PipelineDefinition");
 
-        List<PipelineDefinition> results = list(query);
-
-        return results;
+        return list(query);
     }
 
     private static void populateXmlFields(Collection<PipelineDefinition> results) {
@@ -76,8 +74,7 @@ public class PipelineDefinitionCrud extends AbstractCrud {
             return null;
         }
 
-        PipelineDefinition result = retrieveLatestVersionForName(pipelineDefName);
-        return result;
+        return retrieveLatestVersionForName(pipelineDefName);
     }
 
     public PipelineDefinition retrieveLatestVersionForName(PipelineDefinitionName name) {
@@ -113,9 +110,7 @@ public class PipelineDefinitionCrud extends AbstractCrud {
     public List<String> retrievePipelineDefinitionNames() {
         Query query = createQuery("select name from PipelineDefinitionName " + "order by name asc");
 
-        List<String> results = list(query);
-
-        return results;
+        return list(query);
     }
 
     /**
@@ -130,9 +125,7 @@ public class PipelineDefinitionCrud extends AbstractCrud {
             "select distinct pdn.name from PipelineDefinitionName pdn, PipelineInstance pinst "
                 + "where pdn.name = pinst.pipelineDefinition.name order by pdn.name asc");
 
-        List<String> names = list(query);
-
-        return names;
+        return list(query);
     }
 
     public void deleteAllVersionsForName(String name) {

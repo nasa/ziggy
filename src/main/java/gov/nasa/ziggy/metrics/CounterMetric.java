@@ -70,18 +70,16 @@ public class CounterMetric extends Metric implements Serializable {
     }
 
     protected CounterMetric(CounterMetric otherMetric) {
-        super();
     }
 
     @Override
     public synchronized void merge(Metric other) {
-        if (other instanceof CounterMetric) {
-            CounterMetric otherCm = (CounterMetric) other;
-            count.addAndGet(otherCm.count.get());
-        } else {
+        if (!(other instanceof CounterMetric)) {
             throw new IllegalArgumentException(
                 "Specified Metric is not a CounterMetric, type=" + other.getClass().getName());
         }
+        CounterMetric otherCm = (CounterMetric) other;
+        count.addAndGet(otherCm.count.get());
     }
 
     @Override
@@ -144,8 +142,7 @@ public class CounterMetric extends Metric implements Serializable {
     public synchronized int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        result = prime * result + (count == null ? 0 : count.get());
-        return result;
+        return prime * result + (count == null ? 0 : count.get());
     }
 
     @Override

@@ -30,17 +30,17 @@ public class ConfigurationServiceFactoryTest {
     private static final int NUM_NONEXISTENT_PROPERTY_READERS = 4;
 
     @Rule
-    public ZiggyPropertyRule myBooleanPropertyRule = new ZiggyPropertyRule(
-        "my.boolean.property", (String) null);
+    public ZiggyPropertyRule myBooleanPropertyRule = new ZiggyPropertyRule("my.boolean.property",
+        (String) null);
     @Rule
-    public ZiggyPropertyRule myDoublePropertyRule = new ZiggyPropertyRule(
-        "my.double.property", (String) null);
+    public ZiggyPropertyRule myDoublePropertyRule = new ZiggyPropertyRule("my.double.property",
+        (String) null);
     @Rule
-    public ZiggyPropertyRule myIntPropertyRule = new ZiggyPropertyRule(
-        "my.int.property", (String) null);
+    public ZiggyPropertyRule myIntPropertyRule = new ZiggyPropertyRule("my.int.property",
+        (String) null);
     @Rule
-    public ZiggyPropertyRule myStringPropertyRule = new ZiggyPropertyRule(
-        "my.string.property", (String) null);
+    public ZiggyPropertyRule myStringPropertyRule = new ZiggyPropertyRule("my.string.property",
+        (String) null);
 
     @Before
     public void before() throws PipelineException {

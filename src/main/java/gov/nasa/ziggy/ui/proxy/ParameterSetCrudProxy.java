@@ -38,46 +38,38 @@ public class ParameterSetCrudProxy extends CrudProxy {
 
     public List<ParameterSet> retrieveAll() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<ParameterSet> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                ParameterSetCrud crud = new ParameterSetCrud();
-                List<ParameterSet> r = crud.retrieveAll();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            ParameterSetCrud crud = new ParameterSetCrud();
+            List<ParameterSet> r = crud.retrieveAll();
+            return r;
+        });
     }
 
     public List<ParameterSet> retrieveAllVersionsForName(final String name) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<ParameterSet> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                ParameterSetCrud crud = new ParameterSetCrud();
-                List<ParameterSet> r = crud.retrieveAllVersionsForName(name);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            ParameterSetCrud crud = new ParameterSetCrud();
+            List<ParameterSet> r = crud.retrieveAllVersionsForName(name);
+            return r;
+        });
     }
 
     public ParameterSet retrieveLatestVersionForName(final ParameterSetName name) {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        ParameterSet result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                ParameterSetCrud crud = new ParameterSetCrud();
-                ParameterSet r = crud.retrieveLatestVersionForName(name);
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            ParameterSetCrud crud = new ParameterSetCrud();
+            ParameterSet r = crud.retrieveLatestVersionForName(name);
+            return r;
+        });
     }
 
     public List<ParameterSet> retrieveLatestVersions() {
         verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        List<ParameterSet> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                ParameterSetCrud crud = new ParameterSetCrud();
-                List<ParameterSet> r = crud.retrieveLatestVersions();
-                return r;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            ParameterSetCrud crud = new ParameterSetCrud();
+            List<ParameterSet> r = crud.retrieveLatestVersions();
+            return r;
+        });
     }
 
     public void delete(final ParameterSet moduleParameterSet) {

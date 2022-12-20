@@ -56,9 +56,7 @@ public class DataAccountabilityReport {
         Map<Long, Set<Long>> consumerProducer = new HashMap<>();
 
         // As we expand new producers we needs to explore them as well.
-        SortedSet<Long> queue = new TreeSet<>();
-        queue.addAll(initialTaskIds);
-
+        SortedSet<Long> queue = new TreeSet<>(initialTaskIds);
         // We don't want to explore the same path again.
         Set<Long> visited = new HashSet<>();
 
@@ -134,9 +132,7 @@ public class DataAccountabilityReport {
 
         for (Long producer : producersWithInit) {
             Set<Long> parents = consumerProducer.get(producer);
-            if (parents == null) {
-                roots.add(producer);
-            } else if (parents.size() == 0) {
+            if ((parents == null) || (parents.size() == 0)) {
                 roots.add(producer);
             }
         }

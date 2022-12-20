@@ -103,7 +103,7 @@ public class ModelImporter {
         for (ModelType modelType : modelTypesToImport) {
             Map<String, String> filenamesForModelType = findFilenamesForModelType(filenames,
                 modelType);
-            importFileCount += filenamesForModelType.keySet().size();
+            importFileCount += filenamesForModelType.size();
             modelTypeFileNamesMap.put(modelType, filenamesForModelType);
         }
 

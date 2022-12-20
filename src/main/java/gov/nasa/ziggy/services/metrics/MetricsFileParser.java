@@ -54,7 +54,7 @@ public class MetricsFileParser {
             types();
         }
 
-        return new LineIterator<MetricValue>() {
+        return new LineIterator<>() {
             @Override
             protected MetricValue parseLine(String line) {
                 String[] parts = line.split(",");
@@ -64,9 +64,7 @@ public class MetricsFileParser {
                 float value = (float) Double.parseDouble(parts[metricTypeSwitch(typeStr,
                     VALUE_TYPE_VALUE_INDEX, COUNTER_TYPE_VALUE_INDEX)]);
                 MetricType metricType = metricNameToMetricType.get(name).metricType;
-                MetricValue metricValue = new MetricValue(metricSource, metricType, timestamp,
-                    value);
-                return metricValue;
+                return new MetricValue(metricSource, metricType, timestamp, value);
             }
         };
     }
@@ -112,7 +110,7 @@ public class MetricsFileParser {
     }
 
     private LineIterator<MetricMetadata> metricMetadataIterator() throws IOException {
-        return new LineIterator<MetricMetadata>() {
+        return new LineIterator<>() {
             @Override
             protected MetricMetadata parseLine(String line) {
                 String[] parts = line.split(",");
@@ -130,7 +128,8 @@ public class MetricsFileParser {
     private <T> T metricTypeSwitch(String metricTypeStr, T valueCase, T counterCase) {
         if (metricTypeStr.equals(ValueMetric.VALUE_TYPE)) {
             return valueCase;
-        } else if (metricTypeStr.equals(CounterMetric.COUNTER_TYPE)) {
+        }
+        if (metricTypeStr.equals(CounterMetric.COUNTER_TYPE)) {
             return counterCase;
         } else {
             throw new IllegalStateException(

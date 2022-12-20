@@ -60,7 +60,7 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
 
     @Override
     public List<Long> getChildPids(String name) throws IOException {
-        long currentPid = Long.valueOf(get("Pid"));
+        long currentPid = Long.parseLong(get("Pid"));
         List<String> commandOutput = commandOutput(PS_LIST_COMMAND);
         List<Long> childPids = new LinkedList<>();
 
@@ -76,7 +76,7 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
                 if (Long.valueOf(tokens[1]) == currentPid
                     && (name == null || tokens[2].endsWith(name))) {
                     // found a match
-                    long pid = Long.valueOf(tokens[0]);
+                    long pid = Long.parseLong(tokens[0]);
                     log.info("Found child process, pid=" + pid + ", name=" + tokens[2]);
                     childPids.add(pid);
                 }
@@ -88,7 +88,7 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
 
     @Override
     public long getParentPid() throws Exception {
-        return Long.valueOf(get("PPid"));
+        return Long.parseLong(get("PPid"));
     }
 
     @Override

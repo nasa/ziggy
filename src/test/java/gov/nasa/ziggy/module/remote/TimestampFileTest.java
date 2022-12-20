@@ -25,8 +25,6 @@ public class TimestampFileTest {
 
     @Test
     public void test() throws IOException {
-        File expectedFile = null;
-
         long timeMillis = System.currentTimeMillis();
         String expectedName = "QUEUED_PBS." + timeMillis;
 
@@ -37,7 +35,7 @@ public class TimestampFileTest {
 
         assertTrue("success", success);
 
-        expectedFile = directoryRule.directory().resolve(expectedName).toFile();
+        File expectedFile = directoryRule.directory().resolve(expectedName).toFile();
 
         assertTrue("expected file", expectedFile.exists());
 

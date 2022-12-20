@@ -59,9 +59,8 @@ public class ParameterSetSelectorDialog extends javax.swing.JDialog {
 
         if (!dialog.cancelled) {
             return dialog.parameterSetSelectorPanel.getSelected();
-        } else {
-            return null;
         }
+        return null;
     }
 
     /**
@@ -75,9 +74,8 @@ public class ParameterSetSelectorDialog extends javax.swing.JDialog {
 
         if (!dialog.cancelled) {
             return dialog.parameterSetSelectorPanel.getSelected();
-        } else {
-            return null;
         }
+        return null;
     }
 
     private void initGUI() {

@@ -58,7 +58,7 @@ public abstract class RemoteExecutor extends AlgorithmExecutor {
         pbsLogDirFile.mkdirs();
         String pbsLogDir = pbsLogDirFile.getCanonicalPath();
 
-        String[] scriptArgs = new String[] { jobSubmissionPaths.getWorkingDirPath(),
+        String[] scriptArgs = { jobSubmissionPaths.getWorkingDirPath(),
             jobSubmissionPaths.getHomeDirPath(), jobSubmissionPaths.getStateFilePath(),
             jobSubmissionPaths.getPipelineConfigPath() };
 

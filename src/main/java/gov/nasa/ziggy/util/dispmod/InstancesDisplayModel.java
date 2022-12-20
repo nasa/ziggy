@@ -52,9 +52,7 @@ public class InstancesDisplayModel extends DisplayModel {
             case 0:
                 return instance.getId();
             case 1:
-                String instanceName = instance.getPipelineDefinition().getName() + ": "
-                    + instance.getName();
-                return instanceName;
+                return instance.getPipelineDefinition().getName() + ": " + instance.getName();
             case 2:
                 return getStateString(instance.getState());
             case 3:

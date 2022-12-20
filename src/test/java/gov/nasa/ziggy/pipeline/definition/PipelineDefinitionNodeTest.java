@@ -88,7 +88,7 @@ public class PipelineDefinitionNodeTest {
             "<node startNewUow=\"true\" "
                 + "uowGenerator=\"gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator\" "
                 + "moduleName=\"module 1\" childNodeNames=\"module 2, module 3\">");
-        String[] xmlLines = new String[] { "<moduleParameter name=\"Convergence criteria\"/>",
+        String[] xmlLines = { "<moduleParameter name=\"Convergence criteria\"/>",
             "<moduleParameter name=\"Remote execution\"/>",
             "<inputDataFileType name=\"flight L0 data\"/>",
             "<outputDataFileType name=\"flight L1 data\"/>",
@@ -134,8 +134,7 @@ public class PipelineDefinitionNodeTest {
 
         nodeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineDefinitionNode\">");
-        String[] nodeStrings = new String[] {
-            "<xs:element name=\"moduleParameter\" type=\"parameterSetName\"/>",
+        String[] nodeStrings = { "<xs:element name=\"moduleParameter\" type=\"parameterSetName\"/>",
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>",
             "<xs:element name=\"outputDataFileType\" type=\"outputTypeReference\"/>",
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>",
@@ -220,8 +219,8 @@ public class PipelineDefinitionNodeTest {
     @XmlAccessorType(XmlAccessType.NONE)
     private static class Node extends PipelineDefinitionNode {
 
+        @SuppressWarnings("unused")
         public Node() {
-
         }
 
         public Node(ModuleName pipelineModuleDefinitionName, String pipelineDefinitionName) {

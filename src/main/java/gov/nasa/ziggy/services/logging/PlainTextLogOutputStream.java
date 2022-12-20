@@ -33,11 +33,9 @@ public class PlainTextLogOutputStream extends LogOutputStream {
     private String logStreamIdentifier;
 
     public PlainTextLogOutputStream() {
-        super();
     }
 
     public PlainTextLogOutputStream(String logStreamIdentifier) {
-        super();
         this.logStreamIdentifier = logStreamIdentifier;
     }
 

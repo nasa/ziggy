@@ -44,16 +44,15 @@ public class ConfigOps {
         String dirName = configuration.getString(propName);
         File dir = new File(dirName);
         if (!dir.exists()) {
-            if (makeDirIfNonexistent) {
-                try {
-                    Files.createDirectories(dir.toPath());
-                } catch (IOException e) {
-                    throw new PipelineException("Failed to create direcotry " + dirName
-                        + " specified in property " + propName + ".", e);
-                }
-            } else {
+            if (!makeDirIfNonexistent) {
                 throw new PipelineException("Directory  " + dirName
                     + " does not exist as specified in property " + propName + ".");
+            }
+            try {
+                Files.createDirectories(dir.toPath());
+            } catch (IOException e) {
+                throw new PipelineException("Failed to create direcotry " + dirName
+                    + " specified in property " + propName + ".", e);
             }
         }
         if (!dir.isDirectory()) {

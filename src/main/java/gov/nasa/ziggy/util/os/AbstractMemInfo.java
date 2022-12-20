@@ -79,7 +79,7 @@ public abstract class AbstractMemInfo extends AbstractSysInfo implements MemInfo
             String[] parts = value.split(" ");
             if (parts.length > 0) {
                 try {
-                    longValue = Long.valueOf(parts[0]);
+                    longValue = Long.parseLong(parts[0]);
                 } catch (NumberFormatException ignore) {
                 }
                 if (parts.length > 1) {

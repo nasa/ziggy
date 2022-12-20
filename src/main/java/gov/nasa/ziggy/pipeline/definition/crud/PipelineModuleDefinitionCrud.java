@@ -28,9 +28,7 @@ public class PipelineModuleDefinitionCrud extends AbstractCrud {
     }
 
     public List<PipelineModuleDefinition> retrieveAll() {
-        List<PipelineModuleDefinition> results = list(
-            createQuery("from PipelineModuleDefinition pmd order by pmd.name"));
-        return results;
+        return list(createQuery("from PipelineModuleDefinition pmd order by pmd.name"));
     }
 
     public List<PipelineModuleDefinition> retrieveAllVersionsForName(String name) {
@@ -48,9 +46,7 @@ public class PipelineModuleDefinitionCrud extends AbstractCrud {
             "from PipelineModuleDefinition p where p.name = :name order by version asc");
         q.setEntity("name", moduleName);
 
-        List<PipelineModuleDefinition> result = list(q);
-
-        return result;
+        return list(q);
     }
 
     public PipelineModuleDefinition retrieveLatestVersionForName(String name) {
@@ -64,9 +60,7 @@ public class PipelineModuleDefinitionCrud extends AbstractCrud {
             return null;
         }
 
-        PipelineModuleDefinition result = retrieveLatestVersionForName(moduleName);
-
-        return result;
+        return retrieveLatestVersionForName(moduleName);
     }
 
     public PipelineModuleDefinition retrieveLatestVersionForName(ModuleName name) {
@@ -75,9 +69,7 @@ public class PipelineModuleDefinitionCrud extends AbstractCrud {
         q.setEntity("name", name);
         q.setMaxResults(1);
 
-        PipelineModuleDefinition result = uniqueResult(q);
-
-        return result;
+        return uniqueResult(q);
     }
 
     public List<PipelineModuleDefinition> retrieveLatestVersions() {

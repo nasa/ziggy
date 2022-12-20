@@ -37,8 +37,7 @@ public class RegexBackslashManager {
 
         @Override
         public String unmarshal(String xmlString) throws Exception {
-            String javaString = toSingleBackslash(xmlString);
-            return javaString;
+            return toSingleBackslash(xmlString);
         }
 
         @Override

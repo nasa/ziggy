@@ -60,9 +60,8 @@ public class ParameterSetNewDialog extends javax.swing.JDialog {
 
         if (!dialog.cancelled) {
             return dialog.newParamSet;
-        } else {
-            return null;
         }
+        return null;
     }
 
     private void okButtonActionPerformed(ActionEvent evt) {

@@ -38,14 +38,8 @@ public class RegexFileFilter extends AbstractFileFilter {
             throw new IllegalArgumentException("expressions is empty");
         }
         this.directoryFilter = directoryFilter;
-        StringBuffer buffer = new StringBuffer();
-        for (String expression : expressions) {
-            if (buffer.length() > 0) {
-                buffer.append('|');
-            }
-            buffer.append(expression);
-        }
-        pattern = Pattern.compile(buffer.toString());
+        String buffer = String.join("|", expressions);
+        pattern = Pattern.compile(buffer);
     }
 
     @Override

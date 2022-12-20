@@ -112,7 +112,7 @@ public class NewTriggerDialog extends javax.swing.JDialog {
         if (createButton == null) {
             createButton = new JButton();
             createButton.setText("create");
-            createButton.addActionListener(evt -> createButtonActionPerformed(evt));
+            createButton.addActionListener(this::createButtonActionPerformed);
         }
         return createButton;
     }
@@ -121,7 +121,7 @@ public class NewTriggerDialog extends javax.swing.JDialog {
         if (cancelButton == null) {
             cancelButton = new JButton();
             cancelButton.setText("cancel");
-            cancelButton.addActionListener(evt -> cancelButtonActionPerformed(evt));
+            cancelButton.addActionListener(this::cancelButtonActionPerformed);
         }
         return cancelButton;
     }

@@ -30,7 +30,6 @@ public class MonitoringAlertsPanel extends javax.swing.JPanel {
     private AlertMessageTableModel alertMessageTableModel;
 
     public MonitoringAlertsPanel() {
-        super();
         initGUI();
 
     }

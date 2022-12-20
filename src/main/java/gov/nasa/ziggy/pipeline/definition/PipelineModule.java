@@ -128,8 +128,8 @@ public abstract class PipelineModule {
      *
      * @param pipelineTask
      */
-    public void updateMetrics(PipelineTask pipelineTask,
-        @SuppressWarnings("unused") Map<String, Metric> threadMetrics, long overallExecTimeMillis) {
+    public void updateMetrics(PipelineTask pipelineTask, Map<String, Metric> threadMetrics,
+        long overallExecTimeMillis) {
         List<PipelineTaskMetrics> taskMetrics = new ArrayList<>();
         PipelineTaskMetrics m = new PipelineTaskMetrics("All", overallExecTimeMillis, Units.TIME);
         taskMetrics.add(m);
@@ -146,8 +146,7 @@ public abstract class PipelineModule {
      */
 
     public final List<RunMode> supportedRestartModes() {
-        Set<RunMode> supportedRestartModes = new HashSet<>();
-        supportedRestartModes.addAll(defaultRestartModes());
+        Set<RunMode> supportedRestartModes = new HashSet<>(defaultRestartModes());
         List<RunMode> restartModes = restartModes();
         if (restartModes != null && !restartModes.isEmpty()) {
             supportedRestartModes.addAll(restartModes);
@@ -283,5 +282,4 @@ public abstract class PipelineModule {
         @Override
         public abstract String toString();
     }
-
 }

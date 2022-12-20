@@ -89,8 +89,9 @@ public class PipelineDefinitionOperationsTest {
 
         // Create a pipeline instance for this pipeline
         PipelineInstance pipelineInstance = (PipelineInstance) DatabaseTransactionFactory
-            .performTransaction(() -> new PipelineExecutor().launch(pipelineDef, "instance-name", null, null)
-                .getPipelineInstance());
+            .performTransaction(
+                () -> new PipelineExecutor().launch(pipelineDef, "instance-name", null, null)
+                    .getPipelineInstance());
 
         Map<ClassWrapper<Parameters>, ParameterSet> pipelineParameters = pipelineInstance
             .getPipelineParameterSets();

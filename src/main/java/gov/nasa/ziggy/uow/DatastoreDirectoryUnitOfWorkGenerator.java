@@ -33,10 +33,9 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
             Class<?> cls = Class.forName(clazz);
             if (DatastoreDirectoryUnitOfWorkGenerator.class.isAssignableFrom(cls)) {
                 return (Boolean) uow.getParameter(SINGLE_SUBTASK_PROPERTY_NAME).getValue();
-            } else {
-                throw new PipelineException(
-                    "Class " + clazz + " not a subclass of DatastoreDirectoryUnitOfWorkGenerator");
             }
+            throw new PipelineException(
+                "Class " + clazz + " not a subclass of DatastoreDirectoryUnitOfWorkGenerator");
         } catch (ClassNotFoundException e) {
             throw new PipelineException("Generator class " + clazz + " not found", e);
         }

@@ -34,7 +34,6 @@ public class ZiggyEventPanel extends JPanel {
     private EventTableModel tableModel;
 
     public ZiggyEventPanel() {
-        super();
         initGUI();
         getTableModel().loadFromDatabase();
     }
@@ -105,8 +104,8 @@ public class ZiggyEventPanel extends JPanel {
 
         private static final long serialVersionUID = 20220708L;
 
-        public static final String[] COLUMN_NAMES = new String[] { "ID", "Handler Name",
-            "Pipeline Name", "Date", "Instance ID" };
+        public static final String[] COLUMN_NAMES = { "ID", "Handler Name", "Pipeline Name", "Date",
+            "Instance ID" };
 
         List<ZiggyEvent> ziggyEvents = new ArrayList<>();
 

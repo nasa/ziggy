@@ -202,8 +202,7 @@ public class StringUtils {
             sb.append(" ");
             length++;
         }
-        String result = sb.toString();
-        return result;
+        return sb.toString();
     }
 
     /**
@@ -226,10 +225,8 @@ public class StringUtils {
             throw new IllegalArgumentException("len must be non-negative");
         }
         final int nbytes = buf.length - off;
-        if (off > buf.length - 1) {
-            if (off == buf.length && nbytes != 0) {
-                throw new IllegalArgumentException("Offset is larger than array.");
-            }
+        if ((off > buf.length - 1) && (off == buf.length && nbytes != 0)) {
+            throw new IllegalArgumentException("Offset is larger than array.");
         }
 
         if (len > nbytes) {

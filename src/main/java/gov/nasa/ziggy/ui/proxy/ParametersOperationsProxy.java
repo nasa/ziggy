@@ -26,14 +26,12 @@ public class ParametersOperationsProxy extends CrudProxy {
     public List<ParameterSetDescriptor> importParameterLibrary(final String sourcePath,
         final List<String> excludeList, final boolean dryRun) {
         verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        List<ParameterSetDescriptor> result = ZiggyGuiConsole.crudProxyExecutor
-            .executeSynchronousDatabaseTransaction(() -> {
-                ParametersOperations paramsOps = new ParametersOperations();
-                List<ParameterSetDescriptor> results = paramsOps.importParameterLibrary(sourcePath,
-                    excludeList, dryRun ? ParamIoMode.DRYRUN : ParamIoMode.STANDARD);
-                return results;
-            });
-        return result;
+        return ZiggyGuiConsole.crudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            ParametersOperations paramsOps = new ParametersOperations();
+            List<ParameterSetDescriptor> results = paramsOps.importParameterLibrary(sourcePath,
+                excludeList, dryRun ? ParamIoMode.DRYRUN : ParamIoMode.STANDARD);
+            return results;
+        });
     }
 
     public void exportParameterLibrary(final String destinationPath, final List<String> excludeList,

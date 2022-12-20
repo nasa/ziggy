@@ -57,9 +57,8 @@ public class ProcessingSummaryOperations {
      * Retrieve the current processing state from the database.
      */
     public ProcessingSummary processingSummary(long taskId) {
-        return (ProcessingSummary) performTransactionInThread(() -> {
-            return processingSummaryInternal(taskId);
-        });
+        return (ProcessingSummary) performTransactionInThread(
+            () -> processingSummaryInternal(taskId));
     }
 
     /**
@@ -79,9 +78,8 @@ public class ProcessingSummaryOperations {
     @SuppressWarnings("unchecked")
     public Map<Long, ProcessingSummary> processingSummaries(
         Collection<PipelineTask> pipelineTasks) {
-        return (Map<Long, ProcessingSummary>) performTransactionInThread(() -> {
-            return processingSummariesInternal(pipelineTasks);
-        });
+        return (Map<Long, ProcessingSummary>) performTransactionInThread(
+            () -> processingSummariesInternal(pipelineTasks));
     }
 
     /**

@@ -63,8 +63,7 @@ public class PipelineTaskCrud extends AbstractCrud {
     public PipelineTask retrieve(long id) {
         Query query = createQuery("from PipelineTask where id = :id");
         query.setLong("id", id);
-        PipelineTask task = uniqueResult(query);
-        return task;
+        return uniqueResult(query);
     }
 
     /**
@@ -79,9 +78,7 @@ public class PipelineTaskCrud extends AbstractCrud {
         q.setEntity("pipelineInstance", instance);
         q.setLockMode("pt", LockMode.READ); // bypass caches
 
-        List<PipelineTask> result = list(q);
-
-        return result;
+        return list(q);
     }
 
     /**
@@ -161,9 +158,7 @@ public class PipelineTaskCrud extends AbstractCrud {
         q.setEntity("pipelineInstanceNode", pipelineInstanceNode);
         q.setLockMode("pt", LockMode.READ); // bypass caches
 
-        List<PipelineTask> result = list(q);
-
-        return result;
+        return list(q);
     }
 
     /**
@@ -176,9 +171,7 @@ public class PipelineTaskCrud extends AbstractCrud {
         Query q = createQuery("select id from PipelineTask pt where pt.id in :id "
             + "and pt.pipelineInstanceNode.pipelineDefinitionNode = :pipelineDefinitionNode");
         q.setEntity("pipelineDefinitionNode", pipelineDefinitionNode);
-        List<Long> pipelineTaskIds = aggregateResults(taskIds,
-            chunk -> q.setParameterList("id", chunk));
-        return pipelineTaskIds;
+        return aggregateResults(taskIds, chunk -> q.setParameterList("id", chunk));
 
     }
 
@@ -198,9 +191,7 @@ public class PipelineTaskCrud extends AbstractCrud {
         q.setParameter("state", state);
         q.setLockMode("pt", LockMode.READ); // bypass caches
 
-        List<PipelineTask> result = list(q);
-
-        return result;
+        return list(q);
     }
 
     public List<Long> retrieveIdsForTasksInState(Collection<Long> taskIds,
@@ -245,9 +236,7 @@ public class PipelineTaskCrud extends AbstractCrud {
 
         q.setEntity("pipelineInstanceNode", node);
 
-        List<String> result = list(q);
-
-        return result;
+        return list(q);
     }
 
     /**
@@ -263,9 +252,7 @@ public class PipelineTaskCrud extends AbstractCrud {
 
         q.setEntity("pipelineInstance", instance);
 
-        List<String> result = list(q);
-
-        return result;
+        return list(q);
     }
 
     public class ClearStaleStateResults {
@@ -361,15 +348,14 @@ public class PipelineTaskCrud extends AbstractCrud {
                     + " group by PI_PIPELINE_INST_NODE_ID");
             select.setParameter("submittedState", PipelineTask.State.SUBMITTED.toString());
             select.setParameter("processingState", PipelineTask.State.PROCESSING.toString());
-            select.setParameter("instanceId", pipelineInstanceId);
         } else {
             select = createSQLQuery("select PI_PIPELINE_INST_NODE_ID,"
                 + " count(*) from PI_PIPELINE_TASK" + " where STATE = :submittedState"
                 + " and PI_PIPELINE_INSTANCE_ID = :instanceId"
                 + " group by PI_PIPELINE_INST_NODE_ID");
             select.setParameter("submittedState", PipelineTask.State.SUBMITTED.toString());
-            select.setParameter("instanceId", pipelineInstanceId);
         }
+        select.setParameter("instanceId", pipelineInstanceId);
 
         PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
 
@@ -455,9 +441,7 @@ public class PipelineTaskCrud extends AbstractCrud {
         Query query = createQuery("select count(id) from PipelineTask t "
             + "where t.pipelineInstance = :pipelineInstance");
         query.setParameter("pipelineInstance", pipelineInstance);
-        int count = ((Long) query.iterate().next()).intValue();
-
-        return count;
+        return ((Long) query.iterate().next()).intValue();
     }
 
     /**

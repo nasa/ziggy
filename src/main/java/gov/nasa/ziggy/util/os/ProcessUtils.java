@@ -65,7 +65,7 @@ public class ProcessUtils {
             if (!resultString.isEmpty()) {
                 String[] splitProcessIds = resultString.split(System.lineSeparator());
                 for (String processIdString : splitProcessIds) {
-                    long processId = Long.valueOf(processIdString);
+                    long processId = Long.parseLong(processIdString);
                     processIds.add(processId);
                     Set<Long> childProcessIds = descendantProcessIds(processId);
                     processIds.addAll(childProcessIds);

@@ -130,7 +130,7 @@ public class QstatMonitorTest {
             (String[]) null);
 
         // mock the return of the server names
-        String[] jobOrOwner = new String[] { "Job:", "Job_Owner" };
+        String[] jobOrOwner = { "Job:", "Job_Owner" };
         QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 1234567", jobOrOwner,
             "Job: 1234567.batch.example.com", "    Job_Owner = user@host1.example.com");
         QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 1234587 1234597", jobOrOwner,
@@ -218,7 +218,7 @@ public class QstatMonitorTest {
             (String[]) null);
 
         // mock the return of the server names
-        String[] jobOrOwner = new String[] { "Job:", "Job_Owner" };
+        String[] jobOrOwner = { "Job:", "Job_Owner" };
         QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 1234567 1234568", jobOrOwner,
             "Job: 1234567.batch.example.com", "    Job_Owner = user@host1.example.com",
             "Job: 1234568.batch.example.com", "    Job_Owner = user@host1.example.com");

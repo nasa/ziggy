@@ -105,8 +105,7 @@ public class Qsub {
         }
 
         log.info("Running PBS command: " + commandLine);
-        int retCode = runCommandLine(commandLine, QSUB_TIMEOUT_SECS);
-        return retCode;
+        return runCommandLine(commandLine, QSUB_TIMEOUT_SECS);
     }
 
     private String fullJobName(int jobIndex) {
@@ -144,9 +143,7 @@ public class Qsub {
         // log to stdout/stderr & Log4j.
         p.logStdErr(true);
 
-        int retCode;
-        retCode = p.run(true, timeoutSecs * 1000);
-        return retCode;
+        return p.run(true, timeoutSecs * 1000);
     }
 
     private void validate() {
@@ -162,14 +159,12 @@ public class Qsub {
         }
         if (cluster == null) {
             unsetParameters.add("cluster");
-        } else {
-            if (cluster.equals(SupportedRemoteClusters.AWS)) {
-                if (coresPerNode == null) {
-                    unsetParameters.add("coresPerNode");
-                }
-                if (gigsPerNode == null) {
-                    unsetParameters.add("gigsPerNode");
-                }
+        } else if (cluster.equals(SupportedRemoteClusters.AWS)) {
+            if (coresPerNode == null) {
+                unsetParameters.add("coresPerNode");
+            }
+            if (gigsPerNode == null) {
+                unsetParameters.add("gigsPerNode");
             }
         }
         if (model == null) {

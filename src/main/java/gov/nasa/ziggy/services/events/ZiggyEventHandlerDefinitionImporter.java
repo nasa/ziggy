@@ -63,9 +63,9 @@ public class ZiggyEventHandlerDefinitionImporter {
     private ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager;
     private File[] files;
 
-    public ZiggyEventHandlerDefinitionImporter(String[] filenames)
-			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
-			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+    public ZiggyEventHandlerDefinitionImporter(String[] filenames) throws InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
         files = new File[filenames.length];
         for (int i = 0; i < filenames.length; i++) {
             files[i] = new File(filenames[i]);
@@ -73,9 +73,9 @@ public class ZiggyEventHandlerDefinitionImporter {
         xmlManager = new ValidatingXmlManager<>(ZiggyEventHandlerFile.class);
     }
 
-    public ZiggyEventHandlerDefinitionImporter(File[] files)
-			throws InstantiationException, IllegalAccessException, SAXException, JAXBException,
-			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+    public ZiggyEventHandlerDefinitionImporter(File[] files) throws InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
         this.files = files;
         xmlManager = new ValidatingXmlManager<>(ZiggyEventHandlerFile.class);
     }
@@ -125,8 +125,9 @@ public class ZiggyEventHandlerDefinitionImporter {
         ZiggyEventHandlerDefinitionImporter importer = null;
         try {
             importer = new ZiggyEventHandlerDefinitionImporter(args);
-		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+            | SecurityException e) {
             throw new PipelineException("Unable to construct event handler importer ", e);
         }
         final ZiggyEventHandlerDefinitionImporter finalImporter = importer;

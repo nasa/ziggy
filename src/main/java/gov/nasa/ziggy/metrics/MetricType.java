@@ -78,10 +78,7 @@ public class MetricType implements Comparable<MetricType> {
 
     @Override
     public boolean equals(Object other) {
-        if (other == null) {
-            return false;
-        }
-        if (!(other instanceof MetricType)) {
+        if ((other == null) || !(other instanceof MetricType)) {
             return false;
         }
         MetricType otherMetricType = (MetricType) other;

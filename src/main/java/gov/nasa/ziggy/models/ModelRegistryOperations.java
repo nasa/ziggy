@@ -35,8 +35,9 @@ public class ModelRegistryOperations {
     public ModelRegistryOperations() {
         try {
             xmlManager = new ValidatingXmlManager<>(ModelRegistry.class);
-		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
+            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+            | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class ModelRegistry", e);
         }
@@ -54,9 +55,8 @@ public class ModelRegistryOperations {
 
         if (registry != null) {
             return report(registry);
-        } else {
-            return "No Model Registry found";
         }
+        return "No Model Registry found";
     }
 
     /**
@@ -71,9 +71,8 @@ public class ModelRegistryOperations {
 
         if (registry != null) {
             return report(registry);
-        } else {
-            return "No Model Registry found for this pipeline instance.";
         }
+        return "No Model Registry found for this pipeline instance.";
     }
 
     /**

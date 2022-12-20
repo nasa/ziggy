@@ -216,12 +216,10 @@ public class TypedParameter extends AbstractProperty {
     public void setValue(Object value) {
         if (value == null) {
             setString(null);
+        } else if (isScalar()) {
+            setString(value.toString());
         } else {
-            if (isScalar()) {
-                setString(value.toString());
-            } else {
-                setString(ZiggyArrayUtils.arrayToString(value));
-            }
+            setString(ZiggyArrayUtils.arrayToString(value));
         }
         super.setValue(stringValue);
     }
@@ -297,10 +295,9 @@ public class TypedParameter extends AbstractProperty {
     private static String typeString(String originalTypeString) {
         if (isScalar(originalTypeString)) {
             return originalTypeString;
-        } else {
-            return originalTypeString.substring(0,
-                originalTypeString.length() - ARRAY_TYPE_SUFFIX.length());
         }
+        return originalTypeString.substring(0,
+            originalTypeString.length() - ARRAY_TYPE_SUFFIX.length());
     }
 
     @Override
@@ -318,9 +315,8 @@ public class TypedParameter extends AbstractProperty {
         return "";
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
-    public Class getType() {
+    public Class<?> getType() {
         if (isScalar()) {
             return dataType.getJavaClass();
         }

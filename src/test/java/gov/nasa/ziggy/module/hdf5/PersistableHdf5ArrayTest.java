@@ -418,10 +418,9 @@ public class PersistableHdf5ArrayTest {
     @Test
     public void testPersistableScalarInterface() throws HDF5LibraryException, NullPointerException {
         String fieldName = "persistableScalarField";
-        long fieldGroupId = 0;
 
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // create an object of class PersistableTest1
         PersistableSample1 persistableTest1 = PersistableSample1.newInstance(4, 3, 5, 7, 9, 11, 13);
@@ -448,10 +447,9 @@ public class PersistableHdf5ArrayTest {
         // that are null
 
         Hdf5ModuleInterface.createGroupsForMissingFields = false;
-        long fieldGroupId = 0;
 
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // create an object of class PersistableTest2
         PersistableSample2 persistableTest2 = generatePersistableTest2Object();
@@ -489,10 +487,9 @@ public class PersistableHdf5ArrayTest {
     public void testWriteAndReadPersistableObjectArray()
         throws NullPointerException, HDF5Exception, NoSuchFieldException, SecurityException {
         String fieldName = "persistableArray2";
-        long fieldGroupId = 0;
 
         // create a parent group for the array
-        fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // create an object of class PersistableTest2
         PersistableSample2 persistableTest2 = generatePersistableTest2Object();
@@ -576,10 +573,10 @@ public class PersistableHdf5ArrayTest {
     public void testObjectWithPrimitiveArrays() {
 
         PersistableWithPrimitiveArrays p = new PersistableWithPrimitiveArrays();
-        int[] intArray = new int[] { 50, 49 };
-        String[] stringArray = new String[] { "Allons-y", "Geronimo" };
-        float[] floatArray = new float[] { 92.7F, 105.3F };
-        boolean[] booleanArray = new boolean[] { true, false };
+        int[] intArray = { 50, 49 };
+        String[] stringArray = { "Allons-y", "Geronimo" };
+        float[] floatArray = { 92.7F, 105.3F };
+        boolean[] booleanArray = { true, false };
         p.setBooleanArray(booleanArray);
         p.setFloatArray(floatArray);
         p.setIntArray(intArray);

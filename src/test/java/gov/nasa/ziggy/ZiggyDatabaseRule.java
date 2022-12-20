@@ -15,6 +15,7 @@ import org.junit.rules.TestRule;
 import gov.nasa.ziggy.services.database.DatabaseController;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+
 /**
  * Implements a {@link TestRule} for the set up and tear down of databases for use by unit tests. To
  * use, declare a field that refers to this rule as shown.

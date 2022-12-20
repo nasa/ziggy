@@ -372,7 +372,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
             selectParamSetButton.setText("select");
             selectParamSetButton
                 .setToolTipText("Select a different parameter set instance for this type");
-            selectParamSetButton.addActionListener(evt -> selectParamSetButtonActionPerformed(evt));
+            selectParamSetButton.addActionListener(this::selectParamSetButtonActionPerformed);
         }
         return selectParamSetButton;
     }
@@ -383,8 +383,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
             editParamValuesButton.setText("edit values");
             editParamValuesButton.setToolTipText(
                 "Shortcut to edit the values in this parameter set instance (same as editing the set in the Parameter Library)");
-            editParamValuesButton
-                .addActionListener(evt -> editParamValuesButtonActionPerformed(evt));
+            editParamValuesButton.addActionListener(this::editParamValuesButtonActionPerformed);
         }
         return editParamValuesButton;
     }
@@ -394,7 +393,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
             addButton = new JButton();
             addButton.setText("add");
             addButton.setToolTipText("Add a new parameter set");
-            addButton.addActionListener(evt -> addButtonActionPerformed(evt));
+            addButton.addActionListener(this::addButtonActionPerformed);
         }
         return addButton;
     }
@@ -454,7 +453,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
         if (selectMenuItem == null) {
             selectMenuItem = new JMenuItem();
             selectMenuItem.setText("Select Parameter Set...");
-            selectMenuItem.addActionListener(evt -> selectMenuItemActionPerformed(evt));
+            selectMenuItem.addActionListener(this::selectMenuItemActionPerformed);
         }
         return selectMenuItem;
     }
@@ -463,7 +462,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
         if (editMenuItem == null) {
             editMenuItem = new JMenuItem();
             editMenuItem.setText("Edit Parameter Values...");
-            editMenuItem.addActionListener(evt -> editMenuItemActionPerformed(evt));
+            editMenuItem.addActionListener(this::editMenuItemActionPerformed);
         }
         return editMenuItem;
     }
@@ -472,7 +471,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
         if (removeMenuItem == null) {
             removeMenuItem = new JMenuItem();
             removeMenuItem.setText("Remove Parameter Set");
-            removeMenuItem.addActionListener(evt -> removeMenuItemActionPerformed(evt));
+            removeMenuItem.addActionListener(this::removeMenuItemActionPerformed);
         }
         return removeMenuItem;
     }
@@ -483,7 +482,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
             autoAssignButton.setText("auto-assign");
             autoAssignButton.setToolTipText(
                 "Automatically assign a parameter set if there is only one available");
-            autoAssignButton.addActionListener(evt -> autoAssignButtonActionPerformed(evt));
+            autoAssignButton.addActionListener(this::autoAssignButtonActionPerformed);
         }
         return autoAssignButton;
     }

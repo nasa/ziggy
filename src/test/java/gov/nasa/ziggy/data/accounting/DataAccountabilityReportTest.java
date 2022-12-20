@@ -115,9 +115,7 @@ public class DataAccountabilityReportTest {
      */
     @Test
     public void pyramid() throws Exception {
-        Set<Long> init = new HashSet<>();
-        init.addAll(Arrays.asList(new Long[] { 3L, 2L, 1L, 0L }));
-
+        Set<Long> init = new HashSet<>(Arrays.asList(3L, 2L, 1L, 0L));
         consumerProducer = new HashMap<>();
         consumerProducer.put(3L, Collections.singleton(5L));
         consumerProducer.put(2L, Collections.singleton(5L));
@@ -149,9 +147,9 @@ public class DataAccountabilityReportTest {
         Set<Long> init = Collections.singleton(6L);
 
         consumerProducer = new HashMap<>();
-        consumerProducer.put(6L, Sets.newHashSet(new Long[] { 5L, 4L }));
-        consumerProducer.put(5L, Sets.newHashSet(new Long[] { 3L, 2L }));
-        consumerProducer.put(4L, Sets.newHashSet(new Long[] { 1L, 0L }));
+        consumerProducer.put(6L, Sets.newHashSet(5L, 4L));
+        consumerProducer.put(5L, Sets.newHashSet(3L, 2L));
+        consumerProducer.put(4L, Sets.newHashSet(1L, 0L));
 
         DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
             taskRenderer);
@@ -222,7 +220,7 @@ public class DataAccountabilityReportTest {
         Set<Long> init = Collections.singleton(3L);
 
         consumerProducer = new HashMap<>();
-        consumerProducer.put(3L, Sets.newHashSet(new Long[] { 2L, 4L }));
+        consumerProducer.put(3L, Sets.newHashSet(2L, 4L));
         consumerProducer.put(4L, Collections.singleton(2L));
         consumerProducer.put(2L, Collections.singleton(1L));
 

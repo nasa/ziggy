@@ -46,9 +46,8 @@ public class ParameterClassSelectorDialog extends javax.swing.JDialog {
 
         if (!dialog.cancelled) {
             return dialog.dataPanel.getSelectedElement();
-        } else {
-            return null;
         }
+        return null;
     }
 
     private void initGUI() {

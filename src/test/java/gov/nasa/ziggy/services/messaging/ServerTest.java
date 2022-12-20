@@ -57,8 +57,8 @@ public class ServerTest {
 
     public static void main(String[] args) throws IOException {
 
-        int port = Integer.valueOf(args[0]);
-        int expectedMessageCount = Integer.valueOf(args[1]);
+        int port = Integer.parseInt(args[0]);
+        int expectedMessageCount = Integer.parseInt(args[1]);
         String serverReadyDir = null;
         if (args.length > 2) {
             serverReadyDir = args[2];

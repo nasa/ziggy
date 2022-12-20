@@ -65,10 +65,8 @@ public class MetricsDumper implements Runnable {
         if (metricsFile.exists() && (reuseMode == RotateFile
             || reuseMode == ReuseFile && metricsFile.length() >= MAX_FILE_SIZE_BYTES)) {
             File oldFile = new File(metricsFile.getParent(), metricsFile.getName() + ".old");
-            if (oldFile.exists()) {
-                if (!oldFile.delete()) {
-                    throw new IOException("Failed to delete file \"" + oldFile + "\".");
-                }
+            if (oldFile.exists() && !oldFile.delete()) {
+                throw new IOException("Failed to delete file \"" + oldFile + "\".");
             }
             metricsFile.renameTo(oldFile);
         }

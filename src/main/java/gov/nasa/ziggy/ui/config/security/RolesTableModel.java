@@ -76,7 +76,7 @@ public class RolesTableModel extends AbstractDatabaseModel {
     }
 
     private String getPrivilegeList(Role role) {
-        StringBuffer privList = new StringBuffer();
+        StringBuilder privList = new StringBuilder();
         boolean first = true;
 
         for (String privilege : role.getPrivileges()) {

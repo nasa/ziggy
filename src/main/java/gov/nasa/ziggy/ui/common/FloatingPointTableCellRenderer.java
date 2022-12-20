@@ -13,7 +13,6 @@ public class FloatingPointTableCellRenderer extends DefaultTableCellRenderer {
     private NumberFormat formatter;
 
     public FloatingPointTableCellRenderer() {
-        super();
         setHorizontalAlignment(SwingConstants.RIGHT);
     }
 

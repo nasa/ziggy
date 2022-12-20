@@ -40,7 +40,6 @@ public abstract class AbstractViewEditPanel extends javax.swing.JPanel {
     protected int selectedModelRow = -1;
 
     public AbstractViewEditPanel() {
-        super();
     }
 
     protected abstract AbstractTableModel getTableModel() throws PipelineUIException;
@@ -245,7 +244,7 @@ public abstract class AbstractViewEditPanel extends javax.swing.JPanel {
         if (deleteMenuItem == null) {
             deleteMenuItem = new JMenuItem();
             deleteMenuItem.setText(getDeleteMenuText());
-            deleteMenuItem.addActionListener(evt -> deleteMenuItemActionPerformed(evt));
+            deleteMenuItem.addActionListener(this::deleteMenuItemActionPerformed);
         }
 
         log.debug("getDeleteMenuItem() - end");
@@ -258,7 +257,7 @@ public abstract class AbstractViewEditPanel extends javax.swing.JPanel {
         if (newMenuItem == null) {
             newMenuItem = new JMenuItem();
             newMenuItem.setText(getNewMenuText());
-            newMenuItem.addActionListener(evt -> newMenuItemActionPerformed(evt));
+            newMenuItem.addActionListener(this::newMenuItemActionPerformed);
         }
 
         log.debug("getNewMenuItem() - end");
@@ -282,7 +281,7 @@ public abstract class AbstractViewEditPanel extends javax.swing.JPanel {
         if (newButton == null) {
             newButton = new JButton();
             newButton.setText("new");
-            newButton.addActionListener(evt -> newButtonActionPerformed(evt));
+            newButton.addActionListener(this::newButtonActionPerformed);
         }
         return newButton;
     }
@@ -291,7 +290,7 @@ public abstract class AbstractViewEditPanel extends javax.swing.JPanel {
         if (refreshButton == null) {
             refreshButton = new JButton();
             refreshButton.setText("refresh");
-            refreshButton.addActionListener(evt -> refreshButtonActionPerformed(evt));
+            refreshButton.addActionListener(this::refreshButtonActionPerformed);
         }
         return refreshButton;
     }

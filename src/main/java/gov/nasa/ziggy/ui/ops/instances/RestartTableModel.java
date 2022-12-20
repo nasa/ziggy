@@ -110,21 +110,19 @@ public class RestartTableModel extends AbstractTableModel {
     public boolean isCellEditable(int rowIndex, int columnIndex) {
         if (columnIndex == 3) {
             return true;
-        } else {
-            return super.isCellEditable(rowIndex, columnIndex);
         }
+        return super.isCellEditable(rowIndex, columnIndex);
     }
 
     @Override
     public void setValueAt(Object value, int rowIndex, int columnIndex) {
         log.debug("setValueAt(r=" + rowIndex + ", c=" + columnIndex + ", value-=" + value + ")");
 
-        if (columnIndex == 3) {
-            RestartAttributes module = moduleList.get(rowIndex);
-            module.setSelectedRestartMode((RunMode) value);
-        } else {
+        if (columnIndex != 3) {
             throw new IllegalArgumentException("read-only columnIndex = " + columnIndex);
         }
+        RestartAttributes module = moduleList.get(rowIndex);
+        module.setSelectedRestartMode((RunMode) value);
     }
 
     public List<RestartAttributes> getModuleList() {
