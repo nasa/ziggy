@@ -94,7 +94,7 @@
         <setting id="cleanup.remove_unnecessary_nls_tags" value="true"/>
         <setting id="cleanup.remove_unused_imports" value="true"/>
         <setting id="cleanup.remove_unused_local_variables" value="true"/>
-        <setting id="cleanup.remove_unused_method_parameters" value="false"/>
+        <setting id="cleanup.remove_unused_method_parameters" value="true"/>
         <setting id="cleanup.remove_unused_private_fields" value="true"/>
         <setting id="cleanup.remove_unused_private_members" value="false"/>
         <setting id="cleanup.remove_unused_private_methods" value="true"/>
