@@ -36,9 +36,6 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -79,8 +76,6 @@ public class ComputeNodeMaster implements Runnable {
 
     private static final long SLEEP_INTERVAL_MILLIS = 10000;
 
-    private static SocketException socketException;
-
     private final String workingDir;
     private final String homeDir;
     private final String pipelineConfigPath;
@@ -92,10 +87,9 @@ public class ComputeNodeMaster implements Runnable {
     private final File taskDir;
     private final File stateFileLockFile;
     private String nodeName;
-    private String nodeFullName;
-    private int subtaskServerPort;
     private TaskMonitor monitor;
 
+    private SubtaskServer subtaskServer;
     private Semaphore subtaskMasters;
     private CountDownLatch monitoringLatch = new CountDownLatch(1);
     private ExecutorService threadPool;
@@ -167,7 +161,6 @@ public class ComputeNodeMaster implements Runnable {
         updateStateFile();
         startSubtaskServer();
         createTimestamps();
-        setNodeName();
 
         log.info("Starting " + coresPerNode + " subtask masters");
         startSubtaskMasters();
@@ -208,23 +201,14 @@ public class ComputeNodeMaster implements Runnable {
         }
     }
 
-    private void setNodeName() throws UnknownHostException {
-        nodeFullName = InetAddress.getLocalHost().getHostName();
-        log.info("Node full name: " + nodeFullName);
-        String[] nodeFullNameParts = nodeFullName.split("\\.");
-        nodeName = nodeFullNameParts[0];
-
-    }
-
     /**
      * Starts the {@link SubtaskServer}.
      *
      * @throws InterruptedException if the server is interrupted during initialization.
      */
     private void startSubtaskServer() throws InterruptedException {
-        SubtaskServer subtaskServer = new SubtaskServer(nodeFullName, getInputsHandler());
+        subtaskServer = new SubtaskServer(coresPerNode, getInputsHandler());
         subtaskServer.startSubtaskServer();
-        subtaskServerPort = subtaskServer.getServerPort();
     }
 
     private void createTimestamps() {
@@ -255,9 +239,9 @@ public class ComputeNodeMaster implements Runnable {
             .build();
         for (int i = 0; i < coresPerNode; i++) {
             subtaskMasters.acquire();
-            threadPool.submit(new SubtaskMaster(i, nodeName, nodeFullName, subtaskMasters,
-                stateFile.getModuleName(), workingDir, timeoutSecs, homeDir, pipelineConfigPath,
-                subtaskServerPort), threadFactory);
+            threadPool.submit(new SubtaskMaster(i, nodeName, subtaskMasters,
+                stateFile.getModuleName(), workingDir, timeoutSecs, homeDir, pipelineConfigPath),
+                threadFactory);
         }
     }
 
@@ -294,10 +278,10 @@ public class ComputeNodeMaster implements Runnable {
             return;
         }
 
-        // If one of the subtask masters detected that the subtask server has failed, then we
+        // If the subtask server has failed, then we
         // don't need to do any finalization, just exit and start the process of all subtask
         // master threads stopping.
-        if (hasSocketException()) {
+        if (!subtaskServer.isListenerRunning()) {
             log.error("ComputeNodeMaster: error exit");
             return;
         }
@@ -306,7 +290,7 @@ public class ComputeNodeMaster implements Runnable {
         boolean allSubtasksProcessed = monitor.allSubtasksProcessed();
         try {
             monitor.updateState();
-        } catch (PipelineException | IllegalStateException | IOException e) {
+        } catch (IOException e) {
             throw new PipelineException("Unable to update state file", e);
         }
 
@@ -343,10 +327,7 @@ public class ComputeNodeMaster implements Runnable {
      * If monitoring ended with successful completion of the job, create a timestamp for the
      * completion time in the task directory and mark the task's {@link StateFile} as done.
      *
-     * @throws InterruptedException if the sleep to allow the NFS client cache to update is
-     * interrupted.
      * @throws IOException if unable to mark the state file as done.
-     * @throws IllegalStateException if unable to mark the state file as done.
      */
     public void finish() throws InterruptedException, IOException {
 
@@ -357,22 +338,15 @@ public class ComputeNodeMaster implements Runnable {
         log.info("ComputeNodeMaster: Done");
     }
 
-    public static void setSocketException(SocketException socketException) {
-        ComputeNodeMaster.socketException = socketException;
-    }
-
-    public static boolean hasSocketException() {
-        return socketException != null;
-    }
-
     /**
      * Final cleanup from job execution. The {@link SubtaskMaster} thread pool is shut down and
-     * logging is terminated.
+     * logging is terminated; the {@link SubtaskServer} is shut down.
      */
     public void cleanup() {
         if (threadPool != null) {
             threadPool.shutdownNow();
         }
+        subtaskServer.shutdown();
         algorithmLog.endLogging();
     }
 
@@ -431,7 +405,7 @@ public class ComputeNodeMaster implements Runnable {
         // Wrap-up: finalize and clean up
         try {
             computeNodeMaster.finish();
-        } catch (InterruptedException | IllegalStateException | IOException e) {
+        } catch (InterruptedException | IOException e) {
             log.error("ComputeNodeMaster wrap-up failed", e);
             System.exit(1);
         } finally {

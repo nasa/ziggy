@@ -1,11 +1,7 @@
 package gov.nasa.ziggy.module;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
@@ -23,16 +19,16 @@ public class SubtaskServer implements Runnable {
 
     private static final int MAX_EXCEPTIONS = 100;
 
-    private final String host;
-    private ServerSocket serverSocket;
+    private static ArrayBlockingQueue<Request> requestQueue = new ArrayBlockingQueue<>(1);
+
     private SubtaskAllocator subtaskAllocator = null;
     private final CountDownLatch serverThreadReady = new CountDownLatch(1);
     private boolean shuttingDown = false;
-    private int serverPort;
     private TaskConfigurationManager inputsHandler;
+    private Thread listenerThread;
 
-    public SubtaskServer(String host, TaskConfigurationManager inputsHandler) {
-        this.host = host;
+    public SubtaskServer(int subtaskMasterCount, TaskConfigurationManager inputsHandler) {
+        requestQueue = new ArrayBlockingQueue<>(subtaskMasterCount);
         this.inputsHandler = inputsHandler;
         subtaskAllocator = new SubtaskAllocator(inputsHandler);
 
@@ -45,24 +41,13 @@ public class SubtaskServer implements Runnable {
     public void startSubtaskServer() throws InterruptedException {
         log.info("Starting SubtaskServer for inputs: " + inputsHandler);
 
-        Thread t = new Thread(this, "SubtaskServer-listener");
-        t.setDaemon(true);
-        t.start();
+        listenerThread = new Thread(this, "SubtaskServer-listener");
+        listenerThread.setDaemon(true);
+        listenerThread.start();
 
         serverThreadReady.await();
 
         log.info("SubtaskServer thread ready");
-    }
-
-    public int getServerPort() {
-        return serverPort;
-    }
-
-    public void shutdownServer() throws Exception {
-        shuttingDown = true;
-        if (serverSocket != null) {
-            serverSocket.close();
-        }
     }
 
     // request commands
@@ -75,6 +60,31 @@ public class SubtaskServer implements Runnable {
         OK, TRY_AGAIN, NO_MORE;
     }
 
+    /**
+     * Shuts down the listener thread. This is accomplished by interrupting the listener thread,
+     * which will cause the {@link ArrayBlockingQueue#take()} call in the listener to terminate with
+     * an {@link InterruptException}.
+     */
+    public void shutdown() {
+        shuttingDown = true;
+        listenerThread.interrupt();
+    }
+
+    public boolean isListenerRunning() {
+        return listenerThread != null && listenerThread.isAlive();
+    }
+
+    /**
+     * Adds a {@link Request} to the queue. The {@link SubtaskClient} that submits the request will
+     * block until the request is accepted into the queue.
+     *
+     * @param request
+     * @throws InterruptedException
+     */
+    public static void submitRequest(Request request) throws InterruptedException {
+        requestQueue.put(request);
+    }
+
     public static final class Request implements Serializable {
         private static final long serialVersionUID = -3336544526225919889L;
 
@@ -82,10 +92,12 @@ public class SubtaskServer implements Runnable {
 
         public RequestType type;
         public int subtaskIndex;
+        public SubtaskClient client;
 
-        public Request(RequestType type, int subTaskIndex) {
+        public Request(RequestType type, int subtaskIndex, SubtaskClient client) {
             this.type = type;
-            subtaskIndex = subTaskIndex;
+            this.subtaskIndex = subtaskIndex;
+            this.client = client;
         }
 
         @Override
@@ -133,34 +145,19 @@ public class SubtaskServer implements Runnable {
         }
     }
 
+    // Implements the request listener loop.
     @Override
     public void run() {
-        listen();
-    }
-
-    private void listen() {
         log.info("Initializing SubtaskServer server thread");
-
-        try {
-            serverSocket = new ServerSocket(0);
-            serverPort = serverSocket.getLocalPort();
-        } catch (IOException e) {
-            log.error("Cannot initialize, caught: " + e);
-            return;
-        }
-
         serverThreadReady.countDown();
 
-        log.info("Listening for connections on: " + host + ":" + serverPort);
         int exceptionCount = 0;
 
         while (true) {
-            try (Socket clientSocket = serverSocket.accept();
-                ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream())) {
-                log.debug("Accepted new connection: " + clientSocket.toString());
+            try {
 
-                Request request = (Request) in.readObject();
+                // Retrieve the next request, or block until one is provided.
+                Request request = requestQueue.take();
 
                 log.debug("listen[server,before]: request: " + request);
 
@@ -192,12 +189,25 @@ public class SubtaskServer implements Runnable {
 
                 log.debug("listen[server,after], response: " + response);
 
-                out.writeObject(response);
-            } catch (IOException | ClassNotFoundException e) {
+                // Send the response back to the client.
+                request.client.submitResponse(response);
+
+            } catch (InterruptedException e) {
+
+                // If the InterruptedException is because the server is getting shut down,
+                // We can simply return.
                 if (shuttingDown) {
                     log.info("Got shutdown signal, exiting server thread");
                     return;
                 }
+
+                // If, on the other hand, some other problem caused the exception, we can
+                // log it and add to the count. If enough exceptions occur, something more
+                // serious must be wrong and the server listener loop must exit. Note that
+                // we don't bother to throw an exception, since the exception will be in the
+                // listener thread which is going down anyway. Instead, the caller will
+                // use the isListenerRunning() method to see if the listener thread has
+                // failed.
                 exceptionCount++;
                 log.error("Caught e = " + e, e);
                 if (exceptionCount >= MAX_EXCEPTIONS) {

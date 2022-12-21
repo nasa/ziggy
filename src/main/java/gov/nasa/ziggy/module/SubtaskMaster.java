@@ -2,7 +2,6 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.SocketException;
 import java.util.concurrent.Semaphore;
 
 import org.apache.commons.exec.DefaultExecutor;
@@ -36,30 +35,25 @@ public class SubtaskMaster implements Runnable {
 
     int threadNumber = -1;
     private final String node;
-    private final String headNode;
     private final Semaphore complete;
     private final String binaryName;
     private final String taskDir;
     private final int timeoutSecs;
     private final String homeDir;
     private final String pipelineConfigPath;
-    private final int serverPort;
     private final String jobId;
     private final String jobName;
 
-    public SubtaskMaster(int threadNumber, String node, String headNode, Semaphore complete,
-        String binaryName, String taskDir, int timeoutSecs, String homeDir,
-        String pipelineConfigPath, int serverPort) {
+    public SubtaskMaster(int threadNumber, String node, Semaphore complete, String binaryName,
+        String taskDir, int timeoutSecs, String homeDir, String pipelineConfigPath) {
         this.threadNumber = threadNumber;
         this.node = node;
-        this.headNode = headNode;
         this.complete = complete;
         this.binaryName = binaryName;
         this.taskDir = taskDir;
         this.timeoutSecs = timeoutSecs;
         this.homeDir = homeDir;
         this.pipelineConfigPath = pipelineConfigPath;
-        this.serverPort = serverPort;
 
         String fullJobId = System.getenv("PBS_JOBID");
         if (fullJobId != null && !fullJobId.isEmpty()) {
@@ -82,27 +76,25 @@ public class SubtaskMaster implements Runnable {
         } catch (InterruptedException i) {
             log.error(
                 "Exiting SubtaskMaster on thread " + threadNumber + " due to thread interruption");
-        } catch (SocketException s) {
-            log.error(
-                "Exiting SubtaskMaster on thread " + threadNumber + " due to SocketException");
-            ComputeNodeMaster.setSocketException(s);
         } finally {
             complete.release();
         }
     }
 
     /**
-     * Generate external processes to execute subtask algorithms.
+     * Generate external processes to execute subtask algorithms. This method will block waiting for
+     * the {@link SubtaskClient} to receive a reply to its request for the next subtask for
+     * processing.
      *
      * @throws InterruptedException if the thread is interrupted.
      */
-    private void processSubtasks() throws InterruptedException, SocketException {
+    private void processSubtasks() throws InterruptedException {
 
         SubtaskClient subtaskClient = null;
         SubtaskServer.Response response = null;
         while (true) {
             try {
-                subtaskClient = new SubtaskClient(headNode, serverPort);
+                subtaskClient = new SubtaskClient();
 
                 response = subtaskClient.nextSubtask();
 
@@ -117,6 +109,12 @@ public class SubtaskMaster implements Runnable {
                     subtaskIndex);
                 File lockFile = new File(subtaskDir, TaskConfigurationManager.LOCK_FILE_NAME);
                 if (LockManager.getWriteLockWithoutBlocking(lockFile)) {
+
+                    // Note: The SubtaskMaster must not exit due to an exception caused
+                    // during algorithm execution, since the SubtaskMaster instances persist
+                    // for the duration of their parent ComputeNodeMaster. Hence we use
+                    // a literal catch-all block that catches all Exceptions, writes an
+                    // error message, and moves on to try and process the next subtask.
                     try {
                         SubtaskUtils.putLogStreamIdentifier(subtaskDir);
                         if (!checkSubtaskState(subtaskDir)) {
@@ -130,21 +128,15 @@ public class SubtaskMaster implements Runnable {
                         LockManager.releaseWriteLock(lockFile);
                     }
                 } else {
-                    subtaskClient.reportSubTaskLocked(subtaskIndex);
+                    subtaskClient.reportSubtaskLocked(subtaskIndex);
                 }
 
-            } catch (ModuleFatalProcessingException | IOException | ClassNotFoundException e) {
+            } catch (IOException e) {
 
-                // If one of the above-named exceptions has occurred, it's possible that
+                // If an IOException has occurred, it's possible that
                 // only the current subtask has failed and that other subtasks can still be
                 // processed, so don't halt the search for new subtasks.
                 log.error("Failed to process subtask " + response + ", caught:", e);
-
-                // If on the other hand it's a SocketException (subclass of IOException),
-                // it needs to be rethrown so that the caller can handle it.
-                if (e instanceof SocketException) {
-                    throw (SocketException) e;
-                }
 
             }
         }
@@ -200,13 +192,10 @@ public class SubtaskMaster implements Runnable {
     /**
      * Executes the processing algorithm on the current subtask via an external process.
      *
-     * @throws InterruptedException if {@link RemoteJobMaster} has interrupted all subtask
-     * processing threads.
      * @throws IOException if an IO error occurs during the external process.
-     * @throws ModuleFatalProcessingException if the external process returns nonzero status.
      */
     private void executeSubtask(File subtaskDir, int threadNumber, int subtaskIndex)
-        throws ModuleFatalProcessingException, IOException {
+        throws IOException {
 
         int retCode = 0;
 

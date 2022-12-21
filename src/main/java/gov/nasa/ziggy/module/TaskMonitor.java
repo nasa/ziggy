@@ -100,7 +100,7 @@ public class TaskMonitor {
      * file is updated. The state file should be marked COMPLETE with the markStateFileDone()
      * method.
      */
-    public void updateState() throws IOException, PipelineException {
+    public void updateState() throws IOException {
         try {
             LockManager.getWriteLockOrBlock(lockFile);
             StateFile previousStateFile = StateFile
@@ -127,7 +127,7 @@ public class TaskMonitor {
      * Move the {@link StateFile} into the completed state if all subtasks are complete, or into the
      * failed state if some subtasks failed or were never processed.
      */
-    public void markStateFileDone() throws IOException, PipelineException {
+    public void markStateFileDone() throws IOException {
 
         try {
             LockManager.getWriteLockOrBlock(lockFile);

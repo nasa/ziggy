@@ -277,94 +277,88 @@ public class SubtaskExecutor {
     }
 
     /**
+     * @throws IOException
      * @throws PipelineException when an exception occurs during Java-side execution (not when the
      * algorithm errors or generation of inputs or results errors).
      */
-    public int execAlgorithmInternal(int sequenceNum) throws PipelineException {
+    public int execAlgorithmInternal(int sequenceNum) throws IOException {
+        List<String> commandLineArgs = new LinkedList<>();
+        String exePath = workingDir.getCanonicalPath();
+        commandLineArgs.add(exePath);
+        commandLineArgs.add("" + sequenceNum);
+
+        AlgorithmStateFiles stateFile = new AlgorithmStateFiles(workingDir);
+        stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.PROCESSING);
+
+        boolean inputsProcessingSucceeded = false;
+        boolean algorithmProcessingSucceeded = false;
+
+        int retCode = -1;
+        IntervalMetricKey key = IntervalMetric.start();
         try {
-            List<String> commandLineArgs = new LinkedList<>();
-            String exePath = workingDir.getCanonicalPath();
-            commandLineArgs.add(exePath);
-            commandLineArgs.add("" + sequenceNum);
-
-            AlgorithmStateFiles stateFile = new AlgorithmStateFiles(workingDir);
-            stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.PROCESSING);
-
-            boolean inputsProcessingSucceeded = false;
-            boolean algorithmProcessingSucceeded = false;
-
-            int retCode = -1;
-            IntervalMetricKey key = IntervalMetric.start();
-            try {
-                key = IntervalMetric.start();
-                TaskConfigurationManager taskConfigurationManager = taskConfigurationManager();
-                Class<? extends PipelineInputs> inputsClass = taskConfigurationManager
-                    .getInputsClass();
-                retCode = runInputsOutputsCommand(inputsClass);
-                if (retCode == 0) {
-                    inputsProcessingSucceeded = true;
-                    retCode = runCommandline(commandLineArgs, binaryName, "" + sequenceNum);
-                }
-                if (retCode == 0) {
-                    algorithmProcessingSucceeded = true;
-                    Class<? extends PipelineOutputs> outputsClass = taskConfigurationManager
-                        .getOutputsClass();
-                    retCode = runInputsOutputsCommand(outputsClass);
-                }
-            } finally {
-                IntervalMetric.stop(MATLAB_PROCESS_EXEC_METRIC, key);
+            key = IntervalMetric.start();
+            TaskConfigurationManager taskConfigurationManager = taskConfigurationManager();
+            Class<? extends PipelineInputs> inputsClass = taskConfigurationManager.getInputsClass();
+            retCode = runInputsOutputsCommand(inputsClass);
+            if (retCode == 0) {
+                inputsProcessingSucceeded = true;
+                retCode = runCommandline(commandLineArgs, binaryName, "" + sequenceNum);
             }
-
-            File errorFile = ModuleInterfaceUtils.errorFile(workingDir, binaryName, sequenceNum);
-
-            // If the state file for the task is in the DELETED state, then the subtask should
-            // not be put into the COMPLETED or FAILED states, but rather should be left in
-            // PROCESSING. This preserves the symmetry with the way that remote execution subtasks
-            // are left in the PROCESSING state when their parent jobs get deleted from PBS.
-            StateFile taskStateFile = StateFile.of(workingDir.toPath().getParent());
-            taskStateFile = StateFile.newStateFileFromDiskFile(
-                DirectoryProperties.stateFilesDir().resolve(taskStateFile.name()).toFile(), true);
-            if (taskStateFile.getState().equals(StateFile.State.DELETED)) {
-                log.error("Task deleted, ending execution of sub-task");
-                return 0;
+            if (retCode == 0) {
+                algorithmProcessingSucceeded = true;
+                Class<? extends PipelineOutputs> outputsClass = taskConfigurationManager
+                    .getOutputsClass();
+                retCode = runInputsOutputsCommand(outputsClass);
             }
-
-            if (retCode == 0 && !errorFile.exists()) {
-                stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.COMPLETE);
-            } else {
-                /*
-                 * Don't handle an error in processing at this point in execution. Instead, allow
-                 * the caller to respond to the return code and let an exception be thrown at a
-                 * higher level, after some error-management tasks have been completed.
-                 */
-
-                stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.FAILED);
-                if (retCode != 0) {
-                    if (!inputsProcessingSucceeded) {
-                        log.error("failed to generate sub-task inputs, retCode = " + retCode);
-                    } else if (algorithmProcessingSucceeded) {
-                        log.error("failed to generate task results, retCode = " + retCode);
-                    }
-                } else {
-                    log.info("Algorithm process completed, retCode=" + retCode);
-                }
-            }
-
-            return retCode;
-        } catch (Exception e) {
-            throw new PipelineException(e);
+        } finally {
+            IntervalMetric.stop(MATLAB_PROCESS_EXEC_METRIC, key);
         }
+
+        File errorFile = ModuleInterfaceUtils.errorFile(workingDir, binaryName, sequenceNum);
+
+        // If the state file for the task is in the DELETED state, then the subtask should
+        // not be put into the COMPLETED or FAILED states, but rather should be left in
+        // PROCESSING. This preserves the symmetry with the way that remote execution subtasks
+        // are left in the PROCESSING state when their parent jobs get deleted from PBS.
+        StateFile taskStateFile = StateFile.of(workingDir.toPath().getParent());
+        taskStateFile = StateFile.newStateFileFromDiskFile(
+            DirectoryProperties.stateFilesDir().resolve(taskStateFile.name()).toFile(), true);
+        if (taskStateFile.getState().equals(StateFile.State.DELETED)) {
+            log.error("Task deleted, ending execution of sub-task");
+            return 0;
+        }
+
+        if (retCode == 0 && !errorFile.exists()) {
+            stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.COMPLETE);
+        } else {
+            /*
+             * Don't handle an error in processing at this point in execution. Instead, allow the
+             * caller to respond to the return code and let an exception be thrown at a higher
+             * level, after some error-management tasks have been completed.
+             */
+
+            stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.FAILED);
+            if (retCode != 0) {
+                if (!inputsProcessingSucceeded) {
+                    log.error("failed to generate sub-task inputs, retCode = " + retCode);
+                } else if (algorithmProcessingSucceeded) {
+                    log.error("failed to generate task results, retCode = " + retCode);
+                }
+            } else {
+                log.info("Algorithm process completed, retCode=" + retCode);
+            }
+        }
+
+        return retCode;
     }
 
     /**
      * Run an arbitrary process with caller-specified arguments. No {@link AlgorithmStateFiles} is
      * created and a default logSuffix of "0" is used.
      *
-     * @param commandLineArgs
-     * @return
-     * @throws Exception
+     * @throws IOException
      */
-    public int execSimple(List<String> commandLineArgs) throws Exception {
+    public int execSimple(List<String> commandLineArgs) throws IOException {
         int retCode = runCommandline(commandLineArgs, binaryName + "-", "0");
         log.info("execSimple: retCode = " + retCode);
 
@@ -426,7 +420,7 @@ public class SubtaskExecutor {
     }
 
     int runCommandline(List<String> commandline, String logPrefix, String logSuffix)
-        throws Exception {
+        throws IOException {
         try (
             FileWriter stdOutWriter = new FileWriter(
                 new File(workingDir, ModuleInterfaceUtils.stdoutFileName(logPrefix, logSuffix)));
