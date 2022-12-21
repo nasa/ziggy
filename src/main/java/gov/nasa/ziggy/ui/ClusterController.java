@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 United States Government as represented by the Administrator of the National
+ * Copyright © 2022 United States Government as represented by the Administrator of the National
  * Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
