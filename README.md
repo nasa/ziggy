@@ -64,7 +64,7 @@ Ziggy is still maintained by members of the Kepler and TESS team who are based a
 
 Copyright © 2022 United States Government as represented by the Administrator of the National Aeronautics and Space Administration. All Rights Reserved.
 
-NASA acknowledges the SETI Institute’s primary role in authoring and producing Ziggy, a Pipeline Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A, 80NSSC18M0068 & 80NSSC21M0079.
+NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A, 80NSSC18M0068 & 80NSSC21M0079.
 
 This file is available under the terms of the NASA Open Source Agreement (NOSA). You should have received a copy of this agreement with the Ziggy source code; see the file [LICENSE.pdf](LICENSE.pdf).
 
