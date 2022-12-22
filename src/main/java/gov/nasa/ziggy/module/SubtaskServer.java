@@ -17,11 +17,9 @@ import org.slf4j.LoggerFactory;
 public class SubtaskServer implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(SubtaskServer.class);
 
-    private static final int MAX_EXCEPTIONS = 100;
-
     private static ArrayBlockingQueue<Request> requestQueue = new ArrayBlockingQueue<>(1);
 
-    private SubtaskAllocator subtaskAllocator = null;
+    private SubtaskAllocator subtaskAllocator;
     private final CountDownLatch serverThreadReady = new CountDownLatch(1);
     private boolean shuttingDown = false;
     private TaskConfigurationManager inputsHandler;
@@ -30,11 +28,6 @@ public class SubtaskServer implements Runnable {
     public SubtaskServer(int subtaskMasterCount, TaskConfigurationManager inputsHandler) {
         requestQueue = new ArrayBlockingQueue<>(subtaskMasterCount);
         this.inputsHandler = inputsHandler;
-        subtaskAllocator = new SubtaskAllocator(inputsHandler);
-
-        if (subtaskAllocator.isEmpty()) {
-            throw new PipelineException("InputsHandler contains no elements!");
-        }
 
     }
 
@@ -151,8 +144,6 @@ public class SubtaskServer implements Runnable {
         log.info("Initializing SubtaskServer server thread");
         serverThreadReady.countDown();
 
-        int exceptionCount = 0;
-
         while (true) {
             try {
 
@@ -166,7 +157,7 @@ public class SubtaskServer implements Runnable {
                 RequestType type = request.type;
 
                 if (type == RequestType.GET_NEXT) {
-                    SubtaskAllocation nextSubtask = subtaskAllocator.nextSubtask();
+                    SubtaskAllocation nextSubtask = subtaskAllocator().nextSubtask();
 
                     log.debug("Allocated: " + nextSubtask);
 
@@ -175,13 +166,13 @@ public class SubtaskServer implements Runnable {
 
                     response = new Response(status, subtaskIndex);
                 } else if (type == RequestType.REPORT_DONE) {
-                    subtaskAllocator.markSubtaskComplete(request.subtaskIndex);
+                    subtaskAllocator().markSubtaskComplete(request.subtaskIndex);
                     response = new Response(ResponseType.OK);
                 } else if (type == RequestType.NOOP) {
                     log.debug("Got a NO-OP");
                     response = new Response(ResponseType.OK);
                 } else if (type == RequestType.REPORT_LOCKED) {
-                    subtaskAllocator.markSubtaskLocked(request.subtaskIndex);
+                    subtaskAllocator().markSubtaskLocked(request.subtaskIndex);
                     response = new Response(ResponseType.OK);
                 } else {
                     log.error("Unknown command: " + type);
@@ -194,28 +185,37 @@ public class SubtaskServer implements Runnable {
 
             } catch (InterruptedException e) {
 
-                // If the InterruptedException is because the server is getting shut down,
-                // We can simply return.
                 if (shuttingDown) {
                     log.info("Got shutdown signal, exiting server thread");
-                    return;
+                } else {
+                    log.error("SubtaskServer interrupted, exiting");
                 }
-
-                // If, on the other hand, some other problem caused the exception, we can
-                // log it and add to the count. If enough exceptions occur, something more
-                // serious must be wrong and the server listener loop must exit. Note that
-                // we don't bother to throw an exception, since the exception will be in the
-                // listener thread which is going down anyway. Instead, the caller will
-                // use the isListenerRunning() method to see if the listener thread has
-                // failed.
-                exceptionCount++;
-                log.error("Caught e = " + e, e);
-                if (exceptionCount >= MAX_EXCEPTIONS) {
-                    log.error("Max SubtaskServer exceptions " + MAX_EXCEPTIONS
-                        + " exceeded, server exiting");
-                    break;
-                }
+                return;
             }
         }
+    }
+
+    // For testing only.
+    static ArrayBlockingQueue<Request> getRequestQueue() {
+        return requestQueue;
+    }
+
+    // For testing only.
+    Thread getListenerThread() {
+        return listenerThread;
+    }
+
+    /**
+     * Returns a {@link SubtaskAllocator} for the server. Package scope so that the allocator can be
+     * replaced with a mocked instance.
+     */
+    SubtaskAllocator subtaskAllocator() {
+        if (subtaskAllocator == null) {
+            subtaskAllocator = new SubtaskAllocator(inputsHandler);
+            if (subtaskAllocator.isEmpty()) {
+                throw new PipelineException("InputsHandler contains no elements!");
+            }
+        }
+        return subtaskAllocator;
     }
 }

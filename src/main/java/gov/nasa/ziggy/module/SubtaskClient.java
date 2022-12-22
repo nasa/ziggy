@@ -44,7 +44,7 @@ public class SubtaskClient {
      * @throws InterruptedException if the thread was interrupted because a different thread was
      * unable to reach the subtask server.
      */
-    public Response reportSubTaskComplete(int subTaskIndex) throws InterruptedException {
+    public Response reportSubtaskComplete(int subTaskIndex) throws InterruptedException {
         return request(RequestType.REPORT_DONE, subTaskIndex);
     }
 

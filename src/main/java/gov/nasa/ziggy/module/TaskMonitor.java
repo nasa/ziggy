@@ -103,7 +103,7 @@ public class TaskMonitor {
     public void updateState() throws IOException {
         try {
             LockManager.getWriteLockOrBlock(lockFile);
-            StateFile previousStateFile = StateFile
+            StateFile diskStateFile = StateFile
                 .newStateFileFromDiskFile(new File(stateFileDir, stateFile.name()), true, true);
 
             if (subtaskDirectories.isEmpty()) {
@@ -113,10 +113,11 @@ public class TaskMonitor {
             SubtaskStateCounts stateCounts = countSubtaskStates();
             stateFile.setNumComplete(stateCounts.getCompletedSubtasks());
             stateFile.setNumFailed(stateCounts.getFailedSubtasks());
-            if (previousStateFile.getState().equals(StateFile.State.DELETED)) {
+            stateFile.setState(diskStateFile.getState());
+            if (diskStateFile.getState().equals(StateFile.State.DELETED)) {
                 stateFile.setState(StateFile.State.DELETED);
             }
-            updateStateFile(previousStateFile);
+            updateStateFile(diskStateFile);
         } finally {
             LockManager.releaseWriteLock(lockFile);
         }
@@ -161,5 +162,9 @@ public class TaskMonitor {
                 log.error("Failed to update state file: " + previousStateFile);
             }
         }
+    }
+
+    public StateFile getStateFile() {
+        return stateFile;
     }
 }

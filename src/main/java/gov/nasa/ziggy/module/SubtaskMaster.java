@@ -119,7 +119,7 @@ public class SubtaskMaster implements Runnable {
                         SubtaskUtils.putLogStreamIdentifier(subtaskDir);
                         if (!checkSubtaskState(subtaskDir)) {
                             executeSubtask(subtaskDir, threadNumber, subtaskIndex);
-                            subtaskClient.reportSubTaskComplete(subtaskIndex);
+                            subtaskClient.reportSubtaskComplete(subtaskIndex);
                         }
                     } catch (Exception e) {
                         log.error("Error occurred during subtask processing ", e);
