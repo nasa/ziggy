@@ -266,12 +266,6 @@ public class DataReceiptPipelineModuleTest {
         assertEquals(DataReceiptStatus.VALID, dbManifest.getStatus());
         assertEquals("data-importer-manifest.xml", dbManifest.getName());
         assertNotNull(dbManifest.getImportTime());
-
-        // Remove the subdirectories and the leftover file in the main DR directory
-        FileUtils.deleteDirectory(dataImporterSubdirPath.toFile());
-        FileUtils.deleteDirectory(modelImporterSubdirPath.toFile());
-        Files.delete(dataImporterPath.resolve("pdc-1-1-20-results.h5"));
-
     }
 
     @Test
@@ -608,11 +602,6 @@ public class DataReceiptPipelineModuleTest {
         DataReceiptPipelineModule module = new DataReceiptModuleForTest(pipelineTask,
             RunMode.STANDARD);
         module.processTask();
-
-        // delete the subdirs but not the PDC file from the main DR directory
-        FileUtils.deleteDirectory(dataImporterSubdirPath.toFile());
-        FileUtils.deleteDirectory(modelImporterSubdirPath.toFile());
-
     }
 
     @Test
