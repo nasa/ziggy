@@ -51,7 +51,7 @@ dependencies {
 
     // Libraries built in buildSrc.
     implementation ':jarhdf5:1.12.+'
-    implementation ':wrapper:3.5.26'
+    implementation ':wrapper:'
 
     // Needed to compile unit tests.
     implementation 'junit:junit:4.13.+'
