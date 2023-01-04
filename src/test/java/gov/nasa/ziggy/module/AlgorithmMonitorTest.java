@@ -12,7 +12,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -177,8 +176,7 @@ public class AlgorithmMonitorTest {
         stateFile.setNumFailed(5);
         stateFile.persist();
         Mockito.when(jobMonitor.isFinished(ArgumentMatchers.any(StateFile.class))).thenReturn(true);
-
-        iterateAlgorithmMonitorRunMethod(3);
+        Thread.sleep(210L);
 
         // No state file remains in the monitoring system.
         assertNull(monitor.getStateFile(stateFile));

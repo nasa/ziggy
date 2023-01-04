@@ -219,11 +219,6 @@ public class Manifest implements HasXmlSchemaFilename {
     /**
      * Writes the manifest to the specified directory. The manifest name must be set to a valid
      * value; if not, a {@link PipelineException} will occur.
-     *
-     * @throws SecurityException
-     * @throws NoSuchMethodException
-     * @throws InvocationTargetException
-     * @throws IllegalArgumentException
      */
     public void write(Path directory) throws InstantiationException, IllegalAccessException,
         SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
@@ -264,11 +259,6 @@ public class Manifest implements HasXmlSchemaFilename {
      * argument is the desired filename (including path, if not in the working directory). Second
      * argument is the dataset ID. Third argument is the path to go to for the files that get
      * manifested; if this is left out, the working directory will be used.
-     *
-     * @throws SecurityException
-     * @throws NoSuchMethodException
-     * @throws InvocationTargetException
-     * @throws IllegalArgumentException
      */
     public static void main(String[] args) throws IOException, InstantiationException,
         IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,

@@ -3,6 +3,10 @@ package gov.nasa.ziggy.ui.common;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.services.messaging.MessageHandler;
 import gov.nasa.ziggy.services.messaging.UiCommunicator;
 import gov.nasa.ziggy.ui.ClusterController;
@@ -43,6 +47,8 @@ public class ProcessHeartbeatManager {
     static final String RMI_AMBER_MESSAGE = "Attempting to establish communication with worker";
     static final String WORKER_RED_MESSAGE = "Worker process has failed";
     static final String DATABASE_RED_MESSAGE = "Database process has failed";
+
+    private static final Logger log = LoggerFactory.getLogger(DataReceiptPipelineModule.class);
 
     private MessageHandler messageHandler;
     private long heartbeatIntervalMillis;
@@ -133,7 +139,7 @@ public class ProcessHeartbeatManager {
             try {
                 checkForHeartbeat();
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Exception occurred attempting to start heartbeat listener", e);
                 // NB: I'm pretty certain this block could never be executed because if there's
                 // a NoHeartbeatException thrown in checkForHeartbeat(), this thread will
                 // immediately be shut down.

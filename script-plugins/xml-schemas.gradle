@@ -1,5 +1,5 @@
 // Generate XML schemas.
-task generateXmlSchemas(type: JavaExec, dependsOn: [compileJava, copyLibs, copyHdf5Libs, jar]) {
+task generateXmlSchemas(type: JavaExec, dependsOn: [jar, copyLibs, copyHdf5Libs]) {
     outputs.dir "$projectDir/build/schema/xml"
 
     mainClass.set("gov.nasa.ziggy.pipeline.xml.XmlSchemaExporter")

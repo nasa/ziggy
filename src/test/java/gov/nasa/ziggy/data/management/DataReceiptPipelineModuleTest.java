@@ -31,7 +31,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
@@ -62,6 +61,7 @@ import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Unit tests for the {@link DataReceiptPipelineModule} class.
@@ -192,10 +192,9 @@ public class DataReceiptPipelineModuleTest {
     }
 
     @Test
-    public void testImportFromDataReceiptDir()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    public void testImportFromDataReceiptDir() throws IOException, InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -290,10 +289,9 @@ public class DataReceiptPipelineModuleTest {
     }
 
     @Test
-    public void testImportFromDataSubdir()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    public void testImportFromDataSubdir() throws IOException, InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(modelImporterSubdirPath);
@@ -381,10 +379,9 @@ public class DataReceiptPipelineModuleTest {
     }
 
     @Test
-    public void testImportFromModelsSubdir()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    public void testImportFromModelsSubdir() throws IOException, InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(modelImporterSubdirPath);
@@ -471,10 +468,9 @@ public class DataReceiptPipelineModuleTest {
     }
 
     @Test
-    public void testImportWithErrors()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    public void testImportWithErrors() throws IOException, InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -612,10 +608,9 @@ public class DataReceiptPipelineModuleTest {
     }
 
     @Test(expected = PipelineException.class)
-    public void testCleanupFailOnNonEmptyDir()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    public void testCleanupFailOnNonEmptyDir() throws IOException, InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -637,8 +632,8 @@ public class DataReceiptPipelineModuleTest {
     @Test
     public void testInterruptInAlgorithm()
         throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        InterruptedException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException, ExecutionException {
+        InterruptedException, JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -662,8 +657,8 @@ public class DataReceiptPipelineModuleTest {
     @Test
     public void testInterruptInStoring()
         throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        InterruptedException, jakarta.xml.bind.JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
+        InterruptedException, JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);
@@ -767,10 +762,9 @@ public class DataReceiptPipelineModuleTest {
 
     }
 
-    private void constructManifests()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    private void constructManifests() throws IOException, InstantiationException,
+        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
+        InvocationTargetException, NoSuchMethodException, SecurityException {
         constructManifest(dataImporterSubdirPath, "data-importer-subdir-manifest.xml", 2L);
         constructManifest(modelImporterSubdirPath, "model-importer-subdir-manifest.xml", 3L);
         constructManifest(dataImporterPath, "data-importer-manifest.xml", 1L);
@@ -778,8 +772,8 @@ public class DataReceiptPipelineModuleTest {
 
     private void constructManifest(Path dir, String name, long datasetId)
         throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+        JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+        SecurityException {
         Manifest manifest = Manifest.generateManifest(dir, datasetId);
         manifest.setName(name);
         if (manifest.getFileCount() > 0) {

@@ -14,7 +14,9 @@ import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
-import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.util.io.Filenames;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.UnmarshalException;
 
 /**
@@ -41,10 +43,9 @@ public class ValidatingXmlManagerTest {
     }
 
     @Test(expected = UnmarshalException.class)
-    public void testUnmarshalInvalidXml()
-			throws InstantiationException, IllegalAccessException, SAXException,
-			jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
-			SecurityException {
+    public void testUnmarshalInvalidXml() throws InstantiationException, IllegalAccessException,
+        SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
 
         ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
             PipelineDefinitionFile.class);
@@ -52,10 +53,9 @@ public class ValidatingXmlManagerTest {
     }
 
     @Test
-    public void testUnmarshalValidXml()
-			throws InstantiationException, IllegalAccessException, SAXException,
-			jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
-			SecurityException {
+    public void testUnmarshalValidXml() throws InstantiationException, IllegalAccessException,
+        SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException {
         ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
             PipelineDefinitionFile.class);
         xmlManager.unmarshal(validXmlFile);

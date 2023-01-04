@@ -61,6 +61,8 @@ import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
+import gov.nasa.ziggy.util.io.Filenames;
+import jakarta.xml.bind.JAXBException;
 
 /**
  * Unit tests for {@link ZiggyEventHandler}, {@link ZiggyEventStatus}, {@link ZiggyEvent}, and
@@ -82,20 +84,6 @@ public class ZiggyEventHandlerTest {
     private Path readyIndicator1, readyIndicator2a, readyIndicator2b;
     private PipelineOperations pipelineOperations = Mockito.spy(PipelineOperations.class);
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
-
-    @Rule
-    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
-
-    @Rule
-    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
-
-    @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
-
-    @Rule
-    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
-        DATA_RECEIPT_DIR_PROP_NAME, TEST_DATA_DIR);
 
     @Before
     public void setUp() throws IOException {
@@ -186,8 +174,8 @@ public class ZiggyEventHandlerTest {
 
     @Test
     public void testReadXml() throws InstantiationException, IllegalAccessException, SAXException,
-        jakarta.xml.bind.JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+        JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+        SecurityException {
         ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager = new ValidatingXmlManager<>(
             ZiggyEventHandlerFile.class);
         ZiggyEventHandlerFile eventFile = xmlManager
@@ -271,7 +259,7 @@ public class ZiggyEventHandlerTest {
         // Re-create the ready-indicator file to see that the pipeline gets
         // fired again
         Files.createFile(readyIndicator1);
-        ziggyEventHandler.run();
+        Thread.sleep(240L);
         events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
         assertEquals(2, events.size());
@@ -326,6 +314,7 @@ public class ZiggyEventHandlerTest {
         // The ready-indicator file should still be present and the event handler should
         // be disabled
         assertTrue(Files.exists(readyIndicator1));
+        Thread.sleep(50L);
         assertFalse(ziggyEventHandler.isRunning());
     }
 
