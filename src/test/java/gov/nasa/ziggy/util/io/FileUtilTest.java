@@ -156,20 +156,48 @@ public class FileUtilTest {
         assertEquals("r-x------",
             PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir)));
         assertEquals("r--------",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile)));
-        assertEquals("r--------",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdirRegularFile)));
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
+        assertEquals("r--------", PosixFilePermissions
+            .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
 
-        // Set permissions loosely and uniformly for directories and files
-        FileUtil.setPosixPermissionsRecursively(testDir, "rwxrwxrwx");
-        assertEquals("rwxrwxrwx",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir)));
-        assertEquals("rwxrwxrwx",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir)));
-        assertEquals("rwxrwxrwx",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile)));
-        assertEquals("rwxrwxrwx",
-            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdirRegularFile)));
+    }
+
+    @Test
+    public void testOverwritePermissions() throws IOException {
+
+        // Start by locking everything and checking that at least part of the tree is locked.
+        FileUtil.writeProtectDirectoryTree(testDir.toPath());
+        assertNotEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
+
+        FileUtil.prepareDirectoryTreeForOverwrites(testDir.toPath());
+        assertEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
+        assertEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
+        assertEquals(FileUtil.FILE_OVERWRITE_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
+        assertEquals(FileUtil.FILE_OVERWRITE_PERMISSIONS, PosixFilePermissions
+            .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
+    }
+
+    @Test
+    public void testReadOnlyPermissions() throws IOException {
+
+        // Start by unlocking everything and checking that at least part of the tree is unlocked.
+        FileUtil.prepareDirectoryTreeForOverwrites(testDir.toPath());
+        assertNotEquals(FileUtil.DIR_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
+
+        FileUtil.writeProtectDirectoryTree(testDir.toPath());
+        assertEquals(FileUtil.DIR_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testDir.toPath())));
+        assertEquals(FileUtil.DIR_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
+        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
+        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS, PosixFilePermissions
+            .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
 
     }
 
