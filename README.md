@@ -58,7 +58,7 @@ Additionally, Ziggy ships with a sample pipeline. This pipeline uses an extremel
 
 ## Who maintains Ziggy?
 
-Ziggy is still maintained by members of the Kepler and TESS team who are based at NASA Ames Research Center. You can [Contact Us](doc/user-manual/contact-us.md).
+Ziggy is still maintained by members of the original Kepler and TESS teams based at NASA Ames Research Center who are now applying this technology to the Surface, Biology, and Geology (SBG) mission. You can [Contact Us](doc/user-manual/contact-us.md).
 
 ## License
 
