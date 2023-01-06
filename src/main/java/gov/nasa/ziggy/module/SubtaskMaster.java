@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
 import org.apache.commons.exec.DefaultExecutor;
@@ -92,23 +93,24 @@ public class SubtaskMaster implements Runnable {
 
         SubtaskClient subtaskClient = null;
         SubtaskServer.Response response = null;
+        int subtaskIndex = -1;
         while (true) {
             try {
-                subtaskClient = new SubtaskClient();
+                subtaskClient = subtaskClient();
 
                 response = subtaskClient.nextSubtask();
 
                 if (!response.successful()) {
                     break;
                 }
-                int subtaskIndex = response.subtaskIndex;
+                subtaskIndex = response.subtaskIndex;
 
                 log.debug(threadNumber + ": Processing sub-task: " + subtaskIndex);
 
                 File subtaskDir = TaskConfigurationManager.subtaskDirectory(new File(taskDir),
                     subtaskIndex);
                 File lockFile = new File(subtaskDir, TaskConfigurationManager.LOCK_FILE_NAME);
-                if (LockManager.getWriteLockWithoutBlocking(lockFile)) {
+                if (getWriteLockWithoutBlocking(lockFile)) {
 
                     // Note: The SubtaskMaster must not exit due to an exception caused
                     // during algorithm execution, since the SubtaskMaster instances persist
@@ -122,10 +124,10 @@ public class SubtaskMaster implements Runnable {
                             subtaskClient.reportSubtaskComplete(subtaskIndex);
                         }
                     } catch (Exception e) {
-                        log.error("Error occurred during subtask processing ", e);
+                        logException(subtaskIndex, e);
                     } finally {
                         SubtaskUtils.putLogStreamIdentifier((String) null);
-                        LockManager.releaseWriteLock(lockFile);
+                        releaseWriteLock(lockFile);
                     }
                 } else {
                     subtaskClient.reportSubtaskLocked(subtaskIndex);
@@ -136,7 +138,7 @@ public class SubtaskMaster implements Runnable {
                 // If an IOException has occurred, it's possible that
                 // only the current subtask has failed and that other subtasks can still be
                 // processed, so don't halt the search for new subtasks.
-                log.error("Failed to process subtask " + response + ", caught:", e);
+                logException(subtaskIndex, e);
 
             }
         }
@@ -159,7 +161,7 @@ public class SubtaskMaster implements Runnable {
      * @return
      */
     private boolean checkSubtaskState(File subtaskDir) {
-        AlgorithmStateFiles previousAlgorithmState = new AlgorithmStateFiles(subtaskDir);
+        AlgorithmStateFiles previousAlgorithmState = algorithmStateFiles(subtaskDir);
 
         if (!previousAlgorithmState.subtaskStateExists()) {
             // no previous run exists
@@ -180,7 +182,7 @@ public class SubtaskMaster implements Runnable {
 
         if (previousAlgorithmState.isProcessing()) {
             log.info(".PROCESSING state detected in directory " + subtaskDir.getName());
-            return false;
+            return true;
         }
 
         log.info(
@@ -207,14 +209,7 @@ public class SubtaskMaster implements Runnable {
             new File(subtaskDir, jobInfoFileName).createNewFile();
             TimestampFile.create(subtaskDir, TimestampFile.Event.SUB_TASK_START);
 
-            SubtaskExecutor subtaskExecutor = new SubtaskExecutor.Builder()
-                .taskDir(new File(taskDir))
-                .binaryName(binaryName)
-                .subtaskIndex(subtaskIndex)
-                .timeoutSecs(timeoutSecs)
-                .pipelineConfigPath(pipelineConfigPath)
-                .pipelineHomeDir(homeDir)
-                .build();
+            SubtaskExecutor subtaskExecutor = subtaskExecutor(subtaskIndex);
 
             log.info("START subtask: " + subtaskIndex + " on " + node + "[" + threadNumber + "]");
             retCode = subtaskExecutor.execAlgorithm();
@@ -230,4 +225,77 @@ public class SubtaskMaster implements Runnable {
         }
     }
 
+    /**
+     * Returns a new instance of {@link SubtaskClient}. Implemented as a separate method to support
+     * testing.
+     */
+    SubtaskClient subtaskClient() {
+        return new SubtaskClient();
+    }
+
+    /**
+     * Attempts to acquire a write lock on a lock file, but doesn't block when the lock file is
+     * already locked by another user. Implemented as a separate method to support testing.
+     */
+    boolean getWriteLockWithoutBlocking(File lockFile) throws IOException {
+        return LockManager.getWriteLockWithoutBlocking(lockFile);
+    }
+
+    /**
+     * Releases a write lock held by this object. Implemented as a separate method to support
+     * testing.
+     */
+    void releaseWriteLock(File lockFile) throws IOException {
+        LockManager.releaseWriteLock(lockFile);
+    }
+
+    /**
+     * Returns an {@link AlgorithmStateFiles} instance for the specified subtask directory.
+     * Implemented as a separate method to support testing.
+     */
+    AlgorithmStateFiles algorithmStateFiles(File subtaskDir) {
+        return new AlgorithmStateFiles(subtaskDir);
+    }
+
+    /**
+     * Logs an {@link Exception} that occurs during processing. Implemented as a separate method to
+     * support testing.
+     */
+    void logException(int subtaskIndex, Exception e) {
+        log.error("Error occurred during processing of subtask " + subtaskIndex, e);
+    }
+
+    /**
+     * Constructs a new instance of {@link SubtaskExecutor}. Implemented as a separate method to
+     * support testing.
+     */
+    SubtaskExecutor subtaskExecutor(int subtaskIndex) throws IOException {
+        return new SubtaskExecutor.Builder().taskDir(new File(taskDir))
+            .binaryName(binaryName)
+            .subtaskIndex(subtaskIndex)
+            .timeoutSecs(timeoutSecs)
+            .pipelineConfigPath(pipelineConfigPath)
+            .pipelineHomeDir(homeDir)
+            .build();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(binaryName, homeDir, jobId, jobName, node, taskDir, threadNumber);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if ((obj == null) || (getClass() != obj.getClass())) {
+            return false;
+        }
+        SubtaskMaster other = (SubtaskMaster) obj;
+        return Objects.equals(binaryName, other.binaryName)
+            && Objects.equals(homeDir, other.homeDir) && Objects.equals(jobId, other.jobId)
+            && Objects.equals(jobName, other.jobName) && Objects.equals(node, other.node)
+            && Objects.equals(taskDir, other.taskDir) && threadNumber == other.threadNumber;
+    }
 }

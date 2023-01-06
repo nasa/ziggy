@@ -41,7 +41,7 @@ public enum LockManager {
      *
      * @throws IOException if exception occurs when releasing locks.
      */
-    static synchronized void releaseAllLocks() throws IOException {
+    public static synchronized void releaseAllLocks() throws IOException {
         for (File f : INSTANCE.readerChannels.keySet()) {
             releaseReadLock(f);
         }

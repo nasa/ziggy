@@ -183,6 +183,11 @@ public class AlgorithmStateFiles {
         return currentSubtaskState() == SubtaskState.FAILED;
     }
 
+    // For testing only.
+    AlgorithmStateFiles() {
+        this(new File("dummy"));
+    }
+
     /**
      * Simple class that holds the number of failed and completed subtasks detected by checking the
      * {@link AlgorithmStateFiles} contents of each subtask directory.

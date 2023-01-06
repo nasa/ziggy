@@ -36,6 +36,8 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import gov.nasa.ziggy.module.StateFile.State;
 import gov.nasa.ziggy.module.remote.TimestampFile;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.util.TimeFormatter;
@@ -90,9 +93,11 @@ public class ComputeNodeMaster implements Runnable {
     private TaskMonitor monitor;
 
     private SubtaskServer subtaskServer;
-    private Semaphore subtaskMasters;
+    private Semaphore subtaskMasterSemaphore;
     private CountDownLatch monitoringLatch = new CountDownLatch(1);
     private ExecutorService threadPool;
+
+    private Set<SubtaskMaster> subtaskMasters = new HashSet<>();
 
     private TaskConfigurationManager inputsHandler;
 
@@ -167,11 +172,7 @@ public class ComputeNodeMaster implements Runnable {
     }
 
     /**
-     * Sets the state file for this task to PROCESSING, and clears any FAILED or PROCESSING sub-task
-     * states. Note that this update to the state file does not update the sub-task counts (how many
-     * completed, how many failed, etc). That update does not happen until the RemoteTaskMonitor
-     * begins. However, this step is still necessary so that when the RemoteTaskMonitor does start,
-     * the overall processing state and the sub-task states are correct.
+     * Moves the state file for this task from QUEUED to PROCESSING.
      *
      * @throws IOException if unable to release write lock on state file.
      */
@@ -179,7 +180,7 @@ public class ComputeNodeMaster implements Runnable {
 
         // NB: If there are multiple jobs associated with a single task, this update only
         // needs to be performed if this job is the first to start
-        boolean stateFileLockObtained = LockManager.getWriteLockWithoutBlocking(stateFileLockFile);
+        boolean stateFileLockObtained = getWriteLockWithoutBlocking(stateFileLockFile);
         try {
             StateFile previousStateFile = new StateFile(stateFile);
             if (stateFileLockObtained
@@ -196,7 +197,7 @@ public class ComputeNodeMaster implements Runnable {
             }
         } finally {
             if (stateFileLockObtained) {
-                LockManager.releaseWriteLock(stateFileLockFile);
+                releaseWriteLock(stateFileLockFile);
             }
         }
     }
@@ -207,7 +208,7 @@ public class ComputeNodeMaster implements Runnable {
      * @throws InterruptedException if the server is interrupted during initialization.
      */
     private void startSubtaskServer() throws InterruptedException {
-        subtaskServer = new SubtaskServer(coresPerNode, getInputsHandler());
+        subtaskServer = subtaskServer();
         subtaskServer.startSubtaskServer();
     }
 
@@ -233,15 +234,16 @@ public class ComputeNodeMaster implements Runnable {
 
         int timeoutSecs = (int) TimeFormatter
             .timeStringHhMmSsToTimeInSeconds(stateFile.getRequestedWallTime());
-        subtaskMasters = new Semaphore(coresPerNode);
-        threadPool = Executors.newFixedThreadPool(coresPerNode);
+        subtaskMasterSemaphore = new Semaphore(coresPerNode);
+        threadPool = subtaskMasterThreadPool();
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SubtaskMaster[%d]")
             .build();
         for (int i = 0; i < coresPerNode; i++) {
-            subtaskMasters.acquire();
-            threadPool.submit(new SubtaskMaster(i, nodeName, subtaskMasters,
-                stateFile.getModuleName(), workingDir, timeoutSecs, homeDir, pipelineConfigPath),
-                threadFactory);
+            subtaskMasterSemaphore.acquire();
+            SubtaskMaster subtaskMaster = new SubtaskMaster(i, nodeName, subtaskMasterSemaphore,
+                stateFile.getModuleName(), workingDir, timeoutSecs, homeDir, pipelineConfigPath);
+            subtaskMasters.add(subtaskMaster);
+            threadPool.submit(subtaskMaster, threadFactory);
         }
     }
 
@@ -283,6 +285,7 @@ public class ComputeNodeMaster implements Runnable {
         // master threads stopping.
         if (!subtaskServer.isListenerRunning()) {
             log.error("ComputeNodeMaster: error exit");
+            endMonitoring();
             return;
         }
 
@@ -310,7 +313,7 @@ public class ComputeNodeMaster implements Runnable {
         }
 
         // If all RemoteSubtaskMasters are done we can exit monitoring
-        if (subtaskMasters.availablePermits() == coresPerNode) {
+        if (allPermitsAvailable()) {
             endMonitoring();
         }
     }
@@ -350,11 +353,90 @@ public class ComputeNodeMaster implements Runnable {
         algorithmLog.endLogging();
     }
 
-    private TaskConfigurationManager getInputsHandler() {
+    // The following getter methods are intended for testing purposes only. They are thus
+    // package scoped, and do not expose any of the ComputeNodeMaster's private objects to
+    // callers.
+    public long getCountDownLatchCount() {
+        return monitoringLatch.getCount();
+    }
+
+    public int getSemaphorePermits() {
+        if (subtaskMasterSemaphore == null) {
+            return -1;
+        }
+        return subtaskMasterSemaphore.availablePermits();
+    }
+
+    int subtaskMastersCount() {
+        return subtaskMasters.size();
+    }
+
+    State getStateFileState() {
+        return stateFile.getState();
+    }
+
+    int getStateFileNumComplete() {
+        return stateFile.getNumComplete();
+    }
+
+    int getStateFileNumFailed() {
+        return stateFile.getNumFailed();
+    }
+
+    int getStateFileNumTotal() {
+        return stateFile.getNumTotal();
+    }
+
+    /**
+     * Restores the {@link TaskConfigurationHandler} from disk. Package scope so it can be replaced
+     * with a mocked instance.
+     */
+    TaskConfigurationManager getInputsHandler() {
         if (inputsHandler == null) {
             inputsHandler = TaskConfigurationManager.restore(taskDir);
         }
         return inputsHandler;
+    }
+
+    /**
+     * Attempts to obtain the lock file for the task's state file, but does not block if it cannot
+     * obtain it. Broken out as a separate method to support testing.
+     *
+     * @return true if lock obtained, false otherwise.
+     */
+    boolean getWriteLockWithoutBlocking(File lockFile) throws IOException {
+        return LockManager.getWriteLockWithoutBlocking(lockFile);
+    }
+
+    /**
+     * Releases the write lock on a file. Broken out as a separate method to support testing.
+     */
+    void releaseWriteLock(File lockFile) throws IOException {
+        LockManager.releaseWriteLock(lockFile);
+    }
+
+    /**
+     * Determines whether all permits are available for the {@link Semaphore} that works with the
+     * {@link SubtaskMaster} instances. Broken out as a separate method to support testing.
+     */
+    boolean allPermitsAvailable() {
+        return subtaskMasterSemaphore.availablePermits() == coresPerNode;
+    }
+
+    /**
+     * Returns a new instance of {@link SubtaskServer}. Broken out as a separate method to support
+     * testing.
+     */
+    SubtaskServer subtaskServer() {
+        return new SubtaskServer(coresPerNode, getInputsHandler());
+    }
+
+    /**
+     * Returns a thread pool with the correct number of threads for the {@link SubtaskMaster}
+     * instances. Broken out as a separate method to support testing.
+     */
+    ExecutorService subtaskMasterThreadPool() {
+        return Executors.newFixedThreadPool(coresPerNode);
     }
 
     public static void main(String[] args) {

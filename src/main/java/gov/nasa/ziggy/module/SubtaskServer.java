@@ -28,6 +28,10 @@ public class SubtaskServer implements Runnable {
     public SubtaskServer(int subtaskMasterCount, TaskConfigurationManager inputsHandler) {
         requestQueue = new ArrayBlockingQueue<>(subtaskMasterCount);
         this.inputsHandler = inputsHandler;
+    }
+
+    // For testing only.
+    SubtaskServer() {
 
     }
 
