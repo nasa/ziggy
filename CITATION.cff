@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it using these metadata."
+title: Ziggy
+version: v0.2.1
+date-released: "2022-12-08"
+# doi: 10.5281/zenodo.5348443 TODO
+abstract: "Ziggy, a portable, scalable infrastructure for science data processing pipelines, is the child of the Transiting Exoplanet Survey Satellite (TESS) pipeline and the grandchild of the Kepler Pipeline."
+authors:
+- family-names: Tenenbaum
+  given-names: Peter
+  affiliation: "SETI Institute/NASA Ames Research Center"
+  email: Peter.Tenenbaum@nasa.gov
+  orcid: "https://orcid.org/0000-0002-1949-4720"
+- family-names: Wohler
+  given-names: Bill
+  affiliation: "SETI Institute/NASA Ames Research Center"
+  email: Bill.Wohler@nasa.gov
+  orcid: "https://orcid.org/0000-0002-5402-9613"
+license-url: "https://github.com/nasa/ziggy/blob/main/LICENSE.pdf"
+url: "https://github.com/nasa/ziggy"
+repository-code: "https://github.com/nasa/ziggy"
+keywords:
+  - algorithm
+  - analysis
+  - arc
+  - data
+  - data-analysis
+  - data-reduction
+  - java
+  - k2
+  - kepler
+  - linux
+  - macos
+  - nasa
+  - open-source
+  - pipeline
+  - science
+  - tess
+  - ziggy
+# references: Note that this is not work describing the software. TODO
