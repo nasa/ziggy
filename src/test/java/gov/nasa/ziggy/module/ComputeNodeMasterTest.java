@@ -150,7 +150,7 @@ public class ComputeNodeMasterTest {
         assertEquals(0, computeNodeMaster.getStateFileNumFailed());
 
         // The SubtaskServer should have started
-        verify(subtaskServer).startSubtaskServer();
+        verify(subtaskServer).start();
 
         // There should be 3 SubtaskMaster instances that were submitted to the ExecutorService.
         assertEquals(3, computeNodeMaster.subtaskMastersCount());
@@ -192,7 +192,7 @@ public class ComputeNodeMasterTest {
         assertEquals(0, computeNodeMaster.getStateFileNumFailed());
 
         // The SubtaskServer should have started
-        verify(subtaskServer).startSubtaskServer();
+        verify(subtaskServer).start();
 
         // There should be 3 SubtaskMaster instances that were submitted to the ExecutorService.
         assertEquals(3, computeNodeMaster.subtaskMastersCount());
@@ -237,7 +237,7 @@ public class ComputeNodeMasterTest {
                 .getState());
 
         // The SubtaskServer should not have started
-        verify(subtaskServer, times(0)).startSubtaskServer();
+        verify(subtaskServer, times(0)).start();
 
         // There should be no SubtaskMaster instances.
         assertEquals(0, computeNodeMaster.subtaskMastersCount());

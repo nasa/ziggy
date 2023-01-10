@@ -32,6 +32,8 @@ import gov.nasa.ziggy.module.SubtaskServer.ResponseType;
 public class SubtaskClient {
     private static final Logger log = LoggerFactory.getLogger(SubtaskClient.class);
 
+    // The SubtaskClient only handles one request / response at a time, hence the
+    // ArrayBlockingQueue needs only one entry.
     private final ArrayBlockingQueue<Response> responseQueue = new ArrayBlockingQueue<>(1);
 
     public SubtaskClient() {
@@ -83,28 +85,6 @@ public class SubtaskClient {
     }
 
     /**
-     * Sends a request to the {@link SubtaskServer}. This is acomplished by creating a new instance
-     * of {@link Request}, which is then put onto the server's {@link ArrayBlockingQueue}.
-     *
-     * @throws InterruptedException
-     */
-    private void send(RequestType command, int subTaskIndex) throws InterruptedException {
-        log.debug("Connected to subtask server, sending request");
-        Request request = new Request(command, subTaskIndex, this);
-        SubtaskServer.submitRequest(request);
-    }
-
-    /**
-     * Receives a {@link Response) from the {@link SubtaskServer} to a prior {@link Request}. The
-     * method will block until the server responds or an {@link InterruptedException} occurs.
-     *
-     * @throws InterruptedException
-     */
-    private Response receive() throws InterruptedException {
-        return responseQueue.take();
-    }
-
-    /**
      * Sends a message to the {@link SubtaskServer} that is not associated with a subtask index.
      *
      * @return non-null.
@@ -132,6 +112,24 @@ public class SubtaskClient {
         }
         send(command, subtaskIndex);
         return receive();
-
     }
+
+    /**
+     * Sends a request to the {@link SubtaskServer}. This is acomplished by creating a new instance
+     * of {@link Request}, which is then put onto the server's {@link ArrayBlockingQueue}.
+     */
+    private void send(RequestType command, int subTaskIndex) throws InterruptedException {
+        log.debug("Connected to subtask server, sending request");
+        Request request = new Request(command, subTaskIndex, this);
+        SubtaskServer.submitRequest(request);
+    }
+
+    /**
+     * Receives a {@link Response) from the {@link SubtaskServer} to a prior {@link Request}. The
+     * method will block until the server responds or an {@link InterruptedException} occurs.
+     */
+    private Response receive() throws InterruptedException {
+        return responseQueue.take();
+    }
+
 }

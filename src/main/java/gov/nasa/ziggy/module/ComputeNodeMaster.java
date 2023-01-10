@@ -164,7 +164,7 @@ public class ComputeNodeMaster implements Runnable {
         coresPerNode = stateFile.getActiveCoresPerNode();
 
         updateStateFile();
-        startSubtaskServer();
+        subtaskServer().start();
         createTimestamps();
 
         log.info("Starting " + coresPerNode + " subtask masters");
@@ -200,16 +200,6 @@ public class ComputeNodeMaster implements Runnable {
                 releaseWriteLock(stateFileLockFile);
             }
         }
-    }
-
-    /**
-     * Starts the {@link SubtaskServer}.
-     *
-     * @throws InterruptedException if the server is interrupted during initialization.
-     */
-    private void startSubtaskServer() throws InterruptedException {
-        subtaskServer = subtaskServer();
-        subtaskServer.startSubtaskServer();
     }
 
     private void createTimestamps() {
@@ -283,7 +273,7 @@ public class ComputeNodeMaster implements Runnable {
         // If the subtask server has failed, then we
         // don't need to do any finalization, just exit and start the process of all subtask
         // master threads stopping.
-        if (!subtaskServer.isListenerRunning()) {
+        if (!subtaskServer().isListenerRunning()) {
             log.error("ComputeNodeMaster: error exit");
             endMonitoring();
             return;
@@ -349,13 +339,13 @@ public class ComputeNodeMaster implements Runnable {
         if (threadPool != null) {
             threadPool.shutdownNow();
         }
-        subtaskServer.shutdown();
+        subtaskServer().shutdown();
         algorithmLog.endLogging();
     }
 
-    // The following getter methods are intended for testing purposes only. They are thus
-    // package scoped, and do not expose any of the ComputeNodeMaster's private objects to
-    // callers.
+    // The following getter methods are intended for testing purposes only. They do not expose any
+    // of the ComputeNodeMaster's private objects to callers. In some cases it is necessary for
+    // the methods to be public, as they are used by tests in other packages.
     public long getCountDownLatchCount() {
         return monitoringLatch.getCount();
     }
@@ -428,7 +418,10 @@ public class ComputeNodeMaster implements Runnable {
      * testing.
      */
     SubtaskServer subtaskServer() {
-        return new SubtaskServer(coresPerNode, getInputsHandler());
+        if (subtaskServer == null) {
+            subtaskServer = new SubtaskServer(coresPerNode, getInputsHandler());
+        }
+        return subtaskServer;
     }
 
     /**

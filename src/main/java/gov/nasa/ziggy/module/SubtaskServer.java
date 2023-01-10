@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 public class SubtaskServer implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(SubtaskServer.class);
 
+    // Don't allow the request queue to be null, so initialize to the smallest
+    // ArrayBlockingQueue possible, which has 1 entry.
     private static ArrayBlockingQueue<Request> requestQueue = new ArrayBlockingQueue<>(1);
 
     private SubtaskAllocator subtaskAllocator;
@@ -30,20 +32,17 @@ public class SubtaskServer implements Runnable {
         this.inputsHandler = inputsHandler;
     }
 
-    // For testing only.
-    SubtaskServer() {
-
-    }
-
-    public void startSubtaskServer() throws InterruptedException {
+    public void start() throws InterruptedException {
         log.info("Starting SubtaskServer for inputs: " + inputsHandler);
 
+        // NB: if the listener thread constructor and setDaemon() calls are moved
+        // to the class constructor, above, then the listener process will fail.
+        // Specifically, SubtaskClient requests will never get answered. I don't
+        // know why this should matter, but it does.
         listenerThread = new Thread(this, "SubtaskServer-listener");
         listenerThread.setDaemon(true);
         listenerThread.start();
-
         serverThreadReady.await();
-
         log.info("SubtaskServer thread ready");
     }
 

@@ -147,9 +147,4 @@ public class SubtaskAllocator {
         return subtaskCompleted == null || subtaskCompleted.length == 0;
     }
 
-    // For testing only.
-    SubtaskAllocator() {
-        this(new TaskConfigurationManager());
-    }
-
 }

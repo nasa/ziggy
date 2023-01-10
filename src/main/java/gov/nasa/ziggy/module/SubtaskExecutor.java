@@ -276,11 +276,6 @@ public class SubtaskExecutor {
         return retCode;
     }
 
-    /**
-     * @throws IOException
-     * @throws PipelineException when an exception occurs during Java-side execution (not when the
-     * algorithm errors or generation of inputs or results errors).
-     */
     public int execAlgorithmInternal(int sequenceNum) throws IOException {
         List<String> commandLineArgs = new LinkedList<>();
         String exePath = workingDir.getCanonicalPath();
@@ -355,8 +350,6 @@ public class SubtaskExecutor {
     /**
      * Run an arbitrary process with caller-specified arguments. No {@link AlgorithmStateFiles} is
      * created and a default logSuffix of "0" is used.
-     *
-     * @throws IOException
      */
     public int execSimple(List<String> commandLineArgs) throws IOException {
         int retCode = runCommandline(commandLineArgs, binaryName + "-", "0");

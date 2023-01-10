@@ -42,7 +42,7 @@ public class SubtaskServerTest {
 
     @Test
     public void testStartAndStopListener() throws InterruptedException {
-        subtaskServer.startSubtaskServer();
+        subtaskServer.start();
         assertTrue(
             TestEventDetector.detectTestEvent(1000L, () -> subtaskServer.isListenerRunning()));
         subtaskServer.shutdown();
@@ -52,7 +52,7 @@ public class SubtaskServerTest {
 
     @Test
     public void testNextSubtask() throws InterruptedException {
-        subtaskServer.startSubtaskServer();
+        subtaskServer.start();
         when(subtaskAllocator.nextSubtask()).thenReturn(new SubtaskAllocation(ResponseType.OK, 10));
 
         Response response = subtaskClient.nextSubtask();
@@ -65,7 +65,7 @@ public class SubtaskServerTest {
 
     @Test
     public void testNoMoreSubtasks() throws InterruptedException {
-        subtaskServer.startSubtaskServer();
+        subtaskServer.start();
         when(subtaskAllocator.nextSubtask())
             .thenReturn(new SubtaskAllocation(ResponseType.NO_MORE, -1));
 
@@ -79,7 +79,7 @@ public class SubtaskServerTest {
 
     @Test
     public void testReportDone() throws InterruptedException {
-        subtaskServer.startSubtaskServer();
+        subtaskServer.start();
 
         Response response = subtaskClient.reportSubtaskComplete(10);
 
@@ -92,7 +92,7 @@ public class SubtaskServerTest {
 
     @Test
     public void testReportLocked() throws InterruptedException {
-        subtaskServer.startSubtaskServer();
+        subtaskServer.start();
 
         Response response = subtaskClient.reportSubtaskLocked(10);
 
@@ -105,7 +105,7 @@ public class SubtaskServerTest {
 
     @Test
     public void testInterrupt() throws InterruptedException {
-        subtaskServer.startSubtaskServer();
+        subtaskServer.start();
         subtaskServer.getListenerThread().interrupt();
         assertTrue(TestEventDetector.detectTestEvent(1000L,
             () -> subtaskServer.getListenerThread().getState().equals(Thread.State.TERMINATED)));
