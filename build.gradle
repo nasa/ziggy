@@ -72,6 +72,8 @@ dependencies {
 
     // Needed at runtime.
     implementation 'org.postgresql:postgresql:9.4-1201-jdbc4'
+
+    spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.12.+'
 }
 
 tasks.withType(JavaCompile) {
