@@ -120,7 +120,9 @@ javadoc {
     options.overview = "src/main/java/overview.html"
 }
 
+// The SpotBugs plugin adds spotbugsMain and spotbugsTest to the check task.
 spotbugs {
+    // The SMP requires that all high priority problems are addressed before testing can commence.
     reportLevel = 'high'
 }
 
