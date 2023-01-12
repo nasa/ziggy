@@ -14,7 +14,7 @@ plugins {
     id 'org.barfuin.gradle.taskinfo' version '2.1.+'
 }
 
-defaultTasks "build"
+defaultTasks 'assemble', 'test'
 
 ext {
     // See comment for ziggyDependencies in gradle.properties.
