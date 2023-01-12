@@ -7,6 +7,7 @@
 plugins {
     id 'com.github.spotbugs' version '5.0.+'
     id 'eclipse'
+    id 'jacoco'
     id 'java'
 }
 
@@ -114,6 +115,14 @@ task runByNameTest(type: Test) {
 task testAll
 
 testAll.dependsOn test, integrationTest
+
+jacoco {
+}
+
+// To view code coverage, run the jacocoTestReport task and view the output in:
+// build/reports/jacoco/test/html/index.html.
+check.dependsOn jacocoTestReport
+jacocoTestReport.dependsOn test
 
 javadoc {
     title = "Ziggy API"
