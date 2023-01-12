@@ -75,6 +75,7 @@ public class DataFileManager {
 
     private DatastorePathLocator datastorePathLocator;
     private PipelineTask pipelineTask;
+    private TaskConfigurationParameters taskConfigurationParameters;
     private DatastoreProducerConsumerCrud datastoreProducerConsumerCrud;
     private PipelineTaskCrud pipelineTaskCrud;
     private Path taskDirectory;
@@ -114,6 +115,10 @@ public class DataFileManager {
         this.pipelineTask = pipelineTask;
         this.datastorePathLocator = datastorePathLocator;
         this.taskDirectory = taskDirectory;
+        if (pipelineTask != null) {
+            taskConfigurationParameters = pipelineTask
+                .getParameters(TaskConfigurationParameters.class, false);
+        }
         taskDirCopyType = taskDirCopyType();
     }
 
@@ -127,6 +132,10 @@ public class DataFileManager {
         this.taskDirectory = taskDirectory;
         if (datastoreRoot != null) {
             this.datastoreRoot = datastoreRoot;
+        }
+        if (pipelineTask != null) {
+            taskConfigurationParameters = pipelineTask
+                .getParameters(TaskConfigurationParameters.class, false);
         }
         datastorePathLocator = null;
         taskDirCopyType = taskDirCopyType();
@@ -177,14 +186,13 @@ public class DataFileManager {
      * Determines the number of files of a given type in a given subdirectory of the datastore. Used
      * for counting subtasks.
      */
-    public int countDatastoreFilesOfType(DataFileType type, Path datastoreSubDir,
-        TaskConfigurationParameters taskConfig) {
+    public int countDatastoreFilesOfType(DataFileType type, Path datastoreSubDir) {
 
         Set<DataFileType> dataFileTypes = new HashSet<>();
         dataFileTypes.add(type);
         Map<DataFileType, Set<Path>> datastoreFiles = datastoreDataFilesMap(datastoreSubDir,
             dataFileTypes);
-        return filterDataFiles(datastoreFiles.get(type), RegexType.TASK_DIR, taskConfig).size();
+        return datastoreFiles.get(type).size();
     }
 
     /**
@@ -194,9 +202,9 @@ public class DataFileManager {
      * @param dataFileTypes Set of DataFileType instances to use in the copy.
      */
     public Map<DataFileType, Set<Path>> copyDataFilesByTypeToTaskDirectory(Path datastoreSubDir,
-        Set<DataFileType> dataFileTypes, TaskConfigurationParameters taskConfig) {
+        Set<DataFileType> dataFileTypes) {
         return copyDataFilesByTypeToTaskDirectory(
-            datastoreDataFilesMap(datastoreSubDir, dataFileTypes), taskConfig);
+            datastoreDataFilesMap(datastoreSubDir, dataFileTypes));
     }
 
     /**
@@ -208,11 +216,10 @@ public class DataFileManager {
      * @param taskConfig {@link TaskConfigurationParameters} instance.
      */
     public Map<DataFileType, Set<Path>> copyDataFilesByTypeToTaskDirectory(
-        Map<DataFileType, Set<Path>> datastoreDataFilesMap,
-        TaskConfigurationParameters taskConfig) {
+        Map<DataFileType, Set<Path>> datastoreDataFilesMap) {
 
         Map<DataFileType, Set<Path>> datastoreFilesMap = copyDataFilesByTypeToDestination(
-            datastoreDataFilesMap, RegexType.TASK_DIR, taskDirCopyType, taskConfig);
+            datastoreDataFilesMap, RegexType.TASK_DIR, taskDirCopyType);
         Set<Path> datastoreFiles = new HashSet<>();
         for (Set<Path> paths : datastoreFilesMap.values()) {
             datastoreFiles.addAll(paths);
@@ -237,13 +244,12 @@ public class DataFileManager {
      * processing or "keep ahead" processing is performed
      * @return non @code{null} set of {@link Path} instances for data files to be used as input
      */
-    public Set<Path> dataFilesForInputs(Path datastoreSubDir, Set<DataFileType> dataFileTypes,
-        TaskConfigurationParameters taskConfig) {
+    public Set<Path> dataFilesForInputs(Path datastoreSubDir, Set<DataFileType> dataFileTypes) {
         Map<DataFileType, Set<Path>> datastoreFilesMap = datastoreDataFilesMap(datastoreSubDir,
             dataFileTypes);
         Set<Path> datastoreFiles = new HashSet<>();
         for (Set<Path> paths : datastoreFilesMap.values()) {
-            datastoreFiles.addAll(filterDataFiles(paths, RegexType.TASK_DIR, taskConfig));
+            datastoreFiles.addAll(paths);
         }
         return datastoreFiles;
     }
@@ -357,7 +363,7 @@ public class DataFileManager {
      */
     public void moveDataFilesByTypeToDatastore(Set<DataFileType> dataFileTypes) {
         Map<DataFileType, Set<Path>> datastoreFilesMap = copyDataFilesByTypeToDestination(
-            taskDirectoryDataFilesMap(dataFileTypes), RegexType.DATASTORE, datastoreCopyType, null);
+            taskDirectoryDataFilesMap(dataFileTypes), RegexType.DATASTORE, datastoreCopyType);
 
         Set<Path> datastoreFiles = new HashSet<>();
         for (Set<Path> paths : datastoreFilesMap.values()) {
@@ -698,6 +704,7 @@ public class DataFileManager {
                         filesOfType.add(filePath);
                     }
                 }
+                filesOfType = filterDataFiles(filesOfType, regexType);
                 if (dataFilesMap.containsKey(dataFileType)) {
                     dataFilesMap.get(dataFileType).addAll(filesOfType);
                 } else {
@@ -769,12 +776,11 @@ public class DataFileManager {
      */
     private Map<DataFileType, Set<Path>> copyDataFilesByTypeToDestination(
         Map<DataFileType, Set<Path>> dataFileTypesMap, RegexType destination,
-        DatastoreCopyType copyType, TaskConfigurationParameters taskConfig) {
+        DatastoreCopyType copyType) {
 
         Map<DataFileType, Set<Path>> copiedFiles = new HashMap<>();
         for (DataFileType dataFileType : dataFileTypesMap.keySet()) {
-            Set<Path> dataFiles = filterDataFiles(dataFileTypesMap.get(dataFileType), destination,
-                taskConfig);
+            Set<Path> dataFiles = dataFileTypesMap.get(dataFileType);
             if (destination.equals(RegexType.TASK_DIR)) {
                 copiedFiles.put(dataFileType, dataFiles);
             }
@@ -792,33 +798,6 @@ public class DataFileManager {
         }
         return copiedFiles;
     }
-
-//    private Map<DataFileType, Set<DatastoreAndTaskDirPaths>> identifyDataFilesByTypeForDestination(
-//        Map<DataFileType, Set<Path>> dataFileTypesMap, RegexType destination,
-//        DatastoreCopyType copyType, TaskConfigurationParameters taskConfig) {
-//
-//        Map<DataFileType, Set<DatastoreAndTaskDirPaths>> locatedFiles = new HashMap<>();
-//        for (DataFileType dataFileType : dataFileTypesMap.keySet()) {
-//            Set<Path> dataFiles = filterDataFiles(dataFileTypesMap.get(dataFileType), destination,
-//                taskConfig);
-//            if (destination.equals(RegexType.TASK_DIR)) {
-//                locatedFiles.put(dataFileType, dataFiles);
-//            }
-//            Set<Path> datastoreFiles = new HashSet<>();
-//            for (Path dataFile : dataFiles) {
-//                DataFilePaths dataFilePaths = destination.dataFilePaths(datastoreRoot,
-//                    taskDirectory, dataFileType, dataFile);
-//                datastoreFiles.add(datastoreRoot.relativize(dataFilePaths.getDatastorePath()));
-////                copyType.copy(dataFilePaths.getSourcePath(), dataFilePaths.getDestinationPath());
-//
-//            }
-//            if (destination.equals(RegexType.DATASTORE)) {
-//                locatedFiles.put(dataFileType, datastoreFiles);
-//            }
-//        }
-//        return locatedFiles;
-//
-//    }
 
     private List<Path> completedSubtaskDirectoriesWithResults() {
         return completedSubtaskDirectories(WITH_RESULTS);
@@ -844,26 +823,25 @@ public class DataFileManager {
 
     }
 
-    private Set<Path> filterDataFiles(Set<Path> allDataFiles, RegexType destination,
-        TaskConfigurationParameters taskConfig) {
+    private Set<Path> filterDataFiles(Set<Path> allDataFiles, RegexType destination) {
 
-        // we never filter files going to the datastore from the task directory
-        // We also never filter files if the TaskConfigurationParameters isn't defined
-        if (destination.equals(RegexType.DATASTORE) || taskConfig == null) {
+        // we never filter files that are in the task directory.
+        // We also never filter files if the TaskConfigurationParameters isn't defined.
+        if (destination.equals(RegexType.TASK_DIR) || taskConfigurationParameters == null) {
             return allDataFiles;
         }
 
         // if we're doing keep-up reprocessing, that's one case
-        if (!taskConfig.isReprocess()) {
+        if (!taskConfigurationParameters.isReprocess()) {
             return filterDataFilesForKeepUpProcessing(allDataFiles);
         }
 
         // if there are excluded tasks (i.e., tasks that produced results that should not
         // be reprocessed), that's another case
-        if (taskConfig.getReprocessingTasksExclude() != null
-            && taskConfig.getReprocessingTasksExclude().length > 0) {
+        if (taskConfigurationParameters.getReprocessingTasksExclude() != null
+            && taskConfigurationParameters.getReprocessingTasksExclude().length > 0) {
             return filterDataFilesForBugfixProcessing(allDataFiles,
-                taskConfig.getReprocessingTasksExclude());
+                taskConfigurationParameters.getReprocessingTasksExclude());
         }
 
         // If we got this far then it's just garden variety reprocess-everything, so no

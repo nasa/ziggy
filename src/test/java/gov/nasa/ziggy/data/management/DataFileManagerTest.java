@@ -71,6 +71,7 @@ public class DataFileManagerTest {
     private PipelineDefinitionNode pipelineDefinitionNode;
     private DatastoreProducerConsumerCrud datastoreProducerConsumerCrud;
     private PipelineTaskCrud pipelineTaskCrud;
+    private TaskConfigurationParameters taskConfigurationParameters;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -109,10 +110,20 @@ public class DataFileManagerTest {
         pipelineTask = Mockito.spy(PipelineTask.class);
         datastoreProducerConsumerCrud = new ProducerConsumerCrud();
         pipelineTaskCrud = Mockito.mock(PipelineTaskCrud.class);
-        initializeDataFileManager();
         Mockito.when(pipelineTask.getId()).thenReturn(TASK_ID);
         pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
         Mockito.doReturn(pipelineDefinitionNode).when(pipelineTask).getPipelineDefinitionNode();
+
+        taskConfigurationParameters = new TaskConfigurationParameters();
+        taskConfigurationParameters.setReprocess(true);
+        Mockito.doReturn(taskConfigurationParameters)
+            .when(pipelineTask)
+            .getParameters(ArgumentMatchers.eq(TaskConfigurationParameters.class));
+        Mockito.doReturn(taskConfigurationParameters)
+            .when(pipelineTask)
+            .getParameters(ArgumentMatchers.eq(TaskConfigurationParameters.class),
+                ArgumentMatchers.anyBoolean());
+        initializeDataFileManager();
 
         // Now build a DataFileManager for use with DataFileType instances and with the
         // DefaultUnitOfWork.
@@ -573,7 +584,7 @@ public class DataFileManagerTest {
         dataFileTypes.add(DataFileTestUtils.dataFileTypeForDirectories);
 
         // Copy the files to the task directory
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, null);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
 
         // Now copy the files by name to the subtask directory
         List<String> dirNamesToCopy = new ArrayList<>();
@@ -999,7 +1010,7 @@ public class DataFileManagerTest {
         File[] fileList = taskDirFile.listFiles();
         assertEquals(1, fileList.length);
         assertEquals("st-0", fileList[0].getName());
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, null);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
         File[] endFileList = taskDirFile.listFiles();
         assertEquals(5, endFileList.length);
         Set<String> filenames = getNamesFromListFiles(endFileList);
@@ -1031,8 +1042,7 @@ public class DataFileManagerTest {
         dataFileTypes.add(DataFileTestUtils.dataFileTypeSample2);
 
         // Get all the files (reprocessing use-case)
-        Set<Path> paths = dataFileManager2.dataFilesForInputs(Paths.get(""), dataFileTypes,
-            taskConfig);
+        Set<Path> paths = dataFileManager2.dataFilesForInputs(Paths.get(""), dataFileTypes);
         assertEquals(4, paths.size());
         Set<String> filenames = paths.stream()
             .map(s -> s.getFileName().toString())
@@ -1043,14 +1053,14 @@ public class DataFileManagerTest {
         assertTrue(filenames.contains("cal-1-1-B-20-results.h5"));
 
         // Now get only the ones that are appropriate for reprocessing
-        taskConfig.setReprocess(false);
+        taskConfigurationParameters.setReprocess(false);
         Mockito
             .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(
                 ArgumentMatchers.<Set<Long>> any(),
                 ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(Lists.newArrayList(11L, 12L));
 
-        paths = dataFileManager2.dataFilesForInputs(Paths.get(""), dataFileTypes, taskConfig);
+        paths = dataFileManager2.dataFilesForInputs(Paths.get(""), dataFileTypes);
         assertEquals(2, paths.size());
         filenames = paths.stream().map(s -> s.getFileName().toString()).collect(Collectors.toSet());
         assertTrue(filenames.contains("pa-765432100-20-results.h5"));
@@ -1088,7 +1098,7 @@ public class DataFileManagerTest {
         File[] fileList = taskDirFile.listFiles();
         assertEquals(1, fileList.length);
         assertEquals("st-0", fileList[0].getName());
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, null);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
         File[] endFileList = taskDirFile.listFiles();
         assertEquals(6, endFileList.length);
         Set<String> filenames = getNamesFromListFiles(endFileList);
@@ -1138,7 +1148,7 @@ public class DataFileManagerTest {
         File[] fileList = taskDirFile.listFiles();
         assertEquals(1, fileList.length);
         assertEquals("st-0", fileList[0].getName());
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, null);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
 
         // check the existence of the copied directories
         File[] endFileList = taskDirFile.listFiles();
@@ -1191,7 +1201,7 @@ public class DataFileManagerTest {
         dataFileTypes.add(DataFileTestUtils.dataFileTypeSample2);
 
         // Copy the files to the task directory
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, null);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
         new File(taskDir, "pdc-1-1-20-results.h5").createNewFile();
 
         // move to the subtask directory and copy the files to there
@@ -1239,7 +1249,7 @@ public class DataFileManagerTest {
         dataFileTypes.add(DataFileTestUtils.dataFileTypeSample2);
 
         // Copy the files to the task directory
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, null);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
 
         // move to the subtask directory and copy the files to there
         System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
@@ -1614,9 +1624,8 @@ public class DataFileManagerTest {
         dataFileTypes.add(DataFileTestUtils.dataFileTypeSample1);
         dataFileTypes.add(DataFileTestUtils.dataFileTypeSample2);
 
-        TaskConfigurationParameters tcp = new TaskConfigurationParameters();
-        tcp.setReprocess(true);
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, tcp);
+        taskConfigurationParameters.setReprocess(true);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
         File[] endFileList = new File(taskDir).listFiles();
         assertEquals(5, endFileList.length);
         Set<String> filenames = getNamesFromListFiles(endFileList);
@@ -1643,9 +1652,8 @@ public class DataFileManagerTest {
                 ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(Lists.newArrayList(11L, 12L));
 
-        TaskConfigurationParameters tcp = new TaskConfigurationParameters();
-        tcp.setReprocess(false);
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, tcp);
+        taskConfigurationParameters.setReprocess(false);
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
         File[] endFileList = new File(taskDir).listFiles();
         Set<String> filenames = getNamesFromListFiles(endFileList);
         assertEquals(2, filenames.size());
@@ -1671,10 +1679,8 @@ public class DataFileManagerTest {
                 ArgumentMatchers.any(PipelineDefinitionNode.class)))
             .thenReturn(Lists.newArrayList(10L, 11L, 12L));
 
-        TaskConfigurationParameters tcp = new TaskConfigurationParameters();
-        tcp.setReprocess(true);
-        tcp.setReprocessingTasksExclude(new long[] { 10L });
-        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes, tcp);
+        taskConfigurationParameters.setReprocessingTasksExclude(new long[] { 10L });
+        dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
         File[] endFileList = new File(taskDir).listFiles();
         Set<String> filenames = getNamesFromListFiles(endFileList);
         assertEquals(1, filenames.size());

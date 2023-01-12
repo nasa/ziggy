@@ -34,7 +34,6 @@ import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
-import gov.nasa.ziggy.uow.TaskConfigurationParameters;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
 /**
@@ -107,7 +106,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
         return dataFileManager.dataFilesForInputs(
             Paths.get(
                 uow.getParameter(DirectoryUnitOfWorkGenerator.DIRECTORY_PROPERTY_NAME).getString()),
-            dataFileTypes, pipelineTask.getParameters(TaskConfigurationParameters.class));
+            dataFileTypes);
     }
 
     /**
@@ -150,8 +149,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
         // Copy the data files from the datastore to the task directory
         log.info("Copying data files of " + dataFileTypes.size() + " type(s) to working directory "
             + taskDirectory.toString());
-        dataFileManager.copyDataFilesByTypeToTaskDirectory(dataFilesMap,
-            pipelineTask.getParameters(TaskConfigurationParameters.class));
+        dataFileManager.copyDataFilesByTypeToTaskDirectory(dataFilesMap);
         log.info("Data file copy completed");
 
         // Copy the current models of the required types to the task directory
@@ -387,8 +385,8 @@ public class DefaultPipelineInputs extends PipelineInputs {
         Path datastoreRoot = DirectoryProperties.datastoreRootDir();
         DataFileManager dataFileManager = dataFileManager(datastoreRoot, null, pipelineTask);
         int subtaskCount = dataFileManager.countDatastoreFilesOfType(
-            dataFileTypes.iterator().next(), Paths.get(DirectoryUnitOfWorkGenerator.directory(uow)),
-            pipelineTask.getParameters(TaskConfigurationParameters.class));
+            dataFileTypes.iterator().next(),
+            Paths.get(DirectoryUnitOfWorkGenerator.directory(uow)));
         return new SubtaskInformation(pipelineTask.getModuleName(), uow.briefState(), subtaskCount,
             subtaskCount);
     }

@@ -8,8 +8,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,6 +24,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
@@ -31,6 +34,7 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.DataFileManager;
 import gov.nasa.ziggy.data.management.DataFileType;
+import gov.nasa.ziggy.data.management.DatastoreProducerConsumer;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
 import gov.nasa.ziggy.models.ModelImporter;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
@@ -46,9 +50,11 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
+import gov.nasa.ziggy.uow.TaskConfigurationParameters;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
@@ -76,6 +82,11 @@ public class DefaultPipelineInputsTest {
     private UnitOfWork uow;
     private File dataDir;
     private AlertService alertService;
+    private DatastoreProducerConsumerCrud datastoreProducerConsumerCrud;
+    private PipelineTaskCrud pipelineTaskCrud;
+    private TaskConfigurationParameters taskConfigurationParameters;
+    private Set<Path> centroidPaths;
+    private Set<Path> fluxPaths;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -119,6 +130,10 @@ public class DefaultPipelineInputsTest {
         // set up the model registry and model files
         initializeModelRegistry();
 
+        // Set up a mocked TaskConfigurationParameters instance
+        taskConfigurationParameters = Mockito.mock(TaskConfigurationParameters.class);
+        Mockito.when(taskConfigurationParameters.isReprocess()).thenReturn(true);
+
         // Set up a dummied PipelineTask and a dummied PipelineDefinitionNode
         pipelineTask = Mockito.mock(PipelineTask.class);
         pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
@@ -129,6 +144,14 @@ public class DefaultPipelineInputsTest {
             .thenReturn(Sets.newHashSet(resultsDataFileType));
         Mockito.when(pipelineTask.getModuleName()).thenReturn("csci");
         Mockito.when(pipelineDefinitionNode.getModelTypes()).thenReturn(modelTypes);
+        Mockito
+            .when(
+                pipelineTask.getParameters(ArgumentMatchers.eq(TaskConfigurationParameters.class)))
+            .thenReturn(taskConfigurationParameters);
+        Mockito
+            .when(pipelineTask.getParameters(ArgumentMatchers.eq(TaskConfigurationParameters.class),
+                ArgumentMatchers.anyBoolean()))
+            .thenReturn(taskConfigurationParameters);
 
         // Set up the dummied PipelineInstance
         pipelineInstance = Mockito.mock(PipelineInstance.class);
@@ -142,17 +165,21 @@ public class DefaultPipelineInputsTest {
         Mockito.when(pipelineInstanceNode.getModuleParameterSets()).thenReturn(new HashMap<>());
 
         // Create some "data files" for the process
-        new File(dataDir, "001234567.flux.h5").createNewFile();
-        new File(dataDir, "765432100.flux.h5").createNewFile();
-        new File(dataDir, "001234567.centroid.h5").createNewFile();
-        new File(dataDir, "765432100.centroid.h5").createNewFile();
+        initializeDataFiles();
 
-        // We need a DataFileManager that's had its ResultsOriginatorCrud mocked out
+        // We need an instance of DatastoreProducerConsumerCrud that's mocked
+        datastoreProducerConsumerCrud = Mockito.mock(DatastoreProducerConsumerCrud.class);
+
+        // Also an instance of PipelineTaskCrud that's mocked
+        pipelineTaskCrud = Mockito.mock(PipelineTaskCrud.class);
+
+        // We need a DataFileManager that's had its crud methods mocked out
         mockedDataFileManager = new DataFileManager(datastore.toPath(), taskDir.toPath(),
             pipelineTask);
         mockedDataFileManager = Mockito.spy(mockedDataFileManager);
         Mockito.when(mockedDataFileManager.datastoreProducerConsumerCrud())
-            .thenReturn(Mockito.mock(DatastoreProducerConsumerCrud.class));
+            .thenReturn(datastoreProducerConsumerCrud);
+        Mockito.when(mockedDataFileManager.pipelineTaskCrud()).thenReturn(pipelineTaskCrud);
 
         // We need a mocked AlertService.
         AlertService alertService = Mockito.mock(AlertService.class);
@@ -242,6 +269,158 @@ public class DefaultPipelineInputsTest {
             assertTrue(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
             assertFalse(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-001234567-flux.h5"));
             assertFalse(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-001234567-centroid.h5"));
+        }
+    }
+
+    /**
+     * Tests the situation in which the user wants to perform keep-up processing (i.e., do not
+     * reprocess any files that were already processed), but none of the files in the datastore have
+     * already been processed (i.e., keep-up processing requires all files to be processed anyway).
+     */
+    @Test
+    public void testDatastoreKeepUpProcessingNoOldFiles() throws IOException {
+
+        // We don't want to reprocess.
+        Mockito.when(taskConfigurationParameters.isReprocess()).thenReturn(false);
+
+        // We do want to return a set of DatastoreProducerConsumer instances.
+        Mockito
+            .when(datastoreProducerConsumerCrud.retrieveByFilename(ArgumentMatchers.eq(fluxPaths)))
+            .thenReturn(fluxDatastoreProducerConsumers());
+        Mockito
+            .when(datastoreProducerConsumerCrud
+                .retrieveByFilename(ArgumentMatchers.eq(centroidPaths)))
+            .thenReturn(centroidDatastoreProducerConsumers());
+
+        // None of the consumers will have the correct pipeline definition node.
+        Mockito
+            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(ArgumentMatchers.anySet(),
+                ArgumentMatchers.eq(pipelineDefinitionNode)))
+            .thenReturn(new ArrayList<Long>());
+
+        // Perform the copy
+        performCopyToTaskDir(false);
+
+        // Let's see what wound up in the task directory!
+        try (Stream<Path> taskDirPaths = java.nio.file.Files.list(taskDir.toPath())) {
+            List<String> taskDirFileNames = taskDirPaths.map(s -> s.getFileName().toString())
+                .collect(Collectors.toList());
+
+            // Should be 2 sub-directories
+            assertTrue(taskDirFileNames.contains("st-0"));
+            assertTrue(taskDirFileNames.contains("st-1"));
+
+            // Should be 4 data files
+            assertTrue(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-001234567-flux.h5"));
+            assertTrue(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-001234567-centroid.h5"));
+            assertTrue(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-flux.h5"));
+            assertTrue(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
+
+            // Should be 2 model files, both with their original file names
+            assertTrue(taskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
+            assertTrue(taskDirFileNames.contains("calibration-4.12.9.h5"));
+
+            // Should be an HDF5 file of the partial inputs
+            assertTrue(taskDirFileNames.contains("csci-inputs.h5"));
+        }
+    }
+
+    /**
+     * Constructs a {@link List} of {@link DatastoreProducerConsumer} instances for the data files
+     * used in the unit tests.
+     */
+    private List<DatastoreProducerConsumer> fluxDatastoreProducerConsumers() {
+
+        List<DatastoreProducerConsumer> datastoreProducerConsumers = new ArrayList<>();
+
+        // Add producer-consumer instances for each data file.
+        datastoreProducerConsumers
+            .add(new DatastoreProducerConsumer(5L, "sector-0001/ccd-1:1/pa/001234567.flux.h5",
+                DatastoreProducerConsumer.DataReceiptFileType.DATA));
+        datastoreProducerConsumers
+            .add(new DatastoreProducerConsumer(5L, "sector-0001/ccd-1:1/pa/765432100.flux.h5",
+                DatastoreProducerConsumer.DataReceiptFileType.DATA));
+
+        // Set the 001234567 files to have one consumer, the 765432100 files to have a
+        // different one.
+        datastoreProducerConsumers.get(0).addConsumer(6L);
+        datastoreProducerConsumers.get(1).addConsumer(7L);
+
+        return datastoreProducerConsumers;
+    }
+
+    /**
+     * Constructs a {@link List} of {@link DatastoreProducerConsumer} instances for the data files
+     * used in the unit tests.
+     */
+    private List<DatastoreProducerConsumer> centroidDatastoreProducerConsumers() {
+
+        List<DatastoreProducerConsumer> datastoreProducerConsumers = new ArrayList<>();
+
+        // Add producer-consumer instances for each data file.
+        datastoreProducerConsumers
+            .add(new DatastoreProducerConsumer(5L, "sector-0001/ccd-1:1/pa/001234567.centroid.h5",
+                DatastoreProducerConsumer.DataReceiptFileType.DATA));
+        datastoreProducerConsumers
+            .add(new DatastoreProducerConsumer(5L, "sector-0001/ccd-1:1/pa/765432100.centroid.h5",
+                DatastoreProducerConsumer.DataReceiptFileType.DATA));
+
+        // Set the 001234567 files to have one consumer, the 765432100 files to have a
+        // different one.
+        datastoreProducerConsumers.get(0).addConsumer(6L);
+        datastoreProducerConsumers.get(1).addConsumer(7L);
+
+        return datastoreProducerConsumers;
+    }
+
+    /**
+     * Tests the situation in which the user wants to perform keep-up processing (i.e., do not
+     * reprocess any files that were already processed), and there are some files that have already
+     * been processed and don't need to be processed again.
+     */
+    @Test
+    public void testDatastoreKeepUpProcessing() throws IOException {
+
+        // We don't want to reprocess.
+        Mockito.when(taskConfigurationParameters.isReprocess()).thenReturn(false);
+
+        // We do want to return a set of DatastoreProducerConsumer instances.
+        Mockito
+            .when(datastoreProducerConsumerCrud.retrieveByFilename(ArgumentMatchers.eq(fluxPaths)))
+            .thenReturn(fluxDatastoreProducerConsumers());
+        Mockito
+            .when(datastoreProducerConsumerCrud
+                .retrieveByFilename(ArgumentMatchers.eq(centroidPaths)))
+            .thenReturn(centroidDatastoreProducerConsumers());
+
+        // None of the consumers will have the correct pipeline definition node.
+        Mockito
+            .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(ArgumentMatchers.anySet(),
+                ArgumentMatchers.eq(pipelineDefinitionNode)))
+            .thenReturn(List.of(6L));
+
+        // Perform the copy
+        performCopyToTaskDir(false);
+
+        // Let's see what wound up in the task directory!
+        try (Stream<Path> taskDirPaths = java.nio.file.Files.list(taskDir.toPath())) {
+            List<String> taskDirFileNames = taskDirPaths.map(s -> s.getFileName().toString())
+                .collect(Collectors.toList());
+
+            // Should be 2 data files
+            assertTrue(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-flux.h5"));
+            assertTrue(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
+
+            // Should be 1 sub-directory
+            assertTrue(taskDirFileNames.contains("st-0"));
+            assertFalse(taskDirFileNames.contains("st-1"));
+
+            // Should be 2 model files, both with their original file names
+            assertTrue(taskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
+            assertTrue(taskDirFileNames.contains("calibration-4.12.9.h5"));
+
+            // Should be an HDF5 file of the partial inputs
+            assertTrue(taskDirFileNames.contains("csci-inputs.h5"));
         }
     }
 
@@ -580,6 +759,30 @@ public class DefaultPipelineInputsTest {
         modelTypes = new HashSet<>();
         modelTypes.add(modelType1);
         modelTypes.add(modelType2);
+
+    }
+
+    private void initializeDataFiles() throws IOException {
+
+        // Create the sets of paths.
+        centroidPaths = new HashSet<>();
+        Path dataDirRelativePath = datastore.toPath().relativize(dataDir.toPath());
+        centroidPaths.add(dataDirRelativePath.resolve("001234567.centroid.h5"));
+        centroidPaths.add(dataDirRelativePath.resolve("765432100.centroid.h5"));
+
+        fluxPaths = new HashSet<>();
+        fluxPaths.add(dataDirRelativePath.resolve("001234567.flux.h5"));
+        fluxPaths.add(dataDirRelativePath.resolve("765432100.flux.h5"));
+
+        // Create the datastore files as zero-length regular files.
+        for (Path path : centroidPaths) {
+            Files.createFile(datastore.toPath().resolve(path));
+        }
+
+        // Create the datastore files as zero-length regular files.
+        for (Path path : fluxPaths) {
+            Files.createFile(datastore.toPath().resolve(path));
+        }
 
     }
 
