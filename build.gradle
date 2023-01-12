@@ -4,11 +4,14 @@
 // Imperative tasks are found in script-plugins and are applied at the
 // bottom of this file.
 
+// To view a dependency graph using the taskinfo plugin, run "./gradlew tiTree build"
+
 plugins {
     id 'com.github.spotbugs' version '5.0.+'
     id 'eclipse'
     id 'jacoco'
     id 'java'
+    id 'org.barfuin.gradle.taskinfo' version '2.1.+'
 }
 
 defaultTasks "build"
