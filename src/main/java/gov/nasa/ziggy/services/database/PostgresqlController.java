@@ -15,6 +15,7 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Implementation of {@link DatabaseController} for PostgreSQL use. If the
@@ -180,7 +181,8 @@ public class PostgresqlController extends DatabaseController {
             confFileContents
                 .append("include '" + DirectoryProperties.databaseConfFile() + "'" + newline);
         }
-        Files.write(configPath, confFileContents.toString().getBytes(), StandardOpenOption.APPEND);
+        Files.write(configPath, confFileContents.toString().getBytes(FileUtil.ZIGGY_CHARSET),
+            StandardOpenOption.APPEND);
         log.info("Creating configuration file in " + dataDir().toString() + "...done");
     }
 

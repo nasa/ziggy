@@ -172,10 +172,10 @@ public class TaskLog {
         return logType.logDir().toFile().listFiles((FilenameFilter) (dir, name) -> {
             Matcher matcher = TaskLogInformation.LOG_FILE_NAME_PATTERN.matcher(name);
             if (matcher.matches()) {
-                return Integer.valueOf(
+                return Integer.parseInt(
                     matcher.group(TaskLogInformation.INSTANCE_ID_GROUP_NUMBER)) == instanceId
                     && Integer
-                        .valueOf(matcher.group(TaskLogInformation.TASK_ID_GROUP_NUMBER)) == taskId;
+                        .parseInt(matcher.group(TaskLogInformation.TASK_ID_GROUP_NUMBER)) == taskId;
             }
             return false;
         });

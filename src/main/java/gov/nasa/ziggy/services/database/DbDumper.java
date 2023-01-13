@@ -3,9 +3,11 @@ package gov.nasa.ziggy.services.database;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -27,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.RegexEditor;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * DbDumper - writes the contents of selected tables to a file
@@ -49,9 +52,9 @@ public class DbDumper {
 
     private final Map<String, Pattern[]> patternsByColumn = new HashMap<>();
 
-    private static String exFilename;
+    private String exFilename;
 
-    private static String acFilename;
+    private String acFilename;
 
     public static void main(String[] args) throws Exception {
 
@@ -168,7 +171,8 @@ public class DbDumper {
             log.info("all columns will be written");
         }
 
-        try (BufferedWriter output = new BufferedWriter(new FileWriter(outFile))) {
+        try (BufferedWriter output = new BufferedWriter(
+            new OutputStreamWriter(new FileOutputStream(outFile), FileUtil.ZIGGY_CHARSET))) {
             updatePatternsByTable();
 
             // use database metadata to find tables with names matching prefixes
@@ -471,7 +475,7 @@ public class DbDumper {
         }
     }
 
-    private static Exception exception(String msg) throws Exception {
+    private Exception exception(String msg) throws Exception {
         String fullMsg = "Validation failed:  data files not identical:" + "\nExpected data file = "
             + exFilename + "\nActual   data file = " + acFilename + "\nDifferences:" + msg;
         log.error(fullMsg);
@@ -527,7 +531,8 @@ public class DbDumper {
         private final Map<String, Integer> rowCount = new HashMap<>();
 
         private DumpFile(File file) throws FileNotFoundException {
-            in = new BufferedReader(new FileReader(file));
+            in = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file), FileUtil.ZIGGY_CHARSET));
         }
 
         public String read() {

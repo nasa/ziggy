@@ -36,12 +36,15 @@ package gov.nasa.ziggy.services.config;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 
 import org.apache.commons.configuration.ConfigurationUtils;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Merges the contents of two .properties files into one. Typically one contains the defaults and
@@ -87,8 +90,8 @@ public class ConfigMerge {
         // Write out the merged config .properties file
         File mergedFile = new File(mergedPath);
         log.info("writing merged file: " + mergedFile);
-        BufferedWriter outputWriter = new BufferedWriter(new FileWriter(mergedFile));
-
+        BufferedWriter outputWriter = new BufferedWriter(
+            new OutputStreamWriter(new FileOutputStream(mergedFile), FileUtil.ZIGGY_CHARSET));
         baseConfig.save(outputWriter);
     }
 

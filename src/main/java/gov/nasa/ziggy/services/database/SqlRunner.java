@@ -37,9 +37,10 @@ package gov.nasa.ziggy.services.database;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -188,7 +189,8 @@ public class SqlRunner implements Closeable {
     }
 
     private String[] loadSql(File path) throws FileNotFoundException, IOException {
-        BufferedReader fileReader = new BufferedReader(new FileReader(path));
+        BufferedReader fileReader = new BufferedReader(
+            new InputStreamReader(new FileInputStream(path), FileUtil.ZIGGY_CHARSET));
         StringBuilder bld = new StringBuilder((int) path.length());
         try {
             for (String line = fileReader.readLine(); line != null; line = fileReader.readLine()) {

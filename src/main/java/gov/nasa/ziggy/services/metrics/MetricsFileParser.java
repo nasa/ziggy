@@ -131,14 +131,13 @@ public class MetricsFileParser {
         }
         if (metricTypeStr.equals(CounterMetric.COUNTER_TYPE)) {
             return counterCase;
-        } else {
-            throw new IllegalStateException(
-                "Parse error.  Unknown metric type \"" + metricTypeStr + "\".");
         }
+        throw new IllegalStateException(
+            "Parse error.  Unknown metric type \"" + metricTypeStr + "\".");
     }
 
     protected Reader openReader() throws IOException {
-        return new FileReader(metricsFile);
+        return new FileReader(metricsFile, FileUtil.ZIGGY_CHARSET);
     }
 
     private abstract class LineIterator<T> implements Iterator<T>, Iterable<T> {
