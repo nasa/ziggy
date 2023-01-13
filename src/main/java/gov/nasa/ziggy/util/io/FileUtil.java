@@ -3,6 +3,8 @@ package gov.nasa.ziggy.util.io;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
@@ -40,6 +42,10 @@ public class FileUtil {
     public static final String DIR_OVERWRITE_PERMISSIONS = "rwxrwxr-x";
     public static final String FILE_READONLY_PERMISSIONS = "r--r--r--";
     public static final String DIR_READONLY_PERMISSIONS = "r-xr-xr-x";
+
+    public static final Charset ZIGGY_CHARSET = StandardCharsets.UTF_8;
+
+    public static final String ZIGGY_CHARSET_NAME = ZIGGY_CHARSET.name();
 
     /**
      * Applies write protection to a directory tree. All directories will have permissions set to
