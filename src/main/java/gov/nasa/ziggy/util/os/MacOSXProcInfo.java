@@ -73,7 +73,7 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
                     log.debug("ignoring line with two few tokens: " + line);
                     continue;
                 }
-                if (Long.valueOf(tokens[1]) == currentPid
+                if (Long.parseLong(tokens[1]) == currentPid
                     && (name == null || tokens[2].endsWith(name))) {
                     // found a match
                     long pid = Long.parseLong(tokens[0]);

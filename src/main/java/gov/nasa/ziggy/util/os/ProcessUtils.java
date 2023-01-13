@@ -151,7 +151,8 @@ public class ProcessUtils {
 
         log.info("Executing java process with command line \"" + cmd + "\".");
         Process process = Runtime.getRuntime().exec(commandArray);
-        BufferedReader errors = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+        BufferedReader errors = new BufferedReader(
+            new InputStreamReader(process.getErrorStream(), FileUtil.ZIGGY_CHARSET_NAME));
 
         // Report stderr if the process fails to launch. Unfortunately, if there
         // is a problem here, it seems you have to be stepping in the debugger

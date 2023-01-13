@@ -10,7 +10,7 @@ import org.slf4j.Logger;
  * @author Miles Cote
  */
 public class ZiggyBuild {
-    public static final SimpleDateFormat READABLE_LOCAL_FORMAT = new SimpleDateFormat(
+    private static final SimpleDateFormat READABLE_LOCAL_FORMAT = new SimpleDateFormat(
         "yyyy-MM-dd--HH.mm.ss");
 
     public static final String getId() {
