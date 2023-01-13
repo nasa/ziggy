@@ -63,6 +63,7 @@ dependencies {
     implementation ':wrapper:'
 
     // Needed to compile unit tests.
+    implementation 'com.github.spotbugs:spotbugs-annotations:4.7.+'
     implementation 'junit:junit:4.13.+'
     implementation 'org.hamcrest:hamcrest:2.+'
     implementation 'org.mockito:mockito-core:3.12.+'
