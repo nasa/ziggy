@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -21,6 +22,8 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Base class for all metrics.
@@ -114,7 +117,7 @@ public abstract class Metric implements Serializable {
      * Dump all metrics to stdout
      */
     public static void dump() {
-        Metric.dump(new PrintWriter(System.out));
+        Metric.dump(new PrintWriter(new OutputStreamWriter(System.out, FileUtil.ZIGGY_CHARSET)));
     }
 
     /**

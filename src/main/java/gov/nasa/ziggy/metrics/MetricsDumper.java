@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * {@link Runnable} that periodically dumps metrics to a file.
@@ -74,7 +75,7 @@ public class MetricsDumper implements Runnable {
         BufferedOutputStream bout = new BufferedOutputStream(fout, BUF_SIZE_BYTES);
 
         countOut = new CountingOutputStream(bout);
-        printWriter = new PrintWriter(new OutputStreamWriter(countOut));
+        printWriter = new PrintWriter(new OutputStreamWriter(countOut, FileUtil.ZIGGY_CHARSET));
     }
 
     @Override

@@ -119,14 +119,6 @@ public class InstanceMetricsReport {
         taskPdfRenderer.close();
     }
 
-//    private void chart2Png(JFreeChart chart, File outputPngFile) throws Exception {
-//        FileOutputStream fos = new FileOutputStream(outputPngFile);
-//        BufferedOutputStream bos = new BufferedOutputStream(fos);
-//        ChartUtilities.writeChartAsPNG(bos, chart, 800, 600);
-//        bos.close();
-//        fos.close();
-//    }
-
     private void parseFiles() throws Exception {
         File[] taskDirs = rootDirectory
             .listFiles((FileFilter) f -> f.getName().contains("-matlab-") && f.isDirectory());
@@ -143,17 +135,17 @@ public class InstanceMetricsReport {
                 taskMetricsMap.put(taskDirName, taskMetrics);
             }
 
-            File[] subTaskDirs = taskDir
+            File[] subtaskDirs = taskDir
                 .listFiles((FileFilter) pathname -> pathname.getName().startsWith("st-")
                     && pathname.isDirectory());
 
-            if (subTaskDirs != null) {
-                log.info("Found " + subTaskDirs.length + " sub-task directories");
-            } else {
+            if (subtaskDirs == null) {
                 log.info("No sub-task directories found");
+                return;
             }
+            log.info("Found " + subtaskDirs.length + " sub-task directories");
 
-            for (File subTaskDir : subTaskDirs) {
+            for (File subTaskDir : subtaskDirs) {
                 File subTaskMetricsFile = new File(subTaskDir, METRICS_FILE_NAME);
 
                 if (subTaskMetricsFile.exists()) {

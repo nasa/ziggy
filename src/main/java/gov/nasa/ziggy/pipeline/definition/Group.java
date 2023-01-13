@@ -19,7 +19,7 @@ import javax.persistence.Table;
 @Entity
 @Table(name = "PI_GROUP")
 public class Group {
-    public static Group DEFAULT_GROUP = new Group();
+    public static final Group DEFAULT_GROUP = new Group();
 
     @Id
     private String name;
@@ -78,7 +78,7 @@ public class Group {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         final Group other = (Group) obj;

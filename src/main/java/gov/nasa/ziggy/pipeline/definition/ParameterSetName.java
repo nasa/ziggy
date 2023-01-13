@@ -33,7 +33,7 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 @Entity
 @Table(name = "PI_PS_NAME")
 public class ParameterSetName extends XmlReference {
-    public static String DELIMITER = ":";
+    public static final String DELIMITER = ":";
 
     /**
      * For Hibernate use only
@@ -87,7 +87,7 @@ public class ParameterSetName extends XmlReference {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         ParameterSetName other = (ParameterSetName) obj;

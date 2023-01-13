@@ -165,7 +165,7 @@ public class PbsParameters {
         // are needed; if this number is larger, keep it
         if (!StringUtils.isEmpty(remoteParameters.getMaxNodes())) {
             subtasksPerCore = Math.max(subtasksPerCore, (double) totalSubtaskCount
-                / (activeCoresPerNode * Integer.valueOf(remoteParameters.getMaxNodes())));
+                / (activeCoresPerNode * Integer.parseInt(remoteParameters.getMaxNodes())));
         }
 
         // Finally, if the user has supplied an override for subtasks per core, apply it

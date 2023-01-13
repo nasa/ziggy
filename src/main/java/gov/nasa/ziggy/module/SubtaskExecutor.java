@@ -1,9 +1,10 @@
 package gov.nasa.ziggy.module;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.InetAddress;
 import java.nio.file.Files;
@@ -29,6 +30,7 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.io.FileUtil;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
@@ -415,10 +417,14 @@ public class SubtaskExecutor {
     int runCommandline(List<String> commandline, String logPrefix, String logSuffix)
         throws IOException {
         try (
-            FileWriter stdOutWriter = new FileWriter(
-                new File(workingDir, ModuleInterfaceUtils.stdoutFileName(logPrefix, logSuffix)));
-            FileWriter stdErrWriter = new FileWriter(
-                new File(workingDir, ModuleInterfaceUtils.stderrFileName(logPrefix, logSuffix)))) {
+            Writer stdOutWriter = new OutputStreamWriter(
+                new FileOutputStream(new File(workingDir,
+                    ModuleInterfaceUtils.stdoutFileName(logPrefix, logSuffix))),
+                FileUtil.ZIGGY_CHARSET);
+            Writer stdErrWriter = new OutputStreamWriter(
+                new FileOutputStream(new File(workingDir,
+                    ModuleInterfaceUtils.stderrFileName(logPrefix, logSuffix))),
+                FileUtil.ZIGGY_CHARSET)) {
             File binary = new File(binaryDir.getPath(), binaryName);
             if ((!binary.exists() || !binary.isFile())
                 && OperatingSystemType.getInstance() == OperatingSystemType.MAC_OS_X) {
@@ -487,6 +493,7 @@ public class SubtaskExecutor {
 
             return retCode;
         }
+
     }
 
     private Map<String, String> mergeWithEnvironment(Map<String, String> additionalEnvironment) {

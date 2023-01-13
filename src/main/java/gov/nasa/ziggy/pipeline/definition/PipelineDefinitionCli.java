@@ -51,9 +51,9 @@ import gov.nasa.ziggy.services.database.DatabaseTransaction;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 public class PipelineDefinitionCli {
-    public static String IMPORT_OPT = "import";
-    public static String EXPORT_OPT = "export";
-    public static String REPLACE_OPT = "replace";
+    public static final String IMPORT_OPT = "import";
+    public static final String EXPORT_OPT = "export";
+    public static final String REPLACE_OPT = "replace";
 
     private final boolean importLib;
     private final String[] filenames;

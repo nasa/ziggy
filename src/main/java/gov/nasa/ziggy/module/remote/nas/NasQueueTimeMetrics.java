@@ -35,8 +35,9 @@
 package gov.nasa.ziggy.module.remote.nas;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,6 +59,7 @@ import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Manages the queue time metrics ("runout time" and "expansion") that Pleiades produces, and
@@ -155,7 +157,8 @@ public class NasQueueTimeMetrics {
         CSVFormat format = CSVFormat.Builder.create(CSVFormat.EXCEL)
             .setRecordSeparator("\n")
             .build();
-        try (CSVParser parser = format.parse(new FileReader(new File(file)))) {
+        try (CSVParser parser = format.parse(
+            new InputStreamReader(new FileInputStream(new File(file)), FileUtil.ZIGGY_CHARSET))) {
             List<CSVRecord> csvRecords = parser.getRecords();
             CSVRecord divisionsRecord = csvRecords.get(0);
             List<String> divisions = new ArrayList<>();
@@ -236,7 +239,7 @@ public class NasQueueTimeMetrics {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             ArchitectureQueueTimeMetrics other = (ArchitectureQueueTimeMetrics) obj;

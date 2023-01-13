@@ -56,10 +56,10 @@ public class ParameterLibraryImportExportCli {
         STANDARD, DRYRUN, NODB;
     }
 
-    public static String IMPORT_OPT = "import";
-    public static String EXPORT_OPT = "export";
-    public static String DRYRUN_OPT = "dryrun";
-    public static String NODB_OPT = "nodb";
+    public static final String IMPORT_OPT = "import";
+    public static final String EXPORT_OPT = "export";
+    public static final String DRYRUN_OPT = "dryrun";
+    public static final String NODB_OPT = "nodb";
 
     private final boolean importLib;
     private final String[] filenames;

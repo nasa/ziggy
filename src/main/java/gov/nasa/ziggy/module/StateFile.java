@@ -2,8 +2,10 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,6 +30,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.TimeFormatter;
+import gov.nasa.ziggy.util.io.FileUtil;
 import gov.nasa.ziggy.util.io.LockManager;
 
 /**
@@ -337,7 +340,8 @@ public class StateFile implements Comparable<StateFile> {
         }
 
         File file = new File(directory, name());
-        try (FileWriter fw = new FileWriter(file)) {
+        try (Writer fw = new OutputStreamWriter(new FileOutputStream(file),
+            FileUtil.ZIGGY_CHARSET)) {
             props.save(fw);
 
             // Also, move any old state files that are for the same instance and

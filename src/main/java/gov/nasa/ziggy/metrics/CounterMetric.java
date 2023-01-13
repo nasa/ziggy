@@ -13,7 +13,7 @@ public class CounterMetric extends Metric implements Serializable {
 
     private final AtomicInteger count = new AtomicInteger(0);
 
-    public static String COUNTER_TYPE = "C";
+    public static final String COUNTER_TYPE = "C";
 
     /**
      * @return

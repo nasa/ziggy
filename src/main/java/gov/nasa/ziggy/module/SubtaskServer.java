@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.module;
 
-import java.io.Serializable;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 
@@ -28,8 +27,12 @@ public class SubtaskServer implements Runnable {
     private Thread listenerThread;
 
     public SubtaskServer(int subtaskMasterCount, TaskConfigurationManager inputsHandler) {
-        requestQueue = new ArrayBlockingQueue<>(subtaskMasterCount);
+        initializeRequestQueue(subtaskMasterCount);
         this.inputsHandler = inputsHandler;
+    }
+
+    public static void initializeRequestQueue(int subtaskMasterCount) {
+        requestQueue = new ArrayBlockingQueue<>(subtaskMasterCount);
     }
 
     public void start() throws InterruptedException {
@@ -81,8 +84,7 @@ public class SubtaskServer implements Runnable {
         requestQueue.put(request);
     }
 
-    public static final class Request implements Serializable {
-        private static final long serialVersionUID = -3336544526225919889L;
+    public static final class Request {
 
         public static final int NONE = -1;
 
@@ -109,8 +111,7 @@ public class SubtaskServer implements Runnable {
         }
     }
 
-    public static final class Response implements Serializable {
-        private static final long serialVersionUID = 4517789890439531336L;
+    public static final class Response {
 
         public ResponseType status;
         public int subtaskIndex = -1;

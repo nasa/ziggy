@@ -132,18 +132,18 @@ public class RemoteParameters implements Parameters {
 
         checkState(
             subtasksPerCore.isEmpty()
-                || NumberUtils.isNumber(subtasksPerCore) && Double.valueOf(subtasksPerCore) > 0,
+                || NumberUtils.isNumber(subtasksPerCore) && Double.parseDouble(subtasksPerCore) > 0,
             "subtasksPerCore must be > 0");
         checkState(
-            maxNodes.isEmpty() || NumberUtils.isNumber(maxNodes) && Integer.valueOf(maxNodes) > 0,
+            maxNodes.isEmpty() || NumberUtils.isNumber(maxNodes) && Integer.parseInt(maxNodes) > 0,
             "maxNodes must be > 0");
         checkState(
             minCoresPerNode.isEmpty()
-                || NumberUtils.isNumber(minCoresPerNode) && Integer.valueOf(minCoresPerNode) > 0,
+                || NumberUtils.isNumber(minCoresPerNode) && Integer.parseInt(minCoresPerNode) > 0,
             "minCoresPerNode must be > 0");
         checkState(
             minGigsPerNode.isEmpty()
-                || NumberUtils.isNumber(minGigsPerNode) && Double.valueOf(minGigsPerNode) > 0,
+                || NumberUtils.isNumber(minGigsPerNode) && Double.parseDouble(minGigsPerNode) > 0,
             "minGigsPerNode must be > 0");
         checkState(queueName.isEmpty() || RemoteQueueDescriptor.fromName(queueName) != null,
             "Queue name not recognized: " + queueName);

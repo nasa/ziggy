@@ -65,7 +65,7 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
             try {
                 stateFileLockFile.createNewFile();
             } catch (IOException e) {
-                new PipelineException("Unable to create lock file for state file", e);
+                throw new PipelineException("Unable to create lock file for state file", e);
             }
         }
         return taskDir;

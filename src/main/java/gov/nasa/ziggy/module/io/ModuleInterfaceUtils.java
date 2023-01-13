@@ -2,7 +2,9 @@ package gov.nasa.ziggy.module.io;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -11,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.matlab.MatlabErrorReturn;
+import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.annotation.XmlRootElement;
@@ -49,7 +52,9 @@ public class ModuleInterfaceUtils {
                 return true; // continue what ever is going on.
             });
 
-            try (FileWriter fileWriter = new FileWriter(companionXmlFile);
+            try (
+                Writer fileWriter = new OutputStreamWriter(new FileOutputStream(companionXmlFile),
+                    FileUtil.ZIGGY_CHARSET);
                 BufferedWriter bufWriter = new BufferedWriter(fileWriter)) {
                 marshaller.marshal(inputs, bufWriter);
             }

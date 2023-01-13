@@ -1,9 +1,13 @@
 package gov.nasa.ziggy.parameters;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -14,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Utility methods for {@link Parameters} classes
@@ -40,7 +45,8 @@ public class ParametersUtils {
         log.info("Importing " + parametersClass.getSimpleName() + " from: " + file.getName());
 
         Properties propsFile = new Properties();
-        try (FileReader reader = new FileReader(file)) {
+        try (Reader reader = new InputStreamReader(new FileInputStream(file),
+            FileUtil.ZIGGY_CHARSET)) {
             propsFile.load(reader);
         }
 
@@ -76,7 +82,8 @@ public class ParametersUtils {
         log.info(
             "Exporting " + parametersBean.getClass().getSimpleName() + " to: " + file.getName());
 
-        try (FileWriter propsFileWriter = new FileWriter(file)) {
+        try (Writer propsFileWriter = new OutputStreamWriter(new FileOutputStream(file),
+            FileUtil.ZIGGY_CHARSET)) {
             propsFile.store(propsFileWriter, "exported by ParametersUtils");
         }
     }

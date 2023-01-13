@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * @author Todd Klaus
@@ -59,7 +60,8 @@ public class MemdroneLog {
 
         logContents = new HashMap<>();
 
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(input))) {
+        try (BufferedReader br = new BufferedReader(
+            new InputStreamReader(input, FileUtil.ZIGGY_CHARSET))) {
             String line = null;
 
             while ((line = br.readLine()) != null) {
