@@ -3,9 +3,11 @@ package gov.nasa.ziggy.ui.collections;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -37,7 +39,8 @@ public class ArrayImportExportUtils {
         BufferedReader reader = null;
 
         try {
-            reader = new BufferedReader(new FileReader(file));
+            reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file), FileUtil.ZIGGY_CHARSET));
             log.info("Importing array from: " + file.getName());
 
             String oneLine = null;
@@ -59,7 +62,8 @@ public class ArrayImportExportUtils {
     public static void exportArray(File file, List<String> values) throws IOException {
         log.info("Exporting array to: " + file.getName());
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+        try (BufferedWriter writer = new BufferedWriter(
+            new OutputStreamWriter(new FileOutputStream(file), FileUtil.ZIGGY_CHARSET));) {
             writer.write("# Exported by ParametersUtils");
             writer.newLine();
             writer.write("#" + new Date().toString());

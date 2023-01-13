@@ -161,12 +161,16 @@ public class ClusterController {
     private static final List<String> ALL_COMMANDS = ImmutableList.of(INIT_COMMAND, START_COMMAND,
         STOP_COMMAND, STATUS_COMMAND, CONSOLE_COMMAND);
 
-    private static final String COMMAND_HELP = "\nCommands:\n"
-        + "init                    Initialize the cluster\n"
-        + "start                   Start the cluster\n"
-        + "stop                    Stop the cluster\n"
-        + "status                  Check cluster status\n"
-        + "console                 Start pipeline console GUI\n\n" + "Options:";
+    private static final String COMMAND_HELP = """
+
+        Commands:
+        init                    Initialize the cluster
+        start                   Start the cluster
+        stop                    Stop the cluster
+        status                  Check cluster status
+        console                 Start pipeline console GUI
+
+        Options:""";
 
     private final DatabaseController databaseController;
 
@@ -628,13 +632,12 @@ public class ClusterController {
     private static void usageAndExit(Options options, Throwable e) {
         Throwable rootCause = e;
         StringBuilder s = new StringBuilder();
-        s.append(e.getClass().toString());
         while (rootCause != null) {
-            if (s.length() != 0) {
+            s.append(rootCause.getClass().toString());
+            rootCause = rootCause.getCause();
+            if (rootCause != null) {
                 s.append(": ");
             }
-            s.append(rootCause.getMessage());
-            rootCause = rootCause.getCause();
         }
         usageAndExit(options, s.length() > 0 ? s.toString() : e != null ? e.toString() : null);
     }

@@ -620,10 +620,6 @@ public class ZiggyConsole {
     public static void main(String[] args) throws Exception {
 
         if (args.length > 0) { // CLI control
-            if (args.length < 1) {
-                usage();
-                System.exit(-1);
-            }
 
             ZiggyConsole cli = new ZiggyConsole();
 

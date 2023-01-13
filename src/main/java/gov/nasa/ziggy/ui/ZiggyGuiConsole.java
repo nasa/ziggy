@@ -118,7 +118,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame {
     private static final String ZIGGY_LOGO_DIR = "/images/";
 
     private static ZiggyGuiConsole instance = null;
-    public static CrudProxyExecutor crudProxyExecutor = new CrudProxyExecutor();
+    public static final CrudProxyExecutor crudProxyExecutor = new CrudProxyExecutor();
 
     public static User currentUser = null;
 

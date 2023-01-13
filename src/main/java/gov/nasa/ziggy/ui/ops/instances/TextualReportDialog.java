@@ -5,7 +5,8 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -22,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.ui.common.MessageUtil;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * @author Todd Klaus
@@ -54,7 +56,9 @@ public class TextualReportDialog extends javax.swing.JDialog {
 
     public static TextualReportDialog showReport(JDialog parent, String report, Path savePath) {
         TextualReportDialog dialog = new TextualReportDialog(parent, report);
-        dialog.setReportSavePath(savePath);
+        if (savePath != null) {
+            dialog.setReportSavePath(savePath);
+        }
         dialog.setVisible(true);
         return dialog;
     }
@@ -87,7 +91,8 @@ public class TextualReportDialog extends javax.swing.JDialog {
                 return;
             }
             File file = savePath.toFile();
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(file), FileUtil.ZIGGY_CHARSET))) {
                 writer.write(report);
                 setTitle(savePath.getFileName().toString());
             } catch (Exception e) {
