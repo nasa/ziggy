@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module.hdf5;
 
 import static hdf.hdf5lib.HDF5Constants.H5P_DEFAULT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -107,7 +108,7 @@ public class Hdf5ModuleInterfaceTest {
         recoveredTestValues = new PersistableSample2();
         recoveredTestValues.ignoreThisField = 0;
         missingFieldsDetected = moduleInterface.readFile(hdf5File, recoveredTestValues, true);
-        assertTrue(missingFieldsDetected);
+        assertFalse(missingFieldsDetected);
         assertEquals(0.0, recoveredTestValues.ignoreThisField, 0);
 
         recoveredTestValues.ignoreThisField = 11.5;

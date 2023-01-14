@@ -54,7 +54,8 @@ public class ProcessUtilsTest {
         subJavaProcess.waitFor();
 
         InputStream inputStream = subJavaProcess.getInputStream();
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        BufferedReader bufferedReader = new BufferedReader(
+            new InputStreamReader(inputStream, FileUtil.ZIGGY_CHARSET));
         String helloWorld = bufferedReader.readLine();
         inputStream.close();
         InputStream errorStream = subJavaProcess.getErrorStream();

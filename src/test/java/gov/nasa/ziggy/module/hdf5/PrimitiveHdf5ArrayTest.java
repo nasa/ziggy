@@ -58,6 +58,8 @@ public class PrimitiveHdf5ArrayTest {
     String stringTestField;
     double doubleScalar;
 
+    private static final Random rd = new Random();
+
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -621,7 +623,6 @@ public class PrimitiveHdf5ArrayTest {
     @Test
     public void testGetHyperslab() {
 
-        Random rd = new Random();
         int[][][] randomArray = new int[3][4][5];
         for (int i = 0; i < randomArray.length; i++) {
             for (int j = 0; j < randomArray[i].length; j++) {
@@ -658,7 +659,6 @@ public class PrimitiveHdf5ArrayTest {
 
     @Test
     public void testPutHyperslab() throws NoSuchFieldException, SecurityException {
-        Random rd = new Random();
         int[][][] randomArray = new int[1][2][5];
         for (int i = 0; i < randomArray.length; i++) {
             for (int j = 0; j < randomArray[i].length; j++) {

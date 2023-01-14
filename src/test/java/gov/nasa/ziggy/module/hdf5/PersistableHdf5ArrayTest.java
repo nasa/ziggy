@@ -443,18 +443,15 @@ public class PersistableHdf5ArrayTest {
     public void testPersistableObjectInterface() throws HDF5LibraryException, NullPointerException {
         String fieldName = "persistableObjectField";
 
-        // set the variable for determining whether to create groups for members of the object
-        // that are null
-
-        Hdf5ModuleInterface.createGroupsForMissingFields = false;
-
         // create a parent group for the array
         long fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // create an object of class PersistableTest2
         PersistableSample2 persistableTest2 = generatePersistableTest2Object();
-        List<Long> subGroupIds = new PersistableHdf5Array(persistableTest2)
-            .writePersistableScalarObject(fieldGroupId, fieldName);
+        PersistableHdf5Array persistableArray = new PersistableHdf5Array(persistableTest2);
+        persistableArray.setCreateGroupsForMissingFields(false);
+        List<Long> subGroupIds = persistableArray.writePersistableScalarObject(fieldGroupId,
+            fieldName);
 
         // check that the # of groups that got generated matches expectations
         assertEquals(99, subGroupIds.size());
@@ -462,16 +459,13 @@ public class PersistableHdf5ArrayTest {
 
         // Now set up to create groups for null fields and do the test again
 
-        Hdf5ModuleInterface.createGroupsForMissingFields = true;
         fieldName = "newPersistableObjectField";
         fieldGroupId = H5.H5Gcreate(fileId, fieldName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-        subGroupIds = new PersistableHdf5Array(persistableTest2)
-            .writePersistableScalarObject(fieldGroupId, fieldName);
+        persistableArray = new PersistableHdf5Array(persistableTest2);
+        persistableArray.setCreateGroupsForMissingFields(true);
+        subGroupIds = persistableArray.writePersistableScalarObject(fieldGroupId, fieldName);
         assertEquals(100, subGroupIds.size());
         H5.H5Gclose(fieldGroupId);
-
-        // In the interest of safety, set the value back to its nominal value of false
-        Hdf5ModuleInterface.createGroupsForMissingFields = false;
 
     }
 

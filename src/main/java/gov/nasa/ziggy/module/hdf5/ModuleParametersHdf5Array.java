@@ -111,6 +111,7 @@ public class ModuleParametersHdf5Array extends AbstractHdf5Array {
             // is that the field name needs to be changed to the Java class simple name
             if (!(parametersInstance instanceof DefaultParameters)) {
                 AbstractHdf5Array hdf5Array = AbstractHdf5Array.newInstance(parametersInstance);
+                hdf5Array.setCreateGroupsForMissingFields(createGroupsForMissingFields);
                 hdf5Array.setFieldName(parametersInstance.getClass().getSimpleName());
                 parametersInstanceGroupId = H5.H5Gcreate(fieldGroupId, hdf5Array.getFieldName(),
                     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -185,6 +186,7 @@ public class ModuleParametersHdf5Array extends AbstractHdf5Array {
         String parName = typedProperty.getName().replace(" ", "_");
         Object parValue = typedProperty.getValueAsArray();
         AbstractHdf5Array parArray = AbstractHdf5Array.newInstance(parValue);
+        parArray.setCreateGroupsForMissingFields(createGroupsForMissingFields);
         parArray.setFieldName(parName);
         long typedParGroupId = H5.H5Gcreate(parametersInstanceGroupId, parName, H5P_DEFAULT,
             H5P_DEFAULT, H5P_DEFAULT);
@@ -232,7 +234,10 @@ public class ModuleParametersHdf5Array extends AbstractHdf5Array {
                 // as it's a subclass of Parameters
                 PersistableHdf5Array persistableHdf5Array = PersistableHdf5Array
                     .forReadingModuleParameterSet();
+                persistableHdf5Array.setAllowMissingFields(allowMissingFields);
                 persistableHdf5Array.read(parameterSetGroupId);
+                missingFieldsDetected = missingFieldsDetected
+                    || persistableHdf5Array.isMissingFieldsDetected();
                 parameterSets.add((Parameters) persistableHdf5Array.toJava());
             } else {
 

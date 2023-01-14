@@ -23,6 +23,8 @@ public class PersistableSample1 implements Persistable {
     public Float boxedFloatScalar;
     public EnumTest enumScalar = EnumTest.FIRST;
 
+    private static final Random rng = new Random();
+
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -43,29 +45,17 @@ public class PersistableSample1 implements Persistable {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         PersistableSample1 other = (PersistableSample1) obj;
-        if (!Arrays.deepEquals(booleanArray3, other.booleanArray3)) {
+        if (!Arrays.deepEquals(booleanArray3, other.booleanArray3)
+            || !Objects.equals(boxedFloatScalar, other.boxedFloatScalar)
+            || Double.doubleToLongBits(doubleScalar) != Double.doubleToLongBits(other.doubleScalar)
+            || enumScalar != other.enumScalar) {
             return false;
         }
-        if (!Objects.equals(boxedFloatScalar, other.boxedFloatScalar)) {
-            return false;
-        }
-        if (Double.doubleToLongBits(doubleScalar) != Double.doubleToLongBits(other.doubleScalar)) {
-            return false;
-        }
-        if (enumScalar != other.enumScalar) {
-            return false;
-        }
-        if (!Arrays.equals(floatArray1, other.floatArray1)) {
-            return false;
-        }
-        if (!Objects.equals(intList, other.intList)) {
-            return false;
-        }
-        if (!Arrays.deepEquals(longArray2, other.longArray2)) {
+        if (!Arrays.equals(floatArray1, other.floatArray1) || !Objects.equals(intList, other.intList) || !Arrays.deepEquals(longArray2, other.longArray2)) {
             return false;
         }
         return true;
@@ -88,8 +78,6 @@ public class PersistableSample1 implements Persistable {
         int long2size2, int bool3size1, int bool3size2, int bool3size3) {
 
         PersistableSample1 persistableObject = new PersistableSample1();
-
-        Random rng = new Random();
 
         // start with the scalars
         persistableObject.doubleScalar = rng.nextDouble();

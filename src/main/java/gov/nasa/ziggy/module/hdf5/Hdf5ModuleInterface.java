@@ -69,10 +69,6 @@ public class Hdf5ModuleInterface {
     public static final String PARAMETER_SET_ORIGINAL_NAME_ATT_NAME = "PARAMETER_SET_ORIGINAL_NAME";
     public static final String SCALAR_PARAMETER_ATT_NAME = "SCALAR_PARAMETER_ATT_NAME";
 
-    static boolean allowMissingFields;
-    static boolean missingFieldsDetected = false;
-    static boolean createGroupsForMissingFields;
-
     /**
      * Writes an object that implements the Persistable interface to an HDF5 file.
      *
@@ -80,9 +76,6 @@ public class Hdf5ModuleInterface {
      * @param dataObject Persistable object
      */
     public void writeFile(File file, Persistable dataObject, boolean createGroupsForMissingFields) {
-        synchronized (Hdf5ModuleInterface.class) {
-            Hdf5ModuleInterface.createGroupsForMissingFields = createGroupsForMissingFields;
-        }
         long fileId = 0;
         try {
 
@@ -97,6 +90,7 @@ public class Hdf5ModuleInterface {
                 + " in directory " + file.getParent(), e);
         }
         AbstractHdf5Array hdf5Array = AbstractHdf5Array.newInstance(dataObject);
+        hdf5Array.setCreateGroupsForMissingFields(createGroupsForMissingFields);
         hdf5Array.write(fileId, "/");
         try {
             testForUnclosedHdf5Objects(fileId);
@@ -206,9 +200,6 @@ public class Hdf5ModuleInterface {
      * overwritten with the contents of the HDF5 file.
      */
     public boolean readFile(File file, Persistable dataObject, boolean allowMissingFields) {
-        synchronized (Hdf5ModuleInterface.class) {
-            Hdf5ModuleInterface.allowMissingFields = allowMissingFields;
-        }
         long fileId;
         try {
             fileId = H5.H5Fopen(file.getAbsolutePath(), HDF5Constants.H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -217,6 +208,7 @@ public class Hdf5ModuleInterface {
                 + " in directory " + file.getParent() + " for reading", e);
         }
         AbstractHdf5Array hdf5Array = AbstractHdf5Array.newInstance(dataObject);
+        hdf5Array.setAllowMissingFields(allowMissingFields);
         hdf5Array.read(fileId);
         try {
             testForUnclosedHdf5Objects(fileId);
@@ -226,7 +218,8 @@ public class Hdf5ModuleInterface {
                 "Unable to close HDF5 file " + file.getName() + " in directory " + file.getParent(),
                 e);
         }
-        return missingFieldsDetected;
+        hdf5Array.isMissingFieldsDetected();
+        return hdf5Array.isMissingFieldsDetected();
     }
 
     static ZiggyDataType readDataTypeAttribute(long fieldGroupId, String fieldName) {

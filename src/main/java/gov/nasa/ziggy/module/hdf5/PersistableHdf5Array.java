@@ -349,9 +349,13 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
                 // convert the field's contents to an appropriate HDF5 array object
                 AbstractHdf5Array persistableField = AbstractHdf5Array
                     .newInstance(field.get(dataObject));
-                if (!Hdf5ModuleInterface.createGroupsForMissingFields
+                if (!createGroupsForMissingFields
                     && (persistableField == null || persistableField.getArrayObject() == null)) {
                     continue;
+                }
+                if (persistableField != null) {
+                    persistableField
+                        .setCreateGroupsForMissingFields(isCreateGroupsForMissingFields());
                 }
 
                 long fieldGroupId = H5.H5Gcreate(fileId, field.getName(), H5P_DEFAULT, H5P_DEFAULT,
@@ -516,10 +520,8 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
         if (H5.H5Lexists(fileId, groupName, H5P_DEFAULT)) {
             groupId = H5.H5Gopen(fileId, groupName, H5P_DEFAULT);
         } else {
-            synchronized (Hdf5ModuleInterface.class) {
-                Hdf5ModuleInterface.missingFieldsDetected = true;
-            }
-            if (!Hdf5ModuleInterface.allowMissingFields) {
+            missingFieldsDetected = true;
+            if (!allowMissingFields) {
                 throw new PipelineException("Unable to detect group named " + groupName);
             }
         }
@@ -559,10 +561,12 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
             // Build an appropriate object to capture the data
 
             AbstractHdf5Array persistableField = AbstractHdf5Array.newInstance(field);
+            persistableField.setAllowMissingFields(allowMissingFields);
 
             // go get the data
 
             persistableField.read(fieldGroupId);
+            missingFieldsDetected = missingFieldsDetected || persistableField.missingFieldsDetected;
             try {
                 field.set(dataObject, persistableField.toJava());
             } catch (IllegalArgumentException | IllegalAccessException e1) {

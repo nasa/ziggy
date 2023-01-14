@@ -75,8 +75,6 @@ public class ZiggyEventHandlerTest {
     public static final String TEST_DATA_DIR = "events";
     public static final String TEST_DATA_SRC = TEST_DATA.resolve("EventPipeline").toString();
 
-    public static long testStatusSleepTime;
-
     private Path testDataDir;
     private ZiggyEventHandler ziggyEventHandler;
     private PipelineDefinitionName pipelineName = new PipelineDefinitionName("sample");
@@ -87,7 +85,6 @@ public class ZiggyEventHandlerTest {
 
     @Before
     public void setUp() throws IOException {
-        testStatusSleepTime = 200L;
         testDataDir = directoryRule.directory().resolve(TEST_DATA_DIR);
         testDataDir.toFile().mkdirs();
         readyIndicator1 = testDataDir.resolve("gazelle.READY.mammal.1");

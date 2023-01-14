@@ -286,8 +286,8 @@ public class DataFileTestUtils {
 
     }
 
-    public static DataFileType dataFileTypeSample1 = new DataFileType();
-    public static DataFileType dataFileTypeSample2 = new DataFileType();
+    public static final DataFileType dataFileTypeSample1 = new DataFileType();
+    public static final DataFileType dataFileTypeSample2 = new DataFileType();
 
     public static void initializeDataFileTypeSamples() {
         dataFileTypeSample1.setName("pa");
@@ -300,7 +300,7 @@ public class DataFileTestUtils {
             .setFileNameWithSubstitutionsForDatastore("cal/$4/cal-$1-$2-$3-$4-results.h5");
     }
 
-    public static DataFileType dataFileTypeForDirectories = new DataFileType();
+    public static final DataFileType dataFileTypeForDirectories = new DataFileType();
 
     public static void initializeDataFileTypeForDirectories() {
         dataFileTypeForDirectories.setName("Hyperion L0");

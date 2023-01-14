@@ -47,6 +47,9 @@ public abstract class AbstractHdf5Array {
     protected boolean scalar;
     protected ReturnAs returnAs = ReturnAs.UNKNOWN;
     protected String fieldName = null;
+    protected boolean allowMissingFields = false;
+    protected boolean missingFieldsDetected = false;
+    protected boolean createGroupsForMissingFields = false;
 
     /**
      * Factory method that returns a correct, instantiated object for the object provided as an
@@ -121,7 +124,7 @@ public abstract class AbstractHdf5Array {
      */
     public static boolean isEmpty(Object object) {
         boolean isEmpty = false;
-        if ((object == null) || (object.getClass() == null)) {
+        if (object == null || object.getClass() == null) {
             isEmpty = true;
         } else if (List.class.isAssignableFrom(object.getClass())) {
             List<?> objList = (List<?>) object;
@@ -455,6 +458,30 @@ public abstract class AbstractHdf5Array {
 
     public Class<? extends Object> getAuxiliaryClass() {
         return auxiliaryClass;
+    }
+
+    public boolean isAllowMissingFields() {
+        return allowMissingFields;
+    }
+
+    public void setAllowMissingFields(boolean allowMissingFields) {
+        this.allowMissingFields = allowMissingFields;
+    }
+
+    public boolean isMissingFieldsDetected() {
+        return missingFieldsDetected;
+    }
+
+    public void setMissingFieldsDetected(boolean missingFieldsDetected) {
+        this.missingFieldsDetected = missingFieldsDetected;
+    }
+
+    public boolean isCreateGroupsForMissingFields() {
+        return createGroupsForMissingFields;
+    }
+
+    public void setCreateGroupsForMissingFields(boolean createGroupsForMissingFields) {
+        this.createGroupsForMissingFields = createGroupsForMissingFields;
     }
 
     public boolean isScalar() {
