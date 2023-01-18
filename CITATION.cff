@@ -37,4 +37,82 @@ keywords:
   - science
   - tess
   - ziggy
-# references: Note that this is not work describing the software. TODO
+references:
+  - type: proceedings
+  - authors:
+    - family-names: Middour
+      given-names: Christopher
+    - family-names: Klaus
+      given-names: "Todd C."
+    - family-names: Jenkins
+      given-names: Jon
+    - family-names: Pletcher
+      given-names: David
+    - family-names: Cote
+      given-names: Miles
+    - family-names: Chandrasekaran
+      given-names: Hema
+    - family-names: Wohler
+      given-names: Bill
+    - family-names: Girouard
+      given-names: Forrest
+    - family-names: Gunter
+      given-names: "Jay P."
+    - family-names: Uddin
+      given-names: Kamal
+    - family-names: Allen
+      given-names: Christopher
+    - family-names: Hall
+      given-names: Jennifer
+    - family-names: Ibrahim
+      given-names: Khadeejah
+    - family-names: Clarke
+      given-names: Bruce
+    - family-names: Li
+      given-names: Jie
+    - family-names: McCauliff
+      given-names: Sean
+    - family-names: Quintana
+      given-names: Elisa
+    - family-names: Sommers
+      given-names: Jeneen
+    - family-names: Stroozas
+      given-names: Brett
+    - family-names: Tenenbaum
+      given-names: Peter
+    - family-names: Twicken
+      given-names: Joseph
+    - family-names: Wu
+      given-names: Hayley
+    - family-names: Caldwell
+      given-names: Doug
+    - family-names: Bryson
+      given-names: Stephen
+    - family-names: Bhavsar
+      given-names: Paresh
+    - family-names: Wu
+      given-names: Michael
+    - family-names: Stamper
+      given-names: Brian
+    - family-names: Trombly
+      given-names: Terry
+    - family-names: Page
+      given-names: Christopher
+    - family-names: Santiago
+      given-names: Elaine
+    title: "Kepler Science Operations Center architecture"
+    journal: "Software and Cyberinfrastructure for Astronomy"
+    year: 2010
+    editors:
+      - family-names: Radziwill
+        given-names: "Nicole M."
+      - family-names: Bridger
+        given-names: Alan
+    conference: "Society of Photo-Optical Instrumentation Engineers (SPIE)"
+    volume: 7740
+    month: 7
+    edition: 77401A  // eid
+    start: "77401A"  // pages
+    doi: 10.1117/12.856529
+    url: "https://ui.adsabs.harvard.edu/abs/2010SPIE.7740E..1AM"
+    notes: "Provided by the SAO/NASA Astrophysics Data System"
