@@ -65,6 +65,7 @@ import javax.persistence.Transient;
 import org.apache.commons.lang3.SystemUtils;
 import org.xml.sax.SAXException;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
@@ -260,6 +261,10 @@ public class Manifest implements HasXmlSchemaFilename {
      * argument is the dataset ID. Third argument is the path to go to for the files that get
      * manifested; if this is left out, the working directory will be used.
      */
+    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = """
+        User must be able to specify location of files for manifest generation;
+        files in the specified directory get size and checksum computed,
+        hence no security risk to allowing the user to specify any dir they want.""")
     public static void main(String[] args) throws IOException, InstantiationException,
         IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
         InvocationTargetException, NoSuchMethodException, SecurityException {

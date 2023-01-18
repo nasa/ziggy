@@ -11,6 +11,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.module.PipelineException;
 
 /**
@@ -265,6 +266,10 @@ public abstract class ScriptedDatabaseController extends DatabaseController {
         return tableCount;
     }
 
+    @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
+        This class is used only by unit tests, thus the production database
+        cannot be compromised by SQL injection.
+        """)
     public List<String> tableNames() throws SQLException {
         String sqlString = String.format(TABLE_NAMES, INIT_TABLE_NAME);
         if (sqlString == null) {
@@ -294,6 +299,10 @@ public abstract class ScriptedDatabaseController extends DatabaseController {
         }
     }
 
+    @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
+        This class is used only by unit tests, thus the production database
+        cannot be compromised by SQL injection.
+        """)
     public long rowCount() throws SQLException {
         List<String> tableNamesList = tableNames();
         if (sqlRunner().getCachedConnection() == null) {
@@ -322,6 +331,10 @@ public abstract class ScriptedDatabaseController extends DatabaseController {
         }
     }
 
+    @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
+        This class is used only by unit tests, thus the production database
+        cannot be compromised by SQL injection.
+        """)
     protected boolean dropTable(String tableName) throws SQLException {
         if (tableName == null) {
             throw new NullPointerException("tableName can't be null");

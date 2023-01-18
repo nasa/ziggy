@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.RegexEditor;
 import gov.nasa.ziggy.util.io.FileUtil;
@@ -56,6 +57,12 @@ public class DbDumper {
 
     private String acFilename;
 
+    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = """
+        User must be able to specify location of files for use in writing
+        out database tables. The db dump files that are read in are then
+        compared to one another and never used for any purpose that exposes
+        execution to malicious contents of the files.
+        """)
     public static void main(String[] args) throws Exception {
 
         File expectedFile = null;

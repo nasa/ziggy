@@ -6,6 +6,7 @@ import java.nio.file.Path;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import jakarta.xml.bind.annotation.XmlEnum;
 
 /**
@@ -18,6 +19,10 @@ import jakarta.xml.bind.annotation.XmlEnum;
 public enum ChecksumType {
     MD5 {
         @Override
+        @SuppressFBWarnings(value = "WEAK_MESSAGE_DIGEST_MD5", justification = """
+            Checksums used for integrity, not security, hence
+               weak checksums are acceptable.
+               """)
         public String checksum(Path file) throws IOException {
             return DigestUtils.md5Hex(new FileInputStream(file.toFile()));
         }

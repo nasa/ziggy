@@ -43,15 +43,16 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -112,28 +113,10 @@ public class SqlRunner implements Closeable {
         return cachedConnection;
     }
 
-    /**
-     * Execute SQL commands. Each element in the array is executed separately
-     *
-     * @param commands
-     * @throws SQLException
-     * @throws PipelineException
-     */
-    public void executeSql(String... commands) throws SQLException {
-        executeSqlStatements(commands, false);
-    }
-
-    /**
-     * Load SQL commands from a file and execute.
-     *
-     * @param path
-     * @throws SQLException
-     * @throws PipelineException
-     */
-    public void executeSql(File path) throws SQLException {
-        executeSql(path, false);
-    }
-
+    @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
+        This class is used only by unit tests, thus the production database
+        cannot be compromised by SQL injection.
+        """)
     public void executeSql(File path, boolean continueOnError) throws SQLException {
         String[] commands;
         try {
@@ -144,50 +127,59 @@ public class SqlRunner implements Closeable {
         executeSqlStatements(commands, continueOnError);
     }
 
+    @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
+        This class is used only by unit tests, thus the production database
+        cannot be compromised by SQL injection.
+        """)
     private void executeSqlStatements(String[] commands, boolean continueOnError)
         throws SQLException {
         if (cachedConnection == null) {
             connect();
         }
-        try (Statement stmt = cachedConnection.createStatement()) {
-            for (int line = 0; line < commands.length; line++) {
-                String command = commands[line];
-                if (command.trim().length() == 0) {
-                    continue;
-                }
+        PreparedStatement stmt = null;
+        for (int line = 0; line < commands.length; line++) {
+            String command = commands[line];
+            if (command.trim().length() == 0) {
+                continue;
+            }
+            try {
                 try {
-                    try {
-                        stmt.execute(command);
-                    } catch (SQLException e) {
-                        if (!continueOnError) {
-                            throw e;
-                        }
-                    }
-
-                    ResultSet rs = stmt.getResultSet();
-
-                    if (rs != null) {
-                        ResultSetMetaData rsmd = rs.getMetaData();
-                        int numberOfColumns = rsmd.getColumnCount();
-
-                        while (rs.next()) {
-                            for (int colIdx = 1; colIdx <= numberOfColumns; colIdx++) {
-                                System.out.print(rs.getObject(colIdx));
-                                if (colIdx < numberOfColumns) {
-                                    System.out.print(",");
-                                }
-                            }
-                            System.out.println();
-                        }
-                    }
+                    stmt = getCachedConnection().prepareStatement(command);
+                    stmt.execute();
                 } catch (SQLException e) {
-                    throw new SQLException(
-                        e.getMessage() + ": line " + line + ": " + commands[line], e);
+                    if (!continueOnError) {
+                        throw e;
+                    }
                 }
+
+                ResultSet rs = stmt.getResultSet();
+
+                if (rs != null) {
+                    ResultSetMetaData rsmd = rs.getMetaData();
+                    int numberOfColumns = rsmd.getColumnCount();
+
+                    while (rs.next()) {
+                        for (int colIdx = 1; colIdx <= numberOfColumns; colIdx++) {
+                            System.out.print(rs.getObject(colIdx));
+                            if (colIdx < numberOfColumns) {
+                                System.out.print(",");
+                            }
+                        }
+                        System.out.println();
+                    }
+                }
+            } catch (SQLException e) {
+                throw new SQLException(e.getMessage() + ": line " + line + ": " + commands[line],
+                    e);
             }
         }
+
     }
 
+    @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
+        This class is used only by unit tests, thus the production database
+        cannot be compromised by SQL injection.
+        """)
     private String[] loadSql(File path) throws FileNotFoundException, IOException {
         BufferedReader fileReader = new BufferedReader(
             new InputStreamReader(new FileInputStream(path), FileUtil.ZIGGY_CHARSET));
@@ -214,69 +206,6 @@ public class SqlRunner implements Closeable {
             throw new Exception("Required property " + name + " not set!");
         }
         return value;
-    }
-
-    private static void usage() {
-        System.err.println("USAGE: execsql [-noCommit] [-continueOnError] FILENAME");
-        System.exit(-1);
-    }
-
-    public static void main(String[] args) throws Exception {
-        boolean doCommit = true;
-        boolean continueOnError = false;
-        String filename = null;
-
-        for (String arg : args) {
-            if (filename != null) {
-                System.err.println("Too many arguments");
-                usage();
-            }
-
-            if (arg.equalsIgnoreCase("-noCommit")) {
-                doCommit = false;
-            } else if (arg.equalsIgnoreCase("-continueOnError")) {
-                continueOnError = true;
-            } else {
-                filename = arg;
-            }
-        }
-
-        if (filename == null) {
-            usage();
-        }
-
-        File sqlFile = new File(filename);
-
-        if (!sqlFile.isFile()) {
-            System.err.println(filename + " does not exist or is not a regular file");
-            System.exit(-1);
-        }
-
-        Configuration config = ZiggyConfiguration.getInstance();
-
-        String url = getPropertyChecked(config, PropertyNames.HIBERNATE_URL_PROP_NAME);
-        String driver = ZiggyHibernateConfiguration.driverClassName();
-        String username = getPropertyChecked(config, PropertyNames.HIBERNATE_USERNAME_PROP_NAME);
-        String password = getPropertyChecked(config, PropertyNames.HIBERNATE_PASSWD_PROP_NAME);
-
-        try (
-            SqlRunner sqlRunner = new SqlRunner(new ConnectInfo(driver, url, username, password))) {
-
-            log.info("Connecting to: " + url);
-
-            sqlRunner.connect();
-
-            log.info("Executing SQL in: " + sqlFile);
-
-            sqlRunner.executeSql(sqlFile, continueOnError);
-
-            if (doCommit) {
-                log.info("Committing transaction");
-                sqlRunner.commit();
-            }
-
-            log.info("SQL execution completed successfully");
-        }
     }
 
     @Override

@@ -17,6 +17,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 
 /**
@@ -129,7 +130,7 @@ public class TaskConfigurationManager implements Serializable {
 
     @Override
     public String toString() {
-        return ("SINGLE:[" + 0 + "," + (subtaskCount - 1) + "]");
+        return "SINGLE:[" + 0 + "," + (subtaskCount - 1) + "]";
     }
 
     public void persist() {
@@ -147,6 +148,11 @@ public class TaskConfigurationManager implements Serializable {
         }
     }
 
+    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION", justification = """
+        Ziggy only deserializes objects in directories it creates, thus the objects
+        that are deserialized are objects that Ziggy initially creates, so there is
+        no risk from deserialization.
+        """)
     public static TaskConfigurationManager restore(File taskDir) {
         File src = persistedFile(taskDir);
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(src))) {
@@ -238,7 +244,7 @@ public class TaskConfigurationManager implements Serializable {
             return false;
         }
         TaskConfigurationManager other = (TaskConfigurationManager) obj;
-        if ((subtaskCount != other.subtaskCount)
+        if (subtaskCount != other.subtaskCount
             || !Objects.equals(filesForSubtasks, other.filesForSubtasks)) {
             return false;
         }
