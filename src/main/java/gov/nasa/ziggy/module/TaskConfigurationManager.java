@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
+import gov.nasa.ziggy.util.SpotBugsUtils;
 
 /**
  * This class defines execution dependencies for sub-tasks.
@@ -148,11 +149,8 @@ public class TaskConfigurationManager implements Serializable {
         }
     }
 
-    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION", justification = """
-        Ziggy only deserializes objects in directories it creates, thus the objects
-        that are deserialized are objects that Ziggy initially creates, so there is
-        no risk from deserialization.
-        """)
+    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
+        justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
     public static TaskConfigurationManager restore(File taskDir) {
         File src = persistedFile(taskDir);
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(src))) {

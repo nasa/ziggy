@@ -38,6 +38,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.MatlabJavaInitialization;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.Iso8601Formatter;
+import gov.nasa.ziggy.util.SpotBugsUtils;
 
 /**
  * Manages the generation and capture of memory usage statistics. A configuration property is used
@@ -185,11 +186,8 @@ public class Memdrone {
      * @return a {@link Map} from process ID to memory usage time series.
      * @throws Exception if any file operations fail.
      */
-    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION", justification = """
-        Ziggy only deserializes objects in directories it creates, thus the objects
-        that are deserialized are objects that Ziggy initially creates, so there is
-        no risk from deserialization.
-        """)
+    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
+        justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
     public Map<String, DescriptiveStatistics> statsByPid() throws Exception {
         Path cacheFile = latestMemdronePath().resolve(MEMDRONE_STATS_CACHE_FILENAME);
         Map<String, DescriptiveStatistics> taskStats = null;
@@ -218,11 +216,8 @@ public class Memdrone {
      * @return {@link Map} from process ID to task information.
      * @throws Exception if any file operations fail.
      */
-    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION", justification = """
-        Ziggy only deserializes objects in directories it creates, thus the objects
-        that are deserialized are objects that Ziggy initially creates, so there is
-        no risk from deserialization.
-        """)
+    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
+        justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
     public Map<String, String> subTasksByPid() throws Exception {
         Path cacheFile = latestMemdronePath().resolve(PID_MAP_CACHE_FILENAME);
         Map<String, String> pidToSubTask = null;

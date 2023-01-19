@@ -3,6 +3,7 @@ package gov.nasa.ziggy;
 import static gov.nasa.ziggy.ZiggyPropertyRule.resetSystemProperty;
 import static gov.nasa.ziggy.services.config.PropertyNames.DATABASE_SOFTWARE_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_DIALECT_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_DRIVER_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_PASSWD_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_URL_PROP_NAME;
 import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_USERNAME_PROP_NAME;
@@ -15,6 +16,7 @@ import org.junit.rules.TestRule;
 import gov.nasa.ziggy.services.database.DatabaseController;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.database.HsqldbController;
 
 /**
  * Implements a {@link TestRule} for the set up and tear down of databases for use by unit tests. To
@@ -47,11 +49,12 @@ public class ZiggyDatabaseRule extends ExternalResource {
     private String hibernateDialect;
     private String hibernateJdbcBatchSize;
     private String hibernateShowSql;
+    private String hibernateDriverClass;
 
     @Override
     protected void before() throws Throwable {
         databaseSoftwareName = System.setProperty(DATABASE_SOFTWARE_PROP_NAME, "hsqldb");
-        DatabaseController databaseController = DatabaseController.newInstance();
+        DatabaseController databaseController = new HsqldbController();
 
         hibernateConnectionPassword = System.setProperty(HIBERNATE_PASSWD_PROP_NAME, "");
         hibernateConnectionUrl = System.setProperty(HIBERNATE_URL_PROP_NAME,
@@ -64,6 +67,8 @@ public class ZiggyDatabaseRule extends ExternalResource {
         // out and fix when possible.
         hibernateDialect = System.setProperty(HIBERNATE_DIALECT_PROP_NAME,
             databaseController.sqlDialect().dialect());
+        hibernateDriverClass = System.setProperty(HIBERNATE_DRIVER_PROP_NAME,
+            databaseController.driver());
 
         hibernateJdbcBatchSize = System.setProperty("hibernate.jdbc.batch_size", "0");
         hibernateShowSql = System.setProperty("hibernate.show_sql", "false");
@@ -82,12 +87,13 @@ public class ZiggyDatabaseRule extends ExternalResource {
         });
         DatabaseService.reset();
 
-        resetSystemProperty("database.software.name", databaseSoftwareName);
-        resetSystemProperty("hibernate.connection.password", hibernateConnectionPassword);
-        resetSystemProperty("hibernate.connection.url", hibernateConnectionUrl);
-        resetSystemProperty("hibernate.connection.username", hibernateConnectionUsername);
-        resetSystemProperty("hibernate.dialect", hibernateDialect);
+        resetSystemProperty(DATABASE_SOFTWARE_PROP_NAME, databaseSoftwareName);
+        resetSystemProperty(HIBERNATE_PASSWD_PROP_NAME, hibernateConnectionPassword);
+        resetSystemProperty(HIBERNATE_URL_PROP_NAME, hibernateConnectionUrl);
+        resetSystemProperty(HIBERNATE_USERNAME_PROP_NAME, hibernateConnectionUsername);
+        resetSystemProperty(HIBERNATE_DIALECT_PROP_NAME, hibernateDialect);
         resetSystemProperty("hibernate.jdbc.batch_size", hibernateJdbcBatchSize);
         resetSystemProperty("hibernate.show_sql", hibernateShowSql);
+        resetSystemProperty(HIBERNATE_DRIVER_PROP_NAME, hibernateDriverClass);
     }
 }

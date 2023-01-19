@@ -14,8 +14,10 @@ public class ZiggyBuild {
         "yyyy-MM-dd--HH.mm.ss");
 
     public static final String getId() {
-        return ZiggyVersion.getSoftwareVersion() + "--"
-            + READABLE_LOCAL_FORMAT.format(ZiggyVersion.getBuildDate());
+        synchronized (READABLE_LOCAL_FORMAT) {
+            return ZiggyVersion.getSoftwareVersion() + "--"
+                + READABLE_LOCAL_FORMAT.format(ZiggyVersion.getBuildDate());
+        }
     }
 
     public static void logVersionInfo(Logger log) {

@@ -35,14 +35,10 @@ public abstract class DatabaseController {
         }
 
         SqlDialect dialect = SqlDialect.valueOf(databaseName.toUpperCase());
-        switch (dialect) {
-            case POSTGRESQL:
-                return new PostgresqlController();
-            case HSQLDB:
-                return new HsqldbController();
-            default:
-                return null;
-        }
+        return switch (dialect) {
+            case POSTGRESQL -> new PostgresqlController();
+            default -> null;
+        };
     }
 
     /**

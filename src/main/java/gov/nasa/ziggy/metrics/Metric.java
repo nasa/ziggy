@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import gov.nasa.ziggy.util.SpotBugsUtils;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -235,11 +236,8 @@ public abstract class Metric implements Serializable {
      * @return
      */
     @SuppressWarnings("unchecked")
-    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION", justification = """
-        Ziggy only deserializes objects in directories it creates, thus the objects
-        that are deserialized are objects that Ziggy initially creates, so there is
-        no risk from deserialization.
-        """)
+    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
+        justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
     public static Map<String, Metric> loadMetricsFromSerializedFile(File file) throws Exception {
         try (ObjectInputStream input = new ObjectInputStream(
             new BufferedInputStream(new FileInputStream(file)))) {

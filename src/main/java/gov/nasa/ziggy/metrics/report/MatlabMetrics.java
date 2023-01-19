@@ -20,6 +20,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.module.SubtaskDirectoryIterator;
+import gov.nasa.ziggy.util.SpotBugsUtils;
 
 public class MatlabMetrics {
     private static final Logger log = LoggerFactory.getLogger(MatlabMetrics.class);
@@ -50,11 +51,8 @@ public class MatlabMetrics {
         public TopNList topTen;
     }
 
-    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION", justification = """
-        Ziggy only deserializes objects in directories it creates, thus the objects
-        that are deserialized are objects that Ziggy initially creates, so there is
-        no risk from deserialization.
-        """)
+    @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
+        justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
     public void parseFiles() throws Exception {
         if (!parsed) {
             totalTimeStats = new DescriptiveStatistics();
