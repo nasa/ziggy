@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.buildutil;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -18,7 +19,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 
@@ -35,9 +35,6 @@ public class ZiggyCppMexPojoTest {
 	ZiggyCppMexPojo ziggyCppMexObject = null;
 	
 	DefaultExecutor defaultExecutor = Mockito.mock(DefaultExecutor.class);
-	
-	@Rule
-	public ExpectedException exception = ExpectedException.none();
 	
 	@Before
 	public void before() throws IOException {
@@ -303,9 +300,9 @@ public class ZiggyCppMexPojoTest {
 			add("CSource3");
 		}});
 		ziggyCppMexObject.setDefaultExecutor(defaultExecutor);
-		exception.expect(GradleException.class);
-		exception.expectMessage("No object file for mexfile CSource3");
-		ziggyCppMexObject.action();
+		assertThrows("No object file for mexfile CSource3", GradleException.class, () -> {
+		    ziggyCppMexObject.action();
+		});
 	}
 	
 	@Test
@@ -318,23 +315,25 @@ public class ZiggyCppMexPojoTest {
 		String mexCommand = ziggyCppMexObject.generateMexCommand(mexfile, objFile);
 		when(defaultExecutor.execute(ziggyCppMexObject.new CommandLineComparable(
 				mexCommand))).thenReturn(1);
-		exception.expect(GradleException.class);
-		exception.expectMessage("Mexing of file CSource1.mexa64 failed");
-		ziggyCppMexObject.action();		
+		assertThrows("Mexing of file CSource1.mexa64 failed", GradleException.class, () -> {
+		    ziggyCppMexObject.action();
+		});
 	}
 	
 	@Test
 	public void testBadMexSuffix() {
 		ziggyCppMexObject.setOperatingSystem(OperatingSystem.WINDOWS);
-		exception.expect(GradleException.class);
-		ziggyCppMexObject.mexSuffix();
+		assertThrows(GradleException.class, () -> {
+		    ziggyCppMexObject.mexSuffix();
+		});
 	}
 	
 	@Test
 	public void testBadMatlabArch() {
 		ziggyCppMexObject.setOperatingSystem(OperatingSystem.WINDOWS);
-		exception.expect(GradleException.class);
-		ziggyCppMexObject.matlabArch();
+		assertThrows(GradleException.class, () -> {
+		    ziggyCppMexObject.matlabArch();
+		});
 	}
 	
 	@SuppressWarnings("serial")
@@ -345,18 +344,20 @@ public class ZiggyCppMexPojoTest {
 			add("CSource1");
 			add("CppSource2");
 		}});
-		exception.expect(GradleException.class);
-		exception.expectMessage("buildDir and mexfileNames must not be null");
-		ziggyCppMexObject.populateMexfiles();
+		assertThrows("buildDir and mexfileNames must not be null", GradleException.class, 
+		    () -> {
+		        ziggyCppMexObject.populateMexfiles();
+		    });
 	}
 	
 	@Test
 	public void testNoMexfiles() {
 		ZiggyCppMexPojo ziggyCppMexObject = new ZiggyCppMexPojo();
 		ziggyCppMexObject.setBuildDir(buildDir);
-		exception.expect(GradleException.class);
-		exception.expectMessage("buildDir and mexfileNames must not be null");
-		ziggyCppMexObject.populateMexfiles();
+		assertThrows("buildDir and mexfileNames must not be null", GradleException.class, 
+		    () -> {
+		        ziggyCppMexObject.populateMexfiles();
+		    });
 	}
 	
 //***************************************************************************************

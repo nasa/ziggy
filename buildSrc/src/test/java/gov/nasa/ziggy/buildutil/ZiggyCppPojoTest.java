@@ -22,7 +22,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThrows;
 
 import gov.nasa.ziggy.buildutil.ZiggyCppPojo;
 import gov.nasa.ziggy.buildutil.ZiggyCppPojo.BuildType;
@@ -48,9 +48,6 @@ public class ZiggyCppPojoTest {
 	ZiggyCppPojo ziggyCppObject;
 	
 	DefaultExecutor defaultExecutor = Mockito.mock(DefaultExecutor.class);
-	
-	@Rule
-	public ExpectedException exception = ExpectedException.none();
 	
 	@Before
 	public void before() throws IOException {
@@ -458,9 +455,11 @@ public class ZiggyCppPojoTest {
 	@Test
 	public void testCppFilePathNullError() {
 		ZiggyCppPojo ziggyCppError = new ZiggyCppPojo();
-		exception.expect(GradleException.class);
-		exception.expectMessage("C++ file path is null");
-		ziggyCppError.getCppFiles();		
+//		exception.expect(GradleException.class);
+//		exception.expectMessage("C++ file path is null");
+		assertThrows("C++ file path is null", GradleException.class, () -> {
+		    ziggyCppError.getCppFiles();		
+		});
 	}
 	
 	/**
@@ -485,9 +484,10 @@ public class ZiggyCppPojoTest {
 		ziggyCppError.setCppFilePath(tempDir.getAbsolutePath() + "/src");
 		ziggyCppError.setBuildDir(buildDir);
 		ziggyCppError.setOutputType("executable");
-		exception.expect(GradleException.class);
-		exception.expectMessage("Both output name and output type must be specified");
-		ziggyCppError.getBuiltFile();
+		assertThrows("Both output name and output type must be specified", GradleException.class, 
+		    () -> {
+		        ziggyCppError.getBuiltFile();
+		    });
 	}
 	
 	/**
@@ -499,9 +499,10 @@ public class ZiggyCppPojoTest {
 		ziggyCppError.setCppFilePath(tempDir.getAbsolutePath() + "/src");
 		ziggyCppError.setBuildDir(buildDir);
 		ziggyCppError.setOutputName("dummy");
-		exception.expect(GradleException.class);
-		exception.expectMessage("Both output name and output type must be specified");
-		ziggyCppError.getBuiltFile();
+		assertThrows("Both output name and output type must be specified", GradleException.class, 
+		    () -> {
+		        ziggyCppError.getBuiltFile();
+		    });
 	}
 
 	/**
@@ -513,9 +514,10 @@ public class ZiggyCppPojoTest {
 		List<String> cppPaths = new ArrayList<>();
 		ziggyCppError.setCppFilePath(tempDir.getAbsolutePath() + "/src");
 		ziggyCppError.setBuildDir(buildDir);
-		exception.expect(GradleException.class);
-		exception.expectMessage("Both output name and output type must be specified");
-		ziggyCppError.getBuiltFile();
+		assertThrows("Both output name and output type must be specified", GradleException.class, 
+		    () -> {
+		        ziggyCppError.getBuiltFile();
+		    });
 	}
 	
 	/**
@@ -528,9 +530,10 @@ public class ZiggyCppPojoTest {
 		ziggyCppObject.setOutputType("executable");
 		ziggyCppObject.setDefaultExecutor(defaultExecutor);
 		when(defaultExecutor.execute(any(CommandLine.class))).thenReturn(1);
-		exception.expect(GradleException.class);
-		exception.expectMessage("Compilation of file GetString.cpp failed");
-		ziggyCppObject.action();
+		assertThrows("Compilation of file GetString.cpp failed", GradleException.class, 
+		    () -> {
+		        ziggyCppObject.action();
+		    });
 	}
 	
 	/**
@@ -544,9 +547,10 @@ public class ZiggyCppPojoTest {
 		ziggyCppObject.setDefaultExecutor(defaultExecutor);
 		String linkerCommand = ziggyCppObject.generateLinkCommand() + "GetString.o ZiggyCppMain.o ";
 		when(defaultExecutor.execute(ziggyCppObject.new CommandLineComparable(linkerCommand))).thenReturn(1);
-		exception.expect(GradleException.class);
-		exception.expectMessage("Link / library construction of dummy failed");
-		ziggyCppObject.action();
+		assertThrows("Link / library construction of dummy failed", GradleException.class, 
+		    () -> {
+		        ziggyCppObject.action();
+		    });
 	}
 	
 	/**
@@ -559,10 +563,10 @@ public class ZiggyCppPojoTest {
 		ziggyCppError.setOperatingSystem(OperatingSystem.WINDOWS);
 		ziggyCppError.setOutputName("dummy");
 		ziggyCppError.setOutputType("shared");
-		exception.expect(GradleException.class);
-		exception.expectMessage("ZiggyCpp class does not support OS "
-							+ ziggyCppError.getOperatingSystem().getName());
-		ziggyCppError.getBuiltFile();
+		assertThrows("ZiggyCpp class does not support OS " + ziggyCppError.getOperatingSystem().getName(),
+		    GradleException.class, () -> {
+		        ziggyCppError.getBuiltFile();
+		    });
 	}
 
 //***************************************************************************************
@@ -715,9 +719,9 @@ public class ZiggyCppPojoTest {
 		String getter = "get" + fieldName;
 		String setter = "set" + fieldName;
 		int nOrigValues = initialValues.length;
-		Method getMethod = ZiggyCppPojo.class.getDeclaredMethod(getter, null);
+		Method getMethod = ZiggyCppPojo.class.getDeclaredMethod(getter);
 		Method setMethod = ZiggyCppPojo.class.getDeclaredMethod(setter, List.class);
-		List<String> initialGetValues = (List<String>) getMethod.invoke(ziggyCppObject, null);
+        List<?> initialGetValues = List.class.cast(getMethod.invoke(ziggyCppObject));
 		assertEquals(nOrigValues, initialGetValues.size());
 		for (int i=0 ; i<nOrigValues ; i++) {
 			assertEquals(initialValues[i], initialGetValues.get(i));
@@ -727,7 +731,7 @@ public class ZiggyCppPojoTest {
 		replacementValues.add("R1");
 		replacementValues.add("R2");
 		setMethod.invoke(ziggyCppObject, replacementValues);
-		List<String> replacementGetValues = (List<String>) getMethod.invoke(ziggyCppObject, null);
+		List<?> replacementGetValues = List.class.cast(getMethod.invoke(ziggyCppObject));
 		assertEquals(replacementValues.size(), replacementGetValues.size());
 		for (int i=0 ; i<replacementValues.size(); i++) {
 			assertEquals(replacementValues.get(i), replacementGetValues.get(i));

@@ -29,7 +29,7 @@ void IOHandler::loadInputs(Persistable& inputs) const {
 	char* inputFilenameCharArray = new char[inputFilename.length()+1];
 	strcpy(inputFilenameCharArray, inputFilename.c_str());
 	hid_t fileId = H5Fopen(inputFilenameCharArray, H5F_ACC_RDWR, H5P_DEFAULT);
-	delete inputFilenameCharArray;
+	delete[] inputFilenameCharArray;
 	startTime = time(NULL);
 	inputs.readHdf5(fileId);
 	H5Fclose(fileId);
@@ -51,7 +51,7 @@ void IOHandler::saveOutputs(Persistable& outputs) const {
 	strcpy(outputFilenameCharArray, outputFilename.c_str());
 	H5Pset_libver_bounds(H5P_FILE_ACCESS_DEFAULT, H5F_LIBVER_V18, H5F_LIBVER_V18);
 	hid_t fileId = H5Fcreate(outputFilenameCharArray, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-	delete outputFilenameCharArray;
+	delete[] outputFilenameCharArray;
 	startTime = time(NULL);
 	outputs.writeHdf5(fileId);
 	H5Fclose(fileId);

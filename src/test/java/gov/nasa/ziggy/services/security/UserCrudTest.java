@@ -1,16 +1,15 @@
 package gov.nasa.ziggy.services.security;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import org.hamcrest.core.IsInstanceOf;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +36,6 @@ public class UserCrudTest {
     public void setUp() throws Exception {
         userCrud = new UserCrud();
     }
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     private void createRoles(User createdBy) throws PipelineException {
         superUserRole = new Role("superuser", createdBy);
@@ -121,24 +117,25 @@ public class UserCrudTest {
 
     @Test
     public void testDeleteRoleConstraintViolation() throws Throwable {
-        expectedException
-            .expectCause(IsInstanceOf.<Throwable> instanceOf(ConstraintViolationException.class));
+        Throwable e = assertThrows(PipelineException.class, () -> {
 
-        log.info("START TEST: testDeleteRoleConstraintViolation");
+            log.info("START TEST: testDeleteRoleConstraintViolation");
 
-        DatabaseTransactionFactory.performTransaction(() -> {
-            // store
-            seed();
+            DatabaseTransactionFactory.performTransaction(() -> {
+                // store
+                seed();
 
-            // delete
-            List<Role> roles = userCrud.retrieveAllRoles();
+                // delete
+                List<Role> roles = userCrud.retrieveAllRoles();
 
-            /*
-             * This should fail because there is a User (maryMonitor) using this Role
-             */
-            userCrud.deleteRole(roles.get(roles.indexOf(monitorRole)));
-            return null;
+                /*
+                 * This should fail because there is a User (maryMonitor) using this Role
+                 */
+                userCrud.deleteRole(roles.get(roles.indexOf(monitorRole)));
+                return null;
+            });
         });
+        assertEquals(ConstraintViolationException.class, e.getCause().getClass());
     }
 
     /**

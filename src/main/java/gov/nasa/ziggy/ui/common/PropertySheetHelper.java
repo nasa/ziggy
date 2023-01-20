@@ -54,7 +54,7 @@ public class PropertySheetHelper {
                 if (fieldClass.isArray()) {
                     initialValue = Array.newInstance(fieldClass.getComponentType(), 0);
                 } else {
-                    initialValue = fieldClass.newInstance();
+                    initialValue = fieldClass.getDeclaredConstructor().newInstance();
                 }
                 field.set(parametersBean, initialValue);
             }

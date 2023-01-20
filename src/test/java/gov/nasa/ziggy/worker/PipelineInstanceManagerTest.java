@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -8,9 +9,7 @@ import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -112,9 +111,6 @@ public class PipelineInstanceManagerTest {
     public void teardown() {
         DatabaseService.reset();
     }
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     /**
      * Tests the initialize() method, and also incidentally tests the constructor for the
@@ -243,24 +239,22 @@ public class PipelineInstanceManagerTest {
         Mockito.when(instance1.getState()).thenReturn(PipelineInstance.State.ERRORS_RUNNING);
 
         // Set up to detect the exception
-        expectedException.expect(ModuleFatalProcessingException.class);
-        expectedException.expectMessage(
-            "Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1");
+        assertThrows("Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1",
+            ModuleFatalProcessingException.class, () -> {
+                // And -- go!
+                pipelineInstanceManager.fireTrigger();
 
-        // And -- go!
-        pipelineInstanceManager.fireTrigger();
-
-        assertEquals(2, pipelineInstanceManager.getRepeats());
-        assertEquals(2, pipelineInstanceManager.getStatusChecks());
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-0", startNode, endNode);
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-1", startNode, endNode);
-        Mockito.verify(pipelineOperations, Mockito.times(0))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-2", startNode, endNode);
-        Mockito.verify(pipelineOperations, Mockito.times(0))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-3", startNode, endNode);
-
+                assertEquals(2, pipelineInstanceManager.getRepeats());
+                assertEquals(2, pipelineInstanceManager.getStatusChecks());
+                Mockito.verify(pipelineOperations, Mockito.times(1))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-0", startNode, endNode);
+                Mockito.verify(pipelineOperations, Mockito.times(1))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-1", startNode, endNode);
+                Mockito.verify(pipelineOperations, Mockito.times(0))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-2", startNode, endNode);
+                Mockito.verify(pipelineOperations, Mockito.times(0))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-3", startNode, endNode);
+            });
     }
 
     /**
@@ -291,24 +285,23 @@ public class PipelineInstanceManagerTest {
         Mockito.when(instance1.getState()).thenReturn(PipelineInstance.State.ERRORS_STALLED);
 
         // Set up to detect the exception
-        expectedException.expect(ModuleFatalProcessingException.class);
-        expectedException.expectMessage(
-            "Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1");
+        assertThrows("Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1",
+            ModuleFatalProcessingException.class, () -> {
 
-        // And -- go!
-        pipelineInstanceManager.fireTrigger();
+                // And -- go!
+                pipelineInstanceManager.fireTrigger();
 
-        assertEquals(2, pipelineInstanceManager.getRepeats());
-        assertEquals(2, pipelineInstanceManager.getStatusChecks());
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-0", startNode, endNode);
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-1", startNode, endNode);
-        Mockito.verify(pipelineOperations, Mockito.times(0))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-2", startNode, endNode);
-        Mockito.verify(pipelineOperations, Mockito.times(0))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-3", startNode, endNode);
-
+                assertEquals(2, pipelineInstanceManager.getRepeats());
+                assertEquals(2, pipelineInstanceManager.getStatusChecks());
+                Mockito.verify(pipelineOperations, Mockito.times(1))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-0", startNode, endNode);
+                Mockito.verify(pipelineOperations, Mockito.times(1))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-1", startNode, endNode);
+                Mockito.verify(pipelineOperations, Mockito.times(0))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-2", startNode, endNode);
+                Mockito.verify(pipelineOperations, Mockito.times(0))
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-3", startNode, endNode);
+            });
     }
 
     /**

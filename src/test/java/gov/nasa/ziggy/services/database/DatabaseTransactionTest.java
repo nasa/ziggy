@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.services.database;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -11,9 +12,7 @@ import java.io.IOException;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import gov.nasa.ziggy.module.PipelineException;
 
@@ -35,9 +34,6 @@ public class DatabaseTransactionTest {
     public void teardown() {
         DatabaseService.reset();
     }
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     /**
      * Tests DatabaseTransaction functionality in current thread.
@@ -149,9 +145,10 @@ public class DatabaseTransactionTest {
         DatabaseTransaction<Void> spyDtw = spy(dtw);
 
         // the code should error out
-        expectedException.expect(PipelineException.class);
+        assertThrows(PipelineException.class, () -> {
 
-        DatabaseTransactionFactory.performTransaction(spyDtw);
+            DatabaseTransactionFactory.performTransaction(spyDtw);
+        });
 
         // verify function calls
         verify(dbService).beginTransaction();

@@ -3,6 +3,7 @@ package gov.nasa.ziggy.parameters;
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -18,11 +19,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
@@ -70,9 +69,6 @@ public class ParametersOperationsTest {
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
         ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     @Before
     public void setUp() {
@@ -291,25 +287,28 @@ public class ParametersOperationsTest {
 
     @Test
     public void testExportToInvalidExistingFile() throws Exception {
-        expectedException.expectCause(IsInstanceOf.<Throwable> instanceOf(PipelineException.class));
-        ParametersOperations paramOps = new ParametersOperations();
+        assertThrows(PipelineException.class, () -> {
+            ParametersOperations paramOps = new ParametersOperations();
 
-        DatabaseTransactionFactory.performTransaction(() -> {
+            DatabaseTransactionFactory.performTransaction(() -> {
 
-            // create a param library
-            createLibrary();
-            return null;
-        });
+                // create a param library
+                createLibrary();
+                return null;
+            });
 
-        DatabaseTransactionFactory.performTransaction(() -> {
+            DatabaseTransactionFactory.performTransaction(() -> {
 
-            // export the library
-            File invalidExportDir = directoryRule.directory().resolve("invalid-param-lib").toFile();
-            FileUtils.forceMkdir(invalidExportDir);
-            // should throw IllegalArgumentException
-            paramOps.exportParameterLibrary(invalidExportDir.getAbsolutePath(), null,
-                ParamIoMode.STANDARD);
-            return null;
+                // export the library
+                File invalidExportDir = directoryRule.directory()
+                    .resolve("invalid-param-lib")
+                    .toFile();
+                FileUtils.forceMkdir(invalidExportDir);
+                // should throw IllegalArgumentException
+                paramOps.exportParameterLibrary(invalidExportDir.getAbsolutePath(), null,
+                    ParamIoMode.STANDARD);
+                return null;
+            });
         });
     }
 

@@ -55,6 +55,9 @@ public class ZiggyVersionGenerator extends TessExecTask {
 
         osType = System.getProperty("os.name");
         log.debug("OS Type: " + osType);
+        
+        // Suppressed because this entire class is going to be removed in Ziggy 0.4.0.
+        @SuppressWarnings(value = "deprecated")
         Configuration config = new Configuration();
         config.setClassForTemplateLoading(this.getClass(), "/");
         config.setDefaultEncoding("UTF-8");
