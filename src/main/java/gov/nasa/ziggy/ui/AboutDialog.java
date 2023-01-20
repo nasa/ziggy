@@ -1,18 +1,15 @@
 package gov.nasa.ziggy.ui;
 
 import java.awt.BorderLayout;
+import java.awt.GridLayout;
 
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
-
-import com.jgoodies.forms.builder.DefaultFormBuilder;
-import com.jgoodies.forms.factories.Borders;
-import com.jgoodies.forms.layout.FormLayout;
 
 import gov.nasa.ziggy.util.ZiggyVersion;
 
@@ -30,31 +27,28 @@ public class AboutDialog extends javax.swing.JDialog {
     }
 
     private void initGUI() {
-        FormLayout layout = new FormLayout("right:pref, 3dlu, default:grow", "");
-        DefaultFormBuilder builder = new DefaultFormBuilder(layout).border(Borders.DIALOG)
-            .rowGroupingEnabled(true);
-
-        builder.append("Software Version:", getValueField(ZiggyVersion.getSoftwareVersion()));
-        builder.append("Build date:", getValueField(ZiggyVersion.getBuildDate().toString()));
-
-        getContentPane().add(builder.build(), BorderLayout.CENTER);
-        getContentPane().add(getButtonPanel(), BorderLayout.SOUTH);
+        setSize(500, 160);
+        getContentPane().add(contentPanel(), BorderLayout.CENTER);
+        getContentPane().add(buttonPanel(), BorderLayout.SOUTH);
 
         setTitle("About Ziggy");
-        pack();
     }
 
-    /**
-     * Gets a component that is appropriate for showing a non-editable value.
-     *
-     * @param value the text value to display
-     * @return a component that will display the value
-     */
-    private JComponent getValueField(String value) {
-        return new JLabel(value);
+    private JPanel contentPanel() {
+
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new GridLayout(3, 2));
+        contentPanel.add(new JLabel("Software version: ", SwingConstants.RIGHT));
+        contentPanel.add(new JLabel(ZiggyVersion.getSoftwareVersion()));
+        contentPanel.add(new JLabel("Build date: ", SwingConstants.RIGHT));
+        contentPanel.add(new JLabel(ZiggyVersion.getBuildDate().toString()));
+        contentPanel.add(new JLabel("URI: ", SwingConstants.RIGHT));
+        contentPanel.add(new JLabel("github.com/nasa/ziggy"));
+
+        return contentPanel;
     }
 
-    private JPanel getButtonPanel() {
+    private JPanel buttonPanel() {
         JButton closeButton = new JButton("OK");
         closeButton.addActionListener(event -> {
             setVisible(false);
