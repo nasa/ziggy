@@ -158,7 +158,10 @@ spotbugs {
 // it generates a "Could not get unknown property 'com'" error.
 // tasks.withType(com.github.spotbugs.SpotBugsTask) {
 // The following more verbose code accomplishes the same thing.
-
+// Note that the following more verbose code also triggers a Gradle
+// deprecation warning, specifically a warning that ConfigureUtil
+// is going away. The specific line that generates the message appears
+// to be the "html" line. 
 tasks.matching {task -> task.name.startsWith('spotbugs')}.forEach {
     it.reports {
         html {
