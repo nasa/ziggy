@@ -18,6 +18,15 @@ import org.hibernate.internal.util.StringHelper;
  *
  * @author Todd Klaus
  */
+
+// Note: the NamingStrategy is deprecated and requires replacement with some
+// combination of ImplicitNamingStrategy and PhysicalNamingStrategy classes
+// (both of which are specified in properties), and NamingStrategyDelegator /
+// NamingStrategyDelegate (which is specified in ZiggyHibernateConfiguration).
+// This is going to be a significant effort in its own right, thus will not be
+// tackled with ZIGGY-142 (clean up build warnings), but will be addressed in
+// ZIGGY-5 (migrate to Hibernate 5).
+@SuppressWarnings("deprecation")
 public class ZiggyNamingStrategy implements NamingStrategy {
     /**
      * A convenient singleton instance
