@@ -455,8 +455,6 @@ public class ZiggyCppPojoTest {
 	@Test
 	public void testCppFilePathNullError() {
 		ZiggyCppPojo ziggyCppError = new ZiggyCppPojo();
-//		exception.expect(GradleException.class);
-//		exception.expectMessage("C++ file path is null");
 		assertThrows("C++ file path is null", GradleException.class, () -> {
 		    ziggyCppError.getCppFiles();		
 		});
