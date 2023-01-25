@@ -32,6 +32,7 @@ import org.apache.commons.configuration.PropertyConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.InstanceAndTasks;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
@@ -72,23 +73,26 @@ public class ZiggyEventHandler implements Runnable {
 
     // The pattern for the name of a ready file. The pattern is:
     //
-    // <label>.READY.<name>.<count>,
+    // <label>.READY.<name>.<count> ,
     //
     // where <count> is the total number of ready files with a given <name>, and
     // <label> is a string that is unique among all the ready files for a given <name>.
     // When the number of ready files for a given <name> matches the value of <count>,
     // the event represented by <name> is ready to be acted upon.
+    // Note that in the event that there is a single ready file, the user can optionally
+    // decide to omit the label, in which case the pattern becomes:
+    //
+    // READY.<name>.<count> .
+    //
+    // Note that the first group includes the dot between the label and READY portions
+    // of the file name.
     private static final Pattern READY_FILE_NAME = Pattern
-        .compile("(\\S+)\\.READY\\.(\\S+)\\.([0-9]+)");
+        .compile("(\\S+\\.)?READY\\.(\\S+)\\.([0-9]+)");
     private static final int LABEL_GROUP_NUMBER = 1;
     private static final int NAME_GROUP_NUMBER = 2;
     private static final int COUNT_GROUP_NUMBER = 3;
     static final String XML_SCHEMA_FILE_NAME = "pipeline-events.xsd";
     private static final long READY_FILE_CHECK_INTERVAL_MILLIS = 10_000;
-
-    // Special case value for the label that indicates that the user actually wants the label
-    // to be empty.
-    private static final String EMPTY_LABEL_VALUE = "null";
 
     @Id
     @XmlAttribute(required = true)
@@ -462,8 +466,14 @@ public class ZiggyEventHandler implements Runnable {
         }
 
         public void add(Matcher matcher) {
-            if (!matcher.group(LABEL_GROUP_NUMBER).equals(EMPTY_LABEL_VALUE)) {
-                labels.add(matcher.group(LABEL_GROUP_NUMBER));
+            if (matcher.group(LABEL_GROUP_NUMBER) != null) {
+
+                // Remember to strip off the trailing "." !
+                labels.add(matcher.group(LABEL_GROUP_NUMBER)
+                    .substring(0, matcher.group(LABEL_GROUP_NUMBER).length() - 1));
+            } else if (count > 1) {
+                throw new PipelineException(
+                    "Events without ready file labels must have only 1 ready file");
             }
             filenames.add(matcher.group(0));
         }
@@ -504,7 +514,7 @@ public class ZiggyEventHandler implements Runnable {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             ReadyFile other = (ReadyFile) obj;

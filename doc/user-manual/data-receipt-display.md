@@ -2,7 +2,7 @@
 
 [[Previous]](data-receipt.md)
 [[Up]](advanced-topics.md)
-[[Next]](contact-us.md)
+[[Next]](event-handler-intro.md)
 
 ## Data Receipt Display
 
@@ -18,4 +18,4 @@ Note that the file names are the datastore names.
 
 [[Previous]](data-receipt.md)
 [[Up]](advanced-topics.md)
-[[Next]](contact-us.md)
+[[Next]](event-handler-intro.md)

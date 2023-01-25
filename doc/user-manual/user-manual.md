@@ -80,4 +80,13 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
     13.6.​ [Data Receipt Display](data-receipt-display.md)
 
+    13.7.​ [Event Handler: Introduction](event-handler-intro.md)
+
+    13.8.​ [Event Handler: Defining Event Handlers](event-handler-definition.md)
+
+    13.9.​ [Event Handler: Examples](event-handler-examples.md)
+
+    13.10.​ [Event Handler: Algorithms](event-handler-labels.md)
+
+
 14. [Contact Us](contact-us.md)

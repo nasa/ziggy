@@ -28,19 +28,33 @@ More about how Ziggy pulls information into the datastore.
 
 [Data Receipt Display](data-receipt-display.md)
 
-<!--
-
-TODO Create links here as well as in the table of contents as the articles are written.
-
 ### Event Handling
 
 Ways to make Ziggy run in a more automated fashion without as much need for human-in-the-loop.
 
-Event Handler Basics
+[Event Handler: Introduction](event-handler-introduction.md)
 
-Defining Event Handlers
+[Event Handler: Defining Event Handlers](event-handler-definition.md)
 
-Events Display
+[Event Handler: Examples](event-handler-examples.md)
+
+[Event Handler: Algorithms](event-handler-labels.md)
+
+<!--
+
+TODO Create links here as well as in the table of contents as the articles are written.
+
+### Maintenance Activities
+
+Stuff you may need to do at some point, in the course of a long mission with a lot of mission extensions. 
+
+Changing a Parameter Set
+
+Changing a Pipeline Definition
+
+Parameter Overrides
+
+The Edit Trigger Dialog Box
 
 ### Performance Tracking and Reporting
 

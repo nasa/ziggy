@@ -423,7 +423,7 @@ public class ZiggyEventHandlerTest {
         });
 
         // create one ready-indicator file.
-        Files.createFile(testDataDir.resolve("null.READY.mammal.1"));
+        Files.createFile(testDataDir.resolve("READY.mammal.1"));
         ziggyEventHandler.run();
 
         @SuppressWarnings("unchecked")
