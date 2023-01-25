@@ -39,7 +39,7 @@ keywords:
   - ziggy
 references:
   - type: proceedings
-  - authors:
+    authors:
     - family-names: Middour
       given-names: Christopher
     - family-names: Klaus
