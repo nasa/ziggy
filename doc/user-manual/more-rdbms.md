@@ -2,7 +2,7 @@
 
 [[Previous]](dusty-corners.md)
 [[Up]](dusty-corners.md)
-[[Next]](redefine-parameter-set.md)
+[[Next]](more-parameter-sets.md)
 
 ## More on the Relational Database
 
@@ -49,4 +49,4 @@ Team Ziggy has a lot of experience with this sort of thing, and if you discover 
 
 [[Previous]](dusty-corners.md)
 [[Up]](dusty-corners.md)
-[[Next]](redefine-parameter-set.md)
+[[Next]](more-parameter-sets.md)

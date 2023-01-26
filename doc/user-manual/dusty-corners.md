@@ -10,7 +10,7 @@ Like most software packages, Ziggy has some features that don't see a lot of use
 
 [More on the Relational Database](more-rdbms.md) -- techically the RDBMS is used all the time, but there are a few details about what we do with it that are potentially interesting to users. 
 
-[Redefining a Parameter Set](redefine-parameter-set.md) -- what to do if you realize that you need to change the parameters in a parameter set.
+[More on Parameter Sets](more-parameter-sets.md) -- importing, modifying, version control, and more!
 
 [Redefining a Pipeline](redefine-pipeline.md) -- what to do if you realize that you need to change the configuration of a pipeline.
 

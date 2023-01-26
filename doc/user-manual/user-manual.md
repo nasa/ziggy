@@ -116,7 +116,7 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
      19.1​. [More on the Relational Database](more-rdbms.md) 
 
-     19.2​. [Redefining a Parameter Set](redefine-parameter-set.md)
+     19.2​. [More on Parameter Sets](more-parameter-sets.md)
 
      19.3​. [Redefining a Pipeline](redefine-pipeline.md)
 
