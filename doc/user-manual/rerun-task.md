@@ -2,7 +2,7 @@
 
 [[Previous]](display-logs.md)
 [[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](advanced-topics.md)
+[[Next]](delete-tasks.md)
 
 ## Re-Run or Resume a Failed Task
 
@@ -60,4 +60,4 @@ In real life, it's possible that you'll encounter a situation like this one, in 
 
 [[Previous]](display-logs.md)
 [[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](advanced-topics.md)
+[[Next]](delete-tasks.md)

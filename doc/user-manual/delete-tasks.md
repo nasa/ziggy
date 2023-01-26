@@ -1,8 +1,8 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](hpc-cost.md)
-[[Up]](advanced-topics.md)
-[[Next]](data-receipt.md)
+[[Previous]](rerun-task.md)
+[[Up]](ziggy-gui-troubleshooting.md)
+[[Next]](select-hpc.md)
 
 ## Deleting Tasks
 
@@ -30,6 +30,6 @@ As expected, it notifies you that the task stopped due to deletion and not due t
 
 This is the same idea, except it's the pop-up menu for the instance table, and you select `Delete all tasks`.
 
-[[Previous]](hpc-cost.md)
-[[Up]](advanced-topics.md)
-[[Next]](data-receipt.md)
+[[Previous]](rerun-task.md)
+[[Up]](ziggy-gui-troubleshooting.md)
+[[Next]](select-hpc.md)data-receipt.md)

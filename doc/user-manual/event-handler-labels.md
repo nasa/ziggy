@@ -1,8 +1,8 @@
 <!-- -*-visual-line-*- -->
 
 [[Previous]](event-handler-examples.md)
-[[Up]](advanced-topics.md)
-[[Next]](event-handler-labels.md)
+[[Up]](event-handler.md)
+[[Next]](dusty-corners.md)
 
 ## Event Handler: Algorithms
 
@@ -19,3 +19,7 @@ When a task is created by a pipeline that started in response to an event, the `
 - `eventHandlerName`: the name of the event handler that kicked off this processing activity (in the case of our examples, `data-receipt`).
 - `eventName`: the value of the name portion of the ready files (in our examples, `test1` and `test2`).
 - `eventLabels`: a list of the ready file labels for this event. Note that every subtask sees all the labels that were part of the given event. In our multi-directory import example, one of the labels (`sample-1`) went with some tasks, the other label (`sample-2`) went with some other tasks. Ziggy doesn't have any way to figure out this relationship, so it just gives every run of the algorithm all of the labels. 
+
+[[Previous]](event-handler-examples.md)
+[[Up]](event-handler.md)
+[[Next]](dusty-corners.md)

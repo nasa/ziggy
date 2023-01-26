@@ -1,7 +1,7 @@
 <!-- -*-visual-line-*- -->
 
 [[Previous]](event-handler-definition.md)
-[[Up]](advanced-topics.md)
+[[Up]](event-handler.md)
 [[Next]](event-handler-labels.md)
 
 ## Event Handler: Examples
@@ -183,6 +183,6 @@ If you go to Configuration > Pipeline Events, you'll get the following display:
 The first column is the event ID -- this is a simple, monotonically-increasing integer value. The second column is the event handler that detected the event, the third is the name of the pipeline that was started in response to the event. The fourth column is the timestamp at which the pipeline started. The final column is the instance ID of the resulting pipeline instance. A permanent record is kept of every single pipeline event, all of which are visible in this display. 
 
 [[Previous]](event-handler-definition.md)
-[[Up]](advanced-topics.md)
+[[Up]](event-handler.md)
 [[Next]](event-handler-labels.md)
 

@@ -1,7 +1,7 @@
 <!-- -*-visual-line-*- -->
 
 [[Previous]](event-handler-intro.md)
-[[Up]](advanced-topics.md)
+[[Up]](event-handler.md)
 [[Next]](event-handler-examples.md)
 
 ## Event Handler: Defining Event Handlers
@@ -29,6 +29,6 @@ Note here that, rather than a normal string, the directory attribute can take a 
 TODO Consider allowing property interpolation more generally (ZIGGY-173: Add property interpolation to XML files) and say so here. In addition, it would also be good to talk about properties in XML files in the "Write the Pipeline Configuration Files" section of configuring-pipeline.md and to mention that you have to restart the cluster (which we haven't done yet, but will soon, we promise!)
 
 [[Previous]](event-handler-intro.md)
-[[Up]](advanced-topics.md)
-[[Next]](event-handler-examples.md)
+[[Up]](event-handler.md)
+[[Next]](event-handler-examples.md)event-handler-examples.md)
 

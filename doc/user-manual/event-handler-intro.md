@@ -1,7 +1,7 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](data-receipt-display.md)
-[[Up]](advanced-topics.md)
+[[Previous]](event-handler.md)
+[[Up]](event-handler.md)
 [[Next]](event-handler-definition.md)
 
 ## Event Handler: Introduction
@@ -158,7 +158,7 @@ hunky.READY.mick-ronson.3
 
 As soon as the pipeline starts, Ziggy deletes the ready files for reeves-gabrels. This prevents Ziggy from trying to respond to this event a second time. 
 
-[[Previous]](data-receipt-display.md)
-[[Up]](advanced-topics.md)
-[[Next]](event-handler-definition.md)
+[[Previous]](event-handler.md)
+[[Up]](event-handler.md)
+[[Next]](event-handler-definition.md)event-handler-definition.md)
 
