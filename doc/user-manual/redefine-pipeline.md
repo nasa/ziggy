@@ -2,7 +2,7 @@
 
 [[Previous]](more-parameter-sets.md)
 [[Up]](dusty-corners.md)
-[[Next]](redefine-pipeline.md)
+[[Next]](parameter-overrides.md)
 
 ## Redefining a Pipeline
 
@@ -37,3 +37,7 @@ You'll get a big spew of logging output that should end without any Java stack t
 As advertised, the averaging module has been removed from the end of the pipeline. 
 
 And that's all there is to it!
+
+[[Previous]](more-parameter-sets.md)
+[[Up]](dusty-corners.md)
+[[Next]](parameter-overrides.md)
