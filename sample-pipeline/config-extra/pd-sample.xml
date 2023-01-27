@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Pipeline definition file for Ziggy sample pipeline. This is where it all comes
+together. Here we define the pipeline modules (the actual things that get
+executed), then the pipeline or pipelines. Each pipeline contains a sequence of
+nodes, where a node is a combination of a pipeline module, information about inputs
+and outputs, information about models, and parameter sets. Enjoy! -->
+
+<pipelineDefinition>
+
+  <!-- Pipeline modules. The name of each module must correspond to the name of
+       a program that can execute from the command line; the program has to be on
+       the path set by property pi.worker.moduleExe.binPath. -->
+  <module name="permuter" description="Color Permuter"/>
+  <module name="flip" description="Flip Up-Down and Left-Right"/>
+  <module name="averaging" description="Average Images Together"/>
+
+  <!-- Here's the pipeline definition. Note that we could have defined multiple
+       pipelines in this file, but this is just the simplest sample pipeline
+       imaginable, hence only one pipeline definition. -->
+  <pipeline name="sample" description="Sample Pipeline" rootNodeNames="data-receipt">
+
+    <!-- Pipeline parameter sets are applied to every node in the
+	 pipeline. -->
+    <pipelineParameter name="Algorithm Parameters"/>
+
+    <!-- Data receipt is the exception to the requirement that the node has to
+	 be a user-defined module. Ziggy provides data receipt "for free" as a
+	 tool to get files into the datastore. The user does have to define the
+	 data types that will be imported. The model types can be defined if
+	 desired; if not, the assumption will be that all model types can be
+	 imported. There's also a task configuration parameter set so that the
+	 user can define which data receipt tasks are to be performed. -->
+    <node moduleName="data-receipt" childNodeNames="permuter">
+      <inputDataFileType name="raw data"/>
+      <moduleParameter name="Data receipt configuration"/>
+    </node>
+
+    <node moduleName="permuter" childNodeNames="flip">
+      <inputDataFileType name="raw data"/>
+      <outputDataFileType name="permuted colors"/>
+      <modelType name="dummy model"/>
+      <moduleParameter name="Remote Parameters (permute color)"/>
+      <moduleParameter name="Multiple subtask configuration"/>
+    </node>
+
+    <!-- Here's an example of a node with one input, two outputs. -->
+    <node moduleName="flip">
+      <inputDataFileType name="permuted colors"/>
+      <outputDataFileType name="left-right flipped"/>
+      <outputDataFileType name="up-down flipped"/>
+      <moduleParameter name="Multiple subtask configuration"/>
+    </node>
+
+  </pipeline>
+</pipelineDefinition>
+
