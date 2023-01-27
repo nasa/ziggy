@@ -112,16 +112,18 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
      18.1​. [Command Line Interface](console-cli.md) -->
 
-19. [Ziggy's Dustier Corners](dusty-corners.md)
+19. Security (TBD)
 
-     19.1​. [More on the Relational Database](more-rdbms.md) 
+20. [Ziggy's Dustier Corners](dusty-corners.md)
 
-     19.2​. [More on Parameter Sets](more-parameter-sets.md)
+     20.1​. [More on the Relational Database](more-rdbms.md) 
 
-     19.3​. [Redefining a Pipeline](redefine-pipeline.md)
+     20.2​. [More on Parameter Sets](more-parameter-sets.md)
 
-     19.4​. [Parameter Overrides](parameter-overrides.md)
+     20.3​. [Redefining a Pipeline](redefine-pipeline.md)
 
-     19.5​. [The Edit Trigger Dialog Box](edit-trigger.md)
+     20.4​. [Parameter Overrides](parameter-overrides.md)
+
+     20.5​. [The Edit Trigger Dialog Box](edit-trigger.md)
 
 20. [Contact Us](contact-us.md)
