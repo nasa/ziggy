@@ -2,7 +2,7 @@
 
 [[Previous]](redefine-pipeline.md)
 [[Up]](dusty-corners.md)
-[[Next]]
+[[Next]](edit-trigger.md)
 
 ## Parameter Overrides
 
@@ -42,3 +42,7 @@ In this file, the `parameterLibrary` element has its `override-only` attribute s
 By specifying that override-only is true, Ziggy knows that the user doesn't want any other parameter in any parameter set to be altered. 
 
 The resulting file can be imported in the usual ways: either by the `Import` button on the `Parameter Library` item in `Configuration`, or by using the `runjava` command `pl-import` . In either case, examining the parameter library via the console shows that the two selected parameters are changed, and the remainder are unchanged. 
+
+[[Previous]](redefine-pipeline.md)
+[[Up]](dusty-corners.md)
+[[Next]](edit-trigger.md)
