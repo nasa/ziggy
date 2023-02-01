@@ -3,7 +3,6 @@ message: "If you use this software in your research, please cite it using these 
 title: Ziggy
 version: v0.2.1
 date-released: "2022-12-08"
-# doi: 10.5281/zenodo.5348443 TODO
 abstract: "Ziggy, a portable, scalable infrastructure for science data processing pipelines, is the child of the Transiting Exoplanet Survey Satellite (TESS) pipeline and the grandchild of the Kepler Pipeline."
 authors:
 - family-names: Tenenbaum
