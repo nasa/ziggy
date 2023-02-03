@@ -26,9 +26,13 @@ The `directory` attribute is, of course, the directory where the event handler l
 
 Note here that, rather than a normal string, the directory attribute can take a string that needs to be expanded into [one of Ziggy's properties](properties.md). This allows you to specify all the watched directories in the properties file. Note **that this is the only attribute or element in all of Ziggy's XML infrastructure that allows the use of property expansion notation!** That's strictly because it's the only place where we thought we needed it. If you need this added to some other part of the XML infrastructure for your purposes, let us know. We can make it happen!
 
+<!--
+
 TODO Consider allowing property interpolation more generally (ZIGGY-173: Add property interpolation to XML files) and say so here. In addition, it would also be good to talk about properties in XML files in the "Write the Pipeline Configuration Files" section of configuring-pipeline.md and to mention that you have to restart the cluster (which we haven't done yet, but will soon, we promise!)
+
+-->
 
 [[Previous]](event-handler-intro.md)
 [[Up]](event-handler.md)
-[[Next]](event-handler-examples.md)event-handler-examples.md)
+[[Next]](event-handler-examples.md)
 

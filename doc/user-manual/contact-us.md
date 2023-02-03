@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](data-receipt-display.md)
+[[Previous]](edit-trigger.md)
 [[Up]](user-manual.md)
 
 ## Contact Us
@@ -14,5 +14,5 @@ If you just want to send an email, we are:
 Peter Tenenbaum <Peter.Tenenbaum@nasa.gov> (but you can call him PT)  
 Bill Wohler <Bill.Wohler@nasa.gov>
 
-[[Previous]](data-receipt-display.md)
+[[Previous]](edit-trigger.md)
 [[Up]](user-manual.md)

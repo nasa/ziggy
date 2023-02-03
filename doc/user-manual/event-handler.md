@@ -14,11 +14,11 @@ For these reasons, Ziggy provides a capability that lets it operate without a us
 
 Here's how it works:
 
-[Introduction](event-handler-intro.md) -- discussion of the concept and the design requirements that led us to the solution we implemented in Ziggy.
+[Introduction to Event Handlers](event-handler-intro.md) -- discussion of the concept and the design requirements that led us to the solution we implemented in Ziggy.
 
-[Event Handler Definition](event-handler-definition.md) -- how you go about defining your own event handler (spoiler alert: more XML).
+[Defining Event Handlers](event-handler-definition.md) -- how you go about defining your own event handler (spoiler alert: more XML).
 
-[Examples](event-handler-examples.md) -- allows you to get some hands-on experience with the event handler.
+[Event Handler Examples](event-handler-examples.md) -- allows you to get some hands-on experience with the event handler.
 
 [Sending Event Information to Algorithms](event-handler-labels.md) -- got a use-case in which the processing algorithms need to know something about the event that set them running? We've got you covered. 
 

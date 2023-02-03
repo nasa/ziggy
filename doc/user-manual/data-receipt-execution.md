@@ -6,7 +6,18 @@
 
 ## Data Receipt Execution Flow
 
-Remember data receipt? Here's where we get into how it works. You'll want to know this when you're setting up data transfers in your own mission.
+At the highest level, the purpose of data receipt is to take files delivered from someplace outside the pipeline and pull them into the pipeline's datastore. This seems it would be pretty straightforward! What makes it interesting is that there are additional, implicit, demands put on the system in the context of a flight mission:
+
+- Most crucially, the integrity of the delivery has to be ensured. In a (largish) nutshell, this entails the following:
+  - All of the files that you expected to receive actually showed up.
+  - No files showed up that are not expected.
+  - The files that showed up were not somehow corrupted in transit.
+- Whoever it was that delivered the files may require a notification that there were no problems with the delivery, so data receipt needs to produce something that can function as the notification. 
+- The data receipt process needs to clean up after itself. In a nutshell, this means that there is no chance that a future data receipt operation fails because of some debris left from a prior data receipt operation, and that there is no chance that a future data receipt operation will inadvertently re-import files that were already imported. 
+
+The integrity of the delivery is supported by an XML file, the *manifest*, that lists all of the delivered files and contains size and checksum information for each one. After a successful import, Ziggy produces an XML file, the *acknowledgement*, that can be used as a notification to the source of the files that the files were delivered and imported without incident. The cleanup is managed algorithmically by Ziggy. 
+
+With that, let's dive in!
 
 ### Data Files and Manifest
 
@@ -163,4 +174,4 @@ Ziggy also comes with a utility to generate manifests from the contents of a dir
 
 [[Previous]](data-receipt.md)
 [[Up]](data-receipt.md)
-[[Next]](data-receipt-display.md)data-receipt-display.md)
+[[Next]](data-receipt-display.md)

@@ -12,9 +12,9 @@ Like most software packages, Ziggy has some features that don't see a lot of use
 
 [More on Parameter Sets](more-parameter-sets.md) -- importing, modifying, version control, and more!
 
-[Redefining a Pipeline](redefine-pipeline.md) -- what to do if you realize that you need to change the configuration of a pipeline.
-
 [Parameter Overrides](parameter-overrides.md) -- how to conveniently package a collection of parameter changes.
+
+[Redefining a Pipeline](redefine-pipeline.md) -- what to do if you realize that you need to change the configuration of a pipeline.
 
 [The Edit Trigger Dialog Box](edit-trigger.md) -- additional features on a dialog box we've already used. 
 

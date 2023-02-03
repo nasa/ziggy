@@ -4,7 +4,7 @@
 [[Up]](user-manual.md)
 [[Next]](remote-dialog.md)
 
-## High Performance Computing: Overview
+## High Performance Computing Overview
 
 Large data volumes and/or compute-intensive processing algorithms demand the use of equally large-scale  computing hardware to perform the processing. Fortunately, Ziggy supports the use of High Performance Computing (HPC) facilities.
 

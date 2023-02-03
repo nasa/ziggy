@@ -39,7 +39,7 @@ There are definitely cases in which some portion of the mission's data belongs i
 In order to give the algorithms access to information in the database, one of two things needs to happen. Either:
 
 1. Somebody will need to write specialized Java code that goes to the database, performs a query, and puts the results into the inputs for the task that goes with the query. Or:
-2. The algorithm code will need to have its own software to talk to the database, perform the necessary query, and interpret the results of that query.
+2. The algorithm code or the "glue code" between the algorithm and Ziggy will need to have its own software to talk to the database, perform the necessary query, and interpret the results of that query.
 
 Put another way, either the database access has to happen before algorithm execution, or during algorithm execution. Either of these options requires skills that the typical subject matter expert is unlikely to have. In particular, we've made a diligent effort to keep the users from needing to write Java code that interfaces with Ziggy, and the first option breaks that desirement.
 

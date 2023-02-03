@@ -36,13 +36,13 @@ To make that happen, we need to do two things.
 
 First, we need to turn on the data receipt event handler. To do that, select the Configurations tab, Event Definitions button. You'll see this (except without the redaction bar covering the front part of the directory name):
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/event-handler-display-1.png)
+![](images/event-handler-display-1.png)
 
 This display is mostly pretty self-explanatory: for each event handler it shows the name, the directory it watches for the ready files, and the pipeline that will be started when the event is detected. The last column tells you whether the event handler is currently watching for events. It's a checkbox, which in this case is not checked, meaning that the event handler isn't watching the data-receipt directory for ready files. 
 
 Click on the check box and you'll now see this:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/event-handler-display-2.png)
+![](images/event-handler-display-2.png)
 
 The second thing we need to do is to create the ready file. Before you do that, go to the Instances tab of the Operations tab so that you can see what happens as it happens. Once you've done that, create the ready file:
 
@@ -53,11 +53,11 @@ $
 
 Once you do this, the Pi light on the console will quickly turn green. After a few seconds, you'll see a new pipeline instance appear:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/event-handler-instances-1.png)
+![](images/event-handler-instances-1.png)
 
 The event handler automatically names the pipeline with the "bare" pipeline name ("sample"), the event handler name ("data-receipt"), and the timestamp of the event that started the processing. Meanwhile, the task table looks like this:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/event-handler-tasks-1.png)
+![](images/event-handler-tasks-1.png)
 
 The data receipt task ran to completion before the display could even update, and the pipeline went on to its `permuter` tasks. After the usual few seconds, the pipeline will finish, with `flip` and `averaging` tasks. 
 
@@ -89,11 +89,11 @@ Two different sources are pushing data into the data-receipt directory. The firs
 
 Before we do that, though, let's reconfigure the pipeline a bit. First, we need to tell data receipt that it should expect files to be in the subdirectories of data-receipt. To do this, return to Configuration > Parameter Library, select `Data receipt configuration`, and modify the `taskDirectoryRegex`:
 
-<img src="/Users/ptenenba/git/ziggy/doc/user-manual/images/data-receipt-use-subdirs.png" style="zoom:50%;" />
+<img src="images/data-receipt-use-subdirs.png" style="zoom:50%;" />
 
 Second, let's tell the pipeline that we only want it to process new data that's never been processed, and it should leave alone any data that's been successfully processed before this. To do so, select the `Multiple subtask configuration` and the `Single subtask configuration` parameter sets, and uncheck the reprocess box:
 
-<img src="/Users/ptenenba/git/ziggy/doc/user-manual/images/disable-reprocess.png" style="zoom:50%;" />
+<img src="images/disable-reprocess.png" style="zoom:50%;" />
 
 Now return to the Operations > Instances tab, and finally create the ready files. Remember that you need two ready files because we are simulating a complete delivery from the first source, and it's delivering to the `sample-1` and `sample-2` directories. 
 
@@ -105,11 +105,11 @@ $
 
 As soon as the second ready file is created, a new pipeline instance will start:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/event-handler-instances-2.png)
+![](images/event-handler-instances-2.png)
 
 The tasks display will look like this:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/event-handler-tasks-2.png)
+![](images/event-handler-tasks-2.png)
 
 There's a fair amount of interesting stuff going on here, so let's dig into this display!
 
@@ -129,7 +129,7 @@ Take a quick look at the properties file, `sample-pipeline/etc/sample.properties
 pi.worker.threadCount = 2
 ```
 
-(for a quick reminder on the properties file, take a look at the article on [Properties](properties.md)). This means that the worker has 2 and only 2 worker threads that can be used for assorted task processing activities. In this case, that creates a problem: there are only 2 worker threads but 6 tasks that need to run, and each task needs to perform several steps (marshaling, algorithm execution, storing results). Ziggy needs to prioritize users of its limited number of worker threads, and it does so by putting algorithm execution at a higher priority than storing results. Thus, we wind up with 2 tasks that have produced results, but they're waiting for worker threads to store those results; and the worker threads won't be available for this purpose until all the tasks have completed algorithm execution. 
+(See the article on [Properties](properties.md) to refresh your memory on this). This means that the worker has 2 and only 2 worker threads that can be used for assorted task processing activities. In this case, that creates a problem: there are only 2 worker threads but 6 tasks that need to run, and each task needs to perform several steps (marshaling, algorithm execution, storing results). Ziggy needs to prioritize users of its limited number of worker threads, and it does so by putting algorithm execution at a higher priority than storing results. Thus, we wind up with 2 tasks that have produced results, but they're waiting for worker threads to store those results; and the worker threads won't be available for this purpose until all the tasks have completed algorithm execution. 
 
 #### Permuter Task for UOW 2
 
@@ -178,7 +178,7 @@ The second way is more direct.
 
 If you go to Configuration > Pipeline Events, you'll get the following display:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/events-display.png)
+![](images/events-display.png)
 
 The first column is the event ID -- this is a simple, monotonically-increasing integer value. The second column is the event handler that detected the event, the third is the name of the pipeline that was started in response to the event. The fourth column is the timestamp at which the pipeline started. The final column is the instance ID of the resulting pipeline instance. A permanent record is kept of every single pipeline event, all of which are visible in this display. 
 

@@ -1,8 +1,8 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](more-parameter-sets.md)
+[[Previous]](parameter-overrides.md)
 [[Up]](dusty-corners.md)
-[[Next]](parameter-overrides.md)
+[[Next]](edit-trigger.md)
 
 ## Redefining a Pipeline
 
@@ -12,7 +12,7 @@ The good news is that it's straightforward to update a pipeline definition in Zi
 
 To see this in action, let's take a look at the Pipelines item on the Configuration tab. Selecting that item puts up a list of pipelines (in this case there's only one), and when you select the sample pipeline you see this:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/pipelines-config-1.png)
+![](images/pipelines-config-1.png)
 
 This shows the modules in the pipeline and their order of execution. 
 
@@ -32,12 +32,12 @@ You'll get a big spew of logging output that should end without any Java stack t
 
 **Refresh the Pipelines Configuration Table:** Select `Pipelines` on the `Configuration` tab. When it displays the table of pipelines, hit the `refresh` button. Once you've done that, if you select the sample pipeline again, you'll now see this:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/pipelines-config-2.png)
+![](images/pipelines-config-2.png)
 
 As advertised, the averaging module has been removed from the end of the pipeline. 
 
 And that's all there is to it!
 
-[[Previous]](more-parameter-sets.md)
+[[Previous]](parameter-overrides.md)
 [[Up]](dusty-corners.md)
-[[Next]](parameter-overrides.md)
+[[Next]](edit-trigger.md)

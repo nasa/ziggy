@@ -2,7 +2,7 @@
 
 [[Previous]](more-rdbms.md)
 [[Up]](dusty-corners.md)
-[[Next]](redefine-pipeline.md)
+[[Next]](parameter-overrides.md)
 
 ## More on Parameter Sets
 
@@ -12,19 +12,19 @@ Without further ado, let's talk parameter sets!
 
 When you first start the cluster and launch a console, after initializing the cluster, the parameter set screen looks like this:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/param-lib-unused.png)
+![](images/param-lib-unused.png)
 
 All the parameter sets are listed as version 0, the "Locked" boxes are all unchecked, and the "Mod. Time" column values are all pretty close to the same. 
 
 After running the sample pipeline, what you see is more like this:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/param-lib-used.png)
+![](images/param-lib-used.png)
 
 The same as before, but all the "Locked" boxes are checked. 
 
 Now let's modify the `Algorithm Parameters` parameter set in any old way and save the result:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/param-lib-modified.png)
+![](images/param-lib-modified.png)
 
 The modified parameter set has a new version number, and its "Locked" box is unchecked. 
 
@@ -61,14 +61,14 @@ The `Import` button does the reverse of `Export`: it allows the user to specify 
 
 Let's try this: use the `Import` button to read in the XML file that the `Export` command wrote out. When you do this, the following dialog box pops up:
 
-![](/Users/ptenenba/git/ziggy/doc/user-manual/images/param-import-dialog-box.png)
+![](images/param-import-dialog-box.png)
 
 What's this all about? 
 
 The `Action` column tells you how, if at all, each parameter set differs from the current version of that set in the database. None of these parameters have been touched, so they're all `SAME`. The other options for the `Action` column are as follows:
 
-- `UPDATE`: the parameter set exists in the database and also in the XML file, but the values in the XML file are different. If this parameter set is imported, the database version will be updated (including the creation of a new version, if the current database version is locked).
-- `CREATE`: the parameter set exists in the XML file but not in the database. If this parameter set is imported, it will be created in the database with version 0 and in the unlocked state.
+- `UPDATE`: the parameter set exists in the database, but the values in the XML file are different. If this parameter set is imported, the database version will be updated (including the creation of a new version, if the current database version is locked).
+- `CREATE`: the parameter set does not exist in the database. If this parameter set is imported, it will be created in the database with version 0 and in the unlocked state.
 - `LIBRARY_ONLY`: the parameter set exists in the database but not in the XML file. Obviously, if you "import" this parameter set, nothing will happen because there's nothing to import. 
 
 The `Include` column lets you select exactly which parameter sets you're going to import. This means that if you have an XML file that has a bunch of changed parameter sets, you can pick and choose which ones will be imported and which will be left as-is in the database. 
@@ -77,14 +77,18 @@ The `Include` column lets you select exactly which parameter sets you're going t
 
 This allows a user to create a new parameter set via the console, without an XML file. Or at least it's supposed to. It doesn't work correctly at the moment. We'll let you know when it's fixed. 
 
-### Modifying an Existing Parameter Set
+### Adding or Removing Parameters
 
-Recall that, for parameter sets supported by the DefaultParameters Java class, the user can specify any parameters they like, in any of the supported classes (`boolean, byte, short, int, long, float, double, string`), and can specify them to be scalars or 1-d arrays. Thus, for example, the `Algorithm Parameters` set doesn't have to conform to any particular combination of parameters. This is different from parameters like the `RemoteParameters` instances, where the parameters need to match the ones in the underlying Java class. 
+As we discussed in [the module parameters article](module-parameters.md), the user can define parameter sets for use by the processing algorithms in a fairly general way: in one of the parameter library files (i.e., the `pl-*.xml` files), define the parameter set name, the names of each parameter, the type of each parameter (including whether it's a scalar value or a 1-d array), and the initial value of the parameter. When you initialize the cluster, the parameter library XML files are read into the database. If you need to change a parameter value, you have numerous options, as described above. 
 
-Users are generally going to be more involved with instances of `DefaultParameters`, because these are the parameter sets that are needed by the algorithms. That said: as time passes, the algorithms change, and that may mean that they need different parameters in their parameter sets! What's to be done in this case?
+So far, so good. But now imagine that, as your mission continues, the algorithms are gradually improved in ways that require additional module parameters. What are your options?
+
+Option one is to define a new parameter set for the new parameters, put it into a parameter library file, and use `runjava pl-import` to pull it into the database. This works, but it's kind of unsatisfying. For one thing, you also need to redefine the pipeline so that the new parameter set is provided to the algorithm (see [the article on redefining pipelines](redefine-pipeline.md) for more information). For another thing, it may be the case that the logical way to organize parameters would've put the new ones into an existing parameter set; if you use a new parameter set, you wind up diluting the benefits of organizing parameters into parameter sets in the first place. Also, once you've gone through a few cycles of algorithm improvement, you can wind up with a lot of parameter sets that really should be merged together. 
+
+Given the above, what you really want is the ability to add or remove parameters from existing parameter sets, either from the console or via an XML file. 
 
 As it happens, this capability is broken, too. We'll let you know when it's fixed. 
 
 [[Previous]](more-rdbms.md)
 [[Up]](dusty-corners.md)
-[[Next]](redefine-pipeline.md)
+[[Next]](parameter-overrides.md)

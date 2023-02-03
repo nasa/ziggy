@@ -8,9 +8,9 @@
 
 The Edit Trigger dialog box is a kind of grab-bag of various features related to managing pipeline execution. The name of the dialog box relates to an archaic time in which there were specialized Java objects, called "triggers," for launching pipelines (this is also why starting a pipeline requires the user to hit a button labeled "Fire!" Because you fire a trigger).
 
-Anyway: to get to this dialog box, go to Operations > Triggers, and double-click the pipeline you're interested in. You'll get this dialog box:
+To get to this dialog box, go to Operations > Triggers, and double-click the pipeline you're interested in. You'll get this dialog box:
 
-<img src="/Users/ptenenba/git/ziggy/doc/user-manual/images/edit-trigger.png" style="zoom:50%;" />
+<img src="images/edit-trigger.png" style="zoom:50%;" />
 
 What does all this stuff do? Let's go through it from the top to the bottom ("Hmm -- I got 'em!'" -C+C Music Factory).
 
@@ -34,7 +34,7 @@ So how to tasks get assigned a priority?
 
 All tasks that are running for the first time get assigned a priority equal to the priority of the parent pipeline. In this example, the sample pipeline has a priority of 4, meaning that all tasks for this pipeline will have the lowest possible priority on their first pass through the system. All tasks that are being rerun or restarted are given priority 0, so all restart / rerun tasks have priority over any never-yet-run tasks. 
 
-All pipelines, in turn, are intially created with priority 4, meaning that all pipelines will, by default, produce tasks at priority 4. Thus, all tasks from all pipelines compete for workers with a "level playing field," if you will. Usually this is the situation that most users want. 
+All pipelines, in turn, are initially created with priority 4, meaning that all pipelines will, by default, produce tasks at priority 4. Thus, all tasks from all pipelines compete for workers with a "level playing field," if you will. Usually this is the situation that most users want. 
 
 One case where this isn't true is missions that have occasional need for much faster turnaround of data processing. That is to say, most data can be processed through Pipeline X on a first-come, first-served basis; but occasionally there will be a need to process a small amount of just-acquired data through Pipeline Y immediately. To ensure that this happens, you can set Pipeline Y to have a priority of 0.
 
