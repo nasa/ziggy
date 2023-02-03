@@ -28,6 +28,7 @@ This file lists the third-party software that is used by Ziggy. Links to the sof
 |[commons-text](https://commons.apache.org/proper/commons-text/) [(docs)](https://commons.apache.org/proper/commons-text/userguide.html) [(license)](org.apache.commons--commons-text--1.x)|||
 |[freemarker](https://freemarker.apache.org/index.html) [(docs)](https://freemarker.apache.org/docs/index.html) [(license)](org.freemarker--freemarker--2.3.x)|||
 |[guava](https://github.com/google/guava) [(docs)](https://guava.dev/releases/23.6.1-jre/api/docs/) [(license)](com.google.guava--guava--23.x)|||
+|[h5py](https://www.h5py.org/) [(docs)](https://docs.h5py.org/en/stable/) [(license)](h5py-3.7.x)|||
 |[hamcrest](https://hamcrest.org/JavaHamcrest/) [(docs)](https://hamcrest.org/JavaHamcrest/) [(license)](org.hamcrest--hamcrest--2.x)|||
 |[hdf5](https://www.hdfgroup.org/) [(docs)](https://portal.hdfgroup.org/display/HDF5/HDF5) [(license)](HDF5_110121.PDF)|||
 |[hibernate-core](https://hibernate.org/orm/) [(docs)](https://hibernate.org/orm/documentation/4.2/) [(license)](org.hibernate--hibernate-core--4.2.x)|||
@@ -43,7 +44,9 @@ This file lists the third-party software that is used by Ziggy. Links to the sof
 |[log4j-core](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) [(license)](org.apache.logging.log4j--log4j-core--2.17.x)|||
 |[log4j-slf4j-impl](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) [(license)](org.apache.logging.log4j--log4j-slf4j-impl--2.17.x)|||
 |[mockito-core](https://site.mockito.org/) [(docs)](https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html) [(license)](org.mockito--mockito-core--1.10.x)||JMock|
+|[numpy](https://numpy.org/) [(docs)](https://numpy.org/doc/stable/) [(license)](numpy-1.3.x)|||
 |[openpdf](https://github.com/LibrePDF/OpenPDF) [(docs)](https://github.com/LibrePDF/OpenPDF) [(license)](com.github.librepdf--openpdf--1.3.x)|||
 |[org-netbeans-swing-outline](https://netbeans.apache.org/) [(docs)](https://netbeans.apache.org/) [(license)](org.netbeans.api--org-netbeans-swing-outline--x)|||
+|[pillow](https://python-pillow.org/) [(docs)](https://pillow.readthedocs.io/en/stable/) [(license)](pillow-9.4.x)|||
 |[postgresql](https://www.postgresql.org/) [(docs)](https://www.postgresql.org/docs/) [(license)](org.postgresql--postgresql--9.4-1201-jdbc4)|||
 |[wrapper](https://wrapper.tanukisoftware.com/doc/english/home.html) [(docs)](https://wrapper.tanukisoftware.com/doc/english/introduction.html) [(license)](tanukisoft--wrapper--3.2.x)|||
