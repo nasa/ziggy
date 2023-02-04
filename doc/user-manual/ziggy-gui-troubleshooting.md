@@ -24,6 +24,10 @@ For any given task you can display the task's log files directly from the consol
 
 Ziggy also gives you options when you've decided what you want to do about a failed task.
 
+### [Deleting Tasks](delete-tasks.md)
+
+You can stop a job or two if necessary.
+
 [[Previous]](log-files.md)
 [[Up]](user-manual.md)
 [[Next]](monitoring.md)
