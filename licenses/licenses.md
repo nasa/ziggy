@@ -44,9 +44,9 @@ This file lists the third-party software that is used by Ziggy. Links to the sof
 |[log4j-core](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) [(license)](org.apache.logging.log4j--log4j-core--2.17.x)|||
 |[log4j-slf4j-impl](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) [(license)](org.apache.logging.log4j--log4j-slf4j-impl--2.17.x)|||
 |[mockito-core](https://site.mockito.org/) [(docs)](https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html) [(license)](org.mockito--mockito-core--1.10.x)||JMock|
-|[numpy](https://numpy.org/) [(docs)](https://numpy.org/doc/stable/) [(license)](numpy-1.3.x)|||
+|[numpy](https://numpy.org/) [(docs)](https://numpy.org/doc/stable/) [(license)](numpy-1.23.x)|||
 |[openpdf](https://github.com/LibrePDF/OpenPDF) [(docs)](https://github.com/LibrePDF/OpenPDF) [(license)](com.github.librepdf--openpdf--1.3.x)|||
 |[org-netbeans-swing-outline](https://netbeans.apache.org/) [(docs)](https://netbeans.apache.org/) [(license)](org.netbeans.api--org-netbeans-swing-outline--x)|||
-|[pillow](https://python-pillow.org/) [(docs)](https://pillow.readthedocs.io/en/stable/) [(license)](pillow-9.4.x)|||
+|[pillow](https://python-pillow.org/) [(docs)](https://pillow.readthedocs.io/en/stable/) [(license)](pillow-9.2.x)|||
 |[postgresql](https://www.postgresql.org/) [(docs)](https://www.postgresql.org/docs/) [(license)](org.postgresql--postgresql--9.4-1201-jdbc4)|||
 |[wrapper](https://wrapper.tanukisoftware.com/doc/english/home.html) [(docs)](https://wrapper.tanukisoftware.com/doc/english/introduction.html) [(license)](tanukisoft--wrapper--3.2.x)|||
