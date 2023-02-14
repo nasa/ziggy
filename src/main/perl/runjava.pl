@@ -78,8 +78,19 @@ sub main {
         $ENV{'PIPELINE_CONFIG_PATH'} = $pars{properties};
     }
 
+	# Make the Java runtime executable command. Use the location specified as java.home
+	# in the properties file, if any; otherwise, assume that a usable Java runtime
+	# executable is available on the search path. 
+	my $javacmd = 'java';
+	my $javahome = makeSubstitutions($properties{'java.home'}, %properties);
+	if ($javahome ne "") {
+		$javacmd = File::Spec->catfile($javahome, 'bin', $javacmd);
+		-e $javacmd
+			or die "$javacmd executable does not exist";
+	}
+	
     # Start to make the command line.  Every call will use this prefix:
-    my $cmd = "java -cp \"$pars{runjavaHome}/libs/*";
+    my $cmd = "$javacmd -cp \"$pars{runjavaHome}/libs/*";
     my $pipelineClasspath = $properties{'pipeline.classpath'};
     if (defined($pipelineClasspath) && $pipelineClasspath ne "") {
         $cmd .= ":" . $pipelineClasspath;

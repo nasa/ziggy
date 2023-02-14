@@ -71,6 +71,11 @@ public class PropertyNames {
      */
     public static final String HIBERNATE_ID_NEW_GENERATOR_MAPPINGS_PROP_NAME = "hibernate.id.new_generator_mappings";
 
+    /**
+     * Location of the Java package to be used by runjava when executing programs.
+     */
+    public static final String JAVA_HOME_PROP_NAME = "java.home";
+
     /** Determines whether memdrone is enabled. */
     public static final String MEMDRONE_ENABLED_PROP_NAME = "moduleExe.memdrone.enabled";
 
