@@ -56,6 +56,7 @@ Without further ado, here's the list of properties that Ziggy gets from the prop
 | data.receipt.dir        | Directory used by data receipt                               | Pipeline |
 | database.dir            | Directory used by RDBMS; if empty, the system database is used | Pipeline |
 | datastore.root.dir      | Root directory for datastore                                 | Pipeline |
+| java.home               | Location of Java to be used by runjava (see the article on [running the cluster](running-pipeline.md) for more information on runjava) | Pipeline |
 
 #### Paths to Ziggy
 
