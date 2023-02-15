@@ -22,7 +22,7 @@ A whole new dialog box we've never seen before! But actually we're just going to
 
 ### Using the Remote Parameters Dialog Box
 
-Notice that the values you've set in the `RemoteParameters` instance for permuter have been populated, as has the total number of subtasks that Ziggy found for this node, based on the contents of the datastore. In the interest of making this more realistic, change the number in `Total subtasks` to 1000, then hit the `Calculate Pbs Parameters` button. You'll see this:
+Notice that the values you've set in the `RemoteParameters` instance for permuter have been populated, as has the total number of subtasks that Ziggy found for this node, based on the contents of the datastore. In the interest of making this more realistic, change the number in `Total subtasks` to 1000, then hit the `Calculate PBS Parameters` button. You'll see this:
 
 ![](images/remote-dialog-2.png)
 
