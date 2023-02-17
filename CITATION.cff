@@ -107,7 +107,12 @@ references:
         given-names: "Nicole M."
       - family-names: Bridger
         given-names: Alan
-    conference: "Society of Photo-Optical Instrumentation Engineers (SPIE)"
+    conference:
+      name: "Society of Photo-Optical Instrumentation Engineers (SPIE)"
+      city: San Diego
+      country: US
+      date-start: "2010-06-27"
+      date-end: "2010-07-02"
     volume: 7740
     month: 7
     edition: 77401A
