@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.services.messaging;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -25,8 +24,8 @@ import gov.nasa.ziggy.RunByNameTestCategory;
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
+import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ConsoleMessageDispatcherForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
-import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.PigMessageDispatcherForTest;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager;
 import gov.nasa.ziggy.util.os.ProcessUtils;
 
@@ -108,7 +107,8 @@ public class RmiInterProcessCommunicationTest {
 
         ClientSideMessageHandlerForTest messageHandler = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
-        TestEventDetector.detectTestEvent(1000L, () -> (messageHandler.getMessagesFromServer().size() > 0));
+        TestEventDetector.detectTestEvent(1000L,
+            () -> messageHandler.getMessagesFromServer().size() > 0);
         Set<MessageFromServer> messagesFromServer = messageHandler.getMessagesFromServer();
         assertEquals(1, messagesFromServer.size());
     }

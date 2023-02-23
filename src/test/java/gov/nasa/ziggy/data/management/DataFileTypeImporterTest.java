@@ -13,6 +13,8 @@ import org.mockito.Mockito;
 
 import com.google.common.collect.ImmutableList;
 
+import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
@@ -55,10 +57,11 @@ public class DataFileTypeImporterTest {
         importerSpy.importFromFiles();
 
         assertEquals(6, importerSpy.getDataFileImportedCount());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1)).create(ArgumentMatchers.anyList());
+        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
+            .create(ArgumentMatchers.<DataFileType> anyList());
 
         assertEquals(2, importerSpy.getModelFileImportedCount());
-        Mockito.verify(modelCrud, Mockito.times(1)).create(ArgumentMatchers.anyList());
+        Mockito.verify(modelCrud, Mockito.times(1)).create(ArgumentMatchers.<ModelType> anyList());
 
     }
 
@@ -74,9 +77,10 @@ public class DataFileTypeImporterTest {
         importerSpy.importFromFiles();
 
         assertEquals(6, importerSpy.getDataFileImportedCount());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(0)).create(ArgumentMatchers.anyList());
+        Mockito.verify(dataFileTypeCrud, Mockito.times(0))
+            .create(ArgumentMatchers.<DataFileType> anyList());
         assertEquals(2, importerSpy.getModelFileImportedCount());
-        Mockito.verify(modelCrud, Mockito.times(0)).create(ArgumentMatchers.anyList());
+        Mockito.verify(modelCrud, Mockito.times(0)).create(ArgumentMatchers.<ModelType> anyList());
     }
 
     // Test with missing and non-regular files -- should still import from the present,
@@ -92,7 +96,8 @@ public class DataFileTypeImporterTest {
         importerSpy.importFromFiles();
 
         assertEquals(6, importerSpy.getDataFileImportedCount());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1)).create(ArgumentMatchers.anyList());
+        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
+            .create(ArgumentMatchers.<DataFileType> anyList());
     }
 
     // Test with a file that has an entry that is valid XML but instantiates to an
@@ -108,7 +113,8 @@ public class DataFileTypeImporterTest {
         importerSpy.importFromFiles();
 
         assertEquals(5, importerSpy.getDataFileImportedCount());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1)).create(ArgumentMatchers.anyList());
+        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
+            .create(ArgumentMatchers.<DataFileType> anyList());
     }
 
     // Test with a file that has an entry that is invalid XML
@@ -123,7 +129,8 @@ public class DataFileTypeImporterTest {
         importerSpy.importFromFiles();
 
         assertEquals(5, importerSpy.getDataFileImportedCount());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1)).create(ArgumentMatchers.anyList());
+        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
+            .create(ArgumentMatchers.<DataFileType> anyList());
     }
 
     @Test(expected = IllegalStateException.class)

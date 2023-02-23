@@ -4,7 +4,7 @@
 [[Up]](event-handler.md)
 [[Next]](event-handler-labels.md)
 
-## Event Handler: Examples
+## Event Handler Examples
 
 Now that we've looked at the general concept of event handlers, and we've talked about how to define an event handler, let's work through some examples using the sample pipeline. 
 
@@ -185,4 +185,3 @@ The first column is the event ID -- this is a simple, monotonically-increasing i
 [[Previous]](event-handler-definition.md)
 [[Up]](event-handler.md)
 [[Next]](event-handler-labels.md)
-

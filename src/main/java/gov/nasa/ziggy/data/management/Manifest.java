@@ -412,11 +412,11 @@ public class Manifest implements HasXmlSchemaFilename {
         @Override
         public boolean equals(Object obj) {
             if (this == obj) {
-				return true;
-			}
+                return true;
+            }
             if (obj == null || getClass() != obj.getClass()) {
-				return false;
-			}
+                return false;
+            }
             ManifestEntry other = (ManifestEntry) obj;
             return Objects.equals(checksum, other.checksum) && Objects.equals(name, other.name)
                 && size == other.size;

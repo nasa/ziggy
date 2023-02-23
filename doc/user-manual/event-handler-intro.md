@@ -4,7 +4,7 @@
 [[Up]](event-handler.md)
 [[Next]](event-handler-definition.md)
 
-## Event Handler: Introduction
+## Introduction to Event Handlers
 
 Ziggy's predecessors in the pipeline infrastructure field (the Kepler SOC's PI module and TESS SPOC's Spiffy)  were designed to require a lot of in-person handling by pipeline users. In particular, they had no capacity to take actions without somebody, somewhere, issuing a command or pressing a button on the console. 
 
@@ -160,5 +160,4 @@ As soon as the pipeline starts, Ziggy deletes the ready files for reeves-gabrels
 
 [[Previous]](event-handler.md)
 [[Up]](event-handler.md)
-[[Next]](event-handler-definition.md)event-handler-definition.md)
-
+[[Next]](event-handler-definition.md))

@@ -1,4 +1,4 @@
-<a href="pipeline-architecture.md">[Previous]</a> <a href="user-manual.md">[Up]</a> <a href="configuring-pipeline.md">[Next]</a>
+<!-- -*-visual-line-*- -->
 
 [[Previous]](pipeline-architecture.md)
 [[Up]](user-manual.md)

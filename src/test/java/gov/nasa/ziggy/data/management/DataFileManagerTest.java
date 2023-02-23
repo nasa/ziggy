@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,8 +33,8 @@ import org.mockito.Mockito;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-//import com.google.common.io.Files;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.DataFileInfoSample1;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.DataFileInfoSample2;
@@ -46,7 +45,6 @@ import gov.nasa.ziggy.module.TaskConfigurationManager;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.config.PropertyNames;
 import gov.nasa.ziggy.uow.TaskConfigurationParameters;
 
 /**
@@ -56,7 +54,7 @@ import gov.nasa.ziggy.uow.TaskConfigurationParameters;
  */
 public class DataFileManagerTest {
 
-    private String datastoreRoot = new File(Filenames.BUILD_TEST, "datastore").getAbsolutePath();
+    private String datastoreRoot;
     private String taskDirRoot;
     private String taskDir;
     private String subtaskDir;
@@ -76,7 +74,7 @@ public class DataFileManagerTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRoot);
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
@@ -101,7 +99,7 @@ public class DataFileManagerTest {
         this.taskDirRoot = taskDirRoot.toString();
         makeTaskDir("pa-5-10");
 
-        Path externalTemp = dirRule.testDirPath().resolve("tmp");
+        Path externalTemp = directoryRule.directory().resolve("tmp");
         Files.createDirectories(externalTemp);
         externalTempDir = externalTemp.toAbsolutePath().toString();
 
@@ -129,17 +127,6 @@ public class DataFileManagerTest {
         // DefaultUnitOfWork.
         initializeDataFileManager2();
         DataFileTestUtils.initializeDataFileTypeSamples();
-    }
-
-    @After
-    public void teardown() throws InterruptedException, IOException {
-        // NB: execution is so fast that some deleteDirectory commands fail because
-        // (apparently) write-locks have not yet had time to release! Address this by
-        // adding a short nap.
-        Thread.sleep(10);
-        FileUtils.deleteDirectory(new File(taskDirRoot));
-        FileUtil.setPosixPermissionsRecursively(new File(datastoreRoot).toPath(), "rwxrwxrwx");
-        FileUtils.forceDelete(new File(Filenames.BUILD_TEST));
     }
 
     private void makeTaskDir(String taskDirName) {

@@ -32,4 +32,4 @@ This is the same idea, except it's the pop-up menu for the instance table, and y
 
 [[Previous]](rerun-task.md)
 [[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](select-hpc.md)data-receipt.md)
+[[Next]](select-hpc.md)

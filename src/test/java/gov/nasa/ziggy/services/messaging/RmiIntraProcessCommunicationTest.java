@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.services.messaging;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.HEARTBEAT_INTERVAL_PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -25,6 +24,7 @@ import gov.nasa.ziggy.RunByNameTestCategory;
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
+import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ConsoleMessageDispatcherForTest;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
 import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ServerSideMessageHandlerForTest;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager;
@@ -118,7 +118,7 @@ public class RmiIntraProcessCommunicationTest {
         ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
         final ClientSideMessageHandlerForTest msgFinal = msg;
-        TestEventDetector.detectTestEvent(1000L, () -> (msgFinal.getMessagesFromServer().size() > 0));
+        TestEventDetector.detectTestEvent(1000L, () -> msgFinal.getMessagesFromServer().size() > 0);
         assertEquals(1, msg.getMessagesFromServer().size());
 
         // Emulate a worker crashing and coming back by resetting it and running the
@@ -133,7 +133,8 @@ public class RmiIntraProcessCommunicationTest {
         // IRL, the UiCommunicator will be restarted by the heartbeat monitor, but since
         // we're not using that here we have to manually restart it
         UiCommunicator.restart();
-        TestEventDetector.detectTestEvent(1000L, () -> (WorkerCommunicator.getClientMessageServiceStubs().size() > 0));
+        TestEventDetector.detectTestEvent(1000L,
+            () -> WorkerCommunicator.getClientMessageServiceStubs().size() > 0);
 
         // Now the worker should have a MessageHandlerService from the UiCommunicator
         assertEquals(1, WorkerCommunicator.getClientMessageServiceStubs().size());
@@ -142,7 +143,8 @@ public class RmiIntraProcessCommunicationTest {
         WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
         msg = (ClientSideMessageHandlerForTest) UiCommunicator.getMessageHandler();
         final ClientSideMessageHandlerForTest msgFinal2 = msg;
-        TestEventDetector.detectTestEvent(1000L, () -> (msgFinal2.getMessagesFromServer().size() > 0));
+        TestEventDetector.detectTestEvent(1000L,
+            () -> msgFinal2.getMessagesFromServer().size() > 0);
         assertEquals(2, msg.getMessagesFromServer().size());
         ServerSideMessageHandlerForTest msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator
             .getMessageHandler();
@@ -167,7 +169,7 @@ public class RmiIntraProcessCommunicationTest {
         ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
             .getMessageHandler();
         final ClientSideMessageHandlerForTest msgFinal = msg;
-        TestEventDetector.detectTestEvent(1000L, () -> (msgFinal.getMessagesFromServer().size() > 0));
+        TestEventDetector.detectTestEvent(1000L, () -> msgFinal.getMessagesFromServer().size() > 0);
         assertEquals(1, msg.getMessagesFromServer().size());
 
         // Emulate the shutdown of a UI by resetting the existing one
@@ -177,14 +179,16 @@ public class RmiIntraProcessCommunicationTest {
         UiCommunicator.setHeartbeatManager(heartbeatManager);
         UiCommunicator.initializeInstance(messageHandler2, port);
         UiCommunicator.stopHeartbeatListener();
-        TestEventDetector.detectTestEvent(1000L, () -> (WorkerCommunicator.getClientMessageServiceStubs().size() >= 2));
+        TestEventDetector.detectTestEvent(1000L,
+            () -> WorkerCommunicator.getClientMessageServiceStubs().size() >= 2);
         // there should now be 2 client services in the worker
         assertEquals(2, WorkerCommunicator.getClientMessageServiceStubs().size());
 
         // broadcast a message
         assertEquals(1, messageHandler2.getMessagesFromServer().size());
         WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
-        TestEventDetector.detectTestEvent(1000L, () -> (messageHandler2.getMessagesFromServer().size() >= 2));
+        TestEventDetector.detectTestEvent(1000L,
+            () -> messageHandler2.getMessagesFromServer().size() >= 2);
         assertEquals(2, messageHandler2.getMessagesFromServer().size());
 
         // the UI should be able to communicate with the worker as well
@@ -259,7 +263,7 @@ public class RmiIntraProcessCommunicationTest {
 
         // Start the heartbeat manager and communicator
         MessageHandler messageHandler = new MessageHandler(
-				new PigMessageDispatcherForTest(null, null, false));
+            new ConsoleMessageDispatcherForTest(null, null, false));
         InstrumentedWorkerHeartbeatManager h = new InstrumentedWorkerHeartbeatManager(
             messageHandler);
         UiCommunicator.setHeartbeatManager(h);
@@ -311,19 +315,5 @@ public class RmiIntraProcessCommunicationTest {
                 - messageHandlerHeartbeatTimesAtChecks.get(i) < 201L);
         }
     }
-
-	public static class PigMessageDispatcherForTest extends PigMessageDispatcher {
-
-		public PigMessageDispatcherForTest(AlertMessageTableModel tableModel, WorkerStatusPanel statusPanel,
-				boolean shutdownEnabled) {
-			super(tableModel, statusPanel, shutdownEnabled);
-		}
-
-		@Override
-		public void handleShutdownMessage(WorkerShutdownMessage message) {
-
-		}
-
-	}
 
 }

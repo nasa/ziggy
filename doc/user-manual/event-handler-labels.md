@@ -4,7 +4,7 @@
 [[Up]](event-handler.md)
 [[Next]](dusty-corners.md)
 
-## Event Handler: Algorithms
+## Sending Event Information to Algorithms
 
 The event handler, and all of the information associated with it, is mainly intended for use by Ziggy: Ziggy uses the information to select a pipeline to start, to figure out which data receipt directories it can import, etc. That said, it's possible that event information can be useful to the algorithms as well. In the case when an algorithm runs in a pipeline that got kicked off by an event, there can be some value in giving the algorithm information about the handler and the event. 
 

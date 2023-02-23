@@ -8,10 +8,10 @@ import java.util.Set;
 
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messages.WorkerShutdownMessage;
-import gov.nasa.ziggy.ui.cli.ClusterController;
+import gov.nasa.ziggy.ui.ClusterController;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager;
 import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager.HeartbeatManagerExternalMethods;
-import gov.nasa.ziggy.ui.messaging.PigMessageDispatcher;
+import gov.nasa.ziggy.ui.messaging.ConsoleMessageDispatcher;
 import gov.nasa.ziggy.ui.mon.alerts.AlertMessageTableModel;
 import gov.nasa.ziggy.ui.mon.master.Indicator;
 import gov.nasa.ziggy.ui.mon.master.WorkerStatusPanel;
@@ -21,7 +21,6 @@ import gov.nasa.ziggy.util.SystemTime;
  * Assorted message handling classes for testing purposes.
  *
  * @author PT
- *
  */
 public class MessageHandlersForTest {
 

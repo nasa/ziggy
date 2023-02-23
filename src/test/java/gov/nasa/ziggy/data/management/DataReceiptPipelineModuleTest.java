@@ -29,8 +29,10 @@ import java.util.concurrent.Executors;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
@@ -38,6 +40,7 @@ import org.xml.sax.SAXException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
@@ -71,12 +74,10 @@ import jakarta.xml.bind.JAXBException;
 public class DataReceiptPipelineModuleTest {
 
     private PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
-    private Path dataImporterPath = Paths.get(System.getProperty("user.dir"), "build", "test",
-        "data-import");
+    private Path dataImporterPath;
     private Path dataImporterSubdirPath;
     private Path modelImporterSubdirPath;
-    private Path datastoreRootPath = Paths.get(System.getProperty("user.dir"), "build", "test",
-        "datastore");
+    private Path datastoreRootPath;
     private UnitOfWork singleUow = new UnitOfWork();
     private UnitOfWork dataSubdirUow = new UnitOfWork();
     private UnitOfWork modelSubdirUow = new UnitOfWork();
@@ -88,17 +89,17 @@ public class DataReceiptPipelineModuleTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
-        DATA_RECEIPT_DIR_PROP_NAME, dataImporterPath.toString());
+        DATA_RECEIPT_DIR_PROP_NAME, directoryRule, "data-import");
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, datastoreRootPath.toString());
+        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
 
     @Rule
     public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
         PIPELINE_HOME_DIR_PROP_NAME, (String) null);
 
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
-        Paths.get(System.getProperty("user.dir"), "build", "test").toString());
+        directoryRule);
 
     @Rule
     public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
@@ -124,7 +125,9 @@ public class DataReceiptPipelineModuleTest {
         DataFileTestUtils.initializeDataFileTypeSamples();
 
         // Construct the necessary directories.
+        dataImporterPath = Paths.get(dataReceiptDirPropertyRule.getProperty());
         dataImporterPath.toFile().mkdirs();
+        datastoreRootPath = Paths.get(datastoreRootDirPropertyRule.getProperty());
         datastoreRootPath.toFile().mkdirs();
         dataImporterSubdirPath = dataImporterPath.resolve("sub-dir");
         dataImporterSubdirPath.toFile().mkdirs();
@@ -174,19 +177,6 @@ public class DataReceiptPipelineModuleTest {
     public void shutDown() throws InterruptedException, IOException {
         Thread.interrupted();
         execThread.shutdownNow();
-        // NB: execution is so fast that some deleteDirectory commands fail because
-        // (apparently) write-locks have not yet had time to release! Address this by
-        // adding a short nap.
-        Thread.sleep(10);
-        FileUtil.setPosixPermissionsRecursively(datastoreRootPath, "rwxrwxrwx");
-        FileUtil.setPosixPermissionsRecursively(dataImporterPath, "rwxrwxrwx");
-        FileUtils.forceDelete(datastoreRootPath.toFile());
-        FileUtils.forceDelete(dataImporterPath.getParent().toFile());
-        if (Files.exists(DirectoryProperties.manifestsDir())) {
-            FileUtil.setPosixPermissionsRecursively(DirectoryProperties.manifestsDir(),
-                "rwxrwxrwx");
-            FileUtils.forceDelete(DirectoryProperties.manifestsDir().toFile());
-        }
 
         AlertService.setInstance(null);
     }
@@ -633,7 +623,7 @@ public class DataReceiptPipelineModuleTest {
     public void testInterruptInAlgorithm()
         throws IOException, InstantiationException, IllegalAccessException, SAXException,
         InterruptedException, JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+        NoSuchMethodException, SecurityException, ExecutionException {
 
         // Populate the models
         setUpModelsForImport(dataImporterPath);

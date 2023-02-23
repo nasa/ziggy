@@ -149,8 +149,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
             xmlManager = new ValidatingXmlManager<>(Acknowledgement.class);
             Acknowledgement ack = xmlManager.unmarshal(acknowledgementPath.toFile());
             return ack.transferStatus.equals(DataReceiptStatus.VALID);
-		} catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-				| IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
             throw new PipelineException(
                 "Unable to read acknowledgement " + acknowledgementPath.toString(), e);
         }
@@ -417,11 +416,11 @@ public class Acknowledgement implements HasXmlSchemaFilename {
         @Override
         public boolean equals(Object obj) {
             if (this == obj) {
-				return true;
-			}
+                return true;
+            }
             if (obj == null || getClass() != obj.getClass()) {
-				return false;
-			}
+                return false;
+            }
             AcknowledgementEntry other = (AcknowledgementEntry) obj;
             return Objects.equals(name, other.name) && Objects.equals(checksum, other.checksum)
                 && size == other.size && transferStatus == other.transferStatus

@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTypeImporter;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
@@ -61,7 +62,6 @@ import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.util.io.Filenames;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -82,6 +82,20 @@ public class ZiggyEventHandlerTest {
     private Path readyIndicator1, readyIndicator2a, readyIndicator2b;
     private PipelineOperations pipelineOperations = Mockito.spy(PipelineOperations.class);
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
+
+    @Rule
+    public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
+        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
+
+    @Rule
+    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
+        DATA_RECEIPT_DIR_PROP_NAME, TEST_DATA_DIR);
 
     @Before
     public void setUp() throws IOException {
@@ -256,7 +270,7 @@ public class ZiggyEventHandlerTest {
         // Re-create the ready-indicator file to see that the pipeline gets
         // fired again
         Files.createFile(readyIndicator1);
-        Thread.sleep(240L);
+        ziggyEventHandler.run();
         events = (List<ZiggyEvent>) DatabaseTransactionFactory
             .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
         assertEquals(2, events.size());
@@ -311,7 +325,6 @@ public class ZiggyEventHandlerTest {
         // The ready-indicator file should still be present and the event handler should
         // be disabled
         assertTrue(Files.exists(readyIndicator1));
-        Thread.sleep(50L);
         assertFalse(ziggyEventHandler.isRunning());
     }
 
