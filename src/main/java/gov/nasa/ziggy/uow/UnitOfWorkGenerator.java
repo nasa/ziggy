@@ -3,6 +3,7 @@ package gov.nasa.ziggy.uow;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -11,15 +12,15 @@ import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 /**
  * Interface for all unit of work generators. A unit of work generator constructs instances of the
@@ -59,14 +60,15 @@ public interface UnitOfWorkGenerator {
      * <p>
      * Used by the console to prevent misconfigurations.
      */
-    List<Class<? extends Parameters>> requiredParameterClasses();
+    List<Class<? extends ParametersInterface>> requiredParameterClasses();
 
     /**
      * Generate the task objects for this unit of work. This method must be supplied by the
      * implementing class. It is used in conjunction with {@link #briefState(UnitOfWork)} to
      * generate all UOWs for all tasks.
      */
-    List<UnitOfWork> generateTasks(Map<Class<? extends Parameters>, Parameters> parameters);
+    List<UnitOfWork> generateTasks(
+        Map<Class<? extends ParametersInterface>, ParametersInterface> parameters);
 
     /**
      * Generates the content of the briefState property based on the other properties in a UOW. It
@@ -81,15 +83,22 @@ public interface UnitOfWorkGenerator {
      * generator.
      */
     default List<UnitOfWork> generateUnitsOfWork(
-        Map<Class<? extends Parameters>, Parameters> parameters) {
+        Map<Class<? extends ParametersInterface>, ParametersInterface> parameters) {
+
+        // Produce the tasks and sort by brief state
         List<UnitOfWork> uows = generateTasks(parameters);
+
+        // Add some metadata parameters to all the instances.
         for (UnitOfWork uow : uows) {
             uow.addParameter(new TypedParameter(UnitOfWork.BRIEF_STATE_PARAMETER_NAME,
                 briefState(uow), ZiggyDataType.ZIGGY_STRING));
             uow.addParameter(new TypedParameter(UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
                 getClass().getCanonicalName(), ZiggyDataType.ZIGGY_STRING));
         }
-        return uows;
+
+        // Now that the UOWs have their brief states properly assigned, sort them by brief state
+        // and return.
+        return uows.stream().sorted().collect(Collectors.toList());
     }
 
     /**
@@ -103,9 +112,8 @@ public interface UnitOfWorkGenerator {
         if (unitOfWorkGenerator == null) {
 
             // Get the current definition of the pipeline module
-            PipelineModuleDefinition module = (PipelineModuleDefinition) DatabaseTransactionFactory
-                .performTransactionInThread(() -> new PipelineModuleDefinitionCrud()
-                    .retrieveLatestVersionForName(node.getModuleName()));
+            PipelineModuleDefinition module = new PipelineModuleDefinitionCrud()
+                .retrieveLatestVersionForName(node.getModuleName());
             Class<? extends PipelineModule> moduleClass = module.getPipelineModuleClass()
                 .getClazz();
             Class<? extends UnitOfWorkGenerator> uowClass = defaultUnitOfWorkGenerator(moduleClass);
@@ -128,7 +136,7 @@ public interface UnitOfWorkGenerator {
 
         // Start by using the pipeline-side manager for default UOWs, if any is specified
         String pipelineUowManagerClassName = ZiggyConfiguration.getInstance()
-            .getString(PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME, null);
+            .getString(PropertyName.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS.property(), null);
         if (pipelineUowManagerClassName != null) {
 
             // Try to instantiate the Pipeline-side default UOW generator, and throw an exception
@@ -161,5 +169,4 @@ public interface UnitOfWorkGenerator {
         }
         return defaultUnitOfWork;
     }
-
 }

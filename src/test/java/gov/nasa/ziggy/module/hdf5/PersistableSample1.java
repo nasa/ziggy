@@ -55,7 +55,9 @@ public class PersistableSample1 implements Persistable {
             || enumScalar != other.enumScalar) {
             return false;
         }
-        if (!Arrays.equals(floatArray1, other.floatArray1) || !Objects.equals(intList, other.intList) || !Arrays.deepEquals(longArray2, other.longArray2)) {
+        if (!Arrays.equals(floatArray1, other.floatArray1)
+            || !Objects.equals(intList, other.intList)
+            || !Arrays.deepEquals(longArray2, other.longArray2)) {
             return false;
         }
         return true;
@@ -119,5 +121,4 @@ public class PersistableSample1 implements Persistable {
 
         return persistableObject;
     }
-
 }

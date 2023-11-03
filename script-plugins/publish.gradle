@@ -1,0 +1,146 @@
+// Publish ziggy.jar (with "gradle publish") to build/repository/ziggy so
+// that other projects can easily access it (and its dependencies).
+// See also $rootDir/buildSrc/build.gradle.
+
+// Produces artifact for publishing tests.
+task testJar(type: Jar, dependsOn: testClasses) {
+    from sourceSets.test.output
+    archiveAppendix = "test"
+}
+
+publishing {
+    publications {
+        ziggy(MavenPublication) {
+            groupId group
+            from components.java
+            version version
+
+            // Maven doesn't understand 2.17.+ notation.
+            suppressPomMetadataWarningsFor('runtimeElements')
+
+            pom {
+                name = 'Ziggy'
+                description = 'A portable, scalable infrastructure for science data processing pipelines'
+                url = 'https://github.com/nasa/ziggy'
+                licenses {
+                    license {
+                        name = 'NASA Open Source Agreement Version 1.3'
+                        url = 'https://github.com/nasa/ziggy/blob/main/LICENSE.pdf'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'quarkpt'
+                        name = 'Peter Tenenbaum'
+                        email = 'Peter.Tenenbaum@nasa.gov'
+                    }
+                    developer {
+                        id = 'wohler'
+                        name = 'Bill Wohler'
+                        email = 'Bill.Wohler@nasa.gov'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/nasa/ziggy.git'
+                    developerConnection = 'scm:git:git@github.com:nasa/ziggy.git'
+                    url = 'https://github.com/nasa/ziggy'
+                }
+            }
+        }
+
+        ziggyTest(MavenPublication) {
+            groupId group
+            artifactId "${project.name}-test"
+            artifact testJar
+            version version
+
+            // Maven doesn't understand 2.17.+ notation.
+            suppressPomMetadataWarningsFor('runtimeElements')
+
+            pom {
+                name = 'Ziggy Test'
+                description = 'Ziggy test fixtures'
+                url = 'https://github.com/nasa/ziggy'
+                licenses {
+                    license {
+                        name = 'NASA Open Source Agreement Version 1.3'
+                        url = 'https://github.com/nasa/ziggy/blob/main/LICENSE.pdf'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'quarkpt'
+                        name = 'Peter Tenenbaum'
+                        email = 'Peter.Tenenbaum@nasa.gov'
+                    }
+                    developer {
+                        id = 'wohler'
+                        name = 'Bill Wohler'
+                        email = 'Bill.Wohler@nasa.gov'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/nasa/ziggy.git'
+                    developerConnection = 'scm:git:git@github.com:nasa/ziggy.git'
+                    url = 'https://github.com/nasa/ziggy'
+                }
+            }
+        }
+
+        hdf5(MavenPublication) {
+            groupId "$outsideGroup"
+            artifactId "jarhdf5"
+            artifact "${outsideGroupDir}/jarhdf5-${hdf5Version}.jar"
+            version "$hdf5Version"
+            pom {
+                name = 'HDF5'
+                description = 'HDF5'
+                url = 'https://www.hdfgroup.org/downloads/hdf5/'
+            }
+        }
+
+        wrapper(MavenPublication) {
+            groupId "$outsideGroup"
+            artifactId "wrapper"
+            artifact "${outsideGroupDir}/wrapper-${wrapperVersion}.jar"
+            version "$wrapperVersion"
+            pom {
+                name = 'Wrapper'
+                description = 'Java Service Wrapper'
+                url = 'https://wrapper.tanukisoftware.com/doc/english/home.html'
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'Ziggy'
+            url = layout.buildDirectory.dir("repository")
+        }
+    }
+}
+
+// Work around implicit dependency issues with MavenPublication.
+afterEvaluate {
+    tasks.named("generateMetadataFileForZiggyPublication") {
+        dependsOn("copyLibs")
+    }
+    tasks.named("publishZiggyPublicationToZiggyRepository") {
+        dependsOn("copyLibs")
+    }
+    tasks.named("publishZiggyTestPublicationToZiggyRepository") {
+        dependsOn("copyLibs")
+    }
+    tasks.named("publishHdf5PublicationToZiggyRepository") {
+        dependsOn("copyLibs")
+    }
+    tasks.named("publishWrapperPublicationToZiggyRepository") {
+        dependsOn("copyLibs")
+    }
+}
+
+// Ensure all artifacts are available to clients after running the
+// publish task, and ensure that the build task publishes as well.
+publish.dependsOn copyBuildSrc
+publish.dependsOn assemble
+build.dependsOn publish

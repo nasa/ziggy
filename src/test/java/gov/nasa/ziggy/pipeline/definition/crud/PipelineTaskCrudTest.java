@@ -14,6 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.crud.SimpleCrud;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
@@ -26,7 +27,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
-import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
 /**
  * Implements unit tests for {@link PipelineTaskCrud}.
@@ -80,7 +80,7 @@ public class PipelineTaskCrudTest {
     @Test
     public void testRetrieveOneTask() {
         DatabaseTransactionFactory.performTransaction(() -> {
-            createTasksForPipeline("pipeline1", pipelineDef, moduleDef);
+            createTasksForPipeline("pipeline1", pipelineDef, moduleDef, 1);
             return null;
         });
 
@@ -99,7 +99,6 @@ public class PipelineTaskCrudTest {
             assertEquals("pipeline1", task.getPipelineInstance().getName());
             return null;
         });
-
     }
 
     /**
@@ -108,8 +107,8 @@ public class PipelineTaskCrudTest {
     @Test
     public void testRetrieveTwoTasks() {
         DatabaseTransactionFactory.performTransaction(() -> {
-            createTasksForPipeline("pipeline1", pipelineDef, moduleDef);
-            createTasksForPipeline("pipeline2", pipelineDef, moduleDef);
+            createTasksForPipeline("pipeline1", pipelineDef, moduleDef, 1);
+            createTasksForPipeline("pipeline2", pipelineDef, moduleDef, 1);
             return null;
         });
 
@@ -134,14 +133,42 @@ public class PipelineTaskCrudTest {
             assertEquals("pipeline2", task.getPipelineInstance().getName());
             return null;
         });
+    }
 
+    @Test
+    public void testRetrieveStateCount() {
+        DatabaseTransactionFactory.performTransaction(() -> {
+            createTasksForPipeline("pipeline1", pipelineDef, moduleDef, 4);
+            createTasksForPipeline("pipeline2", pipelineDef, moduleDef, 2);
+            return null;
+        });
+
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineTaskCrud.retrieve(1L).setState(PipelineTask.State.PROCESSING);
+            pipelineTaskCrud.retrieve(2L).setState(PipelineTask.State.PROCESSING);
+            pipelineTaskCrud.retrieve(3L).setState(PipelineTask.State.ERROR);
+            pipelineTaskCrud.retrieve(4L).setState(PipelineTask.State.COMPLETED);
+            pipelineTaskCrud.retrieve(5L).setState(PipelineTask.State.PROCESSING);
+            pipelineTaskCrud.retrieve(6L).setState(PipelineTask.State.PROCESSING);
+            return null;
+        });
+
+        DatabaseTransactionFactory.performTransaction(() -> {
+            Integer taskCount = pipelineTaskCrud.retrieveStateCount(1L,
+                PipelineTask.State.PROCESSING);
+            assertEquals(2L, taskCount.longValue());
+            taskCount = pipelineTaskCrud.retrieveStateCount(1L, PipelineTask.State.ERROR);
+            assertEquals(1L, taskCount.longValue());
+            taskCount = pipelineTaskCrud.retrieveStateCount(2L, PipelineTask.State.PROCESSING);
+            assertEquals(2L, taskCount.longValue());
+            return null;
+        });
     }
 
     private PipelineModuleDefinition createModule(String moduleName) {
         PipelineModuleDefinition moduleDef = new PipelineModuleDefinition(moduleName);
         moduleDef.setPipelineModuleClass(new ClassWrapper<>(TestModule.class));
-        new PipelineModuleDefinitionCrud().create(moduleDef);
-        return moduleDef;
+        return new PipelineModuleDefinitionCrud().merge(moduleDef);
     }
 
     private PipelineDefinition createPipelineDefinition(String pipelineName,
@@ -152,23 +179,20 @@ public class PipelineTaskCrudTest {
         List<Integer> path = new ArrayList<>();
         List<PipelineDefinitionNode> nodes = Stream.of(modules).map(module -> {
             PipelineDefinitionNode node = new PipelineDefinitionNode(module.getName(),
-                pipelineDef.getName().getName());
-            node.setUnitOfWorkGenerator(
-                new ClassWrapper<UnitOfWorkGenerator>(new SingleUnitOfWorkGenerator()));
+                pipelineDef.getName());
+            node.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
             path.add(0);
             node.setPath(new PipelineDefinitionNodePath(path));
-            new PipelineDefinitionCrud().create(node);
+            new SimpleCrud<>().persist(node);
             return node;
         }).collect(Collectors.toList());
 
         pipelineDef.setRootNodes(nodes);
-        new PipelineDefinitionCrud().create(pipelineDef);
-
-        return pipelineDef;
+        return new PipelineDefinitionCrud().merge(pipelineDef);
     }
 
     private PipelineInstance createTasksForPipeline(String instanceName,
-        PipelineDefinition pipelineDef, PipelineModuleDefinition moduleDef) {
+        PipelineDefinition pipelineDef, PipelineModuleDefinition moduleDef, int taskCount) {
 
         PipelineInstance instance = new PipelineInstance(pipelineDef);
         instance.setName(instanceName);
@@ -177,16 +201,18 @@ public class PipelineTaskCrudTest {
         PipelineDefinitionNode node = pipelineDef.getRootNodes().get(0);
         while (node != null) {
             PipelineInstanceNode instanceNode = new PipelineInstanceNode(instance, node, moduleDef);
-            new PipelineInstanceCrud().create(instanceNode);
+            new PipelineInstanceCrud().persist(instanceNode);
 
-            PipelineTask task = new PipelineTask(instance, instanceNode);
-            new PipelineTaskCrud().create(task);
+            for (int i = 0; i < taskCount; i++) {
+                PipelineTask task = new PipelineTask(instance, instanceNode);
+                new PipelineTaskCrud().persist(task);
+            }
 
             // Assuming a sequential path of nodes!
             node = node.getNextNodes().isEmpty() ? null : node.getNextNodes().get(0);
         }
 
-        new PipelineInstanceCrud().create(instance);
+        new PipelineInstanceCrud().persist(instance);
         return instance;
     }
 
@@ -208,22 +234,18 @@ public class PipelineTaskCrudTest {
 
         @Override
         protected void restartFromBeginning() {
-
         }
 
         @Override
         protected void resumeCurrentStep() {
-
         }
 
         @Override
         protected void resubmit() {
-
         }
 
         @Override
         protected void resumeMonitoring() {
-
         }
 
         @Override
@@ -233,9 +255,6 @@ public class PipelineTaskCrudTest {
 
         @Override
         protected void runStandard() {
-
         }
-
     }
-
 }

@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.module.hdf5;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static gov.nasa.ziggy.collections.ZiggyDataType.ZIGGY_BYTE;
 import static gov.nasa.ziggy.collections.ZiggyDataType.ZIGGY_LONG;
 import static gov.nasa.ziggy.collections.ZiggyDataType.getDataType;
@@ -14,20 +15,24 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
-import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ReflectionUtils;
 import hdf.hdf5lib.H5;
 import hdf.hdf5lib.HDF5Constants;
-import hdf.hdf5lib.exceptions.HDF5Exception;
-import hdf.hdf5lib.exceptions.HDF5LibraryException;
 
 public class PersistableHdf5Array extends AbstractHdf5Array {
+
+    private static final Logger log = LoggerFactory.getLogger(PersistableHdf5Array.class);
 
     static final PersistableHdf5Array forReadingModuleParameterSet() {
         PersistableHdf5Array p = new PersistableHdf5Array();
@@ -61,7 +66,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      * only the {@link forReadingModuleParameterSet} static method can use it.
      */
     private PersistableHdf5Array() {
-        super(new DefaultParameters());
+        super(new Parameters());
     }
 
     /**
@@ -180,7 +185,6 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
             javaStorageObject = Array.newInstance(auxiliaryClass, 0);
         }
         return javaStorageObject;
-
     }
 
     /**
@@ -274,7 +278,9 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      * @return An array of the appropriate class and dimension (i.e., array[], array[][], etc) in
      * which all the array members are null (i.e., not populated with lower-level arrays).
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     Object constructArray(int nDims, int length) {
+        checkArgument(length >= 0, "array length");
 
         // determine the array class
         String arrayClass = arrayClassToConstruct(nDims);
@@ -283,7 +289,9 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
         try {
             return Array.newInstance(Class.forName(arrayClass), length);
         } catch (NegativeArraySizeException | ClassNotFoundException e) {
-            throw new PipelineException("Unable to instantiate array of class " + arrayClass, e);
+            // This can never occur. By construction, the class for the array is always
+            // available and the size is never negative.
+            throw new AssertionError(e);
         }
     }
 
@@ -322,6 +330,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      * @return List of additional groups created during the write of this object *(typically these
      * come from writing objects that are members of the dataObject)
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     List<Long> writePersistableScalarObject(long fileId, String groupName) {
 
         Persistable[] dataObjectAsPersistableArray = (Persistable[]) getArrayObject();
@@ -343,60 +352,62 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
             }
             field.setAccessible(true);
 
+            // every field gets its own group, with a group order attribute
+
+            // convert the field's contents to an appropriate HDF5 array object
+            AbstractHdf5Array persistableField;
             try {
-                // every field gets its own group, with a group order attribute
-
-                // convert the field's contents to an appropriate HDF5 array object
-                AbstractHdf5Array persistableField = AbstractHdf5Array
-                    .newInstance(field.get(dataObject));
-                if (!createGroupsForMissingFields
-                    && (persistableField == null || persistableField.getArrayObject() == null)) {
-                    continue;
-                }
-                if (persistableField != null) {
-                    persistableField
-                        .setCreateGroupsForMissingFields(isCreateGroupsForMissingFields());
-                }
-
-                long fieldGroupId = H5.H5Gcreate(fileId, field.getName(), H5P_DEFAULT, H5P_DEFAULT,
-                    H5P_DEFAULT);
-                groupIds.add(fieldGroupId);
-                writeFieldOrderAttribute(fieldGroupId, iField);
-                iField++;
-
-                // If this is an empty field, but we were instructed to create a group
-                // for it, mark it as empty and move on
-
-                if (persistableField == null || persistableField.getArrayObject() == null) {
-                    long orderAttributeSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
-                    long orderAttributeId = H5.H5Acreate(fieldGroupId,
-                        Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME, ZIGGY_BYTE.getHdf5Type(),
-                        orderAttributeSpace, H5P_DEFAULT, H5P_DEFAULT);
-                    H5.H5Aclose(orderAttributeId);
-                    H5.H5Sclose(orderAttributeSpace);
-                    H5.H5Gclose(fieldGroupId);
-                    continue;
-                }
-
-                // add an attribute that contains the data type that will be
-                // contained in the group, because I'm tired of trying to infer
-                // it from the peculiar way that HDF5 stores data type information
-
-                Hdf5ModuleInterface.writeDataTypeAttribute(fieldGroupId,
-                    persistableField.getDataTypeToSave(), field.getName());
-
-                // Use the HDF5 array's write method
-
-                if (persistableField != null) {
-                    List<Long> newGroupIds = persistableField.write(fieldGroupId, field.getName());
-                    groupIds.addAll(newGroupIds);
-                }
-                H5.H5Gclose(fieldGroupId);
-            } catch (NullPointerException | HDF5Exception | IllegalArgumentException
-                | IllegalAccessException e) {
-                throw new PipelineException(
-                    "Unable to write Persistable scalar " + field.getName() + " to HDF5 group", e);
+                persistableField = AbstractHdf5Array.newInstance(field.get(dataObject));
+            } catch (IllegalAccessException e) {
+                // This can never occur. We set the field to be accessible prior
+                // to this attempt call get() on it.
+                throw new AssertionError(e);
             }
+            if (!createGroupsForMissingFields && isEmptyHdf5Array(persistableField)) {
+                log.debug("Not creating group for empty field {} in class {}", field.getName(),
+                    clazz.getName());
+                continue;
+            }
+            if (persistableField != null) {
+                persistableField.setCreateGroupsForMissingFields(isCreateGroupsForMissingFields());
+            }
+
+            long fieldGroupId = H5.H5Gcreate(fileId, field.getName(), H5P_DEFAULT, H5P_DEFAULT,
+                H5P_DEFAULT);
+            groupIds.add(fieldGroupId);
+            writeFieldOrderAttribute(fieldGroupId, iField);
+            iField++;
+
+            // If this is an empty field, but we were instructed to create a group
+            // for it, mark it as empty and move on
+
+            if (isEmptyHdf5Array(persistableField)) {
+                log.debug("Creating group for empty field {} in class {}", field.getName(),
+                    clazz.getName());
+                long orderAttributeSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
+                long orderAttributeId = H5.H5Acreate(fieldGroupId,
+                    Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME, ZIGGY_BYTE.getHdf5Type(),
+                    orderAttributeSpace, H5P_DEFAULT, H5P_DEFAULT);
+                H5.H5Aclose(orderAttributeId);
+                H5.H5Sclose(orderAttributeSpace);
+                H5.H5Gclose(fieldGroupId);
+                continue;
+            }
+
+            // add an attribute that contains the data type that will be
+            // contained in the group, because I'm tired of trying to infer
+            // it from the peculiar way that HDF5 stores data type information
+
+            Hdf5ModuleInterface.writeDataTypeAttribute(fieldGroupId,
+                persistableField.getDataTypeToSave(), field.getName());
+
+            // Use the HDF5 array's write method
+
+            if (persistableField != null) {
+                List<Long> newGroupIds = persistableField.write(fieldGroupId, field.getName());
+                groupIds.addAll(newGroupIds);
+            }
+            H5.H5Gclose(fieldGroupId);
         } // end of loop over fields
 
         return groupIds;
@@ -413,78 +424,72 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
     @Override
     public List<Long> write(long fieldGroupId, String fieldName) {
         List<Long> subGroupIds = new ArrayList<>();
-        try {
 
-            // If this is a scalar object, then we can simply call the scalar
-            // object writer
+        // If this is a scalar object, then we can simply call the scalar
+        // object writer
 
-            if (isScalar()) {
-                subGroupIds = writePersistableScalarObject(fieldGroupId, fieldName);
+        if (isScalar()) {
+            subGroupIds = writePersistableScalarObject(fieldGroupId, fieldName);
 
-                // If the fields of the Persistable class are all primitive scalar,
-                // use the specialized code that writes them as parallel arrays
-            } else if (areAllFieldsPrimitiveScalar()) {
+            // If the fields of the Persistable class are all primitive scalar,
+            // use the specialized code that writes them as parallel arrays
+        } else if (areAllFieldsPrimitiveScalar()) {
 
-                // add the parallel array attribute to the group so that downstream
-                // users know how to reconstruct this
-                long scalarSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
-                long parallelArrayAttribute = H5.H5Acreate(fieldGroupId,
-                    Hdf5ModuleInterface.PARALLEL_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(),
-                    scalarSpace, H5P_DEFAULT, H5P_DEFAULT);
-                H5.H5Aclose(parallelArrayAttribute);
-                H5.H5Sclose(scalarSpace);
+            // add the parallel array attribute to the group so that downstream
+            // users know how to reconstruct this
+            long scalarSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
+            long parallelArrayAttribute = H5.H5Acreate(fieldGroupId,
+                Hdf5ModuleInterface.PARALLEL_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(), scalarSpace,
+                H5P_DEFAULT, H5P_DEFAULT);
+            H5.H5Aclose(parallelArrayAttribute);
+            H5.H5Sclose(scalarSpace);
 
-                // get the parallel primitive arrays from the Persistable array
-                List<PrimitiveHdf5Array> parallelArrays = toParallelArrays();
+            // get the parallel primitive arrays from the Persistable array
+            List<PrimitiveHdf5Array> parallelArrays = toParallelArrays();
 
-                // write them to the HDF5 file
-                int iField = 0;
-                for (PrimitiveHdf5Array primitiveArray : parallelArrays) {
-                    long subGroupId = H5.H5Gcreate(fieldGroupId, primitiveArray.getFieldName(),
-                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                    writeFieldOrderAttribute(subGroupId, iField);
-                    iField++;
-                    Hdf5ModuleInterface.writeDataTypeAttribute(subGroupId,
-                        primitiveArray.getDataTypeToSave(), primitiveArray.getFieldName());
-                    primitiveArray.write(subGroupId, primitiveArray.getFieldName());
-                    H5.H5Gclose(subGroupId);
-                    subGroupIds.add(subGroupId);
-                }
-            } else {
-
-                // if we're here then it's an array of unknown dimension, and
-                // needs to be written, with each object in its own sub-group of
-                // the main group for the array. We also need to
-                // tell future users that this group is the top of an object
-                // array
-
-                long scalarSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
-                long objectArrayAttribute = H5.H5Acreate(fieldGroupId,
-                    Hdf5ModuleInterface.OBJECT_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(),
-                    scalarSpace, H5P_DEFAULT, H5P_DEFAULT);
-                H5.H5Aclose(objectArrayAttribute);
-                H5.H5Sclose(scalarSpace);
-
-                // add an attribute that allows Java to know in advance the
-                // size and shape of the array
-
-                long[] persistableArrayDims = getDimensions();
-
-                long arraySpace = H5.H5Screate_simple(1, new long[] { persistableArrayDims.length },
-                    null);
-                long objectArrayDimsAttribute = H5.H5Acreate(fieldGroupId,
-                    Hdf5ModuleInterface.OBJECT_ARRAY_DIMS_ATT_NAME, ZIGGY_LONG.getHdf5Type(),
-                    arraySpace, H5P_DEFAULT, H5P_DEFAULT);
-                H5.H5Awrite(objectArrayDimsAttribute, ZIGGY_LONG.getHdf5Type(),
-                    persistableArrayDims);
-                H5.H5Aclose(objectArrayDimsAttribute);
-                H5.H5Sclose(arraySpace);
-
-                subGroupIds = writePersistableArray(fieldGroupId, fieldName);
+            // write them to the HDF5 file
+            int iField = 0;
+            for (PrimitiveHdf5Array primitiveArray : parallelArrays) {
+                long subGroupId = H5.H5Gcreate(fieldGroupId, primitiveArray.getFieldName(),
+                    H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                writeFieldOrderAttribute(subGroupId, iField);
+                iField++;
+                Hdf5ModuleInterface.writeDataTypeAttribute(subGroupId,
+                    primitiveArray.getDataTypeToSave(), primitiveArray.getFieldName());
+                primitiveArray.write(subGroupId, primitiveArray.getFieldName());
+                H5.H5Gclose(subGroupId);
+                subGroupIds.add(subGroupId);
             }
-        } catch (NullPointerException | IllegalArgumentException | HDF5Exception e) {
-            throw new PipelineException(
-                "Unable to write Persistable object/array " + fieldName + " to HDF5 group", e);
+        } else {
+
+            // if we're here then it's an array of unknown dimension, and
+            // needs to be written, with each object in its own sub-group of
+            // the main group for the array. We also need to
+            // tell future users that this group is the top of an object
+            // array
+
+            long scalarSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
+            long objectArrayAttribute = H5.H5Acreate(fieldGroupId,
+                Hdf5ModuleInterface.OBJECT_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(), scalarSpace,
+                H5P_DEFAULT, H5P_DEFAULT);
+            H5.H5Aclose(objectArrayAttribute);
+            H5.H5Sclose(scalarSpace);
+
+            // add an attribute that allows Java to know in advance the
+            // size and shape of the array
+
+            long[] persistableArrayDims = getDimensions();
+
+            long arraySpace = H5.H5Screate_simple(1, new long[] { persistableArrayDims.length },
+                null);
+            long objectArrayDimsAttribute = H5.H5Acreate(fieldGroupId,
+                Hdf5ModuleInterface.OBJECT_ARRAY_DIMS_ATT_NAME, ZIGGY_LONG.getHdf5Type(),
+                arraySpace, H5P_DEFAULT, H5P_DEFAULT);
+            H5.H5Awrite(objectArrayDimsAttribute, ZIGGY_LONG.getHdf5Type(), persistableArrayDims);
+            H5.H5Aclose(objectArrayDimsAttribute);
+            H5.H5Sclose(arraySpace);
+
+            subGroupIds = writePersistableArray(fieldGroupId, fieldName);
         }
         return subGroupIds;
     }
@@ -496,21 +501,17 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
         while (arrayLocation != null) {
 
             String newFieldName = Hdf5ModuleInterface.getFieldName(fieldName, arrayLocation);
-            try {
-                // create the new group
-                long subGroupId = H5.H5Gcreate(fieldGroupId, newFieldName, H5P_DEFAULT, H5P_DEFAULT,
-                    H5P_DEFAULT);
-                subGroupIds.add(subGroupId);
-                PersistableHdf5Array persistableObject = new PersistableHdf5Array(
-                    getArrayMember(arrayLocation));
-                subGroupIds.addAll(persistableObject.write(subGroupId, newFieldName));
+            // create the new group
+            long subGroupId = H5.H5Gcreate(fieldGroupId, newFieldName, H5P_DEFAULT, H5P_DEFAULT,
+                H5P_DEFAULT);
+            subGroupIds.add(subGroupId);
+            PersistableHdf5Array persistableObject = new PersistableHdf5Array(
+                getArrayMember(arrayLocation));
+            persistableObject.setCreateGroupsForMissingFields(isCreateGroupsForMissingFields());
+            subGroupIds.addAll(persistableObject.write(subGroupId, newFieldName));
 
-                H5.H5Gclose(subGroupId);
-                arrayLocation = nextArrayLocation();
-            } catch (NullPointerException | IllegalArgumentException | HDF5Exception e) {
-                throw new PipelineException(
-                    "Unable to write Persistable object " + newFieldName + " to HDF5 group", e);
-            }
+            H5.H5Gclose(subGroupId);
+            arrayLocation = nextArrayLocation();
         }
         return subGroupIds;
     }
@@ -535,6 +536,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      *
      * @param fileId The HDF5 group that contains the data for the object.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     void readPersistableScalarObject(long fileId) {
 
         Object[] dataArray = (Object[]) arrayObject;
@@ -569,33 +571,26 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
             missingFieldsDetected = missingFieldsDetected || persistableField.missingFieldsDetected;
             try {
                 field.set(dataObject, persistableField.toJava());
-            } catch (IllegalArgumentException | IllegalAccessException e1) {
-                throw new PipelineException("Unable to set field " + field.getName(), e1);
+            } catch (IllegalAccessException e) {
+                // This can never occur. The field was set to accessible earlier in this
+                // method.
+                throw new AssertionError(e);
             }
-            try {
-                H5.H5Gclose(fieldGroupId);
-            } catch (HDF5LibraryException e) {
-                throw new PipelineException("Unable to close HDF5 group " + field.getName(), e);
-            }
-
+            H5.H5Gclose(fieldGroupId);
         }
     }
 
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public void read(long fieldGroupId) {
         // If the return is an empty field, detect and handle that now
 
         boolean hasArrayDimsAttribute;
-        try {
-            if (H5.H5Aexists(fieldGroupId, Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME)) {
-                return;
-            }
-            hasArrayDimsAttribute = H5.H5Aexists(fieldGroupId,
-                Hdf5ModuleInterface.OBJECT_ARRAY_DIMS_ATT_NAME);
-        } catch (HDF5LibraryException | NullPointerException e1) {
-            throw new PipelineException(
-                "HDF5 error occurred attempting to detect empty field attribute", e1);
+        if (H5.H5Aexists(fieldGroupId, Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME)) {
+            return;
         }
+        hasArrayDimsAttribute = H5.H5Aexists(fieldGroupId,
+            Hdf5ModuleInterface.OBJECT_ARRAY_DIMS_ATT_NAME);
         if (!hasArrayDimsAttribute
             && (getReturnAs() == null || getReturnAs() == ReturnAs.UNKNOWN)) {
             returnAs = ReturnAs.SCALAR;
@@ -606,11 +601,12 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
             String parameterClassName = getParameterClassNameFromAttribute(fieldGroupId);
             try {
                 auxiliaryClass = Class.forName(parameterClassName);
-                setArray(newPersistableObject());
             } catch (ClassNotFoundException e) {
-                throw new PipelineException(
-                    "Unable to create Class object for class:" + parameterClassName, e);
+                // This can never occur. By construction the name of the class is available
+                // to Java.
+                throw new AssertionError(e);
             }
+            setArray(newPersistableObject());
         }
 
         // we must first check to see whether the HDF5 object is a scalar object with
@@ -639,63 +635,56 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
 
             // convert the parallel arrays into the array of Persistable objects
             forParallelArrays(allFields, primitiveHdf5Arrays);
-
         } else if (getReturnAs().equals(ReturnAs.SCALAR) || !hasArrayDimsAttribute) {
             if (arrayObject == null) {
                 setDimensions(new long[] { 1 });
                 setArrayMember(newPersistableObject(), new long[] { 0 });
             }
             readPersistableScalarObject(fieldGroupId);
-
         } else {
             // array, so slightly different activity:
 
-            try {
-                // get the dimensions
-                long attributeId = H5.H5Aopen(fieldGroupId,
-                    Hdf5ModuleInterface.OBJECT_ARRAY_DIMS_ATT_NAME, H5P_DEFAULT);
-                long dataSpaceId = H5.H5Aget_space(attributeId);
-                int nDims = H5.H5Sget_simple_extent_ndims(dataSpaceId);
-                long[] dims = new long[nDims];
-                long[] maxDims = new long[nDims];
-                H5.H5Sget_simple_extent_dims(dataSpaceId, dims, maxDims);
-                long[] persistableDims = new long[(int) dims[0]];
-                H5.H5Aread(attributeId, ZIGGY_LONG.getHdf5Type(), persistableDims);
-                H5.H5Sclose(dataSpaceId);
-                H5.H5Aclose(attributeId);
+            // get the dimensions
+            long attributeId = H5.H5Aopen(fieldGroupId,
+                Hdf5ModuleInterface.OBJECT_ARRAY_DIMS_ATT_NAME, H5P_DEFAULT);
+            long dataSpaceId = H5.H5Aget_space(attributeId);
+            int nDims = H5.H5Sget_simple_extent_ndims(dataSpaceId);
+            long[] dims = new long[nDims];
+            long[] maxDims = new long[nDims];
+            H5.H5Sget_simple_extent_dims(dataSpaceId, dims, maxDims);
+            long[] persistableDims = new long[(int) dims[0]];
+            H5.H5Aread(attributeId, ZIGGY_LONG.getHdf5Type(), persistableDims);
+            H5.H5Sclose(dataSpaceId);
+            H5.H5Aclose(attributeId);
 
-                // Note that the group can be present, but the contents can be
-                // null! This is the case if the writing application's equivalent
-                // of createGroupsForMissingFields is set to true. Handle that
-                // case now
-                if (H5.H5Aexists(fieldGroupId, Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME)) {
-                    return;
+            // Note that the group can be present, but the contents can be
+            // null! This is the case if the writing application's equivalent
+            // of createGroupsForMissingFields is set to true. Handle that
+            // case now
+            if (H5.H5Aexists(fieldGroupId, Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME)) {
+                return;
+            }
+
+            // set the dimensions and build the array
+            setDimensions(persistableDims);
+
+            // iterate over array members
+            long[] location = nextArrayLocation();
+            while (location != null) {
+                String arrayFieldName = Hdf5ModuleInterface.getFieldName(fieldName, location);
+                long subGroupId = openGroupIfPresent(fieldGroupId, arrayFieldName);
+                Object newObject = null;
+                if (H5.H5Aexists(subGroupId, Hdf5ModuleInterface.PARAMETER_CLASS_NAME_ATT_NAME)) {
+                    String parameterClassName = getParameterClassNameFromAttribute(subGroupId);
+                    newObject = newPersistableObject(parameterClassName);
+                } else {
+                    newObject = newPersistableObject();
                 }
-
-                // set the dimensions and build the array
-                setDimensions(persistableDims);
-
-                // iterate over array members
-                long[] location = nextArrayLocation();
-                while (location != null) {
-                    String arrayFieldName = Hdf5ModuleInterface.getFieldName(fieldName, location);
-                    long subGroupId = openGroupIfPresent(fieldGroupId, arrayFieldName);
-                    Object newObject = null;
-                    if (H5.H5Aexists(subGroupId,
-                        Hdf5ModuleInterface.PARAMETER_CLASS_NAME_ATT_NAME)) {
-                        String parameterClassName = getParameterClassNameFromAttribute(subGroupId);
-                        newObject = newPersistableObject(parameterClassName);
-                    } else {
-                        newObject = newPersistableObject();
-                    }
-                    PersistableHdf5Array newArray = new PersistableHdf5Array(newObject);
-                    newArray.readPersistableScalarObject(subGroupId);
-                    setArrayMember(newObject, location);
-                    location = nextArrayLocation();
-                }
-            } catch (NullPointerException | HDF5Exception e) {
-                throw new PipelineException("Unable to read field " + getFieldName() + " from HDF5",
-                    e);
+                PersistableHdf5Array newArray = new PersistableHdf5Array(newObject);
+                newArray.readPersistableScalarObject(subGroupId);
+                H5.H5Gclose(subGroupId);
+                setArrayMember(newObject, location);
+                location = nextArrayLocation();
             }
         }
     }
@@ -718,18 +707,18 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      * Returns a new instance of a class given its Class object. This signature is used when it is
      * necessary to return an instance of a Parameters class.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     Object newPersistableObject(String className) {
         try {
             Constructor<?> constructor = Class.forName(className).getDeclaredConstructor();
             constructor.setAccessible(true);
             return constructor.newInstance();
-        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException
-            | SecurityException | IllegalArgumentException | InvocationTargetException
-            | ClassNotFoundException e) {
-            throw new PipelineException("Unable to instantiate new object of class " + className,
-                e);
+        } catch (ClassNotFoundException | NoSuchMethodException | SecurityException
+            | InstantiationException | IllegalAccessException | IllegalArgumentException
+            | InvocationTargetException e) {
+            // This can never occur. By construction, the class has a default constructor.
+            throw new AssertionError(e);
         }
-
     }
 
     /**
@@ -744,6 +733,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      * @return List of PrimitiveHdf5Array objects that contain the contents of the Persistable
      * object array.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     List<PrimitiveHdf5Array> toParallelArrays() {
         if (!allFieldsPrimitiveScalar) {
             throw new PipelineException("Cannot convert array of objects of class "
@@ -772,9 +762,12 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
                 Field field = allFields.get(i);
                 PrimitiveHdf5Array primitiveArray = primitiveArrays.get(i);
                 try {
+                    field.setAccessible(true);
                     primitiveArray.setArrayMember(field.get(arrayMember), location);
-                } catch (IllegalArgumentException | IllegalAccessException e) {
-                    throw new PipelineException("Unable to convert to parallel arrays", e);
+                } catch (IllegalAccessException e) {
+                    // This can never occur. The field was set to accessible before the
+                    // get() was called.
+                    throw new AssertionError(e);
                 }
             }
         }
@@ -782,6 +775,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
         return primitiveArrays;
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     void forParallelArrays(List<Field> allFields, List<PrimitiveHdf5Array> primitiveArrays) {
 
         // set dimensions
@@ -805,9 +799,10 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
                 Object value = primitiveArrays.get(i).getArrayMember(location);
                 try {
                     field.set(newObject, value);
-                } catch (IllegalArgumentException | IllegalAccessException e) {
-                    throw new PipelineException(
-                        "Unable to set field " + field.getName() + " to value " + value, e);
+                } catch (IllegalAccessException e) {
+                    // This can never occur. The field was set to accessible earlier
+                    // in this same method.
+                    throw new AssertionError(e);
                 }
             }
 
@@ -824,5 +819,4 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
     public boolean areAllFieldsPrimitiveScalar() {
         return allFieldsPrimitiveScalar;
     }
-
 }

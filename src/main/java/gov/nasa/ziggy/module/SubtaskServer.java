@@ -6,6 +6,9 @@ import java.util.concurrent.CountDownLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+
 /**
  * Serves sub-tasks to clients using {@link SubtaskAllocator}. Clients should use
  * {@link SubtaskClient} to communicate with an instance of this class.
@@ -22,7 +25,6 @@ public class SubtaskServer implements Runnable {
 
     private SubtaskAllocator subtaskAllocator;
     private final CountDownLatch serverThreadReady = new CountDownLatch(1);
-    private boolean shuttingDown = false;
     private TaskConfigurationManager inputsHandler;
     private Thread listenerThread;
 
@@ -35,18 +37,23 @@ public class SubtaskServer implements Runnable {
         requestQueue = new ArrayBlockingQueue<>(subtaskMasterCount);
     }
 
-    public void start() throws InterruptedException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void start() {
         log.info("Starting SubtaskServer for inputs: " + inputsHandler);
 
-        // NB: if the listener thread constructor and setDaemon() calls are moved
-        // to the class constructor, above, then the listener process will fail.
-        // Specifically, SubtaskClient requests will never get answered. I don't
-        // know why this should matter, but it does.
-        listenerThread = new Thread(this, "SubtaskServer-listener");
-        listenerThread.setDaemon(true);
-        listenerThread.start();
-        serverThreadReady.await();
-        log.info("SubtaskServer thread ready");
+        try {
+            // NB: if the listener thread constructor and setDaemon() calls are moved
+            // to the class constructor, above, then the listener process will fail.
+            // Specifically, SubtaskClient requests will never get answered. I don't
+            // know why this should matter, but it does.
+            listenerThread = new Thread(this, "SubtaskServer-listener");
+            listenerThread.setDaemon(true);
+            listenerThread.start();
+            serverThreadReady.await();
+            log.info("SubtaskServer thread ready");
+        } catch (InterruptedException e) {
+            throw new PipelineException("SubtaskServer start interrupted", e);
+        }
     }
 
     // request commands
@@ -65,7 +72,6 @@ public class SubtaskServer implements Runnable {
      * an {@link InterruptException}.
      */
     public void shutdown() {
-        shuttingDown = true;
         listenerThread.interrupt();
     }
 
@@ -78,10 +84,21 @@ public class SubtaskServer implements Runnable {
      * block until the request is accepted into the queue.
      *
      * @param request
-     * @throws InterruptedException
      */
-    public static void submitRequest(Request request) throws InterruptedException {
-        requestQueue.put(request);
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public static void submitRequest(Request request) {
+        try {
+            requestQueue.put(request);
+        } catch (InterruptedException e) {
+            // This can never occur. It happens if the put() operation is waiting
+            // for a slot to open up in the blocking queue, and the thread is
+            // interrupted while waiting. Because the queue size equals the number
+            // of SubtaskMaster instances, even if all the SubtaskMasters submit
+            // requests simultaneously there will be room enough in the queue for
+            // all the requests, and a SubtaskMaster can never have more than 1
+            // request on the queue at a time.
+            throw new AssertionError(e);
+        }
     }
 
     public static final class Request {
@@ -144,11 +161,18 @@ public class SubtaskServer implements Runnable {
 
     // Implements the request listener loop.
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_IN_RUNNABLE)
     public void run() {
         log.info("Initializing SubtaskServer server thread");
         serverThreadReady.countDown();
 
         while (true) {
+
+            // If the ComputeNodeMaster is shutting down, we can detect it here
+            // and halt the loop.
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
             try {
 
                 // Retrieve the next request, or block until one is provided.
@@ -186,15 +210,11 @@ public class SubtaskServer implements Runnable {
 
                 // Send the response back to the client.
                 request.client.submitResponse(response);
-
             } catch (InterruptedException e) {
-
-                if (shuttingDown) {
-                    log.info("Got shutdown signal, exiting server thread");
-                } else {
-                    log.error("SubtaskServer interrupted, exiting");
-                }
-                return;
+                // If the ComputeNodeMaster started to shut down while
+                // this loop was blocked at the take() call, above, execution
+                // will end up here and we can exit the loop.
+                break;
             }
         }
     }

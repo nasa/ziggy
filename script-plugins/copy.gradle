@@ -1,24 +1,25 @@
-task copySh(type: Copy) {
+task copyPrograms(type: Copy) {
     from(fileTree("src/main/sh").files) {
         include('*.sh')
         rename('(.+)\\.sh$', '$1')
-        fileMode(0755)
     }
-    into "$buildDir/bin"
-}
-
-assemble.dependsOn copySh
-
-task copyPerl(type: Copy) {
     from(fileTree("src/main/perl").files) {
         include('*.pl')
         rename('(.+)\\.pl$', '$1')
-        fileMode(0755)
     }
+    fileMode(0755)
     into "$buildDir/bin"
 }
 
-assemble.dependsOn copyPerl
+assemble.dependsOn copyPrograms
+
+task copyMatlab(type: Copy) {
+    from("src/main/matlab")
+    include("**/*.m")
+    into "$buildDir/src/main/matlab"
+}
+
+assemble.dependsOn copyMatlab
 
 task copyEtc(type: Copy) {
     from("$projectDir/etc")
@@ -26,8 +27,19 @@ task copyEtc(type: Copy) {
 }
 
 assemble.dependsOn copyEtc
+test.dependsOn copyEtc
 
-task copyLibs(type: Copy) {
+task copyBuildSrc(type: Copy) {
+    from("$rootDir/buildSrc/build/repository")
+    into "$buildDir/repository"
+}
+
+assemble.dependsOn copyBuildSrc
+
+// Any task that depends on $buildDir/libs should depend on this task.
+// This task depends on all tasks that populate $buildDir/libs.
+// The relative path to testJar is used because it hasn't been defined yet.
+task copyLibs(type: Copy, dependsOn: [copyOutsideLibs, jar, 'testJar', sourcesJar]) {
     from(configurations.runtimeClasspath) {
         fileMode(0644)
     }

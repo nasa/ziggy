@@ -48,34 +48,24 @@ public class InstancesDisplayModel extends DisplayModel {
     public Object getValueAt(int rowIndex, int columnIndex) {
         PipelineInstance instance = instances.get(rowIndex);
 
-        switch (columnIndex) {
-            case 0:
-                return instance.getId();
-            case 1:
-                return instance.getPipelineDefinition().getName() + ": " + instance.getName();
-            case 2:
-                return getStateString(instance.getState());
-            case 3:
-                return instance.elapsedTime();
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + columnIndex);
-        }
+        return switch (columnIndex) {
+            case 0 -> instance.getId();
+            case 1 -> instance.getPipelineDefinition().getName() + ": " + instance.getName();
+            case 2 -> getStateString(instance.getState());
+            case 3 -> instance.elapsedTime();
+            default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
+        };
     }
 
     @Override
     public String getColumnName(int column) {
-        switch (column) {
-            case 0:
-                return "ID";
-            case 1:
-                return "Pipeline Name";
-            case 2:
-                return "State";
-            case 3:
-                return "P-time";
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + column);
-        }
+        return switch (column) {
+            case 0 -> "ID";
+            case 1 -> "Pipeline Name";
+            case 2 -> "State";
+            case 3 -> "P-time";
+            default -> throw new IllegalArgumentException("Unexpected value: " + column);
+        };
     }
 
     private String getStateString(PipelineInstance.State state) {

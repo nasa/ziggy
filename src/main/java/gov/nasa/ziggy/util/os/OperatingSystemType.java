@@ -1,9 +1,12 @@
 package gov.nasa.ziggy.util.os;
 
+import static gov.nasa.ziggy.services.config.PropertyName.OPERATING_SYSTEM;
+import static gov.nasa.ziggy.services.config.PropertyName.SUN_ARCH_DATA_MODEL;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
  * This type is a container for operating system specific information and can be used for
@@ -12,30 +15,20 @@ import gov.nasa.ziggy.services.config.PropertyNames;
  * @author Forrest Girouard
  */
 public enum OperatingSystemType {
-    DEFAULT("Linux", "LD_LIBRARY_PATH", LinuxMemInfo.class, LinuxCpuInfo.class,
-        LinuxProcInfo.class),
-    LINUX("Linux", "LD_LIBRARY_PATH", LinuxMemInfo.class, LinuxCpuInfo.class, LinuxProcInfo.class),
-    MAC_OS_X("Darwin", "DYLD_LIBRARY_PATH", MacOSXMemInfo.class, MacOSXCpuInfo.class,
-        MacOSXProcInfo.class);
+    DEFAULT("Linux", "LD_LIBRARY_PATH"),
+    LINUX("Linux", "LD_LIBRARY_PATH"),
+    MAC_OS_X("Darwin", "DYLD_LIBRARY_PATH");
 
     private static final Logger log = LoggerFactory.getLogger(OperatingSystemType.class);
 
     private final String name;
     private final String archDataModel;
     private final String sharedObjectPathEnvVar;
-    private final Class<? extends MemInfo> memInfoClass;
-    private final Class<? extends CpuInfo> cpuInfoClass;
-    private final Class<? extends ProcInfo> procInfoClass;
 
-    OperatingSystemType(String name, String sharedObjectPathEnvVar,
-        Class<? extends MemInfo> memInfoClass, Class<? extends CpuInfo> cpuInfoClass,
-        Class<? extends ProcInfo> procInfoClass) {
+    OperatingSystemType(String name, String sharedObjectPathEnvVar) {
         this.name = name;
-        archDataModel = System.getProperty(PropertyNames.ARCH_DATA_MODEL_PROPERTY_NAME);
+        archDataModel = ZiggyConfiguration.getInstance().getString(SUN_ARCH_DATA_MODEL.property());
         this.sharedObjectPathEnvVar = sharedObjectPathEnvVar;
-        this.memInfoClass = memInfoClass;
-        this.cpuInfoClass = cpuInfoClass;
-        this.procInfoClass = procInfoClass;
     }
 
     public String getName() {
@@ -53,21 +46,36 @@ public enum OperatingSystemType {
         return sharedObjectPathEnvVar;
     }
 
-    public CpuInfo getCpuInfo() throws Exception {
-        return cpuInfoClass.getDeclaredConstructor().newInstance();
+    public CpuInfo getCpuInfo() {
+        return switch (this) {
+            case DEFAULT -> new LinuxCpuInfo();
+            case LINUX -> new LinuxCpuInfo();
+            case MAC_OS_X -> new MacOSXCpuInfo();
+        };
     }
 
-    public MemInfo getMemInfo() throws Exception {
-        return memInfoClass.getDeclaredConstructor().newInstance();
+    public MemInfo getMemInfo() {
+        return switch (this) {
+            case DEFAULT -> new LinuxMemInfo();
+            case LINUX -> new LinuxMemInfo();
+            case MAC_OS_X -> new MacOSXMemInfo();
+        };
     }
 
-    public ProcInfo getProcInfo(long pid) throws Exception {
-        Class<?>[] procInfoArgs = new Class[] { long.class };
-        return procInfoClass.getConstructor(procInfoArgs).newInstance(pid);
+    public ProcInfo getProcInfo(long pid) {
+        return switch (this) {
+            case DEFAULT -> new LinuxProcInfo(pid);
+            case LINUX -> new LinuxProcInfo(pid);
+            case MAC_OS_X -> new MacOSXProcInfo(pid);
+        };
     }
 
-    public ProcInfo getProcInfo() throws Exception {
-        return procInfoClass.getDeclaredConstructor().newInstance();
+    public ProcInfo getProcInfo() {
+        return switch (this) {
+            case DEFAULT -> new LinuxProcInfo();
+            case LINUX -> new LinuxProcInfo();
+            case MAC_OS_X -> new MacOSXProcInfo();
+        };
     }
 
     public static final OperatingSystemType byName(String name) {
@@ -103,6 +111,6 @@ public enum OperatingSystemType {
 
     public static final OperatingSystemType getInstance() {
         return OperatingSystemType
-            .byType(System.getProperty(PropertyNames.OPERATING_SYSTEM_PROPERTY_NAME));
+            .byType(ZiggyConfiguration.getInstance().getString(OPERATING_SYSTEM.property()));
     }
 }

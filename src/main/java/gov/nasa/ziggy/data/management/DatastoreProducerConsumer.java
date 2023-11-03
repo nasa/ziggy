@@ -8,21 +8,20 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 /**
  * Database table that tracks the producer task ID for each file in the datastore, and also the IDs
@@ -41,7 +40,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  */
 
 @Entity
-@Table(name = "PI_DATASTORE_PRODUCER_CONSUMER")
+@Table(name = "ziggy_DatastoreProducerConsumer")
 public class DatastoreProducerConsumer {
 
     public enum DataReceiptFileType {
@@ -49,10 +48,11 @@ public class DatastoreProducerConsumer {
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PROD_CONS_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,
+        generator = "ziggy_DatastoreProducerConsumer_generator")
+    @SequenceGenerator(name = "ziggy_DatastoreProducerConsumer_generator", initialValue = 1,
+        sequenceName = "ziggy_DatastoreProducerConsumer_sequence", allocationSize = 1)
+    private Long id;
 
     @Column(nullable = false, columnDefinition = "varchar(1000000)", unique = true)
     private String filename;
@@ -64,12 +64,11 @@ public class DatastoreProducerConsumer {
     private DataReceiptFileType dataReceiptFileType;
 
     @ElementCollection
-    @JoinTable(name = "PI_DATASTORE_CONSUMERS")
+    @JoinTable(name = "ziggy_DatastoreProducerConsumer_consumers")
     private Set<Long> consumers = new TreeSet<>();
 
     // Needed by Hibernate.
     public DatastoreProducerConsumer() {
-
     }
 
     public DatastoreProducerConsumer(long producerId, String filename,
@@ -147,5 +146,4 @@ public class DatastoreProducerConsumer {
         }
         return true;
     }
-
 }

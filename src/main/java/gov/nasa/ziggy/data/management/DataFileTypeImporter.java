@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -35,7 +35,6 @@
 package gov.nasa.ziggy.data.management;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -50,7 +49,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
@@ -58,6 +56,8 @@ import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -81,14 +81,45 @@ public class DataFileTypeImporter {
     private static List<String> databaseDataFileTypeNames = new ArrayList<>();
     private static Set<String> databaseModelTypes = new HashSet<>();
 
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    public static void main(String[] args) {
+
+        CommandLineParser parser = new DefaultParser();
+        Options options = new Options();
+        options.addOption("dryrun", false,
+            "Parses and creates objects but does not persist to database");
+        CommandLine cmdLine = null;
+        try {
+            cmdLine = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.err.println("Illegal argument: " + e.getMessage());
+        }
+        String[] filenames = cmdLine.getArgs();
+        boolean dryrun = cmdLine.hasOption("dryrun");
+        DataFileTypeImporter importer = new DataFileTypeImporter(Arrays.asList(filenames), dryrun);
+
+        DatabaseTransactionFactory.performTransaction(() -> {
+            databaseDataFileTypeNames = new DataFileTypeCrud().retrieveAllNames();
+            databaseModelTypes = new ModelCrud().retrieveModelTypeMap().keySet();
+            return null;
+        });
+        if (!dryrun) {
+            DatabaseTransactionFactory.performTransaction(() -> {
+                importer.importFromFiles();
+                return null;
+            });
+        } else {
+            importer.importFromFiles();
+        }
+    }
+
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public DataFileTypeImporter(List<String> filenames, boolean dryrun) {
         this.filenames = filenames;
         this.dryrun = dryrun;
         try {
             xmlManager = new ValidatingXmlManager<>(DatastoreConfigurationFile.class);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-            | SecurityException e) {
+        } catch (IllegalArgumentException | SecurityException e) {
             throw new PipelineException(
                 "Unable to construct ValidatingXmlManager for class DatastoreConfigurationFile", e);
         }
@@ -104,7 +135,10 @@ public class DataFileTypeImporter {
      *
      * @throws JAXBException
      */
-    public void importFromFiles() throws JAXBException {
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    public void importFromFiles() {
 
         List<DataFileType> dataFileTypes = new ArrayList<>();
         List<ModelType> modelTypes = new ArrayList<>();
@@ -172,7 +206,6 @@ public class DataFileTypeImporter {
             log.info("Imported " + modelTypesFromFile.size() + " ModelType definitions from file "
                 + filename);
             modelTypes.addAll(modelTypesFromFile);
-
         } // end loop over files
 
         List<String> dataFileTypeNames = dataFileTypes.stream()
@@ -187,8 +220,7 @@ public class DataFileTypeImporter {
         List<String> modelTypeNames = modelTypes.stream()
             .map(ModelType::getType)
             .collect(Collectors.toList());
-        Set<String> uniqueModelTypeNames = new HashSet<>();
-        uniqueModelTypeNames.addAll(modelTypeNames);
+        Set<String> uniqueModelTypeNames = new HashSet<>(modelTypeNames);
         if (modelTypeNames.size() != uniqueModelTypeNames.size()) {
             throw new IllegalStateException("Unable to persist model types due to duplicate names");
         }
@@ -196,44 +228,12 @@ public class DataFileTypeImporter {
         if (!dryrun) {
             log.info(
                 "Persisting to datastore " + dataFileTypes.size() + " DataFileType definitions");
-            dataFileTypeCrud().create(dataFileTypes);
+            dataFileTypeCrud().persist(dataFileTypes);
             log.info("Persisting to datastore " + modelTypes.size() + " model definitions");
-            modelCrud().create(modelTypes);
+            modelCrud().persist(modelTypes);
             log.info("Persist step complete");
         } else {
             log.info("Not persisting because of dryrun option");
-        }
-
-    }
-
-    public static void main(String[] args) throws JAXBException {
-
-        CommandLineParser parser = new DefaultParser();
-        Options options = new Options();
-        options.addOption("dryrun", false,
-            "Parses and creates objects but does not persist to database");
-        CommandLine cmdLine = null;
-        try {
-            cmdLine = parser.parse(options, args);
-        } catch (ParseException e) {
-            System.err.println("Illegal argument: " + e.getMessage());
-        }
-        String[] filenames = cmdLine.getArgs();
-        boolean dryrun = cmdLine.hasOption("dryrun");
-        DataFileTypeImporter importer = new DataFileTypeImporter(Arrays.asList(filenames), dryrun);
-
-        DatabaseTransactionFactory.performTransaction(() -> {
-            databaseDataFileTypeNames = new DataFileTypeCrud().retrieveAllNames();
-            databaseModelTypes = new ModelCrud().retrieveModelTypeMap().keySet();
-            return null;
-        });
-        if (!dryrun) {
-            DatabaseTransactionFactory.performTransaction(() -> {
-                importer.importFromFiles();
-                return null;
-            });
-        } else {
-            importer.importFromFiles();
         }
     }
 
@@ -259,5 +259,4 @@ public class DataFileTypeImporter {
     int getModelFileImportedCount() {
         return modelFileImportedCount;
     }
-
 }

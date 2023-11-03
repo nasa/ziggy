@@ -2,6 +2,7 @@ package gov.nasa.ziggy.services.database;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -36,7 +37,7 @@ public class DatabaseTransactionTest {
     }
 
     /**
-     * Tests DatabaseTransaction functionality in current thread.
+     * Tests DatabaseTransaction functionality.
      */
     @Test
     public void testTransaction() throws Exception {
@@ -56,35 +57,10 @@ public class DatabaseTransactionTest {
         // verify the calls that we DO NOT want to see in this use case
         verify(dbService, times(0)).rollbackTransactionIfActive();
         verify(spyDtw, times(0)).catchBlock(any(Throwable.class));
-
     }
 
     /**
-     * Tests DatabaseTransaction functionality in a new thread.
-     */
-    @Test
-    public void testTransactionNewThread() throws Exception {
-
-        // construct a DatabaseTransaction object
-        DatabaseTransaction<Void> dtw = new TestDatabaseTransaction(false, false);
-        DatabaseTransaction<Void> spyDtw = spy(dtw);
-        DatabaseTransactionFactory.performTransactionInThread(spyDtw);
-
-        // verify function calls
-        verify(dbService).beginTransaction();
-        verify(spyDtw).transaction();
-        verify(dbService).commitTransaction();
-        verify(dbService).closeCurrentSession();
-        verify(spyDtw).finallyBlock();
-
-        // verify the calls that we DO NOT want to see in this use case
-        verify(dbService, times(0)).rollbackTransactionIfActive();
-        verify(spyDtw, times(0)).catchBlock(any(Throwable.class));
-
-    }
-
-    /**
-     * Tests DatabaseTransaction functionality with a returned value in the calling thread.
+     * Tests DatabaseTransaction functionality with a returned value.
      */
     @Test
     public void testTransactionWithReturnValue() throws Exception {
@@ -105,32 +81,6 @@ public class DatabaseTransactionTest {
         // verify the calls that we DO NOT want to see in this use case
         verify(dbService, times(0)).rollbackTransactionIfActive();
         verify(spyDtw, times(0)).catchBlock(any(Throwable.class));
-
-    }
-
-    /**
-     * Tests DatabaseTransaction functionality with a returned value in a new thread.
-     */
-    @Test
-    public void testTransactionWithReturnValueNewThread() throws Exception {
-
-        // construct a DatabaseTransaction object
-        DatabaseTransaction<Integer> dtw = new TestDatabaseTransactionWithReturn();
-        DatabaseTransaction<Integer> spyDtw = spy(dtw);
-        int retval = (Integer) DatabaseTransactionFactory.performTransactionInThread(spyDtw);
-        assertEquals(5, retval);
-
-        // verify function calls
-        verify(dbService).beginTransaction();
-        verify(spyDtw).transaction();
-        verify(dbService).commitTransaction();
-        verify(dbService).closeCurrentSession();
-        verify(spyDtw).finallyBlock();
-
-        // verify the calls that we DO NOT want to see in this use case
-        verify(dbService, times(0)).rollbackTransactionIfActive();
-        verify(spyDtw, times(0)).catchBlock(any(Throwable.class));
-
     }
 
     /**
@@ -160,7 +110,6 @@ public class DatabaseTransactionTest {
 
         // verify the things we don't want to see called
         verify(dbService, times(0)).commitTransaction();
-
     }
 
     @Test
@@ -182,7 +131,12 @@ public class DatabaseTransactionTest {
 
         // verify the things we don't want to see called
         verify(dbService, times(0)).commitTransaction();
+    }
 
+    @Test
+    public void testCaller() {
+        assertTrue(DatabaseTransactionFactory.callerTest()
+            .matches("DatabaseTransactionTest.testCaller: [0-9]+"));
     }
 
     private static class TestDatabaseTransaction implements DatabaseTransaction<Void> {
@@ -215,6 +169,5 @@ public class DatabaseTransactionTest {
         public Integer transaction() throws Exception {
             return 5;
         }
-
     }
 }

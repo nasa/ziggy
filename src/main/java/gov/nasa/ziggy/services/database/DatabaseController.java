@@ -2,7 +2,7 @@ package gov.nasa.ziggy.services.database;
 
 import java.nio.file.Path;
 
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
@@ -22,20 +22,20 @@ public abstract class DatabaseController {
      * Obtains an instance of the correct subclass of {@link DatabaseController}.
      *
      * @return a new instance of the appropriate database controller, or {@code null} if the user
-     * has not specified a value for property database.software.name or the database associated with
-     * the given value is unsupported
+     * has not specified a value for property {@link PropertyName#DATABASE_SOFTWARE} or the database
+     * associated with the given value is unsupported
      */
     public static DatabaseController newInstance() {
 
         String databaseName = ZiggyConfiguration.getInstance()
-            .getString(PropertyNames.DATABASE_SOFTWARE_PROP_NAME, null);
-
+            .getString(PropertyName.DATABASE_SOFTWARE.property(), null);
         if (databaseName == null || databaseName.trim().isEmpty()) {
             return null;
         }
 
         SqlDialect dialect = SqlDialect.valueOf(databaseName.toUpperCase());
         return switch (dialect) {
+            case HSQLDB -> new HsqldbController();
             case POSTGRESQL -> new PostgresqlController();
             default -> null;
         };
@@ -85,11 +85,11 @@ public abstract class DatabaseController {
 
     /**
      * Returns the maximum number of connections to the database. See
-     * {@link PropertyNames#DATABASE_CONNECTIONS_PROP_NAME}.
+     * {@link PropertyName#DATABASE_CONNECTIONS}.
      */
     public String maxConnections() {
         return ZiggyConfiguration.getInstance()
-            .getString(PropertyNames.DATABASE_CONNECTIONS_PROP_NAME);
+            .getString(PropertyName.DATABASE_CONNECTIONS.property());
     }
 
     /**
@@ -125,32 +125,28 @@ public abstract class DatabaseController {
     public abstract int status();
 
     /**
-     * Returns the host name of the database. See {@link PropertyNames#DATABASE_HOST_PROP_NAME}.
+     * Returns the host name of the database. See {@link PropertyName#DATABASE_HOST}.
      */
     public String host() {
-        return ZiggyConfiguration.getInstance().getString(PropertyNames.DATABASE_HOST_PROP_NAME);
+        return ZiggyConfiguration.getInstance().getString(PropertyName.DATABASE_HOST.property());
     }
 
     /**
-     * Returns the port number for the database. See {@link PropertyNames#DATABASE_PORT_PROP_NAME}.
+     * Returns the port number for the database. See {@link PropertyName#DATABASE_PORT}.
      */
     public int port() {
-        return Integer.parseInt(
-            ZiggyConfiguration.getInstance().getString(PropertyNames.DATABASE_PORT_PROP_NAME));
+        return ZiggyConfiguration.getInstance().getInt(PropertyName.DATABASE_PORT.property());
     }
 
     /**
-     * Returns the database name. See {@link PropertyNames#DATABASE_NAME_PROP_NAME}.
+     * Returns the database name. See {@link PropertyName#DATABASE_NAME}.
      */
     public String dbName() {
-        return ZiggyConfiguration.getInstance().getString(PropertyNames.DATABASE_NAME_PROP_NAME);
+        return ZiggyConfiguration.getInstance().getString(PropertyName.DATABASE_NAME.property());
     }
 
     /**
      * Checks whether the database specified by {@link #dbName()} exists.
-     *
-     * @return 0 for database running, &gt; 0 for any "not running" outcome, or
-     * {@link #NOT_SUPPORTED} if not supported
      */
     public abstract boolean dbExists();
 }

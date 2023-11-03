@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -10,17 +9,17 @@ public interface ProcInfo extends SysInfo {
     /**
      * Return a List of PIDs for all child processes.
      */
-    List<Long> getChildPids() throws IOException;
+    List<Long> getChildPids();
 
     /**
      * Return a List of PIDs for child processes that match the specified name.
      */
-    List<Long> getChildPids(String name) throws IOException;
+    List<Long> getChildPids(String name);
 
     /**
      * Return the parent PID.
      */
-    long getParentPid() throws Exception;
+    long getParentPid();
 
     /**
      * Return the PID.
@@ -32,7 +31,7 @@ public interface ProcInfo extends SysInfo {
      *
      * @return -1 for unlimited.
      */
-    int getOpenFileLimit() throws IOException;
+    int getOpenFileLimit();
 
     /**
      * Return the maximum process id value.

@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Paths;
 
 import org.apache.commons.exec.CommandLine;
@@ -16,7 +17,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
 
@@ -69,7 +69,6 @@ public class ExternalProcessTest {
 
         int rc = p.run(true, 1000);
         assertTrue(rc != 0);
-
     }
 
     @Test
@@ -81,7 +80,6 @@ public class ExternalProcessTest {
 
         int rc = p.run(true, 1000);
         assertEquals(1, rc);
-
     }
 
     @Test
@@ -204,10 +202,9 @@ public class ExternalProcessTest {
         p.execute();
         assertNull(p.errorLogClass());
         assertNull(p.outputLogClass());
-
     }
 
-    @Test(expected = PipelineException.class)
+    @Test(expected = UncheckedIOException.class)
     public void testBadExeName() {
         File dir = new File("build/bin");
         File exe = new File(dir.getAbsoluteFile(), "testpro");
@@ -231,7 +228,7 @@ public class ExternalProcessTest {
         assertEquals(0, p.execute());
     }
 
-    @Test(expected = PipelineException.class)
+    @Test(expected = UncheckedIOException.class)
     public void testExeNotInPath() {
         ExternalProcess p = ExternalProcess.simpleExternalProcess(new CommandLine("lssssss"));
         assertEquals(0, p.execute());

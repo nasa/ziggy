@@ -16,7 +16,7 @@ And now you know as much as you did when we started. Okay, keep reading.
 
 #### Instances
 
-A pipeline instance is just what it sounds like: it's a single instance of one of the pipelines defined in the `pd-*.xml` files. Recall that the sample pipeline has 4 nodes: data receipt, permuter, flip, and averaging. When you pressed the `Fire!` button, Ziggy created a copy of that pipeline, in a form that Ziggy knows how to execute.
+A pipeline instance is just what it sounds like: it's a single instance of one of the pipelines defined in the `pd-*.xml` files. Recall that the sample pipeline has 4 nodes: data receipt, permuter, flip, and averaging. When you pressed the `Start` button, Ziggy created a copy of that pipeline, in a form that Ziggy knows how to execute.
 
 Each instance has a unique ID number, with instance 1 being the first (so 1-based, not 0-based). The instance contains its own copies of all the parameter sets used in the pipeline, and these are stored permanently. Thus, even if you later change the values of some parameters, the copies that were made for the instance won't change.
 
@@ -38,7 +38,7 @@ Subtasks, confusingly, are numbered from zero. Also, subtask numbers are "recycl
 
 With all that in mind, let's look at the instances panel again:
 
-![](images/pipeline-done.png)
+<img src="images/pipeline-done.png" style="width:32cm;"/>
 
 The instance on the left, instance 1, is the pipeline instance that's going to plow through the entire pipeline, from data receipt to averaging. On the right, we see the tasks that instance 1 uses for the processing: one task for data receipt, two each for permuter, flip, and averaging. The numbers in the `P-state` column represent subtask counts: the first number is total number of subtasks, the second is number completed, the third is number failed. Each of permuter and flip used 4 subtasks per task; averaging ran with just 1 subtask per task.
 
@@ -98,61 +98,6 @@ The way it does this is to create a subtask for each input data file. If we look
 
 The file names in the datastore are going to be things like `set-1/L0/nasa-logo-file-0.png`, `set-1/L0/nasa-logo-file-1.png`, and so on. So -- cool! All the files in `set-1/L0` will be processed in the task for `set-1` data; there will be a subask for `nasa-logo-file-0.png`, another for `nasa-logo-file-1.png`, and so on.
 
-### Unit of Work
-
-In the midst of all this is a column under tasks labeled `UOW`, which stands for "Unit of Work." As a general matter, "Unit of Work" is a $10 word for, "What's the chunk of data that this task is in charge of?" 
-
-The parameter set that Ziggy uses to figure out how to divide work up into tasks also provides a means by which the user can specify a name that gets associated with each task. This is what's displayed in the `UOW` column. In the event that some tasks for a given algorithm module succeed and others fail, the `UOW` label lets you figure out where Ziggy got the data that caused the failed task. This can be useful, as I'm sure you can imagine. 
-
-#### Can You be a Bit More Specific About That?
-
-Sure! Let's look again at the definition of the permuter node from [The Pipeline Definition article](pipeline-definition.md):
-
-```XML
-    <node moduleName="permuter" childNodeNames="flip">
-        <inputDataFileType name="raw data"/>
-        <outputDataFileType name="permuted colors"/>
-        <modelType name="dummy model"/>
-        <moduleParameter name="Remote Parameters (permute color)"/>
-        <moduleParameter name="Multiple subtask configuration"/>
-    </node>
-```
-
-The definition of the node includes a parameter set, `Multiple subtask configuration`, which is an instance of the `TaskConfigurationParameters`. From [the article on The Task Configuration Parameter Sets](task-configuration.md), we see that it looks like this:
-
-```XML
-    <parameter-set name="Multiple subtask configuration" 
-        classname="gov.nasa.ziggy.uow.TaskConfigurationParameters">
-        <parameter name="taskDirectoryRegex" value="set-([0-9]{1})"/>
-        <parameter name="singleSubtask" value="false"/>
-        <parameter name="maxFailedSubtaskCount" value="0" />
-        <parameter name="reprocess" value="true"/>
-        <parameter name="reprocessingTasksExclude" value="0"/>
-      	<parameter name="maxAutoResubmits" value="0"/>
-    </parameter-set>
-```
-
-The `taskDirectoryRegex` parameter is `set-([0-9]{1})`. In plain (but New York accented) English, what this means is, "Go to the datastore and find every directory that matches the regex. Every one of those, you turn into a task. You got a problem with that?" Thus you wind up with a task for `set-1` and another for `set-2`. 
-
-Meanwhile, the `taskDirectoryRegex` has a regex group in it, `([0-9]{1})`. This tells Ziggy to take that part of the directory name (i.e., a digit) and make it the name of the unit of work on the tasks table. If I had been smarter and written the `taskDirectoryRegex` as `(set-[0-9]{1})`, the UOW display would have shown `set-1` and `set-2` instead of `1` and `2`. 
-
-#### What About Subtask Definition?
-
-Now we've seen how Ziggy uses the `TaskConfigurationParameters` instance to define multiple tasks for a given pipeline node. How do subtasks get defined? This uses a combination of 2 things: the `TaskConfigurationParameters` and the definition of input data file types for the node. Let's look at how that works. 
-
-In TaskConfigurationParameters, there's a boolean parameter, `singleSubtask`. This does what it says: if set to `true`, Ziggy creates one and only one subtask for each task, and copies all the inputs into that subtask's directory. When set to false, as here, it generates multiple subtasks for the task.
-
-The way it does this is to create a subtask for each input data file. If we look at how the inputs to the permuter are defined in [the article on Data File Types](data-file-types.md), we see this:
-
-```XML
-<dataFileType name="raw data"
-    fileNameRegexForTaskDir="(\\S+)-(set-[0-9])-(file-[0-9]).png"
-    fileNameWithSubstitutionsForDatastore="$2/L0/$1-$3.png"
-/>
-```
-
-The file names in the datastore are going to be things like `set-1/L0/nasa-logo-file-0.png`, `set-1/L0/nasa-logo-file-1.png`, and so on. So -- cool! All the files in `set-1/L0` will be processed in the task for `set-1` data; there will be a subask for `nasa-logo-file-0.png`, another for `nasa-logo-file-1.png`, and so on. 
-
 ### Pipeline States
 
 The instances panel also has numerous indicators named `State` and `p-State` that deserve some explanation.
@@ -179,7 +124,7 @@ The possible states for a pipeline task are described below.
 | State       | Description                                                  |
 | ----------- | ------------------------------------------------------------ |
 | INITIALIZED | Task has been created and is waiting for some kind of attention. |
-| SUBMITTED   | The task will run as soon as the worker has available resources to devote to it. |
+| SUBMITTED   | The task will run as soon as the supervisor has available resources to devote to it. |
 | PROCESSING  | The task is running.                                         |
 | ERROR       | All subtasks have run, and at least one subtask has failed.  |
 | COMPLETED   | All subtasks completed successfully and results were copied back to the datastore. |
@@ -202,11 +147,11 @@ When a task is in the `PROCESSING` state, it's useful to have a more fine-graine
 
 ### Worker
 
-The `Worker` column on the tasks table shows which worker is managing task execution, and which thread on that worker.
+The `Worker` column on the tasks table shows which worker is managing task execution.
 
-At the moment, the "which worker" question is kind of dull, since there's only one worker per cluster, and the console has to run on the same computer as the worker. This is why the worker is always listed as "localhost". This may not be true in the future, so we've left this information on the display.
+Right now, the workers all run on the same system as the supervisor, which is also the same system that runs the console. As a result, all the workers are "localhost" workers. At some point this may change, and the supervisor, workers, and console can conceivably run on different systems. For this reason we've left the "localhost" part of the display, in an effort to future-proof it. 
 
-Recall from the discussion on [Running the Cluster](running-pipeline.md) that the worker has multiple threads that can execute in parallel. The thread number tells you which of these is occupied with a given task.
+Recall from the discussion on [Running the Cluster](running-pipeline.md) that the supervisor can create multiple worker processes that can execute in parallel. The worker number tells you which of these is occupied with a given task.
 
 ### P-Time
 

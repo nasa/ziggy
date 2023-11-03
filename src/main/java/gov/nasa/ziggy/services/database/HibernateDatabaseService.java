@@ -5,13 +5,12 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
-import org.hibernate.service.ServiceRegistry;
-import org.hibernate.service.ServiceRegistryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.ProtectedEntityInterceptor;
-import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Implementation of the {@link DatabaseService} for Hibernate.
@@ -25,7 +24,6 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
     public static final Logger log = LoggerFactory.getLogger(HibernateDatabaseService.class);
 
     private SessionFactory sessionFactory;
-    private ServiceRegistry serviceRegistery;
 
     protected final ThreadLocal<Session> threadSession = new ThreadLocal<>();
 
@@ -40,50 +38,42 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
      */
     @Override
     public void initialize() {
-        log.debug("Hibernate Init: Building configuration");
-        hibernateConfig = ZiggyHibernateConfiguration
-            .buildHibernateConfiguration(alternatePropertiesSource);
+        log.debug("Building configuration");
+        hibernateConfig = ZiggyHibernateConfiguration.buildHibernateConfiguration();
 
-        try {
-            log.debug("Hibernate Init: Initializing SessionFactory");
-            serviceRegistery = new ServiceRegistryBuilder()
-                .applySettings(hibernateConfig.getProperties())
-                .buildServiceRegistry();
-            sessionFactory = hibernateConfig.buildSessionFactory(serviceRegistery);
+        log.debug("Initializing SessionFactory");
+        sessionFactory = hibernateConfig.buildSessionFactory();
 
-            log.debug("Hibernate Init: initialization complete - " + sessionFactory);
-        } catch (Exception e) {
-            log.error("Hibernate Init: " + serviceRegistery + ": failed to create sessionFactory.",
-                e);
-            throw new IllegalStateException(e);
-        }
+        log.debug("Initialization complete - {}", sessionFactory);
     }
 
     /**
      * Start a new transaction for the current Session
      */
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public void beginTransaction() {
         Session session = null;
 
         try {
+            log.debug("Starting Hibernate transaction");
             session = getSession();
             session.beginTransaction();
         } catch (HibernateException e) {
             handleException(e, session);
         }
-
-        log.debug("Hibernate transaction started.");
     }
 
     /**
      * Commit the current transaction and close the Session
      */
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public void commitTransaction() {
         Session session = null;
 
         try {
+            log.debug("Committing Hibernate transaction");
             session = getSession();
             session.getTransaction().commit();
         } catch (HibernateException e) {
@@ -95,6 +85,7 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
      * Roll back the existing transaction, if any, and close the Session
      */
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public void rollbackTransactionIfActive() {
         Session session = null;
 
@@ -103,6 +94,7 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
 
             Transaction transaction = getSession().getTransaction();
             if (transaction != null && transaction.isActive()) {
+                log.debug("Rolling back active Hibernate transaction");
                 transaction.rollback();
                 threadSession.remove();
                 session.close();
@@ -124,22 +116,27 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
     }
 
     /**
-     * Try to close the current {@link Session} and remove it from the ThreadLocal
-     *
-     * @param e
-     * @param session
-     * @throws PipelineException
+     * Try to close the current {@link Session} and remove it from the ThreadLocal.
+     * {@link #handleException(HibernateException, Session) is called by all methods that have to
+     * handle {@link HibernateException}. The idea here is to ensure that the session gets closed
+     * before the {@link HibernateException} passes execution control back to the caller. Think of
+     * this as being like a finally block, but implemented as a method so we don't have to duplicate
+     * the same finally block in multiple places.
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     protected void handleException(HibernateException e, Session session) {
         threadSession.remove();
 
         if (session != null) {
             try {
                 session.close();
-            } catch (Exception e2) {
-                log.warn("Failed to close Session after previousfailure", e2);
+            } catch (HibernateException ignored) {
+                log.warn("Failed to close Session after previousfailure", ignored);
+                // A failure to close the session must not bring down the pipeline.
             }
         }
+        // Now that the session is closed, we can throw the exception and pass
+        // execution back to the caller.
         throw e;
     }
 
@@ -153,11 +150,10 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
         Session session = threadSession.get();
 
         if (session == null) {
-            log.debug("Creating new Session for Thread: " + Thread.currentThread().getName());
             session = sessionFactory().withOptions()
                 .interceptor(new ProtectedEntityInterceptor())
                 .openSession();
-            log.debug("Created new Session: " + session);
+            log.debug("Created Session {} in Thread {}", session, Thread.currentThread().getName());
             threadSession.set(session);
         }
 
@@ -176,6 +172,7 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
         if (session != null) {
             threadSession.remove();
             session.close();
+            log.debug("Closed Session {} in Thread {}", session, Thread.currentThread().getName());
         }
     }
 
@@ -183,5 +180,4 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
     protected SessionFactory sessionFactory() {
         return sessionFactory;
     }
-
 }

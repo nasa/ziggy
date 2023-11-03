@@ -24,13 +24,22 @@ import gov.nasa.ziggy.pipeline.definition.TypedParameterCollection;
  *
  * @author PT
  */
-public class UnitOfWork extends TypedParameterCollection implements Serializable {
+public class UnitOfWork extends TypedParameterCollection
+    implements Serializable, Comparable<UnitOfWork> {
 
-    private static final long serialVersionUID = 20220819L;
+    private static final long serialVersionUID = 20230511L;
 
     public static final String BRIEF_STATE_PARAMETER_NAME = "briefState";
 
     public String briefState() {
         return getParameter(BRIEF_STATE_PARAMETER_NAME).getString();
+    }
+
+    /**
+     * Allow the UOWs to sort by brief state.
+     */
+    @Override
+    public int compareTo(UnitOfWork o) {
+        return briefState().compareTo(o.briefState());
     }
 }

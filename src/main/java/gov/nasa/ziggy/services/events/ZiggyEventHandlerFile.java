@@ -33,5 +33,4 @@ public class ZiggyEventHandlerFile implements HasXmlSchemaFilename {
     public void setZiggyEventHandlers(List<ZiggyEventHandler> ziggyEventHandlers) {
         this.ziggyEventHandlers = ziggyEventHandlers;
     }
-
 }

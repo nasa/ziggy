@@ -9,7 +9,7 @@ import com.google.common.collect.Maps;
 
 import gov.nasa.ziggy.metrics.MetricType;
 import gov.nasa.ziggy.metrics.MetricValue;
-import gov.nasa.ziggy.ui.proxy.MetricsLogCrudProxy;
+import gov.nasa.ziggy.ui.util.proxy.MetricsLogCrudProxy;
 import gov.nasa.ziggy.util.TimeRange;
 
 /**

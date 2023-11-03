@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +33,8 @@ import gov.nasa.ziggy.module.LocalAlgorithmExecutor;
 import gov.nasa.ziggy.module.remote.Qsub;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * This class manages the creation and use of log files for pipeline infrastructure purposes.
@@ -71,7 +74,6 @@ public class TaskLog {
             public FileAppender taskLogFileAppender(Path taskLog) {
                 return ((FileAppender.Builder) fileAppenderBuilder(taskLog.toFile())
                     .setFilter(threadContextMapFilter())).build();
-
             }
         },
         ALGORITHM {
@@ -89,19 +91,15 @@ public class TaskLog {
         public abstract Path logDir();
 
         public abstract FileAppender taskLogFileAppender(Path taskLog);
-
     }
 
     private static final Logger log = LoggerFactory.getLogger(TaskLog.class);
 
+    private static final String CONSOLE_APPENDER_NAME = "console";
+
     public static final String THREAD_NAME_KEY = "threadName";
     public static final int LOCAL_LOG_FILE_JOB_INDEX = 0;
 
-    /**
-     * NB the value of CONSOLE_APPENDER_NAME must match the name of the console appender defined in
-     * log4j2.xml.
-     */
-    public static final String CONSOLE_APPENDER_NAME = "console";
     public static final String CLI_APPENDER_NAME = "cli";
 
     private FileAppender taskLogFileAppender = null;
@@ -179,15 +177,16 @@ public class TaskLog {
         return logType.logDir().toFile().listFiles((FilenameFilter) (dir, name) -> {
             Matcher matcher = TaskLogInformation.LOG_FILE_NAME_PATTERN.matcher(name);
             if (matcher.matches()) {
-                return Integer.parseInt(
+                return Long.parseLong(
                     matcher.group(TaskLogInformation.INSTANCE_ID_GROUP_NUMBER)) == instanceId
-                    && Integer
-                        .parseInt(matcher.group(TaskLogInformation.TASK_ID_GROUP_NUMBER)) == taskId;
+                    && Long.parseLong(
+                        matcher.group(TaskLogInformation.TASK_ID_GROUP_NUMBER)) == taskId;
             }
             return false;
         });
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void startLogging() {
         Path taskLogDir = taskLogFile.getParent();
         try {
@@ -199,16 +198,25 @@ public class TaskLog {
             taskLogFileAppender = logType.taskLogFileAppender(taskLogFile);
             taskLogFileAppender.start();
         } catch (IOException e) {
-            log.warn("failed to create taskLog FileAppender at: " + taskLogFile);
+            throw new UncheckedIOException("Unable to create dir " + taskLogDir.toString(), e);
         }
         rootConfig().addAppender(taskLogFileAppender, Level.ALL, null);
 
-        // If this is an algorithm log, then we don't need to run the console appender
-        // any longer.
-        if (logType == LogType.ALGORITHM) {
-            endLogging(CONSOLE_APPENDER_NAME);
-        }
+        // The WorkerProcess uses TaskLog instances exclusively, and doesn't use the
+        // console logger at all; the SupervisorPipelineProcess uses the console logger
+        // and never uses TaskLog instances. By virtue of the fact that the caller is
+        // logging to a TaskLog, we know that we aren't in the supervisor context, hence
+        // we can stop console logging.
+        endLogging(CONSOLE_APPENDER_NAME);
+    }
 
+    public void endLogging() {
+        endLogging(taskLogFile.getFileName().toString());
+    }
+
+    private static LoggerConfig rootConfig() {
+        return ((LoggerContext) LogManager.getContext(false)).getConfiguration()
+            .getLoggerConfig("");
     }
 
     private static ThreadContextMapFilter threadContextMapFilter() {
@@ -218,22 +226,12 @@ public class TaskLog {
             "and", Filter.Result.ACCEPT, Filter.Result.DENY);
     }
 
-    public void endLogging() {
-        endLogging(taskLogFile.getFileName().toString());
-    }
-
-    private static void endLogging(String appenderName) {
+    public static void endLogging(String appenderName) {
         Appender appender = rootConfig().getAppenders().get(appenderName);
         if (appender != null) {
             rootConfig().getAppenders().get(appenderName).stop();
             rootConfig().removeAppender(appenderName);
         }
-
-    }
-
-    private static LoggerConfig rootConfig() {
-        return ((LoggerContext) LogManager.getContext(false)).getConfiguration()
-            .getLoggerConfig("");
     }
 
     private static Layout<? extends Serializable> cliLayout() {

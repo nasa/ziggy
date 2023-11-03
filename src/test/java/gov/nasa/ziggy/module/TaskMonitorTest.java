@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -21,9 +21,8 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.module.StateFile.State;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 
 /**
  * Unit tests for {@link TestMonitor} class.
@@ -40,8 +39,8 @@ public class TaskMonitorTest {
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    public ZiggyPropertyRule pipelineResultsRule = new ZiggyPropertyRule(
-        PropertyNames.RESULTS_DIR_PROP_NAME, directoryRule, "pipeline-results");
+    public ZiggyPropertyRule pipelineResultsRule = new ZiggyPropertyRule(PropertyName.RESULTS_DIR,
+        directoryRule, "pipeline-results");
 
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule(directoryRule).around(pipelineResultsRule);
@@ -72,8 +71,7 @@ public class TaskMonitorTest {
         TaskConfigurationManager inputsHandler = mock(TaskConfigurationManager.class);
         when(inputsHandler.allSubTaskDirectories()).thenReturn(subtaskDirectories);
 
-        taskMonitor = new TaskMonitor(inputsHandler, stateFile, stateFileDir.toFile(),
-            taskDir.toFile());
+        taskMonitor = new TaskMonitor(inputsHandler, stateFile, taskDir.toFile());
     }
 
     @Test
@@ -111,21 +109,12 @@ public class TaskMonitorTest {
 
         // Changing the state of the on-disk state file should get reflected in the state file
         // stored in the monitor.
-        new StateFile(stateFile).setStateAndPersist(StateFile.State.PROCESSING,
-            stateFileDir.toFile());
+        new StateFile(stateFile).setStateAndPersist(StateFile.State.PROCESSING);
         taskMonitor.updateState();
         assertEquals(StateFile.State.PROCESSING, stateFile.getState());
         assertEquals(6, stateFile.getNumTotal());
         assertEquals(1, stateFile.getNumComplete());
         assertEquals(1, stateFile.getNumFailed());
-    }
-
-    @Test
-    public void testIsDeleted() throws IOException {
-        assertFalse(taskMonitor.isDeleted());
-        new StateFile(stateFile).setStateAndPersist(State.DELETED, stateFileDir.toFile());
-        taskMonitor.updateState();
-        assertTrue(taskMonitor.isDeleted());
     }
 
     /**
@@ -141,8 +130,7 @@ public class TaskMonitorTest {
         assertEquals(6, stateFile.getNumTotal());
         assertEquals(0, stateFile.getNumComplete());
         assertEquals(6, stateFile.getNumFailed());
-        StateFile diskStateFile = StateFile
-            .newStateFileFromDiskFile(stateFileDir.resolve(stateFile.name()).toFile(), true);
+        StateFile diskStateFile = stateFile.newStateFileFromDiskFile();
         assertEquals(StateFile.State.COMPLETE, diskStateFile.getState());
         assertEquals(6, diskStateFile.getNumTotal());
         assertEquals(0, diskStateFile.getNumComplete());
@@ -160,8 +148,7 @@ public class TaskMonitorTest {
         assertEquals(6, stateFile.getNumTotal());
         assertEquals(6, stateFile.getNumComplete());
         assertEquals(0, stateFile.getNumFailed());
-        StateFile diskStateFile = StateFile
-            .newStateFileFromDiskFile(stateFileDir.resolve(stateFile.name()).toFile(), true);
+        StateFile diskStateFile = stateFile.newStateFileFromDiskFile();
         assertEquals(StateFile.State.COMPLETE, diskStateFile.getState());
         assertEquals(6, diskStateFile.getNumTotal());
         assertEquals(6, diskStateFile.getNumComplete());
@@ -180,5 +167,4 @@ public class TaskMonitorTest {
         taskMonitor.updateState();
         assertTrue(taskMonitor.allSubtasksProcessed());
     }
-
 }

@@ -42,7 +42,7 @@ public class NasExecutor extends RemoteExecutor {
     }
 
     @Override
-    protected void submitForExecution(StateFile stateFile) throws Exception {
+    protected void submitForExecution(StateFile stateFile) {
         submitToPbsInternal(stateFile, pipelineTask, algorithmLogDir(), taskDataDir());
     }
 }

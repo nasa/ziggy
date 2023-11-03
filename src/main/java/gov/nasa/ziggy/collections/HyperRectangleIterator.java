@@ -188,7 +188,7 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
         // to return false)
         for (int iDim = counter.length - 1; iDim >= 0; iDim--) {
             counter[iDim]++;
-            if ((counter[iDim] != nRectangles[iDim]) || (iDim <= 0)) {
+            if (counter[iDim] != nRectangles[iDim] || iDim <= 0) {
                 break;
             }
             counter[iDim] = 0;
@@ -220,5 +220,4 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
     public int[] getCounter() {
         return counter;
     }
-
 }

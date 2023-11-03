@@ -52,9 +52,7 @@ public class ZiggyShutdownHook {
     public static void blockIfShuttingDown() {
         if (shutdownInProgress()) {
             while (true) {
-
             }
         }
     }
-
 }

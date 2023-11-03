@@ -28,15 +28,13 @@ public class MatlabReport extends Report {
     /**
      * Generate stacked bar chart Generate descriptive statistics and a histogram of the peak memory
      * usage for all matlab processes for all tasks for the specified module.
-     *
-     * @throws Exception
      */
-    public void generateReport() throws Exception {
+    public void generateReport() {
         generateExecTimeReport();
         generateMemoryReport();
     }
 
-    private void generateExecTimeReport() throws Exception {
+    private void generateExecTimeReport() {
         MatlabMetrics matlabMetrics = new MatlabMetrics(taskFilesDir, moduleName);
         matlabMetrics.parseFiles();
 
@@ -93,7 +91,7 @@ public class MatlabReport extends Report {
         pdfRenderer.newPage();
     }
 
-    private void generateMemoryReport() throws Exception {
+    private void generateMemoryReport() {
         File[] taskDirs = taskFilesDir
             .listFiles((FileFilter) f -> f.getName().contains(moduleName + "-") && f.isDirectory());
 

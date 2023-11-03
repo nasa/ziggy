@@ -4,10 +4,10 @@
 *.mexmaci64
 .classpath
 .cproject
+.factorypath
 .project
 .pydevproject
 .settings
-dist
-doc/pdf
+outside
+src/main/resources/ziggy-build.properties
 src/test/cpp/ExternalProcess/testprog.o
-src/test/cpp/testmi/inputs-0.bin

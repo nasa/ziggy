@@ -2,9 +2,8 @@ package gov.nasa.ziggy.services.config;
 
 import java.util.List;
 
-import org.hibernate.Query;
-
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**
@@ -16,7 +15,7 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  *
  * @author Todd Klaus
  */
-public class KeyValuePairCrud extends AbstractCrud {
+public class KeyValuePairCrud extends AbstractCrud<KeyValuePair> {
     protected DatabaseService databaseService = null;
 
     /**
@@ -31,29 +30,32 @@ public class KeyValuePairCrud extends AbstractCrud {
     }
 
     public List<KeyValuePair> retrieveAll() {
-        return list(databaseService.getSession().createQuery("from KeyValuePair"));
+        return list(createZiggyQuery(KeyValuePair.class));
     }
 
     public String retrieveValue(String key) {
-        Query query = databaseService.getSession()
-            .createQuery("from KeyValuePair where key = :key");
-        query.setString("key", key);
-        KeyValuePair keyValuePair = uniqueResult(query);
-        return keyValuePair.getValue();
+        ZiggyQuery<KeyValuePair, String> query = createZiggyQuery(KeyValuePair.class, String.class);
+        query.column(KeyValuePair_.key).in(key);
+        query.column(KeyValuePair_.value).select();
+        return uniqueResult(query);
     }
 
     public KeyValuePair retrieve(String key) {
-        Query query = databaseService.getSession()
-            .createQuery("from KeyValuePair where key = :key");
-        query.setString("key", key);
+        ZiggyQuery<KeyValuePair, KeyValuePair> query = createZiggyQuery(KeyValuePair.class);
+        query.column(KeyValuePair_.key).in(key);
         return uniqueResult(query);
     }
 
     public void create(KeyValuePair keyValuePair) {
-        super.create(keyValuePair);
+        super.persist(keyValuePair);
     }
 
     public void delete(KeyValuePair keyValuePair) {
-        super.delete(keyValuePair);
+        super.remove(keyValuePair);
+    }
+
+    @Override
+    public Class<KeyValuePair> componentClass() {
+        return KeyValuePair.class;
     }
 }

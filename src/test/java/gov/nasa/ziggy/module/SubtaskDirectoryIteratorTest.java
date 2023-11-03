@@ -60,6 +60,5 @@ public class SubtaskDirectoryIteratorTest {
         assertFalse(it.hasNext());
 
         FileUtils.deleteDirectory(taskDir);
-
     }
 }

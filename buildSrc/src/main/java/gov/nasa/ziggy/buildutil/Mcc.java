@@ -7,8 +7,14 @@ import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -17,22 +23,23 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.internal.os.OperatingSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Compiles the matlab executables (i.e. it runs mcc). This class can not be made final.
  * <p>
- * This class puts the variable MCC_DIR into the environment and sets it to the directory of the project that has
- * invoked this task.
+ * This class puts the variable MCC_DIR into the environment and sets it to the directory of the
+ * project that has invoked this task.
  *
  * @author Bill Wohler
  * @author Sean McCauliff
@@ -60,6 +67,8 @@ public class Mcc extends TessExecTask {
         this.controllerFiles = controllerFiles;
     }
 
+    @InputFiles
+    @Optional
     public FileCollection getAdditionalFiles() {
         return additionalFiles;
     }
@@ -95,7 +104,8 @@ public class Mcc extends TessExecTask {
     }
 
     @Optional
-    public boolean isSingleThreaded() {
+    @Input
+    public Boolean isSingleThreaded() {
         return singleThreaded;
     }
 
@@ -109,10 +119,8 @@ public class Mcc extends TessExecTask {
         File matlabHome = matlabHome();
 
         File buildBinDir = new File(getProject().getBuildDir(), "bin");
-        List<String> command = new ArrayList<>();
-
-        command.addAll(Arrays.asList("mcc", "-v", "-m", "-N", "-d", buildBinDir.toString(), "-R",
-            "-nodisplay", "-R", "-nodesktop"));
+        List<String> command = new ArrayList<>(Arrays.asList("mcc", "-v", "-m", "-N", "-d",
+            buildBinDir.toString(), "-R", "-nodisplay", "-R", "-nodesktop"));
 
         if (isSingleThreaded()) {
             command.add("-R");
@@ -184,38 +192,102 @@ public class Mcc extends TessExecTask {
         }
         execProcess(processBuilder);
 
-        Set<PosixFilePermission> neededPermissions = new HashSet<>(Arrays.asList(
-            new PosixFilePermission[] { OWNER_EXECUTE, GROUP_EXECUTE, OWNER_READ, GROUP_READ }));
+        Set<PosixFilePermission> neededPermissions = new HashSet<>(
+            Arrays.asList(OWNER_EXECUTE, GROUP_EXECUTE, OWNER_READ, GROUP_READ));
 
         if (!executable.exists()) {
             String message = "The outputExecutable,\"" + executable + "\" does not exist.";
             log.error(message);
             throw new GradleException(message);
-        } else {
-            Set<PosixFilePermission> currentPosixFilePermissions = null;
-            try {
-                currentPosixFilePermissions = Files.getPosixFilePermissions(executable.toPath());
+        }
+        Set<PosixFilePermission> currentPosixFilePermissions = null;
+        try {
+            currentPosixFilePermissions = Files.getPosixFilePermissions(executable.toPath());
+            log.info(currentPosixFilePermissions.stream()
+                .map(PosixFilePermission::name)
+                .collect(Collectors.joining(" ", "Current file permissions are: ", ".")));
+            if (!neededPermissions.containsAll(currentPosixFilePermissions)) {
+                currentPosixFilePermissions.addAll(neededPermissions);
                 log.info(currentPosixFilePermissions.stream()
-                    .map(p -> p.name())
-                    .collect(Collectors.joining(" ", "Current file permissions are: ", ".")));
-                if (!neededPermissions.containsAll(currentPosixFilePermissions)) {
-                    currentPosixFilePermissions.addAll(neededPermissions);
-                    log.info(currentPosixFilePermissions.stream()
-                        .map(p -> p.name())
-                        .collect(Collectors.joining(" ", "Setting file permissions to: ", ",")));
-                    Files.setPosixFilePermissions(executable.toPath(), currentPosixFilePermissions);
-                }
-            } catch (IOException ioe) {
-                String message = "Failed to either get or set permissions on outputExecutable \""
-                    + outputExecutable;
-                log.error(message);
-                throw new GradleException(message);
+                    .map(PosixFilePermission::name)
+                    .collect(Collectors.joining(" ", "Setting file permissions to: ", ",")));
+                Files.setPosixFilePermissions(executable.toPath(), currentPosixFilePermissions);
             }
+        } catch (IOException ioe) {
+            String message = "Failed to either get or set permissions on outputExecutable \""
+                + outputExecutable;
+            log.error(message);
+            throw new GradleException(message);
+        }
+
+        // On the Mac, there are 2 files created without U+W permission, so any time the
+        // user tries an incremental build it fails because those files can't be deleted.
+        if (SystemArchitecture.architecture() == SystemArchitecture.MAC_INTEL
+            || SystemArchitecture.architecture() == SystemArchitecture.MAC_M1) {
+            setPosixPermissionsRecursively(executable.toPath().resolve("Contents"), "rwxr-xr--",
+                "rwxr-xr--");
         }
         File readme = new File(outputExecutable.getParentFile(), "readme.txt");
         if (readme.exists()) {
             readme.renameTo(new File(outputExecutable.getParentFile(),
                 outputExecutable.getName() + "-readme.txt"));
+        }
+    }
+
+    /**
+     * Recursively sets permissions on all files and directories that lie under a given top-level
+     * directory.
+     *
+     * @param top Location of the top-level directory.
+     * @param filePermissions POSIX-style string of permissions for regular files (i.e.,
+     * "r--r-r--").
+     * @param dirPermissions POSIX-style string of permissions for regular files (i.e.,
+     * "rwxr-xr-x").
+     * <p>
+     * NB: This is a copy of the same method that appears in FileUtil. It's duplicated here so that
+     * we don't need to have buildSrc trying to use code from Ziggy main source, and also so that we
+     * don't wind up with code in FileUtil calling this method in buildSrc.
+     */
+    public static void setPosixPermissionsRecursively(Path top, String filePermissions,
+        String dirPermissions) {
+        try {
+            if (!Files.isDirectory(top)) {
+                Files.setPosixFilePermissions(top,
+                    PosixFilePermissions.fromString(filePermissions));
+            } else {
+                Files.setPosixFilePermissions(top, PosixFilePermissions.fromString(dirPermissions));
+                Files.walkFileTree(top, new SimpleFileVisitor<Path>() {
+
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                        try {
+                            Files.setPosixFilePermissions(dir,
+                                PosixFilePermissions.fromString(dirPermissions));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(
+                                "Failed to set permissions on dir " + dir.toString(), e);
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        if (Files.isSymbolicLink(file)) {
+                            return FileVisitResult.CONTINUE;
+                        }
+                        try {
+                            Files.setPosixFilePermissions(file,
+                                PosixFilePermissions.fromString(filePermissions));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(
+                                "Failed to set permissions on file " + file.toString(), e);
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to set permissions on dir " + top.toString(), e);
         }
     }
 }

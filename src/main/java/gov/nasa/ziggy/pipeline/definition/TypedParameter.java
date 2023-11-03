@@ -3,28 +3,28 @@ package gov.nasa.ziggy.pipeline.definition;
 import java.lang.reflect.Field;
 import java.util.Objects;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-
 import com.l2fprod.common.propertysheet.AbstractProperty;
 import com.l2fprod.common.propertysheet.PropertySheet;
 
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.parameters.DefaultParameters;
+import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.util.StringUtils;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 /**
  * Represents a parameter with a name, a value, and a type. The name and value are Strings, the type
  * is an enum that represents all valid parameter types. This allows the correct data type to be
  * stored at serialization time even though the value is stored as a String.
  * <p>
- * The main use case for this class is to store the contents of a {@link DefaultParameters}
- * instance. It is also used in places where a name-value pair needs to be stored or managed (for
- * example in the way that the Parameters subclasses store their contents, or the way that unit of
- * work instances store their contents). In these cases, the property type is stored as
- * {@link String}, because the Java type of the class member already supplies this information.
+ * The main use case for this class is to store the contents of a {@link Parameters} instance. It is
+ * also used in places where a name-value pair needs to be stored or managed (for example in the way
+ * that the Parameters subclasses store their contents, or the way that unit of work instances store
+ * their contents). In these cases, the property type is stored as {@link String}, because the Java
+ * type of the class member already supplies this information.
  * <p>
  * The class extends {@link AbstractProperty} and implements {Property}, both from l2fprod, which
  * adds a bit of complexity to the class. The {@link AbstractProperty} has a private member, value,
@@ -41,9 +41,9 @@ import gov.nasa.ziggy.parameters.DefaultParameters;
  */
 
 @Embeddable
-public class TypedParameter extends AbstractProperty {
+public class TypedParameter extends AbstractProperty implements Comparable<TypedParameter> {
 
-    private static final long serialVersionUID = 20220316L;
+    private static final long serialVersionUID = 20230511L;
 
     private static final String ARRAY_TYPE_SUFFIX = "array";
 
@@ -64,7 +64,6 @@ public class TypedParameter extends AbstractProperty {
 
     // Needed by Hibernate.
     public TypedParameter() {
-
     }
 
     /**
@@ -80,7 +79,7 @@ public class TypedParameter extends AbstractProperty {
      */
     public TypedParameter(String name, String value, ZiggyDataType type, boolean scalar) {
         this.name = name;
-        stringValue = value;
+        stringValue = trimWhitespace(value);
         dataType = type;
         this.scalar = scalar;
         validate();
@@ -89,7 +88,6 @@ public class TypedParameter extends AbstractProperty {
         // AbstractProperty value; also ensure that the handling of the decimal point for
         // floating point values is deterministic.
         setValue(getValue());
-
     }
 
     /**
@@ -113,12 +111,8 @@ public class TypedParameter extends AbstractProperty {
      * Constructs a {@link TypedParameter} instance from the value of a {@link Field} in an
      * {@link Object}. The resulting {@link TypedParameter} will have a type of
      * {@link ZiggyDataType#ZIGGY_STRING}.
-     *
-     * @throws IllegalAccessException
-     * @throws IllegalArgumentException
      */
-    public TypedParameter(Object obj, Field field)
-        throws IllegalArgumentException, IllegalAccessException {
+    public TypedParameter(Object obj, Field field) {
         this(field.getName(), ZiggyDataType.objectToString(obj, field), ZiggyDataType.ZIGGY_STRING);
     }
 
@@ -126,10 +120,19 @@ public class TypedParameter extends AbstractProperty {
      * Copy constructor.
      */
     public TypedParameter(TypedParameter original) {
-        name = new String(original.getName());
-        stringValue = new String(original.getString());
+        name = original.getName();
+        stringValue = original.getString();
         dataType = original.dataType;
         scalar = original.scalar;
+    }
+
+    /**
+     * Removes leading and trailing whitespace from the given parameter, including whitespace around
+     * commas used as value separators (i.e., " v1, v2 " becomes "v1,v2"). This should be applied to
+     * all values.
+     */
+    private String trimWhitespace(String value) {
+        return StringUtils.trimListWhitespace(value);
     }
 
     /**
@@ -151,19 +154,18 @@ public class TypedParameter extends AbstractProperty {
     }
 
     private void validate() {
-        try {
-            getValueAsArray();
-        } catch (Exception e) {
-            throw new IllegalStateException(
-                "Unable to validate TypedProperty " + name + " with value " + stringValue
-                    + " and data type " + dataType.toString() + " with scalar == " + scalar,
-                e);
-        }
+        getValueAsArray();
     }
 
-    // Note that equals() and hashCode() both rely solely on the name. This allows a Set of
-    // TypedProperty instances to act like a Map of name-value pairs (i.e., ensures that each name
-    // is unique in the Set).
+    // Note that equals() and hashCode(), as well as compareTo(), all rely solely on the name. This
+    // allows a Set of TypedProperty instances to act like a Map of name-value pairs (i.e., ensures
+    // that each name is unique in the Set). Use totalEquals() to compare all fields.
+
+    @Override
+    public int compareTo(TypedParameter other) {
+        return name.compareTo(other.name);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(name);
@@ -182,6 +184,17 @@ public class TypedParameter extends AbstractProperty {
             return false;
         }
         return true;
+    }
+
+    public boolean totalEquals(TypedParameter parameter) {
+        if (this == parameter) {
+            return true;
+        }
+        if (parameter == null) {
+            return false;
+        }
+        return dataType == parameter.dataType && Objects.equals(name, parameter.name)
+            && scalar == parameter.scalar && Objects.equals(stringValue, parameter.stringValue);
     }
 
     @Override
@@ -203,24 +216,8 @@ public class TypedParameter extends AbstractProperty {
      * private value member of AbstractProperty.
      */
     public void setString(String value) {
-        stringValue = value;
+        stringValue = trimWhitespace(value);
         validate();
-        super.setValue(stringValue);
-    }
-
-    /**
-     * Sets the contents of the {@link AbstractProperty} private value member. At the same time,
-     * sets the string value of this object.
-     */
-    @Override
-    public void setValue(Object value) {
-        if (value == null) {
-            setString(null);
-        } else if (isScalar()) {
-            setString(value.toString());
-        } else {
-            setString(ZiggyArrayUtils.arrayToString(value));
-        }
         super.setValue(stringValue);
     }
 
@@ -263,7 +260,22 @@ public class TypedParameter extends AbstractProperty {
             dataType.setArrayMember(dataType.typedValue(s), returnArray, i);
         }
         return returnArray;
+    }
 
+    /**
+     * Sets the contents of the {@link AbstractProperty} private value member. At the same time,
+     * sets the string value of this object.
+     */
+    @Override
+    public void setValue(Object value) {
+        if (value == null) {
+            setString(null);
+        } else if (isScalar()) {
+            setString(value.toString());
+        } else {
+            setString(ZiggyArrayUtils.arrayToString(value));
+        }
+        super.setValue(stringValue);
     }
 
     public ZiggyDataType getDataType() {
@@ -330,21 +342,22 @@ public class TypedParameter extends AbstractProperty {
 
     @Override
     public void readFromObject(Object parametersInstance) {
-        if (!(parametersInstance instanceof DefaultParameters)) {
-            throw new IllegalArgumentException("Argument must be DefaultParameters instance");
+        if (!(parametersInstance instanceof Parameters)) {
+            throw new IllegalArgumentException("Argument must be Parameters instance");
         }
-        DefaultParameters defaultParameters = (DefaultParameters) parametersInstance;
-        TypedParameter typedProperty = defaultParameters.getParameter(name);
+        Parameters parameters = (Parameters) parametersInstance;
+        TypedParameter typedProperty = parameters.getParameter(name);
         setValue(typedProperty.getValue());
     }
 
     @Override
     public void writeToObject(Object parametersInstance) {
-        if (!(parametersInstance instanceof DefaultParameters)) {
-            throw new IllegalArgumentException("Argument must be DefaultParameters instance");
+        if (!(parametersInstance instanceof Parameters)) {
+            throw new IllegalArgumentException("Argument must be Parameters instance, not "
+                + parametersInstance.getClass().getSimpleName());
         }
-        DefaultParameters defaultParameters = (DefaultParameters) parametersInstance;
-        TypedParameter typedProperty = defaultParameters.getParameter(name);
+        Parameters parameters = (Parameters) parametersInstance;
+        TypedParameter typedProperty = parameters.getParameter(name);
         typedProperty.setValue(getValue());
     }
 

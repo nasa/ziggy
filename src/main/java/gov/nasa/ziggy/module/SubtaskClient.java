@@ -9,6 +9,8 @@ import gov.nasa.ziggy.module.SubtaskServer.Request;
 import gov.nasa.ziggy.module.SubtaskServer.RequestType;
 import gov.nasa.ziggy.module.SubtaskServer.Response;
 import gov.nasa.ziggy.module.SubtaskServer.ResponseType;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Client class used to communicate with a {@link SubtaskServer} instance in another JVM. The client
@@ -22,10 +24,6 @@ import gov.nasa.ziggy.module.SubtaskServer.ResponseType;
  * the client to dispense with busy loops and simply block until they are called upon to do
  * something.
  * <p>
- * All of the methods in this class can throw {@link InterruptedException}. This indicates that the
- * {@link ComputeNodeMaster} is attempting to shut down all the instances of {@link SubtaskMaster},
- * so any instances of {@link SubtaskClient} that are blocked and waiting for the
- * {@link SubtaskServer} need to be interrupted.
  *
  * @author PT
  */
@@ -42,37 +40,27 @@ public class SubtaskClient {
 
     /**
      * Client method to report that a sub-task has completed
-     *
-     * @throws InterruptedException if the thread was interrupted because a different thread was
-     * unable to reach the subtask server.
      */
-    public Response reportSubtaskComplete(int subTaskIndex) throws InterruptedException {
+    public Response reportSubtaskComplete(int subTaskIndex) {
         return request(RequestType.REPORT_DONE, subTaskIndex);
     }
 
     /**
      * Client method to report that a sub-task is locked by another compute node.
-     *
-     * @throws InterruptedException if the thread was interrupted because a different thread was
-     * unable to reach the subtask server.
      */
-    public Response reportSubtaskLocked(int subTaskIndex) throws InterruptedException {
+    public Response reportSubtaskLocked(int subTaskIndex) {
         return request(RequestType.REPORT_LOCKED, subTaskIndex);
     }
 
     /**
      * Get the next subtask for processing.
-     *
-     * @throws InterruptedException if the thread was interrupted because a different thread was
-     * unable to reach the subtask server.
-     * @return non-null.
      */
-    public Response nextSubtask() throws InterruptedException {
+    public Response nextSubtask() {
         Response response = null;
 
         while (true) {
             response = request(RequestType.GET_NEXT);
-            if (response.status != ResponseType.TRY_AGAIN) {
+            if (response == null || response.status != ResponseType.TRY_AGAIN) {
                 break;
             }
         }
@@ -80,36 +68,34 @@ public class SubtaskClient {
         return response;
     }
 
-    public void submitResponse(Response response) throws InterruptedException {
-        responseQueue.put(response);
+    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
+    public void submitResponse(Response response) {
+        try {
+            responseQueue.put(response);
+        } catch (InterruptedException ignored) {
+            // If this thread is ever interrupted, it's in the process of the ComputeNodeMaster
+            // shutting down, hence there is nothing to be done, hence we can swallow this
+            // exception.
+        }
     }
 
     /**
      * Sends a message to the {@link SubtaskServer} that is not associated with a subtask index.
      *
      * @return non-null.
-     * @throws InterruptedException
      */
-    private Response request(RequestType command) throws InterruptedException {
+    private Response request(RequestType command) {
         return request(command, -1);
     }
 
     /**
      * Send a request to the subtask server and receive a response.
      *
-     * @throws InterruptedException if the thread is interrupted (indicates that the
-     * {@link ComputeNodeMaster} has interrupted all algorithm threads).
      * @return non-null.
      */
-    private Response request(RequestType command, int subtaskIndex) throws InterruptedException {
+    private Response request(RequestType command, int subtaskIndex) {
 
         log.debug("Sending request " + command + " with subtaskIndex " + subtaskIndex);
-        // If another thread has detected that the server has failed, then there will be
-        // an attempt to interrupt this thread; if so, detect it and then don't even bother
-        // to try to talk to the server, it's gone.
-        if (Thread.interrupted()) {
-            throw new InterruptedException();
-        }
         send(command, subtaskIndex);
         return receive();
     }
@@ -118,7 +104,7 @@ public class SubtaskClient {
      * Sends a request to the {@link SubtaskServer}. This is acomplished by creating a new instance
      * of {@link Request}, which is then put onto the server's {@link ArrayBlockingQueue}.
      */
-    private void send(RequestType command, int subTaskIndex) throws InterruptedException {
+    private void send(RequestType command, int subTaskIndex) {
         log.debug("Connected to subtask server, sending request");
         Request request = new Request(command, subTaskIndex, this);
         SubtaskServer.submitRequest(request);
@@ -128,8 +114,15 @@ public class SubtaskClient {
      * Receives a {@link Response) from the {@link SubtaskServer} to a prior {@link Request}. The
      * method will block until the server responds or an {@link InterruptedException} occurs.
      */
-    private Response receive() throws InterruptedException {
-        return responseQueue.take();
+    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
+    private Response receive() {
+        try {
+            return responseQueue.take();
+        } catch (InterruptedException ignored) {
+            // Here we can swallow the InterruptedException. If this thread has been
+            // interrupted, it means that the entire ComputeNodeMaster is in the process
+            // of shutting down, so we can simply return null and exit.
+            return null;
+        }
     }
-
 }

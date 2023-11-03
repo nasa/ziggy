@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.module;
 
-import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
+import gov.nasa.ziggy.worker.TaskExecutor;
 
 /**
  * Metrics used by the pipeline in various contexts.
@@ -31,11 +31,10 @@ public class PipelineMetrics {
     static final String[] REMOTE_METRICS = { CREATE_INPUTS_METRIC, SEND_METRIC,
         REMOTE_WORKER_WAIT_METRIC, PLEIADES_QUEUE_METRIC, PLEIADES_WALL_METRIC,
         PENDING_RECEIVE_METRIC, RECEIVE_METRIC, STORE_OUTPUTS_METRIC, COPY_TASK_FILES_METRIC,
-        WorkerTaskRequestDispatcher.PIPELINE_MODULE_COMMIT_METRIC, TF_INPUTS_SIZE_METRIC,
+        TaskExecutor.PIPELINE_MODULE_COMMIT_METRIC, TF_INPUTS_SIZE_METRIC,
         TF_PFE_OUTPUTS_SIZE_METRIC, TF_ARCHIVE_SIZE_METRIC };
 
     static final String[] LOCAL_METRICS = { CREATE_INPUTS_METRIC,
         SubtaskExecutor.MATLAB_PROCESS_EXEC_METRIC, STORE_OUTPUTS_METRIC, COPY_TASK_FILES_METRIC,
-        WorkerTaskRequestDispatcher.PIPELINE_MODULE_COMMIT_METRIC, TF_ARCHIVE_SIZE_METRIC };
-
+        TaskExecutor.PIPELINE_MODULE_COMMIT_METRIC, TF_ARCHIVE_SIZE_METRIC };
 }

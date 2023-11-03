@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -38,6 +38,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,12 +54,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
 import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -99,6 +101,7 @@ public class NasQueueTimeMetrics {
     }
 
     // This method has to stay public so that the unit tests will run correctly.
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void populate(String qsResultsDestination) {
 
         if (remoteNodeNameMap.isEmpty()) {
@@ -110,7 +113,7 @@ public class NasQueueTimeMetrics {
         }
         if (StringUtils.isEmpty(directorate)) {
             directorate = ZiggyConfiguration.getInstance()
-                .getString(PropertyNames.NASA_DIRECTORATE_PROP_NAME, DEFAULT_DIRECTORATE)
+                .getString(PropertyName.REMOTE_NASA_DIRECTORATE.property(), DEFAULT_DIRECTORATE)
                 .toUpperCase();
         }
         Long currentTime = System.currentTimeMillis();
@@ -125,6 +128,10 @@ public class NasQueueTimeMetrics {
             try {
                 p.run(true, 0);
             } catch (Exception e) {
+                // The qs command is potentially unreliable and prone to
+                // intermittent failures that appear here as runtime exceptions.
+                // In this case, we don't want execution to stop because we can
+                // use the most recent prior run of qs to perform the calculations.
                 log.error("Error when attempting to run qs command", e);
             }
             Set<ArchitectureQueueTimeMetrics> allMetrics = parseQsCsv(qsResultsDestination,
@@ -151,6 +158,7 @@ public class NasQueueTimeMetrics {
         NasQueueTimeMetrics.instance = instance;
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private Set<ArchitectureQueueTimeMetrics> parseQsCsv(String file, String nasaDivision) {
 
         Set<ArchitectureQueueTimeMetrics> metricsAllArchitectures = new HashSet<>();
@@ -181,7 +189,7 @@ public class NasQueueTimeMetrics {
                         archRecord.get(runoutIndex), archRecord.get(expansionIndex)));
             }
         } catch (IOException e) {
-            throw new PipelineException("Unable to parse file " + file, e);
+            throw new UncheckedIOException("Unable to parse file " + file.toString(), e);
         }
         return metricsAllArchitectures;
     }
@@ -268,7 +276,5 @@ public class NasQueueTimeMetrics {
             Double expansion = metrics.getQueueTime(descriptor);
             System.out.println(archName + "  " + runout + "  " + expansion);
         }
-
     }
-
 }

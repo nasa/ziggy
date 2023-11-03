@@ -7,17 +7,22 @@ task buildLibZiggy(type: ZiggyCpp) {
     outputType = "static"
     cppFilePaths = ["$projectDir/src/main/cpp/libziggy"]
     includeFilePaths = ["$projectDir/src/main/cpp/libziggy"]
+
+    logging.captureStandardOutput LogLevel.INFO
+    logging.captureStandardError LogLevel.INFO
 }
 
 assemble.dependsOn buildLibZiggy
 
 // Build the libziggymi shared object.
-task buildLibZiggyMi(type: ZiggyCpp) {
+task buildLibZiggyMi(type: ZiggyCpp, dependsOn: copyHdf5Inc) {
     outputName = "ziggymi"
     outputType = "static"
     cppFilePaths = ["$projectDir/src/main/cpp/libziggymi"]
     includeFilePaths = ["$projectDir/src/main/cpp/libziggymi", "$projectDir/src/main/cpp/libziggy",
-                        "$ziggyDependencies/include"]
+                        "$buildDir/include"]
+    logging.captureStandardOutput LogLevel.INFO
+    logging.captureStandardError LogLevel.INFO
 }
 
 assemble.dependsOn buildLibZiggyMi

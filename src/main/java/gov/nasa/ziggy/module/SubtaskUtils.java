@@ -49,5 +49,4 @@ public class SubtaskUtils {
             new AlgorithmStateFiles(subtaskDir).clearStaleState();
         }
     }
-
 }

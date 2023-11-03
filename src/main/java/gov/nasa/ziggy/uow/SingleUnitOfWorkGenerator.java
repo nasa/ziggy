@@ -7,7 +7,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 
 public class SingleUnitOfWorkGenerator implements UnitOfWorkGenerator {
 
@@ -25,17 +25,17 @@ public class SingleUnitOfWorkGenerator implements UnitOfWorkGenerator {
     }
 
     @Override
-    public List<Class<? extends Parameters>> requiredParameterClasses() {
+    public List<Class<? extends ParametersInterface>> requiredParameterClasses() {
         return Collections.emptyList();
     }
 
     @Override
-    public List<UnitOfWork> generateTasks(Map<Class<? extends Parameters>, Parameters> parameters) {
+    public List<UnitOfWork> generateTasks(
+        Map<Class<? extends ParametersInterface>, ParametersInterface> parameters) {
         List<UnitOfWork> tasks = new LinkedList<>();
         UnitOfWork prototypeTask = new UnitOfWork();
         tasks.add(prototypeTask);
 
         return tasks;
     }
-
 }

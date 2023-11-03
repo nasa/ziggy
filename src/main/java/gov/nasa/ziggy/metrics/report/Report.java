@@ -141,7 +141,7 @@ public abstract class Report {
         return new HumanReadableStatistics(units, list);
     }
 
-    protected void dumpTopTen(PdfPTable pdfTable, TopNList topTenList, Format f) throws Exception {
+    protected void dumpTopTen(PdfPTable pdfTable, TopNList topTenList, Format f) {
         List<TopNListElement> list = topTenList.getList();
 
         PdfPTable topTenTable = new PdfPTable(2);
@@ -176,7 +176,7 @@ public abstract class Report {
     }
 
     protected void generateSummaryTable(String label, DescriptiveStatistics stats, TopNList topTen,
-        Format f) throws Exception {
+        Format f) {
         log.info("Generating report for: " + label);
 
         PdfPTable layoutTable = new PdfPTable(2);
@@ -218,7 +218,7 @@ public abstract class Report {
     }
 
     protected JFreeChart generateHistogram(String title, String xCaption, String yCaption,
-        List<Double> values, int numBins) throws Exception {
+        List<Double> values, int numBins) {
         if (values == null || values.size() == 0) {
             return null;
         }
@@ -282,12 +282,11 @@ public abstract class Report {
         return chart;
     }
 
-    protected void printDisplayModel(String title, DisplayModel displayModel) throws Exception {
+    protected void printDisplayModel(String title, DisplayModel displayModel) {
         printDisplayModel(title, displayModel, null);
     }
 
-    protected void printDisplayModel(String title, DisplayModel displayModel, float[] colsWidth)
-        throws Exception {
+    protected void printDisplayModel(String title, DisplayModel displayModel, float[] colsWidth) {
         pdfRenderer.printText(title, PdfRenderer.h1Font);
         pdfRenderer.println();
 

@@ -3,7 +3,7 @@ package gov.nasa.ziggy.data.management;
 import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_TEST_WORKING_DIR;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -22,6 +22,7 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -40,7 +41,7 @@ public class DatastoreConfigurationFileTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, directoryRule);
+        ZIGGY_TEST_WORKING_DIR, directoryRule);
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -56,7 +57,8 @@ public class DatastoreConfigurationFileTest {
     public void testGenerateSchema() throws JAXBException, IOException {
         JAXBContext context = JAXBContext.newInstance(DatastoreConfigurationFile.class);
         context.generateSchema(new DatastoreFileSchemaResolver());
-        List<String> schemaContent = Files.readAllLines(schemaFile.toPath());
+        List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
+            FileUtil.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"datastoreConfiguration\" type=\"datastoreConfigurationFile\"/>");
@@ -120,7 +122,5 @@ public class DatastoreConfigurationFileTest {
             result.setSystemId(schemaFile.toURI().toURL().toString());
             return result;
         }
-
     }
-
 }

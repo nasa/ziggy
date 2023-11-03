@@ -112,7 +112,6 @@ public class UserCrudTest {
             assertTrue("AfterCommit: contains maryMonitor", users.contains(maryMonitor));
             return null;
         });
-
     }
 
     @Test

@@ -1,36 +1,34 @@
 package gov.nasa.ziggy.data.management;
 
-import java.util.List;
-
-import org.hibernate.Criteria;
-import org.hibernate.criterion.Restrictions;
-
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 
 /**
  * CRUD class for {@link Manifest} instances.
  *
  * @author PT
  */
-public class ManifestCrud extends AbstractCrud {
+public class ManifestCrud extends AbstractCrud<Manifest> {
 
     /**
      * Determines whether a given dataset ID has already been used.
      */
     public boolean datasetIdExists(long datasetId) {
-        Criteria criteria = createCriteria(Manifest.class);
-        criteria.add(Restrictions.eq("datasetId", datasetId));
-        List<Manifest> manifests = list(criteria);
-        return !manifests.isEmpty();
+        ZiggyQuery<Manifest, Manifest> query = createZiggyQuery(Manifest.class);
+        query.column(Manifest_.datasetId).in(datasetId);
+        return !list(query).isEmpty();
     }
 
     /**
      * Retrieves the {@link Manifest} for a given pipeline task ID.
      */
     public Manifest retrieveByTaskId(long taskId) {
-        Criteria criteria = createCriteria(Manifest.class);
-        criteria.add(Restrictions.eq("importTaskId", taskId));
-        return uniqueResult(criteria);
+        ZiggyQuery<Manifest, Manifest> query = createZiggyQuery(Manifest.class);
+        return uniqueResult(query.column(Manifest_.importTaskId).in(taskId));
     }
 
+    @Override
+    public Class<Manifest> componentClass() {
+        return Manifest.class;
+    }
 }

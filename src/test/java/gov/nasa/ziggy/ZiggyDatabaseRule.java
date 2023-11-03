@@ -1,12 +1,17 @@
 package gov.nasa.ziggy;
 
-import static gov.nasa.ziggy.ZiggyPropertyRule.resetSystemProperty;
-import static gov.nasa.ziggy.services.config.PropertyNames.DATABASE_SOFTWARE_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_DIALECT_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_DRIVER_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_PASSWD_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_URL_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_USERNAME_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATABASE_SCHEMA_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.DATABASE_SOFTWARE;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_DIALECT;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_DRIVER;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_JDBC_BATCH_SIZE;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_PASSWORD;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_SHOW_SQL;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_URL;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_USERNAME;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
+
+import java.io.File;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -50,28 +55,35 @@ public class ZiggyDatabaseRule extends ExternalResource {
     private String hibernateJdbcBatchSize;
     private String hibernateShowSql;
     private String hibernateDriverClass;
+    private String homeDir;
+    private String databaseSchemaDir;
+
+    private DatabaseController databaseController;
 
     @Override
     protected void before() throws Throwable {
-        databaseSoftwareName = System.setProperty(DATABASE_SOFTWARE_PROP_NAME, "hsqldb");
-        DatabaseController databaseController = new HsqldbController();
+        databaseSoftwareName = System.setProperty(DATABASE_SOFTWARE.property(), "hsqldb");
+        databaseController = new HsqldbController();
 
-        hibernateConnectionPassword = System.setProperty(HIBERNATE_PASSWD_PROP_NAME, "");
-        hibernateConnectionUrl = System.setProperty(HIBERNATE_URL_PROP_NAME,
+        hibernateConnectionPassword = System.setProperty(HIBERNATE_PASSWORD.property(), "");
+        hibernateConnectionUrl = System.setProperty(HIBERNATE_URL.property(),
             "jdbc:hsqldb:mem:hsqldb-ziggy");
-        hibernateConnectionUsername = System.setProperty(HIBERNATE_USERNAME_PROP_NAME, "sa");
+        hibernateConnectionUsername = System.setProperty(HIBERNATE_USERNAME.property(), "sa");
+        homeDir = System.setProperty(ZIGGY_HOME_DIR.property(), "build");
+        databaseSchemaDir = System.setProperty(DATABASE_SCHEMA_DIR.property(),
+            "build" + File.separator + "schema");
 
         // For some reason, the unit tests won't run successfully without the Hibernate
         // dialect being set as a system property, even though the actual pipelines
         // function just fine without any dialect in the properties. Something to figure
         // out and fix when possible.
-        hibernateDialect = System.setProperty(HIBERNATE_DIALECT_PROP_NAME,
+        hibernateDialect = System.setProperty(HIBERNATE_DIALECT.property(),
             databaseController.sqlDialect().dialect());
-        hibernateDriverClass = System.setProperty(HIBERNATE_DRIVER_PROP_NAME,
+        hibernateDriverClass = System.setProperty(HIBERNATE_DRIVER.property(),
             databaseController.driver());
 
-        hibernateJdbcBatchSize = System.setProperty("hibernate.jdbc.batch_size", "0");
-        hibernateShowSql = System.setProperty("hibernate.show_sql", "false");
+        hibernateJdbcBatchSize = System.setProperty(HIBERNATE_JDBC_BATCH_SIZE.property(), "0");
+        hibernateShowSql = System.setProperty(HIBERNATE_SHOW_SQL.property(), "false");
 
         DatabaseTransactionFactory.performTransaction(() -> {
             databaseController.createDatabase();
@@ -82,18 +94,36 @@ public class ZiggyDatabaseRule extends ExternalResource {
     @Override
     protected void after() {
         DatabaseTransactionFactory.performTransaction(() -> {
+            databaseController.dropDatabase();
             DatabaseService.getInstance().clear();
             return null;
         });
         DatabaseService.reset();
 
-        resetSystemProperty(DATABASE_SOFTWARE_PROP_NAME, databaseSoftwareName);
-        resetSystemProperty(HIBERNATE_PASSWD_PROP_NAME, hibernateConnectionPassword);
-        resetSystemProperty(HIBERNATE_URL_PROP_NAME, hibernateConnectionUrl);
-        resetSystemProperty(HIBERNATE_USERNAME_PROP_NAME, hibernateConnectionUsername);
-        resetSystemProperty(HIBERNATE_DIALECT_PROP_NAME, hibernateDialect);
-        resetSystemProperty("hibernate.jdbc.batch_size", hibernateJdbcBatchSize);
-        resetSystemProperty("hibernate.show_sql", hibernateShowSql);
-        resetSystemProperty(HIBERNATE_DRIVER_PROP_NAME, hibernateDriverClass);
+        resetSystemProperty(DATABASE_SOFTWARE.property(), databaseSoftwareName);
+        resetSystemProperty(HIBERNATE_PASSWORD.property(), hibernateConnectionPassword);
+        resetSystemProperty(HIBERNATE_URL.property(), hibernateConnectionUrl);
+        resetSystemProperty(HIBERNATE_USERNAME.property(), hibernateConnectionUsername);
+        resetSystemProperty(HIBERNATE_DIALECT.property(), hibernateDialect);
+        resetSystemProperty(HIBERNATE_JDBC_BATCH_SIZE.property(), hibernateJdbcBatchSize);
+        resetSystemProperty(HIBERNATE_SHOW_SQL.property(), hibernateShowSql);
+        resetSystemProperty(HIBERNATE_DRIVER.property(), hibernateDriverClass);
+        resetSystemProperty(ZIGGY_HOME_DIR.property(), homeDir);
+        resetSystemProperty(DATABASE_SCHEMA_DIR.property(), databaseSchemaDir);
+    }
+
+    /**
+     * Sets the given property to the given value. If {@code value} is {@code null}, the property is
+     * cleared.
+     *
+     * @param property the property to set
+     * @param value the value to set the property to, or {@code null} to clear the property
+     */
+    public static void resetSystemProperty(String property, String value) {
+        if (value != null) {
+            System.setProperty(property, value);
+        } else {
+            System.clearProperty(property);
+        }
     }
 }

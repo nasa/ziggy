@@ -47,14 +47,11 @@ public class SampleList {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             Sample other = (Sample) obj;
-            if (!getOuterType().equals(other.getOuterType())) {
-                return false;
-            }
-            if (time != other.time) {
+            if (!getOuterType().equals(other.getOuterType()) || time != other.time) {
                 return false;
             }
             return true;

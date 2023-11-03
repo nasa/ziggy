@@ -13,6 +13,9 @@ task generateTestProg(type: Exec) {
     workingDir = "$projectDir/src/test/cpp/ExternalProcess"
     commandLine = [ "sh", "-c", "make -e" ]
     System.setProperty("OUTDIR", "$binDir")
+
+    logging.captureStandardOutput LogLevel.INFO
+    logging.captureStandardError LogLevel.INFO
 }
 
 compileTestJava.dependsOn generateTestProg

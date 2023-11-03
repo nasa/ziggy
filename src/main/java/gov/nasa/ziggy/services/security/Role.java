@@ -5,19 +5,19 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-import javax.persistence.Version;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 /**
  * @author Todd Klaus
  */
 @Entity
-@Table(name = "PI_ROLE")
+@Table(name = "ziggy_Role")
 public class Role {
     @Id
     private String name;
@@ -27,8 +27,8 @@ public class Role {
     private User createdBy = null;
 
     @ElementCollection
-    @JoinTable(name = "PI_ROLE_PRIVS")
-    private List<String> privs = new LinkedList<>();
+    @JoinTable(name = "ziggy_Role_privileges")
+    private List<String> privileges = new LinkedList<>();
 
     /**
      * used by Hibernate to implement optimistic locking. Should prevent 2 different console users
@@ -54,16 +54,16 @@ public class Role {
     }
 
     public List<String> getPrivileges() {
-        return privs;
+        return privileges;
     }
 
     public void setPrivileges(List<String> privileges) {
-        privs = privileges;
+        this.privileges = privileges;
     }
 
     public void addPrivilege(String privilege) {
         if (!hasPrivilege(privilege)) {
-            privs.add(privilege);
+            privileges.add(privilege);
         }
     }
 
@@ -77,7 +77,7 @@ public class Role {
     }
 
     public boolean hasPrivilege(String privilege) {
-        return privs.contains(privilege);
+        return privileges.contains(privilege);
     }
 
     public String getName() {
@@ -118,7 +118,7 @@ public class Role {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         final Role other = (Role) obj;

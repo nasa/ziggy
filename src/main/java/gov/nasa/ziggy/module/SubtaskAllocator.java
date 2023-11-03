@@ -146,5 +146,4 @@ public class SubtaskAllocator {
     public boolean isEmpty() {
         return subtaskCompleted == null || subtaskCompleted.length == 0;
     }
-
 }

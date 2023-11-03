@@ -1,12 +1,13 @@
 package gov.nasa.ziggy.pipeline.definition.crud;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 
+import java.lang.reflect.Field;
 import java.util.Date;
 import java.util.List;
 
-import org.hibernate.Query;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -14,14 +15,12 @@ import org.junit.Test;
 import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.TestModuleParameters;
-import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.services.security.UserCrud;
@@ -75,18 +74,16 @@ public class PipelineModuleDefinitionCrudTest {
             userCrud.createUser(operatorUser);
 
             ParameterSet paramSet = createParameterSet(TEST_PARAM_SET_NAME_1);
-            parameterSetCrud.create(paramSet);
+            parameterSetCrud.persist(paramSet);
 
             PipelineModuleDefinition pmd = createPipelineModuleDefinition();
-            pipelineModuleDefinitionCrud.create(pmd);
-
-            return pmd;
+            return pipelineModuleDefinitionCrud.merge(pmd);
         });
     }
 
     private ParameterSet createParameterSet(String name) {
         ParameterSet parameterSet = new ParameterSet(new AuditInfo(adminUser, new Date()), name);
-        parameterSet.setParameters(new BeanWrapper<Parameters>(new TestModuleParameters(1)));
+        parameterSet.populateFromParametersInstance(new TestModuleParameters(1));
         return parameterSet;
     }
 
@@ -96,31 +93,67 @@ public class PipelineModuleDefinitionCrudTest {
     }
 
     private int pipelineModuleDefinitionCount() {
-        Query q = DatabaseService.getInstance()
-            .getSession()
-            .createQuery("select count(*) from PipelineModuleDefinition");
-        return ((Long) q.uniqueResult()).intValue();
+        ZiggyQuery<PipelineModuleDefinition, Long> query = pipelineModuleDefinitionCrud
+            .createZiggyQuery(PipelineModuleDefinition.class, Long.class);
+        Long count = pipelineModuleDefinitionCrud.uniqueResult(query.count());
+        return count.intValue();
     }
 
     private int pipelineModuleParamSetCount() {
-        Query q = DatabaseService.getInstance()
-            .getSession()
-            .createQuery("select count(*) from ParameterSet");
-        return ((Long) q.uniqueResult()).intValue();
+        ZiggyQuery<ParameterSet, Long> query = parameterSetCrud.createZiggyQuery(ParameterSet.class,
+            Long.class);
+        Long count = parameterSetCrud.uniqueResult(query.count());
+        return count.intValue();
     }
 
+    // For some reason, I'm not able to do the following two count queries as proper queries
+    // using count(), but I'm able to retrieve all distinct names and return the size of the
+    // resulting list.
     private int paramSetNameCount() {
-        Query q = DatabaseService.getInstance()
-            .getSession()
-            .createQuery("select count(*) from ParameterSetName");
-        return ((Long) q.uniqueResult()).intValue();
+        return parameterSetCrud.retrieveNames().size();
     }
 
     private int moduleNameCount() {
-        Query q = DatabaseService.getInstance()
-            .getSession()
-            .createQuery("select count(*) from ModuleName");
-        return ((Long) q.uniqueResult()).intValue();
+        return pipelineModuleDefinitionCrud.retrieveNames().size();
+    }
+
+    PipelineModuleDefinition copy(PipelineModuleDefinition original) throws NoSuchFieldException,
+        SecurityException, IllegalArgumentException, IllegalAccessException {
+        PipelineModuleDefinition copy = new PipelineModuleDefinition(original.getName());
+        copy.setGroup(original.getGroup());
+        copy.setAuditInfo(original.getAuditInfo());
+        copy.setDescription(original.getDescription());
+        copy.setPipelineModuleClass(original.getPipelineModuleClass());
+        copy.setExeTimeoutSecs(original.getExeTimeoutSecs());
+        copy.setMinMemoryMegaBytes(original.getMinMemoryMegaBytes());
+        Field versionField = original.getClass().getSuperclass().getDeclaredField("version");
+        versionField.setAccessible(true);
+        versionField.set(copy, original.getVersion());
+        setOptimisticLockValue(copy, original.getOptimisticLockValue());
+        Field idField = original.getClass().getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(copy, original.getId());
+        return copy;
+    }
+
+    private void setOptimisticLockValue(PipelineModuleDefinition pipelineModuleDefinition,
+        int dirty) throws NoSuchFieldException, SecurityException, IllegalArgumentException,
+        IllegalAccessException {
+        Field dirtyField = pipelineModuleDefinition.getClass()
+            .getSuperclass()
+            .getDeclaredField("optimisticLockValue");
+        dirtyField.setAccessible(true);
+        dirtyField.set(pipelineModuleDefinition, dirty);
+    }
+
+    private void setOptimisticLockValue(ParameterSet parameterSet, int dirty)
+        throws NoSuchFieldException, SecurityException, IllegalArgumentException,
+        IllegalAccessException {
+        Field dirtyField = parameterSet.getClass()
+            .getSuperclass()
+            .getDeclaredField("optimisticLockValue");
+        dirtyField.setAccessible(true);
+        dirtyField.set(parameterSet, dirty);
     }
 
     /**
@@ -140,7 +173,6 @@ public class PipelineModuleDefinitionCrudTest {
                     .retrieveLatestVersionForName(TEST_MODULE_NAME_1);
                 ZiggyUnitTestUtils.initializePipelineModuleDefinition(amd);
                 return amd;
-
             });
 
         comparer.assertEquals("PipelineModuleDefinition", expectedModuleDef, actualModuleDef);
@@ -156,6 +188,27 @@ public class PipelineModuleDefinitionCrudTest {
             .retrieveLatestVersionForName(MISSING_MODULE);
 
         assertNull("missing module", moduleDef);
+    }
+
+    @Test(expected = PipelineException.class)
+    public void testOptimisticLocking() {
+        // Create
+        PipelineModuleDefinition pmd = populateObjects();
+
+        // Retrieve & Edit
+        DatabaseTransactionFactory.performTransaction(() -> {
+            PipelineModuleDefinition modifiedPipelineModDef = pipelineModuleDefinitionCrud
+                .retrieveLatestVersionForName(pmd.getName());
+            editModuleDef(modifiedPipelineModDef);
+            return null;
+        });
+
+        // Attempting to save the original version will fail because the save of a
+        // modified version causes the original to be out of date.
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineModuleDefinitionCrud.merge(pmd);
+            return null;
+        });
     }
 
     @Test
@@ -184,9 +237,10 @@ public class PipelineModuleDefinitionCrudTest {
         createParameterSet(TEST_PARAM_SET_NAME_1);
         PipelineModuleDefinition expectedModuleDef = createPipelineModuleDefinition();
         editModuleDef(expectedModuleDef);
-        expectedModuleDef.setDirty(1);
+        setOptimisticLockValue(expectedModuleDef, 1);
 
         comparer.assertEquals("PipelineModuleDefinition", expectedModuleDef, actualModuleDef);
+        assertEquals(1, actualModuleDef.getOptimisticLockValue());
 
         assertEquals("PipelineModuleDefinition count", 1, pipelineModuleDefinitionCount());
         assertEquals("ParameterSet count", 1, pipelineModuleParamSetCount());
@@ -236,7 +290,7 @@ public class PipelineModuleDefinitionCrudTest {
 
         ParameterSet expectedParamSet = createParameterSet(TEST_PARAM_SET_NAME_1);
         editParamSetChangeParam(expectedParamSet);
-        expectedParamSet.setDirty(1);
+        setOptimisticLockValue(expectedParamSet, 1);
 
         comparer.assertEquals("ParameterSet", expectedParamSet, actualParamSet);
 
@@ -254,7 +308,49 @@ public class PipelineModuleDefinitionCrudTest {
     private void editParamSetChangeParam(ParameterSet paramSet) {
         TestModuleParameters moduleParams = paramSet.parametersInstance();
         moduleParams.setValue(100);
-        paramSet.getParameters().populateFromInstance(moduleParams);
+        paramSet.setTypedParameters(moduleParams.getParameters());
+    }
+
+    @Test
+    public void testCreateOrUpdateDuplicateInstance() {
+        PipelineModuleDefinition pmd = populateObjects();
+        pmd.setDescription("New description");
+
+        // Executing with the same object but changed content does the right thing
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineModuleDefinitionCrud.merge(pmd);
+            return null;
+        });
+
+        @SuppressWarnings("unchecked")
+        List<PipelineModuleDefinition> pipelineModuleDefinitions0 = (List<PipelineModuleDefinition>) DatabaseTransactionFactory
+            .performTransaction(
+                () -> pipelineModuleDefinitionCrud.retrieveAllVersionsForName(pmd.getName()));
+        assertEquals(1, pipelineModuleDefinitions0.size());
+        assertEquals("New description", pipelineModuleDefinitions0.get(0).getDescription());
+
+        // Executing with a different object does the wrong thing
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineModuleDefinitionCrud.merge(copy(pipelineModuleDefinitions0.get(0)));
+            return null;
+        });
+
+        @SuppressWarnings("unchecked")
+        List<PipelineModuleDefinition> pipelineModuleDefinitions = (List<PipelineModuleDefinition>) DatabaseTransactionFactory
+            .performTransaction(
+                () -> pipelineModuleDefinitionCrud.retrieveAllVersionsForName(pmd.getName()));
+
+        if (pipelineModuleDefinitions.size() == 2) {
+            assertEquals(pipelineModuleDefinitions.get(0).getName(),
+                pipelineModuleDefinitions.get(1).getName());
+            assertEquals(pipelineModuleDefinitions.get(0).getVersion(),
+                pipelineModuleDefinitions.get(1).getVersion());
+            assertFalse(pipelineModuleDefinitions.get(0).isLocked());
+            assertFalse(pipelineModuleDefinitions.get(1).isLocked());
+        }
+
+        // Here's where we fail, because this should not have created a duplicate object
+        assertEquals(1, pipelineModuleDefinitions.size());
     }
 
     @Test
@@ -267,11 +363,11 @@ public class PipelineModuleDefinitionCrudTest {
         DatabaseTransactionFactory.performTransaction(() -> {
             PipelineModuleDefinition deletedModuleDef = pipelineModuleDefinitionCrud
                 .retrieveLatestVersionForName(TEST_MODULE_NAME_1);
-            pipelineModuleDefinitionCrud.delete(deletedModuleDef);
+            pipelineModuleDefinitionCrud.remove(deletedModuleDef);
 
             ParameterSet deletedParamSet = parameterSetCrud
                 .retrieveLatestVersionForName(TEST_PARAM_SET_NAME_1);
-            parameterSetCrud.delete(deletedParamSet);
+            parameterSetCrud.remove(deletedParamSet);
             return null;
         });
 
@@ -294,10 +390,9 @@ public class PipelineModuleDefinitionCrudTest {
              */
             ParameterSet deletedParamSet = parameterSetCrud
                 .retrieveLatestVersionForName(TEST_PARAM_SET_NAME_1);
-            parameterSetCrud.delete(deletedParamSet);
+            parameterSetCrud.remove(deletedParamSet);
             return null;
         });
-
     }
 
     @Test
@@ -310,7 +405,7 @@ public class PipelineModuleDefinitionCrudTest {
         DatabaseTransactionFactory.performTransaction(() -> {
             PipelineModuleDefinition deletedModuleDef = pipelineModuleDefinitionCrud
                 .retrieveLatestVersionForName(TEST_MODULE_NAME_1);
-            pipelineModuleDefinitionCrud.delete(deletedModuleDef);
+            pipelineModuleDefinitionCrud.remove(deletedModuleDef);
             return null;
         });
 

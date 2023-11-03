@@ -6,7 +6,7 @@ import java.io.Serializable;
  * @author Todd Klaus
  */
 public class TopNListElement implements Serializable {
-    private static final long serialVersionUID = 4305627034623079699L;
+    private static final long serialVersionUID = 20230511L;
 
     private long value;
     private String label = null;

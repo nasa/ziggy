@@ -4,12 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import gov.nasa.ziggy.util.StringUtils;
+
 /**
  * Defines the architectures of remote nodes that can be used for Ziggy batch jobs.
  */
 public enum RemoteNodeDescriptor {
 
     // Cost factors for the NAS systems are the SBU2 factors
+    /** Specifies that any architecture may be used. */
+    ANY,
+
     /**
      * The Sandy Bridge architecture. See <a href=
      * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-sandy-bridge-nodes_322.html"
@@ -75,9 +80,9 @@ public enum RemoteNodeDescriptor {
     private double costFactor; // relative costs for each node in the family
     private SupportedRemoteClusters remoteCluster; // which cluster has the architecture
 
-    /**
-     * Creates a new instance.
-     */
+    RemoteNodeDescriptor() {
+    }
+
     RemoteNodeDescriptor(String nodeName, int minCores, int maxCores, double gigsPerCore,
         double costFactor, SupportedRemoteClusters cluster) {
         this.nodeName = nodeName;
@@ -152,7 +157,8 @@ public enum RemoteNodeDescriptor {
 
         // loop over descriptors
         for (RemoteNodeDescriptor descriptor : RemoteNodeDescriptor.values()) {
-            if (descriptor.getRemoteCluster().equals(cluster)
+            if (descriptor.getRemoteCluster() != null
+                && descriptor.getRemoteCluster().equals(cluster)
                 && descriptor.getGigsPerCore() >= subtaskGigsPerCore
                 && descriptor.getGigsPerCore() < selectedArchitecture.getGigsPerCore()) {
                 selectedArchitecture = descriptor;
@@ -169,7 +175,8 @@ public enum RemoteNodeDescriptor {
         SupportedRemoteClusters cluster) {
         List<RemoteNodeDescriptor> unsortedDescriptors = new ArrayList<>();
         for (RemoteNodeDescriptor descriptor : RemoteNodeDescriptor.values()) {
-            if (descriptor.getRemoteCluster().equals(cluster)) {
+            if (descriptor.getRemoteCluster() != null
+                && descriptor.getRemoteCluster().equals(cluster)) {
                 unsortedDescriptors.add(descriptor);
             }
         }
@@ -186,7 +193,8 @@ public enum RemoteNodeDescriptor {
         SupportedRemoteClusters cluster) {
         List<RemoteNodeDescriptor> unsortedDescriptors = new ArrayList<>();
         for (RemoteNodeDescriptor descriptor : RemoteNodeDescriptor.values()) {
-            if (descriptor.getRemoteCluster().equals(cluster)) {
+            if (descriptor.getRemoteCluster() != null
+                && descriptor.getRemoteCluster().equals(cluster)) {
                 unsortedDescriptors.add(descriptor);
             }
         }
@@ -212,7 +220,8 @@ public enum RemoteNodeDescriptor {
         SupportedRemoteClusters cluster) {
         List<RemoteNodeDescriptor> unsortedDescriptors = new ArrayList<>();
         for (RemoteNodeDescriptor descriptor : RemoteNodeDescriptor.values()) {
-            if (descriptor.getRemoteCluster().equals(cluster)) {
+            if (descriptor.getRemoteCluster() != null
+                && descriptor.getRemoteCluster().equals(cluster)) {
                 unsortedDescriptors.add(descriptor);
             }
         }
@@ -236,8 +245,9 @@ public enum RemoteNodeDescriptor {
     private static RemoteNodeDescriptor getArchWithMaxGigsPerCore(SupportedRemoteClusters cluster) {
         RemoteNodeDescriptor maxGigsArch = null;
         for (RemoteNodeDescriptor descriptor : RemoteNodeDescriptor.values()) {
-            if (descriptor.getRemoteCluster().equals(cluster) && (maxGigsArch == null
-                || descriptor.getGigsPerCore() > maxGigsArch.getGigsPerCore())) {
+            if (descriptor.getRemoteCluster() != null
+                && descriptor.getRemoteCluster().equals(cluster) && (maxGigsArch == null
+                    || descriptor.getGigsPerCore() > maxGigsArch.getGigsPerCore())) {
                 maxGigsArch = descriptor;
             }
         }
@@ -247,7 +257,7 @@ public enum RemoteNodeDescriptor {
     public static RemoteNodeDescriptor fromName(String name) {
         RemoteNodeDescriptor descriptor = null;
         for (RemoteNodeDescriptor d : RemoteNodeDescriptor.values()) {
-            if (d.getNodeName().contentEquals(name)) {
+            if (d.getNodeName() != null && d.getNodeName().equals(name)) {
                 descriptor = d;
             }
         }
@@ -281,13 +291,19 @@ public enum RemoteNodeDescriptor {
         return descriptor.getMaxGigs() >= requiredRamGigs;
     }
 
-    public static String[] allNames() {
+    public static RemoteNodeDescriptor[] allDescriptors() {
         List<RemoteNodeDescriptor> descriptors = descriptorsSortedByCost(
             SupportedRemoteClusters.remoteCluster());
-        String[] allNames = new String[descriptors.size()];
-        for (int i = 0; i < allNames.length; i++) {
-            allNames[i] = descriptors.get(i).name();
+        RemoteNodeDescriptor[] allDescriptors = new RemoteNodeDescriptor[descriptors.size() + 1];
+        allDescriptors[0] = ANY;
+        for (int i = 1; i < allDescriptors.length; i++) {
+            allDescriptors[i] = descriptors.get(i - 1);
         }
-        return allNames;
+        return allDescriptors;
+    }
+
+    @Override
+    public String toString() {
+        return StringUtils.constantToCamelWithSpaces(super.toString());
     }
 }

@@ -6,11 +6,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.hibernate.Criteria;
-import org.hibernate.criterion.CriteriaSpecification;
-import org.hibernate.criterion.Restrictions;
-
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 
@@ -19,7 +16,7 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
  *
  * @author PT
  */
-public class FailedImportCrud extends AbstractCrud {
+public class FailedImportCrud extends AbstractCrud<FailedImport> {
 
     /**
      * Creates a collection of new {@link FailedImport} rows in the database.
@@ -28,7 +25,7 @@ public class FailedImportCrud extends AbstractCrud {
         DatastoreProducerConsumer.DataReceiptFileType type) {
 
         for (Path filename : filenames) {
-            create(new FailedImport(pipelineTask, filename, type));
+            persist(new FailedImport(pipelineTask, filename, type));
         }
     }
 
@@ -41,9 +38,8 @@ public class FailedImportCrud extends AbstractCrud {
         List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForModuleAndInstance(
             DataReceiptPipelineModule.DATA_RECEIPT_MODULE_NAME, pipelineInstanceId);
         Set<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toSet());
-        Criteria query = createCriteria(FailedImport.class);
-        query.add(Restrictions.in("dataReceiptTaskId", taskIds));
-        query.setResultTransformer(CriteriaSpecification.DISTINCT_ROOT_ENTITY);
+        ZiggyQuery<FailedImport, FailedImport> query = createZiggyQuery(FailedImport.class);
+        query.column(FailedImport_.dataReceiptTaskId).in(taskIds).distinct(true);
         return list(query);
     }
 
@@ -57,7 +53,11 @@ public class FailedImportCrud extends AbstractCrud {
      * @return All contents of the failed import table.
      */
     public List<FailedImport> retrieveAll() {
-        Criteria query = createCriteria(FailedImport.class);
-        return list(query);
+        return list(createZiggyQuery(FailedImport.class));
+    }
+
+    @Override
+    public Class<FailedImport> componentClass() {
+        return FailedImport.class;
     }
 }

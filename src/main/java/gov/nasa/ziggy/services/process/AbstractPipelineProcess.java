@@ -1,18 +1,15 @@
 package gov.nasa.ziggy.services.process;
 
-import java.net.UnknownHostException;
-
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.lang3.SystemUtils;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tanukisoftware.wrapper.WrapperManager;
 
 import gov.nasa.ziggy.metrics.Metric;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseService;
-import gov.nasa.ziggy.util.HostNameUtils;
-import gov.nasa.ziggy.util.ZiggyBuild;
+import gov.nasa.ziggy.util.os.ProcessUtils;
 
 /**
  * Superclass for all pipeline process bootstrap classes. Provides common functionality, including
@@ -27,13 +24,7 @@ import gov.nasa.ziggy.util.ZiggyBuild;
 public abstract class AbstractPipelineProcess {
     private static final Logger log = LoggerFactory.getLogger(AbstractPipelineProcess.class);
 
-    private static final String STATUS_BROADCASTER_ENABLED_PROP = "services.process.statusBroadcaster.enabled";
-    private static final boolean STATUS_BROADCASTER_ENABLED_DEFAULT = true;
-
-    public static final String PROCESS_STATUS_REPORT_INTERVAL_MILLIS_PROP = "services.statusReport.process.reportIntervalMillis";
-    public static final String METRICS_STATUS_REPORT_INTERVAL_MILLIS_PROP = "services.statusReport.metrics.reportIntervalMillis";
-
-    public static final int REPORT_INTERVAL_MILLIS_DEFAULT = 60000;
+    private static final boolean STATUS_BROADCAST_ENABLED_DEFAULT = true;
 
     private boolean initDatabaseService = true;
 
@@ -41,7 +32,7 @@ public abstract class AbstractPipelineProcess {
 
     private static ProcessInfo processInfo = null;
 
-    private StatusMessageBroadcaster processStatusBroadcaster;
+    public static StatusMessageBroadcaster processStatusBroadcaster;
 
     public AbstractPipelineProcess(String name) {
         this(name, true, true);
@@ -51,16 +42,7 @@ public abstract class AbstractPipelineProcess {
         boolean initDatabaseService) {
         this.initDatabaseService = initDatabaseService;
 
-        String host = "?";
-        try {
-            host = HostNameUtils.truncatedHostName();
-        } catch (UnknownHostException e) {
-            // This is a fatal error because we sometimes use this as a database key
-            log.error("Failed to get hostname.", e);
-            throw new IllegalStateException(e);
-        }
-
-        int pid = 0;
+        long pid = ProcessUtils.getPid();
         int jvmid = 0;
         if (WrapperManager.isControlledByNativeWrapper()) {
             pid = WrapperManager.getJavaPID();
@@ -69,44 +51,38 @@ public abstract class AbstractPipelineProcess {
             log.info("JVM is NOT controlled by Native Wrapper");
         }
 
-        processInfo = new ProcessInfo(name, host, pid, jvmid);
+        processInfo = new ProcessInfo(name, pid, jvmid);
     }
 
     protected void initialize() {
-        log.debug("initialize(String[]) - start");
+        log.debug("initialize() - start");
 
-        log.info("Starting initialization for Process: " + processInfo);
-        ZiggyBuild.logVersionInfo(log);
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
 
-        log.info("jvm version:");
-        log.info("  java.runtime.name=" + SystemUtils.JAVA_RUNTIME_NAME);
-        log.info("  sun.boot.library.path=" + System.getProperty("sun.boot.library.path"));
-        log.info("  java.vm.version=" + SystemUtils.JAVA_VM_VERSION);
-
-        log.info("Initializing ConfigurationService...");
-        Configuration configService = ZiggyConfiguration.getInstance();
+        log.info("Starting process {} ({})", processInfo,
+            config.getString(PropertyName.ZIGGY_VERSION.property()));
+        ZiggyConfiguration.logJvmProperties();
 
         if (initDatabaseService) {
             log.info("Initializing DatabaseService...");
             DatabaseService.getInstance();
         }
 
-        boolean statusBroadcasterEnabled = configService.getBoolean(STATUS_BROADCASTER_ENABLED_PROP,
-            STATUS_BROADCASTER_ENABLED_DEFAULT);
+        boolean statusBroadcasterEnabled = config.getBoolean(
+            PropertyName.STATUS_BROADCAST_ENABLED.property(), STATUS_BROADCAST_ENABLED_DEFAULT);
 
-        if (statusBroadcasterEnabled) {
+        if (statusBroadcasterEnabled && processStatusBroadcaster == null) {
             log.info("Initializing StatusMessageBroadcaster...");
             processStatusBroadcaster = new StatusMessageBroadcaster(processInfo);
-
         }
 
-        log.debug("initialize(String[]) - end");
+        log.debug("initialize() - end");
     }
 
-    protected void addProcessStatusReporter(StatusReporter reporter, int reportIntervalMillis) {
+    protected void addProcessStatusReporter(StatusReporter reporter) {
         if (processStatusBroadcaster != null) {
             log.info("Adding a process status broadcast to the system");
-            processStatusBroadcaster.addStatusReporter(reporter, reportIntervalMillis);
+            processStatusBroadcaster.addStatusReporter(reporter);
         }
     }
 
@@ -132,4 +108,13 @@ public abstract class AbstractPipelineProcess {
         this.initDatabaseService = initDatabaseService;
     }
 
+    /**
+     * Send updates to the supervisor, or (if this is the supervisor), broadcast them to all
+     * clients.
+     */
+    public static void sendUpdates() {
+        if (processStatusBroadcaster != null) {
+            processStatusBroadcaster.sendUpdates();
+        }
+    }
 }

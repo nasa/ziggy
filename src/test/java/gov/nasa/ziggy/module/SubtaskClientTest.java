@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.ArrayBlockingQueue;
@@ -70,7 +71,6 @@ public class SubtaskClientTest {
         assertTrue(TestEventDetector.detectTestEvent(1000L, () -> response.isDone()));
         Response responseContent = response.get();
         assertEquals(ResponseType.OK, responseContent.status);
-
     }
 
     @Test
@@ -95,7 +95,6 @@ public class SubtaskClientTest {
         assertTrue(TestEventDetector.detectTestEvent(1000L, () -> response.isDone()));
         Response responseContent = response.get();
         assertEquals(ResponseType.OK, responseContent.status);
-
     }
 
     @Test
@@ -168,29 +167,12 @@ public class SubtaskClientTest {
         threadPool.shutdownNow();
         assertTrue(TestEventDetector.detectTestEvent(1000L, () -> response.isDone()));
 
-        try {
-            response.get();
-            assertFalse("ExecutionException did not occur", true);
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            StackTraceElement[] stackTrace = t.getStackTrace();
-            assertEquals(InterruptedException.class, t.getClass());
-
-            // Make sure the interrupt was in the correct location.
-            boolean correctInterruptLocation = false;
-            for (StackTraceElement element : stackTrace) {
-                if (element.getClassName().equals("gov.nasa.ziggy.module.SubtaskClient")
-                    && element.getMethodName().equals("receive")) {
-                    correctInterruptLocation = true;
-                    break;
-                }
-            }
-            assertTrue(correctInterruptLocation);
-        }
+        assertNull(response.get());
     }
 
     @Test
-    public void testInterruptBeforeSendingRequest() throws InterruptedException {
+    public void testInterruptBeforeSendingRequest()
+        throws InterruptedException, ExecutionException {
 
         // Here we want to do something peculiar, to wit: we want the SubtaskClient
         // thread to wait for the interrupt to appear, and then try to submit a
@@ -210,7 +192,7 @@ public class SubtaskClientTest {
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             StackTraceElement[] stackTrace = t.getStackTrace();
-            assertEquals(InterruptedException.class, t.getClass());
+            assertEquals(AssertionError.class, t.getClass());
 
             // Make sure the interrupt was in the correct location.
             boolean correctInterruptLocation = false;

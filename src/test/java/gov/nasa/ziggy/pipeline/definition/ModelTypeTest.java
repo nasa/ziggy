@@ -72,5 +72,4 @@ public class ModelTypeTest {
         modelType.validate();
         assertTrue(modelType.versionNumber(s1).isEmpty());
     }
-
 }

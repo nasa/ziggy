@@ -5,20 +5,22 @@ import java.io.FileFilter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.slf4j.Logger;
@@ -28,6 +30,8 @@ import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.TimeFormatter;
 import gov.nasa.ziggy.util.io.FileUtil;
@@ -87,7 +91,9 @@ import gov.nasa.ziggy.util.io.LockManager;
  * @author Bill Wohler
  * @author Todd Klaus
  */
-public class StateFile implements Comparable<StateFile> {
+public class StateFile implements Comparable<StateFile>, Serializable {
+    private static final long serialVersionUID = 20230511L;
+
     private static final Logger log = LoggerFactory.getLogger(StateFile.class);
 
     public static final Pattern TASK_DIR_PATTERN = Pattern.compile("([0-9]+)-([0-9]+)-(\\S+)");
@@ -95,7 +101,9 @@ public class StateFile implements Comparable<StateFile> {
     public static final int TASK_DIR_TASK_ID_GROUP_NUMBER = 2;
     public static final int TASK_DIR_MODULE_NAME_GROUP_NUMBER = 3;
 
-    public static final String PREFIX = "ziggy.";
+    public static final String PREFIX_BARE = "ziggy";
+    public static final String PREFIX = PREFIX_BARE + ".";
+    public static final String PREFIX_WITH_BACKSLASHES = PREFIX_BARE + "\\.";
 
     public static final String DEFAULT_REMOTE_NODE_ARCHITECTURE = "none";
     public static final String DEFAULT_WALL_TIME = "24:00:00";
@@ -103,8 +111,6 @@ public class StateFile implements Comparable<StateFile> {
     public static final int INVALID_VALUE = -1;
 
     public static final String LOCK_FILE_NAME = ".state-file.lock";
-
-    private static final String FORMAT = PREFIX + "PIID.PTID.MODNAME.STATE_TOTAL-COMPLETE-FAILED";
 
     private static final String REMOTE_NODE_ARCHITECTURE_PROP_NAME = "remoteNodeArchitecture";
     private static final String MIN_CORES_PER_NODE_PROP_NAME = "minCoresPerNode";
@@ -140,11 +146,40 @@ public class StateFile implements Comparable<StateFile> {
         COMPLETE,
 
         /** The final state for this task has been acknowledged by the worker. */
-        CLOSED,
+        CLOSED;
 
-        /** The user has requested that the task be shut down. */
-        DELETED;
     }
+
+    private static String statesPatternElement;
+
+    // Concatenate all of the states into a single String for use in the state file
+    // name pattern.
+    static {
+        StringBuilder sb = new StringBuilder();
+        for (State state : State.values()) {
+            sb.append(state.toString());
+            sb.append("|");
+        }
+        sb.setLength(sb.length() - 1);
+        statesPatternElement = sb.toString();
+    }
+
+    // Pattern and regex for a state file name
+    private static final String STATE_FILE_NAME_REGEX = PREFIX_WITH_BACKSLASHES
+        + "([0-9]+)\\.([0-9]+)\\.(\\S+)\\." + "(" + statesPatternElement + ")"
+        + "_([0-9]+)-([0-9]+)-([0-9])";
+    public static final Pattern STATE_FILE_NAME_PATTERN = Pattern.compile(STATE_FILE_NAME_REGEX);
+    private static final int STATE_FILE_NAME_INSTANCE_ID_GROUP_NUMBER = 1;
+    private static final int STATE_FILE_NAME_TASK_ID_GROUP_NUMBER = 2;
+    private static final int STATE_FILE_NAME_MODULE_GROUP_NUMBER = 3;
+    private static final int STATE_FILE_NAME_STATE_GROUP_NUMBER = 4;
+    private static final int STATE_FILE_NAME_TOTAL_SUBTASKS_GROUP_NUMBER = 5;
+    private static final int STATE_FILE_NAME_COMPLETE_SUBTASKS_GROUP_NUMBER = 6;
+    private static final int STATE_FILE_NAME_FAILED_SUBTASKS_GROUP_NUMBER = 7;
+
+    // This is a slightly more informative explanation of the file name format,
+    // used in log files so the user knows exactly what was expected.
+    private static final String FORMAT = PREFIX + "PIID.PTID.MODNAME.STATE_TOTAL-COMPLETE-FAILED";
 
     // Fields in the file name.
     private long pipelineInstanceId = 0;
@@ -156,7 +191,7 @@ public class StateFile implements Comparable<StateFile> {
     private int numFailed = 0;
 
     /** Contains all properties from the file. */
-    private PropertiesConfiguration props = new PropertiesConfiguration();
+    private transient PropertiesConfiguration props = new PropertiesConfiguration();
 
     public StateFile() {
     }
@@ -201,52 +236,20 @@ public class StateFile implements Comparable<StateFile> {
      * Parses a string of the form: PREFIX + MODNAME.PIID.PTID.STATE_TOTAL-COMPLETE-FAILED)
      */
     private void parse(String name) {
-        if (!name.startsWith(PREFIX)) {
+        Matcher matcher = STATE_FILE_NAME_PATTERN.matcher(name);
+        if (!matcher.matches()) {
             throw new IllegalArgumentException(name + " does not match expected format: " + FORMAT);
         }
 
-        String nameSansPrefix = name.substring(PREFIX.length());
-        String[] elements = nameSansPrefix.split("\\.");
-
-        if (elements.length != 4) {
-            throw new IllegalArgumentException(name + " does not match expected format: " + FORMAT);
-        }
-
-        moduleName = elements[2];
-
-        try {
-            pipelineInstanceId = Long.parseLong(elements[0]);
-            pipelineTaskId = Long.parseLong(elements[1]);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                name + ": One of the IDs is not a number, expected format: " + FORMAT);
-        }
-
-        String stateElement = elements[3];
-
-        try {
-            state = State.valueOf(stateElement.substring(0, stateElement.indexOf("_")));
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
-                name + ": failed to parse state, expected format: " + FORMAT);
-        }
-
-        String counts = elements[3].substring(stateElement.indexOf("_") + 1);
-        String[] countElements = counts.split("-");
-
-        if (countElements.length != 3) {
-            throw new IllegalArgumentException(
-                name + " failed to parse counts, expected format: " + FORMAT);
-        }
-
-        try {
-            numTotal = Integer.parseInt(countElements[0]);
-            numComplete = Integer.parseInt(countElements[1]);
-            numFailed = Integer.parseInt(countElements[2]);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                name + ": non-number found in counts, expected format: " + FORMAT);
-        }
+        pipelineInstanceId = Long
+            .parseLong(matcher.group(STATE_FILE_NAME_INSTANCE_ID_GROUP_NUMBER));
+        pipelineTaskId = Long.parseLong(matcher.group(STATE_FILE_NAME_TASK_ID_GROUP_NUMBER));
+        moduleName = matcher.group(STATE_FILE_NAME_MODULE_GROUP_NUMBER);
+        state = State.valueOf(matcher.group(STATE_FILE_NAME_STATE_GROUP_NUMBER));
+        numTotal = Integer.parseInt(matcher.group(STATE_FILE_NAME_TOTAL_SUBTASKS_GROUP_NUMBER));
+        numComplete = Integer
+            .parseInt(matcher.group(STATE_FILE_NAME_COMPLETE_SUBTASKS_GROUP_NUMBER));
+        numFailed = Integer.parseInt(matcher.group(STATE_FILE_NAME_FAILED_SUBTASKS_GROUP_NUMBER));
     }
 
     /**
@@ -286,7 +289,6 @@ public class StateFile implements Comparable<StateFile> {
         }
         Collections.sort(propertyNames);
         return propertyNames;
-
     }
 
     /**
@@ -328,37 +330,37 @@ public class StateFile implements Comparable<StateFile> {
 
     /**
      * Persists this {@link StateFile} to the state file directory.
-     *
-     * @throws IOException
-     * @throws ConfigurationException
      */
-    public File persist() throws IOException, ConfigurationException {
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public File persist() {
         File directory = DirectoryProperties.stateFilesDir().toFile();
-        if (!directory.exists() || !directory.isDirectory()) {
-            throw new IllegalArgumentException(
-                "Specified directory does not exist or is not a directory: " + directory);
-        }
-
         File file = new File(directory, name());
         try (Writer fw = new OutputStreamWriter(new FileOutputStream(file),
             FileUtil.ZIGGY_CHARSET)) {
-            props.save(fw);
+            props.write(fw);
 
             // Also, move any old state files that are for the same instance and
             // task as this one.
             moveOldStateFiles(directory);
+        } catch (ConfigurationException e) {
+            // This can never occur. The construction of the props field is guaranteed
+            // to be correct.
+            throw new AssertionError(e);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to write to file " + file.toString(), e);
         }
         return file;
     }
 
-    private void moveOldStateFiles(File stateFileDir) throws IOException {
+    private void moveOldStateFiles(File stateFileDir) {
 
         String stateFileName = name();
         FileFilter fileFilter = new WildcardFileFilter(invariantPart() + "*");
         File[] matches = stateFileDir.listFiles(fileFilter);
 
         if (matches == null || matches.length == 0) {
-            throw new IOException(
+            throw new PipelineException(
                 "State file \"" + stateFileName + "\" does not exist or there was an I/O error.");
         }
 
@@ -378,151 +380,88 @@ public class StateFile implements Comparable<StateFile> {
                 match.renameTo(newFile);
                 log.warn("File " + match.getName() + " in directory " + stateFileDir
                     + " renamed to " + newFile.getName());
-
             }
         }
     }
 
-    public static boolean updateStateFile(StateFile oldStateFile, StateFile newStateFile,
-        File stateFileDir) {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static boolean updateStateFile(StateFile oldStateFile, StateFile newStateFile) {
 
+        File stateFileDir = DirectoryProperties.stateFilesDir().toFile();
         if (oldStateFile.equals(newStateFile)) {
             log.debug("Old state file " + oldStateFile.name() + " is the same as new state file "
                 + newStateFile.name() + ", not changing");
         }
         // Update the state file.
+        log.info("Updating state: " + oldStateFile + " -> " + newStateFile);
+        File oldFile = new File(stateFileDir, oldStateFile.name());
+        File newFile = new File(stateFileDir, newStateFile.name());
+
+        log.debug("  renaming file: " + oldFile + " -> " + newFile);
+
         try {
-            log.info("Updating state: " + oldStateFile + " -> " + newStateFile);
-            File oldFile = new File(stateFileDir, oldStateFile.name());
-            File newFile = new File(stateFileDir, newStateFile.name());
-
-            log.debug("  renaming file: " + oldFile + " -> " + newFile);
-
             FileUtils.moveFile(oldFile, newFile);
-        } catch (Exception e) {
-            log.warn("Failed to update state file, e=" + e, e);
-            return false;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to move file " + oldFile.toString(), e);
         }
 
         return true;
     }
 
     /**
-     * Returns a list of {@link StateFile}s in the specified directory where the state matches the
-     * specified stateFilter.
+     * Returns a {@link List} of {@link StateFile} instances from the state files directory that are
+     * in the {@link State#PROCESSING} state.
      */
-    public static List<StateFile> fromDirectory(File directory, final List<State> stateFilters)
-        throws Exception {
-        return fromDirectory(directory, stateFilters, 0);
-    }
+    public static List<StateFile> processingStateFilesFromDisk() {
+        File directory = DirectoryProperties.stateFilesDir().toFile();
 
-    /**
-     * Returns a list of {@link StateFile}s in the specified directory where the state matches the
-     * specified stateFilter and the state file is at least as old as the specified minimum age.
-     */
-    private static List<StateFile> fromDirectory(File directory, final List<State> stateFilters,
-        final long minimumAgeMillis) throws Exception {
-
-        if (!directory.exists() || !directory.isDirectory()) {
-            throw new IllegalArgumentException(
-                directory + ": does not exist or is not a directory");
-        }
-
-        String[] files = directory.list((dir, name) -> {
-            boolean accept = false;
-
-            if (stateFilters != null) {
-                if (name.startsWith(PREFIX)) {
-                    for (State stateFilter : stateFilters) {
-                        if (name.contains(stateFilter.toString())) {
-                            accept = true;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                accept = name.startsWith(PREFIX);
-            }
-
-            if (accept && minimumAgeMillis > 0) {
-                File f = new File(dir, name);
-                long age = System.currentTimeMillis() - f.lastModified();
-                if (age < minimumAgeMillis) {
-                    // too young
-                    accept = false;
-                }
-            }
-            return accept;
+        String[] filenames = directory.list((dir, name) -> {
+            Matcher matcher = STATE_FILE_NAME_PATTERN.matcher(name);
+            return matcher.matches() && matcher.group(STATE_FILE_NAME_STATE_GROUP_NUMBER)
+                .equals(State.PROCESSING.toString());
         });
-
-        List<StateFile> stateFiles = new LinkedList<>();
-        for (String filename : files) {
-            StateFile stateFile = null;
-            try {
-                stateFile = StateFile.newStateFileFromDiskFile(new File(directory, filename),
-                    false);
-                stateFiles.add(stateFile);
-            } catch (Exception e) {
-                log.warn("failed to parse statefile: " + filename + ", e=" + e, e);
-            }
+        List<StateFile> stateFiles = new ArrayList<>();
+        for (String filename : filenames) {
+            stateFiles.add(new StateFile(filename));
         }
-
-        Collections.sort(stateFiles);
-
         return stateFiles;
     }
 
     /**
      * Constructs a new {@link StateFile} from an existing file.
      *
-     * @param stateFilePath File of the desired existing state file
-     * @param useAnyWithCorrectInvariant when false forces the new state file to have the exact name
-     * specified by stateFilePath; when true, any state file with the invariant part of the
-     * stateFilePath name will be used
-     * @return a StateFile object derived from the specified file on disk
-     * @throws PipelineException
+     * @return a {@link StateFile} object derived from the specified file on disk
      */
-    public static StateFile newStateFileFromDiskFile(File stateFilePath,
-        boolean useAnyWithCorrectInvariant) throws PipelineException {
-        return newStateFileFromDiskFile(stateFilePath, useAnyWithCorrectInvariant, false);
+    public StateFile newStateFileFromDiskFile() {
+        return newStateFileFromDiskFile(false);
     }
 
     /**
      * Constructs a new {@link StateFile} from an existing file.
      *
-     * @param stateFilePath File of the desired existing state file
-     * @param useAnyWithCorrectInvariant when false forces the new state file to have the exact name
-     * specified by stateFilePath; when true, any state file with the invariant part of the
-     * stateFilePath name will be used
      * @param silent when true suppresses the logging message from matching the disk file.
      * @return a StateFile object derived from the specified file on disk
-     * @throws PipelineException if unable to construct a {@link PropertiesConfiguration} instance
-     * or if the state file contains no properties.
      */
-    public static StateFile newStateFileFromDiskFile(File stateFilePath,
-        boolean useAnyWithCorrectInvariant, boolean silent) throws PipelineException {
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public StateFile newStateFileFromDiskFile(boolean silent) {
 
-        File stateFilePathToUse = null;
-        if (useAnyWithCorrectInvariant) {
-            stateFilePathToUse = StateFile.getDiskFileFromInvariantNamePart(stateFilePath);
-        } else {
-            stateFilePathToUse = stateFilePath;
-        }
+        File stateFilePathToUse = StateFile.getDiskFileFromInvariantNamePart(this);
 
         if (!silent) {
             log.info("Matched statefile: " + stateFilePathToUse);
         }
         StateFile stateFile = new StateFile(stateFilePathToUse.getName());
-        PropertiesConfiguration props;
         try {
-            props = new PropertiesConfiguration(stateFilePathToUse);
+            PropertiesConfiguration props = new Configurations().properties(stateFilePathToUse);
+            if (props.isEmpty()) {
+                throw new PipelineException("State file contains no properties!");
+            }
+            stateFile.props = props;
         } catch (ConfigurationException e) {
-            throw new PipelineException("Unable to construct PropertiesConfiguration object", e);
+            // This can never occur. By construction, the props field is guaranteee
+            // to be constructed correctly.
+            throw new AssertionError(e);
         }
-        if (props.isEmpty()) {
-            throw new PipelineException("State file contains no properties!");
-        }
-        stateFile.props = props;
 
         return stateFile;
     }
@@ -531,7 +470,7 @@ public class StateFile implements Comparable<StateFile> {
      * Searches a directory for a state file where the name's invariant part matches that provided
      * by the caller.
      *
-     * @param stateFilePath File with a valid StateFile name
+     * @param oldStateFile existing {@link StateFile} instance
      * @return the file in the directory of the stateFilePath that has a name for which the
      * invariant part matches the invariant part of the stateFilePath name (i.e.,
      * ziggy.pa.6.23.QUEUED.10.0.0 will match ziggy.pa.6.23.* on disk)
@@ -539,12 +478,11 @@ public class StateFile implements Comparable<StateFile> {
      * @exception IllegalStateException if there isn't only one StateFile that matches the invariant
      * part of stateFilePath
      */
-    private static File getDiskFileFromInvariantNamePart(File stateFilePath) {
+    private static File getDiskFileFromInvariantNamePart(StateFile oldStateFile) {
 
         // Sadly, this is probably the easiest way to do this.
-        StateFile tempStateFile = new StateFile(stateFilePath.getName());
-        String invariantPart = tempStateFile.invariantPart();
-        File directory = stateFilePath.getParentFile();
+        String invariantPart = oldStateFile.invariantPart();
+        File directory = DirectoryProperties.stateFilesDir().toFile();
         if (!directory.exists() || !directory.isDirectory()) {
             throw new IllegalArgumentException(
                 "Specified directory does not exist or is not a directory: " + directory);
@@ -595,17 +533,13 @@ public class StateFile implements Comparable<StateFile> {
             getModuleName());
     }
 
-    public void setStateAndPersist(State state, String stateFileDir) throws IOException {
-        setStateAndPersist(state, new File(stateFileDir));
-    }
-
-    public void setStateAndPersist(State state, File stateFileDirFile) throws IOException {
+    public void setStateAndPersist(State state) {
         LockManager.getWriteLockOrBlock(lockFile());
         try {
-            StateFile oldState = newStateFileFromDiskFile(new File(stateFileDirFile, name()), true);
+            StateFile oldState = newStateFileFromDiskFile(true);
             StateFile newState = new StateFile(oldState);
             newState.setState(state);
-            StateFile.updateStateFile(oldState, newState, stateFileDirFile);
+            StateFile.updateStateFile(oldState, newState);
         } finally {
             LockManager.releaseWriteLock(lockFile());
         }
@@ -619,15 +553,11 @@ public class StateFile implements Comparable<StateFile> {
     }
 
     public boolean isDone() {
-        return state == State.COMPLETE || state == State.CLOSED || state == State.DELETED;
+        return state == State.COMPLETE || state == State.CLOSED;
     }
 
     public boolean isRunning() {
         return state == State.PROCESSING;
-    }
-
-    public boolean isDeleted() {
-        return state == State.DELETED;
     }
 
     public boolean isQueued() {

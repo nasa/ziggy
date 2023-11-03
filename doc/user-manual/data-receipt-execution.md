@@ -12,10 +12,10 @@ At the highest level, the purpose of data receipt is to take files delivered fro
   - All of the files that you expected to receive actually showed up.
   - No files showed up that are not expected.
   - The files that showed up were not somehow corrupted in transit.
-- Whoever it was that delivered the files may require a notification that there were no problems with the delivery, so data receipt needs to produce something that can function as the notification. 
-- The data receipt process needs to clean up after itself. In a nutshell, this means that there is no chance that a future data receipt operation fails because of some debris left from a prior data receipt operation, and that there is no chance that a future data receipt operation will inadvertently re-import files that were already imported. 
+- Whoever it was that delivered the files may require a notification that there were no problems with the delivery, so data receipt needs to produce something that can function as the notification.
+- The data receipt process needs to clean up after itself. In a nutshell, this means that there is no chance that a future data receipt operation fails because of some debris left from a prior data receipt operation, and that there is no chance that a future data receipt operation will inadvertently re-import files that were already imported.
 
-The integrity of the delivery is supported by an XML file, the *manifest*, that lists all of the delivered files and contains size and checksum information for each one. After a successful import, Ziggy produces an XML file, the *acknowledgement*, that can be used as a notification to the source of the files that the files were delivered and imported without incident. The cleanup is managed algorithmically by Ziggy. 
+The integrity of the delivery is supported by an XML file, the *manifest*, that lists all of the delivered files and contains size and checksum information for each one. After a successful import, Ziggy produces an XML file, the *acknowledgement*, that can be used as a notification to the source of the files that the files were delivered and imported without incident. The cleanup is managed algorithmically by Ziggy.
 
 With that, let's dive in!
 
@@ -68,7 +68,7 @@ Each file has a `checksum` that's computed using the specified `checksumType`.
 
 ### The Data Receipt Directory
 
-Data receipt needs to have a directory that's used as the source for files that get pulled into the datastore. There's a [property in the properties file](properties.md) that specifies this, namely `data.receipt.dir`. Ziggy allows this directory to be used in either of two ways.
+Data receipt needs to have a directory that's used as the source for files that get pulled into the datastore. There's a [property in the properties file](properties.md) that specifies this, namely `ziggy.pipeline.data.receipt.dir`. Ziggy allows this directory to be used in either of two ways.
 
 #### Files in the Data Receipt Directory
 
@@ -166,7 +166,7 @@ Note that the manifest ignores the fact that import of data is going to treat th
 
 ### Generating Manifests
 
-Ziggy also comes with a utility to generate manifests from the contents of a directory. Use `runjava generate-manifest`. This utility takes 3 command-line arguments:
+Ziggy also comes with a utility to generate manifests from the contents of a directory. Use `ziggy generate-manifest`. This utility takes 3 command-line arguments:
 
 1. Manifest name, required.
 2. Dataset ID, required.

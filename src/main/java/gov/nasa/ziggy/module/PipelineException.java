@@ -9,7 +9,7 @@ package gov.nasa.ziggy.module;
  * @author Todd Klaus
  */
 public class PipelineException extends RuntimeException {
-    private static final long serialVersionUID = -5067765463060718311L;
+    private static final long serialVersionUID = 20230511L;
 
     /**
      * Determines whether a given exception has an exception of a particular class in its "Caused

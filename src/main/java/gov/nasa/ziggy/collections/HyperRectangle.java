@@ -71,7 +71,6 @@ public class HyperRectangle {
             }
         }
         return parametersOkay;
-
     }
 
     /**

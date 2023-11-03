@@ -3,22 +3,22 @@ package gov.nasa.ziggy.pipeline.definition;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
+import java.util.Objects;
 
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 /**
  * Created by the {@link PipelineExecutor} when creating {@link PipelineTask} objects for a
@@ -31,49 +31,17 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
  * @author Todd Klaus
  */
 @Entity
-@Table(name = "PI_PIPELINE_INST_NODE")
+@Table(name = "ziggy_PipelineInstanceNode")
 public class PipelineInstanceNode {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PIPE_IN_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,
+        generator = "ziggy_PipelineInstanceNode_generator")
+    @SequenceGenerator(name = "ziggy_PipelineInstanceNode_generator", initialValue = 1,
+        sequenceName = "ziggy_PipelineInstanceNode_sequence", allocationSize = 1)
+    private Long id;
 
     /** Timestamp this was created (either by launcher or transition logic) */
     private Date created = new Date(System.currentTimeMillis());
-
-    /**
-     * Total number of {@link PipelineTask}s needed for the associated
-     * {@link PipelineDefinitionNode}
-     */
-    private int numTasks = 0;
-
-    /**
-     * Number of {@link PipelineTask}s actually created for the associated
-     * {@link PipelineDefinitionNode}. For nodes where {@link PipelineDefinitionNode.startNewUow} ==
-     * true, this number will be equal to numTasks above since all of the tasks are created when the
-     * node is launched. For nodes where startNewUow == false, this field will start out at zero and
-     * will be incremented by 1 by the transition logic as each task for the previous node
-     * completes.
-     */
-    private int numSubmittedTasks = 0;
-
-    /**
-     * Number of {@link PipelineTask}s completed for the associated {@link PipelineDefinitionNode}.
-     * If numCompletedTasks == numTasks, then this node is complete and the transition logic will
-     * progress to the next node. The transition logic uses 'select for update' locking when
-     * accessing this object to ensure that this field is updated atomically
-     */
-    private int numCompletedTasks = 0;
-
-    /**
-     * Number of {@link PipelineTask}s that have failed for the associated
-     * {@link PipelineDefinitionNode}. If numFailedTasks > 0 and (numCompletedTasks +
-     * numFailedTasks) == numTasks, then all tasks have been attempted at least once and the
-     * {@link PipelineInstance} state will be set to failed. The transition logic uses 'select for
-     * update' locking when accessing this object to ensure that this field is updated atomically
-     */
-    private int numFailedTasks = 0;
 
     @ManyToOne
     private PipelineInstance pipelineInstance = null;
@@ -90,8 +58,8 @@ public class PipelineInstanceNode {
      * latest available version)
      */
     @ManyToMany
-    @JoinTable(name = "PI_PIN_PI_MPS")
-    private Map<ClassWrapper<Parameters>, ParameterSet> moduleParameterSets = new HashMap<>();
+    @JoinTable(name = "ziggy_PipelineInstanceNode_moduleParameterSets")
+    private Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParameterSets = new HashMap<>();
 
     /**
      * Required by Hibernate
@@ -105,77 +73,6 @@ public class PipelineInstanceNode {
         this.pipelineInstance = pipelineInstance;
         this.pipelineDefinitionNode = pipelineDefinitionNode;
         this.pipelineModuleDefinition = pipelineModuleDefinition;
-    }
-
-    /**
-     * Specify the counts at creation-time. Only used by tests
-     *
-     * @param pipelineInstance
-     * @param pipelineDefinitionNode
-     * @param pipelineModuleDefinition
-     * @param numTasks
-     * @param numSubmittedTasks
-     * @param numCompletedTasks
-     * @param numFailedTasks
-     */
-    public PipelineInstanceNode(PipelineInstance pipelineInstance,
-        PipelineDefinitionNode pipelineDefinitionNode,
-        PipelineModuleDefinition pipelineModuleDefinition, int numTasks, int numSubmittedTasks,
-        int numCompletedTasks, int numFailedTasks) {
-        this.pipelineInstance = pipelineInstance;
-        this.pipelineDefinitionNode = pipelineDefinitionNode;
-        this.pipelineModuleDefinition = pipelineModuleDefinition;
-        this.numTasks = numTasks;
-        this.numSubmittedTasks = numSubmittedTasks;
-        this.numCompletedTasks = numCompletedTasks;
-        this.numFailedTasks = numFailedTasks;
-    }
-
-    /**
-     * Return the aggregate state for the node. Used for reporting.
-     *
-     * @return
-     */
-    public PipelineInstance.State state() {
-        PipelineInstance.State nodeState = State.INITIALIZED;
-
-        if (numTasks > 0) {
-            if (numCompletedTasks == numTasks) {
-                nodeState = PipelineInstance.State.COMPLETED;
-            } else if (numFailedTasks > 0) {
-                if (numFailedTasks + numCompletedTasks == numSubmittedTasks) {
-                    nodeState = PipelineInstance.State.ERRORS_STALLED;
-                } else {
-                    nodeState = PipelineInstance.State.ERRORS_RUNNING;
-                }
-            } else {
-                nodeState = PipelineInstance.State.PROCESSING;
-            }
-        }
-        return nodeState;
-    }
-
-    public void setNumTasks(int taskCount) {
-        numTasks = taskCount;
-    }
-
-    /**
-     * Should only be called for new (non-persisted) instances of PipelineInstanceNode. For
-     * persisted instances, use PipelineInstanceNodeCrud.incrementSubmittedTaskCount() to ensure
-     * that the instance is updated atomically (it does select for update)
-     *
-     * @param numSubmittedTasks
-     */
-    public void setNumSubmittedTasks(int numSubmittedTasks) {
-        this.numSubmittedTasks = numSubmittedTasks;
-    }
-
-    public int getNumTasks() {
-        return numTasks;
-    }
-
-    public int getNumCompletedTasks() {
-        return numCompletedTasks;
     }
 
     public PipelineDefinitionNode getPipelineDefinitionNode() {
@@ -202,7 +99,7 @@ public class PipelineInstanceNode {
         pipelineInstance = instance;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
@@ -219,10 +116,6 @@ public class PipelineInstanceNode {
         this.pipelineModuleDefinition = pipelineModuleDefinition;
     }
 
-    public int getNumFailedTasks() {
-        return numFailedTasks;
-    }
-
     /**
      * Retrieve module {@link Parameters} for this {@link PipelineInstanceNode}. This method is not
      * intended to be called directly, use the convenience method
@@ -236,12 +129,12 @@ public class PipelineInstanceNode {
         return moduleParameterSets.get(classWrapper);
     }
 
-    public Map<ClassWrapper<Parameters>, ParameterSet> getModuleParameterSets() {
+    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getModuleParameterSets() {
         return moduleParameterSets;
     }
 
     public void setModuleParameterSets(
-        Map<ClassWrapper<Parameters>, ParameterSet> moduleParameterSets) {
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParameterSets) {
         this.moduleParameterSets = moduleParameterSets;
         populateXmlFields();
     }
@@ -253,14 +146,27 @@ public class PipelineInstanceNode {
         pipelineInstance.populateXmlFields();
     }
 
-    public ParameterSet putModuleParameterSet(Class<? extends Parameters> clazz,
+    public ParameterSet putModuleParameterSet(Class<ParametersInterface> clazz,
         ParameterSet paramSet) {
         paramSet.populateXmlFields();
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(clazz);
+        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(clazz);
         return moduleParameterSets.put(classWrapper, paramSet);
     }
 
-    public int getNumSubmittedTasks() {
-        return numSubmittedTasks;
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        PipelineInstanceNode other = (PipelineInstanceNode) obj;
+        return Objects.equals(id, other.id);
     }
 }

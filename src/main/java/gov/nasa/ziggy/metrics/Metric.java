@@ -11,6 +11,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -24,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.SpotBugsUtils;
 import gov.nasa.ziggy.util.io.FileUtil;
 
@@ -35,7 +38,7 @@ import gov.nasa.ziggy.util.io.FileUtil;
 public abstract class Metric implements Serializable {
     private static final Logger log = LoggerFactory.getLogger(Metric.class);
 
-    private static final long serialVersionUID = -2723751150597278137L;
+    private static final long serialVersionUID = 20230511L;
 
     private static Logger metricsLogger = LoggerFactory.getLogger("metrics.logger");
 
@@ -46,8 +49,6 @@ public abstract class Metric implements Serializable {
 
     /**
      * get the name of this metric
-     *
-     * @return
      */
     public String getName() {
         return name;
@@ -69,8 +70,6 @@ public abstract class Metric implements Serializable {
     /**
      * Returns the map of thread metrics for the calling thread. May be null if thread metrics have
      * not been enabled for the calling thread.
-     *
-     * @return Map of metrics for the calling thread
      */
     public static Map<String, Metric> getThreadMetrics() {
         return threadMetrics.get();
@@ -87,8 +86,6 @@ public abstract class Metric implements Serializable {
 
     /**
      * Iterate over the metric names that start with the specified String
-     *
-     * @return
      */
     public static Iterator<String> metricsIterator(String startsWith) {
         return new StartsWithIterator(globalMetrics.keySet().iterator(), startsWith);
@@ -165,11 +162,9 @@ public abstract class Metric implements Serializable {
      * Persist the current set of global metrics to a file using Java serialization.
      * <p>
      * Used to transfer metrics collected in a sub-process to the parent process.
-     *
-     * @param path
-     * @throws IOException
      */
-    public static void persist(String path) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static void persist(String path) {
         File file = new File(path);
 
         if (file.isDirectory()) {
@@ -179,6 +174,8 @@ public abstract class Metric implements Serializable {
         try (ObjectOutputStream output = new ObjectOutputStream(
             new BufferedOutputStream(new FileOutputStream(file)))) {
             output.writeObject(globalMetrics);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to write to file " + file.toString(), e);
         }
     }
 
@@ -187,11 +184,8 @@ public abstract class Metric implements Serializable {
      * merged with the current set of metrics.
      * <p>
      * Used to transfer metrics collected in a sub-process to the parent process.
-     *
-     * @param path
-     * @throws Exception
      */
-    public static void merge(String path) throws Exception {
+    public static void merge(String path) {
         File file = new File(path);
 
         if (file.isDirectory()) {
@@ -238,10 +232,19 @@ public abstract class Metric implements Serializable {
     @SuppressWarnings("unchecked")
     @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
-    public static Map<String, Metric> loadMetricsFromSerializedFile(File file) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public static Map<String, Metric> loadMetricsFromSerializedFile(File file) {
         try (ObjectInputStream input = new ObjectInputStream(
             new BufferedInputStream(new FileInputStream(file)))) {
             return (Map<String, Metric>) input.readObject();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to read from file " + file.toString(), e);
+        } catch (ClassNotFoundException e) {
+            // This can never occur. This class performs both the serialization and
+            // deserialization of the given object, so it is guaranteed that the
+            // correct class can be found and will be used to deserialize.
+            throw new AssertionError(e);
         }
     }
 

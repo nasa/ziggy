@@ -3,42 +3,39 @@ package gov.nasa.ziggy.buildutil;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.lang3.StringUtils;
+import org.gradle.api.GradleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.gradle.api.GradleException;
-import org.gradle.internal.os.OperatingSystem;
 
 /**
- * Manages the construction of mexfiles from C/C++ source code. The source code is compiled
- * using the C++ compiler in the CXX environment variable, with appropriate compiler options
- * for use in creating object files that can be used in mexfiles. These object files are then
- * combined into a shared library. Finally, the C++ compiler is used to produce mexfiles for
- * each source file that contains the mexFunction entry point by linking the object files with
- * the shared library and attaching an appropriate file type. 
- * 
- * Because Gradle task classes cannot easily be unit tested, the key functionality needed for
- * mexfile construction is in this class; a separate class, ZiggyCppMex, extends the Gradle
- * DefaultTask and provides the interface from Gradle to ZiggyCppMexPojo.
- * 
- * @author PT
+ * Manages the construction of mexfiles from C/C++ source code. The source code is compiled using
+ * the C++ compiler in the CXX environment variable, with appropriate compiler options for use in
+ * creating object files that can be used in mexfiles. These object files are then combined into a
+ * shared library. Finally, the C++ compiler is used to produce mexfiles for each source file that
+ * contains the mexFunction entry point by linking the object files with the shared library and
+ * attaching an appropriate file type. Because Gradle task classes cannot easily be unit tested, the
+ * key functionality needed for mexfile construction is in this class; a separate class,
+ * ZiggyCppMex, extends the Gradle DefaultTask and provides the interface from Gradle to
+ * ZiggyCppMexPojo.
  *
+ * @author PT
  */
 public class ZiggyCppMexPojo extends ZiggyCppPojo {
 
     private static final Logger log = LoggerFactory.getLogger(ZiggyCppMexPojo.class);
 
-    public static final String DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY = "defaultCppMexCompileOptions";
-    public static final String DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY = "defaultCppMexLinkOptions";
-    public static final String DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY = "defaultCppMexReleaseOptimizations";
-    public static final String DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY = "defaultCppMexDebugOptimizations";
-    public static final String MATLAB_PATH_PROJECT_PROPERTY = "matlabPath";
-    public static final String MATLAB_PATH_ENV_VAR = "MATLAB_HOME";
+    private static final List<String> DEFAULT_COMPILE_OPTIONS = List.of("-Wall", "-fPIC",
+        "-std=c++11", "-D_GNU_SOURCE", "-fexceptions", "-fno-omit-frame-pointer", "-pthread",
+        "-fno-reorder-blocks", "-fstack-protector-all", "-fpermissive");
+    private static final List<String> DEFAULT_LINK_OPTIONS = List.of("-lstdc++");
+    private static final List<String> DEFAULT_RELEASE_OPTS = List.of("-O2", "-DNDEBUG", "-g");
+    private static final List<String> DEFAULT_DEBUG_OPTS = List.of("-Og", "-g");
 
     /** Path to the MATLAB directories to be used in the build */
     private String matlabPath;
@@ -54,49 +51,47 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
 
     public ZiggyCppMexPojo() {
         super.setOutputType(BuildType.SHARED);
+        setCppCompileOptions(DEFAULT_COMPILE_OPTIONS);
+        setLinkOptions(DEFAULT_LINK_OPTIONS);
+        setReleaseOptimizations(DEFAULT_RELEASE_OPTS);
+        setDebugOptimizations(DEFAULT_DEBUG_OPTS);
     }
 
     /**
      * Returns the correct file type for a mexfile given the OS.
      *
-     * @return string "mexmaci64" for a Mac, "mexa64" for Linux, GradleException for all other
-     * operating systems.
+     * @return string "mexa64" for Linux, "mexmaca64" for Mac M1, "mexmaci64" for Mac Intel.
      */
     String mexSuffix() {
-        OperatingSystem os = getOperatingSystem();
-        String mexSuffix = null;
-        if (os.isMacOsX()) {
-            mexSuffix = "mexmaci64";
-        } else if (os.isLinux()) {
-            mexSuffix = "mexa64";
-        } else {
-            throw new GradleException("Operating system " + os.toString() + " not supported");
-        }
-        return mexSuffix;
+        return switch (getArchitecture()) {
+            case LINUX_INTEL -> "mexa64";
+            case MAC_M1 -> "mexmaca64";
+            case MAC_INTEL -> "mexmaci64";
+        };
     }
 
     /**
      * Returns the correct MATLAB architecture name given the OS.
      *
-     * @return string "maci64" for a Mac, "glnxa64" for Linux, Gradle exception for all other
+     * @return string "glnxa64" for Linux, "maci64" for Mac Intel, "maca64" for Mac M1.
      */
     String matlabArch() {
-        OperatingSystem os = getOperatingSystem();
-        String matlabArch = null;
-        if (os.isMacOsX()) {
-            matlabArch = "maci64";
-        } else if (os.isLinux()) {
-            matlabArch = "glnxa64";
-        } else {
-            throw new GradleException("Operating system " + os.toString() + " not supported");
-        }
-        return matlabArch;
+        return switch (getArchitecture()) {
+            case LINUX_INTEL -> "glnxa64";
+            case MAC_M1 -> "maca64";
+            case MAC_INTEL -> "maci64";
+        };
+    }
+
+    private File mexDir() {
+        return StringUtils.isEmpty(outputDir) ? new File(outputParent(), "mex")
+            : new File(outputDir);
     }
 
     /**
      * Generates the mexfiles that are the output of this class, and stores them in the mexfiles
      * list. The files that are generated are named $mexfileName.$mexfileSuffix, and are stored in
-     * $buildDir/lib .
+     * $buildDir/mex .
      */
     void populateMexfiles() {
         if (getBuildDir() == null || mexfileNames == null) {
@@ -105,7 +100,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
         mexfiles = new ArrayList<>();
         for (String mexfileName : mexfileNames) {
             String fullMexfileName = mexfileName + "." + mexSuffix();
-            File mexfile = new File(libDir(), fullMexfileName);
+            File mexfile = new File(mexDir(), fullMexfileName);
             mexfiles.add(mexfile);
         }
     }
@@ -161,16 +156,18 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
      * MATLAB include directory as an include path, and includes the mexfile compiler directive.
      */
     @Override
-    public String generateCompileCommand(File sourceFile) {
+    public String generateCompileCommand(Map.Entry<File, String> sourceFile) {
+        return generateCompileCommand(sourceFile.getKey(), sourceFile.getValue());
+    }
 
-        // generate the include path
+    @Override
+    public String generateCompileCommand(File sourceFile, String compiler) {
         String matlabIncludePath = matlabPath + "/extern/include";
-        return generateCompileCommand(sourceFile, matlabIncludePath, "DMATLAB_MEX_FILE");
+        return generateCompileCommand(sourceFile, compiler, matlabIncludePath, "DMATLAB_MEX_FILE");
     }
 
     public String matlabLibPath() {
-        String matlabLibPath = matlabPath + "/bin/" + matlabArch();
-        return matlabLibPath;
+        return matlabPath + "/bin/" + matlabArch();
     }
 
     @Override
@@ -239,7 +236,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
         }
 
         StringBuilder mexCommandBuilder = new StringBuilder();
-        mexCommandBuilder.append(getCppCompiler() + " ");
+        mexCommandBuilder.append(ZiggyCppPojo.Compiler.CPP.compiler() + " ");
         mexCommandBuilder.append("-o " + mexfile.getAbsolutePath() + " ");
         mexCommandBuilder.append(obj.getAbsolutePath() + " ");
         mexCommandBuilder.append(argListToString(getLibraryPaths(), "-L"));
@@ -309,8 +306,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
 
     // Setters and getters
     public void setMexfileNames(List<? extends Object> mexfileNames) {
-        this.mexfileNames = new ArrayList<>();
-        this.mexfileNames.addAll(ZiggyCppPojo.objectListToStringList(mexfileNames));
+        this.mexfileNames = ZiggyCppPojo.objectListToStringList(mexfileNames);
     }
 
     public List<String> getMexfileNames() {

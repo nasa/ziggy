@@ -1,17 +1,72 @@
-task copyHdf5Lib(type: Copy) {
-    from(file("$ziggyDependencies/lib")) {
-        include "*hdf5*"
+// Download and build HDF5.
+
+ext.hdf5Version = "1.12.2"
+
+task buildHdf5() {
+    def tmp = file("$outsideDir/tmp/hdf5")
+    def hdf5 = file("$tmp/hdf5-$hdf5Version")
+    def lib = file("$outsideDir/lib")
+
+    outputs.file "$rootDir/outside/lib/jarhdf5-${hdf5Version}.jar"
+
+    doLast() {
+        tmp.mkdirs()
+
+        // Use the SHA256 links at https://www.hdfgroup.org/downloads/hdf5/source-code/ to determine the URL.
+        exec {
+            workingDir tmp
+            commandLine "curl", "--remote-name", "https://hdf-wordpress-1.s3.amazonaws.com/wp-content/uploads/manual/HDF5/HDF5_1_12_2/source/hdf5-1.12.2.tar.bz2"
+        }
+        exec {
+            workingDir tmp
+            commandLine "curl", "--remote-name", "https://hdf-wordpress-1.s3.amazonaws.com/wp-content/uploads/manual/HDF5/HDF5_1_12_2/source/hdf5-1.12.2.sha256"
+        }
+        exec {
+            workingDir tmp
+            commandLine "tar", "-xf", "hdf5-${hdf5Version}.tar.bz2"
+        }
+        exec {
+            workingDir hdf5
+            commandLine "sh", "-c", "./configure --with-zlib=/usr --prefix=$outsideDir --enable-threadsafe --with-pthread=/usr --enable-unsupported --enable-java"
+        }
+        exec {
+            workingDir hdf5
+            commandLine "make"
+        }
+        exec {
+            workingDir hdf5
+            commandLine "make", "install"
+        }
+        copy {
+            from("$tmp/lib") {
+                include "*.jar"
+            }
+            into "$lib"
+        }
+    }
+}
+
+task copyHdf5Lib(type: Copy, dependsOn: buildHdf5) {
+    from(file("$outsideDir/lib")) {
+        include "libhdf5*"
     }
     into "$buildDir/lib"
 }
 
 assemble.dependsOn copyHdf5Lib
 
-task copyHdf5Libs(type: Copy) {
-    from(file("$ziggyDependencies/lib")) {
-        include "jarhdf5-1.12.2.jar"
+task copyHdf5Libs(type: Copy, dependsOn: buildHdf5) {
+    from(file("$outsideDir/lib")) {
+        include "jarhdf5-*.jar"
     }
-    into "$buildDir/libs"
+    into "$outsideGroupDir"
 }
 
-assemble.dependsOn copyHdf5Libs
+copyOutsideLibs.dependsOn copyHdf5Libs
+
+task copyHdf5Inc(type: Copy, dependsOn: buildHdf5) {
+    from(file("$outsideDir/include")) {
+        include "*"
+    }
+    into "$buildDir/include"
+}

@@ -3,16 +3,12 @@ package gov.nasa.ziggy.services.events;
 import java.util.Date;
 import java.util.Objects;
 
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionName;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 /**
  * Permanent record of a Ziggy event for storage in the database.
@@ -20,36 +16,18 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionName;
  * @author PT
  */
 @Entity
-@Table(name = "PI_ZIGGY_EVENT")
+@Table(name = "ziggy_Event")
 public class ZiggyEvent {
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null || getClass() != obj.getClass()) {
-            return false;
-        }
-        ZiggyEvent other = (ZiggyEvent) obj;
-        return id == other.id;
-    }
-
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_EVENT_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_Event_generator")
+    @SequenceGenerator(name = "ziggy_Event_generator", initialValue = 1,
+        sequenceName = "ziggy_Event_sequence", allocationSize = 1)
+    private Long id;
 
     private String eventHandlerName;
 
-    @ManyToOne(targetEntity = PipelineDefinitionName.class, fetch = FetchType.EAGER)
-    private PipelineDefinitionName pipelineName;
+    private String pipelineName;
     private Date eventTime;
     private long pipelineInstanceId;
 
@@ -57,19 +35,18 @@ public class ZiggyEvent {
     private ZiggyEvent() {
     }
 
-    public ZiggyEvent(String eventHandlerName, PipelineDefinitionName pipelineName,
-        long pipelineInstance) {
+    public ZiggyEvent(String eventHandlerName, String pipelineName, long pipelineInstance) {
         this.eventHandlerName = eventHandlerName;
         this.pipelineName = pipelineName;
         eventTime = new Date();
         pipelineInstanceId = pipelineInstance;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -81,11 +58,11 @@ public class ZiggyEvent {
         this.eventHandlerName = eventHandlerName;
     }
 
-    public PipelineDefinitionName getPipelineName() {
+    public String getPipelineName() {
         return pipelineName;
     }
 
-    public void setPipelineName(PipelineDefinitionName pipelineName) {
+    public void setPipelineName(String pipelineName) {
         this.pipelineName = pipelineName;
     }
 
@@ -105,4 +82,20 @@ public class ZiggyEvent {
         pipelineInstanceId = pipelineInstance;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        ZiggyEvent other = (ZiggyEvent) obj;
+        return Objects.equals(id, other.id);
+    }
 }

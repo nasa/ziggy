@@ -2,7 +2,7 @@ package gov.nasa.ziggy.ui;
 
 import org.hibernate.Session;
 
-import gov.nasa.ziggy.ui.proxy.CrudProxy;
+import gov.nasa.ziggy.ui.util.proxy.CrudProxy;
 
 /**
  * This exception is thrown by {@link CrudProxy} methods in response to a Hibernate/database error.
@@ -13,7 +13,7 @@ import gov.nasa.ziggy.ui.proxy.CrudProxy;
  * @author Todd Klaus
  */
 public class UiDatabaseException extends RuntimeException {
-    private static final long serialVersionUID = -5914169915880060654L;
+    private static final long serialVersionUID = 20230511L;
 
     public UiDatabaseException() {
     }

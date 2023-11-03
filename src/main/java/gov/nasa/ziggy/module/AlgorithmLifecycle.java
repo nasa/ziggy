@@ -31,5 +31,4 @@ public interface AlgorithmLifecycle {
     boolean isRemote();
 
     AlgorithmExecutor getExecutor();
-
 }

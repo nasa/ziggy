@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -48,6 +48,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.services.database.DatabaseTransaction;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 public class ParameterLibraryImportExportCli {
     private static final Logger log = LoggerFactory.getLogger(ParametersOperations.class);
@@ -74,7 +76,7 @@ public class ParameterLibraryImportExportCli {
         Arrays.sort(filenames);
     }
 
-    public void go() throws Exception {
+    public void go() {
         ParametersOperations paramOps = new ParametersOperations();
         List<ParameterSetDescriptor> results = null;
 
@@ -104,7 +106,8 @@ public class ParameterLibraryImportExportCli {
         System.exit(-1);
     }
 
-    public static void main(String[] args) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.USAGE)
+    public static void main(String[] args) {
         Options options = new Options();
         options.addOption(IMPORT_OPT, false, "import parameter library from xml file");
         options.addOption(EXPORT_OPT, false, "export parameter library to xml file");

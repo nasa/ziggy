@@ -4,9 +4,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
-import javax.persistence.ElementCollection;
-import javax.persistence.Embeddable;
-import javax.persistence.JoinTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.JoinTable;
 
 /**
  * This class models a path to a {@link PipelineDefinitionNode} in a {@link PipelineDefinition}. The
@@ -24,7 +24,7 @@ import javax.persistence.JoinTable;
 public class PipelineDefinitionNodePath {
 
     @ElementCollection
-    @JoinTable(name = "PI_PDN_PATH_ELEMS")
+    @JoinTable(name = "ziggy_PipelineDefinitionNode_path")
     List<Integer> path = new LinkedList<>();
 
     protected PipelineDefinitionNodePath() {
@@ -61,10 +61,9 @@ public class PipelineDefinitionNodePath {
 
         if (pathIndex < path.size() - 1) {
             return definitionNodeAt(node.getNextNodes(), pathIndex + 1);
-        } else {
-            // last element of the path
-            return node;
         }
+        // last element of the path
+        return node;
     }
 
     @Override
@@ -99,7 +98,7 @@ public class PipelineDefinitionNodePath {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         final PipelineDefinitionNodePath other = (PipelineDefinitionNodePath) obj;

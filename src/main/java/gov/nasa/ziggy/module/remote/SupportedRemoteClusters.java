@@ -2,13 +2,12 @@ package gov.nasa.ziggy.module.remote;
 
 import java.io.File;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.remote.aws.AwsExecutor;
 import gov.nasa.ziggy.module.remote.nas.NasExecutor;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 
@@ -50,8 +49,8 @@ public enum SupportedRemoteClusters {
         // (generally this means we are emulating a remote cluster for test purposes).
         File osReleaseFile = new File("/etc/os-release");
         if (!osReleaseFile.exists()) {
-            Configuration config = ZiggyConfiguration.getInstance();
-            String clusterName = config.getString(PropertyNames.CLUSTER_PROPERTY_NAME,
+            ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+            String clusterName = config.getString(PropertyName.REMOTE_CLUSTER.property(),
                 defaultCluster.name());
             remoteCluster = SupportedRemoteClusters.valueOf(clusterName.toUpperCase());
         } else {
@@ -59,18 +58,13 @@ public enum SupportedRemoteClusters {
             // See if the /etc/os-release file has the string "Amazon" in it
             ExternalProcess p = ExternalProcess
                 .simpleExternalProcess(CommandLine.parse("/usr/bin/grep Amazon /etc/os-release"));
-            try {
-                p.run(true, 0);
-                String grepResult = p.getStdoutString();
-                if (grepResult.isEmpty()) {
-                    remoteCluster = SupportedRemoteClusters.NAS;
-                } else {
-                    remoteCluster = SupportedRemoteClusters.AWS;
-                }
-            } catch (Exception e) {
-                throw new PipelineException("Unable to set remote cluster", e);
+            p.run(true, 0);
+            String grepResult = p.getStdoutString();
+            if (grepResult.isEmpty()) {
+                remoteCluster = SupportedRemoteClusters.NAS;
+            } else {
+                remoteCluster = SupportedRemoteClusters.AWS;
             }
-
         }
     }
 }

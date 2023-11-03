@@ -33,6 +33,5 @@ public class RemoteJobTest {
         info.setNodes(1);
         info.setModel("bro_ele");
         assertEquals(0, info.costEstimate(), 1e-9);
-
     }
 }

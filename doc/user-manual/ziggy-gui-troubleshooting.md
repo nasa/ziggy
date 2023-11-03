@@ -8,13 +8,13 @@
 
 Here are some articles on things you can use the Ziggy console for that relate to troubleshooting and recovery from problems.
 
-### [Monitoring Tab](monitoring.md)
+### [Status Panel](monitoring.md)
 
-There's a whole bunch of stuff you can see on the Monitoring tab.
+There's a whole bunch of stuff you can see on the `Status` panel.
 
 ### [Alerts Panel](alerts.md)
 
-When things happen that the operator should know about, they show up at the `Alerts` panel. 
+When things happen that the operator should know about, they show up at the `Alerts` panel.
 
 ### [Log Files Display](display-logs.md)
 
@@ -24,7 +24,7 @@ For any given task you can display the task's log files directly from the consol
 
 Ziggy also gives you options when you've decided what you want to do about a failed task.
 
-### [Deleting Tasks](delete-tasks.md)
+### [Killing Tasks](kill-tasks.md)
 
 You can stop a job or two if necessary.
 

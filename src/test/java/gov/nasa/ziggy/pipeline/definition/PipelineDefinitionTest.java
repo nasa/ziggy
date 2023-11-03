@@ -25,11 +25,14 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
-import gov.nasa.ziggy.parameters.DefaultParameters;
+import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
+import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -65,26 +68,26 @@ public class PipelineDefinitionTest {
         schemaFile = directoryRule.directory().resolve("pipeline-definition.xsd").toFile();
 
         // Create some nodes
-        PipelineDefinitionNode node1 = new PipelineDefinitionNode(new ModuleName("module 1"), null);
+        PipelineDefinitionNode node1 = new PipelineDefinitionNode("module 1", null);
         node1.setStartNewUow(true);
         node1.setUnitOfWorkGenerator(new ClassWrapper<>(SingleUnitOfWorkGenerator.class));
-        node1.addXmlReference(new ParameterSetName("Remote execution"));
-        node1.addXmlReference(new ParameterSetName("Convergence criteria"));
+        node1.addXmlReference(new ParameterSetReference("Remote execution"));
+        node1.addXmlReference(new ParameterSetReference("Convergence criteria"));
         node1.addXmlReference(new InputTypeReference("flight L0 data"));
         node1.addXmlReference(new OutputTypeReference("flight L1 data"));
         node1.addXmlReference(new ModelTypeReference("calibration constants"));
 
-        PipelineDefinitionNode node2 = new PipelineDefinitionNode(new ModuleName("module 2"), null);
+        PipelineDefinitionNode node2 = new PipelineDefinitionNode("module 2", null);
         node2.setStartNewUow(true);
-        node2.addXmlReference(new ParameterSetName("Remote execution"));
-        node2.addXmlReference(new ParameterSetName("Convergence criteria"));
+        node2.addXmlReference(new ParameterSetReference("Remote execution"));
+        node2.addXmlReference(new ParameterSetReference("Convergence criteria"));
         node2.addXmlReference(new InputTypeReference("flight L1 data"));
         node2.addXmlReference(new OutputTypeReference("flight L2 data"));
         node2.addXmlReference(new ModelTypeReference("georeferencing constants"));
 
-        PipelineDefinitionNode node3 = new PipelineDefinitionNode(new ModuleName("module 3"), null);
+        PipelineDefinitionNode node3 = new PipelineDefinitionNode("module 3", null);
         node3.setStartNewUow(true);
-        node3.addXmlReference(new ParameterSetName("Excluded bands"));
+        node3.addXmlReference(new ParameterSetReference("Excluded bands"));
         node3.addXmlReference(new InputTypeReference("flight L1 data"));
         node3.addXmlReference(new OutputTypeReference("flight L2 data"));
         node3.addXmlReference(new ModelTypeReference("Temperature references"));
@@ -92,9 +95,9 @@ public class PipelineDefinitionTest {
         node1.addNextNode(node2);
         node1.addNextNode(node3);
 
-        PipelineDefinitionNode node4 = new PipelineDefinitionNode(new ModuleName("module 4"), null);
+        PipelineDefinitionNode node4 = new PipelineDefinitionNode("module 4", null);
         node4.setStartNewUow(true);
-        node4.addXmlReference(new ParameterSetName("Export format"));
+        node4.addXmlReference(new ParameterSetReference("Export format"));
         node4.addXmlReference(new InputTypeReference("flight L2 data"));
         node4.addXmlReference(new OutputTypeReference("exports"));
 
@@ -104,10 +107,9 @@ public class PipelineDefinitionTest {
         pipelineDefinition1 = new PipelineDef("pipeline 1");
         pipelineDefinition1.addRootNode(node1);
         pipelineDefinition1.setDescription("first pipeline");
-        pipelineDefinition1.addPipelineParameterSetName(DefaultParameters.class,
+        pipelineDefinition1.addPipelineParameterSetName(Parameters.class,
             new ParameterSet("Pipeline parameters"));
-        pipelineDefinition1.setInstancePriority(2);
-
+        pipelineDefinition1.setInstancePriority(Priority.LOW);
     }
 
     @Test
@@ -117,38 +119,38 @@ public class PipelineDefinitionTest {
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         marshaller.marshal(pipelineDefinition1, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath());
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
 
         List<String> pipelineContents = pipelineContent(xmlContent,
-            "<pipeline description=\"first pipeline\" name=\"pipeline 1\" "
-                + "instancePriority=\"2\" rootNodeNames=\"module 1\">");
+            "<pipeline name=\"pipeline 1\" description=\"first pipeline\" "
+                + "instancePriority=\"LOW\" rootNodeNames=\"module 1\">");
         assertContains(pipelineContents, "<pipelineParameter name=\"Pipeline parameters\"/>");
         List<String> nodeContents = nodeContent(pipelineContents,
-            "<node startNewUow=\"true\" uowGenerator=\"gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator\" "
+            "<node startNewUow=\"true\" maxWorkers=\"0\" " + "heapSizeMb=\"0\" "
+                + "uowGenerator=\"gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator\" "
                 + "moduleName=\"module 1\" childNodeNames=\"module 2, module 3\">");
         assertContains(nodeContents, "<moduleParameter name=\"Convergence criteria\"/>");
         assertContains(nodeContents, "<moduleParameter name=\"Remote execution\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L0 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L1 data\"/>");
-        nodeContents = nodeContent(pipelineContents,
-            "<node startNewUow=\"true\" " + "moduleName=\"module 2\" childNodeNames=\"module 4\">");
+        nodeContents = nodeContent(pipelineContents, "<node startNewUow=\"true\" maxWorkers=\"0\" "
+            + "heapSizeMb=\"0\" " + "moduleName=\"module 2\" childNodeNames=\"module 4\">");
         assertContains(nodeContents, "<moduleParameter name=\"Convergence criteria\"/>");
         assertContains(nodeContents, "<moduleParameter name=\"Remote execution\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L1 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<modelType name=\"georeferencing constants\"/>");
-        nodeContents = nodeContent(pipelineContents,
-            "<node startNewUow=\"true\" moduleName=\"module 3\">");
+        nodeContents = nodeContent(pipelineContents, "<node startNewUow=\"true\" maxWorkers=\"0\" "
+            + "heapSizeMb=\"0\" " + "moduleName=\"module 3\">");
         assertContains(nodeContents, "<moduleParameter name=\"Excluded bands\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L1 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<modelType name=\"Temperature references\"/>");
-        nodeContents = nodeContent(pipelineContents,
-            "<node startNewUow=\"true\" moduleName=\"module 4\">");
+        nodeContents = nodeContent(pipelineContents, "<node startNewUow=\"true\" maxWorkers=\"0\" "
+            + "heapSizeMb=\"0\" " + "moduleName=\"module 4\">");
         assertContains(nodeContents, "<moduleParameter name=\"Export format\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"exports\"/>");
-
     }
 
     @Test
@@ -167,7 +169,7 @@ public class PipelineDefinitionTest {
         assertEquals(groundTruthPipeline.getRootNodeNames(), pipeline.getRootNodeNames());
         assertEquals(groundTruthPipeline.getParameterSetNames().size(),
             pipeline.getParameterSetNames().size());
-        for (ParameterSetName paramSetName : pipeline.getParameterSetNames()) {
+        for (String paramSetName : pipeline.getParameterSetNames()) {
             assertTrue(groundTruthPipeline.getParameterSetNames().contains(paramSetName));
         }
         for (PipelineDefinitionNode node : pipeline.getNodes()) {
@@ -179,7 +181,7 @@ public class PipelineDefinitionTest {
         Collection<PipelineDefinitionNode> groundTruthNodes) {
         PipelineDefinitionNode groundTruthNode = null;
         for (PipelineDefinitionNode loopNode : groundTruthNodes) {
-            if (loopNode.getModuleName().getName().equals(node.getModuleName().getName())) {
+            if (loopNode.getModuleName().equals(node.getModuleName())) {
                 groundTruthNode = loopNode;
                 break;
             }
@@ -196,14 +198,14 @@ public class PipelineDefinitionTest {
             node.getOutputDataFileTypeReferences());
         compareParameterSetReferences(groundTruthNode.getParameterSetNames(),
             node.getParameterSetNames());
-
     }
 
     @Test
     public void testGenerateSchema() throws IOException, JAXBException {
         JAXBContext context = JAXBContext.newInstance(PipelineDef.class);
         context.generateSchema(new PipelineDefinitionListSchemaResolver());
-        List<String> schemaContent = Files.readAllLines(schemaFile.toPath());
+        List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
+            FileUtil.ZIGGY_CHARSET);
         assertContains(schemaContent, "<xs:element name=\"pipeline\" type=\"pipelineDef\"/>");
 
         List<String> complexTypeContent = complexTypeContent(schemaContent,
@@ -211,24 +213,20 @@ public class PipelineDefinitionTest {
         assertContains(complexTypeContent,
             "<xs:element name=\"node\" type=\"pipelineDefinitionNode\"/>");
         assertContains(complexTypeContent,
-            "<xs:element name=\"pipelineParameter\" " + "type=\"parameterSetName\"/>");
+            "<xs:element name=\"pipelineParameter\" " + "type=\"parameterSetReference\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"description\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,
-            "<xs:attribute name=\"instancePriority\" type=\"xs:int\"/>");
+            "<xs:attribute name=\"instancePriority\" type=\"xs:string\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"rootNodeNames\" type=\"xs:string\" use=\"required\"/>");
 
         complexTypeContent = complexTypeContent(schemaContent,
-            "<xs:complexType name=\"parameterSetName\">");
-        assertContains(complexTypeContent, "<xs:extension base=\"xmlReference\">");
-
-        complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineDefinitionNode\">");
         assertContains(complexTypeContent,
-            "<xs:element name=\"moduleParameter\" " + "type=\"parameterSetName\"/>");
+            "<xs:element name=\"moduleParameter\" " + "type=\"parameterSetReference\"/>");
         assertContains(complexTypeContent,
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>");
         assertContains(complexTypeContent,
@@ -243,6 +241,7 @@ public class PipelineDefinitionTest {
             "<xs:attribute name=\"moduleName\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"childNodeNames\" type=\"xs:string\"/>");
+        assertContains(complexTypeContent, "<xs:attribute name=\"maxWorkers\" type=\"xs:int\"/>");
 
         complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"inputTypeReference\">");
@@ -257,10 +256,13 @@ public class PipelineDefinitionTest {
         assertContains(complexTypeContent, "<xs:extension base=\"xmlReference\">");
 
         complexTypeContent = complexTypeContent(schemaContent,
+            "<xs:complexType name=\"parameterSetReference\">");
+        assertContains(complexTypeContent, "<xs:extension base=\"xmlReference\">");
+
+        complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"xmlReference\">");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>");
-
     }
 
     private class PipelineDefinitionListSchemaResolver extends SchemaOutputResolver {
@@ -294,5 +296,4 @@ public class PipelineDefinitionTest {
             super(name);
         }
     }
-
 }

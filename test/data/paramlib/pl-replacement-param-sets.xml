@@ -1,21 +1,21 @@
 <parameterLibrary>
 
-    <parameter-set name="Remote Hyperion L1" locked="false"
+    <parameter-set name="Remote Hyperion L1" 
         classname="gov.nasa.ziggy.module.remote.RemoteParameters">
         <parameter name="gigsPerSubtask" value="3.0" />  
     </parameter-set>
 
-    <parameter-set name="Sample classless parameter set" locked="false">
+    <parameter-set name="Sample classless parameter set" >
         <parameter name="z1" value="100" type="string"/>
     </parameter-set>
     
-    <parameter-set name="ISOFIT module parameters" locked="false">
+    <parameter-set name="ISOFIT module parameters" >
         <parameter name="n_cores" value="4" type="int"/>
         <parameter name="presolve" value="true" type="boolean"/>
         <parameter name="empirical_line" value="true" type="boolean"/>
     </parameter-set>
 
-    <parameter-set name="All-new parameters" locked="false">
+    <parameter-set name="All-new parameters" >
         <parameter name="parameter" value="4" type="int"/>
     </parameter-set>
 

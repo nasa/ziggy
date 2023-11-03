@@ -4,30 +4,37 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
-import org.hibernate.Criteria;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hibernate.HibernateException;
-import org.hibernate.LockMode;
-import org.hibernate.Query;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstanceAggregateState;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance_;
+import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import jakarta.persistence.criteria.CriteriaUpdate;
+import jakarta.persistence.criteria.Root;
 
 /**
  * Provides CRUD methods for {@link PipelineInstance}.
  *
  * @author Todd Klaus
  */
-public class PipelineInstanceCrud extends AbstractCrud {
+public class PipelineInstanceCrud extends AbstractCrud<PipelineInstance> {
     private static final Logger log = LoggerFactory.getLogger(PipelineInstanceCrud.class);
+
+    private static final long MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
 
     public PipelineInstanceCrud() {
     }
@@ -37,10 +44,11 @@ public class PipelineInstanceCrud extends AbstractCrud {
     }
 
     public PipelineInstance retrieve(long id) {
-        Query query = createQuery("from PipelineInstance where id = :id");
-        query.setLong("id", id);
-        PipelineInstance instance = uniqueResult(query);
-        populateXmlFields(instance);
+        PipelineInstance instance = uniqueResult(
+            createZiggyQuery(PipelineInstance.class).column(PipelineInstance_.id).in(id));
+        if (instance != null) {
+            populateXmlFields(instance);
+        }
         return instance;
     }
 
@@ -50,11 +58,7 @@ public class PipelineInstanceCrud extends AbstractCrud {
      * @return
      */
     public List<PipelineInstance> retrieve(PipelineInstanceFilter filter) {
-        Query q = filter.query(getSession());
-
-        q.setLockMode("pi", LockMode.READ);
-
-        List<PipelineInstance> result = list(q);
+        List<PipelineInstance> result = list(queryForFilter(filter));
         populateXmlFields(result);
         return result;
     }
@@ -64,12 +68,10 @@ public class PipelineInstanceCrud extends AbstractCrud {
      * (highest to lowest)
      */
     public List<PipelineInstance> retrieve(Date startDate, Date endDate) {
-        Query q = createQuery(
-            "from PipelineInstance pi " + "where pi.startProcessingTime >= :startDate "
-                + "and pi.startProcessingTime <= :endDate " + "order by priority desc");
-        q.setParameter("startDate", startDate);
-        q.setParameter("endDate", endDate);
-        List<PipelineInstance> result = list(q);
+        ZiggyQuery<PipelineInstance, PipelineInstance> query = createZiggyQuery(
+            PipelineInstance.class);
+        query.column(PipelineInstance_.startProcessingTime).between(startDate, endDate);
+        List<PipelineInstance> result = list(query);
         populateXmlFields(result);
         return result;
     }
@@ -87,17 +89,14 @@ public class PipelineInstanceCrud extends AbstractCrud {
      */
     public List<PipelineInstance> retrieve(Date startDate, Date endDate, State[] states,
         String[] types) {
-        // We found that a clean Criteria query would return a huge
+        // We found that a Hibernate Criteria query would return a huge
         // n-dimensional Cartesian product. The following code trades a huge
         // number of joins with an n+1 select (but n is usually pretty small).
+        // We're now using JPA Criteria instead of Hibernate, but for now
+        // we are sticking with the same 2 step process.
 
         // First, get all the instances within the date range.
-        Query query = createQuery(
-            "from PipelineInstance " + "where startProcessingTime >= :startDate "
-                + "and startProcessingTime <= :endDate " + "order by id asc");
-        query.setParameter("startDate", startDate);
-        query.setParameter("endDate", endDate);
-        List<PipelineInstance> result = list(query);
+        List<PipelineInstance> result = retrieve(startDate, endDate);
 
         // Now, choose those instances that match the additional criteria.
         List<PipelineInstance> filteredResult = new ArrayList<>();
@@ -130,10 +129,9 @@ public class PipelineInstanceCrud extends AbstractCrud {
     /**
      */
     public List<PipelineInstance> retrieveAll() {
-        Query q = createQuery("from PipelineInstance pi order by pi.id asc");
-        q.setLockMode("pi", LockMode.READ);
 
-        List<PipelineInstance> result = list(q);
+        List<PipelineInstance> result = list(
+            createZiggyQuery(PipelineInstance.class).column(PipelineInstance_.id).ascendingOrder());
         populateXmlFields(result);
         return result;
     }
@@ -142,12 +140,13 @@ public class PipelineInstanceCrud extends AbstractCrud {
      * Return all active pipeline instances, sorted by priority (highest to lowest)
      */
     public List<PipelineInstance> retrieveAllActive() {
-        Query q = createQuery("from PipelineInstance pi where pi.state = :processing "
-            + "or pi.state = :errorsrunning " + "order by priority desc");
-        q.setParameter("processing", PipelineInstance.State.PROCESSING);
-        q.setParameter("errorsrunning", PipelineInstance.State.ERRORS_RUNNING);
+        ZiggyQuery<PipelineInstance, PipelineInstance> query = createZiggyQuery(
+            PipelineInstance.class);
+        query.column(PipelineInstance_.state)
+            .in(Set.of(PipelineInstance.State.PROCESSING, PipelineInstance.State.ERRORS_RUNNING));
+        query.column(PipelineInstance_.priority).descendingOrder();
+        List<PipelineInstance> result = list(query);
 
-        List<PipelineInstance> result = list(q);
         populateXmlFields(result);
         return result;
     }
@@ -173,14 +172,14 @@ public class PipelineInstanceCrud extends AbstractCrud {
      * @return {@link List} of {@link PipelineInstance}s.
      */
     public List<PipelineInstance> retrieveAll(Collection<Long> pipelineInstanceIds) {
-        List<PipelineInstance> pipelineInstances = new ArrayList<>();
-        if (!pipelineInstanceIds.isEmpty()) {
-            Query query = createQuery(
-                "from PipelineInstance where id in (:pipelineInstanceIds) " + "order by id asc");
-            query.setParameterList("pipelineInstanceIds", pipelineInstanceIds);
-
-            pipelineInstances = list(query);
+        if (pipelineInstanceIds.isEmpty()) {
+            return new ArrayList<>();
         }
+        ZiggyQuery<PipelineInstance, PipelineInstance> query = createZiggyQuery(
+            PipelineInstance.class);
+        query.column(PipelineInstance_.id).in(pipelineInstanceIds).ascendingOrder();
+        List<PipelineInstance> pipelineInstances = list(query);
+
         populateXmlFields(pipelineInstances);
         return pipelineInstances;
     }
@@ -204,71 +203,59 @@ public class PipelineInstanceCrud extends AbstractCrud {
      * @param newName
      */
     public void updateName(long id, String newName) {
-        Query updateQuery = createSQLQuery(
-            "update PI_PIPELINE_INSTANCE pi " + "set name = :newName where id = :id");
-
-        updateQuery.setString("newName", newName);
-        updateQuery.setLong("id", id);
-
-        int rowsUpdated = updateQuery.executeUpdate();
+        HibernateCriteriaBuilder builder = createCriteriaBuilder();
+        CriteriaUpdate<PipelineInstance> query = builder
+            .createCriteriaUpdate(PipelineInstance.class);
+        Root<PipelineInstance> root = query.from(PipelineInstance.class);
+        query.where(builder.in(root.get("id"), Set.of(id))).set(root.get("name"), newName);
+        int rowsUpdated = executeUpdate(query);
 
         log.info("Updated instance name, rowsUpdated=" + rowsUpdated);
-    }
-
-    /**
-     * Indicates whether all {@link PipelineTask}s for this {@link PipelineInstance} are in the
-     * PipelineTask.State.COMPLETED state
-     *
-     * @param instance
-     */
-    public PipelineInstanceAggregateState instanceState(PipelineInstance instance) {
-        // flush changes so that the updateInstanceState query will see them.
-        flush();
-
-        Query q = createQuery(
-            "select new gov.nasa.ziggy.pipeline.definition.PipelineInstanceAggregateState(sum(instanceNode.numTasks), sum(instanceNode.numSubmittedTasks), sum(instanceNode.numCompletedTasks), "
-                + "sum(instanceNode.numFailedTasks)) from PipelineInstanceNode instanceNode where pipelineInstance "
-                + "= :instance");
-        q.setEntity("instance", instance);
-
-        PipelineInstanceAggregateState state = uniqueResult(q);
-
-        log.debug(state.toString());
-
-        return state;
-    }
-
-    /**
-     * Indicates whether all {@link PipelineTask}s for this {@link PipelineInstance} are in the
-     * PipelineTask.State.COMPLETED state, without considering the specified ignoredTask. This is
-     * used by the transition logic to see if all tasks other than the one for which the transition
-     * logic is acting on (which is about to become completed) have completed.
-     *
-     * @param instance
-     */
-    public boolean isInstanceComplete(PipelineInstance instance, PipelineTask ignoredTask) {
-        Query q = createQuery("select count(*) from PipelineTask pt where pipelineInstance "
-            + "= :instance and state not in (:state1, :state2) and id <> :id");
-        q.setEntity("instance", instance);
-        q.setLong("id", ignoredTask.getId());
-        q.setParameter("state1", PipelineTask.State.COMPLETED);
-        q.setParameter("state2", PipelineTask.State.PARTIAL);
-        Number count = uniqueResult(q);
-
-        return count.intValue() == 0;
     }
 
     /**
      * Returns all pipeline instances in which a specified pipeline module was run.
      */
     public List<PipelineInstance> instanceIdsForModule(String moduleName) {
-        Criteria criteria = createCriteria(PipelineTask.class);
-        criteria.createAlias("pipelineInstance", "instance");
-        criteria.createAlias("pipelineInstanceNode", "node");
-        criteria.createAlias("node.pipelineModuleDefinition", "module");
-        criteria.add(Restrictions.eq("module.name.name", moduleName));
-        criteria.setProjection(Projections.distinct(Projections.property("pipelineInstance")));
-        return list(criteria);
+        ZiggyQuery<PipelineTask, PipelineInstance> query = createZiggyQuery(PipelineTask.class,
+            PipelineInstance.class);
+        query.getCriteriaQuery()
+            .where(query.in(query.get(PipelineTask_.pipelineInstanceNode)
+                .get(PipelineInstanceNode_.pipelineModuleDefinition)
+                .get(PipelineModuleDefinition_.name), moduleName));
+        query.column(PipelineTask_.pipelineInstance).select().distinct(true);
+        return list(query);
     }
 
+    private ZiggyQuery<PipelineInstance, PipelineInstance> queryForFilter(
+        PipelineInstanceFilter filter) {
+        ZiggyQuery<PipelineInstance, PipelineInstance> query = createZiggyQuery(
+            PipelineInstance.class);
+
+        // If the user wants to filter by state, apply that now.
+        if (!CollectionUtils.isEmpty(filter.getStates())) {
+            query.column(PipelineInstance_.state).in(filter.getStates());
+        }
+
+        // If the user wants to filter by age, apply that now.
+        if (filter.getAgeDays() > 0) {
+            Date startTime = new Date(
+                System.currentTimeMillis() - filter.getAgeDays() * MILLIS_PER_DAY);
+            query.where(query.getBuilder()
+                .greaterThan(query.getRoot().get("startProcessingTime"), startTime));
+        }
+
+        // If the user wants to filter by pipeline instance name, apply that now.
+        if (!StringUtils.isEmpty(filter.getNameContains())) {
+            query.where(
+                query.getBuilder().like(query.getRoot().get("name"), filter.getNameContains()));
+        }
+        query.column(PipelineInstance_.id).ascendingOrder();
+        return query;
+    }
+
+    @Override
+    public Class<PipelineInstance> componentClass() {
+        return PipelineInstance.class;
+    }
 }

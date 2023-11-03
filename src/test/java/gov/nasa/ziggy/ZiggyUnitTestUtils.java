@@ -23,6 +23,13 @@ import gov.nasa.ziggy.services.security.User;
  */
 public class ZiggyUnitTestUtils {
 
+    /**
+     * Location of test/data relative to the working directory (assumed to be the main Ziggy
+     * directory, since that's where both Eclipse and Gradle set the working directory when they run
+     * tests).
+     */
+    public static final Path TEST_DATA = Paths.get("test", "data");
+
     // The items below perform Hibernate initialization of lazy-loaded elements of a database
     // object. This is necessary because we need to be able to compare the objects with the
     // expected objects, and that comparison necessarily includes lazy-loaded bits.
@@ -57,6 +64,7 @@ public class ZiggyUnitTestUtils {
     public static void initializePipelineDefinition(PipelineDefinition pipelineDefinition) {
         initializeUser(pipelineDefinition.getAuditInfo().getLastChangedUser());
         Hibernate.initialize(pipelineDefinition.getRootNodes());
+        Hibernate.initialize(pipelineDefinition.getPipelineParameterSetNames());
         initializePipelineDefinitionNodes(pipelineDefinition.getRootNodes());
     }
 
@@ -73,6 +81,7 @@ public class ZiggyUnitTestUtils {
         Hibernate.initialize(node.getOutputDataFileTypes());
         Hibernate.initialize(node.getModelTypes());
         Hibernate.initialize(node.getNextNodes());
+        Hibernate.initialize(node.getModuleParameterSetNames());
         initializePipelineDefinitionNodes(node.getNextNodes());
     }
 
@@ -86,12 +95,4 @@ public class ZiggyUnitTestUtils {
         Hibernate.initialize(user.getRoles());
         Hibernate.initialize(user.getPrivileges());
     }
-
-    /**
-     * Location of test/data relative to the working directory (assumed to be the main Ziggy
-     * directory, since that's where both Eclipse and Gradle set the working directory when they run
-     * tests).
-     */
-    public static final Path TEST_DATA = Paths.get("test", "data");
-
 }

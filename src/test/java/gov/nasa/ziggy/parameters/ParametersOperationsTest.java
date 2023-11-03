@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.parameters;
 
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -17,12 +17,16 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+import gov.nasa.ziggy.IntegrationTestCategory;
 import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
@@ -36,17 +40,16 @@ import gov.nasa.ziggy.parameters.ParameterTestClasses.TestParametersBaz;
 import gov.nasa.ziggy.parameters.ParameterTestClasses.TestParametersFoo;
 import gov.nasa.ziggy.pipeline.PipelineConfigurator;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import jakarta.xml.bind.UnmarshalException;
 
 /**
  * @author Todd Klaus
  */
+@Category(IntegrationTestCategory.class)
 public class ParametersOperationsTest {
     private static final String TEST_PARAMETERS = "testParameters";
     private static final String TEST_PARAMETERS_FOO = "testParametersFoo";
@@ -67,8 +70,8 @@ public class ParametersOperationsTest {
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Before
     public void setUp() {
@@ -99,7 +102,7 @@ public class ParametersOperationsTest {
         // delete a param set to trigger CREATE
         ParameterSetCrud paramCrud = new ParameterSetCrud();
         ParameterSet fooPs = paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_FOO);
-        paramCrud.delete(fooPs);
+        paramCrud.remove(fooPs);
 
         // modify a param set to trigger UPDATE
         ParameterSet barPs = paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAR);
@@ -118,6 +121,11 @@ public class ParametersOperationsTest {
         ParametersOperations paramOps = new ParametersOperations();
         paramOps.exportParameterLibrary(libraryFile.getAbsolutePath(), excludeList,
             ParamIoMode.STANDARD);
+    }
+
+    private List<ParameterSetDescriptor> sortDescriptorsByName(
+        List<ParameterSetDescriptor> unsorted) {
+        return unsorted.stream().sorted().collect(Collectors.toList());
     }
 
     @Test
@@ -165,23 +173,26 @@ public class ParametersOperationsTest {
 
         comparator.excludeField(".*\\.libraryProps");
         comparator.excludeField(".*\\.fileProps");
-        comparator.excludeField(".*\\.libraryParamSet");
-        comparator.excludeField(".*\\.importedParamsBean");
-        comparator.assertEquals("results", expectedResults, actualResults);
+        comparator.excludeField(".*\\.parameterSet");
+        comparator.assertEquals("results", sortDescriptorsByName(expectedResults),
+            sortDescriptorsByName(actualResults));
 
         ParameterSetCrud paramCrud = new ParameterSetCrud();
 
         // Compare the database values for parameters with the ORIGINAL values for foo, bar, and
         // baz, and the values for TEST_PARAMETERS created in the modifyLibrary() operation. This
         // confirms that value updates got overwritten when the library was re-imported.
-        comparator.assertEquals("TEST_PARAMETERS_BAR", new BeanWrapper<>(testParametersBar),
-            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAR).getParameters());
-        comparator.assertEquals("TEST_PARAMETERS_BAZ", new BeanWrapper<>(testParametersBaz),
-            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAZ).getParameters());
-        comparator.assertEquals("TEST_PARAMETERS_FOO", new BeanWrapper<>(testParametersFoo),
-            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_FOO).getParameters());
-        comparator.assertEquals("TEST_PARAMETERS", new BeanWrapper<>(testParameters),
-            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS).getParameters());
+        comparator.assertEquals("TEST_PARAMETERS_BAR", testParametersBar.getParameters(),
+            new TreeSet<>(
+                paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAR).getTypedParameters()));
+        comparator.assertEquals("TEST_PARAMETERS_BAZ", testParametersBaz.getParameters(),
+            new TreeSet<>(
+                paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAZ).getTypedParameters()));
+        comparator.assertEquals("TEST_PARAMETERS_FOO", testParametersFoo.getParameters(),
+            new TreeSet<>(
+                paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_FOO).getTypedParameters()));
+        comparator.assertEquals("TEST_PARAMETERS", testParameters.getParameters(), new TreeSet<>(
+            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS).getTypedParameters()));
     }
 
     @Test
@@ -224,20 +235,22 @@ public class ParametersOperationsTest {
 
         comparator.excludeField(".*\\.libraryProps");
         comparator.excludeField(".*\\.fileProps");
-        comparator.excludeField(".*\\.libraryParamSet");
-        comparator.excludeField(".*\\.importedParamsBean");
-        comparator.assertEquals("results", expectedResults, actualResults);
+        comparator.excludeField(".*\\.parameterSet");
+        comparator.assertEquals("results", sortDescriptorsByName(expectedResults),
+            sortDescriptorsByName(actualResults));
 
         ParameterSetCrud paramCrud = new ParameterSetCrud();
 
         TestParametersBar modifiedBar = new TestParametersBar();
         modifiedBar.setBar1(1.1F);
-        comparator.assertEquals("TEST_PARAMETERS_BAR", new BeanWrapper<>(modifiedBar),
-            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAR).getParameters());
-        comparator.assertEquals("TEST_PARAMETERS_BAZ", new BeanWrapper<>(testParametersBaz),
-            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAZ).getParameters());
-        comparator.assertEquals("TEST_PARAMETERS", new BeanWrapper<>(testParameters),
-            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS).getParameters());
+
+        comparator.assertEquals("TEST_PARAMETERS_BAR", modifiedBar.getParameters(), new TreeSet<>(
+            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAR).getTypedParameters()));
+        comparator.assertEquals("TEST_PARAMETERS_BAZ", testParametersBaz.getParameters(),
+            new TreeSet<>(
+                paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS_BAZ).getTypedParameters()));
+        comparator.assertEquals("TEST_PARAMETERS", testParameters.getParameters(), new TreeSet<>(
+            paramCrud.retrieveLatestVersionForName(TEST_PARAMETERS).getTypedParameters()));
     }
 
     @Test
@@ -280,14 +293,14 @@ public class ParametersOperationsTest {
 
         comparator.excludeField(".*\\.libraryProps");
         comparator.excludeField(".*\\.fileProps");
-        comparator.excludeField(".*\\.libraryParamSet");
-        comparator.excludeField(".*\\.importedParamsBean");
-        comparator.assertEquals("results", expectedResults, actualResults);
+        comparator.excludeField(".*\\.parameterSet");
+        comparator.assertEquals("results", sortDescriptorsByName(expectedResults),
+            sortDescriptorsByName(actualResults));
     }
 
     @Test
     public void testExportToInvalidExistingFile() throws Exception {
-        assertThrows(PipelineException.class, () -> {
+        PipelineException exception = assertThrows(PipelineException.class, () -> {
             ParametersOperations paramOps = new ParametersOperations();
 
             DatabaseTransactionFactory.performTransaction(() -> {
@@ -310,6 +323,7 @@ public class ParametersOperationsTest {
                 return null;
             });
         });
+        assertEquals("Transaction failed with error", exception.getMessage());
     }
 
     /**
@@ -318,7 +332,7 @@ public class ParametersOperationsTest {
      *
      * @throws Exception if there is a problem reading a test data file
      */
-    @Test(expected = UnmarshalException.class)
+    @Test(expected = PipelineException.class)
     public void testNonexistentParameter() throws Exception {
         ParametersOperations ops = new ParametersOperations();
         ops.importParameterLibrary(Paths.get("src")
@@ -342,30 +356,45 @@ public class ParametersOperationsTest {
         Map<String, ParameterSetDescriptor> nameToParameterSetDescriptor = nameToParameterSetDescriptor(
             paramsDescriptors);
 
-        // Start with the RemoteParameters instance in which everything is a String; remember that
-        // for parameters that have a Java-side class description, we don't save the data types
-        // because the data types are defined as part of the class
+        // Start with the RemoteParameters instance.
         ParameterSetDescriptor descriptor = nameToParameterSetDescriptor.get("Remote Hyperion L1");
         assertEquals("gov.nasa.ziggy.module.remote.RemoteParameters", descriptor.getClassName());
-        Set<TypedParameter> typedProperties = descriptor.getImportedParamsBean()
-            .getTypedProperties();
-        assertEquals(5, typedProperties.size());
+        Set<TypedParameter> typedProperties = descriptor.getImportedProperties();
+        assertEquals(14, typedProperties.size());
         Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "enabled", "false",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "gigsPerSubtask", "0.1",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskMaxWallTimeHours", "2.1",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskTypicalWallTimeHours",
-            "2.1", ZiggyDataType.ZIGGY_STRING, true));
+            "2.1", ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "optimizer", "COST",
             ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "minSubtasksForRemoteExecution",
+            "0", ZiggyDataType.ZIGGY_INT, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "remoteNodeArchitecture", "",
+            ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "queueName", "",
+            ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtasksPerCore", "",
+            ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "maxNodes", "",
+            ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "minGigsPerNode", "",
+            ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "minCoresPerNode", "",
+            ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "nodeSharing", "true",
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "wallTimeScaling", "true",
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
 
         // sample classless parameter set
         descriptor = nameToParameterSetDescriptor.get("Sample classless parameter set");
-        assertEquals("gov.nasa.ziggy.parameters.DefaultParameters", descriptor.getClassName());
-        typedProperties = descriptor.getImportedParamsBean().getTypedProperties();
+        assertEquals("gov.nasa.ziggy.parameters.Parameters", descriptor.getClassName());
+        typedProperties = descriptor.getImportedProperties();
         assertEquals(3, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z1", "100",
@@ -377,8 +406,8 @@ public class ParametersOperationsTest {
 
         // ISOFIT classless parameter set
         descriptor = nameToParameterSetDescriptor.get("ISOFIT module parameters");
-        assertEquals("gov.nasa.ziggy.parameters.DefaultParameters", descriptor.getClassName());
-        typedProperties = descriptor.getImportedParamsBean().getTypedProperties();
+        assertEquals("gov.nasa.ziggy.parameters.Parameters", descriptor.getClassName());
+        typedProperties = descriptor.getImportedProperties();
         assertEquals(3, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "n_cores", "4",
@@ -396,7 +425,6 @@ public class ParametersOperationsTest {
             nameToParameterSet.put(descriptor.getName(), descriptor);
         }
         return nameToParameterSet;
-
     }
 
     private Map<String, TypedParameter> nameToTypedPropertyMap(
@@ -447,25 +475,23 @@ public class ParametersOperationsTest {
 
         // The Hyperion L1 dataset has its gigs per subtask value changed
         Set<TypedParameter> typedProperties = nameToParameterSet.get("Remote Hyperion L1")
-            .getParameters()
-            .getTypedProperties();
+            .getTypedParameters();
         assertEquals(14, typedProperties.size());
         Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "enabled", "false",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "gigsPerSubtask", "1.0",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskMaxWallTimeHours", "2.1",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskTypicalWallTimeHours",
-            "2.1", ZiggyDataType.ZIGGY_STRING, true));
+            "2.1", ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "optimizer", "COST",
             ZiggyDataType.ZIGGY_STRING, true));
 
         // The sample classless parameter set no changed parameters
         typedProperties = nameToParameterSet.get("Sample classless parameter set")
-            .getParameters()
-            .getTypedProperties();
+            .getTypedParameters();
         assertEquals(3, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z1", "100",
@@ -476,9 +502,7 @@ public class ParametersOperationsTest {
             ZiggyDataType.ZIGGY_STRING, true));
 
         // ISOFIT classless parameter set has no changes
-        typedProperties = nameToParameterSet.get("ISOFIT module parameters")
-            .getParameters()
-            .getTypedProperties();
+        typedProperties = nameToParameterSet.get("ISOFIT module parameters").getTypedParameters();
         assertEquals(3, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "n_cores", "4",
@@ -487,7 +511,6 @@ public class ParametersOperationsTest {
             ZiggyDataType.ZIGGY_BOOLEAN, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "empirical_line", "true",
             ZiggyDataType.ZIGGY_BOOLEAN, true));
-
     }
 
     @Test
@@ -533,34 +556,30 @@ public class ParametersOperationsTest {
 
         // The Hyperion L1 dataset has only its gigsPerSubtask set to a non-default value
         Set<TypedParameter> typedProperties = nameToParameterSet.get("Remote Hyperion L1")
-            .getParameters()
-            .getTypedProperties();
+            .getTypedParameters();
         assertEquals(14, typedProperties.size());
         Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "enabled", "false",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "gigsPerSubtask", "3.0",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskMaxWallTimeHours", "0.0",
-            ZiggyDataType.ZIGGY_STRING, true));
+            ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskTypicalWallTimeHours",
-            "0.0", ZiggyDataType.ZIGGY_STRING, true));
+            "0.0", ZiggyDataType.ZIGGY_DOUBLE, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "optimizer", "CORES",
             ZiggyDataType.ZIGGY_STRING, true));
 
         // The sample classless parameter set now has only 1 parameter
         typedProperties = nameToParameterSet.get("Sample classless parameter set")
-            .getParameters()
-            .getTypedProperties();
+            .getTypedParameters();
         assertEquals(1, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z1", "100",
             ZiggyDataType.ZIGGY_STRING, true));
 
         // ISOFIT classless parameter set has no changes
-        typedProperties = nameToParameterSet.get("ISOFIT module parameters")
-            .getParameters()
-            .getTypedProperties();
+        typedProperties = nameToParameterSet.get("ISOFIT module parameters").getTypedParameters();
         assertEquals(3, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "n_cores", "4",
@@ -571,9 +590,7 @@ public class ParametersOperationsTest {
             ZiggyDataType.ZIGGY_BOOLEAN, true));
 
         // All-new parameters has 1 parameter
-        typedProperties = nameToParameterSet.get("All-new parameters")
-            .getParameters()
-            .getTypedProperties();
+        typedProperties = nameToParameterSet.get("All-new parameters").getTypedParameters();
         assertEquals(1, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "parameter", "4",
@@ -582,16 +599,7 @@ public class ParametersOperationsTest {
 
     // And now for a bunch of tests that exercise all the error cases
 
-    // Test import of a parameter library with a mismatched parameter
-    @Test(expected = IllegalArgumentException.class)
-    public void testMismatchedParameterImportException() throws Exception {
-        ParametersOperations ops = new ParametersOperations();
-        ops.importParameterLibrary(
-            TEST_DATA.resolve("paramlib").resolve("params-mismatch.xml").toString(), null,
-            ParamIoMode.STANDARD);
-    }
-
-    // Test an override that tries to change the parameters in a DefaultParameters instance
+    // Test an override that tries to change the parameters in a Parameters instance
     @Test(expected = IllegalArgumentException.class)
     public void testOverrideWithNewParamException() throws Exception {
 
@@ -609,8 +617,8 @@ public class ParametersOperationsTest {
             ParamIoMode.STANDARD);
     }
 
-    // Test an override that changes the type of a DefaultParameter instance
-    @Test(expected = IllegalStateException.class)
+    // Test an override that changes the type of a Parameters instance
+    @Test(expected = NumberFormatException.class)
     public void testOverrideWithBadTypeException() throws Exception {
 
         // Import the initial parameter library and persist to the database
@@ -648,7 +656,7 @@ public class ParametersOperationsTest {
     private Map<String, ParameterSet> nameToParameterSet(Collection<ParameterSet> parameterSets) {
         Map<String, ParameterSet> nameToParameterSet = new HashMap<>();
         for (ParameterSet parameterSet : parameterSets) {
-            nameToParameterSet.put(parameterSet.getName().getName(), parameterSet);
+            nameToParameterSet.put(parameterSet.getName(), parameterSet);
         }
         return nameToParameterSet;
     }
@@ -665,22 +673,4 @@ public class ParametersOperationsTest {
 
         return goodProperty;
     }
-
-    /**
-     * Implements a test bean that has one parameter.
-     */
-    public static class TestBean implements Parameters {
-
-        private String name;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-    }
-
 }

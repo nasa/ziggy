@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_TEST_WORKING_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -39,7 +39,7 @@ import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
 import gov.nasa.ziggy.models.ModelImporter;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
@@ -91,11 +91,11 @@ public class DefaultPipelineInputsTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+        DATASTORE_ROOT_DIR, directoryRule, "datastore");
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
+        ZIGGY_TEST_WORKING_DIR, (String) null);
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -189,7 +189,6 @@ public class DefaultPipelineInputsTest {
         // for a mocked object. Instead we resort to the tried-and-true approach of a
         // constructor that takes as argument the objects we want to replace.
         defaultPipelineInputs = new DefaultPipelineInputs(mockedDataFileManager, alertService);
-
     }
 
     /**
@@ -228,7 +227,7 @@ public class DefaultPipelineInputsTest {
         DefaultPipelineInputs storedInputs = new DefaultPipelineInputs();
         hdf5ModuleInterface.readFile(new File(taskDir, "csci-inputs.h5"), storedInputs, true);
 
-        List<Parameters> pars = storedInputs.getModuleParameters().getModuleParameters();
+        List<ParametersInterface> pars = storedInputs.getModuleParameters().getModuleParameters();
         assertEquals(2, pars.size());
         if (pars.get(0) instanceof Params1) {
             assertTrue(pars.get(1) instanceof Params2);
@@ -245,7 +244,6 @@ public class DefaultPipelineInputsTest {
         assertEquals(2, modelFilenames.size());
         assertTrue(modelFilenames.contains("tess2020234101112-12345_023-geometry.xml"));
         assertTrue(modelFilenames.contains("calibration-4.12.9.h5"));
-
     }
 
     @Test
@@ -296,7 +294,7 @@ public class DefaultPipelineInputsTest {
         Mockito
             .when(pipelineTaskCrud.retrieveIdsForPipelineDefinitionNode(ArgumentMatchers.anySet(),
                 ArgumentMatchers.eq(pipelineDefinitionNode)))
-            .thenReturn(new ArrayList<Long>());
+            .thenReturn(new ArrayList<>());
 
         // Perform the copy
         performCopyToTaskDir(false);
@@ -427,7 +425,7 @@ public class DefaultPipelineInputsTest {
     @Test
     public void testFindDatastoreFilesForInputs() {
 
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(uow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(uow);
 
         Set<Path> paths = defaultPipelineInputs.findDatastoreFilesForInputs(pipelineTask);
         assertEquals(4, paths.size());
@@ -443,8 +441,7 @@ public class DefaultPipelineInputsTest {
     @Test
     public void testSubtaskInformation() {
 
-        BeanWrapper<UnitOfWork> bwuow = new BeanWrapper<>(uow);
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(bwuow);
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(uow);
 
         SubtaskInformation subtaskInformation = defaultPipelineInputs
             .subtaskInformation(pipelineTask);
@@ -456,7 +453,7 @@ public class DefaultPipelineInputsTest {
         TypedParameter singleSubtask = uow
             .getParameter(DatastoreDirectoryUnitOfWorkGenerator.SINGLE_SUBTASK_PROPERTY_NAME);
         singleSubtask.setValue(Boolean.TRUE);
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(uow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(uow);
         subtaskInformation = defaultPipelineInputs.subtaskInformation(pipelineTask);
         assertEquals("csci", subtaskInformation.getModuleName());
         assertEquals("sector-0001/ccd-1:1/pa", subtaskInformation.getUowBriefState());
@@ -498,7 +495,8 @@ public class DefaultPipelineInputsTest {
             DefaultPipelineInputs storedInputs = new DefaultPipelineInputs();
             hdf5ModuleInterface.readFile(new File(taskDir, "csci-inputs.h5"), storedInputs, true);
 
-            List<Parameters> pars = storedInputs.getModuleParameters().getModuleParameters();
+            List<ParametersInterface> pars = storedInputs.getModuleParameters()
+                .getModuleParameters();
             assertEquals(2, pars.size());
             if (pars.get(0) instanceof Params1) {
                 assertTrue(pars.get(1) instanceof Params2);
@@ -515,9 +513,7 @@ public class DefaultPipelineInputsTest {
             assertEquals(2, modelFilenames.size());
             assertTrue(modelFilenames.contains("tess2020234101112-12345_023-geometry.xml"));
             assertTrue(modelFilenames.contains("calibration-4.12.9.h5"));
-
         }
-
     }
 
     /**
@@ -530,7 +526,7 @@ public class DefaultPipelineInputsTest {
 
         // move to the st-0 subtask directory
         Path subtaskDir = Paths.get(taskDir.getAbsolutePath(), "st-0");
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR.property(), subtaskDir.toString());
 
         new DefaultPipelineInputs(mockedDataFileManager, alertService).populateSubTaskInputs();
 
@@ -539,7 +535,7 @@ public class DefaultPipelineInputsTest {
         try (Stream<Path> taskDirPaths = java.nio.file.Files.list(subtaskDir)) {
             List<String> subtaskDirFileNames = taskDirPaths.map(s -> s.getFileName().toString())
                 .collect(Collectors.toList());
-            assertTrue(subtaskDirFileNames.contains("csci-inputs-0.h5"));
+            assertTrue(subtaskDirFileNames.contains("csci-inputs.h5"));
             if (subtaskDirFileNames.contains("sector-0001-ccd-1:1-tic-001234567-flux.h5")) {
                 subtask0DataFiles = "001234567";
                 assertTrue(
@@ -567,7 +563,7 @@ public class DefaultPipelineInputsTest {
         // data is getting processed someplace
 
         subtaskDir = Paths.get(taskDir.getAbsolutePath(), "st-1");
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR.property(), subtaskDir.toString());
 
         new DefaultPipelineInputs(mockedDataFileManager, alertService).populateSubTaskInputs();
 
@@ -609,7 +605,7 @@ public class DefaultPipelineInputsTest {
 
         // move to the st-0 subtask directory
         Path subtaskDir = Paths.get(taskDir.getAbsolutePath(), "st-0");
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR.property(), subtaskDir.toString());
 
         defaultPipelineInputs.populateSubTaskInputs();
 
@@ -649,7 +645,6 @@ public class DefaultPipelineInputsTest {
             assertFalse(taskDirFileNames.contains("sector-0001-ccd-1:1-tic-765432100-centroid.h5"));
             assertFalse(taskDirFileNames.contains("tess2020234101112-12345_023-geometry.xml"));
             assertFalse(taskDirFileNames.contains("calibration-4.12.9.h5"));
-
         }
     }
 
@@ -665,7 +660,7 @@ public class DefaultPipelineInputsTest {
             .getParameter(DatastoreDirectoryUnitOfWorkGenerator.SINGLE_SUBTASK_PROPERTY_NAME);
         singleSubtaskProp.setValue(Boolean.valueOf(singleSubtask));
 
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(uow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(uow);
 
         // Create a TaskConfigurationManager
         TaskConfigurationManager tcm = new TaskConfigurationManager(taskDir);
@@ -673,7 +668,6 @@ public class DefaultPipelineInputsTest {
         defaultPipelineInputs.copyDatastoreFilesToTaskDirectory(tcm, pipelineTask,
             taskDir.toPath());
         tcm.persist();
-
     }
 
     private void initializeDataFileTypes() {
@@ -721,7 +715,6 @@ public class DefaultPipelineInputsTest {
         modelType3.setType("ravenswood");
         modelType3.setTimestampGroup(-1);
         modelType3.setVersionNumberGroup(-1);
-
     }
 
     private void initializeModelRegistry() throws IOException {
@@ -759,7 +752,6 @@ public class DefaultPipelineInputsTest {
         modelTypes = new HashSet<>();
         modelTypes.add(modelType1);
         modelTypes.add(modelType2);
-
     }
 
     private void initializeDataFiles() throws IOException {
@@ -783,28 +775,26 @@ public class DefaultPipelineInputsTest {
         for (Path path : fluxPaths) {
             Files.createFile(datastore.toPath().resolve(path));
         }
-
     }
 
-    private Map<ClassWrapper<Parameters>, ParameterSet> parametersMap() {
+    private Map<ClassWrapper<ParametersInterface>, ParameterSet> parametersMap() {
 
-        Map<ClassWrapper<Parameters>, ParameterSet> parMap = new HashMap<>();
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> parMap = new HashMap<>();
 
-        ClassWrapper<Parameters> c1 = new ClassWrapper<>(Params1.class);
+        ClassWrapper<ParametersInterface> c1 = new ClassWrapper<>(Params1.class);
         ParameterSet s1 = new ParameterSet("params1");
-        s1.setParameters(new BeanWrapper<Parameters>(new Params1()));
+        s1.populateFromParametersInstance(new Params1());
         parMap.put(c1, s1);
 
-        ClassWrapper<Parameters> c2 = new ClassWrapper<>(Params2.class);
+        ClassWrapper<ParametersInterface> c2 = new ClassWrapper<>(Params2.class);
         ParameterSet s2 = new ParameterSet("params2");
-        s2.setParameters(new BeanWrapper<Parameters>(new Params2()));
+        s2.populateFromParametersInstance(new Params2());
         parMap.put(c2, s2);
 
         return parMap;
-
     }
 
-    public static class Params1 implements Parameters {
+    public static class Params1 extends Parameters {
         private int dmy1 = 500;
         private double dmy2 = 2856.3;
 
@@ -825,7 +815,7 @@ public class DefaultPipelineInputsTest {
         }
     }
 
-    public static class Params2 implements Parameters {
+    public static class Params2 extends Parameters {
         private String dmy3 = "dummy string";
         private boolean[] dmy4 = { true, false };
 
@@ -844,6 +834,5 @@ public class DefaultPipelineInputsTest {
         public void setDmy4(boolean[] dmy4) {
             this.dmy4 = dmy4;
         }
-
     }
 }

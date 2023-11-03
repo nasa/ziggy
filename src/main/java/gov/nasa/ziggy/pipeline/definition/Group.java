@@ -2,10 +2,10 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.util.Objects;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 /**
  * Group identifier for {@link PipelineDefinition}s, {@link PipelineModuleDefinition}s,
@@ -17,9 +17,9 @@ import javax.persistence.Table;
  * @author Todd Klaus
  */
 @Entity
-@Table(name = "PI_GROUP")
+@Table(name = "ziggy_Group")
 public class Group {
-    public static final Group DEFAULT_GROUP = new Group();
+    public static final Group DEFAULT = new Group();
 
     @Id
     private String name;
@@ -34,6 +34,12 @@ public class Group {
 
     public Group(String name) {
         this.name = name;
+    }
+
+    public Group(Group group) {
+        name = group.name;
+        description = group.description;
+        parentGroup = group.parentGroup;
     }
 
     public String getName() {

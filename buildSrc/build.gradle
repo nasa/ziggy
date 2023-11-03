@@ -2,8 +2,11 @@
  * This is the buildSrc/build.gradle file.  This should contain a minimal
  * amount of dependencies as this is used by the build system itself.
  */
-apply plugin: 'eclipse'
-apply plugin: 'java'
+plugins {
+    id 'eclipse'
+    id 'java'
+    id 'maven-publish'
+}
 
 defaultTasks 'assemble'
 
@@ -15,23 +18,29 @@ dependencies {
     // Needed to compile buildSrc.
     implementation 'com.google.guava:guava:23.+'
     implementation 'commons-io:commons-io:2.11.+'
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.+'
     implementation 'org.apache.commons:commons-exec:1.+'
-    implementation 'org.freemarker:freemarker:2.3.+'
-    implementation 'com.sun.xml.bind:jaxb-impl:3.0+'
-    runtimeOnly 'jakarta.xml.bind:jakarta.xml.bind-api:3.0+'
+    implementation 'org.apache.commons:commons-lang3:3.12.+'
+    runtimeOnly 'com.sun.xml.bind:jaxb-impl:3.0.+'
 
     // Needed to compile unit tests.
-    implementation 'junit:junit:4.+'
-    implementation 'org.mockito:mockito-core:4.8.+'
+    testImplementation 'junit:junit:4.+'
+    testImplementation 'org.mockito:mockito-core:4.8.+'
 
     // The following stuff is needed in order to build custom gradle tasks and plugins.
     implementation gradleApi()
     implementation localGroovy()
 }
 
+test {
+    testLogging  {
+        showStandardStreams = true
+    }
+}
+
 eclipse {
     classpath {
-        defaultOutputDir = file("$buildDir/eclipse")
+        defaultOutputDir = file("$buildDir/eclipse/default")
         // outputBaseDir = file("$buildDir/eclipse")
         downloadSources = false
         downloadJavadoc = false
@@ -45,19 +54,65 @@ eclipse {
             entries.each { entry ->
                 if (entry.kind == "src" && entry.hasProperty("output")) {
                     // The use of $buildDir does not return build.
-                    entry.output = "build/eclipse"
+                    entry.output = entry.output.replace("bin/", "build/eclipse/")
                 }
             }
         }
     }
 }
 
-test {
-    testLogging  {
-        showStandardStreams = true
+// Avoid duplicate classpath entries.
+tasks.eclipse.dependsOn(cleanEclipse)
+
+// Publish ziggy-buildSrc.jar. See also $rootDir/script-utils/publish.gradle.
+publishing {
+    publications {
+        ziggyBuildSrc(MavenPublication) {
+            groupId group
+            from components.java
+            artifactId "ziggy-buildSrc"
+            version version
+
+            // Maven doesn't understand 2.17.+ notation.
+            suppressPomMetadataWarningsFor('runtimeElements')
+
+            pom {
+                name = 'Ziggy BuildSrc'
+                description = 'Ziggy Gradle build library'
+                url = 'https://github.com/nasa/ziggy'
+                licenses {
+                    license {
+                        name = 'NASA Open Source Agreement Version 1.3'
+                        url = 'https://github.com/nasa/ziggy/blob/main/LICENSE.pdf'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'quarkpt'
+                        name = 'Peter Tenenbaum'
+                        email = 'Peter.Tenenbaum@nasa.gov'
+                    }
+                    developer {
+                        id = 'wohler'
+                        name = 'Bill Wohler'
+                        email = 'Bill.Wohler@nasa.gov'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/nasa/ziggy.git'
+                    developerConnection = 'scm:git:git@github.com:nasa/ziggy.git'
+                    url = 'https://github.com/nasa/ziggy'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'ziggyBuildSrc'
+            url = layout.buildDirectory.dir("repository")
+        }
     }
 }
 
-apply from: "script-plugins/hdf5.gradle"
-apply from: "script-plugins/wrapper.gradle"
-
+build.dependsOn publish

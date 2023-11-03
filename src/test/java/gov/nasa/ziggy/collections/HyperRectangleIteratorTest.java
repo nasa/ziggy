@@ -108,6 +108,5 @@ public class HyperRectangleIteratorTest {
         for (int i = 0; i < 7; i++) {
             hi.next();
         }
-
     }
 }

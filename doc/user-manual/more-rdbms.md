@@ -14,9 +14,9 @@ The relational database is the system Ziggy uses to store its permanent records 
 
 ### Is the Database Used for Anything Relevant to Algorithm Execution?
 
-Experience with prior missions has given us a sense that Ziggy's records are well-suited to be stored in a relational database, while the algorithms mainly need data that's not well-suited to such storage. This is why Ziggy stores models and data files in the datastore and never attempts to open those files up and manipulate the contents. 
+Experience with prior missions has given us a sense that Ziggy's records are well-suited to be stored in a relational database, while the algorithms mainly need data that's not well-suited to such storage. This is why Ziggy stores models and data files in the datastore and never attempts to open those files up and manipulate the contents.
 
-The limited amount of database information that's potentially needed for algorithm execution is the stuff that's provided in the algorithm inputs files: module parameters, names of model and data files, data file type definitions, etc. 
+The limited amount of database information that's potentially needed for algorithm execution is the stuff that's provided in the algorithm inputs files: module parameters, names of model and data files, data file type definitions, etc.
 
 ### What if We Need to Change Pipeline Definitions?
 
@@ -24,7 +24,7 @@ Ziggy's storage of things like parameter sets and pipeline definitions is done i
 
 ### Is it Possible to use the Database for Mission-Related Data?
 
-Short answer: yes. 
+Short answer: yes.
 
 Longer answer:
 
@@ -32,7 +32,7 @@ There are definitely cases in which some portion of the mission's data belongs i
 
 1. The amount of information in the catalog is large.
 2. The portion of the catalog needed by any particular processing task is tiny. Hence:
-3. It makes sense to query the database for the part of the catalog that a given task needs, and provide the results of that query to the task. 
+3. It makes sense to query the database for the part of the catalog that a given task needs, and provide the results of that query to the task.
 
 #### The Bad News
 

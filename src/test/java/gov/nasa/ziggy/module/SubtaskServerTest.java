@@ -110,5 +110,4 @@ public class SubtaskServerTest {
         assertTrue(TestEventDetector.detectTestEvent(1000L,
             () -> subtaskServer.getListenerThread().getState().equals(Thread.State.TERMINATED)));
     }
-
 }

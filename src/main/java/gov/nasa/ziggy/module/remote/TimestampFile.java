@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * @author Todd Klaus
@@ -19,6 +21,7 @@ public abstract class TimestampFile {
         ARRIVE_PFE, QUEUED_PBS, PBS_JOB_START, PBS_JOB_FINISH, SUB_TASK_START, SUB_TASK_FINISH
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public static boolean create(File directory, Event name, long timestamp) {
         if (!delete(directory, name)) {
             return false;
@@ -61,6 +64,7 @@ public abstract class TimestampFile {
         return create(directory, name, System.currentTimeMillis());
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public static long timestamp(File directory, final Event name) {
         File[] files = directory
             .listFiles((FileFilter) f -> f.getName().startsWith(name.toString()) && f.isFile());
@@ -86,8 +90,9 @@ public abstract class TimestampFile {
         try {
             timeMillis = Long.parseLong(timeString);
         } catch (NumberFormatException e) {
-            throw new PipelineException(
-                "Unable to parse timestamp file: " + filename + ", timeString = " + timeString);
+            // This can never occur. By construction, the timestamp files are written with
+            // valid long integer values.
+            throw new AssertionError(e);
         }
 
         return timeMillis;

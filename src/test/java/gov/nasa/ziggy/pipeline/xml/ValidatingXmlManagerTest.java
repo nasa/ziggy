@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.pipeline.xml;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -13,10 +13,10 @@ import org.junit.Test;
 import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.UnmarshalException;
 
 /**
  * Unit tests for {@link ValidatingXmlManager} class.
@@ -29,8 +29,8 @@ public class ValidatingXmlManagerTest {
     private File validXmlFile;
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Before
     public void setUp() {
@@ -41,7 +41,7 @@ public class ValidatingXmlManagerTest {
         validXmlFile = validXmlPath.toFile();
     }
 
-    @Test(expected = UnmarshalException.class)
+    @Test(expected = PipelineException.class)
     public void testUnmarshalInvalidXml() throws InstantiationException, IllegalAccessException,
         SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
         NoSuchMethodException, SecurityException {
@@ -59,5 +59,4 @@ public class ValidatingXmlManagerTest {
             PipelineDefinitionFile.class);
         xmlManager.unmarshal(validXmlFile);
     }
-
 }

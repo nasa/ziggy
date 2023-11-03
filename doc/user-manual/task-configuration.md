@@ -2,7 +2,7 @@
 
 [[Previous]](datastore-task-dir.md)
 [[Up]](intermediate-topics.md)
-[[Next]](properties.md)
+[[Next]](rdbms.md)
 
 ## The Task Configuration Parameter Sets
 
@@ -90,8 +90,6 @@ Under normal circumstances, as we'll see shortly, if even a single subtask fails
 
 The default for `maxFailedSubtaskCount` is zero.
 
-The default for `maxFailedSubtaskCount` is zero.
-
 #### reprocess
 
 Most missions don't get all their data all at once. Most missions get data at some regular interval: every day, every month, whatever.
@@ -112,17 +110,7 @@ Thus, when Ziggy marshals inputs for a new task, and that task's `TaskConfigurat
 
 One subtlety: Ziggy not only tracks which pipeline tasks consumed a given file as input; it also looks to see whether they did so successfully. If a task consumes a file as input, but then the algorithm process that was running on that data bombs, Ziggy doesn't record that task as a consumer of that file. That way, the next time Ziggy processes "new" data, it will also include any "old" data that was only used in failed processing attempts.
 
-The default for `reprocess` is `false`. 
-
-##### How does Ziggy Know Whether Data is "New" or "Old"?
-
-Excellent question! Here's a long answer:
-
-Ziggy keeps track of the "producer-consumer" information for every file in the datastore. That is, it knows which pipeline task produced each file, and it knows which pipeline tasks used each file as input ("consumed" it). Ziggy also knows what algorithm was employed by every task it's ever run. 
-
-Thus, when Ziggy marshals inputs for a new task, and that task's `TaskConfigurationParameters` instance has `reprocess` set to `false`, the system filters out any inputs that have been, at some point in the past, processed using the same algorithm as the task that's being marshaled. Result: a task directory that has only data files that haven't been processed before. 
-
-One subtlety: Ziggy not only tracks which pipeline tasks consumed a given file as input; it also looks to see whether they did so successfully. If a task consumes a file as input, but then the algorithm process that was running on that data bombs, Ziggy doesn't record that task as a consumer of that file. That way, the next time Ziggy processes "new" data, it will also include any "old" data that was only used in failed processing attempts. 
+The default for `reprocess` is `false`.
 
 #### reprocessingTasksExclude
 
@@ -157,4 +145,4 @@ The default for `maxAutoResubmits` is zero.
 
 [[Previous]](datastore-task-dir.md)
 [[Up]](intermediate-topics.md)
-[[Next]](properties.md)
+[[Next]](rdbms.md)

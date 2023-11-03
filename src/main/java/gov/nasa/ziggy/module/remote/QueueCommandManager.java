@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +19,10 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob.RemoteJobQstatInfo;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Executes batch commands and parses the text output from those commands.
@@ -67,10 +69,11 @@ public abstract class QueueCommandManager {
         .compile("\\s*" + SELECT + " = ([0-9]+):model=(\\S+)");
     public static final Pattern WALLTIME_PATTERN = Pattern.compile("\\s*" + WALLTIME + " = (\\S+)");
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static QueueCommandManager newInstance() {
-        Configuration config = ZiggyConfiguration.getInstance();
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
         String queueCommandClassName;
-        queueCommandClassName = config.getString(PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME,
+        queueCommandClassName = config.getString(PropertyName.REMOTE_QUEUE_COMMAND_CLASS.property(),
             DEFAULT_LOCAL_CLASS);
 
         QueueCommandManager cmdManager;
@@ -335,5 +338,4 @@ public abstract class QueueCommandManager {
     protected String user() {
         return System.getenv("USER");
     }
-
 }

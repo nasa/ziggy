@@ -6,9 +6,11 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +22,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.module.SubtaskDirectoryIterator;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.SpotBugsUtils;
 
 public class MatlabMetrics {
@@ -45,7 +49,7 @@ public class MatlabMetrics {
     }
 
     private static final class CacheContents implements Serializable {
-        private static final long serialVersionUID = -2905417458703562259L;
+        private static final long serialVersionUID = 20230511L;
         public DescriptiveStatistics totalTime;
         public HashMap<String, DescriptiveStatistics> function;
         public TopNList topTen;
@@ -53,51 +57,53 @@ public class MatlabMetrics {
 
     @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
-    public void parseFiles() throws Exception {
-        if (!parsed) {
-            totalTimeStats = new DescriptiveStatistics();
-            functionStats = new HashMap<>();
-            topTen = new TopNList(10);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public void parseFiles() {
+        File cacheFile = new File(taskFilesDir, MATLAB_METRICS_CACHE_FILENAME);
+        try {
+            if (!parsed) {
+                totalTimeStats = new DescriptiveStatistics();
+                functionStats = new HashMap<>();
+                topTen = new TopNList(10);
 
-            File cacheFile = new File(taskFilesDir, MATLAB_METRICS_CACHE_FILENAME);
+                if (cacheFile.exists()) {
+                    log.info("Found cache file");
+                    try (ObjectInputStream ois = new ObjectInputStream(
+                        new BufferedInputStream(new FileInputStream(cacheFile)))) {
+                        CacheContents cacheContents = (CacheContents) ois.readObject();
 
-            if (cacheFile.exists()) {
-                log.info("Found cache file");
-                try (ObjectInputStream ois = new ObjectInputStream(
-                    new BufferedInputStream(new FileInputStream(cacheFile)))) {
-                    CacheContents cacheContents = (CacheContents) ois.readObject();
-
-                    totalTimeStats = cacheContents.totalTime;
-                    functionStats = cacheContents.function;
-                    topTen = cacheContents.topTen;
-                }
-            } else { // no cache
-                log.info("No cache file found, parsing files");
-                File[] taskDirs = taskFilesDir.listFiles(
-                    (FileFilter) f -> f.getName().startsWith(moduleName + "-") && f.isDirectory());
-
-                for (File taskDir : taskDirs) {
-                    log.info("Processing: " + taskDir);
-
-                    SubtaskDirectoryIterator directoryIterator = new SubtaskDirectoryIterator(
-                        taskDir);
-
-                    if (directoryIterator.hasNext()) {
-                        log.info(
-                            "Found " + directoryIterator.numSubTasks() + " sub-task directories");
-                    } else {
-                        log.info("No sub-task directories found");
+                        totalTimeStats = cacheContents.totalTime;
+                        functionStats = cacheContents.function;
+                        topTen = cacheContents.topTen;
                     }
+                } else { // no cache
+                    log.info("No cache file found, parsing files");
+                    File[] taskDirs = taskFilesDir
+                        .listFiles((FileFilter) f -> f.getName().startsWith(moduleName + "-")
+                            && f.isDirectory());
 
-                    while (directoryIterator.hasNext()) {
-                        File subTaskDir = directoryIterator.next().getSubtaskDir();
+                    for (File taskDir : taskDirs) {
+                        log.info("Processing: " + taskDir);
 
-                        log.debug("STM: " + subTaskDir);
+                        SubtaskDirectoryIterator directoryIterator = new SubtaskDirectoryIterator(
+                            taskDir);
 
-                        File subTaskMetricsFile = new File(subTaskDir, MATLAB_METRICS_FILENAME);
+                        if (directoryIterator.hasNext()) {
+                            log.info("Found " + directoryIterator.numSubTasks()
+                                + " sub-task directories");
+                        } else {
+                            log.info("No sub-task directories found");
+                        }
 
-                        if (subTaskMetricsFile.exists()) {
-                            try {
+                        while (directoryIterator.hasNext()) {
+                            File subTaskDir = directoryIterator.next().getSubtaskDir();
+
+                            log.debug("STM: " + subTaskDir);
+
+                            File subTaskMetricsFile = new File(subTaskDir, MATLAB_METRICS_FILENAME);
+
+                            if (subTaskMetricsFile.exists()) {
                                 Map<String, Metric> subTaskMetrics = Metric
                                     .loadMetricsFromSerializedFile(subTaskMetricsFile);
 
@@ -133,30 +139,35 @@ public class MatlabMetrics {
                                     log.warn("no metric found with name: "
                                         + MATLAB_CONTROLLER_EXEC_TIME_METRIC + " in:" + subTaskDir);
                                 }
-                            } catch (Exception e) {
-                                log.warn(
-                                    "Metrics file is corrupt: " + subTaskDir + ", caught e:" + e);
+                            } else {
+                                log.warn("No metrics file found in: " + subTaskDir);
                             }
-                        } else {
-                            log.warn("No metrics file found in: " + subTaskDir);
+                        }
+                    }
+
+                    if (cacheResults) {
+                        try (ObjectOutputStream oos = new ObjectOutputStream(
+                            new BufferedOutputStream(new FileOutputStream(cacheFile)))) {
+                            CacheContents cache = new CacheContents();
+                            cache.totalTime = totalTimeStats;
+                            cache.function = functionStats;
+                            cache.topTen = topTen;
+
+                            oos.writeObject(cache);
+                            oos.flush();
                         }
                     }
                 }
-
-                if (cacheResults) {
-                    try (ObjectOutputStream oos = new ObjectOutputStream(
-                        new BufferedOutputStream(new FileOutputStream(cacheFile)))) {
-                        CacheContents cache = new CacheContents();
-                        cache.totalTime = totalTimeStats;
-                        cache.function = functionStats;
-                        cache.topTen = topTen;
-
-                        oos.writeObject(cache);
-                        oos.flush();
-                    }
-                }
+                parsed = true;
             }
-            parsed = true;
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "IOException occurred accessing file " + cacheFile.toString(), e);
+        } catch (ClassNotFoundException e) {
+            // This exception can never occur. This class is the sole creator and consumer
+            // of the serialized object file, hence it is guaranteed that the class that is
+            // serialized is also the class that is retrieved.
+            throw new AssertionError(e);
         }
     }
 

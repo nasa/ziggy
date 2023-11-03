@@ -6,7 +6,7 @@
 
 ## Downloading and Building Ziggy
 
-Before you start, you should check out the [system requirements](system-requirements.md) article. This will ensure that you have the necessary hardware and software to follow the steps in this article. 
+Before you start, you should check out the [system requirements](system-requirements.md) article. This will ensure that you have the necessary hardware and software to follow the steps in this article.
 
 ### Downloading Ziggy
 
@@ -20,7 +20,7 @@ LICENSE.pdf     doc                  gradlew            script-plugins
 README.md       etc                  ide                settings.gradle
 build.gradle    gradle               licenses           src
 buildSrc        gradle.properties    sample-pipeline    test
-ziggy$ 
+ziggy$
 ```
 
 Let's go through these items:
@@ -28,13 +28,13 @@ Let's go through these items:
 - The files `build.gradle`, `settings.gradle`, `gradle.properties`, and `gradlew` are used by our build system. Hopefully you won't need to know anything more about them than that.
 - Likewise, directories `gradle` and `script-plugins` are used in the build.
 - The `buildSrc` directory contains some Java and Groovy classes that are part of Ziggy but are used by the build. The idea here is that Gradle allows users to extend it by defining new kinds of build tasks; those new kinds of build tasks are implemented as Java or Groovy classes and by convention are put into a "buildSrc" folder. This is something else you probably won't need to worry about; certainly not any time soon.
-- The `doc` directory contains this user manual, plus a bunch of other, more technical documentation. 
+- The `doc` directory contains this user manual, plus a bunch of other, more technical documentation.
 - The `etc` directory contains files that are used as configuration inputs to various programs. This is things like: the file that tells the logger how to format text lines, and so on. Two of these are going to be particularly useful and important to you: the ziggy.properties file, and the pipeline.properties.EXAMPLE file. These files provide all of the configuration that Ziggy needs to locate executables, working directories, data storage, and etc. We'll go into a lot of detail on this at the appropriate time.
-- The `ide` directory contains auxiliary files that are useful if you want to develop Ziggy in the Eclipse IDE. 
-- The `licenses` directory contains information about both the Ziggy license and the licenses of third-party applications and libraries that Ziggy uses. 
-- The `src` directory contains the directory tree of Ziggy source code, both main classes and test classes. 
-- The `test` directory contains test data for Ziggy's unit tests. 
-- The `sample-pipeline` directory contains the source and such for the sample pipeline. 
+- The `ide` directory contains auxiliary files that are useful if you want to develop Ziggy in the Eclipse IDE.
+- The `licenses` directory contains information about both the Ziggy license and the licenses of third-party applications and libraries that Ziggy uses.
+- The `src` directory contains the directory tree of Ziggy source code, both main classes and test classes.
+- The `test` directory contains test data for Ziggy's unit tests.
+- The `sample-pipeline` directory contains the source and such for the sample pipeline.
 
 ### Building Ziggy
 
@@ -58,17 +58,17 @@ ziggy$ ./gradlew
 ar: creating archive ziggy/build/lib/libziggy.a
 ar: creating archive ziggy/build/lib/libziggymi.a
 
-> Task :compileJava 
+> Task :compileJava
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 
 
 BUILD SUCCESSFUL in 14s
 19 actionable tasks: 19 executed
-ziggy$ 
+ziggy$
 ```
 
-At this point, it's probably worthwhile to run Ziggy's unit tests to make sure nothing has gone wrong. To do this, at the command line type `./gradlew test`. The system will run through a large number of tests (around 700) over the course of about a minute, and hopefully you'll get another "BUILD SUCCESSFUL" message at the end. 
+At this point, it's probably worthwhile to run Ziggy's unit tests to make sure nothing has gone wrong. To do this, at the command line type `./gradlew test`. The system will run through a large number of tests (around 700) over the course of about a minute, and hopefully you'll get another "BUILD SUCCESSFUL" message at the end.
 
 If you look at the Ziggy folder now, you'll see the following:
 
@@ -78,7 +78,7 @@ LICENSE.pdf     buildSrc    gradle.properties    sample-pipeline    test
 README.md       doc         gradlew              script-plugins
 build           etc         ide                  settings.gradle
 build.gradle    gradle      licenses             src
-ziggy$ 
+ziggy$
 ```
 
 Pretty much the same, except that now there's a `build` folder. What's in the `build` folder?
@@ -87,24 +87,24 @@ Pretty much the same, except that now there's a `build` folder. What's in the `b
 build$ ls
 bin        etc        lib     obj          schema    tmp
 classes    include    libs    resources    src
-build$ 
+build$
 ```
 
 The main folders of interest here are:
 
-- The `bin` folder, which has all the executables. 
+- The `bin` folder, which has all the executables.
 - The `lib` folder, which has shared object libraries (i.e., compiled C++)
 - The `libs` folder, which has Jarfiles (so why not name it "jars"? I don't know).
-- The `etc` folder, which is a copy of the main `ziggy/etc` folder. 
+- The `etc` folder, which is a copy of the main `ziggy/etc` folder.
 
-Everything that Ziggy uses in execution comes from the subfolders of `build`. That's why there's a copy of `etc` in `build`: the `etc` in the main directory isn't used, the one in `build` is, so that everything that Ziggy needs is in one place. 
+Everything that Ziggy uses in execution comes from the subfolders of `build`. That's why there's a copy of `etc` in `build`: the `etc` in the main directory isn't used, the one in `build` is, so that everything that Ziggy needs is in one place.
 
 Before we move on, a few useful details about building Ziggy:
 
 - Ziggy makes use of a number of dependencies. Most of them are Jarfiles, which means that they can be downloaded and used without further ado, but at least one, the [HDF5 library](https://www.hdfgroup.org/solutions/hdf5/), requires compilation via the C++ compiler. This is the most time-consuming part of the build.
-- The first time you run `./gradlew`, the dependencies will be automatically downloaded. On subsequent builds with `./gradlew`, the dependencies will mostly not be downloaded, but instead cached copies will be used. This means that the subsequent uses are much faster. 
-- Why "mostly not ... downloaded?" Well, the build system checks the dependencies to see whether any new versions have come out. New versions of the third party libraries are automatically downloaded in order to ensure that Ziggy remains up-to-date with security patches. So on any given invocation of `./gradlew`, there might be a library or two that gets updated. 
-- Gradle has lots of commands (known in the lingo as "tasks") other than `test`. Most notably, the `./gradlew clean` command will delete the build directory so you can start the build over from the beginning. The `./gradlew build` command will first build the code and then run the unit tests. 
+- The first time you run `./gradlew`, the dependencies will be automatically downloaded. On subsequent builds with `./gradlew`, the dependencies will mostly not be downloaded, but instead cached copies will be used. This means that the subsequent uses are much faster.
+- Why "mostly not ... downloaded?" Well, the build system checks the dependencies to see whether any new versions have come out. New versions of the third party libraries are automatically downloaded in order to ensure that Ziggy remains up-to-date with security patches. So on any given invocation of `./gradlew`, there might be a library or two that gets updated.
+- Gradle has lots of commands (known in the lingo as "tasks") other than `test`. Most notably, the `./gradlew clean` command will delete the build directory so you can start the build over from the beginning. The `./gradlew build` command will first build the code and then run the unit tests.
 
 If all is going well, you're now ready to move on to [defining your own pipeline](configuring-pipeline.md)!
 

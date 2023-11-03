@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -34,6 +34,11 @@
 
 package gov.nasa.ziggy.module;
 
+import org.jfree.util.Log;
+
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+
 /**
  * Manages the movement of data files between the task directory and the subtask directories.
  * <p>
@@ -51,6 +56,7 @@ package gov.nasa.ziggy.module;
  */
 public final class TaskFileManager {
 
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public static void main(String[] args) {
 
         try {
@@ -73,11 +79,9 @@ public final class TaskFileManager {
                     + " does not implement PipelineInputsOutputs");
             }
             System.exit(0);
-        } catch (Throwable t) {
-            System.out.println("ERROR: TaskFileManager execution failed, stack trace follows");
-            t.printStackTrace();
+        } catch (Exception e) {
+            Log.error("TaskFileManager execution failed", e);
             System.exit(1);
         }
     }
-
 }

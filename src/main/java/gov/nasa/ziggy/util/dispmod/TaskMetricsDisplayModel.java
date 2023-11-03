@@ -9,8 +9,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.TaskMetrics;
 import gov.nasa.ziggy.metrics.TimeAndPercentile;
@@ -26,10 +24,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  * @author Todd Klaus
  */
 public class TaskMetricsDisplayModel extends DisplayModel {
-    @SuppressWarnings("unused")
-    private static final Logger log = LoggerFactory.getLogger(TaskMetricsDisplayModel.class);
 
-    /* List<Pair<moduleName,taskMetrics>> */
     private List<ModuleTaskMetrics> categorySummariesByModule = new LinkedList<>();
     private List<String> seenCategories = new ArrayList<>();
     private int numColumns = 0;
@@ -99,11 +94,11 @@ public class TaskMetricsDisplayModel extends DisplayModel {
         }
         if (column == 1) {
             return "Total";
-        } else if (column == numColumns - 1) {
-            return "Other";
-        } else {
-            return seenCategories.get(column - 2);
         }
+        if (column == numColumns - 1) {
+            return "Other";
+        }
+        return seenCategories.get(column - 2);
     }
 
     @Override
@@ -120,15 +115,13 @@ public class TaskMetricsDisplayModel extends DisplayModel {
         }
         if (columnIndex == 1) {
             return formatDuration(row.getTaskMetrics().getTotalProcessingTimeMillis()); // total
-        } else if (columnIndex == numColumns - 1) {
-            return categoryValuesString(row.getTaskMetrics().getUnallocatedTime());
-        } else {
-            String category = seenCategories.get(columnIndex - 2);
-            TimeAndPercentile categoryValues = row.getTaskMetrics()
-                .getCategoryMetrics()
-                .get(category);
-            return categoryValuesString(categoryValues);
         }
+        if (columnIndex == numColumns - 1) {
+            return categoryValuesString(row.getTaskMetrics().getUnallocatedTime());
+        }
+        String category = seenCategories.get(columnIndex - 2);
+        TimeAndPercentile categoryValues = row.getTaskMetrics().getCategoryMetrics().get(category);
+        return categoryValuesString(categoryValues);
     }
 
     private String categoryValuesString(TimeAndPercentile categoryValues) {
@@ -146,7 +139,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
             : Long.toString(durationMillis / 1000);
     }
 
-    private static class ModuleTaskMetrics {
+    public static class ModuleTaskMetrics {
 
         private final String moduleName;
         private final TaskMetrics taskMetrics;
@@ -174,7 +167,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             ModuleTaskMetrics other = (ModuleTaskMetrics) obj;

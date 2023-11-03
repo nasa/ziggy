@@ -7,13 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.hibernate.Criteria;
-import org.hibernate.criterion.Projections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.data.management.DataFileType;
+import gov.nasa.ziggy.data.management.DataFileType_;
 import gov.nasa.ziggy.module.PipelineException;
 
 /**
@@ -21,30 +21,19 @@ import gov.nasa.ziggy.module.PipelineException;
  *
  * @author PT
  */
-public class DataFileTypeCrud extends AbstractCrud {
+public class DataFileTypeCrud extends AbstractCrud<DataFileType> {
 
     private static final Logger log = LoggerFactory.getLogger(DataFileTypeCrud.class);
 
     /**
      * Because the DataFileType encodes information about how each data file is stored in the
      * datastore, it is unsafe to update it -- it may cause the updated version to be unable to
-     * locate the data that's already in the datastore. For this reason, we override the
-     * createOrUpdate() method in AbstractCrud with one that simply throws an exception.
-     */
-    @Override
-    public void createOrUpdate(Object o) {
-        throw new PipelineException("Use of createOrUpdate in DataFileTypeCrud is forbidden");
-    }
-
-    /**
-     * Because the DataFileType encodes information about how each data file is stored in the
-     * datastore, it is unsafe to update it -- it may cause the updated version to be unable to
-     * locate the data that's already in the datastore. For this reason, we override the update()
+     * locate the data that's already in the datastore. For this reason, we override the merge()
      * method in AbstractCrud with one that simply throws an exception.
      */
     @Override
-    public void update(Object o) {
-        throw new PipelineException("Use of update in DataFileTypeCrud is forbidden");
+    public <T> T merge(T o) {
+        throw new PipelineException("Use of merge in DataFileTypeCrud is forbidden");
     }
 
     /**
@@ -55,7 +44,7 @@ public class DataFileTypeCrud extends AbstractCrud {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public void create(Collection<?> collection) {
+    public void persist(Collection<?> collection) {
         List<DataFileType> createdInstances = new ArrayList<>();
         List<String> existingNames = retrieveAllNames();
         if (existingNames == null) {
@@ -63,7 +52,7 @@ public class DataFileTypeCrud extends AbstractCrud {
         }
         final List<String> finalExistingNames = existingNames;
         List<DataFileType> validInstances = (List<DataFileType>) collection.stream()
-            .filter(s -> s instanceof DataFileType)
+            .filter(DataFileType.class::isInstance)
             .filter(s -> !finalExistingNames.contains(((DataFileType) s).getName()))
             .collect(Collectors.toList());
         if (validInstances.size() < collection.size()) {
@@ -72,26 +61,24 @@ public class DataFileTypeCrud extends AbstractCrud {
         }
         createdInstances.addAll(validInstances);
         log.info("Creating " + createdInstances.size() + " instances of DataFileType in database");
-        super.create(createdInstances);
+        super.persist(createdInstances);
         log.info("Created " + createdInstances.size() + " instances of DataFileType in database");
-
     }
 
     /**
      * Retrieves the names of all existing DataFileType instances.
      */
     public List<String> retrieveAllNames() {
-        Criteria criteria = createCriteria(DataFileType.class);
-        criteria.setProjection(Projections.property("name"));
-        return list(criteria);
+        ZiggyQuery<DataFileType, String> query = createZiggyQuery(DataFileType.class, String.class);
+        query.column(DataFileType_.name).select();
+        return list(query);
     }
 
     /**
      * Retrieves all DataFileType instances in the database.
      */
     public List<DataFileType> retrieveAll() {
-        Criteria criteria = createCriteria(DataFileType.class);
-        return list(criteria);
+        return list(createZiggyQuery(DataFileType.class));
     }
 
     /**
@@ -105,5 +92,10 @@ public class DataFileTypeCrud extends AbstractCrud {
             dataFileTypeMap.put(dataFileType.getName(), dataFileType);
         }
         return dataFileTypeMap;
+    }
+
+    @Override
+    public Class<DataFileType> componentClass() {
+        return DataFileType.class;
     }
 }

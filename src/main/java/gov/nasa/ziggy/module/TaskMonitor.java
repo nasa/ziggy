@@ -1,7 +1,6 @@
 package gov.nasa.ziggy.module;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -34,16 +33,13 @@ public class TaskMonitor {
     private static final Logger log = LoggerFactory.getLogger(TaskMonitor.class);
 
     private final StateFile stateFile;
-    private final File stateFileDir;
     private final File taskDir;
     private final File lockFile;
     private final List<File> subtaskDirectories;
 
-    public TaskMonitor(TaskConfigurationManager inputsHandler, StateFile stateFile,
-        File stateFileDir, File taskDir) {
+    public TaskMonitor(TaskConfigurationManager inputsHandler, StateFile stateFile, File taskDir) {
         subtaskDirectories = inputsHandler.allSubTaskDirectories();
         this.stateFile = stateFile;
-        this.stateFileDir = stateFileDir;
         this.taskDir = taskDir;
         lockFile = new File(taskDir, StateFile.LOCK_FILE_NAME);
     }
@@ -82,29 +78,16 @@ public class TaskMonitor {
     }
 
     /**
-     * Notifies the caller that the task in question has been marked for deletion.
-     * <p>
-     * Generally, this indicates that the pipeline worker has set the state in the state file on
-     * disk to DELETED, and that the {@link TaskMonitor} has detected this change and applied it to
-     * the {@link StateFile} instance in the {@link TaskMonitor}. This allows the caller (which is
-     * generally an instance of {@link ComputeNodeMaster}) that processing of this task must end.
-     */
-    public boolean isDeleted() {
-        return stateFile.getState().equals(StateFile.State.DELETED);
-    }
-
-    /**
      * Makes a single pass through all of the subtask directories and updates the {@link StateFile}
      * based on the {@link AlgorithmStateFiles}s. This method does not update the status to COMPLETE
      * when all subtasks are done to allow the caller to do any post processing before the state
      * file is updated. The state file should be marked COMPLETE with the markStateFileDone()
      * method.
      */
-    public void updateState() throws IOException {
+    public void updateState() {
         try {
             LockManager.getWriteLockOrBlock(lockFile);
-            StateFile diskStateFile = StateFile
-                .newStateFileFromDiskFile(new File(stateFileDir, stateFile.name()), true, true);
+            StateFile diskStateFile = stateFile.newStateFileFromDiskFile(true);
 
             if (subtaskDirectories.isEmpty()) {
                 log.warn("No subtask dirs found in: " + taskDir);
@@ -114,27 +97,22 @@ public class TaskMonitor {
             stateFile.setNumComplete(stateCounts.getCompletedSubtasks());
             stateFile.setNumFailed(stateCounts.getFailedSubtasks());
             stateFile.setState(diskStateFile.getState());
-            if (diskStateFile.getState().equals(StateFile.State.DELETED)) {
-                stateFile.setState(StateFile.State.DELETED);
-            }
             updateStateFile(diskStateFile);
         } finally {
             LockManager.releaseWriteLock(lockFile);
         }
-
     }
 
     /**
      * Move the {@link StateFile} into the completed state if all subtasks are complete, or into the
      * failed state if some subtasks failed or were never processed.
      */
-    public void markStateFileDone() throws IOException {
+    public void markStateFileDone() {
 
         try {
             LockManager.getWriteLockOrBlock(lockFile);
 
-            StateFile previousStateFile = StateFile
-                .newStateFileFromDiskFile(new File(stateFileDir, stateFile.name()), true);
+            StateFile previousStateFile = stateFile.newStateFileFromDiskFile();
 
             if (stateFile.getNumComplete() + stateFile.getNumFailed() == stateFile.getNumTotal()) {
                 log.info("All subtasks complete or errored, marking state file COMPLETE");
@@ -158,7 +136,7 @@ public class TaskMonitor {
         if (!previousStateFile.equals(stateFile)) {
             log.info("Updating state: " + previousStateFile + " -> " + stateFile);
 
-            if (!StateFile.updateStateFile(previousStateFile, stateFile, stateFileDir)) {
+            if (!StateFile.updateStateFile(previousStateFile, stateFile)) {
                 log.error("Failed to update state file: " + previousStateFile);
             }
         }

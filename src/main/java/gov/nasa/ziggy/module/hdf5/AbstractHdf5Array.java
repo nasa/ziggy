@@ -22,6 +22,8 @@ import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ModuleParameters;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import hdf.hdf5lib.H5;
 import hdf.hdf5lib.HDF5Constants;
 
@@ -135,6 +137,38 @@ public abstract class AbstractHdf5Array {
         return isEmpty;
     }
 
+    private static boolean isEmptyList(Object object) {
+        if (List.class.isAssignableFrom(object.getClass())) {
+            List<?> objList = (List<?>) object;
+            if (objList.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean isEmptyHdf5Array(AbstractHdf5Array array) {
+
+        // Array is null or its contents are null.
+        // Array contents are an empty list.
+        if (array == null || array.getArrayObject() == null
+            || isEmptyList(array.getArrayObject())) {
+            return true;
+        }
+
+        // Array contents are an empty Java array.
+        if (array.getArrayObject().getClass().isArray()) {
+            long[] dims = array.getDimensions();
+            for (long dim : dims) {
+                if (dim == 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Populates an Hdf5Array with an array object. The resulting arrayObject member of the class is
      * guaranteed to be an array of an unboxed primitive type, String, Enum, or a Persistable class.
@@ -239,6 +273,7 @@ public abstract class AbstractHdf5Array {
      * @param field Field from a Persistable object that will ultimately contain the data.
      * @return The class of the data type that the field is designed to contain.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     Class<?> getClassForEnumOrPersistable(Field field) {
         Class<?> clazz = field.getType();
         String typeName;
@@ -249,7 +284,9 @@ public abstract class AbstractHdf5Array {
             try {
                 clazz = Class.forName(typeName);
             } catch (ClassNotFoundException e) {
-                throw new PipelineException("Unable to determine class from name " + typeName, e);
+                // This can never occur. By construction the argument to forName() comes
+                // from an instance of Class that is available to the code.
+                throw new AssertionError(e);
             }
         }
         return getClassForEnumOrPersistable(clazz);
@@ -261,13 +298,15 @@ public abstract class AbstractHdf5Array {
      * @param clazz Class of the object or field
      * @return Specific Enum or Persistable class
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     Class<?> getClassForEnumOrPersistable(Class<?> clazz) {
         String className = clazz.getName();
         try {
             return Class.forName(truncateClassName(className));
         } catch (ClassNotFoundException e) {
-            throw new PipelineException(
-                "Unable to determine data class for object of class: " + className);
+            // This can never occur. By construction, the name used in the forName() call
+            // comes from the getName() of a class that's available.
+            throw new AssertionError(e);
         }
     }
 
@@ -360,7 +399,6 @@ public abstract class AbstractHdf5Array {
         H5.H5Awrite(attributeId, ZIGGY_BYTE.getHdf5Type(), attributeValueBytes);
         H5.H5Aclose(attributeId);
         H5.H5Sclose(attributeSpace);
-
     }
 
     /**
@@ -385,7 +423,6 @@ public abstract class AbstractHdf5Array {
         H5.H5Aclose(attributeId);
 
         return new String(attributeValueBytes, CHARSET);
-
     }
 
     /**
@@ -399,7 +436,6 @@ public abstract class AbstractHdf5Array {
         H5.H5Awrite(orderAttributeId, ZIGGY_INT.getHdf5Type(), new int[] { fieldOrder });
         H5.H5Aclose(orderAttributeId);
         H5.H5Sclose(orderAttributeSpace);
-
     }
 
     /**
@@ -531,5 +567,4 @@ public abstract class AbstractHdf5Array {
             return Arrays.copyOf(currentLocation, currentLocation.length);
         }
     }
-
 }

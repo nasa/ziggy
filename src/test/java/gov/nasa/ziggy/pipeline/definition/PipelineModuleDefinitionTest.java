@@ -22,6 +22,7 @@ import org.junit.Test;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest;
+import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -63,11 +64,12 @@ public class PipelineModuleDefinitionTest {
         module1.setDescription("first module");
         module1.setExeTimeoutSecs(100);
         module1.setMinMemoryMegaBytes(200);
-        module1XmlString = "<module name=\"module 1\" description=\"first module\" "
-            + "pipelineModuleClass=\"gov.nasa.ziggy.module.ExternalProcessPipelineModule\" "
-            + "inputsClass=\"gov.nasa.ziggy.module.DefaultPipelineInputs\" "
-            + "outputsClass=\"gov.nasa.ziggy.module.DefaultPipelineOutputs\" "
-            + "exeTimeoutSecs=\"100\" minMemoryMegaBytes=\"200\"/>";
+        module1XmlString = """
+            <module name="module 1" description="first module" \
+            pipelineModuleClass="gov.nasa.ziggy.module.ExternalProcessPipelineModule" \
+            inputsClass="gov.nasa.ziggy.module.DefaultPipelineInputs" \
+            outputsClass="gov.nasa.ziggy.module.DefaultPipelineOutputs" \
+            exeTimeoutSecs="100" minMemoryMegaBytes="200"/>""";
 
         // Module 2 uses no defaults
         module2 = new PipelineMod("module 2");
@@ -78,11 +80,12 @@ public class PipelineModuleDefinitionTest {
         module2.setOutputsClass(new ClassWrapper<>(DataFileTestUtils.PipelineOutputsSample1.class));
         module2.setPipelineModuleClass(
             new ClassWrapper<>(ExternalProcessPipelineModuleTest.TestPipelineModule.class));
-        module2XmlString = "<module name=\"module 2\" description=\"second module\" "
-            + "pipelineModuleClass=\"gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest$TestPipelineModule\" "
-            + "inputsClass=\"gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample\" "
-            + "outputsClass=\"gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1\" "
-            + "exeTimeoutSecs=\"300\" minMemoryMegaBytes=\"400\"/>";
+        module2XmlString = """
+            <module name="module 2" description="second module" \
+            pipelineModuleClass="gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest$TestPipelineModule" \
+            inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample" \
+            outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1" \
+            exeTimeoutSecs="300" minMemoryMegaBytes="400"/>""";
     }
 
     @Test
@@ -92,14 +95,13 @@ public class PipelineModuleDefinitionTest {
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         marshaller.marshal(module1, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath());
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
         assertContains(xmlContent, module1XmlString);
 
         marshaller.marshal(module2, xmlFile);
         assertTrue(xmlFile.exists());
-        xmlContent = Files.readAllLines(xmlFile.toPath());
+        xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
         assertContains(xmlContent, module2XmlString);
-
     }
 
     @Test
@@ -118,7 +120,8 @@ public class PipelineModuleDefinitionTest {
     public void testGenerateSchema() throws JAXBException, IOException {
         JAXBContext context = JAXBContext.newInstance(PipelineMod.class);
         context.generateSchema(new ModulesSchemaResolver());
-        List<String> schemaContent = Files.readAllLines(schemaFile.toPath());
+        List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
+            FileUtil.ZIGGY_CHARSET);
         assertContains(schemaContent, "<xs:element name=\"module\" type=\"pipelineMod\"/>");
         List<String> moduleDefContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineModuleDefinition\">");
@@ -146,7 +149,6 @@ public class PipelineModuleDefinitionTest {
             result.setSystemId(schemaFile.toURI().toURL().toString());
             return result;
         }
-
     }
 
     /**

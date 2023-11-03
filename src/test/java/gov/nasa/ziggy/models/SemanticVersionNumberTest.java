@@ -46,5 +46,4 @@ public class SemanticVersionNumberTest {
         assertTrue(y.compareTo(z) > 0);
         assertTrue(x.compareTo(z) > 0);
     }
-
 }

@@ -2,14 +2,13 @@ package gov.nasa.ziggy.module.remote;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 
-import org.apache.commons.configuration.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.AlgorithmExecutor;
-import gov.nasa.ziggy.module.AlgorithmMonitor;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
@@ -20,6 +19,10 @@ import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 public abstract class RemoteExecutor extends AlgorithmExecutor {
 
@@ -32,96 +35,94 @@ public abstract class RemoteExecutor extends AlgorithmExecutor {
     /**
      * A default method to submit tasks to PBS that can be used by all of the currently-supported
      * remote clusters.
-     *
-     * @throws IOException
-     * @throws ConfigurationException
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     protected void submitToPbsInternal(StateFile initialState, PipelineTask pipelineTask,
-        Path algorithmLogDir, Path taskDir) throws IOException, ConfigurationException {
+        Path algorithmLogDir, Path taskDir) {
 
-        getStateFile().setPbsSubmitTimeMillis(System.currentTimeMillis());
-        getStateFile().persist();
+        try {
+            getStateFile().setPbsSubmitTimeMillis(System.currentTimeMillis());
+            getStateFile().persist();
+            addToMonitor(getStateFile());
 
-        JobSubmissionPaths jobSubmissionPaths = new JobSubmissionPaths();
+            log.info("Launching jobs for state file: " + getStateFile());
 
-        log.info("Launching jobs for state file: " + getStateFile());
+            int coresPerNode = getStateFile().getActiveCoresPerNode();
 
-        int coresPerNode = getStateFile().getActiveCoresPerNode();
+            int numNodes = getStateFile().getRequestedNodeCount();
+            log.info("Number of nodes requested for jobs: " + numNodes);
 
-        int numNodes = getStateFile().getRequestedNodeCount();
-        log.info("Number of nodes requested for jobs: " + numNodes);
+            log.info("Launching job, name=" + pipelineTask.taskBaseName() + ", coresPerNode="
+                + coresPerNode + ", numNodes=" + numNodes);
 
-        log.info("Launching job, name=" + pipelineTask.taskBaseName() + ", coresPerNode="
-            + coresPerNode + ", numNodes=" + numNodes);
+            File pbsLogDirFile = DirectoryProperties.pbsLogDir().toFile();
+            pbsLogDirFile.mkdirs();
+            String pbsLogDir = pbsLogDirFile.getCanonicalPath();
 
-        File pbsLogDirFile = DirectoryProperties.pbsLogDir().toFile();
-        pbsLogDirFile.mkdirs();
-        String pbsLogDir = pbsLogDirFile.getCanonicalPath();
+            Qsub.Builder b = new Qsub.Builder().queueName(getStateFile().getQueueName())
+                .wallTime(getStateFile().getRequestedWallTime())
+                .numNodes(numNodes)
+                .coresPerNode(getStateFile().getMinCoresPerNode())
+                .gigsPerNode(getStateFile().getMinGigsPerNode())
+                .model(getStateFile().getRemoteNodeArchitecture())
+                .groupName(getStateFile().getRemoteGroup())
+                .scriptPath(new File(DirectoryProperties.ziggyBinDir().toFile(), ZIGGY_PROGRAM)
+                    .getCanonicalPath())
+                .ziggyProgram(NODE_MASTER_NAME)
+                .pbsLogDir(pbsLogDir)
+                .nasLogDir(algorithmLogDir.toString())
+                .pipelineTask(pipelineTask)
+                .taskDir(workingDir().toString());
+            b.cluster(RemoteQueueDescriptor.fromQueueName(getStateFile().getQueueName())
+                .getRemoteCluster());
+            Qsub qsub = b.build();
 
-        String[] scriptArgs = { jobSubmissionPaths.getWorkingDirPath(),
-            jobSubmissionPaths.getHomeDirPath(), jobSubmissionPaths.getStateFilePath(),
-            jobSubmissionPaths.getPipelineConfigPath() };
-
-        Qsub.Builder b = new Qsub.Builder().queueName(getStateFile().getQueueName())
-            .wallTime(getStateFile().getRequestedWallTime())
-            .numNodes(numNodes)
-            .coresPerNode(getStateFile().getMinCoresPerNode())
-            .gigsPerNode(getStateFile().getMinGigsPerNode())
-            .model(getStateFile().getRemoteNodeArchitecture())
-            .groupName(getStateFile().getRemoteGroup())
-            .scriptPath(
-                new File(jobSubmissionPaths.getBinPath(), EXECUTABLE_NAME).getCanonicalPath())
-            .runjavaProgram(NODE_MASTER_NAME)
-            .pbsLogDir(pbsLogDir)
-            .nasLogDir(algorithmLogDir.toString())
-            .pipelineTask(pipelineTask)
-            .scriptArgs(scriptArgs);
-        b.cluster(RemoteQueueDescriptor.fromName(getStateFile().getQueueName()).getRemoteCluster());
-        Qsub qsub = b.build();
-
-        log.info("Submitting multiple jobs with 1 node per job for this task");
-        int[] returnCodes = qsub.submitMultipleJobsForTask();
-        int goodJobsCount = 0;
-        for (int returnCode : returnCodes) {
-            if (returnCode == 0) {
-                goodJobsCount++;
+            log.info("Submitting multiple jobs with 1 node per job for this task");
+            int[] returnCodes = qsub.submitMultipleJobsForTask();
+            int goodJobsCount = 0;
+            for (int returnCode : returnCodes) {
+                if (returnCode == 0) {
+                    goodJobsCount++;
+                }
             }
+            if (goodJobsCount < returnCodes.length) {
+                log.warn(returnCodes.length + " jobs submitted but only " + goodJobsCount
+                    + " successfully queued");
+                AlertService.getInstance()
+                    .generateAndBroadcastAlert("PI (Remote)", getStateFile().getPipelineTaskId(),
+                        AlertService.Severity.WARNING, "Attempted to submit " + returnCodes.length
+                            + " jobs but only successfully submitted " + goodJobsCount);
+            }
+
+            // Update the task log index.
+            DatabaseTransactionFactory.performTransaction(() -> {
+                PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
+                PipelineTask task = pipelineTaskCrud.retrieve(pipelineTask.getId());
+                task.incrementTaskLogIndex();
+                task.setRemoteExecution(true);
+                pipelineTaskCrud.merge(task);
+                return null;
+            });
+
+            // Update the remote jobs in the database
+            new PipelineTaskOperations().createRemoteJobsFromQstat(pipelineTask.getId());
+
+            // update processing state
+            log.info("Updating processing state -> " + ProcessingState.ALGORITHM_QUEUED);
+
+            ProcessingSummaryOperations attrOps = new ProcessingSummaryOperations();
+
+            attrOps.updateProcessingState(pipelineTask.getId(), ProcessingState.ALGORITHM_QUEUED);
+            attrOps.updateSubTaskCounts(pipelineTask.getId(), initialState.getNumTotal(),
+                initialState.getNumComplete(), initialState.getNumFailed());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Submit to PBS failed due to IOException", e);
         }
-        if (goodJobsCount < returnCodes.length) {
-            log.warn(returnCodes.length + " jobs submitted but only " + goodJobsCount
-                + " successfully queued");
-            AlertService.getInstance()
-                .generateAndBroadcastAlert("PI (Remote)", getStateFile().getPipelineTaskId(),
-                    AlertService.Severity.WARNING, "Attempted to submit " + returnCodes.length
-                        + " jobs but only successfully submitted " + goodJobsCount);
-        }
-
-        // Update the task log index.
-        DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-            PipelineTask task = pipelineTaskCrud.retrieve(pipelineTask.getId());
-            task.incrementTaskLogIndex();
-            pipelineTaskCrud.update(task);
-            return null;
-        });
-
-        // Update the remote jobs in the database
-        new PipelineTaskOperations().createRemoteJobsFromQstat(pipelineTask.getId());
-
-        // update processing state
-        log.info("Updating processing state -> " + ProcessingState.ALGORITHM_QUEUED);
-
-        ProcessingSummaryOperations attrOps = new ProcessingSummaryOperations();
-
-        attrOps.updateProcessingState(pipelineTask.getId(), ProcessingState.ALGORITHM_QUEUED);
-        attrOps.updateSubTaskCounts(pipelineTask.getId(), initialState.getNumTotal(),
-            initialState.getNumComplete(), initialState.getNumFailed());
-
     }
 
     @Override
     protected void addToMonitor(StateFile stateFile) {
-        AlgorithmMonitor.startRemoteMonitoring(stateFile);
+        ZiggyMessenger.publish(new MonitorAlgorithmRequest(stateFile, algorithmType()));
     }
 
     @Override
@@ -148,5 +149,4 @@ public abstract class RemoteExecutor extends AlgorithmExecutor {
     public AlgorithmType algorithmType() {
         return AlgorithmType.REMOTE;
     }
-
 }

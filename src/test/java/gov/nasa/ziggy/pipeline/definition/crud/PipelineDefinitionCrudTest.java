@@ -1,11 +1,12 @@
 package gov.nasa.ziggy.pipeline.definition.crud;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
+import java.lang.reflect.Field;
 import java.util.Date;
 import java.util.List;
 
-import org.hibernate.Query;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -13,10 +14,10 @@ import org.junit.Test;
 import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
+import gov.nasa.ziggy.crud.SimpleCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
@@ -24,12 +25,10 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.TestModuleParameters;
-import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
-import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
 /**
  * Tests for {@link PipelineDefinitionCrud} Tests that objects can be stored, retrieved, and edited
@@ -88,24 +87,22 @@ public class PipelineDefinitionCrudTest {
 
             // create a module param set def
             expectedParamSet = new ParameterSet(new AuditInfo(adminUser, new Date()), "test mps1");
-            expectedParamSet.setParameters(new BeanWrapper<Parameters>(new TestModuleParameters()));
-            parameterSetCrud.create(expectedParamSet);
+            expectedParamSet.setTypedParameters(new TestModuleParameters().getParameters());
+            expectedParamSet = parameterSetCrud.merge(expectedParamSet);
 
             // create a few module defs
             expectedModuleDef1 = new PipelineModuleDefinition("Test-1");
-            pipelineModuleDefinitionCrud.create(expectedModuleDef1);
+            expectedModuleDef1 = pipelineModuleDefinitionCrud.merge(expectedModuleDef1);
 
             expectedModuleDef2 = new PipelineModuleDefinition("Test-2");
-            pipelineModuleDefinitionCrud.create(expectedModuleDef2);
+            expectedModuleDef2 = pipelineModuleDefinitionCrud.merge(expectedModuleDef2);
 
             expectedModuleDef3 = new PipelineModuleDefinition("Test-3");
-            pipelineModuleDefinitionCrud.create(expectedModuleDef3);
+            expectedModuleDef3 = pipelineModuleDefinitionCrud.merge(expectedModuleDef3);
 
             // create a pipeline def
             PipelineDefinition pd = createPipelineDefinition();
-            pipelineDefinitionCrud.create(pd);
-
-            return pd;
+            return pipelineDefinitionCrud.merge(pd);
         });
     }
 
@@ -113,17 +110,15 @@ public class PipelineDefinitionCrudTest {
         PipelineDefinition pipelineDef = new PipelineDefinition(
             new AuditInfo(adminUser, new Date()), TEST_PIPELINE_NAME_1);
         PipelineDefinitionNode pipelineNode1 = new PipelineDefinitionNode(
-            expectedModuleDef1.getName(), pipelineDef.getName().getName());
+            expectedModuleDef1.getName(), pipelineDef.getName());
         PipelineDefinitionNode pipelineNode2 = new PipelineDefinitionNode(
-            expectedModuleDef2.getName(), pipelineDef.getName().getName());
+            expectedModuleDef2.getName(), pipelineDef.getName());
         pipelineNode1.getNextNodes().add(pipelineNode2);
 
-        pipelineNode1.setUnitOfWorkGenerator(
-            new ClassWrapper<UnitOfWorkGenerator>(new SingleUnitOfWorkGenerator()));
+        pipelineNode1.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
         pipelineNode1.setStartNewUow(false);
 
-        pipelineNode2.setUnitOfWorkGenerator(
-            new ClassWrapper<UnitOfWorkGenerator>(new SingleUnitOfWorkGenerator()));
+        pipelineNode2.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
         pipelineNode2.setStartNewUow(false);
 
         pipelineDef.addRootNode(pipelineNode1);
@@ -132,23 +127,81 @@ public class PipelineDefinitionCrudTest {
     }
 
     private int pipelineNodeCount() {
-        DatabaseService databaseService = DatabaseService.getInstance();
-        Query q = databaseService.getSession()
-            .createQuery("select count(*) from PipelineDefinitionNode");
-        return ((Long) q.uniqueResult()).intValue();
+        ZiggyQuery<PipelineDefinitionNode, Long> query = pipelineDefinitionCrud
+            .createZiggyQuery(PipelineDefinitionNode.class, Long.class);
+        Long count = pipelineDefinitionCrud.uniqueResult(query.count());
+        return count.intValue();
     }
 
     private int pipelineModuleDefinitionCount() {
-        DatabaseService databaseService = DatabaseService.getInstance();
-        Query q = databaseService.getSession()
-            .createQuery("select count(*) from PipelineModuleDefinition");
-        return ((Long) q.uniqueResult()).intValue();
+        ZiggyQuery<PipelineModuleDefinition, Long> query = pipelineModuleDefinitionCrud
+            .createZiggyQuery(PipelineModuleDefinition.class, Long.class);
+        Long count = pipelineModuleDefinitionCrud.uniqueResult(query.count());
+        return count.intValue();
     }
 
     private int pipelineModuleParamSetCount() {
-        DatabaseService databaseService = DatabaseService.getInstance();
-        Query q = databaseService.getSession().createQuery("select count(*) from ParameterSet");
-        return ((Long) q.uniqueResult()).intValue();
+        ZiggyQuery<ParameterSet, Long> query = parameterSetCrud.createZiggyQuery(ParameterSet.class,
+            Long.class);
+        Long count = parameterSetCrud.uniqueResult(query.count());
+        return count.intValue();
+    }
+
+    /**
+     * Sets the value of private field optimisticLockValue. This allows the test to emulate
+     * something that would ordinarily be done by the database, which is why it's okay to use
+     * reflection to do it.
+     */
+    private void setOptimisticLockValue(PipelineDefinition pipelineDefinition, int dirtyValue)
+        throws NoSuchFieldException, SecurityException, IllegalArgumentException,
+        IllegalAccessException {
+        Field dirtyField = pipelineDefinition.getClass()
+            .getSuperclass()
+            .getDeclaredField("optimisticLockValue");
+        dirtyField.setAccessible(true);
+        dirtyField.set(pipelineDefinition, dirtyValue);
+    }
+
+    /**
+     * Sets the values of the version and locked fields. This allows us to create an exact copy of
+     * an instance of {@link PipelineDefinition}, which we need for these tests but not in normal
+     * operation.
+     */
+    private void setVersion(PipelineDefinition pipelineDefinition, long id, int version,
+        boolean locked) throws NoSuchFieldException, SecurityException, IllegalArgumentException,
+        IllegalAccessException {
+        Field versionField = pipelineDefinition.getClass()
+            .getSuperclass()
+            .getDeclaredField("version");
+        versionField.setAccessible(true);
+        versionField.set(pipelineDefinition, version);
+        Field lockedField = pipelineDefinition.getClass()
+            .getSuperclass()
+            .getDeclaredField("locked");
+        lockedField.setAccessible(true);
+        lockedField.set(pipelineDefinition, locked);
+        Field idField = pipelineDefinition.getClass().getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(pipelineDefinition, id);
+    }
+
+    /**
+     * Returns a new instance that is an exact copy of the original {@link PipelineDefinition}.
+     */
+    private PipelineDefinition copyOf(PipelineDefinition original) throws NoSuchFieldException,
+        SecurityException, IllegalArgumentException, IllegalAccessException {
+        PipelineDefinition copy = new PipelineDefinition();
+        copy.setName(original.getName());
+        copy.setDescription(original.getDescription());
+        copy.setAuditInfo(original.getAuditInfo());
+        copy.setGroup(original.group());
+        setOptimisticLockValue(copy, original.getOptimisticLockValue());
+        setVersion(copy, original.getId(), original.getVersion(), original.isLocked());
+        List<PipelineDefinitionNode> rootNodes = copy.getRootNodes();
+        for (PipelineDefinitionNode originalNode : original.getRootNodes()) {
+            rootNodes.add(new PipelineDefinitionNode(originalNode));
+        }
+        return copy;
     }
 
     /**
@@ -169,7 +222,6 @@ public class PipelineDefinitionCrudTest {
                     .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
                 ZiggyUnitTestUtils.initializePipelineDefinition(apd);
                 return apd;
-
             });
         comparer.assertEquals("PipelineDefinition", expectedPipelineDef, actualPipelineDef);
 
@@ -211,7 +263,7 @@ public class PipelineDefinitionCrudTest {
             .performTransaction(() -> {
                 PipelineDefinition epd = createPipelineDefinition();
                 editPipelineDef(epd);
-                epd.setDirty(1);
+                setOptimisticLockValue(epd, 1);
                 ZiggyUnitTestUtils.initializePipelineDefinition(epd);
                 return epd;
             });
@@ -225,9 +277,40 @@ public class PipelineDefinitionCrudTest {
 
         comparer.assertEquals("PipelineDefinition", expectedPipelineDef, actualPipelineDef);
 
+        // The retrieved object should have its Hibernate-side version number incremented.
+        assertEquals(1, expectedPipelineDef.getOptimisticLockValue());
+
         assertEquals("PipelineDefinitionNode count", 2, pipelineNodeCount());
         assertEquals("PipelineModuleDefinition count", 3, pipelineModuleDefinitionCount());
         assertEquals("ParameterSet count", 1, pipelineModuleParamSetCount());
+    }
+
+    /**
+     * Demonstrates optimistic locking of PipelineDefinition instances: once the database version of
+     * an object has been changed, the original (unchanged) version cannot be stored because it's
+     * out of date.
+     */
+    @Test(expected = PipelineException.class)
+    public void testOptimisticLocking() {
+        // Create
+        PipelineDefinition pd = populateObjects();
+
+        assertEquals("PipelineDefinitionNode count", 2, pipelineNodeCount());
+
+        // Retrieve & Edit
+        DatabaseTransactionFactory.performTransaction(() -> {
+            PipelineDefinition modifiedPipelineDef = pipelineDefinitionCrud
+                .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
+            editPipelineDef(modifiedPipelineDef);
+            return null;
+        });
+
+        // Attempting to commit the original version should be blocked by the
+        // opportunistic locking system.
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineDefinitionCrud.merge(pd);
+            return null;
+        });
     }
 
     /**
@@ -242,6 +325,41 @@ public class PipelineDefinitionCrudTest {
     }
 
     @Test
+    public void testCreateOrUpdateDuplicateInstance() {
+
+        PipelineDefinition pd = populateObjects();
+        pd.setInstancePriority(PipelineInstance.Priority.HIGHEST);
+
+        // Executing with the same object but changed content does the right thing
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineDefinitionCrud.merge(pd);
+            return null;
+        });
+
+        @SuppressWarnings("unchecked")
+        List<PipelineDefinition> pipelineDefinitions0 = (List<PipelineDefinition>) DatabaseTransactionFactory
+            .performTransaction(
+                () -> pipelineDefinitionCrud.retrieveAllVersionsForName(pd.getName()));
+
+        assertEquals(1, pipelineDefinitions0.size());
+        assertEquals(PipelineInstance.Priority.HIGHEST,
+            pipelineDefinitions0.get(0).getInstancePriority());
+
+        // Use the same content but a new object.
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineDefinitionCrud.merge(copyOf(pipelineDefinitions0.get(0)));
+            return null;
+        });
+
+        @SuppressWarnings("unchecked")
+        List<PipelineDefinition> pipelineDefinitions = (List<PipelineDefinition>) DatabaseTransactionFactory
+            .performTransaction(
+                () -> pipelineDefinitionCrud.retrieveAllVersionsForName(pd.getName()));
+
+        assertEquals(1, pipelineDefinitions.size());
+    }
+
+    @Test
     public void testEditPipelineDefinitionAddNextNode() throws Exception {
         // Create
         populateObjects();
@@ -250,7 +368,8 @@ public class PipelineDefinitionCrudTest {
         DatabaseTransactionFactory.performTransaction(() -> {
             PipelineDefinition modifiedPipelineDef = pipelineDefinitionCrud
                 .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-            editPipelineDefAddNextNode(modifiedPipelineDef);
+            PipelineDefinitionNode newNode = editPipelineDefAddNextNode(modifiedPipelineDef);
+            new SimpleCrud<>().persist(newNode);
             return null;
         });
 
@@ -281,13 +400,13 @@ public class PipelineDefinitionCrudTest {
      * @param pipelineDef
      * @throws PipelineException
      */
-    private void editPipelineDefAddNextNode(PipelineDefinition pipelineDef) {
+    private PipelineDefinitionNode editPipelineDefAddNextNode(PipelineDefinition pipelineDef) {
         PipelineDefinitionNode newPipelineNode = new PipelineDefinitionNode(
-            expectedModuleDef3.getName(), pipelineDef.getName().getName());
+            expectedModuleDef3.getName(), pipelineDef.getName());
         pipelineDef.getRootNodes().get(0).getNextNodes().get(0).getNextNodes().add(newPipelineNode);
-        newPipelineNode.setUnitOfWorkGenerator(
-            new ClassWrapper<UnitOfWorkGenerator>(new SingleUnitOfWorkGenerator()));
+        newPipelineNode.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
         newPipelineNode.setStartNewUow(false);
+        return newPipelineNode;
     }
 
     @Test
@@ -300,7 +419,9 @@ public class PipelineDefinitionCrudTest {
 
             PipelineDefinition modifiedPipelineDef = pipelineDefinitionCrud
                 .retrieveLatestVersionForName(TEST_PIPELINE_NAME_1);
-            editPipelineDefAddBranchNode(modifiedPipelineDef);
+            PipelineDefinitionNode newPipelineDefNode = editPipelineDefAddBranchNode(
+                modifiedPipelineDef);
+            new SimpleCrud<>().persist(newPipelineDefNode);
             return null;
         });
 
@@ -332,13 +453,13 @@ public class PipelineDefinitionCrudTest {
      * @param pipelineDef
      * @throws PipelineException
      */
-    private void editPipelineDefAddBranchNode(PipelineDefinition pipelineDef) {
+    private PipelineDefinitionNode editPipelineDefAddBranchNode(PipelineDefinition pipelineDef) {
         PipelineDefinitionNode newPipelineNode = new PipelineDefinitionNode(
-            expectedModuleDef3.getName(), pipelineDef.getName().getName());
+            expectedModuleDef3.getName(), pipelineDef.getName());
         pipelineDef.getRootNodes().get(0).getNextNodes().add(newPipelineNode);
-        newPipelineNode.setUnitOfWorkGenerator(
-            new ClassWrapper<UnitOfWorkGenerator>(new SingleUnitOfWorkGenerator()));
+        newPipelineNode.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
         newPipelineNode.setStartNewUow(false);
+        return newPipelineNode;
     }
 
     @Test
@@ -428,7 +549,7 @@ public class PipelineDefinitionCrudTest {
         List<PipelineDefinitionNode> nextNodes = pipelineDef.getRootNodes().get(0).getNextNodes();
 
         for (PipelineDefinitionNode nextNode : nextNodes) {
-            pipelineDefinitionCrud.delete(nextNode);
+            pipelineDefinitionCrud.remove(nextNode);
         }
         nextNodes.clear();
     }
@@ -457,7 +578,7 @@ public class PipelineDefinitionCrudTest {
 
         PipelineDefinition expectedPipelineDef = createPipelineDefinition();
         editPipelineDefDeleteAllNodes(expectedPipelineDef);
-        expectedPipelineDef.setDirty(1);
+        setOptimisticLockValue(expectedPipelineDef, 1);
 
         comparer.excludeField(".*\\.id");
 
@@ -489,13 +610,11 @@ public class PipelineDefinitionCrudTest {
 
         assertEquals(0, pipelineDefinitionCrud.retrievePipelineDefinitionNamesInUse().size());
 
-        // Now, create a pipeline instance associated with the pipeline
-        // definition. Should return a single item.
-        PipelineInstance pipelineInstance = new PipelineInstance(pipelineDefinition);
-        PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
+        // Now, lock the pipeline definition. Should return a single item.
 
         DatabaseTransactionFactory.performTransaction(() -> {
-            pipelineInstanceCrud.create(pipelineInstance);
+            pipelineDefinitionCrud.retrieveLatestVersionForName(pipelineDefinition.getName())
+                .lock();
             return null;
         });
 
@@ -506,5 +625,38 @@ public class PipelineDefinitionCrudTest {
 
         String name = pipelineDefinitions.get(0);
         assertEquals(TEST_PIPELINE_NAME_1, name);
+    }
+
+    @Test
+    public void testNewInstance() {
+        PipelineDefinition pipelineDefinition = populateObjects();
+        PipelineDefinition pipelineDefinitionCopy = pipelineDefinition.newInstance();
+
+        assertNotEquals(pipelineDefinition, pipelineDefinitionCopy);
+
+        assertEquals("Copy of " + pipelineDefinition, pipelineDefinitionCopy.getName());
+        assertEquals(0, pipelineDefinitionCopy.getVersion());
+        assertEquals(false, pipelineDefinitionCopy.isLocked());
+        assertEquals(null, pipelineDefinitionCopy.getId());
+
+        assertEquals(null, pipelineDefinitionCopy.getId());
+        assertEquals(pipelineDefinition.getAuditInfo(), pipelineDefinitionCopy.getAuditInfo());
+        assertEquals(pipelineDefinition.getDescription(), pipelineDefinitionCopy.getDescription());
+        assertEquals(pipelineDefinition.group(), pipelineDefinitionCopy.group());
+        assertEquals(pipelineDefinition.getInstancePriority(),
+            pipelineDefinitionCopy.getInstancePriority());
+        assertEquals(pipelineDefinition.getPipelineParameterSetNames(),
+            pipelineDefinitionCopy.getPipelineParameterSetNames());
+        assertEquals(pipelineDefinition.getRootNodes().size(),
+            pipelineDefinitionCopy.getRootNodes().size());
+
+        // Compare modules names only due to implementation of PipelineDefinitionNode.equals().
+        for (int i = 0; i < pipelineDefinition.getRootNodes().size(); i++) {
+            assertEquals(pipelineDefinition.getRootNodes().get(i).getModuleName(),
+                pipelineDefinitionCopy.getRootNodes().get(i).getModuleName());
+        }
+
+        DatabaseTransactionFactory
+            .performTransaction(() -> pipelineDefinitionCrud.merge(pipelineDefinitionCopy));
     }
 }

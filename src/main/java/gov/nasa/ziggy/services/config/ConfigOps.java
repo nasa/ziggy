@@ -2,11 +2,14 @@ package gov.nasa.ziggy.services.config;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Some additional operations over a Configuration object.
@@ -16,7 +19,7 @@ import gov.nasa.ziggy.module.PipelineException;
 public class ConfigOps {
 
     /**
-     * Gets a directory property from the ConfigurationService as a File without creating the
+     * Gets a directory property from the Ziggy configuration as a File without creating the
      * directory. This is equivelent to getDirectory(propName, false)
      *
      * @param propName a property name
@@ -27,16 +30,17 @@ public class ConfigOps {
     }
 
     /**
-     * Gets a directory property from the ConfigurationService as a File optionally creating it.
+     * Gets a directory property from the Ziggy configuration as a File optionally creating it.
      *
      * @param propName a property name
      * @param makeDirIfNonexistent When true and the value of this property does not exist as a
      * directory then one is created with mkdirs().
      * @return non-null
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static File getDirectory(String propName, boolean makeDirIfNonexistent) {
 
-        Configuration configuration = ZiggyConfiguration.getInstance();
+        ImmutableConfiguration configuration = ZiggyConfiguration.getInstance();
         if (!configuration.containsKey(propName)) {
             throw new PipelineException("Required config property not found: " + propName);
         }
@@ -51,8 +55,7 @@ public class ConfigOps {
             try {
                 Files.createDirectories(dir.toPath());
             } catch (IOException e) {
-                throw new PipelineException("Failed to create direcotry " + dirName
-                    + " specified in property " + propName + ".", e);
+                throw new UncheckedIOException("Unable to create directory " + dir.toString(), e);
             }
         }
         if (!dir.isDirectory()) {

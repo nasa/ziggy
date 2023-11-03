@@ -1,11 +1,11 @@
 package gov.nasa.ziggy.metrics;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "PI_METRIC_TYPE")
+@Table(name = "ziggy_MetricType")
 public class MetricType implements Comparable<MetricType> {
     public static final int TYPE_COUNTER = 1;
     public static final int TYPE_VALUE = 2;
@@ -78,7 +78,7 @@ public class MetricType implements Comparable<MetricType> {
 
     @Override
     public boolean equals(Object other) {
-        if ((other == null) || !(other instanceof MetricType)) {
+        if (other == null || !(other instanceof MetricType)) {
             return false;
         }
         MetricType otherMetricType = (MetricType) other;

@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_TEST_WORKING_DIR;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -47,11 +47,11 @@ public class DefaultPipelineOutputsTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+        DATASTORE_ROOT_DIR, directoryRule, "datastore");
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
+        ZIGGY_TEST_WORKING_DIR, (String) null);
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -107,7 +107,6 @@ public class DefaultPipelineOutputsTest {
         subtaskDir.mkdirs();
         new File(subtaskDir, "sector-0001-ccd-1:1-tic-001234567-results.h5").createNewFile();
         new File(subtaskDir, "sector-0001-ccd-1:1-tic-765432100-results.h5").createNewFile();
-
     }
 
     /**
@@ -128,7 +127,7 @@ public class DefaultPipelineOutputsTest {
 
         // Go to the subtask directory
         Path subtaskDir = taskDir.toPath().resolve("st-0");
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR.property(), subtaskDir.toString());
 
         // Populate the task results
         defaultPipelineOutputs.populateTaskResults();
@@ -167,7 +166,6 @@ public class DefaultPipelineOutputsTest {
             Paths.get(datastore.getAbsolutePath(), datastoreResultsPath, "001234567.results.h5")));
         assertTrue(java.nio.file.Files.exists(
             Paths.get(datastore.getAbsolutePath(), datastoreResultsPath, "765432100.results.h5")));
-
     }
 
     private void initializeDataFileTypes() {
@@ -179,5 +177,4 @@ public class DefaultPipelineOutputsTest {
         resultsDataFileType
             .setFileNameWithSubstitutionsForDatastore("sector-$1/ccd-$2/results/$3.results.h5");
     }
-
 }

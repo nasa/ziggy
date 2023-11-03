@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition.crud;
 
-import static java.lang.Math.toIntExact;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,37 +10,35 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.hibernate.Criteria;
-import org.hibernate.HibernateException;
-import org.hibernate.LockMode;
-import org.hibernate.Query;
-import org.hibernate.criterion.CriteriaSpecification;
-import org.hibernate.criterion.DetachedCriteria;
-import org.hibernate.criterion.Order;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
+import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.PipelineOperations.TaskStateSummary;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance_;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
+import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.services.database.DatabaseService;
-import gov.nasa.ziggy.services.messages.WorkerTaskRequest;
-import gov.nasa.ziggy.worker.WorkerPipelineProcess;
+import gov.nasa.ziggy.services.messages.TaskRequest;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 
 /**
  * Provides CRUD methods for {@link PipelineTask}
  *
  * @author Todd Klaus
  */
-public class PipelineTaskCrud extends AbstractCrud {
+public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     private static final Logger log = LoggerFactory.getLogger(PipelineTaskCrud.class);
 
     public PipelineTaskCrud() {
@@ -56,14 +54,11 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return a list of pipeline tasks
      */
     public List<PipelineTask> retrieveAll() {
-        Criteria query = createCriteria(PipelineTask.class);
-        return list(query);
+        return list(createZiggyQuery(PipelineTask.class));
     }
 
     public PipelineTask retrieve(long id) {
-        Query query = createQuery("from PipelineTask where id = :id");
-        query.setLong("id", id);
-        return uniqueResult(query);
+        return uniqueResult(createZiggyQuery(PipelineTask.class).column(PipelineTask_.id).in(id));
     }
 
     /**
@@ -73,12 +68,10 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return
      */
     public List<PipelineTask> retrieveTasksForInstance(PipelineInstance instance) {
-        Query q = createQuery("from PipelineTask pt"
-            + " where pt.pipelineInstance = :pipelineInstance order by id asc");
-        q.setEntity("pipelineInstance", instance);
-        q.setLockMode("pt", LockMode.READ); // bypass caches
-
-        return list(q);
+        return list(createZiggyQuery(PipelineTask.class).column(PipelineTask_.pipelineInstance)
+            .in(instance)
+            .column(PipelineTask_.id)
+            .ascendingOrder());
     }
 
     /**
@@ -93,16 +86,14 @@ public class PipelineTaskCrud extends AbstractCrud {
      * Convenience method that generates a query for getting the tasks for a given named module
      *
      * @param moduleName name of the module
-     * @return Criteria query for retrieving all tasks for the requested module name.
+     * @return {@link ZiggyQuery} for retrieving all tasks for the requested module name.
      */
-    public Criteria createModuleNameCriteria(String moduleName) {
-        Criteria query = createCriteria(PipelineTask.class);
-        query.createCriteria("pipelineInstanceNode")
-            .createCriteria("pipelineModuleDefinition")
-            .createCriteria("name")
-            .add(Restrictions.eq("name", moduleName));
+    public ZiggyQuery<PipelineTask, PipelineTask> createModuleNameCriteria(String moduleName) {
+        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
+        query.where(query.in(query.get(PipelineTask_.pipelineInstanceNode)
+            .get(PipelineInstanceNode_.pipelineModuleDefinition)
+            .get(PipelineModuleDefinition_.name), moduleName));
         return query;
-
     }
 
     /**
@@ -112,9 +103,8 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return a list of tasks for that module
      */
     public List<PipelineTask> retrieveAllForModule(String moduleName) {
-        Criteria query = createModuleNameCriteria(moduleName);
-        query.addOrder(Order.asc("created"));
-
+        ZiggyQuery<PipelineTask, PipelineTask> query = createModuleNameCriteria(moduleName);
+        query.column(PipelineTask_.created).ascendingOrder();
         return list(query);
     }
 
@@ -125,8 +115,8 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return the latest task, or null if no tasks exist for the module name
      */
     public PipelineTask retrieveLatestForModule(String moduleName) {
-        Criteria query = createModuleNameCriteria(moduleName);
-        query.addOrder(Order.desc("id"));
+        ZiggyQuery<PipelineTask, PipelineTask> query = createModuleNameCriteria(moduleName);
+        query.column(PipelineTask_.id).descendingOrder();
 
         List<PipelineTask> tasks = list(query);
         return tasks.isEmpty() ? null : tasks.get(0);
@@ -141,8 +131,9 @@ public class PipelineTaskCrud extends AbstractCrud {
      */
     public List<PipelineTask> retrieveTasksForModuleAndInstance(String moduleName,
         long instanceId) {
-        Criteria query = createModuleNameCriteria(moduleName);
-        query.createCriteria("pipelineInstance").add(Restrictions.eq("id", instanceId));
+        ZiggyQuery<PipelineTask, PipelineTask> query = createModuleNameCriteria(moduleName);
+        query.where(query.in(query.get(PipelineTask_.pipelineInstance).get(PipelineInstance_.id),
+            instanceId));
         return list(query);
     }
 
@@ -153,12 +144,10 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return
      */
     public List<PipelineTask> retrieveAll(PipelineInstanceNode pipelineInstanceNode) {
-        Query q = createQuery("from PipelineTask pt"
-            + " where pt.pipelineInstanceNode = :pipelineInstanceNode order by id asc");
-        q.setEntity("pipelineInstanceNode", pipelineInstanceNode);
-        q.setLockMode("pt", LockMode.READ); // bypass caches
+        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
+        query.column(PipelineTask_.pipelineInstanceNode).in(pipelineInstanceNode);
 
-        return list(q);
+        return list(query);
     }
 
     /**
@@ -168,40 +157,35 @@ public class PipelineTaskCrud extends AbstractCrud {
     public List<Long> retrieveIdsForPipelineDefinitionNode(Collection<Long> taskIds,
         PipelineDefinitionNode pipelineDefinitionNode) {
 
-        Query q = createQuery("select id from PipelineTask pt where pt.id in :id "
-            + "and pt.pipelineInstanceNode.pipelineDefinitionNode = :pipelineDefinitionNode");
-        q.setEntity("pipelineDefinitionNode", pipelineDefinitionNode);
-        return aggregateResults(taskIds, chunk -> q.setParameterList("id", chunk));
-
+        ZiggyQuery<PipelineTask, Long> query = createZiggyQuery(PipelineTask.class, Long.class);
+        query.column(PipelineTask_.id).select();
+        query.where(query.in(query.get(PipelineTask_.pipelineInstanceNode)
+            .get(PipelineInstanceNode_.pipelineDefinitionNode), pipelineDefinitionNode));
+        query.column(PipelineTask_.id).chunkedIn(taskIds);
+        return list(query);
     }
 
     /**
      * Retrieve all {@link PipelineTask}s for the specified {@link PipelineInstance} and the
      * specified {@link PipelineTask.State}
-     *
-     * @param instance
-     * @return
      */
     public List<PipelineTask> retrieveAll(PipelineInstance instance, PipelineTask.State state) {
-        Query q = createQuery(
-            "from PipelineTask pt where " + "pt.pipelineInstance = :pipelineInstance "
-                + "and pt.state = :state " + "order by id asc");
+        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
+        query.column(PipelineTask_.pipelineInstance).in(instance);
+        query.column(PipelineTask_.state).in(state);
+        query.column(PipelineTask_.id).ascendingOrder();
 
-        q.setEntity("pipelineInstance", instance);
-        q.setParameter("state", state);
-        q.setLockMode("pt", LockMode.READ); // bypass caches
-
-        return list(q);
+        return list(query);
     }
 
     public List<Long> retrieveIdsForTasksInState(Collection<Long> taskIds,
         PipelineTask.State state) {
 
-        Criteria criteria = createCriteria(PipelineTask.class);
-        criteria.add(Restrictions.in("id", taskIds));
-        criteria.add(Restrictions.eq("state", state));
-        criteria.setProjection(Projections.distinct(Projections.property("id")));
-        return list(criteria);
+        ZiggyQuery<PipelineTask, Long> query = createZiggyQuery(PipelineTask.class, Long.class);
+        query.column(PipelineTask_.id).select();
+        query.column(PipelineTask_.id).chunkedIn(taskIds);
+        query.distinct(true);
+        return list(query);
     }
 
     /**
@@ -211,16 +195,13 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return {@link List} of {@link PipelineTask}s.
      */
     public List<PipelineTask> retrieveAll(Collection<Long> pipelineTaskIds) {
-        List<PipelineTask> pipelineTasks = new ArrayList<>();
-        if (!pipelineTaskIds.isEmpty()) {
-            Query query = createQuery(
-                "from PipelineTask where id in (:pipelineTaskIds) " + "order by id asc");
-            query.setParameterList("pipelineTaskIds", pipelineTaskIds);
-
-            pipelineTasks = list(query);
+        if (pipelineTaskIds.isEmpty()) {
+            return new ArrayList<>();
         }
-
-        return pipelineTasks;
+        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
+        query.column(PipelineTask_.id).chunkedIn(pipelineTaskIds);
+        query.column(PipelineTask_.id).ascendingOrder();
+        return list(query);
     }
 
     /**
@@ -230,13 +211,13 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return
      */
     public List<String> distinctSoftwareRevisions(PipelineInstanceNode node) {
-        Query q = createQuery("select distinct softwareRevision"
-            + " from PipelineTask pt where pt.pipelineInstanceNode"
-            + " = :pipelineInstanceNode order by softwareRevision asc");
+        ZiggyQuery<PipelineTask, String> query = createZiggyQuery(PipelineTask.class, String.class);
+        query.column(PipelineTask_.pipelineInstanceNode).in(node);
+        query.column(PipelineTask_.softwareRevision).select();
+        query.column(PipelineTask_.softwareRevision).ascendingOrder();
+        query.distinct(true);
 
-        q.setEntity("pipelineInstanceNode", node);
-
-        return list(q);
+        return list(query);
     }
 
     /**
@@ -247,12 +228,13 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return
      */
     public List<String> distinctSoftwareRevisions(PipelineInstance instance) {
-        Query q = createQuery("select distinct softwareRevision from PipelineTask pt "
-            + "where pt.pipelineInstance = :pipelineInstance order by softwareRevision asc");
+        ZiggyQuery<PipelineTask, String> query = createZiggyQuery(PipelineTask.class, String.class);
+        query.column(PipelineTask_.pipelineInstance).in(instance);
+        query.column(PipelineTask_.softwareRevision).select();
+        query.column(PipelineTask_.softwareRevision).ascendingOrder();
+        query.distinct(true);
 
-        q.setEntity("pipelineInstance", instance);
-
-        return list(q);
+        return list(query);
     }
 
     public class ClearStaleStateResults {
@@ -261,28 +243,26 @@ public class PipelineTaskCrud extends AbstractCrud {
     }
 
     /**
-     * Change the state from PROCESSING or SUBMITTED to ERROR for any tasks with the specified
-     * workerHost.
+     * Change the state from PROCESSING or SUBMITTED to ERROR for tasks that have stale processing
+     * states.
      * <p>
-     * This is typically called by a worker during startup to clear the stale state of any tasks
-     * that were processing when the worker exited abnormally (without a chance to set the state to
-     * ERROR)
+     * This is typically called by the supervisor during startup to clear the stale state of any
+     * tasks that were processing when the supervisor exited abnormally (without a chance to set the
+     * state to ERROR)
      *
      * @param workerHost
      * @return
      */
-    public ClearStaleStateResults clearStaleState(String workerHost) {
+    public ClearStaleStateResults clearStaleState() {
         ClearStaleStateResults results = new ClearStaleStateResults();
 
-        PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
+        PipelineOperations pipelineOperations = new PipelineOperations();
+        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
+        query.column(PipelineTask_.state)
+            .in(Set.of(PipelineTask.State.PROCESSING, PipelineTask.State.SUBMITTED));
+        query.distinct(true);
 
-        Criteria criteria = createCriteria(PipelineTask.class);
-        criteria.add(Restrictions.eq("workerHost", workerHost));
-        criteria.add(Restrictions.or(Restrictions.eq("state", PipelineTask.State.PROCESSING),
-            Restrictions.eq("state", PipelineTask.State.SUBMITTED)));
-        criteria.setResultTransformer(CriteriaSpecification.DISTINCT_ROOT_ENTITY);
-
-        List<PipelineTask> staleTasks = list(criteria);
+        List<PipelineTask> staleTasks = list(query);
         log.info("Stale task count: " + staleTasks.size());
         log.info("Stale task IDs: " + staleTasks.toString());
 
@@ -296,7 +276,7 @@ public class PipelineTaskCrud extends AbstractCrud {
 
             // If the task was executing remotely, and it was queued or executing, we can try
             // to resume monitoring on it -- the jobs may have continued to run while the
-            // worker was down.
+            // supervisor was down.
             RemoteParameters remoteParams = new ParameterSetCrud().retrieveRemoteParameters(task);
             if (remoteParams != null && remoteParams.isEnabled()) {
                 ProcessingState state = new ProcessingSummaryOperations()
@@ -305,23 +285,20 @@ public class PipelineTaskCrud extends AbstractCrud {
                 if (state == ProcessingState.ALGORITHM_QUEUED
                     || state == ProcessingState.ALGORITHM_EXECUTING) {
                     log.info("Resuming monitoring for task " + task.getId());
-                    WorkerTaskRequest taskRequest = new WorkerTaskRequest(instanceId,
-                        instanceNodeId, task.getId(), 0, false,
-                        PipelineModule.RunMode.RESUME_MONITORING);
-                    WorkerPipelineProcess.workerTaskRequestQueue.add(taskRequest);
+                    TaskRequest taskRequest = new TaskRequest(instanceId, instanceNodeId,
+                        task.getPipelineDefinitionNode().getId(), task.getId(), Priority.HIGHEST,
+                        false, PipelineModule.RunMode.RESUME_MONITORING);
+                    ZiggyMessenger.publish(taskRequest);
                     continue;
                 }
             }
             results.uniqueInstanceIds.add(instanceId);
 
-            pipelineInstanceNodeCrud.updateFailedTaskCount(instanceNodeId, 1);
-            task.setState(PipelineTask.State.ERROR);
-            new PipelineTaskOperations().updateJobs(task);
-            task.stopExecutionClock();
+            TaskStateSummary updatedStates = pipelineOperations.setTaskState(task,
+                PipelineTask.State.ERROR);
             log.info("Setting task " + task.getId() + " to ERROR state");
-
+            new PipelineTaskOperations().updateJobs(updatedStates.getTask());
             flush(); // push out the update
-
         }
 
         log.info("totalUpdatedTaskCount = " + results.totalUpdatedTaskCount);
@@ -337,147 +314,83 @@ public class PipelineTaskCrud extends AbstractCrud {
      * normally (left in the PROCESSING or SUBMITTED states). This allows the operator to restart
      * these tasks.
      */
-    public void resetTaskStates(long pipelineInstanceId, boolean allStalledTasks, String taskIds) {
-        Query select = null;
+    public void resetTaskStates(long pipelineInstanceId, boolean allStalledTasks) {
 
+        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
+        query.where(query.in(query.get(PipelineTask_.pipelineInstance).get(PipelineInstance_.id),
+            Set.of(pipelineInstanceId)));
         if (allStalledTasks) {
-            select = createSQLQuery(
-                "select PI_PIPELINE_INST_NODE_ID," + " count(*) from PI_PIPELINE_TASK"
-                    + " where STATE = :submittedState or STATE = :processingState"
-                    + " and PI_PIPELINE_INSTANCE_ID = :instanceId"
-                    + " group by PI_PIPELINE_INST_NODE_ID");
-            select.setParameter("submittedState", PipelineTask.State.SUBMITTED.toString());
-            select.setParameter("processingState", PipelineTask.State.PROCESSING.toString());
+            query.column(PipelineTask_.state)
+                .in(Set.of(PipelineTask.State.SUBMITTED, PipelineTask.State.PROCESSING));
         } else {
-            select = createSQLQuery("select PI_PIPELINE_INST_NODE_ID,"
-                + " count(*) from PI_PIPELINE_TASK" + " where STATE = :submittedState"
-                + " and PI_PIPELINE_INSTANCE_ID = :instanceId"
-                + " group by PI_PIPELINE_INST_NODE_ID");
-            select.setParameter("submittedState", PipelineTask.State.SUBMITTED.toString());
+            query.column(PipelineTask_.state).in(Set.of(PipelineTask.State.SUBMITTED));
         }
-        select.setParameter("instanceId", pipelineInstanceId);
+        List<PipelineTask> staleTasks = list(query);
 
-        PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
+        // Organize into a Map by pipeline instance node
+        Map<PipelineInstanceNode, Set<PipelineTask>> tasksByInstanceNode = new HashMap<>();
+        for (PipelineTask task : staleTasks) {
+            PipelineInstanceNode node = task.getPipelineInstanceNode();
+            Set<PipelineTask> tasks = tasksByInstanceNode.get(node);
+            if (tasks == null) {
+                tasks = new HashSet<>();
+                tasksByInstanceNode.put(node, tasks);
+            }
+            tasks.add(task);
+        }
 
-        log.info("Select query: " + select);
-
-        List<Object[]> staleTasks = list(select);
-
-        for (Object[] row : staleTasks) {
-            Number instanceNodeId = (Number) row[0];
-            Number staleCount = (Number) row[1];
+        PipelineOperations pipelineOperations = new PipelineOperations();
+        for (Map.Entry<PipelineInstanceNode, Set<PipelineTask>> entry : tasksByInstanceNode
+            .entrySet()) {
+            long instanceNodeId = entry.getKey().getId();
+            int staleCount = entry.getValue().size();
 
             log.info("instanceNodeId = " + instanceNodeId);
             log.info("staleCount = " + staleCount);
 
-            pipelineInstanceNodeCrud.updateFailedTaskCount(instanceNodeId.longValue(),
-                staleCount.intValue());
-
-            int updatedTaskCount = performTaskReset(instanceNodeId.longValue(), allStalledTasks,
-                taskIds);
+            for (PipelineTask task : entry.getValue()) {
+                pipelineOperations.setTaskState(task, PipelineTask.State.ERROR);
+            }
 
             flush(); // push out the update
 
-            if (updatedTaskCount == 0) {
-                log.info("found NO rows for instanceNode = " + instanceNodeId
-                    + " for this worker with stale state");
-            } else {
-                log.info("found " + updatedTaskCount + " rows for instanceNode = " + instanceNodeId
-                    + " for this worker with stale state, these rows were reset to ERROR");
-            }
+            log.info("found " + staleCount + " rows for instanceNode = " + instanceNodeId
+                + " with stale state, these rows were reset to ERROR");
         }
         flush();
     }
 
-    private int performTaskReset(long instanceNodeId, boolean allStalledTasks, String taskIds) {
-        String stateConstraint = "";
-        String taskIdsConstraint = "";
-
-        State error = PipelineTask.State.ERROR;
-        State processing = PipelineTask.State.PROCESSING;
-        State submitted = PipelineTask.State.SUBMITTED;
-
-        if (allStalledTasks) {
-            stateConstraint = "and state = :submitted or state = :processing ";
-        } else {
-            stateConstraint = "and state = :submitted ";
-        }
-
-        if (taskIds != null) {
-            taskIdsConstraint = "and id in (" + taskIds + ") ";
-        }
-
-        Query q = createQuery("from PipelineTask where " + "pipelineInstanceNode = :instanceNode "
-            + stateConstraint + taskIdsConstraint);
-
-        q.setEntity("instanceNode", get(PipelineInstanceNode.class, instanceNodeId));
-        q.setParameter("submitted", submitted);
-        if (allStalledTasks) {
-            q.setParameter("processing", processing);
-        }
-        List<PipelineTask> tasks = list(q);
-        for (PipelineTask task : tasks) {
-            task.setState(error);
-            task.stopExecutionClock();
-        }
-
-        return tasks.size();
-    }
-
     /**
      * Gets the number of {@link PipelineTask}s associated with the given {@link PipelineInstance}.
-     *
-     * @param pipelineInstance the non-{@code null} {@link PipelineInstance}.
-     * @return the number of {@link PipelineTask}s.
-     * @throws HibernateException if there were problems retrieving the count of
-     * {@link PipelineTask} objects.
-     * @throws NullPointerException if {@code pipelineInstance} is {@code null}.
      */
-    public int taskCount(PipelineInstance pipelineInstance) {
-        if (pipelineInstance == null) {
-            throw new NullPointerException("pipelineInstance can't be null");
-        }
+    public long taskCount(PipelineInstance pipelineInstance) {
+        checkNotNull(pipelineInstance, "pipelineInstance");
 
-        Query query = createQuery("select count(id) from PipelineTask t "
-            + "where t.pipelineInstance = :pipelineInstance");
-        query.setParameter("pipelineInstance", pipelineInstance);
-        return ((Long) query.iterate().next()).intValue();
+        ZiggyQuery<PipelineTask, Long> query = createZiggyQuery(PipelineTask.class, Long.class);
+        query.column(PipelineTask_.pipelineInstance).in(pipelineInstance);
+        query.count();
+
+        return uniqueResult(query);
     }
 
-    /**
-     * Gets a map containing the number of {@link PipelineTask}s associated with the given
-     * {@link PipelineInstance} for each state {@link State}. All known states are guaranteed to be
-     * found in the map, even if the count is 0.
-     *
-     * @param pipelineInstance the non-{@code null} {@link PipelineInstance}.
-     * @return the number of {@link PipelineTask}s.
-     * @throws HibernateException if there were problems retrieving the count of
-     * {@link PipelineTask} objects.
-     * @throws NullPointerException if {@code pipelineInstance} is {@code null}.
-     */
-    public Map<State, Integer> taskCountByState(PipelineInstance pipelineInstance) {
-        if (pipelineInstance == null) {
-            throw new NullPointerException("pipelineInstance can't be null");
-        }
+    public List<PipelineTask.State> retrieveStates(PipelineInstance pipelineInstance) {
+        ZiggyQuery<PipelineTask, PipelineTask.State> query = taskStateQuery();
+        query.column(PipelineTask_.pipelineInstance).in(pipelineInstance);
+        return list(query);
+    }
 
-        Query query = createQuery("select state, count(*) from PipelineTask t "
-            + "where t.pipelineInstance = :pipelineInstance " + "group by state");
-        query.setParameter("pipelineInstance", pipelineInstance);
+    /** Helper function to generate a query that returns states for tasks. */
+    private ZiggyQuery<PipelineTask, PipelineTask.State> taskStateQuery() {
+        ZiggyQuery<PipelineTask, PipelineTask.State> query = createZiggyQuery(PipelineTask.class,
+            PipelineTask.State.class);
+        query.column(PipelineTask_.state).select();
+        return query;
+    }
 
-        List<Object[]> list = list(query);
-        Map<State, Integer> taskCounts = new HashMap<>();
-        for (Object[] row : list) {
-            taskCounts.put((State) row[0], ((Long) row[1]).intValue());
-        }
-
-        // Ensure that all states are covered.
-        for (State state : State.values()) {
-            if (taskCounts.get(state) == null) {
-                taskCounts.put(state, 0);
-            }
-        }
-
-        return taskCounts;
+    public List<PipelineTask.State> retrieveStates(PipelineInstanceNode pipelineInstanceNode) {
+        ZiggyQuery<PipelineTask, PipelineTask.State> query = taskStateQuery();
+        query.column(PipelineTask_.pipelineInstanceNode).in(pipelineInstanceNode);
+        return list(query);
     }
 
     /**
@@ -487,12 +400,12 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return List of pipeline node IDs, can be null.
      */
     public List<Long> retrievePipelineInstanceNodeIds(long pipelineInstanceId) {
-        Criteria criteria = createCriteria(PipelineTask.class);
-        criteria.createAlias("pipelineInstanceNode", "instanceNode");
-        criteria.createAlias("pipelineInstance", "instance");
-        criteria.add(Restrictions.eq("instance.id", pipelineInstanceId));
-        criteria.setProjection(Projections.distinct(Projections.property("instanceNode.id")));
-        return list(criteria);
+        ZiggyQuery<PipelineTask, Long> query = createZiggyQuery(PipelineTask.class, Long.class);
+        query.where(query.in(query.get(PipelineTask_.pipelineInstance).get(PipelineInstance_.id),
+            pipelineInstanceId));
+        query.select(query.get(PipelineTask_.pipelineInstanceNode).get(PipelineInstanceNode_.id));
+        query.distinct(true);
+        return list(query);
     }
 
     /**
@@ -503,31 +416,19 @@ public class PipelineTaskCrud extends AbstractCrud {
      * @return count of the number of tasks in the given state for the given node ID.
      */
     public int retrieveStateCount(long nodeId, PipelineTask.State state) {
-        Criteria criteria = createCriteria(PipelineTask.class);
-        criteria.createAlias("pipelineInstanceNode", "instanceNode");
-        criteria.add(Restrictions.eq("instanceNode.id", nodeId));
-        criteria.add(Restrictions.eq("state", state));
-        criteria.setProjection(Projections.rowCount());
-        return toIntExact(uniqueResult(criteria));
+
+        // Note: the count() method causes the query to return a long, so it has to be cast to
+        // an int before returning.
+        ZiggyQuery<PipelineTask, Long> query = createZiggyQuery(PipelineTask.class, Long.class);
+        query.column(PipelineTask_.state).in(state);
+        query.where(query.in(
+            query.get(PipelineTask_.pipelineInstanceNode).get(PipelineInstanceNode_.id), nodeId));
+        query.count();
+        return uniqueResult(query).intValue();
     }
 
-    /**
-     * Produces a {@link DetachedCriteria} that finds the IDs of {@link PipelineTask} instances with
-     * a given pipeline module name and pipeline instance ID. The detached criteria can be added as
-     * a subquery to other {@link Criteria} queries that need to select for task IDs based on
-     * instance ID and module name.
-     */
-    public static DetachedCriteria taskIdsForModuleAndInstance(String moduleName, long instanceId) {
-        DetachedCriteria criteria = DetachedCriteria.forClass(PipelineTask.class);
-        criteria.createAlias("pipelineInstance", "instance");
-        criteria.createAlias("pipelineInstanceNode", "node");
-        criteria.createAlias("node.pipelineModuleDefinition", "module");
-        criteria.add(Restrictions.eq("instance.id", instanceId));
-        criteria.add(Restrictions.eq("module.name.name", moduleName));
-        criteria.setProjection(Projections.distinct(Projections.property("id")));
-
-        return criteria;
-
+    @Override
+    public Class<PipelineTask> componentClass() {
+        return PipelineTask.class;
     }
-
 }

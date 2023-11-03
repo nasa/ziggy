@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.data.management;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.USE_SYMLINKS_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.USE_SYMLINKS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -28,10 +28,10 @@ import com.google.common.collect.ImmutableSet;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
+import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -57,14 +57,14 @@ public class DefaultDataImporterTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+        DATASTORE_ROOT_DIR, directoryRule, "datastore");
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
         .around(datastoreRootDirPropertyRule);
 
     @Rule
-    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
+    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS,
         (String) null);
 
     @Before
@@ -104,7 +104,7 @@ public class DefaultDataImporterTest {
 
     @Test
     public void testSingleUowConstructor() {
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         DefaultDataImporter importer = new DefaultDataImporter(pipelineTask, dataImporterPath,
             datastoreRootPath);
         assertEquals(dataImporterPath, importer.getDataImportPath());
@@ -112,7 +112,7 @@ public class DefaultDataImporterTest {
 
     @Test
     public void testDefaultUowConstructor() {
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(subdirUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(subdirUow);
         DefaultDataImporter importer = new DefaultDataImporter(pipelineTask, dataImporterPath,
             datastoreRootPath);
         assertEquals(dataImporterSubdirPath, importer.getDataImportPath());
@@ -121,7 +121,7 @@ public class DefaultDataImporterTest {
     @Test
     public void testDataFilesInMainDir() throws IOException {
         dirForImports = dataImporterPath;
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         DefaultDataImporter importer = new DefaultDataImporter(pipelineTask, dataImporterPath,
             datastoreRootPath);
@@ -138,7 +138,7 @@ public class DefaultDataImporterTest {
     @Test
     public void testDataFilesInSubdir() throws IOException {
         dirForImports = dataImporterSubdirPath;
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(subdirUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(subdirUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         DefaultDataImporter importer = new DefaultDataImporter(pipelineTask, dataImporterPath,
             datastoreRootPath);
@@ -155,7 +155,7 @@ public class DefaultDataImporterTest {
     @Test
     public void testImportFilesFromMainDir() throws IOException {
         dirForImports = dataImporterPath;
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         DefaultDataImporter importer = new DefaultDataImporter(pipelineTask, dataImporterPath,
             datastoreRootPath);
@@ -190,7 +190,7 @@ public class DefaultDataImporterTest {
     @Test
     public void testImportFilesFromSubdir() throws IOException {
         dirForImports = dataImporterSubdirPath;
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(subdirUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(subdirUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         DefaultDataImporter importer = new DefaultDataImporter(pipelineTask, dataImporterPath,
             datastoreRootPath);
@@ -224,11 +224,12 @@ public class DefaultDataImporterTest {
     @Test
     public void testImportFilesWithFailure() throws IOException {
         dirForImports = dataImporterPath;
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         DefaultDataImporter importer = new DefaultDataImporter(pipelineTask, dataImporterPath,
             datastoreRootPath);
         importer = Mockito.spy(importer);
+        Mockito.doReturn(Mockito.mock(AlertService.class)).when(importer).alertService();
         Mockito.doThrow(IOException.class)
             .when(importer)
             .moveOrSymlink(dataImporterPath.resolve(Paths.get("pa-001234567-20-results.h5")),
@@ -286,7 +287,6 @@ public class DefaultDataImporterTest {
         sample1.createNewFile();
         filenames.add(sample1.getName());
         return filenames;
-
     }
 
     private List<String> filenamesInDirectory() throws IOException {
@@ -298,5 +298,4 @@ public class DefaultDataImporterTest {
         }
         return filenamesInDirectory;
     }
-
 }

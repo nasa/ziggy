@@ -99,5 +99,4 @@ public enum ProcessingState {
     public abstract String shortName();
 
     public abstract void taskAction(ProcessingStatePipelineModule module);
-
 }

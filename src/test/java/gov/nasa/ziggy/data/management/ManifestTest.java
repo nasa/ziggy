@@ -4,8 +4,8 @@ import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.XmlUtils.simpleTypeContent;
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +27,7 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBException;
 
@@ -48,12 +49,12 @@ public class ManifestTest {
     public ZiggyDirectoryRule ziggyDirectoryRule = new ZiggyDirectoryRule();
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+        DATASTORE_ROOT_DIR, "/dev/null");
 
     @Before
     public void setUp() {
@@ -170,9 +171,10 @@ public class ManifestTest {
 
     @Test
     public void testSchema() throws IOException {
-        Path schemaPath = Paths.get(System.getProperty(ZIGGY_HOME_DIR_PROP_NAME), "schema", "xml",
+        Path schemaPath = Paths.get(
+            ZiggyConfiguration.getInstance().getString(ZIGGY_HOME_DIR.property()), "schema", "xml",
             new Manifest().getXmlSchemaFilename());
-        List<String> schemaContent = Files.readAllLines(schemaPath);
+        List<String> schemaContent = Files.readAllLines(schemaPath, FileUtil.ZIGGY_CHARSET);
 
         assertContains(schemaContent, "<xs:element name=\"manifest\" type=\"manifest\"/>");
 
@@ -212,5 +214,4 @@ public class ManifestTest {
         String sha256 = checksumType.checksum(file);
         assertEquals(sha256, manifestFile.getChecksum());
     }
-
 }

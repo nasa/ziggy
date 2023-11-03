@@ -5,7 +5,7 @@ import gov.nasa.ziggy.parameters.Parameters;
 /**
  * @author Todd Klaus
  */
-public class TestModuleParameters implements Parameters {
+public class TestModuleParameters extends Parameters {
     private int value = 42;
 
     public TestModuleParameters() {

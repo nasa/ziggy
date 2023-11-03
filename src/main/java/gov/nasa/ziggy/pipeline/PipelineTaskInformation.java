@@ -12,11 +12,9 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.PipelineInputs;
 import gov.nasa.ziggy.module.SubtaskInformation;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.ParameterSetName;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -106,7 +104,7 @@ public class PipelineTaskInformation {
      * Cache of {@link ParameterSetName}s for {@link RemoteParameters} instances, organized by
      * {@link PipelineDefinitionNode}.
      */
-    private static Map<PipelineDefinitionNode, ParameterSetName> remoteParametersMap = new HashMap<>();
+    private static Map<PipelineDefinitionNode, String> remoteParametersMap = new HashMap<>();
 
     /**
      * Cache that stores information on whether a given module has limits on the number of subtasks
@@ -154,7 +152,7 @@ public class PipelineTaskInformation {
      * Returns the {@link ParameterSetName} for a specified node's {@link RemoteParameters}
      * instance. If the module has no such parameter set, null is returned.
      */
-    public static synchronized ParameterSetName remoteParameters(PipelineDefinitionNode node) {
+    public static synchronized String remoteParameters(PipelineDefinitionNode node) {
         if (!hasPipelineDefinitionNode(node)) {
             generateSubtaskInformation(node);
         }
@@ -185,7 +183,7 @@ public class PipelineTaskInformation {
 
     private static synchronized void generateSubtaskInformation(PipelineDefinitionNode node) {
 
-        log.debug("Generating subtask information for node " + node.getModuleName().getName());
+        log.debug("Generating subtask information for node " + node.getModuleName());
         PipelineDefinition pipelineDefinition = pipelineDefinitionCrud()
             .retrieveLatestVersionForName(node.getPipelineName());
 
@@ -194,9 +192,9 @@ public class PipelineTaskInformation {
         pipelineInstance.setPipelineDefinition(pipelineDefinition);
 
         // Populate the instance parameters
-        Map<ClassWrapper<Parameters>, ParameterSetName> triggerParamNames = pipelineDefinition
+        Map<ClassWrapper<ParametersInterface>, String> triggerParamNames = pipelineDefinition
             .getPipelineParameterSetNames();
-        Map<ClassWrapper<Parameters>, ParameterSet> instanceParams = pipelineInstance
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> instanceParams = pipelineInstance
             .getPipelineParameterSets();
         populateParameters(triggerParamNames, instanceParams);
         pipelineInstance.setPipelineParameterSets(instanceParams);
@@ -219,10 +217,11 @@ public class PipelineTaskInformation {
             .unitOfWorkGenerator(taskNode);
 
         // Produce a combined map from Parameter classes to Parameter instances
-        Map<ClassWrapper<Parameters>, ParameterSet> compositeParameterSets = new HashMap<>(
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> compositeParameterSets = new HashMap<>(
             pipelineInstance.getPipelineParameterSets());
 
-        for (ClassWrapper<Parameters> moduleParameterClass : instanceNode.getModuleParameterSets()
+        for (ClassWrapper<ParametersInterface> moduleParameterClass : instanceNode
+            .getModuleParameterSets()
             .keySet()) {
             if (compositeParameterSets.containsKey(moduleParameterClass)) {
                 throw new PipelineException(
@@ -237,11 +236,11 @@ public class PipelineTaskInformation {
         // can run in parallel
 
         modulesWithParallelLimitsMap.put(node, instance.parallelLimits(moduleDefinition));
-        Map<Class<? extends Parameters>, Parameters> uowParams = new HashMap<>();
+        Map<Class<? extends ParametersInterface>, ParametersInterface> uowParams = new HashMap<>();
 
-        for (ClassWrapper<Parameters> parametersClass : compositeParameterSets.keySet()) {
+        for (ClassWrapper<ParametersInterface> parametersClass : compositeParameterSets.keySet()) {
             ParameterSet parameterSet = compositeParameterSets.get(parametersClass);
-            Class<? extends Parameters> clazz = parametersClass.getClazz();
+            Class<? extends ParametersInterface> clazz = parametersClass.getClazz();
             if (clazz.equals(RemoteParameters.class)) {
                 remoteParametersMap.put(node, parameterSet.getName());
             }
@@ -258,7 +257,7 @@ public class PipelineTaskInformation {
         List<SubtaskInformation> subtaskInformationList = new LinkedList<>();
         for (UnitOfWork task : tasks) {
             PipelineTask pipelineTask = instance.pipelineTask(pipelineInstance, instanceNode, task);
-            pipelineTask.setUowTask(new BeanWrapper<>(task));
+            pipelineTask.setUowTaskParameters(task.getParameters());
             SubtaskInformation subtaskInformation = instance.subtaskInformation(moduleDefinition,
                 pipelineTask);
             subtaskInformationList.add(subtaskInformation);
@@ -271,7 +270,7 @@ public class PipelineTaskInformation {
      * unit tests.
      */
     List<UnitOfWork> unitsOfWork(ClassWrapper<UnitOfWorkGenerator> wrappedUowGenerator,
-        Map<Class<? extends Parameters>, Parameters> uowParams) {
+        Map<Class<? extends ParametersInterface>, ParametersInterface> uowParams) {
         UnitOfWorkGenerator taskGenerator = wrappedUowGenerator.newInstance();
         return taskGenerator.generateUnitsOfWork(uowParams);
     }
@@ -290,7 +289,7 @@ public class PipelineTaskInformation {
     PipelineTask pipelineTask(PipelineInstance instance, PipelineInstanceNode instanceNode,
         UnitOfWork uow) {
         PipelineTask pipelineTask = new PipelineTask(instance, instanceNode);
-        pipelineTask.setUowTask(new BeanWrapper<>(uow));
+        pipelineTask.setUowTaskParameters(uow.getParameters());
         return pipelineTask;
     }
 
@@ -310,10 +309,10 @@ public class PipelineTaskInformation {
     }
 
     private static void populateParameters(
-        Map<ClassWrapper<Parameters>, ParameterSetName> parameterSetNames,
-        Map<ClassWrapper<Parameters>, ParameterSet> parameterSets) {
-        for (ClassWrapper<Parameters> paramClass : parameterSetNames.keySet()) {
-            ParameterSetName pipelineParamName = parameterSetNames.get(paramClass);
+        Map<ClassWrapper<ParametersInterface>, String> parameterSetNames,
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> parameterSets) {
+        for (ClassWrapper<ParametersInterface> paramClass : parameterSetNames.keySet()) {
+            String pipelineParamName = parameterSetNames.get(paramClass);
             ParameterSet paramSet = parameterSetCrud()
                 .retrieveLatestVersionForName(pipelineParamName);
             parameterSets.put(paramClass, paramSet);
@@ -332,5 +331,4 @@ public class PipelineTaskInformation {
     private static synchronized PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud() {
         return instance.getPipelineModuleDefinitionCrud();
     }
-
 }

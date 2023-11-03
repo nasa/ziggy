@@ -44,20 +44,15 @@ public class PersistableSample4 {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         PersistableSample4 other = (PersistableSample4) obj;
-        if (!Objects.equals(persistableTest2, other.persistableTest2)) {
-            return false;
-        }
-        if (!Objects.equals(persistableTest3, other.persistableTest3)) {
-            return false;
-        }
-        if (!Arrays.equals(persistableTest3Array, other.persistableTest3Array)) {
+        if (!Objects.equals(persistableTest2, other.persistableTest2)
+            || !Objects.equals(persistableTest3, other.persistableTest3)
+            || !Arrays.equals(persistableTest3Array, other.persistableTest3Array)) {
             return false;
         }
         return true;
     }
-
 }

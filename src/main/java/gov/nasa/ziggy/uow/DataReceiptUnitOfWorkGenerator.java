@@ -9,8 +9,8 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.Sets;
 
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.events.ZiggyEventLabels;
 
@@ -20,12 +20,12 @@ import gov.nasa.ziggy.services.events.ZiggyEventLabels;
  *
  * @author PT
  */
-public class DataReceiptUnitOfWorkGenerator extends DirectoryUnitOfWorkGenerator {
+public class DataReceiptUnitOfWorkGenerator extends DatastoreDirectoryUnitOfWorkGenerator {
 
     @Override
     protected Path rootDirectory() {
         return Paths.get(
-            ZiggyConfiguration.getInstance().getString(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME));
+            ZiggyConfiguration.getInstance().getString(PropertyName.DATA_RECEIPT_DIR.property()));
     }
 
     /**
@@ -33,7 +33,8 @@ public class DataReceiptUnitOfWorkGenerator extends DirectoryUnitOfWorkGenerator
      * directory of ".manifests".
      */
     @Override
-    public List<UnitOfWork> generateTasks(Map<Class<? extends Parameters>, Parameters> parameters) {
+    public List<UnitOfWork> generateTasks(
+        Map<Class<? extends ParametersInterface>, ParametersInterface> parameters) {
         List<UnitOfWork> unitsOfWork = super.generateTasks(parameters);
 
         // If the pipeline that's going to execute data receipt was launched by an event handler,
@@ -54,7 +55,5 @@ public class DataReceiptUnitOfWorkGenerator extends DirectoryUnitOfWorkGenerator
                 .collect(Collectors.toList());
         }
         return unitsOfWork;
-
     }
-
 }

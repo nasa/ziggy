@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -52,7 +52,7 @@ public class MetricsCli {
     public MetricsCli() {
     }
 
-    private void processCommand(String[] args) throws Exception {
+    private void processCommand(String[] args) {
         String command = args[0];
         if (command.equals("available") || command.equals("a")) {
             dumpAvailableTypes();
@@ -66,7 +66,7 @@ public class MetricsCli {
         System.exit(0);
     }
 
-    private void generateMetricsReportCommand(String[] args) throws Exception {
+    private void generateMetricsReportCommand(String[] args) {
         if (args.length == 2) {
             File file = new File(args[1]);
             if (!file.exists() || !file.isDirectory()) {
@@ -93,7 +93,7 @@ public class MetricsCli {
         }
     }
 
-    private void dumpMetricsFileCommand(String[] args) throws Exception {
+    private void dumpMetricsFileCommand(String[] args) {
         if (args.length == 2) {
             File file = new File(args[1]);
             if (!file.exists() || !file.isFile()) {
@@ -137,7 +137,7 @@ public class MetricsCli {
             "    r[eport] DIR : Generate an aggregate report (PDF) from a tree of metrics.ser files");
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         if (args.length < 1) {
             usage();
             System.exit(-1);

@@ -2,7 +2,6 @@ package gov.nasa.ziggy.services.database;
 
 import java.sql.Connection;
 import java.util.Collection;
-import java.util.Properties;
 
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -56,20 +55,8 @@ public abstract class DatabaseService {
     /**
      * Initialize the {@link DatabaseService} implementation. This method should only be called by
      * the {@link DatabaseService#getInstance()} methods.
-     *
-     * @throws PipelineException
      */
-    public abstract void initialize() throws PipelineException;
-
-    /**
-     * Set an alternate source for the Hibernate properties. The default is to use the configuration
-     * service.
-     * <p>
-     * Used only for testing
-     *
-     * @param properties
-     */
-    public abstract void setPropertiesSource(Properties properties);
+    public abstract void initialize();
 
     /**
      * Start a new {@link Session}/local transaction for the current thread
@@ -204,35 +191,6 @@ public abstract class DatabaseService {
     }
 
     /**
-     * Create an instance using the specified Hibernate properties. This instance is not cached, so
-     * a new instance will be returned each time.
-     * <p>
-     * This is only intended to be used by test code that keeps a reference to the returned
-     * instance. The use case is to allow tools that read from one database and write to another. If
-     * the destination is hsqldb, this provides a small-scale export capability since hsqldb can be
-     * configured to persist its state as txt files containing sql insert statements (very useful
-     * for seeding test databases used for automated tests).
-     * <p>
-     * Another use case is to verify user-entered credentials.
-     * <p>
-     * XA is not supported for these instances
-     *
-     * @param alternatePropertiesSource
-     * @return
-     * @throws PipelineException
-     */
-    public static synchronized DatabaseService getInstance(Properties alternatePropertiesSource) {
-        if (alternatePropertiesSource == null) {
-            throw new PipelineException("alternatePropertiesSource must not be null!");
-        }
-
-        HibernateDatabaseService instance = new HibernateDatabaseService();
-        instance.setPropertiesSource(alternatePropertiesSource);
-        instance.initialize();
-        return instance;
-    }
-
-    /**
      * A thread local that stores a boolean and has an initial value.
      */
     static class BooleanThreadLocal extends ThreadLocal<Boolean> {
@@ -247,5 +205,4 @@ public abstract class DatabaseService {
             return initValue;
         }
     }
-
 }

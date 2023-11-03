@@ -14,7 +14,7 @@
             exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
 
         <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer"
-            instancePriority="5">
+            instancePriority="LOWEST">
             <node moduleName="importer" startNewUow="true" 
                 uowClass="gov.nasa.sbg.hyperion.common.ImporterUnitOfWork"
                 childNodeNames="modelimporter"/>

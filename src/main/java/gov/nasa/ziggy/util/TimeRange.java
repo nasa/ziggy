@@ -36,12 +36,11 @@ public class TimeRange {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         TimeRange other = (TimeRange) obj;
         return Objects.equals(endTimestamp, other.endTimestamp)
             && Objects.equals(startTimestamp, other.startTimestamp);
     }
-
 }

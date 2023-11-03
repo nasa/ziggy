@@ -1,5 +1,79 @@
-task copyWrapper(type: Copy) {
-    from(file("$ziggyDependencies/bin")) {
+// Download and build the wrapper.
+
+ext.wrapperVersion = "3.5.51"
+
+task buildWrapper() {
+    def tmp = file("$outsideDir/tmp/wrapper")
+    def bin = file("$outsideDir/bin")
+    def lib = file("$outsideDir/lib")
+    def format = ""
+    def libSuffixOriginal = ""
+    def libSuffixFinal = ""
+
+    // There's a peculiar problem with wrapper, to wit: The Mac OS
+    // "universal" tarball ships with a shared object that has suffix
+    // .jnilib . The M1 tarball ships with a shared object with
+    // .dylib. Meanwhile, it seems that at least some JVM
+    // implementations no longer accept the .jnilib suffix, and the
+    // suggested fix (per the internet) is to rename them to have the
+    // .dylib suffix. As far as can be tested, the following formalism
+    // will address all these issues correctly.
+    String opSys = System.getProperty("os.name").toLowerCase();
+    String arch = System.getProperty("os.arch").toLowerCase();
+    if (opSys.contains("linux")) {
+        format = "linux-x86-64"
+        libSuffixOriginal = "so"
+        libSuffixFinal = "so"
+    } else if (opSys.contains("mac")) {
+        if (arch.contains("aarch")) {
+            format = "macosx-arm-64"
+            libSuffixOriginal = "dylib"
+            libSuffixFinal = "dylib"
+        } else {
+            format = "macosx-universal-64"
+            libSuffixOriginal = "jnilib"
+            libSuffixFinal = "dylib"
+        }
+    }
+    def wrapperBaseName = "wrapper-$format-$wrapperVersion"
+    def wrapperDir = file("$tmp/$wrapperBaseName")
+    def wrapperLib = "libwrapper.$libSuffixOriginal"
+
+    outputs.file "$bin/wrapper"
+    outputs.file "$lib/$wrapperLib.$libSuffixFinal"
+    outputs.file "$lib/wrapper.jar"
+
+    doLast() {
+        tmp.mkdirs()
+
+        // See https://wrapper.tanukisoftware.com/doc/english/versions.jsp to determine the URL.
+        exec {
+            workingDir tmp
+            commandLine "curl", "-o", "wrapper-${wrapperVersion}.tar.gz", "https://download.tanukisoftware.com/wrapper/$wrapperVersion/${wrapperBaseName}.tar.gz"
+        }
+        exec {
+            workingDir tmp
+            commandLine "tar", "-xf", "wrapper-${wrapperVersion}.tar.gz"
+        }
+        copy {
+            from("$wrapperDir/bin") {
+                include "wrapper"
+            }
+            into "$bin"
+        }
+        copy {
+            from("$wrapperDir/lib") {
+                include "$wrapperLib", "wrapper.jar"
+            }
+            into "$lib"
+            rename ("$wrapperLib", "libwrapper.$libSuffixFinal")
+            rename ("wrapper.jar", "wrapper-${wrapperVersion}.jar")
+        }
+    }
+}
+
+task copyWrapper(type: Copy, dependsOn: buildWrapper) {
+    from(file("$outsideDir/bin")) {
         include "wrapper"
     }
     into "$buildDir/bin"
@@ -7,11 +81,20 @@ task copyWrapper(type: Copy) {
 
 assemble.dependsOn copyWrapper
 
-task copyWrapperLibs(type: Copy) {
-    from(file("$ziggyDependencies/lib")) {
+task copyWrapperLib(type: Copy, dependsOn: buildWrapper) {
+    from(file("$outsideDir/lib")) {
         include "libwrapper.*"
     }
     into "$buildDir/lib"
 }
 
-assemble.dependsOn copyWrapperLibs
+assemble.dependsOn copyWrapperLib
+
+task copyWrapperLibs(type: Copy, dependsOn: buildWrapper) {
+    from(file("$outsideDir/lib")) {
+        include "wrapper-*.jar"
+    }
+    into "$outsideGroupDir"
+}
+
+copyOutsideLibs.dependsOn copyWrapperLibs

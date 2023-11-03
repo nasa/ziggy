@@ -4,9 +4,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
+import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
 import gov.nasa.ziggy.module.remote.QstatMonitor;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.util.HostNameUtils;
 
 /**
  * Interface for classes that monitor remote jobs. This allows a dummy implementation to be supplied
@@ -23,28 +25,24 @@ public interface JobMonitor {
      * returned, while for local tasks a dummy instance, with no actual functionality, will be
      * returned.
      */
-    static JobMonitor newInstance(String username, boolean remoteJobs) {
-        if (remoteJobs) {
-            return new QstatMonitor(username, System.getenv("HOST"));
+    static JobMonitor newInstance(String username, AlgorithmType algorithmType) {
+        if (algorithmType.equals(AlgorithmType.REMOTE)) {
+            return new QstatMonitor(username, HostNameUtils.shortHostName());
         }
         return new JobMonitor() {
         };
     }
 
     default void addToMonitoring(StateFile stateFile) {
-
     }
 
     default void addToMonitoring(PipelineTask pipelineTask) {
-
     }
 
     default void endMonitoring(StateFile stateFile) {
-
     }
 
     default void update() {
-
     }
 
     default Set<Long> allIncompleteJobIds(PipelineTask pipelineTask) {
@@ -82,5 +80,4 @@ public interface JobMonitor {
     default Set<String> getJobsInMonitor() {
         return Collections.emptySet();
     }
-
 }

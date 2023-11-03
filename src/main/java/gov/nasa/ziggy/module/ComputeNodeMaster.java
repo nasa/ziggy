@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -36,6 +36,7 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -46,8 +47,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,9 +54,13 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import gov.nasa.ziggy.module.StateFile.State;
 import gov.nasa.ziggy.module.remote.TimestampFile;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.logging.TaskLog;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.HostNameUtils;
 import gov.nasa.ziggy.util.TimeFormatter;
-import gov.nasa.ziggy.util.ZiggyBuild;
 import gov.nasa.ziggy.util.io.LockManager;
 
 /**
@@ -69,6 +72,8 @@ import gov.nasa.ziggy.util.io.LockManager;
  * starts a {@link SubtaskServer} instance to dispatch subtasks to the {@link SubtaskMaster}
  * instances as they complete existing subtasks and are free to start new ones.
  * <p>
+ * The {@link ComputeNodeMaster} requires that the environment variable PIPELINE_CONFIG_PATH be set
+ * on the computer that runs the {@ComputeNodeMaster} instance.
  *
  * @author Todd Klaus
  * @author PT
@@ -80,16 +85,12 @@ public class ComputeNodeMaster implements Runnable {
     private static final long SLEEP_INTERVAL_MILLIS = 10000;
 
     private final String workingDir;
-    private final String homeDir;
-    private final String pipelineConfigPath;
-    private final TaskLog algorithmLog;
     private int coresPerNode;
 
     private final StateFile stateFile;
-    private final File stateFileDir;
     private final File taskDir;
     private final File stateFileLockFile;
-    private String nodeName;
+    private String nodeName = "<unknown>";
     private TaskMonitor monitor;
 
     private SubtaskServer subtaskServer;
@@ -101,30 +102,16 @@ public class ComputeNodeMaster implements Runnable {
 
     private TaskConfigurationManager inputsHandler;
 
-    /**
-     * @param workingDir
-     * @param homeDir
-     * @param stateFilePath
-     * @param pipelineConfigPath
-     * @param algorithmLog
-     * @throws Exception
-     */
-    public ComputeNodeMaster(String workingDir, String homeDir, String stateFilePath,
-        String pipelineConfigPath, TaskLog algorithmLog) throws Exception {
+    public ComputeNodeMaster(String workingDir, TaskLog algorithmLog) {
         this.workingDir = workingDir;
-        this.homeDir = homeDir;
-        this.pipelineConfigPath = pipelineConfigPath;
-        this.algorithmLog = algorithmLog;
 
         log.info("RemoteTaskMaster START");
         log.info(" workingDir = " + workingDir);
-        log.info(" homeDir = " + homeDir);
-        log.info(" stateFilePath = " + stateFilePath);
-        log.info(" pipelineConfigPath = " + pipelineConfigPath);
         log.info(" algorithmLog = " + algorithmLog);
 
-        stateFile = StateFile.newStateFileFromDiskFile(new File(stateFilePath), true);
-        stateFileDir = new File(stateFilePath).getParentFile();
+        nodeName = HostNameUtils.shortHostName();
+
+        stateFile = StateFile.of(Paths.get(workingDir)).newStateFileFromDiskFile();
         taskDir = new File(workingDir);
         stateFileLockFile = stateFile.lockFile();
     }
@@ -135,26 +122,16 @@ public class ComputeNodeMaster implements Runnable {
      * {@link SubtaskMaster} instances. For the node that is going to host the {@link SubtaskServer}
      * instance it also starts the server, updates the {@link StateFile}, creates symlinks, and
      * creates task-start timestamps.
-     *
-     * @throws IOException if unable to lock a file in the task directory or determine the host name
-     * of the node.
-     * @throws InterruptedException if the start of the {@link SubtaskServer} or the
-     * {@link SubtaskMaster}s are interrupted.
-     * @throws IllegalStateException if thrown while attempting to update the state file.
-     * @throws ConfigurationException if thrown while attempting to update the state file.
      */
-    public void initialize()
-        throws IOException, InterruptedException, ConfigurationException, IllegalStateException {
-        ZiggyBuild.logVersionInfo(log);
+    public void initialize() {
 
-        log.info("jvm version:");
-        log.info("  java.runtime.name=" + SystemUtils.JAVA_RUNTIME_NAME);
-        log.info("  sun.boot.library.path=" + System.getProperty("sun.boot.library.path"));
-        log.info("  java.vm.version=" + SystemUtils.JAVA_VM_VERSION);
+        log.info("Starting ComputeNodeMaster ({})",
+            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
+        ZiggyConfiguration.logJvmProperties();
 
         // It's possible that this node isn't starting until all of the subtasks are
         // complete! In that case, it should just exit without doing anything else.
-        monitor = new TaskMonitor(getInputsHandler(), stateFile, stateFileDir, taskDir);
+        monitor = new TaskMonitor(getInputsHandler(), stateFile, taskDir);
         monitor.updateState();
         if (monitor.allSubtasksProcessed()) {
             log.info("All subtasks processed, ComputeNodeMaster exiting");
@@ -176,7 +153,7 @@ public class ComputeNodeMaster implements Runnable {
      *
      * @throws IOException if unable to release write lock on state file.
      */
-    private void updateStateFile() throws IOException {
+    private void updateStateFile() {
 
         // NB: If there are multiple jobs associated with a single task, this update only
         // needs to be performed if this job is the first to start
@@ -188,7 +165,7 @@ public class ComputeNodeMaster implements Runnable {
                 stateFile.setState(StateFile.State.PROCESSING);
                 log.info("Updating state: " + previousStateFile + " -> " + stateFile);
 
-                if (!StateFile.updateStateFile(previousStateFile, stateFile, stateFileDir)) {
+                if (!StateFile.updateStateFile(previousStateFile, stateFile)) {
                     log.error("Failed to update state file: " + previousStateFile);
                 }
             } else {
@@ -217,10 +194,9 @@ public class ComputeNodeMaster implements Runnable {
      * Starts the {@link SubtaskMaster} instances in the threads of a thread pool, one thread per
      * active cores on this node. A {@link Semaphore} is used to track the number of
      * {@link SubtaskMaster} instances currently running.
-     *
-     * @throws InterruptedException if the semaphore acquire method is interrupted.
      */
-    private void startSubtaskMasters() throws InterruptedException {
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    private void startSubtaskMasters() {
 
         int timeoutSecs = (int) TimeFormatter
             .timeStringHhMmSsToTimeInSeconds(stateFile.getRequestedWallTime());
@@ -229,9 +205,15 @@ public class ComputeNodeMaster implements Runnable {
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SubtaskMaster[%d]")
             .build();
         for (int i = 0; i < coresPerNode; i++) {
-            subtaskMasterSemaphore.acquire();
+            try {
+                subtaskMasterSemaphore.acquire();
+            } catch (InterruptedException e) {
+                // This can never occur. The number of permits is equal to the number of threads,
+                // thus there is no need to wait for a permit to become available.
+                throw new AssertionError(e);
+            }
             SubtaskMaster subtaskMaster = new SubtaskMaster(i, nodeName, subtaskMasterSemaphore,
-                stateFile.getModuleName(), workingDir, timeoutSecs, homeDir, pipelineConfigPath);
+                stateFile.getModuleName(), workingDir, timeoutSecs);
             subtaskMasters.add(subtaskMaster);
             threadPool.submit(subtaskMaster, threadFactory);
         }
@@ -249,17 +231,22 @@ public class ComputeNodeMaster implements Runnable {
      * <li>All of the {@link SubtaskMaster} threads have completed.
      * <li>All of the subtasks are either completed or failed.
      * </ol>
-     *
-     * @throws InterruptedException if the call to wait is interrupted.
      */
-    public void monitor() throws InterruptedException {
+    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
+    public void monitor() {
 
         log.info("Waiting for subtasks to complete");
 
         ScheduledThreadPoolExecutor monitoringThreadPool = new ScheduledThreadPoolExecutor(1);
         monitoringThreadPool.scheduleAtFixedRate(this, 0L, SLEEP_INTERVAL_MILLIS,
             TimeUnit.MILLISECONDS);
-        monitoringLatch.await();
+        try {
+            monitoringLatch.await();
+        } catch (InterruptedException e) {
+            // If the ComputeNodeMaster main thread is interrupted, it means that the entire
+            // ComputeNodeMaster is shutting down. We can simply allow it to shut down and don't
+            // need to do anything further.
+        }
         monitoringThreadPool.shutdownNow();
     }
 
@@ -281,18 +268,7 @@ public class ComputeNodeMaster implements Runnable {
 
         // Do state checks and updates
         boolean allSubtasksProcessed = monitor.allSubtasksProcessed();
-        try {
-            monitor.updateState();
-        } catch (IOException e) {
-            throw new PipelineException("Unable to update state file", e);
-        }
-
-        // If the task is slated for deletion, exit monitoring immediately.
-        if (monitor.isDeleted()) {
-            log.info("Task in deleted state, exiting");
-            endMonitoring();
-            return;
-        }
+        monitor.updateState();
 
         // If all the subtasks are either completed or failed, exit monitoring
         // immediately
@@ -319,10 +295,8 @@ public class ComputeNodeMaster implements Runnable {
     /**
      * If monitoring ended with successful completion of the job, create a timestamp for the
      * completion time in the task directory and mark the task's {@link StateFile} as done.
-     *
-     * @throws IOException if unable to mark the state file as done.
      */
-    public void finish() throws InterruptedException, IOException {
+    public void finish() {
 
         TimestampFile.create(taskDir, TimestampFile.Event.PBS_JOB_FINISH);
         if (monitor.allSubtasksProcessed()) {
@@ -340,7 +314,6 @@ public class ComputeNodeMaster implements Runnable {
             threadPool.shutdownNow();
         }
         subtaskServer().shutdown();
-        algorithmLog.endLogging();
     }
 
     // The following getter methods are intended for testing purposes only. They do not expose any
@@ -394,14 +367,14 @@ public class ComputeNodeMaster implements Runnable {
      *
      * @return true if lock obtained, false otherwise.
      */
-    boolean getWriteLockWithoutBlocking(File lockFile) throws IOException {
+    boolean getWriteLockWithoutBlocking(File lockFile) {
         return LockManager.getWriteLockWithoutBlocking(lockFile);
     }
 
     /**
      * Releases the write lock on a file. Broken out as a separate method to support testing.
      */
-    void releaseWriteLock(File lockFile) throws IOException {
+    void releaseWriteLock(File lockFile) {
         LockManager.releaseWriteLock(lockFile);
     }
 
@@ -432,18 +405,15 @@ public class ComputeNodeMaster implements Runnable {
         return Executors.newFixedThreadPool(coresPerNode);
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public static void main(String[] args) {
-        if (args.length != 5) {
-            System.err.println("USAGE: ComputeNodeMaster workingDir homeDir "
-                + "stateFilePath pipelineConfigPath logFilePath");
+        if (args.length != 2) {
+            System.err.println("USAGE: ComputeNodeMaster workingDir logFilePath");
             System.exit(-1);
         }
 
         String workingDir = args[0];
-        String homeDir = args[1];
-        String stateFilePath = args[2];
-        String spiffyConfigPath = args[3];
-        String logFilePath = args[4];
+        String logFilePath = args[1];
 
         // Start up logging
         TaskLog algorithmLog = new TaskLog(logFilePath);
@@ -453,8 +423,7 @@ public class ComputeNodeMaster implements Runnable {
 
         // Startup: constructor and initialization
         try {
-            computeNodeMaster = new ComputeNodeMaster(workingDir, homeDir, stateFilePath,
-                spiffyConfigPath, algorithmLog);
+            computeNodeMaster = new ComputeNodeMaster(workingDir, algorithmLog);
             computeNodeMaster.initialize();
         } catch (Exception e) {
 
@@ -469,24 +438,11 @@ public class ComputeNodeMaster implements Runnable {
 
         // Monitoring: wait for subtasks to finish, subtask masters to finish, or exceptions
         // to be thrown
-        try {
-            computeNodeMaster.monitor();
-        } catch (InterruptedException e) {
-            log.error("ComputeNodeMaster monitoring failed", e);
-            computeNodeMaster.cleanup();
-            System.exit(1);
-        }
+        computeNodeMaster.monitor();
 
         // Wrap-up: finalize and clean up
-        try {
-            computeNodeMaster.finish();
-        } catch (InterruptedException | IOException e) {
-            log.error("ComputeNodeMaster wrap-up failed", e);
-            System.exit(1);
-        } finally {
-            computeNodeMaster.cleanup();
-        }
+        computeNodeMaster.finish();
+        computeNodeMaster.cleanup();
         System.exit(0);
-
     }
 }

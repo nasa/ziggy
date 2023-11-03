@@ -29,8 +29,7 @@ public class InstanceReport extends Report {
         super(pdfRenderer);
     }
 
-    public void generateReport(PipelineInstance instance, List<PipelineInstanceNode> nodes)
-        throws Exception {
+    public void generateReport(PipelineInstance instance, List<PipelineInstanceNode> nodes) {
         PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
 
         String instanceName = instance.getId() + ":" + instance.getName();
@@ -97,7 +96,7 @@ public class InstanceReport extends Report {
         return date.toString();
     }
 
-    private void generateTransferStats(List<PipelineInstanceNode> nodes) throws Exception {
+    private void generateTransferStats(List<PipelineInstanceNode> nodes) {
         PdfPTable transfersTable = new PdfPTable(4);
 
         transfersTable.setWidthPercentage(100);
@@ -156,7 +155,7 @@ public class InstanceReport extends Report {
         log.info("millisForNode = " + millisForNode);
         log.info("bytesPerSecondForNode = " + bytesPerSecondForNode);
 
-        addCell(transfersTable, node.getPipelineDefinitionNode().getModuleName().getName());
+        addCell(transfersTable, node.getPipelineDefinitionNode().getModuleName());
         addCell(transfersTable, label);
         addCell(transfersTable, bytesFormatter.format(bytesForNode));
         addCell(transfersTable, rateFormatter.format(bytesPerSecondForNode));

@@ -36,7 +36,6 @@ public class ProcessingFailureSummaryTest {
         subTaskDir.mkdirs();
         subTaskDir = new File(taskDir, "st-200");
         subTaskDir.mkdirs();
-
     }
 
     /**
@@ -58,15 +57,14 @@ public class ProcessingFailureSummaryTest {
      */
     @Test
     public void testSomeErrors() throws IOException {
-        new File(new File(taskDir, "st-3"), "modulename-error-0.h5").createNewFile();
-        new File(new File(taskDir, "st-200"), "modulename-error-0.h5").createNewFile();
+        new File(new File(taskDir, "st-3"), "modulename-error.h5").createNewFile();
+        new File(new File(taskDir, "st-200"), "modulename-error.h5").createNewFile();
         ProcessingFailureSummary p = new ProcessingFailureSummary(moduleName, taskDir);
         assertFalse(p.isAllTasksSucceeded());
         assertFalse(p.isAllTasksFailed());
         assertEquals(2, p.getFailedSubTaskDirs().size());
         assertEquals("st-3", p.getFailedSubTaskDirs().get(0));
         assertEquals("st-200", p.getFailedSubTaskDirs().get(1));
-
     }
 
     /**
@@ -76,9 +74,9 @@ public class ProcessingFailureSummaryTest {
      */
     @Test
     public void testAllErrored() throws IOException {
-        new File(new File(taskDir, "st-3"), "modulename-error-0.h5").createNewFile();
-        new File(new File(taskDir, "st-200"), "modulename-error-0.h5").createNewFile();
-        new File(new File(taskDir, "st-0"), "modulename-error-0.h5").createNewFile();
+        new File(new File(taskDir, "st-3"), "modulename-error.h5").createNewFile();
+        new File(new File(taskDir, "st-200"), "modulename-error.h5").createNewFile();
+        new File(new File(taskDir, "st-0"), "modulename-error.h5").createNewFile();
         ProcessingFailureSummary p = new ProcessingFailureSummary(moduleName, taskDir);
         assertFalse(p.isAllTasksSucceeded());
         assertTrue(p.isAllTasksFailed());
@@ -87,5 +85,4 @@ public class ProcessingFailureSummaryTest {
         assertEquals("st-3", p.getFailedSubTaskDirs().get(1));
         assertEquals("st-200", p.getFailedSubTaskDirs().get(2));
     }
-
 }

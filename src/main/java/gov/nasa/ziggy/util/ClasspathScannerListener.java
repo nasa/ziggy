@@ -8,5 +8,5 @@ import javassist.bytecode.ClassFile;
  * @author Todd Klaus
  */
 public interface ClasspathScannerListener {
-    void processClass(ClassFile classFile) throws Exception;
+    void processClass(ClassFile classFile);
 }

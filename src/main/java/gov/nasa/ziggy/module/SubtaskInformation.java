@@ -35,5 +35,4 @@ public class SubtaskInformation {
     public int getMaxParallelSubtasks() {
         return maxParallelSubtasks;
     }
-
 }

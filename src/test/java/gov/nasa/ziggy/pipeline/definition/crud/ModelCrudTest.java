@@ -35,8 +35,8 @@ public class ModelCrudTest {
         setUpModelTypes();
         DatabaseTransactionFactory.performTransaction(() -> {
             ModelCrud modelCrud = new ModelCrud();
-            modelCrud.create(modelType1);
-            modelCrud.create(modelType2);
+            modelCrud.persist(modelType1);
+            modelCrud.persist(modelType2);
             return null;
         });
     }
@@ -46,9 +46,8 @@ public class ModelCrudTest {
 
         ModelRegistry registry = (ModelRegistry) DatabaseTransactionFactory
             .performTransaction(() -> new ModelCrud().retrieveUnlockedRegistry());
-        assertEquals(1L, registry.getId());
+        assertEquals(Long.valueOf(1L), registry.getId());
         assertFalse(registry.isLocked());
-
     }
 
     @Test
@@ -56,9 +55,8 @@ public class ModelCrudTest {
 
         ModelRegistry registry = (ModelRegistry) DatabaseTransactionFactory
             .performTransaction(() -> new ModelCrud().retrieveCurrentRegistry());
-        assertEquals(1L, registry.getId());
+        assertEquals(Long.valueOf(1L), registry.getId());
         assertFalse(registry.isLocked());
-
     }
 
     @Test
@@ -75,7 +73,7 @@ public class ModelCrudTest {
             ModelCrud modelCrud = new ModelCrud();
             return modelCrud.retrieveCurrentRegistry();
         });
-        assertEquals(1L, registry.getId());
+        assertEquals(Long.valueOf(1L), registry.getId());
         assertFalse(registry.isLocked());
 
         // Lock the current registry and then retrieve it; it should
@@ -85,7 +83,7 @@ public class ModelCrudTest {
             modelCrud.lockCurrentRegistry();
             return modelCrud.retrieveCurrentRegistry();
         });
-        assertEquals(1L, registry.getId());
+        assertEquals(Long.valueOf(1L), registry.getId());
         assertTrue(registry.isLocked());
 
         // Retrieve the unlocked registry and see that it's really
@@ -94,7 +92,7 @@ public class ModelCrudTest {
             ModelCrud modelCrud = new ModelCrud();
             return modelCrud.retrieveUnlockedRegistry();
         });
-        assertEquals(2L, registry.getId());
+        assertEquals(Long.valueOf(2L), registry.getId());
         assertFalse(registry.isLocked());
 
         // Just retrieve the ID of the unlocked registry
@@ -103,7 +101,6 @@ public class ModelCrudTest {
             return modelCrud.retrieveUnlockedRegistryId();
         });
         assertEquals(2L, currentRegistryId);
-
     }
 
     @Test
@@ -115,7 +112,6 @@ public class ModelCrudTest {
         assertEquals(2, modelTypes.size());
         assertTrue(modelTypes.contains(modelType1));
         assertTrue(modelTypes.contains(modelType2));
-
     }
 
     @Test
@@ -127,7 +123,6 @@ public class ModelCrudTest {
         assertEquals(2, modelTypeMap.size());
         assertEquals(modelType1, modelTypeMap.get("geometry"));
         assertEquals(modelType2, modelTypeMap.get("read-noise"));
-
     }
 
     private void setUpModelTypes() {
@@ -143,5 +138,4 @@ public class ModelCrudTest {
         modelType2.setTimestampGroup(-1);
         modelType2.setVersionNumberGroup(-1);
     }
-
 }

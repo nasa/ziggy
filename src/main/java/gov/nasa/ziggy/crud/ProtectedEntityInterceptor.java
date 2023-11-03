@@ -1,19 +1,16 @@
 package gov.nasa.ziggy.crud;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.hibernate.CallbackException;
-import org.hibernate.EmptyInterceptor;
+import org.hibernate.Interceptor;
 import org.hibernate.Transaction;
 import org.hibernate.type.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ProtectedEntityInterceptor extends EmptyInterceptor {
-
-    private static final long serialVersionUID = 1L;
+public class ProtectedEntityInterceptor implements Interceptor {
 
     private static final Logger log = LoggerFactory.getLogger(ProtectedEntityInterceptor.class);
 
@@ -36,33 +33,31 @@ public class ProtectedEntityInterceptor extends EmptyInterceptor {
     }
 
     @Override
-    public boolean onSave(Object entity, Serializable id, Object[] state, String[] propertyNames,
+    public boolean onSave(Object entity, Object id, Object[] state, String[] propertyNames,
         Type[] types) {
 
         checkModificationOK(entity);
-        return super.onSave(entity, id, state, propertyNames, types);
+        return true;
     }
 
     @Override
-    public void onDelete(Object entity, Serializable id, Object[] state, String[] propertyNames,
+    public void onDelete(Object entity, Object id, Object[] state, String[] propertyNames,
         Type[] types) {
 
         checkModificationOK(entity);
-        super.onDelete(entity, id, state, propertyNames, types);
     }
 
     @Override
-    public boolean onFlushDirty(Object entity, Serializable id, Object[] currentState,
+    public boolean onFlushDirty(Object entity, Object id, Object[] currentState,
         Object[] previousState, String[] propertyNames, Type[] types) {
 
         checkModificationOK(entity);
-        return super.onFlushDirty(entity, id, currentState, previousState, propertyNames, types);
+        return true;
     }
 
     @Override
     public void afterTransactionCompletion(Transaction tx) {
         allowedPrefixes.clear();
-        super.afterTransactionCompletion(tx);
     }
 
     private void checkModificationOK(Object entity) {
@@ -94,5 +89,4 @@ public class ProtectedEntityInterceptor extends EmptyInterceptor {
 
         return true;
     }
-
 }

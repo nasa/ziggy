@@ -353,7 +353,6 @@ public class PrimitiveHdf5ArrayTest {
         assertTrue(List.class.isAssignableFrom(o4.getClass()));
         List<Object> objList = (List<Object>) o4;
         assertEquals(0, objList.size());
-
     }
 
     /**
@@ -404,7 +403,6 @@ public class PrimitiveHdf5ArrayTest {
         intArrayPersistable.read(fieldGroupId);
         assertTrue(
             Arrays.deepEquals((Object[]) intArrayPersistable.arrayObject, (Object[]) intTestArray));
-
     }
 
     /**
@@ -453,7 +451,6 @@ public class PrimitiveHdf5ArrayTest {
         assertTrue(Arrays.equals((boolean[]) returnedArray, booleanTestArray));
         assertFalse(H5.H5Aexists(fieldGroupId, EMPTY_FIELD_ATT_NAME));
         H5.H5Gclose(fieldGroupId);
-
     }
 
     /**
@@ -579,7 +576,6 @@ public class PrimitiveHdf5ArrayTest {
         Double returnObject = (Double) unboxedField.toJava();
         assertEquals(53.5, returnObject, 0);
         H5.H5Gclose(fieldGroupId);
-
     }
 
     /**
@@ -745,7 +741,6 @@ public class PrimitiveHdf5ArrayTest {
         hyperslab.putHyperslab(randomArray4);
         aArray = (int[][][]) a.getArrayObject();
         assertTrue(Arrays.equals(randomArray4, aArray));
-
     }
 
     @Test

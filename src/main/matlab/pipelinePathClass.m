@@ -32,7 +32,7 @@ function object = pipelinePathClass()
 %   get the code directories, assuming they are 1 level above the build directories, which in
 %   turn are in the properties
 
-    pipelineHomeDir = propertiesObject.get_property('pipeline.home.dir') ;
+    pipelineHomeDir = propertiesObject.get_property('ziggy.pipeline.home.dir') ;
     ziggyHomeDir   = propertiesObject.get_property('ziggy.home.dir') ;
     if (pipelineHomeDir(end) == filesep)
         pipelineHomeDir = pipelineHomeDir(1:end-1) ;
@@ -46,6 +46,7 @@ function object = pipelinePathClass()
 %   dynamically construct the CSCI list and populate it with everything
 
     object.csciPathStruct = object.set_csci_paths( {pipelineCodeDir, ziggyCodeDir} ) ;
+    object.csciPathStruct(end).csciName = 'ziggy';
     
 end % constructor
 
@@ -207,19 +208,10 @@ function csciPathStruct1 = set_csci_paths( object, topDirs )
                     csciPathStruct0(iCsci).unitTestPaths ] ;
             end
         
-% %       similar process for the release test directories
-% 
-%         matlabReleaseTestRoot = fullfile( csciRoot, 'src', 'release-test', 'matlab' ) ;
-%         if exist( matlabReleaseTestRoot, 'dir' )
-%             csciPathStruct(iCsci).releaseTestPaths = ...
-%                 spocMatlabPathClass.recursively_find_bottom_dirs( ...
-%                 matlabReleaseTestRoot ) ;
-%         end
-        
-%           mexfile paths are relatively easy, since they go into the build/lib directory
+%           mexfile paths are relatively easy, since they go into the build/mex directory
 %           under the given CSCI
 
-            mexPathRoot = fullfile( csciRoot, 'build', 'lib' ) ;
+            mexPathRoot = fullfile( csciRoot, 'build', 'mex' ) ;
             if exist( mexPathRoot, 'dir' )
                 libsDir = dir(mexPathRoot) ;
                 mexSuffix = regexp( {libsDir.name}, '(\.mex)' ) ;
@@ -252,50 +244,6 @@ function csciIndex = look_up_csci( object, csciName )
     allCsciNames = {object.csciPathStruct.csciName} ;
     csciIndex = strcmpi( csciName, allCsciNames ) ;
 end
-
-% function to populate the CSCI test data directories
-
-% function set_csci_test_data_paths( object, displayMissing )
-%     
-% %   default value of displayMissing is false
-% 
-%     if ~exist('displayMissing', 'var') || isempty( displayMissing )
-%         displayMissing = false ;
-%     end
-%     
-% %   loop over CSCIs 
-%     
-%     for iCsci = 1:length( object.csciPathStruct )
-%         thisCsci = object.csciPathStruct(iCsci).csciName ;
-%         
-% %       look for UNIT_TEST_DATA_ROOT/csciName/test, which is the expected directory for
-% %       unit test data for this CSCI
-% 
-%         csciTestDataDir = fullfile( object.testDataRoot, thisCsci, 'test' ) ;
-%         if exist( csciTestDataDir, 'dir' )
-%             object.csciPathStruct(iCsci).unitTestDataPaths = {csciTestDataDir} ;
-%         else
-%             if displayMissing
-%                 disp(['No unit test data directory for CSCI ',thisCsci]) ;
-%             end
-%             object.csciPathStruct(iCsci).unitTestDataPaths = [] ;
-%         end
-%         
-% %       same sort of deal for release test data
-% 
-%         csciTestDataDir = fullfile( object.testDataRoot, thisCsci, 'release-test' ) ;
-%         if exist( csciTestDataDir, 'dir' )
-%             object.csciPathStruct(iCsci).releaseTestDataPaths = {csciTestDataDir} ;
-%         else
-%             if displayMissing
-%                 disp(['No release test data directory for CSCI ',thisCsci]) ;
-%             end
-%             object.csciPathStruct(iCsci).releaseTestDataPaths = [] ;
-%         end
-%         
-%     end
-%         
-% end
 
 end % protected methods
 
@@ -354,18 +302,6 @@ function addpath_cell_array( cellArray )
         addpath( iArray{1} ) ;
     end
 end
-
-% function set_unit_test_data_path( pathName )
-%     
-%     setenv( pipelinePathClass.dataRootEnvVar, pathName ) ;
-% 
-% end
-% 
-% function set_release_test_data_path( pathName )
-%     
-%     setenv( pipelinePathClass.releaseTestDataRootEnvVar, pathName ) ;
-%     
-% end
     
 end % static methods
 end

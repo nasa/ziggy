@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module.remote;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -14,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 
 /**
@@ -48,8 +51,8 @@ public class Qsub {
     private String datestamp = Iso8601Formatter.dateTimeLocalFormatter().format(new Date());
 
     private String scriptPath;
-    private String[] scriptArgs;
-    private String runjavaProgram;
+    private String taskDir;
+    private String ziggyProgram;
     private String pbsLogDir;
     private String nasLogDir;
     private SupportedRemoteClusters cluster;
@@ -59,7 +62,7 @@ public class Qsub {
     private Qsub() {
     }
 
-    public int[] submitMultipleJobsForTask() throws IOException {
+    public int[] submitMultipleJobsForTask() {
         int[] returnCodes = new int[numNodes];
         for (int iJob = 0; iJob < numNodes; iJob++) {
             returnCodes[iJob] = submit1Job(iJob);
@@ -67,10 +70,10 @@ public class Qsub {
         return returnCodes;
     }
 
-    private int submit1Job(int jobIndex) throws IOException {
+    private int submit1Job(int jobIndex) {
 
         String propertiesFileName = java.lang.System
-            .getenv(ZiggyConfiguration.CONFIG_SERVICE_PROPERTIES_PATH_ENV);
+            .getenv(ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV);
 
         CommandLine commandLine = new CommandLine("/PBS/bin/qsub");
         commandLine.addArgument("-N");
@@ -82,9 +85,11 @@ public class Qsub {
         commandLine.addArgument(resourceOptions(jobIndex < 0));
         commandLine.addArgument("-W");
         commandLine.addArgument("group_list=" + groupName);
+        commandLine.addArgument("-v");
+        commandLine.addArgument(ZiggyConfiguration.ZIGGY_HOME_ENV);
         if (propertiesFileName != null) {
             commandLine.addArgument("-v");
-            commandLine.addArgument(ZiggyConfiguration.CONFIG_SERVICE_PROPERTIES_PATH_ENV);
+            commandLine.addArgument(ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV);
         }
         commandLine.addArgument("-o");
         commandLine.addArgument(pbsLogFile(jobIndex));
@@ -92,11 +97,9 @@ public class Qsub {
         commandLine.addArgument("oe");
         commandLine.addArgument("--");
         commandLine.addArgument(scriptPath);
-        commandLine.addArgument(runjavaProgram);
+        commandLine.addArgument(ziggyProgram);
 
-        for (String scriptArg : scriptArgs) {
-            commandLine.addArgument(scriptArg);
-        }
+        commandLine.addArgument(taskDir);
         commandLine.addArgument(algorithmLogFile(jobIndex));
 
         log.info("commandLine: " + commandLine);
@@ -112,14 +115,26 @@ public class Qsub {
         return pipelineTask.taskBaseName() + "." + jobIndex;
     }
 
-    private String pbsLogFile(int jobIndex) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private String pbsLogFile(int jobIndex) {
         File pbsLogFile = new File(pbsLogDir, "pbs-" + fullJobName(jobIndex) + "-" + datestamp);
-        return pbsLogFile.getCanonicalPath();
+        try {
+            return pbsLogFile.getCanonicalPath();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to get path to file " + pbsLogFile.toString(),
+                e);
+        }
     }
 
-    private String algorithmLogFile(int jobIndex) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private String algorithmLogFile(int jobIndex) {
         File nasLogFile = new File(nasLogDir, pipelineTask.logFilename(jobIndex));
-        return nasLogFile.getCanonicalPath();
+        try {
+            return nasLogFile.getCanonicalPath();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to get path to file " + nasLogFile.toString(),
+                e);
+        }
     }
 
     private String resourceOptions(boolean multiNodeJob) {
@@ -176,11 +191,11 @@ public class Qsub {
         if (scriptPath == null) {
             unsetParameters.add("scriptPath");
         }
-        if (runjavaProgram == null) {
-            unsetParameters.add("runjavaProgram");
+        if (ziggyProgram == null) {
+            unsetParameters.add("ziggyProgram");
         }
-        if (scriptArgs == null) {
-            unsetParameters.add("scriptArgs");
+        if (taskDir == null) {
+            unsetParameters.add("taskDir");
         }
         if (pbsLogDir == null) {
             unsetParameters.add("pbsLogDir");
@@ -231,10 +246,6 @@ public class Qsub {
         this.scriptPath = scriptPath;
     }
 
-    private void setScriptArgs(String[] scriptArgs) {
-        this.scriptArgs = scriptArgs;
-    }
-
     private void setCluster(SupportedRemoteClusters cluster) {
         this.cluster = cluster;
     }
@@ -251,8 +262,12 @@ public class Qsub {
         this.pipelineTask = pipelineTask;
     }
 
-    private void setRunjavaProgram(String runjavaProgram) {
-        this.runjavaProgram = runjavaProgram;
+    private void setZiggyProgram(String ziggyProgram) {
+        this.ziggyProgram = ziggyProgram;
+    }
+
+    private void setTaskDir(String taskDir) {
+        this.taskDir = taskDir;
     }
 
     /**
@@ -309,13 +324,8 @@ public class Qsub {
             return this;
         }
 
-        public Builder scriptArgs(String[] scriptArgs) {
-            qsub.setScriptArgs(scriptArgs);
-            return this;
-        }
-
-        public Builder runjavaProgram(String runjavaProgram) {
-            qsub.setRunjavaProgram(runjavaProgram);
+        public Builder ziggyProgram(String ziggyProgram) {
+            qsub.setZiggyProgram(ziggyProgram);
             return this;
         }
 
@@ -336,6 +346,11 @@ public class Qsub {
 
         public Builder pipelineTask(PipelineTask pipelineTask) {
             qsub.setPipelineTask(pipelineTask);
+            return this;
+        }
+
+        public Builder taskDir(String taskDir) {
+            qsub.setTaskDir(taskDir);
             return this;
         }
 

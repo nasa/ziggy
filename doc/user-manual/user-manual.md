@@ -8,7 +8,7 @@
 
 # Welcome to Ziggy!
 
-Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the user guide and assorted documentation. 
+Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the user guide and assorted documentation.
 
 ## Table of Contents
 
@@ -30,108 +30,116 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
 6. [Building a Pipeline](building-pipeline.md)
 
-7. [Setting up the Relational Database Management System (RDBMS)](rdbms.md)
+7. [Running the Cluster](running-pipeline.md)
 
-8. [Running the Cluster](running-pipeline.md)
+8. [Using the Ziggy Console, Part 1](ziggy-gui.md)
 
-9. [Using the Ziggy Console, Part 1](ziggy-gui.md)
+    8.1​. [Starting a Pipeline](start-pipeline.md)
 
-    9.1​. [Starting a Pipeline](start-pipeline.md)
+    8.2​. [The Instances Panel](instances-panel.md)
 
-    9.2​. [The Instances Panel](instances-panel.md)
+    8.3.​ [Changing the Start and End Nodes](start-end-nodes.md)
 
-    9.3.​ [Changing the Start and End Nodes](start-end-nodes.md)
+    8.4.​ [Changing Module Parameter Values](change-param-values.md)
 
-    9.4.​ [Changing Module Parameter Values](change-param-values.md)
+    8.5.​ [Organizing Pipelines and Parameter Sets](organizing-tables.md)
 
-10. [Intermediate Topics](intermediate-topics.md)
+9. [Intermediate Topics](intermediate-topics.md)
 
-    10.1. ​ [The Datastore and the Task Directory](datastore-task-dir.md)
+    9.1. [The Datastore and the Task Directory](datastore-task-dir.md)
 
-    10.2​. [The Task Configuration Parameter Sets](task-configuration.md)
+    9.2​. [The Task Configuration Parameter Sets](task-configuration.md)
 
-    10.3​. [The Properties File](properties.md)
+    9.3. [Setting up a Relational Database Management System (RDBMS)](rdbms.md)
 
-11. [Troubleshooting Pipeline Execution](troubleshooting.md)
+10. [Troubleshooting Pipeline Execution](troubleshooting.md)
 
-      11.1​. [Log Files in Ziggy](log-files.md)
+      10.1​. [Log Files in Ziggy](log-files.md)
 
-12. [Using the Ziggy Console, Part 2: Troubleshooting](ziggy-gui-troubleshooting.md)
+11. [Using the Ziggy Console, Part 2: Troubleshooting](ziggy-gui-troubleshooting.md)
 
-      12.1.​ [Monitoring Tab](monitoring.md)
+      11.1.​ [Monitoring Tab](monitoring.md)
 
-      12.2.​ [Alerts Panel](alerts.md)
+      11.2.​ [Alerts Panel](alerts.md)
 
-      12.3.​ [Log Files Display](display-logs.md)
+      11.3.​ [Log Files Display](display-logs.md)
 
-      12.4.​ [Re-Run or Resume a Failed Task](rerun-task.md)
+      11.4.​ [Re-Run or Resume a Failed Task](rerun-task.md)
 
-      12.5.​ [Deleting Tasks](delete-tasks.md)
+      11.5.​ [Killing Tasks](kill-tasks.md)
 
-13. [High Performance Computing](select-hpc.md)
+12. [High Performance Computing](select-hpc.md)
 
-      13.1​. [The Remote Execution Dialog Box](remote-dialog.md)
+      12.1​. [Remote Parameters](remote-parameters.md)
 
-      13.2​. [HPC Cost Estimation](hpc-cost.md)
+      12.2​. [The Remote Execution Dialog Box](remote-dialog.md)
 
-14. Cloud Computing (TBD)
+      12.23. [HPC Cost Estimation](hpc-cost.md)
 
-15. [Data Receipt](data-receipt.md)
+13. Cloud Computing (TBD)
 
-      15.1​. [Execution Flow](data-receipt-execution.md)
+14. [Data Receipt](data-receipt.md)
 
-      15.2.​ [Console Display](data-receipt-display.md)
+      14.1​. [Execution Flow](data-receipt-execution.md)
 
-16. [Event Handler](event-handler.md)
+      14.2.​ [Console Display](data-receipt-display.md)
 
-      16.1​. [Introduction to Event Handlers](event-handler-intro.md)
+15. [Event Handler](event-handler.md)
 
-      16.2​. [Defining Event Handlers](event-handler-definition.md)
+      15.1​. [Introduction to Event Handlers](event-handler-intro.md)
 
-      16.3​. [Event Handler Examples](event-handler-examples.md)
+      15.2​. [Defining Event Handlers](event-handler-definition.md)
 
-      16.4​. [Sending Event Information to Algorithms](event-handler-labels.md)
+      15.3​. [Event Handler Examples](event-handler-examples.md)
 
-17. Reports and Performance Tracking (TBD) 
+      15.4​. [Sending Event Information to Algorithms](event-handler-labels.md)
 
-     <!--
-
-      17.1​. [Memdrone](memdrone.md)
-
-      17.2​. [Metrics](metrics.md)
-
-      17.3​. [Instance Reports](instance-reports.md)
-
-      17.4​. [Data Accountability](data-accountability.md) 
-
-     -->
-
-18. Alternative User Interface Options (TBD) 
+16. Reports and Performance Tracking (TBD)
 
      <!--
 
-      18.1​. [Assistive Technologies](assistive-technologies.md)
+      16.1​. [Memdrone](memdrone.md)
 
-      18.2​. [Mouse-Overs](mouse-overs.md)
+      16.2​. [Metrics](metrics.md)
 
-      18.3​. [Console Appearance Control](appearance-control.md)
+      16.3​. [Instance Reports](instance-reports.md)
 
-      18.1​. [Command Line Interface](console-cli.md)
+      16.4​. [Data Accountability](data-accountability.md)
 
      -->
 
-19. Security (TBD)
+17. Alternative User Interface Options (TBD)
 
-20. [Ziggy's Dustier Corners](dusty-corners.md)
+     <!--
 
-      20.1​. [More on the Relational Database](more-rdbms.md) 
+      17.1​. [Assistive Technologies](assistive-technologies.md)
 
-      20.2​. [More on Parameter Sets](more-parameter-sets.md)
+      17.2​. [Mouse-Overs](mouse-overs.md)
 
-      20.3​. [Parameter Overrides](parameter-overrides.md)
+      17.3​. [Console Appearance Control](appearance-control.md)
 
-      20.4​. [Redefining a Pipeline](redefine-pipeline.md)
+      17.1​. [Command Line Interface](console-cli.md)
 
-      20.5​. [The Edit Trigger Dialog Box](edit-trigger.md)
+     -->
 
-21. [Contact Us](contact-us.md)
+18. Security (TBD)
+
+19. [Ziggy's Dustier Corners](dusty-corners.md)
+
+      19.1​. [More on the Relational Database](more-rdbms.md)
+
+      19.2​. [More on Parameter Sets](more-parameter-sets.md)
+
+      19.3​. [Parameter Overrides](parameter-overrides.md)
+
+      19.4​. [Redefining a Pipeline](redefine-pipeline.md)
+
+      19.5​. [The Edit Pipeline Dialog Box](edit-pipeline.md)
+
+      19.6. [Creating Ziggy Nicknames](nicknames.md)
+
+      <!-- 19.7. [Customizing Ziggy](customizing-ziggy.md) -->
+
+20. [Contact Us](contact-us.md)
+
+Appendix A. [The Properties File](properties.md)

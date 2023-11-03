@@ -11,7 +11,10 @@ import javax.xml.validation.SchemaFactory;
 
 import org.xml.sax.SAXException;
 
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -30,34 +33,52 @@ public class ValidatingXmlManager<T extends HasXmlSchemaFilename> {
     private final Unmarshaller unmarshaller;
     private final Marshaller marshaller;
 
-    public ValidatingXmlManager(Class<T> clazz) throws InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public ValidatingXmlManager(Class<T> clazz) {
 
-        // Generate a schema for validation
-        SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-        String ziggySchemaDir = DirectoryProperties.ziggySchemaDir().toString();
-        String schemaFilename = clazz.getDeclaredConstructor().newInstance().getXmlSchemaFilename();
-        Path schemaPath = Paths.get(ziggySchemaDir, "xml", schemaFilename);
-        Schema schema = schemaFactory.newSchema(schemaPath.toFile());
+        try {
+            // Generate a schema for validation
+            SchemaFactory schemaFactory = SchemaFactory
+                .newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+            String ziggySchemaDir = DirectoryProperties.ziggySchemaDir().toString();
+            String schemaFilename = clazz.getDeclaredConstructor()
+                .newInstance()
+                .getXmlSchemaFilename();
+            Path schemaPath = Paths.get(ziggySchemaDir, "xml", schemaFilename);
+            Schema schema = schemaFactory.newSchema(schemaPath.toFile());
 
-        // Generate marshaller and unmarshaller
-        JAXBContext context = JAXBContext.newInstance(clazz);
-        unmarshaller = context.createUnmarshaller();
-        unmarshaller.setSchema(schema);
+            // Generate marshaller and unmarshaller
+            JAXBContext context = JAXBContext.newInstance(clazz);
+            unmarshaller = context.createUnmarshaller();
+            unmarshaller.setSchema(schema);
 
-        marshaller = context.createMarshaller();
-        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        marshaller.setSchema(schema);
+            marshaller = context.createMarshaller();
+            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+            marshaller.setSchema(schema);
+        } catch (JAXBException | SAXException | InstantiationException | IllegalAccessException
+            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+            | SecurityException e) {
+            throw new PipelineException(
+                "Unable to instantiate ValidatingXmlManager for " + clazz.getName(), e);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    public T unmarshal(File xmlFile) throws JAXBException {
-        return (T) unmarshaller.unmarshal(xmlFile);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public T unmarshal(File xmlFile) {
+        try {
+            return (T) unmarshaller.unmarshal(xmlFile);
+        } catch (JAXBException e) {
+            throw new PipelineException("Unable to unmarshal " + xmlFile.toString(), e);
+        }
     }
 
-    public void marshal(T object, File file) throws JAXBException {
-        marshaller.marshal(object, file);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void marshal(T object, File file) {
+        try {
+            marshaller.marshal(object, file);
+        } catch (JAXBException e) {
+            throw new PipelineException("Unable to marshal to " + file.toString(), e);
+        }
     }
-
 }

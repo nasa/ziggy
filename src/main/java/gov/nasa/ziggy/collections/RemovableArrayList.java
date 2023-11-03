@@ -14,7 +14,7 @@ import java.util.Iterator;
  * @author Sean McCauliff
  */
 public class RemovableArrayList<T> extends ArrayList<T> {
-    private static final long serialVersionUID = -7536249496170417383L;
+    private static final long serialVersionUID = 20230511L;
 
     public RemovableArrayList() {
     }

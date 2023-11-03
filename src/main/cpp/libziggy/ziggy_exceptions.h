@@ -16,6 +16,7 @@
 #include <execinfo.h>
 #include <stdlib.h>
 
+
 #define MAX_STACK_DEPTH 128
 #define RUN_TIME_STACK_TRACE \
 { \
@@ -47,13 +48,24 @@ public:
     virtual ~ZiggyException() {
     }
 
-    static void exceptionMessage(ZiggyException exception, const char* file, const char* function, int line,
-    		const char* name, const char* msg);
-
 private:
     std::string whatMessage_m;
 };
 
+template<typename T>
+void exceptionMessage(T exception, const char* file, const char* functionName,
+		int line, const char* exceptionName, const char* msg) {
+
+	std::cerr << file << "(" << line << "): exception in function " << functionName << std::endl;
+	std::cerr << "Exception: " << exceptionName << std::endl;
+	std::cerr << "What: " << exception.what() << std::endl;
+	if (msg != NULL) {
+		std::cerr << "Message: " << msg << std::endl;
+	}
+
+	//	now that the output is complete, we can throw the actual error
+	throw exception;
+}
 
 /**
  * Base class for I/O errors.
@@ -70,14 +82,14 @@ public:
 
 #define ZIGGY_THROW(ExceptionTypeName) \
 { \
-	ZiggyException::exceptionMessage(ExceptionTypeName(#ExceptionTypeName), __FILE__, __FUNCTION__, __LINE__, \
+	exceptionMessage(ExceptionTypeName(#ExceptionTypeName), __FILE__, __FUNCTION__, __LINE__, \
 		#ExceptionTypeName, NULL); \
 \}
 
 
 #define ZIGGY_THROW_MSG(ExceptionTypeName, Msg) \
 { \
-	ZiggyException::exceptionMessage(ExceptionTypeName(#ExceptionTypeName), __FILE__, __FUNCTION__, __LINE__, \
+	exceptionMessage(ExceptionTypeName(#ExceptionTypeName), __FILE__, __FUNCTION__, __LINE__, \
 		#ExceptionTypeName, Msg); \
 }
 

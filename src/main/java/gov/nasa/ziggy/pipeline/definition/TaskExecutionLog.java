@@ -3,12 +3,11 @@ package gov.nasa.ziggy.pipeline.definition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import javax.persistence.Embeddable;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
 import gov.nasa.ziggy.util.StringUtils;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 @Embeddable
 public class TaskExecutionLog {

@@ -4,15 +4,19 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Date;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.messaging.WorkerCommunicator;
+import gov.nasa.ziggy.services.messages.AlertMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.process.AbstractPipelineProcess;
 import gov.nasa.ziggy.services.process.ProcessInfo;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Alert service implementation.
@@ -31,8 +35,7 @@ public class AlertService {
 
     private static final Logger log = LoggerFactory.getLogger(AlertService.class);
 
-    public static final String BROADCAST_ENABLED_PROP = "pi.alerts.jmsBroadcast.enabled";
-    public static final boolean BROADCAST_ENABLED_DEFAULT = false;
+    public static final boolean BROADCAST_ALERTS_ENABLED_DEFAULT = false;
 
     public boolean broadcastEnabled = false;
 
@@ -50,12 +53,9 @@ public class AlertService {
     }
 
     public AlertService() {
-        Configuration configService = ZiggyConfiguration.getInstance();
-        try {
-            broadcastEnabled = configService.getBoolean(BROADCAST_ENABLED_PROP,
-                BROADCAST_ENABLED_DEFAULT);
-        } catch (Exception ignore) {
-        }
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+        broadcastEnabled = config.getBoolean(PropertyName.BROADCAST_ALERTS_ENABLED.property(),
+            BROADCAST_ALERTS_ENABLED_DEFAULT);
     }
 
     public void generateAlert(String sourceComponent, String message) {
@@ -83,6 +83,8 @@ public class AlertService {
         broadcastEnabled = storedBroadcastFlag;
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void generateAlert(String sourceComponent, long sourceTaskId,
         AlertService.Severity severity, String message) {
         log.debug("ALERT:[" + sourceComponent + "]: " + message);
@@ -90,7 +92,7 @@ public class AlertService {
         Date timestamp = new Date();
         String processName = null;
         String processHost = null;
-        int processId = -1;
+        long processId = -1;
 
         // get ProcessInfo, if available
         ProcessInfo processInfo = AbstractPipelineProcess.getProcessInfo();
@@ -103,7 +105,9 @@ public class AlertService {
             try {
                 processHost = InetAddress.getLocalHost().getHostName();
             } catch (UnknownHostException e) {
-                log.warn("failed to get hostname", e);
+                // This can never occur. The localhost will always have a correctly
+                // configured host name.
+                throw new AssertionError(e);
             }
         }
 
@@ -113,19 +117,13 @@ public class AlertService {
         // store alert in db
         try {
             AlertLogCrud alertCrud = new AlertLogCrud();
-            alertCrud.create(new AlertLog(alertData));
+            alertCrud.persist(new AlertLog(alertData));
         } catch (PipelineException e) {
             log.error("Failed to store Alert in database", e);
         }
 
         if (broadcastEnabled || severity == AlertService.Severity.INFRASTRUCTURE) {
-            // broadcast alert on MessagingService
-            try {
-                WorkerCommunicator.broadcast(new AlertMessage(alertData));
-            } catch (PipelineException e) {
-                log.error("Failed to broadcast Alert", e);
-            }
+            ZiggyMessenger.publish(new AlertMessage(alertData));
         }
     }
-
 }

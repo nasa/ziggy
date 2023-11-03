@@ -97,6 +97,5 @@ public class AlgorithmExecutorTest {
         Mockito.when(sumOps.processingSummary(100L)).thenReturn(summary);
         AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, parameterSetCrud, sumOps);
         assertTrue(executor instanceof NasExecutor);
-
     }
 }

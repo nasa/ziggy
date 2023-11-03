@@ -6,9 +6,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.util.TasksStates;
@@ -20,7 +17,6 @@ import gov.nasa.ziggy.util.TasksStates;
  * @author Todd Klaus
  */
 public class TasksDisplayModel extends DisplayModel {
-    private static final Logger log = LoggerFactory.getLogger(TasksDisplayModel.class);
     private static final int NUM_COLUMNS = 7;
 
     private List<PipelineTask> tasks = new LinkedList<>();
@@ -75,14 +71,9 @@ public class TasksDisplayModel extends DisplayModel {
             case 0:
                 return task.getId();
             case 1:
-                return task.getPipelineInstanceNode().getPipelineModuleDefinition().toString();
+                return task.getPipelineInstanceNode().getPipelineModuleDefinition().getName();
             case 2:
-                try {
-                    return task.uowTaskInstance().briefState();
-                } catch (Exception e) {
-                    log.error("Exception while getting unit of work", e);
-                    return "Excepton.";
-                }
+                return task.uowTaskInstance().briefState();
             case 3:
                 return task.getState();
             case 4:
@@ -103,24 +94,16 @@ public class TasksDisplayModel extends DisplayModel {
 
     @Override
     public String getColumnName(int column) {
-        switch (column) {
-            case 0:
-                return "ID";
-            case 1:
-                return "Module";
-            case 2:
-                return "UOW";
-            case 3:
-                return "State";
-            case 4:
-                return "Worker";
-            case 5:
-                return "P-time";
-            case 6:
-                return "P-state";
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + column);
-        }
+        return switch (column) {
+            case 0 -> "ID";
+            case 1 -> "Module";
+            case 2 -> "UOW";
+            case 3 -> "State";
+            case 4 -> "Worker";
+            case 5 -> "P-time";
+            case 6 -> "P-state";
+            default -> throw new IllegalArgumentException("Unexpected value: " + column);
+        };
     }
 
     public TasksStates getTaskStates() {

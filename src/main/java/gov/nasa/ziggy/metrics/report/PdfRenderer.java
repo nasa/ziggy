@@ -4,11 +4,12 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import org.jfree.chart.JFreeChart;
 
 import com.lowagie.text.Document;
-import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
 import com.lowagie.text.FontFactory;
@@ -17,6 +18,9 @@ import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Thin wrapper around Open PDF and JFreeChart
@@ -38,11 +42,12 @@ public class PdfRenderer {
 
     private final boolean portrait;
 
-    public PdfRenderer(File outputFile) throws Exception {
+    public PdfRenderer(File outputFile) {
         this(outputFile, true);
     }
 
-    public PdfRenderer(File outputFile, boolean portrait) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public PdfRenderer(File outputFile, boolean portrait) {
         this.portrait = portrait;
 
         if (portrait) {
@@ -51,11 +56,16 @@ public class PdfRenderer {
             pdfDocument = new Document(PageSize.LETTER.rotate());
         }
 
-        FileOutputStream pdfFos = new FileOutputStream(outputFile);
-        BufferedOutputStream pdfBos = new BufferedOutputStream(pdfFos);
+        try {
+            FileOutputStream pdfFos = new FileOutputStream(outputFile);
+            BufferedOutputStream pdfBos = new BufferedOutputStream(pdfFos);
 
-        pdfWriter = PdfWriter.getInstance(pdfDocument, pdfBos);
-        pdfDocument.open();
+            pdfWriter = PdfWriter.getInstance(pdfDocument, pdfBos);
+            pdfDocument.open();
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to open " + outputFile.toString() + " for output", e);
+        }
     }
 
     public void close() {
@@ -73,10 +83,16 @@ public class PdfRenderer {
      * @param height
      * @throws Exception
      */
-    public void printChart(JFreeChart chart, int width, int height) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void printChart(JFreeChart chart, int width, int height) {
         BufferedImage bufferedImage = chart.createBufferedImage(width, height);
-        Image image = Image.getInstance(pdfWriter, bufferedImage, 1.0f);
-        pdfDocument.add(image);
+        Image image;
+        try {
+            image = Image.getInstance(pdfWriter, bufferedImage, 1.0f);
+            pdfDocument.add(image);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
@@ -88,22 +104,27 @@ public class PdfRenderer {
      * @param height
      * @throws Exception
      */
-    public void printChart(PdfPTable table, JFreeChart chart, int width, int height)
-        throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void printChart(PdfPTable table, JFreeChart chart, int width, int height) {
         BufferedImage bufferedImage = chart.createBufferedImage(width, height);
-        Image image = Image.getInstance(pdfWriter, bufferedImage, 1.0f);
-        table.addCell(image);
+        Image image;
+        try {
+            image = Image.getInstance(pdfWriter, bufferedImage, 1.0f);
+            table.addCell(image);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
-    public void println() throws Exception {
+    public void println() {
         printText(" ");
     }
 
-    public void printText(String text) throws Exception {
+    public void printText(String text) {
         printText(text, bodyFont);
     }
 
-    public void printText(String text, Font font) throws Exception {
+    public void printText(String text, Font font) {
         Paragraph p = new Paragraph(text, font);
         if (font == titleFont) {
             p.setAlignment(Element.ALIGN_CENTER);
@@ -115,7 +136,7 @@ public class PdfRenderer {
         pdfDocument.newPage();
     }
 
-    public void add(Element element) throws DocumentException {
+    public void add(Element element) {
         pdfDocument.add(element);
     }
 

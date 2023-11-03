@@ -1,8 +1,8 @@
 package gov.nasa.ziggy.module.remote.nas;
 
-import static gov.nasa.ziggy.module.remote.RemoteExecutionProperties.GROUP_PROPERTY;
-import static gov.nasa.ziggy.module.remote.RemoteExecutionProperties.HOST_PROPERTY;
-import static gov.nasa.ziggy.module.remote.RemoteExecutionProperties.USER_PROPERTY;
+import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_GROUP;
+import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_HOST;
+import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_USER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.RemoteExecutionProperties;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
  * Tests the {@link RemoteExecutionProperties} and {@link NasProperties} classes.
@@ -20,22 +21,16 @@ import gov.nasa.ziggy.module.remote.RemoteExecutionProperties;
 public class RemoteExecutionPropertiesTest {
 
     @Rule
-    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(GROUP_PROPERTY,
-        (String) null);
+    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(REMOTE_GROUP, "g1");
 
     @Rule
-    public ZiggyPropertyRule hostPropertyRule = new ZiggyPropertyRule(HOST_PROPERTY, (String) null);
+    public ZiggyPropertyRule hostPropertyRule = new ZiggyPropertyRule(REMOTE_HOST, "h1;h2");
 
     @Rule
-    public ZiggyPropertyRule userPropertyRule = new ZiggyPropertyRule(USER_PROPERTY, (String) null);
+    public ZiggyPropertyRule userPropertyRule = new ZiggyPropertyRule(REMOTE_USER, "u1");
 
     @Test
     public void testPropertiesRetrieval() {
-
-        // Start with tests that involve setting the value and retrieving it
-        System.setProperty(RemoteExecutionProperties.HOST_PROPERTY, "h1;h2");
-        System.setProperty(RemoteExecutionProperties.USER_PROPERTY, "u1");
-        System.setProperty(RemoteExecutionProperties.GROUP_PROPERTY, "g1");
 
         assertTrue(RemoteExecutionProperties.getUser().equals("u1"));
         assertTrue(RemoteExecutionProperties.getGroup().equals("g1"));
@@ -43,9 +38,15 @@ public class RemoteExecutionPropertiesTest {
         assertEquals(2, hosts.length);
         assertTrue(hosts[0].equals("h1"));
         assertTrue(hosts[1].equals("h2"));
-        System.clearProperty(RemoteExecutionProperties.GROUP_PROPERTY);
-        System.clearProperty(RemoteExecutionProperties.HOST_PROPERTY);
-        System.clearProperty(RemoteExecutionProperties.USER_PROPERTY);
+    }
+
+    @Test
+    public void testEmptyPropertiesRetrieval() {
+
+        // This clears properties set by rules, and ensures that ZiggyConfiguration doesn't read the
+        // user's property file.
+        ZiggyConfiguration.reset();
+        ZiggyConfiguration.getMutableInstance();
 
         assertTrue(RemoteExecutionProperties.getUser().isEmpty());
         assertTrue(RemoteExecutionProperties.getGroup().isEmpty());

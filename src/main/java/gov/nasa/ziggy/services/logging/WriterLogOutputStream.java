@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.services.logging;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 
 import org.apache.commons.exec.LogOutputStream;
@@ -10,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.SubtaskUtils;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Subclass of {@link LogOutputStream} that is used when messages need to be sent to both the
@@ -46,6 +49,7 @@ public class WriterLogOutputStream extends LogOutputStream {
     }
 
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     protected void processLine(String line, int level) {
         try {
             writer.write(line);
@@ -53,7 +57,7 @@ public class WriterLogOutputStream extends LogOutputStream {
             stringBuilder.append(line);
             stringBuilder.append("\n");
         } catch (IOException e) {
-            log.info("Unable to write log output, caught e = " + e, e);
+            throw new UncheckedIOException("Unable to write to log file ", e);
         }
 
         if (logOutput) {

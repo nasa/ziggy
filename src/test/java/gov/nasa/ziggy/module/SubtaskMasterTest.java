@@ -26,7 +26,7 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.SubtaskServer.ResponseType;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.util.io.LockManager;
 
 /**
@@ -38,8 +38,8 @@ public class SubtaskMasterTest {
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    public ZiggyPropertyRule resultsDirRule = new ZiggyPropertyRule(
-        PropertyNames.RESULTS_DIR_PROP_NAME, directoryRule);
+    public ZiggyPropertyRule resultsDirRule = new ZiggyPropertyRule(PropertyName.RESULTS_DIR,
+        directoryRule);
 
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule(directoryRule).around(resultsDirRule);
@@ -54,9 +54,7 @@ public class SubtaskMasterTest {
     private final String NODE = "dummy";
     private final String BINARY_NAME = "dummy";
     private final String TASK_DIR = "dummy";
-    private final String HOME_DIR = "dummy";
     private final int TIMEOUT = 3_600_000;
-    private final String PIPELINE_CONFIG_PATH = "dummy";
     private final int SUBTASK_INDEX = 50;
 
     @Before
@@ -71,8 +69,7 @@ public class SubtaskMasterTest {
         completionCounter = new Semaphore(THREAD_NUMBER);
         completionCounter.acquire();
         subtaskMaster = spy(new SubtaskMaster(THREAD_NUMBER, NODE, completionCounter, BINARY_NAME,
-            DirectoryProperties.taskDataDir().resolve(TASK_DIR).toString(), TIMEOUT, HOME_DIR,
-            PIPELINE_CONFIG_PATH));
+            DirectoryProperties.taskDataDir().resolve(TASK_DIR).toString(), TIMEOUT));
         doReturn(subtaskClient).when(subtaskMaster).subtaskClient();
         doReturn(subtaskExecutor).when(subtaskMaster).subtaskExecutor(ArgumentMatchers.anyInt());
         doReturn(algorithmStateFiles).when(subtaskMaster)
@@ -107,7 +104,6 @@ public class SubtaskMasterTest {
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
         assertEquals(5, completionCounter.availablePermits());
-
     }
 
     /**
@@ -135,7 +131,6 @@ public class SubtaskMasterTest {
         verify(subtaskMaster).logException(ArgumentMatchers.eq(SUBTASK_INDEX),
             ArgumentMatchers.any(ModuleFatalProcessingException.class));
         assertEquals(5, completionCounter.availablePermits());
-
     }
 
     /**
@@ -165,7 +160,6 @@ public class SubtaskMasterTest {
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
         assertEquals(5, completionCounter.availablePermits());
-
     }
 
     /**
@@ -195,7 +189,6 @@ public class SubtaskMasterTest {
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
         assertEquals(5, completionCounter.availablePermits());
-
     }
 
     /**
@@ -228,7 +221,6 @@ public class SubtaskMasterTest {
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
         assertEquals(5, completionCounter.availablePermits());
-
     }
 
     /**
@@ -258,7 +250,7 @@ public class SubtaskMasterTest {
         // execAlgorithm() method should not run and the write lock should not be
         // released (since it was never obtained).
         verify(subtaskExecutor, times(0)).execAlgorithm();
-        verify(subtaskMaster, times(0)).releaseWriteLock(DirectoryProperties.taskDataDir()
+        verify(subtaskMaster, times(1)).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
             .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
@@ -266,7 +258,6 @@ public class SubtaskMasterTest {
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
         assertEquals(5, completionCounter.availablePermits());
-
     }
 
     /**
@@ -279,7 +270,7 @@ public class SubtaskMasterTest {
         standardSetUp();
 
         // The locking method should cause an exception.
-        doThrow(new IOException("dummy")).when(subtaskMaster)
+        doThrow(new PipelineException("dummy")).when(subtaskMaster)
             .getWriteLockWithoutBlocking(DirectoryProperties.taskDataDir()
                 .resolve(TASK_DIR)
                 .resolve("st-" + SUBTASK_INDEX)
@@ -297,9 +288,8 @@ public class SubtaskMasterTest {
             Paths.get(TASK_DIR, "st-" + SUBTASK_INDEX, TaskConfigurationManager.LOCK_FILE_NAME)
                 .toFile());
         verify(subtaskMaster).logException(ArgumentMatchers.eq(SUBTASK_INDEX),
-            ArgumentMatchers.any(IOException.class));
+            ArgumentMatchers.any(PipelineException.class));
         assertEquals(5, completionCounter.availablePermits());
-
     }
 
     /**
@@ -334,5 +324,4 @@ public class SubtaskMasterTest {
         when(subtaskExecutor.execAlgorithm()).thenReturn(0);
 
     }
-
 }

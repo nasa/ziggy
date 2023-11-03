@@ -3,9 +3,9 @@ package gov.nasa.ziggy.services.security;
 import java.util.List;
 
 import org.hibernate.Hibernate;
-import org.hibernate.Query;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**
@@ -13,7 +13,7 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  *
  * @author Todd Klaus
  */
-public class UserCrud extends AbstractCrud {
+public class UserCrud extends AbstractCrud<User> {
     public UserCrud() {
     }
 
@@ -22,11 +22,12 @@ public class UserCrud extends AbstractCrud {
     }
 
     public void createUser(User user) {
-        create(user);
+        persist(user);
     }
 
     public List<User> retrieveAllUsers() {
-        List<User> results = list(createQuery("from User"));
+
+        List<User> results = list(createZiggyQuery(User.class));
         for (User user : results) {
             Hibernate.initialize(user.getPrivileges());
             Hibernate.initialize(user.getRoles());
@@ -35,8 +36,8 @@ public class UserCrud extends AbstractCrud {
     }
 
     public User retrieveUser(String loginName) {
-        Query query = createQuery("from User where loginName = :loginName");
-        query.setString("loginName", loginName);
+        ZiggyQuery<User, User> query = createZiggyQuery(User.class);
+        query.column(User_.loginName).in(loginName);
         User user = uniqueResult(query);
         if (user != null) {
             Hibernate.initialize(user.getPrivileges());
@@ -46,25 +47,29 @@ public class UserCrud extends AbstractCrud {
     }
 
     public void deleteUser(User user) {
-        delete(user);
+        remove(user);
     }
 
     public void createRole(Role role) {
-        create(role);
+        persist(role);
     }
 
     public List<Role> retrieveAllRoles() {
-        return list(createQuery("from Role"));
+        return list(createZiggyQuery(Role.class));
     }
 
     public Role retrieveRole(String roleName) {
-        Query query = createQuery("from Role where name = :roleName");
-        query.setString("roleName", roleName);
+        ZiggyQuery<Role, Role> query = createZiggyQuery(Role.class);
+        query.column(Role_.name).in(roleName);
         return uniqueResult(query);
     }
 
     public void deleteRole(Role role) {
-        delete(role);
+        remove(role);
     }
 
+    @Override
+    public Class<User> componentClass() {
+        return User.class;
+    }
 }

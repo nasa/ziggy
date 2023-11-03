@@ -74,7 +74,6 @@ public class HyperRectangleTest {
     @Test(expected = IllegalArgumentException.class)
     public void testInvalidTrailingOffsets() {
         new HyperRectangle(new int[] { 3, 4, 6 }, new int[] { 1, 2, 6 }, new int[] { 1, 2, 1 });
-
     }
 
     @Test
@@ -95,5 +94,4 @@ public class HyperRectangleTest {
         HyperRectangle hr = new HyperRectangle(aSize, size, offset);
         hr.getOffset(new int[] { 1, 2 });
     }
-
 }

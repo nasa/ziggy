@@ -4,13 +4,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.hibernate.Criteria;
-import org.hibernate.Query;
-
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
+import gov.nasa.ziggy.pipeline.definition.ModelRegistry_;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
+import gov.nasa.ziggy.pipeline.definition.ModelType_;
 
 /**
  * CRUD class for model registries and model metadata instances. Each model metadata instance
@@ -22,21 +22,29 @@ import gov.nasa.ziggy.pipeline.definition.ModelType;
  *
  * @author PT
  */
-public class ModelCrud extends AbstractCrud {
+public class ModelCrud extends AbstractCrud<ModelRegistry> {
 
     /**
      * Retrieves the current registry (the registry with the highest ID number). If no registry
      * exists in the database, a new, empty registry is created and returned.
      */
     public ModelRegistry retrieveCurrentRegistry() {
-        Query query = createQuery(
-            "from ModelRegistry where id in (select max(id) from ModelRegistry)");
-        ModelRegistry modelRegistry = uniqueResult(query);
-        if (modelRegistry == null) {
-            modelRegistry = new ModelRegistry();
-            create(modelRegistry);
+
+        // I don't know how to do this in 1 query so I'll use 2.
+        // TODO: reformat as subquery.
+        ZiggyQuery<ModelRegistry, Long> idQuery = createZiggyQuery(ModelRegistry.class, Long.class);
+        idQuery.column(ModelRegistry_.id).max();
+        Long maxId = uniqueResult(idQuery);
+        if (maxId == null) {
+            ModelRegistry modelRegistry = new ModelRegistry();
+            persist(modelRegistry);
+            return modelRegistry;
         }
-        return modelRegistry;
+
+        ZiggyQuery<ModelRegistry, ModelRegistry> query = createZiggyQuery(ModelRegistry.class);
+        query.column(ModelRegistry_.id).in(maxId);
+
+        return uniqueResult(query);
     }
 
     /**
@@ -48,7 +56,7 @@ public class ModelCrud extends AbstractCrud {
         ModelRegistry modelRegistry = retrieveCurrentRegistry();
         if (modelRegistry.isLocked()) {
             modelRegistry = new ModelRegistry(modelRegistry);
-            create(modelRegistry);
+            persist(modelRegistry);
         }
         return modelRegistry;
     }
@@ -63,10 +71,10 @@ public class ModelCrud extends AbstractCrud {
         Map<ModelType, ModelMetadata> models = modelRegistry.getModels();
         for (ModelMetadata metadata : models.values()) {
             metadata.lock();
-            update(metadata);
+            merge(metadata);
         }
         modelRegistry.lock();
-        update(modelRegistry);
+        merge(modelRegistry);
         flush();
         return modelRegistry;
     }
@@ -75,8 +83,7 @@ public class ModelCrud extends AbstractCrud {
      * Retrieves all model types in the database.
      */
     public List<ModelType> retrieveAllModelTypes() {
-        Criteria criteria = createCriteria(ModelType.class);
-        return list(criteria);
+        return list(createZiggyQuery(ModelType.class));
     }
 
     /**
@@ -93,9 +100,24 @@ public class ModelCrud extends AbstractCrud {
     }
 
     /**
+     * Retrieves a {@link ModelType} based on the type string of the instance.
+     *
+     * @param type
+     * @return
+     */
+    public ModelType retrieveModelType(String type) {
+        return uniqueResult(createZiggyQuery(ModelType.class).column(ModelType_.type).in(type));
+    }
+
+    /**
      * Retrieves the ID of the current unlocked model registry.
      */
     public long retrieveUnlockedRegistryId() {
         return retrieveUnlockedRegistry().getId();
+    }
+
+    @Override
+    public Class<ModelRegistry> componentClass() {
+        return ModelRegistry.class;
     }
 }

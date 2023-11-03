@@ -18,12 +18,14 @@ public class SecurityOperations {
     }
 
     public boolean validateLogin(String loginName) {
-        user = userCrud.retrieveUser(loginName);
+        String name = loginName != null ? loginName : "";
+        user = userCrud.retrieveUser(name);
         return user != null;
     }
 
     public boolean hasPrivilege(User user, String privilege) {
-        return user.hasPrivilege(privilege);
+        String privilegeName = privilege != null ? privilege : "";
+        return user.hasPrivilege(privilegeName);
     }
 
     /**

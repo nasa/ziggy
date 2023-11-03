@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition.crud;
 
-import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.performTransactionInThread;
+import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.performTransaction;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -9,7 +9,7 @@ import java.util.Map;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
-import gov.nasa.ziggy.ui.proxy.ProcessingSummaryOpsProxy;
+import gov.nasa.ziggy.ui.util.proxy.ProcessingSummaryOpsProxy;
 
 /**
  * Supports updates to database values of {@link PipelineTask} fields that are associated with the
@@ -29,13 +29,13 @@ public class ProcessingSummaryOperations {
      */
     public void updateSubTaskCounts(final long taskId, final int numSubTasksTotal,
         final int numSubTasksComplete, final int numSubTasksFailed) {
-        performTransactionInThread(() -> {
+        performTransaction(() -> {
             PipelineTaskCrud crud = new PipelineTaskCrud();
             PipelineTask task = crud.retrieve(taskId);
             task.setCompletedSubtaskCount(numSubTasksComplete);
             task.setFailedSubtaskCount(numSubTasksFailed);
             task.setTotalSubtaskCount(numSubTasksTotal);
-            crud.update(task);
+            crud.merge(task);
             return null;
         });
     }
@@ -44,11 +44,11 @@ public class ProcessingSummaryOperations {
      * Update the processing state in the database.
      */
     public void updateProcessingState(final long taskId, final ProcessingState newState) {
-        performTransactionInThread(() -> {
+        performTransaction(() -> {
             PipelineTaskCrud crud = new PipelineTaskCrud();
             PipelineTask task = crud.retrieve(taskId);
             task.setProcessingState(newState);
-            crud.update(task);
+            crud.merge(task);
             return null;
         });
     }
@@ -57,8 +57,7 @@ public class ProcessingSummaryOperations {
      * Retrieve the current processing state from the database.
      */
     public ProcessingSummary processingSummary(long taskId) {
-        return (ProcessingSummary) performTransactionInThread(
-            () -> processingSummaryInternal(taskId));
+        return (ProcessingSummary) performTransaction(() -> processingSummaryInternal(taskId));
     }
 
     /**
@@ -78,7 +77,7 @@ public class ProcessingSummaryOperations {
     @SuppressWarnings("unchecked")
     public Map<Long, ProcessingSummary> processingSummaries(
         Collection<PipelineTask> pipelineTasks) {
-        return (Map<Long, ProcessingSummary>) performTransactionInThread(
+        return (Map<Long, ProcessingSummary>) performTransaction(
             () -> processingSummariesInternal(pipelineTasks));
     }
 
@@ -106,5 +105,4 @@ public class ProcessingSummaryOperations {
         return processingSummariesInternal(
             new PipelineTaskCrud().retrieveTasksForInstance(instanceId));
     }
-
 }

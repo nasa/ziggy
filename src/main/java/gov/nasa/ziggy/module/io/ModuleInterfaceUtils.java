@@ -3,7 +3,9 @@ package gov.nasa.ziggy.module.io;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.util.regex.Pattern;
 
@@ -12,9 +14,11 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
-import gov.nasa.ziggy.module.io.matlab.MatlabErrorReturn;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
@@ -32,11 +36,13 @@ public class ModuleInterfaceUtils {
     private ModuleInterfaceUtils() {
     }
 
-    public static void writeCompanionXmlFile(Persistable inputs, String moduleName, int seqNum) {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static void writeCompanionXmlFile(Persistable inputs, String moduleName) {
         if (!inputs.getClass().isAnnotationPresent(XmlRootElement.class)) {
             return;
         }
-        String companionXmlFile = xmlFileName(moduleName, seqNum);
+        String companionXmlFile = xmlFileName(moduleName);
         log.info("Writing companion xml file \"" + companionXmlFile + "\".");
         StringBuilder validationErrors = new StringBuilder();
         try {
@@ -57,22 +63,26 @@ public class ModuleInterfaceUtils {
                     FileUtil.ZIGGY_CHARSET);
                 BufferedWriter bufWriter = new BufferedWriter(fileWriter)) {
                 marshaller.marshal(inputs, bufWriter);
+            } catch (IOException e) {
+                throw new UncheckedIOException(
+                    "Unable to write to file " + companionXmlFile.toString(), e);
             }
             if (validationErrors.length() > 0) {
                 throw new PipelineException(validationErrors.toString());
             }
-        } catch (Exception e) {
+        } catch (JAXBException e) {
             throw new PipelineException(validationErrors.toString(), e);
         }
     }
 
-    public static MatlabErrorReturn dumpErrorFile(File errorFile, String moduleName) {
+    public static AlgorithmErrorReturn dumpErrorFile(File errorFile, String moduleName) {
 
         return dumpErrorFile(errorFile, true);
     }
 
-    public static MatlabErrorReturn dumpErrorFile(File errorFile, boolean logit) {
-        MatlabErrorReturn errorReturn = new MatlabErrorReturn();
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    public static AlgorithmErrorReturn dumpErrorFile(File errorFile, boolean logit) {
+        AlgorithmErrorReturn errorReturn = new AlgorithmErrorReturn();
         String errorMessage;
         try {
             Hdf5ModuleInterface hdf5Interface = new Hdf5ModuleInterface();
@@ -82,9 +92,12 @@ public class ModuleInterfaceUtils {
 
             errorMessage = "MATLAB code generated an error file, message = "
                 + errorReturn.getMessage();
-        } catch (Throwable t) {
+        } catch (Exception e) {
+            // We want execution to continue regardless of what runtime or checked
+            // exception might have been thrown in the preceding, which is why
+            // Exception is caught.
             errorMessage = "MATLAB code generated an error file, but it was unreadable ("
-                + t.getMessage() + ")";
+                + e.getMessage() + ")";
             errorReturn.setMessage(errorMessage);
         }
         if (logit) {
@@ -104,22 +117,17 @@ public class ModuleInterfaceUtils {
      *
      * @param dataDir
      * @param filenamePrefix
-     * @param seqNum
      */
-    public static void clearStaleErrorState(File dataDir, String filenamePrefix, int seqNum) {
-        File currentErrorFile = errorFile(dataDir, filenamePrefix, seqNum);
+    public static void clearStaleErrorState(File dataDir, String filenamePrefix) {
+        File currentErrorFile = errorFile(dataDir, filenamePrefix);
 
         if (currentErrorFile.exists()) {
             deleteErrorFile(currentErrorFile);
         }
     }
 
-    public static File errorFile(File dataDir, String filenamePrefix, int seqNum) {
-        return new File(dataDir, errorFileName(filenamePrefix, seqNum));
-    }
-
     public static File errorFile(File dataDir, String filenamePrefix) {
-        return errorFile(dataDir, filenamePrefix, 0);
+        return new File(dataDir, errorFileName(filenamePrefix));
     }
 
     private static void deleteErrorFile(File errorFileToDelete) {
@@ -127,17 +135,6 @@ public class ModuleInterfaceUtils {
         if (!deleted) {
             log.error("Failed to delete errorFile=" + errorFileToDelete);
         }
-    }
-
-    /**
-     * Returns the name of the sub-task inputs file for a given module and sequence number.
-     *
-     * @param moduleName
-     * @param seqNum
-     * @return
-     */
-    public static String inputsFileName(String moduleName, int seqNum) {
-        return moduleName + "-inputs-" + seqNum + "." + BIN_FILE_TYPE;
     }
 
     /**
@@ -158,8 +155,8 @@ public class ModuleInterfaceUtils {
      * @param seqNum
      * @return
      */
-    public static String outputsFileName(String moduleName, int seqNum) {
-        return moduleName + "-outputs-" + seqNum + "." + BIN_FILE_TYPE;
+    public static String outputsFileName(String moduleName) {
+        return moduleName + "-outputs." + BIN_FILE_TYPE;
     }
 
     /**
@@ -170,7 +167,7 @@ public class ModuleInterfaceUtils {
      * @return
      */
     public static Pattern outputsFileNamePattern(String moduleName) {
-        String regex = moduleName + "-outputs-\\d+." + BIN_FILE_TYPE;
+        String regex = moduleName + "-outputs." + BIN_FILE_TYPE;
         return Pattern.compile(regex);
     }
 
@@ -181,8 +178,8 @@ public class ModuleInterfaceUtils {
      * @param seqNum
      * @return
      */
-    public static String errorFileName(String moduleName, int seqNum) {
-        return moduleName + "-error-" + seqNum + "." + BIN_FILE_TYPE;
+    public static String errorFileName(String moduleName) {
+        return moduleName + "-error." + BIN_FILE_TYPE;
     }
 
     /**
@@ -192,8 +189,8 @@ public class ModuleInterfaceUtils {
      * @param seqNum
      * @return
      */
-    public static String xmlFileName(String moduleName, int seqNum) {
-        return moduleName + "-digest-" + seqNum + ".xml";
+    public static String xmlFileName(String moduleName) {
+        return moduleName + "-digest.xml";
     }
 
     /**
@@ -203,8 +200,8 @@ public class ModuleInterfaceUtils {
      * @param logSuffix
      * @return
      */
-    public static String stdoutFileName(String moduleName, String logSuffix) {
-        return moduleName + "-stdout-" + logSuffix + ".log";
+    public static String stdoutFileName(String moduleName) {
+        return moduleName + "-stdout.log";
     }
 
     /**
@@ -214,7 +211,7 @@ public class ModuleInterfaceUtils {
      * @param logSuffix
      * @return
      */
-    public static String stderrFileName(String moduleName, String logSuffix) {
-        return moduleName + "-stdout-" + logSuffix + ".log";
+    public static String stderrFileName(String moduleName) {
+        return moduleName + "-stdout.log";
     }
 }

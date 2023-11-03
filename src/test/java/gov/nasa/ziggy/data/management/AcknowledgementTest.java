@@ -5,8 +5,8 @@ import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.XmlUtils.simpleTypeContent;
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.data.management.Manifest.manifestEntryAckEntryEquals;
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -52,12 +52,12 @@ public class AcknowledgementTest {
     public ZiggyDirectoryRule dirRule = new ZiggyDirectoryRule();
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+        DATASTORE_ROOT_DIR, "/dev/null");
 
     @Before
     public void setUp() {
@@ -252,7 +252,7 @@ public class AcknowledgementTest {
 
         Path schemaPath = Paths.get(ziggyHomeDirPropertyRule.getProperty(), "schema", "xml",
             new Acknowledgement().getXmlSchemaFilename());
-        List<String> schemaContent = Files.readAllLines(schemaPath);
+        List<String> schemaContent = Files.readAllLines(schemaPath, FileUtil.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"acknowledgement\" type=\"acknowledgement\"/>");
@@ -290,7 +290,6 @@ public class AcknowledgementTest {
         assertContains(complexTypeContent, "<xs:enumeration value=\"SHA1\"/>");
         assertContains(complexTypeContent, "<xs:enumeration value=\"SHA256\"/>");
         assertContains(complexTypeContent, "<xs:enumeration value=\"SHA512\"/>");
-
     }
 
     private void testAcknowledgementFiles(Map<String, AcknowledgementEntry> aFileMap,
@@ -315,5 +314,4 @@ public class AcknowledgementTest {
             assertTrue(manifestEntryAckEntryEquals(mFile, aFile));
         }
     }
-
 }

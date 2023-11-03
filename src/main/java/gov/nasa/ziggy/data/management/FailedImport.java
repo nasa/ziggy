@@ -2,18 +2,17 @@ package gov.nasa.ziggy.data.management;
 
 import java.nio.file.Path;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 /**
  * Provides tracking information for mission data files and instrument models that fail to import.
@@ -23,14 +22,14 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  * @author PT
  */
 @Entity
-@Table(name = "PI_FAILED_IMPORT")
+@Table(name = "ziggy_FailedImport")
 public class FailedImport {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_FAILED_IMPORT_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_FailedImport_generator")
+    @SequenceGenerator(name = "ziggy_FailedImport_generator", initialValue = 1,
+        sequenceName = "ziggy_FailedImport_sequence", allocationSize = 1)
+    private Long id;
 
     @Column
     private long dataReceiptTaskId;
@@ -67,11 +66,11 @@ public class FailedImport {
         this.dataReceiptFileType = dataReceiptFileType;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

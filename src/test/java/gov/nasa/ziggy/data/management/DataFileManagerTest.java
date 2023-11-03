@@ -1,8 +1,8 @@
 package gov.nasa.ziggy.data.management;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.USE_SYMLINKS_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.USE_SYMLINKS;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_TEST_WORKING_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -55,7 +55,6 @@ import gov.nasa.ziggy.uow.TaskConfigurationParameters;
 public class DataFileManagerTest {
 
     private String datastoreRoot;
-    private String taskDirRoot;
     private String taskDir;
     private String subtaskDir;
     private DataFileManager dataFileManager;
@@ -74,19 +73,19 @@ public class DataFileManagerTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+        DATASTORE_ROOT_DIR, directoryRule, "datastore");
 
     @Rule
-    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
+    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS,
         (String) null);
 
-    @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
+        ZIGGY_TEST_WORKING_DIR, directoryRule, "pa-5-10" + File.separator + "st-0");
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
-        .around(datastoreRootDirPropertyRule);
+        .around(datastoreRootDirPropertyRule)
+        .around(ziggyTestWorkingDirPropertyRule);
 
     @Before
     public void setup() throws IOException {
@@ -96,8 +95,10 @@ public class DataFileManagerTest {
 
         Path taskDirRoot = directoryRule.directory().resolve("taskspace");
         Files.createDirectories(taskDirRoot);
-        this.taskDirRoot = taskDirRoot.toString();
-        makeTaskDir("pa-5-10");
+        subtaskDir = ziggyTestWorkingDirPropertyRule.getProperty();
+        File subtaskFile = new File(subtaskDir);
+        subtaskFile.mkdirs();
+        taskDir = subtaskFile.getParent();
 
         Path externalTemp = directoryRule.directory().resolve("tmp");
         Files.createDirectories(externalTemp);
@@ -129,20 +130,6 @@ public class DataFileManagerTest {
         DataFileTestUtils.initializeDataFileTypeSamples();
     }
 
-    private void makeTaskDir(String taskDirName) {
-        File taskDir = new File(taskDirRoot, taskDirName);
-        taskDir.mkdirs();
-        this.taskDir = taskDir.getAbsolutePath();
-        File subtaskDir = new File(taskDir, "st-0");
-        subtaskDir.mkdirs();
-        this.subtaskDir = subtaskDir.getAbsolutePath();
-    }
-
-    /**
-     * Tests the dataFilesMap() method of DatastoreFileManager.
-     *
-     * @throws IOException
-     */
     @Test
     public void testDataFilesMap() throws IOException {
 
@@ -215,7 +202,6 @@ public class DataFileManagerTest {
         Set<String> d2Names = getNamesFromPaths(d2Set);
         assertTrue(d2Names.contains("cal-1-1-A-20-results.h5"));
         assertTrue(d2Names.contains("cal-1-1-B-20-results.h5"));
-
     }
 
     /**
@@ -252,7 +238,6 @@ public class DataFileManagerTest {
         Set<String> d2Names = getNamesFromPaths(d2Set);
         assertTrue(d2Names.contains("cal-1-1-A-20-results.h5"));
         assertTrue(d2Names.contains("cal-1-1-B-20-results.h5"));
-
     }
 
     /**
@@ -278,7 +263,6 @@ public class DataFileManagerTest {
         assertTrue(names.contains("pa-765432100-20-results.h5"));
         assertTrue(names.contains("cal-1-1-A-20-results.h5"));
         assertTrue(names.contains("cal-1-1-B-20-results.h5"));
-
     }
 
     /**
@@ -320,7 +304,6 @@ public class DataFileManagerTest {
         assertEquals(2, producerTaskIds.size());
         assertTrue(producerTaskIds.contains(PROD_TASK_ID1));
         assertTrue(producerTaskIds.contains(PROD_TASK_ID2));
-
     }
 
     /**
@@ -341,8 +324,6 @@ public class DataFileManagerTest {
         File[] endFileList = new File(taskDir).listFiles();
         Set<String> filenames = getNamesFromListFiles(endFileList);
 
-        // Set the working directory
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
         endFileList = new File(subtaskDir).listFiles();
         assertEquals(0, endFileList.length);
         dataFileManager.copyFilesByNameFromTaskDirToWorkingDir(filenames);
@@ -374,7 +355,7 @@ public class DataFileManagerTest {
         constructDatastoreFiles();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager();
 
         // construct a new file in the external temp directory
@@ -442,7 +423,7 @@ public class DataFileManagerTest {
         constructDatastoreFiles();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager();
 
         // construct a new file in the external temp directory
@@ -472,7 +453,6 @@ public class DataFileManagerTest {
         // check that the copies are symlinks of the correct files
         assertEquals(Paths.get(datastoreRoot, "pa", "20", "pa-001234569-20-results.h5"),
             java.nio.file.Files.readSymbolicLink(Paths.get(taskDir, "pa-001234569-20-results.h5")));
-
     }
 
     /**
@@ -487,7 +467,7 @@ public class DataFileManagerTest {
         constructDatastoreFiles();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager();
 
         // create the DatastoreId objects
@@ -508,8 +488,6 @@ public class DataFileManagerTest {
         File[] endFileList = new File(taskDir).listFiles();
         Set<String> filenames = getNamesFromListFiles(endFileList);
 
-        // Set the working directory
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
         endFileList = new File(subtaskDir).listFiles();
         assertEquals(0, endFileList.length);
         dataFileManager.copyFilesByNameFromTaskDirToWorkingDir(filenames);
@@ -540,7 +518,6 @@ public class DataFileManagerTest {
                 .readSymbolicLink(Paths.get(subtaskDir, "pa-001234569-20-results.h5")));
         assertEquals(Paths.get(datastoreRoot, "cal", "20", "cal-1-1-A-20-results.h5"),
             java.nio.file.Files.readSymbolicLink(Paths.get(subtaskDir, "cal-1-1-A-20-results.h5")));
-
     }
 
     @Test
@@ -549,7 +526,7 @@ public class DataFileManagerTest {
         constructDatastoreDirectories();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager2();
 
         // construct a new file in the external temp directory and a symlink to same in
@@ -580,7 +557,6 @@ public class DataFileManagerTest {
         dirNamesToCopy.add("EO1H2240632000337112NP_WGS_01");
         dirNamesToCopy.add("EO1H0230412000337112N0_WGS_01");
 
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
         dataFileManager2.copyFilesByNameFromTaskDirToWorkingDir(dirNamesToCopy);
 
         File[] endFileList = new File(subtaskDir).listFiles();
@@ -598,7 +574,6 @@ public class DataFileManagerTest {
             .readSymbolicLink(Paths.get(subtaskDir, "EO1H2240632000337112NP_WGS_01")));
         assertEquals(Paths.get(datastoreRoot, "EO1H0230412000337112N0_WGS_01"), java.nio.file.Files
             .readSymbolicLink(Paths.get(subtaskDir, "EO1H0230412000337112N0_WGS_01")));
-
     }
 
     /**
@@ -612,8 +587,7 @@ public class DataFileManagerTest {
         // create the DataFileInfo objects
         Set<DataFileInfo> datastoreIds = constructDatastoreIds();
 
-        // Copy the data file objects to the subtask directory
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
+        // Copy the data file objects to the subtask directory.
         dataFileManager.copyFilesByNameFromTaskDirToWorkingDir(datastoreFilenames);
 
         // The files in the datastoreIds should be gone from the task directory but still
@@ -642,7 +616,7 @@ public class DataFileManagerTest {
         constructDatastoreFiles();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager();
 
         // create the DatastoreId objects
@@ -653,8 +627,6 @@ public class DataFileManagerTest {
         File[] endFileList = new File(taskDir).listFiles();
         Set<String> filenames = getNamesFromListFiles(endFileList);
 
-        // Set the working directory
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
         dataFileManager.copyFilesByNameFromTaskDirToWorkingDir(filenames);
 
         // The files in the datastoreIds should be gone from the task directory but still
@@ -675,7 +647,6 @@ public class DataFileManagerTest {
             assertTrue(java.nio.file.Files.isSymbolicLink(subtaskPath));
             assertTrue(java.nio.file.Files.readSymbolicLink(subtaskPath).startsWith(datastorePath));
         }
-
     }
 
     /**
@@ -723,7 +694,6 @@ public class DataFileManagerTest {
         filenames = getNamesFromListFiles(taskFileList);
         assertTrue(filenames.contains("cal-1-1-B-20-results.h5"));
         assertTrue(filenames.contains("pdc-1-1-20-results.h5"));
-
     }
 
     /**
@@ -738,7 +708,7 @@ public class DataFileManagerTest {
         constructTaskDirFiles();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager();
 
         // create the DataFileInfo objects
@@ -776,7 +746,6 @@ public class DataFileManagerTest {
         filenames = getNamesFromListFiles(taskFileList);
         assertTrue(filenames.contains("cal-1-1-B-20-results.h5"));
         assertTrue(filenames.contains("pdc-1-1-20-results.h5"));
-
     }
 
     /**
@@ -845,7 +814,6 @@ public class DataFileManagerTest {
         assertEquals(1, dir2SubDirList.length);
         assertEquals("next-level-down-content.L0", dir2SubDirList[0].getName());
         assertTrue(dir2SubDirList[0].isFile());
-
     }
 
     @Test
@@ -855,7 +823,7 @@ public class DataFileManagerTest {
         constructDatastoreDirectories();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager();
 
         // construct a new file in the external temp directory and a symlink to same in
@@ -908,7 +876,6 @@ public class DataFileManagerTest {
             .readSymbolicLink(taskDirFile.toPath().resolve("EO1H2240632000337112NP_WGS_01")));
         assertEquals(Paths.get(datastoreRoot, "EO1H0230412000337112N0_WGS_01"), java.nio.file.Files
             .readSymbolicLink(taskDirFile.toPath().resolve("EO1H0230412000337112N0_WGS_01")));
-
     }
 
     /**
@@ -976,7 +943,6 @@ public class DataFileManagerTest {
         assertEquals(1, dir2SubDirList.length);
         assertEquals("next-level-down-content.L0", dir2SubDirList[0].getName());
         assertTrue(dir2SubDirList[0].isFile());
-
     }
 
     /**
@@ -1012,7 +978,6 @@ public class DataFileManagerTest {
         assertEquals(2, producerTaskIds.size());
         assertTrue(producerTaskIds.contains(PROD_TASK_ID1));
         assertTrue(producerTaskIds.contains(PROD_TASK_ID2));
-
     }
 
     @Test
@@ -1052,7 +1017,6 @@ public class DataFileManagerTest {
         filenames = paths.stream().map(s -> s.getFileName().toString()).collect(Collectors.toSet());
         assertTrue(filenames.contains("pa-765432100-20-results.h5"));
         assertTrue(filenames.contains("cal-1-1-B-20-results.h5"));
-
     }
 
     /**
@@ -1067,7 +1031,7 @@ public class DataFileManagerTest {
         constructDatastoreFiles();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager2();
 
         // construct a new file in the external temp directory
@@ -1106,7 +1070,6 @@ public class DataFileManagerTest {
             java.nio.file.Files.readSymbolicLink(Paths.get(taskDir, "cal-1-1-A-20-results.h5")));
         assertEquals(Paths.get(datastoreRoot, "cal", "20", "cal-1-1-B-20-results.h5"),
             java.nio.file.Files.readSymbolicLink(Paths.get(taskDir, "cal-1-1-B-20-results.h5")));
-
     }
 
     @Test
@@ -1116,7 +1079,7 @@ public class DataFileManagerTest {
         constructDatastoreDirectories();
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager2();
 
         // construct a new file in the external temp directory and a symlink to same in
@@ -1166,7 +1129,6 @@ public class DataFileManagerTest {
             .readSymbolicLink(taskDirFile.toPath().resolve("EO1H2240632000337112NP_WGS_01")));
         assertEquals(Paths.get(datastoreRoot, "EO1H0230412000337112N0_WGS_01"), java.nio.file.Files
             .readSymbolicLink(taskDirFile.toPath().resolve("EO1H0230412000337112N0_WGS_01")));
-
     }
 
     /**
@@ -1192,7 +1154,6 @@ public class DataFileManagerTest {
         new File(taskDir, "pdc-1-1-20-results.h5").createNewFile();
 
         // move to the subtask directory and copy the files to there
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
         dataFileManager2.copyFilesByNameFromTaskDirToWorkingDir(datastoreFilenames);
 
         // delete the files
@@ -1215,7 +1176,6 @@ public class DataFileManagerTest {
         assertTrue(filesInTaskDir.contains("cal-1-1-A-20-results.h5"));
         assertTrue(filesInTaskDir.contains("cal-1-1-B-20-results.h5"));
         assertTrue(checkForSymlinks(listFiles, false));
-
     }
 
     @Test
@@ -1227,7 +1187,7 @@ public class DataFileManagerTest {
         datastoreFilenames.remove("pdc-1-1-20-results.h5");
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager2();
 
         // setup the data file types
@@ -1238,8 +1198,6 @@ public class DataFileManagerTest {
         // Copy the files to the task directory
         dataFileManager2.copyDataFilesByTypeToTaskDirectory(Paths.get(""), dataFileTypes);
 
-        // move to the subtask directory and copy the files to there
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
         dataFileManager2.copyFilesByNameFromTaskDirToWorkingDir(datastoreFilenames);
 
         // delete the files
@@ -1320,7 +1278,6 @@ public class DataFileManagerTest {
         assertEquals(2, taskFileList.length);
         filenames = getNamesFromListFiles(taskFileList);
         assertTrue(filenames.contains("pdc-1-1-20-results.h5"));
-
     }
 
     /**
@@ -1346,18 +1303,15 @@ public class DataFileManagerTest {
         File[] endFileList = new File(taskDir).listFiles();
         assertEquals(1, endFileList.length);
         assertEquals("st-0", endFileList[0].getName());
-
     }
 
     @Test
     public void testMoveSymlinkedFileToDatastore() throws IOException {
 
         // Enable symlinking
-        System.setProperty(USE_SYMLINKS_PROP_NAME, "true");
+        System.setProperty(USE_SYMLINKS.property(), "true");
         initializeDataFileManager2();
 
-        // change to the subtask directory and populate with files
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
         new File(subtaskDir, "pa-001234567-20-results.h5").createNewFile();
         new File(subtaskDir, "pa-765432100-20-results.h5").createNewFile();
         new File(subtaskDir, "cal-1-1-A-20-results.h5").createNewFile();
@@ -1419,7 +1373,6 @@ public class DataFileManagerTest {
             java.nio.file.Files.readSymbolicLink(Paths.get(subtaskDir, "cal-1-1-A-20-results.h5")));
         assertEquals(Paths.get(datastoreRoot, "cal", "20", "cal-1-1-B-20-results.h5"),
             java.nio.file.Files.readSymbolicLink(Paths.get(subtaskDir, "cal-1-1-B-20-results.h5")));
-
     }
 
     @Test
@@ -1450,8 +1403,8 @@ public class DataFileManagerTest {
 
         // Create and persist a TaskConfigurationManager instance
         TaskConfigurationManager tcm = new TaskConfigurationManager(new File(taskDir));
-        tcm.addFilesForSubtask(new TreeSet<String>());
-        tcm.addFilesForSubtask(new TreeSet<String>());
+        tcm.addFilesForSubtask(new TreeSet<>());
+        tcm.addFilesForSubtask(new TreeSet<>());
         tcm.persist();
 
         // Get the flavors of input files
@@ -1535,7 +1488,6 @@ public class DataFileManagerTest {
         filesFromCompletedSubtasks = dataFileManager2
             .datastoreFilesInCompletedSubtasksWithoutResults(dataFileTypes);
         assertEquals(0, filesFromCompletedSubtasks.size());
-
     }
 
     @Test
@@ -1566,8 +1518,8 @@ public class DataFileManagerTest {
 
         // Create and persist a TaskConfigurationManager instance
         TaskConfigurationManager tcm = new TaskConfigurationManager(new File(taskDir));
-        tcm.addFilesForSubtask(new TreeSet<String>());
-        tcm.addFilesForSubtask(new TreeSet<String>());
+        tcm.addFilesForSubtask(new TreeSet<>());
+        tcm.addFilesForSubtask(new TreeSet<>());
         tcm.persist();
 
         // construct the set of DatastoreId subclasses
@@ -1646,7 +1598,6 @@ public class DataFileManagerTest {
         assertEquals(2, filenames.size());
         assertTrue(filenames.contains("pa-765432100-20-results.h5"));
         assertTrue(filenames.contains("cal-1-1-B-20-results.h5"));
-
     }
 
     @Test
@@ -1672,7 +1623,6 @@ public class DataFileManagerTest {
         Set<String> filenames = getNamesFromListFiles(endFileList);
         assertEquals(1, filenames.size());
         assertTrue(filenames.contains("pa-765432100-20-results.h5"));
-
     }
 
     @Test
@@ -1683,8 +1633,6 @@ public class DataFileManagerTest {
         File sample2 = new File(subtaskDir, "pa-765432100-20-results.h5");
         sample1.createNewFile();
         sample2.createNewFile();
-
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, subtaskDir);
 
         // Files of the type of the DataFileTypeSample1 should be found.
         assertTrue(dataFileManager2.workingDirHasFilesOfTypes(
@@ -1701,7 +1649,6 @@ public class DataFileManagerTest {
         // When searching for both data types, a result of true should be
         // returned.
         assertTrue(dataFileManager2.workingDirHasFilesOfTypes(dataFileTypeSet));
-
     }
 
     private static List<DatastoreProducerConsumer> datastoreProducerConsumers() {
@@ -1760,7 +1707,6 @@ public class DataFileManagerTest {
         sample1.createNewFile();
         filenames.add(sample1.getName());
         return filenames;
-
     }
 
     private Set<String> constructDatastoreFiles() throws IOException, InterruptedException {
@@ -1796,7 +1742,6 @@ public class DataFileManagerTest {
         dmy = !dmy;
         datastoreFilenames.add(sample1.getName());
         return datastoreFilenames;
-
     }
 
     private <T extends DataFileInfo> Set<String> getNamesFromDatastoreIds(Set<T> datastoreSet) {
@@ -1970,8 +1915,6 @@ public class DataFileManagerTest {
         @Override
         public void createOrUpdateProducer(PipelineTask pipelineTask,
             Collection<Path> datastoreFiles, DatastoreProducerConsumer.DataReceiptFileType type) {
-
         }
     }
-
 }

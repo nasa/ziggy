@@ -1,7 +1,5 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
-
 /**
  * Determines the total memory for the current hardware at runtime under the Linux operating system.
  *
@@ -39,7 +37,7 @@ public class LinuxMemInfo extends AbstractMemInfo {
     private static final String SWAP_TOTAL_KEY = "SwapTotal";
     private static final String SWAP_FREE_KEY = "SwapFree";
 
-    public LinuxMemInfo() throws IOException {
+    public LinuxMemInfo() {
         super(commandOutput(MEMINFO_COMMAND));
     }
 

@@ -4,20 +4,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToOne;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
+import java.util.function.Consumer;
 
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.slf4j.Logger;
@@ -25,7 +12,22 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.crud.HasExternalIdCrud;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
  * Represents an instance of a {@link PipelineDefinition} that either is running or has completed.
@@ -41,38 +43,75 @@ import gov.nasa.ziggy.pipeline.definition.crud.HasExternalIdCrud;
  * @author Todd Klaus
  */
 @Entity
-@Table(name = "PI_PIPELINE_INSTANCE")
+@Table(name = "ziggy_PipelineInstance")
 public class PipelineInstance implements PipelineExecutionTime {
-    private static final Logger log = LoggerFactory.getLogger(PipelineInstance.class);
+    private static final long serialVersionUID = 20230712L;
 
-    public static final int HIGHEST_PRIORITY = 0;
-    public static final int LOWEST_PRIORITY = 4;
+    private static final Logger log = LoggerFactory.getLogger(PipelineInstance.class);
 
     public enum State {
         /** Not yet launched */
-        INITIALIZED,
+        INITIALIZED(PipelineInstance::startExecutionClock),
 
         /** pipeline running or ready to run, no failed tasks */
-        PROCESSING,
+        PROCESSING(PipelineInstance::startExecutionClock),
 
         /** at least one failed task, but others still running or ready to run */
-        ERRORS_RUNNING,
+        ERRORS_RUNNING(PipelineInstance::startExecutionClock),
 
         /** at least one failed task, no tasks can run (pipeline stalled) */
-        ERRORS_STALLED,
+        ERRORS_STALLED(PipelineInstance::stopExecutionClock),
 
         /** pipeline stopped/paused by operator */
-        STOPPED,
+        STOPPED(PipelineInstance::stopExecutionClock),
 
         /** all tasks completed successfully */
-        COMPLETED
+        COMPLETED(PipelineInstance::stopExecutionClock);
+
+        private final Consumer<PipelineInstance> setExecutionClockState;
+
+        State(Consumer<PipelineInstance> setExecutionClockState) {
+            this.setExecutionClockState = setExecutionClockState;
+        }
+
+        public void setExecutionClockState(PipelineInstance instance) {
+            setExecutionClockState.accept(instance);
+        }
+    }
+
+    /**
+     * Execution priority of a pipeline and its modules.
+     * <p>
+     * Note: Java enumerations have a natural ordering that matches the order in the definition. The
+     * {@link Priority} enum is used to determine the order with which tasks are moved from the
+     * submitted state to execution, hence do not change the ordering of the enums in this
+     * definition.
+     *
+     * @author PT
+     */
+    public enum Priority {
+        HIGHEST, HIGH, NORMAL, LOW, LOWEST;
+
+        public static class PriorityXmlAdapter extends XmlAdapter<String, Priority> {
+
+            @Override
+            public String marshal(Priority priority) throws Exception {
+                return priority.name();
+            }
+
+            @Override
+            public Priority unmarshal(String priority) throws Exception {
+                return Priority.valueOf(priority);
+            }
+        }
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PIPE_INST_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,
+        generator = "ziggy_PipelineInstance_generator")
+    @SequenceGenerator(name = "ziggy_PipelineInstance_generator", initialValue = 1,
+        sequenceName = "ziggy_PipelineInstance_sequence", allocationSize = 1)
+    private Long id;
 
     /**
      * Descriptive name specified by the user at launch-time. Used when displaying the instance in
@@ -98,7 +137,9 @@ public class PipelineInstance implements PipelineExecutionTime {
 
     @Enumerated(EnumType.STRING)
     private State state = State.INITIALIZED;
-    private int priority = LOWEST_PRIORITY;
+
+    @Enumerated(EnumType.STRING)
+    private Priority priority = Priority.NORMAL;
 
     /**
      * {@link ParameterSet}s used as {@link Parameters} for this instance. This is a hard-reference
@@ -106,8 +147,8 @@ public class PipelineInstance implements PipelineExecutionTime {
      * latest available version)
      */
     @ManyToMany
-    @JoinTable(name = "PI_INSTANCE_PS")
-    private Map<ClassWrapper<Parameters>, ParameterSet> pipelineParameterSets = new HashMap<>();
+    @JoinTable(name = "ziggy_PipelineInstance_pipelineParameterSets")
+    private Map<ClassWrapper<ParametersInterface>, ParameterSet> pipelineParameterSets = new HashMap<>();
 
     /**
      * {@link ModelRegistry} in force at the time this pipeline instance was launched. For data
@@ -116,14 +157,9 @@ public class PipelineInstance implements PipelineExecutionTime {
     @ManyToOne
     private ModelRegistry modelRegistry = null;
 
-    /**
-     * Name of the Trigger that launched this pipeline
-     */
-    private String triggerName;
-
     /** If set, the pipeline instance will start at the specified node */
     @OneToOne
-    @JoinColumn(name = "START_NODE")
+    @JoinColumn(name = "startNode")
     private PipelineInstanceNode startNode;
 
     /**
@@ -132,7 +168,7 @@ public class PipelineInstance implements PipelineExecutionTime {
      * this endNode, other branches will proceed to the end.
      */
     @OneToOne
-    @JoinColumn(name = "END_NODE")
+    @JoinColumn(name = "endNode")
     private PipelineInstanceNode endNode;
 
     /**
@@ -153,11 +189,11 @@ public class PipelineInstance implements PipelineExecutionTime {
         this.state = state;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -169,11 +205,11 @@ public class PipelineInstance implements PipelineExecutionTime {
         pipelineDefinition = pipeline;
     }
 
-    public int getPriority() {
+    public Priority getPriority() {
         return priority;
     }
 
-    public void setPriority(int priority) {
+    public void setPriority(Priority priority) {
         this.priority = priority;
     }
 
@@ -202,20 +238,6 @@ public class PipelineInstance implements PipelineExecutionTime {
         this.startProcessingTime = startProcessingTime;
     }
 
-    /**
-     * @return the triggerName
-     */
-    public String getTriggerName() {
-        return triggerName;
-    }
-
-    /**
-     * @param triggerName the triggerName to set
-     */
-    public void setTriggerName(String triggerName) {
-        this.triggerName = triggerName;
-    }
-
     @Override
     public int hashCode() {
         return Objects.hash(id);
@@ -226,22 +248,19 @@ public class PipelineInstance implements PipelineExecutionTime {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final PipelineInstance other = (PipelineInstance) obj;
-        if (id != other.id) {
-            return false;
-        }
-        return true;
+        PipelineInstance other = (PipelineInstance) obj;
+        return Objects.equals(id, other.id);
     }
 
-    public Map<ClassWrapper<Parameters>, ParameterSet> getPipelineParameterSets() {
+    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getPipelineParameterSets() {
         return pipelineParameterSets;
     }
 
     public void setPipelineParameterSets(
-        Map<ClassWrapper<Parameters>, ParameterSet> pipelineParameterSets) {
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> pipelineParameterSets) {
         this.pipelineParameterSets = pipelineParameterSets;
         populateXmlFields();
     }
@@ -294,7 +313,7 @@ public class PipelineInstance implements PipelineExecutionTime {
         pipelineParameterSets.clear();
     }
 
-    public ParameterSet putParameterSet(ClassWrapper<Parameters> key, ParameterSet value) {
+    public ParameterSet putParameterSet(ClassWrapper<ParametersInterface> key, ParameterSet value) {
         value.populateXmlFields();
         return pipelineParameterSets.put(key, value);
     }

@@ -88,7 +88,6 @@ public class ZiggyArrayUtilsTest {
         assertTrue(Arrays.equals(dArray1, (double[]) dArray2));
         Object DArray2 = ZiggyArrayUtils.box(dArray1);
         assertTrue(Arrays.deepEquals(DArray1, (Double[]) DArray2));
-
     }
 
     @Test
@@ -213,7 +212,6 @@ public class ZiggyArrayUtilsTest {
         assertEquals(2, returnObject.length);
         assertNull(returnObject[0]);
         assertNull(returnObject[1]);
-
     }
 
     @Test
@@ -272,7 +270,6 @@ public class ZiggyArrayUtilsTest {
         assertEquals(2, returnObject.length);
         assertNull(returnObject[0]);
         assertNull(returnObject[1]);
-
     }
 
     @Test

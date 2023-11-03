@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.util.dispmod;
 
 import gov.nasa.ziggy.util.TasksStates;
+import gov.nasa.ziggy.util.TasksStates.Summary;
 
 /**
  * {@link DisplayModel} for the pipeline task summary. This class is used to format the pipeline
@@ -9,7 +10,10 @@ import gov.nasa.ziggy.util.TasksStates;
  * @author Todd Klaus
  */
 public class TaskSummaryDisplayModel extends DisplayModel {
-    private static final int NUM_COLUMNS = 6;
+
+    private static final String[] COLUMN_NAMES = { "Module", "Submitted", "Processing", "Completed",
+        "Failed", "Subtasks" };
+
     private TasksStates taskStates = new TasksStates();
 
     public TaskSummaryDisplayModel() {
@@ -79,27 +83,16 @@ public class TaskSummaryDisplayModel extends DisplayModel {
 
     @Override
     public int getColumnCount() {
-        return NUM_COLUMNS;
+        return COLUMN_NAMES.length;
+    }
+
+    public Summary getContentAtRow(int row) {
+        return taskStates.getModuleStates().get(taskStates.getModuleNames().get(row));
     }
 
     @Override
     public String getColumnName(int column) {
-        switch (column) {
-            case 0:
-                return "Module";
-            case 1:
-                return "Submitted";
-            case 2:
-                return "Processing";
-            case 3:
-                return "Completed";
-            case 4:
-                return "Failed";
-            case 5:
-                return "SubTasks";
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + column);
-        }
+        return COLUMN_NAMES[column];
     }
 
     @Override

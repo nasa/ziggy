@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_HALT_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HALT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -46,6 +46,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**
@@ -74,15 +75,15 @@ public class ExternalProcessPipelineModuleTest {
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+        DATASTORE_ROOT_DIR, "/dev/null");
 
     @Rule
-    public ZiggyPropertyRule piProcessingHaltStepPropertyRule = new ZiggyPropertyRule(
-        PIPELINE_HALT_PROP_NAME, (String) null);
+    public ZiggyPropertyRule piProcessingHaltStepPropertyRule = new ZiggyPropertyRule(PIPELINE_HALT,
+        (String) null);
 
     @Rule
     public ZiggyPropertyRule piWorkerAllowPartialTasksPropertyRule = new ZiggyPropertyRule(
-        "pi.worker.allowPartialTasks", (String) null);
+        PropertyName.ALLOW_PARTIAL_TASKS, (String) null);
 
     @Before
     public void setup() {
@@ -97,10 +98,8 @@ public class ExternalProcessPipelineModuleTest {
         when(p.getParameters(RemoteParameters.class, false)).thenReturn(r);
         when(p.getPipelineInstanceNode()).thenReturn(pin);
         when(pin.getPipelineModuleDefinition()).thenReturn(pmd);
-        when(pmd.getInputsClass())
-            .thenReturn(new ClassWrapper<PipelineInputs>(PipelineInputsSample.class));
-        when(pmd.getOutputsClass())
-            .thenReturn(new ClassWrapper<PipelineOutputs>(PipelineOutputsSample1.class));
+        when(pmd.getInputsClass()).thenReturn(new ClassWrapper<>(PipelineInputsSample.class));
+        when(pmd.getOutputsClass()).thenReturn(new ClassWrapper<>(PipelineOutputsSample1.class));
         when(i.getId()).thenReturn(50L);
         a = mock(ProcessingSummaryOperations.class);
         c = mock(PipelineTaskCrud.class);
@@ -144,7 +143,6 @@ public class ExternalProcessPipelineModuleTest {
         assertEquals(ProcessingState.STORING, s);
         s = t.nextProcessingState(s);
         assertEquals(ProcessingState.COMPLETE, s);
-
     }
 
     /**
@@ -155,7 +153,6 @@ public class ExternalProcessPipelineModuleTest {
     public void testExceptionFinalState() {
 
         t.nextProcessingState(ProcessingState.COMPLETE);
-
     }
 
     /**
@@ -169,7 +166,6 @@ public class ExternalProcessPipelineModuleTest {
         assertNotNull(t.algorithmManager());
         assertTrue(t.pipelineInputs() instanceof PipelineInputsSample);
         assertTrue(t.pipelineOutputs() instanceof PipelineOutputsSample1);
-
     }
 
     /**
@@ -201,7 +197,6 @@ public class ExternalProcessPipelineModuleTest {
         verify(ih).validate();
         verify(ih).persist(eq(taskDir));
         verify(t).incrementProcessingState();
-
     }
 
     /**
@@ -224,7 +219,6 @@ public class ExternalProcessPipelineModuleTest {
         verify(ih).validate();
         verify(ih).persist(eq(taskDir));
         verify(t).incrementProcessingState();
-
     }
 
     /**
@@ -246,7 +240,6 @@ public class ExternalProcessPipelineModuleTest {
         verify(ih).validate();
         verify(ih, never()).persist(eq(taskDir));
         verify(t, never()).incrementProcessingState();
-
     }
 
     /**
@@ -273,7 +266,6 @@ public class ExternalProcessPipelineModuleTest {
         t = spy(t);
         doThrow(IllegalStateException.class).when(ds).commitTransaction();
         t.processMarshaling();
-
     }
 
     /**
@@ -393,7 +385,7 @@ public class ExternalProcessPipelineModuleTest {
     @Test(expected = PipelineException.class)
     public void testPartialFailureThrowException() {
 
-        System.setProperty("pi.worker.allowPartialTasks", "false");
+        System.setProperty(PropertyName.ALLOW_PARTIAL_TASKS.property(), "false");
         t = spy(t);
         ProcessingFailureSummary f = mock(ProcessingFailureSummary.class);
         when(f.isAllTasksSucceeded()).thenReturn(false);
@@ -658,12 +650,16 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltInitialize() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT_PROP_NAME, "I");
+        System.setProperty(PIPELINE_HALT.property(), "I");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
         when(t.algorithmManager()).thenReturn(tal);
-        assertThrows(PipelineException.class, () -> t.processingMainLoop());
+        PipelineException exception = assertThrows(PipelineException.class,
+            () -> t.processingMainLoop());
+        assertEquals(
+            "Halting processing at end of step INITIALIZING due to configuration request for halt after step I",
+            exception.getMessage());
         verify(t).initializingTaskAction();
         verify(t, never()).marshalingTaskAction();
         verify(t, never()).submittingTaskAction();
@@ -681,12 +677,16 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltMarshaling() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT_PROP_NAME, "M");
+        System.setProperty(PIPELINE_HALT.property(), "M");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
         when(t.algorithmManager()).thenReturn(tal);
-        assertThrows(PipelineException.class, () -> t.processingMainLoop());
+        PipelineException exception = assertThrows(PipelineException.class,
+            () -> t.processingMainLoop());
+        assertEquals(
+            "Halting processing at end of step MARSHALING due to configuration request for halt after step M",
+            exception.getMessage());
         verify(t).initializingTaskAction();
         verify(t).marshalingTaskAction();
         verify(t, never()).submittingTaskAction();
@@ -704,13 +704,17 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltAlgorithmComplete() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT_PROP_NAME, "Ac");
+        System.setProperty(PIPELINE_HALT.property(), "Ac");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
         t.tdb.setPState(ProcessingState.ALGORITHM_COMPLETE);
         when(t.algorithmManager()).thenReturn(tal);
-        assertThrows(PipelineException.class, () -> t.processingMainLoop());
+        PipelineException exception = assertThrows(PipelineException.class,
+            () -> t.processingMainLoop());
+        assertEquals(
+            "Halting processing at end of step ALGORITHM_COMPLETE due to configuration request for halt after step Ac",
+            exception.getMessage());
         verify(t, never()).initializingTaskAction();
         verify(t, never()).marshalingTaskAction();
         verify(t, never()).submittingTaskAction();
@@ -728,13 +732,15 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltStoring() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT_PROP_NAME, "S");
+        System.setProperty(PIPELINE_HALT.property(), "S");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
         t.tdb.setPState(ProcessingState.ALGORITHM_COMPLETE);
         when(t.algorithmManager()).thenReturn(tal);
-        assertThrows(PipelineException.class, () -> t.processingMainLoop());
+        PipelineException exception = assertThrows(PipelineException.class,
+            () -> t.processingMainLoop());
+        assertEquals("Unable to persist due to sub-task failures", exception.getMessage());
         verify(t, never()).initializingTaskAction();
         verify(t, never()).marshalingTaskAction();
         verify(t, never()).submittingTaskAction();
@@ -752,14 +758,18 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltAlgorithmSubmitting() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT_PROP_NAME, "As");
+        System.setProperty(PIPELINE_HALT.property(), "As");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
         when(t.algorithmManager()).thenReturn(tal);
         mockForLoopTest(t, tal, true, true);
         t.setInitialProcessingState(ProcessingState.ALGORITHM_SUBMITTING);
-        assertThrows(PipelineException.class, () -> t.processingMainLoop());
+        PipelineException exception = assertThrows(PipelineException.class,
+            () -> t.processingMainLoop());
+        assertEquals(
+            "Halting processing at end of step ALGORITHM_SUBMITTING due to configuration request for halt after step As",
+            exception.getMessage());
         verify(t, never()).initializingTaskAction();
         verify(t, never()).marshalingTaskAction();
         verify(t).submittingTaskAction();
@@ -777,14 +787,18 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltAlgorithmQueued() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT_PROP_NAME, "Aq");
+        System.setProperty(PIPELINE_HALT.property(), "Aq");
         // Set up mockery and states as though to run the main loop for local processing
         t = new TestPipelineModule(p, RunMode.STANDARD);
         t = spy(t);
         when(t.algorithmManager()).thenReturn(tal);
         mockForLoopTest(t, tal, true, true);
         t.setInitialProcessingState(ProcessingState.ALGORITHM_QUEUED);
-        assertThrows(PipelineException.class, () -> t.processingMainLoop());
+        PipelineException exception = assertThrows(PipelineException.class,
+            () -> t.processingMainLoop());
+        assertEquals(
+            "Halting processing at end of step ALGORITHM_QUEUED due to configuration request for halt after step Aq",
+            exception.getMessage());
         verify(t, never()).initializingTaskAction();
         verify(t, never()).marshalingTaskAction();
         verify(t, never()).submittingTaskAction();
@@ -816,7 +830,6 @@ public class ExternalProcessPipelineModuleTest {
 
         // mock the algorithm lifecycle manager's isRemote() call
         when(tal.isRemote()).thenReturn(remote);
-
     }
 
     /**
@@ -882,7 +895,6 @@ public class ExternalProcessPipelineModuleTest {
             eq(ProcessingState.ALGORITHM_SUBMITTING));
         verify(t, never()).processingMainLoop();
         verify(ae).resumeMonitoring();
-
     }
 
     @Test
@@ -902,7 +914,6 @@ public class ExternalProcessPipelineModuleTest {
         assertTrue(b);
         verify(t).processingMainLoop();
         verify(t).resubmit();
-
     }
 
     /**
@@ -1017,7 +1028,6 @@ public class ExternalProcessPipelineModuleTest {
         DatastoreProducerConsumerCrud datastoreProducerConsumerCrud() {
             return dpcc;
         }
-
     }
 
     /**
@@ -1034,12 +1044,10 @@ public class ExternalProcessPipelineModuleTest {
 
         @Override
         public void executeAlgorithm(TaskConfigurationManager inputs) {
-
         }
 
         @Override
         public void doPostProcessing() {
-
         }
 
         @Override
@@ -1051,7 +1059,6 @@ public class ExternalProcessPipelineModuleTest {
         public AlgorithmExecutor getExecutor() {
             return ae;
         }
-
     }
 
     /**
@@ -1074,6 +1081,5 @@ public class ExternalProcessPipelineModuleTest {
         public void setPState(ProcessingState pState) {
             this.pState = pState;
         }
-
     }
 }

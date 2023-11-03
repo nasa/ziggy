@@ -15,8 +15,6 @@ import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
@@ -53,9 +51,9 @@ public class DataAccountabilityReportTest {
 
         DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
             taskRenderer);
-        reflectionEquals.assertEquals(new HashMap<Long, Set<Long>>(), report.calculateClosure());
+        reflectionEquals.assertEquals(new HashMap<>(), report.calculateClosure());
         reflectionEquals.assertEquals(init,
-            report.findRoots(new HashSet<Long>(), new HashMap<>(), new HashMap<>()));
+            report.findRoots(new HashSet<>(), new HashMap<>(), new HashMap<>()));
 
         String expectedReport = "Data Receipt\nStub taskId = 1\n";
         assertEquals(expectedReport, report.produceReport());
@@ -126,9 +124,15 @@ public class DataAccountabilityReportTest {
 
         DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
             taskRenderer);
-        String expectedReport = "Stub taskId = 6\n    Stub taskId = 4\n"
-            + "        Data Receipt\n        Stub taskId = 1\n"
-            + "    Stub taskId = 5\n        Stub taskId = 2\n        Stub taskId = 3\n";
+        String expectedReport = """
+            Stub taskId = 6
+                Stub taskId = 4
+                    Data Receipt
+                    Stub taskId = 1
+                Stub taskId = 5
+                    Stub taskId = 2
+                    Stub taskId = 3
+            """;
 
         assertEquals(expectedReport, report.produceReport());
     }
@@ -154,10 +158,20 @@ public class DataAccountabilityReportTest {
         DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
             taskRenderer);
 
-        String expectedReport = "Data Receipt\n    Stub taskId = 4\n        Stub taskId = 6\n"
-            + "Stub taskId = 1\n    Stub taskId = 4\n        Stub taskId = 6\n"
-            + "Stub taskId = 2\n    Stub taskId = 5\n        Stub taskId = 6\n"
-            + "Stub taskId = 3\n    Stub taskId = 5\n        Stub taskId = 6\n";
+        String expectedReport = """
+            Data Receipt
+                Stub taskId = 4
+                    Stub taskId = 6
+            Stub taskId = 1
+                Stub taskId = 4
+                    Stub taskId = 6
+            Stub taskId = 2
+                Stub taskId = 5
+                    Stub taskId = 6
+            Stub taskId = 3
+                Stub taskId = 5
+                    Stub taskId = 6
+            """;
 
         assertEquals(expectedReport, report.produceReport());
     }
@@ -248,17 +262,9 @@ public class DataAccountabilityReportTest {
             UnitOfWork uowt = new UnitOfWork();
             uowt.addParameter(new TypedParameter(UnitOfWork.BRIEF_STATE_PARAMETER_NAME,
                 "Stub taskId = " + pipelineTaskId, ZiggyDataType.ZIGGY_STRING));
-
-            BeanWrapper<UnitOfWork> bwUow;
-            try {
-                bwUow = new BeanWrapper<>(uowt);
-            } catch (PipelineException e) {
-                throw new IllegalStateException("Can't instantiate UowTask.", e);
-            }
-            task.setUowTask(bwUow);
+            task.setUowTaskParameters(uowt.getParameters());
 
             return task;
         }
     }
-
 }

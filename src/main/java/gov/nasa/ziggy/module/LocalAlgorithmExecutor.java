@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 
 import org.apache.commons.exec.CommandLine;
@@ -14,7 +15,11 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 
 /**
@@ -50,34 +55,34 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
 
     @Override
     protected void addToMonitor(StateFile stateFile) {
-        AlgorithmMonitor.startLocalMonitoring(stateFile);
+        ZiggyMessenger.publish(new MonitorAlgorithmRequest(stateFile, algorithmType()));
     }
 
     @Override
-    protected void submitForExecution(StateFile stateFile) throws Exception {
+    protected void submitForExecution(StateFile stateFile) {
 
         stateFile.setPbsSubmitTimeMillis(System.currentTimeMillis());
         stateFile.persist();
+        addToMonitor(stateFile);
 
-        JobSubmissionPaths jobSubmissionPaths = new JobSubmissionPaths();
-
-        CommandLine cmdLine = algorithmCommandLine(jobSubmissionPaths);
+        CommandLine cmdLine = algorithmCommandLine();
 
         // Increment the task log index.
         DatabaseTransactionFactory.performTransaction(() -> {
             PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
             PipelineTask task = pipelineTaskCrud.retrieve(pipelineTask.getId());
             task.incrementTaskLogIndex();
-            pipelineTaskCrud.update(task);
+            task.setRemoteExecution(false);
+            pipelineTaskCrud.merge(task);
             return null;
         });
 
         // Start the external process -- note that it will cause execution to block until
         // the algorithm has completed or failed.
-        // NB: it may seem strange to use an external process to execute "runjava" and
-        // then to use runjava to run the ComputeNodeMaster, given that the ComputeNodeMaster
-        // can simply be run from this method directly! This is done to preserve as much as
-        // possible the symmetry between local and remote execution.
+        // NB: it may seem strange to use an external process to execute the "ziggy" program and
+        // then to use the ziggy program to run the ComputeNodeMaster, given that the
+        // ComputeNodeMaster can simply be run from this method directly! This is done to preserve
+        // as much as possible the symmetry between local and remote execution.
         ExternalProcess externalProcess = ExternalProcess.allLoggingExternalProcess(cmdLine);
         int exitCode = externalProcess.execute();
 
@@ -94,28 +99,31 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
     }
 
     /**
-     * Generates the "runjava compute-note-master" command line, plus the arguments to same that are
+     * Generates the "ziggy compute-note-master" command line, plus the arguments to same that are
      * constant across local and all remote execution modes (specifically: the task directory, the
      * pipeline home directory, the state file, and the pipeline configuration file).
      */
-    protected CommandLine algorithmCommandLine(JobSubmissionPaths jobSubmissionPaths)
-        throws IOException {
-        CommandLine cmdLine = new CommandLine(
-            new File(jobSubmissionPaths.getBinPath(), EXECUTABLE_NAME).getCanonicalPath());
-        cmdLine.addArgument(NODE_MASTER_NAME);
-        cmdLine.addArgument(jobSubmissionPaths.getWorkingDirPath());
-        cmdLine.addArgument(jobSubmissionPaths.getHomeDirPath());
-        cmdLine.addArgument(jobSubmissionPaths.getStateFilePath());
-        cmdLine.addArgument(jobSubmissionPaths.getPipelineConfigPath());
-        cmdLine.addArgument(DirectoryProperties.algorithmLogsDir()
-            .resolve(pipelineTask.logFilename(JOB_INDEX_FOR_LOCAL_EXECUTION))
-            .toString());
-        return cmdLine;
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    protected CommandLine algorithmCommandLine() {
+        CommandLine cmdLine;
+        try {
+            cmdLine = new CommandLine(
+                new File(DirectoryProperties.ziggyBinDir().toFile(), ZIGGY_PROGRAM)
+                    .getCanonicalPath());
+            cmdLine.addArgument(NODE_MASTER_NAME);
+            cmdLine.addArgument(workingDir().toString());
+            cmdLine.addArgument(DirectoryProperties.algorithmLogsDir()
+                .resolve(pipelineTask.logFilename(JOB_INDEX_FOR_LOCAL_EXECUTION))
+                .toString());
+            return cmdLine;
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Error getting path to file " + DirectoryProperties.ziggyBinDir().toString(), e);
+        }
     }
 
     @Override
     public AlgorithmType algorithmType() {
         return AlgorithmType.LOCAL;
     }
-
 }

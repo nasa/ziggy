@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.models;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -18,9 +18,11 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.RuleChain;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.IntegrationTestCategory;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -30,6 +32,7 @@ import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
+@Category(IntegrationTestCategory.class)
 public class ModelImporterTest {
 
     private ModelType modelType1;
@@ -43,8 +46,8 @@ public class ModelImporterTest {
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
-    public ZiggyPropertyRule ziggyDatastorePropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+    public ZiggyPropertyRule ziggyDatastorePropertyRule = new ZiggyPropertyRule(DATASTORE_ROOT_DIR,
+        directoryRule, "datastore");
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -93,12 +96,12 @@ public class ModelImporterTest {
         // Create the database objects
         DatabaseTransactionFactory.performTransaction(() -> {
             ModelCrud modelCrud = new ModelCrud();
-            modelCrud.create(modelType1);
-            modelCrud.create(modelType2);
-            modelCrud.create(modelType3);
-            modelCrud.create(modelMetadata1);
-            modelCrud.create(modelMetadata2);
-            modelCrud.create(modelMetadata3);
+            modelCrud.persist(modelType1);
+            modelCrud.persist(modelType2);
+            modelCrud.persist(modelType3);
+            modelCrud.persist(modelMetadata1);
+            modelCrud.persist(modelMetadata2);
+            modelCrud.persist(modelMetadata3);
             ModelRegistry modelRegistry = modelCrud.retrieveUnlockedRegistry();
             modelRegistry.updateModelMetadata(modelMetadata1);
             modelRegistry.updateModelMetadata(modelMetadata2);
@@ -133,7 +136,7 @@ public class ModelImporterTest {
 
         // Check the registry's properties
         assertFalse(modelRegistry.isLocked());
-        assertEquals(1L, modelRegistry.getId());
+        assertEquals(Long.valueOf(1L), modelRegistry.getId());
         Map<ModelType, ModelMetadata> models = modelRegistry.getModels();
         assertEquals(3, models.size());
 
@@ -198,7 +201,6 @@ public class ModelImporterTest {
         File[] ravenswoodModels = ravenswoodModelsDirectory.listFiles();
         assertEquals(1, ravenswoodModels.length);
         assertEquals(modelFilename, ravenswoodModels[0].getName());
-
     }
 
     @Test
@@ -228,7 +230,7 @@ public class ModelImporterTest {
 
         // Check the registry's properties
         assertFalse(modelRegistry.isLocked());
-        assertEquals(2L, modelRegistry.getId());
+        assertEquals(Long.valueOf(2L), modelRegistry.getId());
         Map<ModelType, ModelMetadata> models = modelRegistry.getModels();
         assertEquals(3, models.size());
 
@@ -293,7 +295,6 @@ public class ModelImporterTest {
         File[] ravenswoodModels = ravenswoodModelsDirectory.listFiles();
         assertEquals(1, ravenswoodModels.length);
         assertEquals(modelFilename, ravenswoodModels[0].getName());
-
     }
 
     @Test
@@ -326,7 +327,7 @@ public class ModelImporterTest {
 
         // Check the registry's properties
         assertFalse(modelRegistry.isLocked());
-        assertEquals(1L, modelRegistry.getId());
+        assertEquals(Long.valueOf(1L), modelRegistry.getId());
         Map<ModelType, ModelMetadata> models = modelRegistry.getModels();
         assertEquals(3, models.size());
 
@@ -391,7 +392,6 @@ public class ModelImporterTest {
         File[] ravenswoodModels = ravenswoodModelsDirectory.listFiles();
         assertEquals(1, ravenswoodModels.length);
         assertEquals(modelFilename, ravenswoodModels[0].getName());
-
     }
 
     private List<String> filenamesInDirectory() throws IOException {
@@ -404,5 +404,4 @@ public class ModelImporterTest {
         }
         return filenamesInDirectory;
     }
-
 }

@@ -1,20 +1,21 @@
 package gov.nasa.ziggy.services.alert;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
-import org.hibernate.SQLQuery;
-import org.hibernate.criterion.Disjunction;
-import org.hibernate.criterion.Order;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
 
 import gov.nasa.ziggy.collections.ListChunkIterator;
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**
@@ -23,7 +24,7 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  * @author Bill Wohler
  * @author Todd Klaus
  */
-public class AlertLogCrud extends AbstractCrud {
+public class AlertLogCrud extends AbstractCrud<AlertLog> {
     /**
      * Creates an {@link AlertLogCrud} object.
      */
@@ -47,10 +48,12 @@ public class AlertLogCrud extends AbstractCrud {
      * @throws HibernateException if there were problems accessing the database
      */
     public List<String> retrieveComponents() {
-        Criteria query = createCriteria(AlertLog.class);
-        query.setProjection(Projections
-            .distinct(Projections.groupProperty("alertData.sourceComponent").as("component")));
-        query.addOrder(Order.asc("component"));
+        ZiggyQuery<AlertLog, String> query = createZiggyQuery(AlertLog.class, String.class);
+        query.select(query.get(AlertLog_.alertData).get(Alert_.sourceComponent));
+        query.getCriteriaQuery()
+            .orderBy(
+                query.getBuilder().asc(query.get(AlertLog_.alertData).get(Alert_.sourceComponent)));
+        query.distinct(true);
         return list(query);
     }
 
@@ -62,10 +65,12 @@ public class AlertLogCrud extends AbstractCrud {
      * @throws HibernateException if there were problems accessing the database
      */
     public List<String> retrieveSeverities() {
-        Criteria query = createCriteria(AlertLog.class);
-        query.setProjection(
-            Projections.distinct(Projections.groupProperty("alertData.severity").as("severity")));
-        query.addOrder(Order.asc("severity"));
+        ZiggyQuery<AlertLog, String> query = createZiggyQuery(AlertLog.class, String.class);
+        query.select(query.get(AlertLog_.alertData).get(Alert_.severity));
+        query.getCriteriaQuery()
+            .orderBy(
+                query.getBuilder().asc(query.getRoot().get("alertData").<String> get("severity")));
+        query.distinct(true);
         return list(query);
     }
 
@@ -96,42 +101,28 @@ public class AlertLogCrud extends AbstractCrud {
      */
     public List<AlertLog> retrieve(Date startDate, Date endDate, String[] components,
         String[] severities) {
-        if (startDate == null) {
-            throw new NullPointerException("startDate can't be null");
-        }
-        if (endDate == null) {
-            throw new NullPointerException("endDate can't be null");
-        }
-        if (components == null) {
-            throw new NullPointerException("components can't be null");
-        }
-        if (severities == null) {
-            throw new NullPointerException("severities can't be null");
-        }
+        checkNotNull(components, "components");
+        checkNotNull(severities, "severities");
+        checkNotNull(startDate, "startDate");
+        checkNotNull(endDate, "endDate");
 
-        Criteria query = createCriteria(AlertLog.class);
-        query.add(Restrictions.ge("alertData.timestamp", startDate));
-        query.add(Restrictions.le("alertData.timestamp", endDate));
-
+        ZiggyQuery<AlertLog, AlertLog> query = createZiggyQuery(AlertLog.class);
+        query.where(query.getBuilder()
+            .between(query.get(AlertLog_.alertData).get(Alert_.timestamp), startDate, endDate));
         if (components.length > 0) {
-            Disjunction componentCriteria = Restrictions.disjunction();
-            for (String component : components) {
-                componentCriteria.add(Restrictions.eq("alertData.sourceComponent", component));
-            }
-            query.add(componentCriteria);
+            query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.sourceComponent),
+                Arrays.asList(components)));
         }
-
         if (severities.length > 0) {
-            Disjunction severityCriteria = Restrictions.disjunction();
-            for (String severity : severities) {
-                severityCriteria.add(Restrictions.eq("alertData.severity", severity));
-            }
-            query.add(severityCriteria);
+            query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.severity),
+                Arrays.asList(severities)));
         }
 
-        query.addOrder(Order.asc("alertData.sourceComponent"));
-        query.addOrder(Order.asc("alertData.severity"));
-        query.addOrder(Order.asc("alertData.timestamp"));
+        query.getCriteriaQuery()
+            .orderBy(
+                query.getBuilder().asc(query.get(AlertLog_.alertData).get(Alert_.sourceComponent)),
+                query.getBuilder().asc(query.get(AlertLog_.alertData).get(Alert_.severity)),
+                query.getBuilder().asc(query.get(AlertLog_.alertData).get(Alert_.timestamp)));
 
         return list(query);
     }
@@ -143,11 +134,15 @@ public class AlertLogCrud extends AbstractCrud {
      * @return
      */
     public List<AlertLog> retrieveForPipelineInstance(long pipelineInstanceId) {
-        SQLQuery query = createSQLQuery("select * from PI_ALERT a, PI_PIPELINE_TASK t "
-            + "where t.PI_PIPELINE_INSTANCE_ID = :pipelineInstanceId and t.ID = a.SOURCE_TASK_ID "
-            + "order by a.SOURCE_TASK_ID");
-        query.addEntity(AlertLog.class);
-        query.setLong("pipelineInstanceId", pipelineInstanceId);
+
+        // I don't know how to do this as one query, so I'm doing it as two.
+        List<PipelineTask> tasksInInstance = new PipelineTaskCrud()
+            .retrieveTasksForInstance(pipelineInstanceId);
+        List<Long> taskIds = tasksInInstance.stream()
+            .map(PipelineTask::getId)
+            .collect(Collectors.toList());
+        ZiggyQuery<AlertLog, AlertLog> query = createZiggyQuery(AlertLog.class);
+        query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.sourceTaskId), taskIds));
 
         return list(query);
     }
@@ -165,9 +160,14 @@ public class AlertLogCrud extends AbstractCrud {
     }
 
     private List<AlertLog> retrieveChunk(List<Long> taskIds) {
-        Criteria query = createCriteria(AlertLog.class);
-        query.add(Restrictions.in("alertData.sourceTaskId", taskIds));
+        ZiggyQuery<AlertLog, AlertLog> query = createZiggyQuery(AlertLog.class);
+        query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.sourceTaskId), taskIds));
 
         return list(query);
+    }
+
+    @Override
+    public Class<AlertLog> componentClass() {
+        return AlertLog.class;
     }
 }

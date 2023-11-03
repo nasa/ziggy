@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.uow;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -19,7 +19,7 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 
 /**
  * Unit test class for DefaultUnitOfWork.
@@ -29,13 +29,13 @@ import gov.nasa.ziggy.parameters.Parameters;
 public class DatastoreDirectoryUnitOfWorkTest {
 
     private Path datastoreRoot;
-    private Map<Class<? extends Parameters>, Parameters> parametersMap;
+    private Map<Class<? extends ParametersInterface>, ParametersInterface> parametersMap;
     private TaskConfigurationParameters taskConfigurationParameters;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule);
+        DATASTORE_ROOT_DIR, directoryRule);
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -116,7 +116,6 @@ public class DatastoreDirectoryUnitOfWorkTest {
         assertEquals("sector-0001,1:2", uowMap.get("sector-0001/cal/ccd-1:2"));
         assertTrue(uowKeys.contains("sector-0002/cal/ccd-1:2"));
         assertEquals("sector-0002,1:2", uowMap.get("sector-0002/cal/ccd-1:2"));
-
     }
 
     /**
@@ -131,7 +130,6 @@ public class DatastoreDirectoryUnitOfWorkTest {
         for (UnitOfWork uow : uowList) {
             assertTrue(DatastoreDirectoryUnitOfWorkGenerator.singleSubtask(uow));
         }
-
     }
 
     /**
@@ -162,7 +160,5 @@ public class DatastoreDirectoryUnitOfWorkTest {
         assertEquals("sector-0001/cal/ccd-1:2", uowMap.get("sector-0001/cal/ccd-1:2"));
         assertTrue(uowKeys.contains("sector-0002/cal/ccd-1:2"));
         assertEquals("sector-0002/cal/ccd-1:2", uowMap.get("sector-0002/cal/ccd-1:2"));
-
     }
-
 }

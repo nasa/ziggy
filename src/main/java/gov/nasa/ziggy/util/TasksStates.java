@@ -76,7 +76,6 @@ public class TasksStates {
         for (PipelineTask task : tasks) {
             String moduleName = task.getPipelineInstanceNode()
                 .getPipelineModuleDefinition()
-                .getName()
                 .getName();
 
             Summary s = moduleStates.get(moduleName);

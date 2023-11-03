@@ -25,7 +25,7 @@ public class MetrilyzerPanel extends javax.swing.JPanel {
         availMetricsModel = new DatabaseMetricsTypeListModel();
         selectedMetricsModel = new DatabaseMetricsTypeListModel();
         metricValueSource = new DatabaseMetricsValueSource();
-        initGUI();
+        buildComponent();
     }
 
     /**
@@ -37,18 +37,13 @@ public class MetrilyzerPanel extends javax.swing.JPanel {
         availMetricsModel = new FileSourceMetricsTypeListModel(metricsFileParser);
         selectedMetricsModel = new FileSourceMetricsTypeListModel(metricsFileParser);
         metricValueSource = new FileMetricsValueSource(metricsFileParser);
-        initGUI();
+        buildComponent();
     }
 
-    private void initGUI() {
-        try {
-            BorderLayout thisLayout = new BorderLayout();
-            setLayout(thisLayout);
-            this.add(getChartPanel(), BorderLayout.CENTER);
-            this.add(getSelectorPanel(), BorderLayout.NORTH);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void buildComponent() {
+        setLayout(new BorderLayout());
+        this.add(getChartPanel(), BorderLayout.CENTER);
+        this.add(getSelectorPanel(), BorderLayout.NORTH);
     }
 
     private MetricsSelectorPanel getSelectorPanel() {

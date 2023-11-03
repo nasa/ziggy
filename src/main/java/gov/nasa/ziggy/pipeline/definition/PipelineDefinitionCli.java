@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -49,6 +49,8 @@ import org.apache.commons.cli.ParseException;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransaction;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 public class PipelineDefinitionCli {
     public static final String IMPORT_OPT = "import";
@@ -65,7 +67,7 @@ public class PipelineDefinitionCli {
         Arrays.sort(filenames);
     }
 
-    public void go() throws Exception {
+    public void go() {
         PipelineDefinitionOperations pipelineConfigOps = new PipelineDefinitionOperations();
 
         if (importLib) {
@@ -89,7 +91,8 @@ public class PipelineDefinitionCli {
         System.exit(-1);
     }
 
-    public static void main(String[] args) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.USAGE)
+    public static void main(String[] args) {
         Options options = new Options();
         options.addOption(IMPORT_OPT, false, "import pipeline config from xml file");
         options.addOption(EXPORT_OPT, false, "export pipeline config to xml file");
@@ -131,11 +134,10 @@ public class PipelineDefinitionCli {
             }
 
             @Override
-            public Void transaction() throws Exception {
+            public Void transaction() {
                 cli.go();
                 return null;
             }
         });
-
     }
 }

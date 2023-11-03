@@ -3,6 +3,7 @@ package gov.nasa.ziggy.util.io;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -26,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableSet;
 
 import gov.nasa.ziggy.data.management.DataFileManager;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Some handy methods for dealing with files or groups of files.
@@ -53,9 +56,8 @@ public class FileUtil {
      * {@link #FILE_READONLY_PERMISSIONS}.
      *
      * @param top root of directory tree.
-     * @throws IOException
      */
-    public static void writeProtectDirectoryTree(Path top) throws IOException {
+    public static void writeProtectDirectoryTree(Path top) {
         setPosixPermissionsRecursively(top, FILE_READONLY_PERMISSIONS, DIR_READONLY_PERMISSIONS);
     }
 
@@ -65,9 +67,8 @@ public class FileUtil {
      * {@link #FILE_OVERWRITE_PERMISSIONS}.
      *
      * @param top root of directory tree.
-     * @throws IOException
      */
-    public static void prepareDirectoryTreeForOverwrites(Path top) throws IOException {
+    public static void prepareDirectoryTreeForOverwrites(Path top) {
         setPosixPermissionsRecursively(top, FILE_OVERWRITE_PERMISSIONS, DIR_OVERWRITE_PERMISSIONS);
     }
 
@@ -81,32 +82,49 @@ public class FileUtil {
      * @param dirPermissions POSIX-style string of permissions for regular files (i.e.,
      * "rwxr-xr-x").
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static void setPosixPermissionsRecursively(Path top, String filePermissions,
-        String dirPermissions) throws IOException {
-        if (!Files.isDirectory(top)) {
-            Files.setPosixFilePermissions(top, PosixFilePermissions.fromString(filePermissions));
-        } else {
-            Files.setPosixFilePermissions(top, PosixFilePermissions.fromString(dirPermissions));
-            Files.walkFileTree(top, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                    throws IOException {
-                    Files.setPosixFilePermissions(dir,
-                        PosixFilePermissions.fromString(dirPermissions));
-                    return FileVisitResult.CONTINUE;
-                }
+        String dirPermissions) {
+        try {
+            if (!Files.isDirectory(top)) {
+                Files.setPosixFilePermissions(top,
+                    PosixFilePermissions.fromString(filePermissions));
+            } else {
+                Files.setPosixFilePermissions(top, PosixFilePermissions.fromString(dirPermissions));
+                Files.walkFileTree(top, new SimpleFileVisitor<Path>() {
 
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                    throws IOException {
-                    if (Files.isSymbolicLink(file)) {
+                    @Override
+                    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                        try {
+                            Files.setPosixFilePermissions(dir,
+                                PosixFilePermissions.fromString(dirPermissions));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(
+                                "Failed to set permissions on dir " + dir.toString(), e);
+                        }
                         return FileVisitResult.CONTINUE;
                     }
-                    Files.setPosixFilePermissions(file,
-                        PosixFilePermissions.fromString(filePermissions));
-                    return FileVisitResult.CONTINUE;
-                }
-            });
+
+                    @Override
+                    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        if (Files.isSymbolicLink(file)) {
+                            return FileVisitResult.CONTINUE;
+                        }
+                        try {
+                            Files.setPosixFilePermissions(file,
+                                PosixFilePermissions.fromString(filePermissions));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(
+                                "Failed to set permissions on file " + file.toString(), e);
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to set permissions on dir " + top.toString(), e);
         }
     }
 
@@ -126,51 +144,54 @@ public class FileUtil {
      * words: if directory /bar is a link to directory /foo, and directory /foo contains real file
      * baz, the map will contain /bar/baz as the key AND /bar/baz as the value, rather than /foo/baz
      * as the value.
-     *
-     * @throws IOException
      */
-    public static Map<Path, Path> regularFilesInDirTree(Path rootDir) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Map<Path, Path> regularFilesInDirTree(Path rootDir) {
 
         Map<Path, Path> regularFiles = new HashMap<>();
+        try {
+            // Walk the file tree.
+            Files.walkFileTree(rootDir, ImmutableSet.of(FileVisitOption.FOLLOW_LINKS),
+                Integer.MAX_VALUE, new FileVisitor<Path>() {
 
-        // Walk the file tree.
-        Files.walkFileTree(rootDir, ImmutableSet.of(FileVisitOption.FOLLOW_LINKS),
-            Integer.MAX_VALUE, new FileVisitor<Path>() {
-
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                    throws IOException {
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                    throws IOException {
-
-                    // Add the file and its real source to the map.
-                    Path realFile = DataFileManager.realSourceFile(file);
-                    if (Files.isDirectory(realFile) || Files.isHidden(file)) {
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                         return FileVisitResult.CONTINUE;
                     }
-                    regularFiles.put(rootDir.relativize(file), realFile.toAbsolutePath());
-                    return FileVisitResult.CONTINUE;
-                }
 
-                @Override
-                public FileVisitResult visitFileFailed(Path file, IOException exc)
-                    throws IOException {
-                    log.error("Unable to visit file " + file + " for checksum purposes.", exc);
-                    return FileVisitResult.CONTINUE;
-                }
+                    @Override
+                    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
 
-                @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc)
-                    throws IOException {
-                    return FileVisitResult.CONTINUE;
-                }
-            });
+                        // Add the file and its real source to the map.
+                        try {
+                            Path realFile = DataFileManager.realSourceFile(file);
+                            if (Files.isDirectory(realFile) || Files.isHidden(file)) {
+                                return FileVisitResult.CONTINUE;
+                            }
+                            regularFiles.put(rootDir.relativize(file), realFile.toAbsolutePath());
+                            return FileVisitResult.CONTINUE;
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(
+                                "Unable to test whether file " + file.toString() + " is hidden", e);
+                        }
+                    }
 
-        return regularFiles;
+                    @Override
+                    public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                        log.error("Unable to visit file " + file + " for checksum purposes.", exc);
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            return regularFiles;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to walk file tree  " + rootDir.toString(), e);
+        }
     }
 
     /**
@@ -178,12 +199,16 @@ public class FileUtil {
      *
      * @param bldr
      * @param in
-     * @throws IOException
      */
-    public static void readAll(Appendable bldr, InputStream in) throws IOException {
-        for (int byteValue = in.read(); byteValue != -1; byteValue = in.read()) {
-            char c = (char) byteValue;
-            bldr.append(c);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static void readAll(Appendable bldr, InputStream in) {
+        try {
+            for (int byteValue = in.read(); byteValue != -1; byteValue = in.read()) {
+                char c = (char) byteValue;
+                bldr.append(c);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to read input stream", e);
         }
     }
 
@@ -192,23 +217,29 @@ public class FileUtil {
      * operation is not recursive (i.e., if there's a subdirectory in the source directory, it will
      * get symlinked to the destination).
      */
-    public static void symlinkDirectoryContents(Path src, Path dest) throws IOException {
-        if (!Files.exists(src) || !Files.isDirectory(src)) {
-            throw new IllegalArgumentException(
-                "Source \"" + src + "\"does not exist or is not a directory.");
-        }
-        if (Files.exists(dest) && !Files.isDirectory(dest)) {
-            throw new IllegalArgumentException(
-                "Destination \"" + dest + "\"exists but is not a directory.");
-        }
-        if (!Files.exists(dest)) {
-            Files.createDirectories(dest);
-        }
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(src)) {
-            for (Path entry : stream) {
-                String srcName = entry.getFileName().toString();
-                Files.createSymbolicLink(dest.resolve(srcName), entry);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static void symlinkDirectoryContents(Path src, Path dest) {
+        try {
+            if (!Files.exists(src) || !Files.isDirectory(src)) {
+                throw new IllegalArgumentException(
+                    "Source \"" + src + "\"does not exist or is not a directory.");
             }
+            if (Files.exists(dest) && !Files.isDirectory(dest)) {
+                throw new IllegalArgumentException(
+                    "Destination \"" + dest + "\"exists but is not a directory.");
+            }
+            if (!Files.exists(dest)) {
+                Files.createDirectories(dest);
+            }
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(src)) {
+                for (Path entry : stream) {
+                    String srcName = entry.getFileName().toString();
+                    Files.createSymbolicLink(dest.resolve(srcName), entry);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to symlink " + src.toString() + " to " + dest.toString(), e);
         }
     }
 
@@ -268,36 +299,51 @@ public class FileUtil {
      * @param directory top-level directory.
      * @param force indicates that permissions should be changed, if necessary, to delete files and
      * directories.
-     * @throws IOException
      */
-    public static void cleanDirectoryTree(Path directory, boolean force) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static void cleanDirectoryTree(Path directory, boolean force) {
         if (force) {
             prepareDirectoryTreeForOverwrites(directory);
         }
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path file : stream) {
-                if (Files.isDirectory(file)) {
-                    cleanDirectoryTree(file, force);
+                if (Files.isDirectory(file) && !Files.isSymbolicLink(file)) {
+                    cleanDirectoryTree(file);
                 }
                 Files.delete(file);
             }
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to clean directory tree  " + directory.toString(), e);
         }
     }
 
-    public static void cleanDirectoryTree(Path directory) throws IOException {
+    public static void cleanDirectoryTree(Path directory) {
         cleanDirectoryTree(directory, false);
     }
 
-    public static void deleteDirectoryTree(Path directory) throws IOException {
+    public static void deleteDirectoryTree(Path directory) {
         deleteDirectoryTree(directory, false);
     }
 
-    public static void deleteDirectoryTree(Path directory, boolean force) throws IOException {
-        cleanDirectoryTree(directory, force);
-        if (force) {
-            setPosixPermissionsRecursively(directory, "rw-r--r--", "rwxr-xr-x");
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static void deleteDirectoryTree(Path directory, boolean force) {
+        if (!Files.exists(directory)) {
+            return;
         }
-        FileUtils.deleteDirectory(directory.toFile());
+        if (!Files.isDirectory(directory)) {
+            throw new IllegalArgumentException(
+                "File " + directory.toString() + " is not a directory");
+        }
+        cleanDirectoryTree(directory, force);
+        try {
+            if (force) {
+                Files.setPosixFilePermissions(directory,
+                    PosixFilePermissions.fromString(DIR_OVERWRITE_PERMISSIONS));
+            }
+            FileUtils.deleteDirectory(directory.toFile());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to delete directory " + directory.toString(), e);
+        }
     }
-
 }

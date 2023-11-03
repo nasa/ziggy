@@ -76,29 +76,17 @@ public class PersistableSample3 implements Persistable {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         PersistableSample3 other = (PersistableSample3) obj;
-        if (boolVar != other.boolVar) {
+        if (boolVar != other.boolVar || !Objects.equals(boxedBoolVar, other.boxedBoolVar)
+            || !Objects.equals(boxedIntVar, other.boxedIntVar) || enumScalar != other.enumScalar) {
             return false;
         }
-        if (!Objects.equals(boxedBoolVar, other.boxedBoolVar)) {
-            return false;
-        }
-        if (!Objects.equals(boxedIntVar, other.boxedIntVar)) {
-            return false;
-        }
-        if (enumScalar != other.enumScalar) {
-            return false;
-        }
-        if (intVar != other.intVar) {
-            return false;
-        }
-        if (!Objects.equals(stringVar, other.stringVar)) {
+        if ((intVar != other.intVar) || !Objects.equals(stringVar, other.stringVar)) {
             return false;
         }
         return true;
     }
-
 }

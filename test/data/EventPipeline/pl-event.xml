@@ -66,7 +66,7 @@
     <!-- This emulates a parameter set that's used by the algorithms. In this case, we're
          telling the algorithms whether to emulate an exception that occurs in processing, 
          and whether to emulate a processing action that runs successfully but produces
-         no output. This uses Ziggy's DefaultParameters class. Because it's the default
+         no output. This uses Ziggy's class. Because it's the default
          parameter class, the user doesn't need to specify any Java class for the 
          parameter set, and any combination of parameter types and parameter names can
          be used. The tradeoff is that the user has to provide the data type for each

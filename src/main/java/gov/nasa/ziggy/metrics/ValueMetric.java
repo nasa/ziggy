@@ -10,7 +10,7 @@ import java.io.Serializable;
  * @author Todd Klaus
  */
 public class ValueMetric extends Metric implements Serializable {
-    private static final long serialVersionUID = -3921293669950350490L;
+    private static final long serialVersionUID = 20230511L;
 
     public static final String VALUE_TYPE = "V";
 
@@ -170,20 +170,11 @@ public class ValueMetric extends Metric implements Serializable {
         if (this == obj) {
             return true;
         }
-        if (!super.equals(obj) || (getClass() != obj.getClass())) {
+        if (!super.equals(obj) || getClass() != obj.getClass()) {
             return false;
         }
         final ValueMetric other = (ValueMetric) obj;
-        if (count != other.count) {
-            return false;
-        }
-        if (max != other.max) {
-            return false;
-        }
-        if (min != other.min) {
-            return false;
-        }
-        if (sum != other.sum) {
+        if (count != other.count || max != other.max || min != other.min || sum != other.sum) {
             return false;
         }
         return true;

@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.data.management;
 
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.file.Path;
@@ -42,8 +42,8 @@ public class DataFileTypeImporterTest {
     private ModelCrud modelCrud = Mockito.mock(ModelCrud.class);
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
 
     // Basic functionality -- multiple files, multiple definitions, get imported
     @Test
@@ -58,11 +58,10 @@ public class DataFileTypeImporterTest {
 
         assertEquals(6, importerSpy.getDataFileImportedCount());
         Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .create(ArgumentMatchers.<DataFileType> anyList());
+            .persist(ArgumentMatchers.<DataFileType> anyList());
 
         assertEquals(2, importerSpy.getModelFileImportedCount());
-        Mockito.verify(modelCrud, Mockito.times(1)).create(ArgumentMatchers.<ModelType> anyList());
-
+        Mockito.verify(modelCrud, Mockito.times(1)).persist(ArgumentMatchers.<ModelType> anyList());
     }
 
     // Dry run test -- should import but not persist
@@ -78,9 +77,9 @@ public class DataFileTypeImporterTest {
 
         assertEquals(6, importerSpy.getDataFileImportedCount());
         Mockito.verify(dataFileTypeCrud, Mockito.times(0))
-            .create(ArgumentMatchers.<DataFileType> anyList());
+            .persist(ArgumentMatchers.<DataFileType> anyList());
         assertEquals(2, importerSpy.getModelFileImportedCount());
-        Mockito.verify(modelCrud, Mockito.times(0)).create(ArgumentMatchers.<ModelType> anyList());
+        Mockito.verify(modelCrud, Mockito.times(0)).persist(ArgumentMatchers.<ModelType> anyList());
     }
 
     // Test with missing and non-regular files -- should still import from the present,
@@ -97,7 +96,7 @@ public class DataFileTypeImporterTest {
 
         assertEquals(6, importerSpy.getDataFileImportedCount());
         Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .create(ArgumentMatchers.<DataFileType> anyList());
+            .persist(ArgumentMatchers.<DataFileType> anyList());
     }
 
     // Test with a file that has an entry that is valid XML but instantiates to an
@@ -114,7 +113,7 @@ public class DataFileTypeImporterTest {
 
         assertEquals(5, importerSpy.getDataFileImportedCount());
         Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .create(ArgumentMatchers.<DataFileType> anyList());
+            .persist(ArgumentMatchers.<DataFileType> anyList());
     }
 
     // Test with a file that has an entry that is invalid XML
@@ -130,7 +129,7 @@ public class DataFileTypeImporterTest {
 
         assertEquals(5, importerSpy.getDataFileImportedCount());
         Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .create(ArgumentMatchers.<DataFileType> anyList());
+            .persist(ArgumentMatchers.<DataFileType> anyList());
     }
 
     @Test(expected = IllegalStateException.class)

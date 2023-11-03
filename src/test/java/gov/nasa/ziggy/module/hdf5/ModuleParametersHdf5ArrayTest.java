@@ -19,9 +19,9 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
-import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.ModuleParameters;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 
 /**
@@ -77,13 +77,13 @@ public class ModuleParametersHdf5ArrayTest {
         loadArticle.setModuleParameters(new ModuleParameters());
         hdf5ModuleInterface.readFile(testFile, loadArticle, true);
         ModuleParameters m = loadArticle.getModuleParameters();
-        List<Parameters> p = m.getModuleParameters();
+        List<ParametersInterface> p = m.getModuleParameters();
         assertEquals(2, p.size());
-        DefaultParameters d;
+        Parameters d;
         if (p.get(0) instanceof RemoteParameters) {
-            d = (DefaultParameters) p.get(1);
+            d = (Parameters) p.get(1);
         } else {
-            d = (DefaultParameters) p.get(0);
+            d = (Parameters) p.get(0);
         }
         assertEquals(d.getName(), "test default parameters");
         Set<TypedParameter> t = d.getParameters();
@@ -112,15 +112,15 @@ public class ModuleParametersHdf5ArrayTest {
 
     private ModuleParameters populateModuleParameters() {
         ModuleParameters m = new ModuleParameters();
-        List<Parameters> p = m.getModuleParameters();
+        List<ParametersInterface> p = m.getModuleParameters();
         p.add(new RemoteParameters());
-        p.add(defaultParameters());
+        p.add(parameters());
 
         return m;
     }
 
-    private DefaultParameters defaultParameters() {
-        DefaultParameters d = new DefaultParameters();
+    private Parameters parameters() {
+        Parameters d = new Parameters();
         d.setName("test default parameters");
         Set<TypedParameter> typedProperties = new HashSet<>();
         typedProperties.add(new TypedParameter("intValue", "300", ZiggyDataType.ZIGGY_INT));
@@ -162,6 +162,5 @@ public class ModuleParametersHdf5ArrayTest {
         public void setModuleParameters(ModuleParameters moduleParameters) {
             this.moduleParameters = moduleParameters;
         }
-
     }
 }

@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.collections;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static gov.nasa.ziggy.collections.ZiggyDataType.ZIGGY_BOOLEAN;
 import static gov.nasa.ziggy.collections.ZiggyDataType.ZIGGY_DOUBLE;
 import static gov.nasa.ziggy.collections.ZiggyDataType.ZIGGY_ENUM;
@@ -28,6 +29,8 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.common.primitives.Longs;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Utility methods for single- and multi-dimensional arrays, with a few utilities for primitive
@@ -40,7 +43,6 @@ import gov.nasa.ziggy.module.PipelineException;
 public class ZiggyArrayUtils {
 
     private ZiggyArrayUtils() {
-
     }
 
     /**
@@ -101,6 +103,7 @@ public class ZiggyArrayUtils {
         return isBoxedPrimitive(arrayObject.getClass());
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public static boolean isBoxedPrimitive(Class<?> clazz) {
         Class<?> testClass = null;
         String className = truncateClassName(clazz.getName());
@@ -110,7 +113,9 @@ public class ZiggyArrayUtils {
         try {
             testClass = Class.forName(className);
         } catch (ClassNotFoundException e) {
-            throw new PipelineException("Unable to determine class with name: " + className, e);
+            // This can never occur. The name comes from the Class instance passed
+            // as argument to the method.
+            throw new AssertionError(e);
         }
         Class<?> numberClass = Number.class;
         return testClass.equals(numberClass) || testClass.equals(Boolean.class)
@@ -145,7 +150,6 @@ public class ZiggyArrayUtils {
             } else {
                 isArray = false;
             }
-
         }
 
         return Longs.toArray(arrayDimensionList);
@@ -445,8 +449,10 @@ public class ZiggyArrayUtils {
      * @param box if true, return an array of boxed types, otherwise primitives
      * @return Array of the desired type and size.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     static Object constructArray(int dimensionCount, int length, ZiggyDataType ziggyDataType,
         boolean box) {
+        checkArgument(length >= 0, "Negative array length");
         String arrayClass = arrayClassToConstruct(dimensionCount, ziggyDataType, box);
         try {
 
@@ -459,7 +465,9 @@ public class ZiggyArrayUtils {
             // cannot use the class name...
             return Array.newInstance(ziggyDataType.getJavaClass(), length);
         } catch (NegativeArraySizeException | ClassNotFoundException e) {
-            throw new PipelineException("Unable to construct new array for class " + arrayClass, e);
+            // This can never occur. The array size is checked as an argument, and
+            // the class comes from an instance of ZiggyDataType.
+            throw new AssertionError(e);
         }
     }
 
@@ -631,7 +639,6 @@ public class ZiggyArrayUtils {
                 ArrayUtils.subarray(location, 1, location.length));
         } else {
             obj = Array.get(array, location[0]);
-
         }
         return obj;
     }
@@ -741,5 +748,4 @@ public class ZiggyArrayUtils {
         }
         return array;
     }
-
 }

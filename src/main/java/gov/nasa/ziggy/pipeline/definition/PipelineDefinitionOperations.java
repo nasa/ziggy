@@ -1,8 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition;
 
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,11 +14,10 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.data.management.DataFileType;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.parameters.ParametersOperations;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
@@ -30,7 +27,6 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
-import jakarta.xml.bind.JAXBException;
 
 /**
  * Contains methods for importing and exporting pipeline configurations.
@@ -60,14 +56,7 @@ public class PipelineDefinitionOperations {
     private ValidatingXmlManager<PipelineDefinitionFile> xmlManager;
 
     public PipelineDefinitionOperations() {
-        try {
-            xmlManager = new ValidatingXmlManager<>(PipelineDefinitionFile.class);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-            | SecurityException e) {
-            throw new PipelineException(
-                "Unable to construct ValidatingXmlManager for class PipelineDefinitionFile", e);
-        }
+        xmlManager = new ValidatingXmlManager<>(PipelineDefinitionFile.class);
     }
 
     /**
@@ -76,11 +65,9 @@ public class PipelineDefinitionOperations {
      *
      * @param pipelines
      * @param destinationPath
-     * @throws IOException
-     * @throws JAXBException
      */
     public void exportPipelineConfiguration(List<PipelineDefinition> pipelines,
-        String destinationPath) throws IOException, JAXBException {
+        String destinationPath) {
         File destinationFile = new File(destinationPath);
         if (destinationFile.exists() && destinationFile.isDirectory()) {
             throw new IllegalArgumentException(
@@ -104,7 +91,7 @@ public class PipelineDefinitionOperations {
         for (PipelineDefinition pipeline : pipelines) {
             pipelineDefinitionFile.getPipelines().add(pipeline);
             for (PipelineDefinitionNode node : pipeline.getNodes()) {
-                moduleNames.add(node.getModuleName().getName());
+                moduleNames.add(node.getModuleName());
             }
         }
         Collections.sort(moduleNames);
@@ -130,7 +117,7 @@ public class PipelineDefinitionOperations {
      * Imports the pipeline, module, and node definitions from a {@link Collection} of files in the
      * appropriate XML format.
      */
-    public void importPipelineConfiguration(Collection<File> files) throws Exception {
+    public void importPipelineConfiguration(Collection<File> files) {
         for (File sourceFile : files) {
             if (!sourceFile.exists() || sourceFile.isDirectory()) {
                 throw new IllegalArgumentException(
@@ -160,76 +147,20 @@ public class PipelineDefinitionOperations {
 
     private void importModules(List<PipelineModuleDefinition> newModules) {
         PipelineModuleDefinitionCrud moduleCrud = pipelineModuleDefinitionCrud();
-        List<PipelineModuleDefinition> existingModules = moduleCrud.retrieveLatestVersions();
-        Map<String, PipelineModuleDefinition> existingModuleMap = new HashMap<>();
-
-        for (PipelineModuleDefinition existingModule : existingModules) {
-            existingModuleMap.put(existingModule.getName().getName(), existingModule);
-        }
-        Set<String> existingModuleNames = existingModuleMap.keySet();
         for (PipelineModuleDefinition newModule : newModules) {
-            String newModuleName = newModule.getName().getName();
-            if (existingModuleNames.contains(newModuleName)) {
-                PipelineModuleDefinition databaseModule = null;
-                PipelineModuleDefinition existingModule = existingModuleMap.get(newModuleName);
-                if (existingModule.isLocked()) {
-                    log.info("Adding new version of module: " + newModuleName);
-                    databaseModule = existingModule.newVersion();
-                } else {
-                    databaseModule = existingModule;
-                    log.info("Updating unlocked version of module: " + newModuleName);
-                }
-                databaseModule.setAuditInfo(new AuditInfo());
-                databaseModule.setDescription(newModule.getDescription());
-                databaseModule.setExeTimeoutSecs(newModule.getExeTimeoutSecs());
-                databaseModule.setMinMemoryMegaBytes(newModule.getMinMemoryMegaBytes());
-
-                databaseModule.setPipelineModuleClass(newModule.getPipelineModuleClass());
-                databaseModule.setInputsClass(newModule.getInputsClass());
-                databaseModule.setOutputsClass(newModule.getOutputsClass());
-                newModule = databaseModule;
-            } else {
-                log.info("Adding new module to module library: " + newModuleName);
-            }
-            moduleCrud.createOrUpdate(newModule);
+            moduleCrud.merge(newModule);
         }
     }
 
     private void importPipelines(List<PipelineDefinition> newPipelineDefinitions) {
 
         PipelineDefinitionCrud pipelineCrud = pipelineDefinitionCrud();
-        List<PipelineDefinition> existingPipelines = pipelineCrud.retrieveLatestVersions();
-        Map<String, PipelineDefinition> existingPipelineMap = new HashMap<>();
-
-        for (PipelineDefinition existingPipeline : existingPipelines) {
-            existingPipelineMap.put(existingPipeline.getName().getName(), existingPipeline);
-        }
-
         for (PipelineDefinition newPipelineDefinition : newPipelineDefinitions) {
 
-            String pipelineName = newPipelineDefinition.getName().getName();
-            PipelineDefinition databasePipeline = null;
-            if (existingPipelineMap.containsKey(pipelineName)) {
-                PipelineDefinition existingPipeline = existingPipelineMap.get(pipelineName);
-                if (existingPipeline.isLocked()) {
-                    log.info("Creating new version of pipeline: " + pipelineName);
-                } else {
-                    log.info("Updating unlocked pipeline: " + pipelineName);
-                }
-                databasePipeline = existingPipeline
-                    .newVersionWithUpdatedContent(newPipelineDefinition);
-            } else {
-                log.info("Adding new pipeline to pipeline library: " + pipelineName);
+            String pipelineName = newPipelineDefinition.getName();
+            newPipelineDefinition.setAuditInfo(new AuditInfo());
 
-                // Note: this is necessary so that we can either manipulate the updated
-                // pipeline (use-case above) or the one from XML without triggering a
-                // ConcurrentModificationException (which would occur if we set
-                // newPipelineDefinition equal to databasePipeline).
-                databasePipeline = newPipelineDefinition;
-            }
-            databasePipeline.setAuditInfo(new AuditInfo());
-
-            Set<PipelineDefinitionNode> nodes = databasePipeline.getNodesFromXml();
+            Set<PipelineDefinitionNode> nodes = newPipelineDefinition.getNodesFromXml();
             Map<String, PipelineDefinitionNode> nodesByName = new HashMap<>();
 
             if (nodes.isEmpty()) {
@@ -238,12 +169,12 @@ public class PipelineDefinitionOperations {
             for (PipelineDefinitionNode node : nodes) {
                 String childNodeIds = node.getChildNodeNames() != null ? node.getChildNodeNames()
                     : "";
-                log.info("Adding node " + node.getModuleName().getName() + " for pipeline "
-                    + pipelineName + " with child node(s) " + childNodeIds);
-                nodesByName.put(node.getModuleName().getName(), node);
+                log.info("Adding node " + node.getModuleName() + " for pipeline " + pipelineName
+                    + " with child node(s) " + childNodeIds);
+                nodesByName.put(node.getModuleName(), node);
             }
 
-            String rootNodeString = databasePipeline.getRootNodeNames();
+            String rootNodeString = newPipelineDefinition.getRootNodeNames();
             if (rootNodeString != null) {
                 log.info("Pipeline " + pipelineName + " root node names: " + rootNodeString);
             } else {
@@ -252,15 +183,16 @@ public class PipelineDefinitionOperations {
 
             // pipeline-level parameters
             log.info("Parameter sets for pipeline " + pipelineName + ": "
-                + databasePipeline.getParameterSetNames().toString());
-            databasePipeline.setPipelineParameterSetNames(
-                parseParameterSets(databasePipeline.getParameterSetNames()));
+                + newPipelineDefinition.getParameterSetNames().toString());
+            newPipelineDefinition.setPipelineParameterSetNames(
+                parseParameterSets(newPipelineDefinition.getParameterSetNames()));
 
-            List<String> rootNodeNames = splitAndListifyString(databasePipeline.getRootNodeNames());
-            addNodes(databasePipeline.getName().getName(), rootNodeNames,
-                databasePipeline.getRootNodes(), nodesByName);
+            List<String> rootNodeNames = splitAndListifyString(
+                newPipelineDefinition.getRootNodeNames());
+            addNodes(newPipelineDefinition.getName(), rootNodeNames,
+                newPipelineDefinition.getRootNodes(), nodesByName);
 
-            pipelineCrud.createOrUpdate(databasePipeline);
+            pipelineCrud.merge(newPipelineDefinition);
         }
     }
 
@@ -303,7 +235,7 @@ public class PipelineDefinitionOperations {
                 }
             }
             if (!missingDataFileTypes.isEmpty()) {
-                throw new PipelineException(xmlNode.getModuleName().getName()
+                throw new PipelineException(xmlNode.getModuleName()
                     + " missing input data file type names: " + missingDataFileTypes.toString());
             }
             xmlNode.addAllInputDataFileTypes(dataFileTypes);
@@ -319,7 +251,7 @@ public class PipelineDefinitionOperations {
                 }
             }
             if (!missingDataFileTypes.isEmpty()) {
-                throw new PipelineException(xmlNode.getModuleName().getName()
+                throw new PipelineException(xmlNode.getModuleName()
                     + " missing output data file type names: " + missingDataFileTypes.toString());
             }
             xmlNode.addAllOutputDataFileTypes(dataFileTypes);
@@ -336,8 +268,8 @@ public class PipelineDefinitionOperations {
                 }
             }
             if (!missingModelTypes.isEmpty()) {
-                throw new PipelineException(xmlNode.getModuleName().getName()
-                    + " missing model type names: " + missingModelTypes.toString());
+                throw new PipelineException(xmlNode.getModuleName() + " missing model type names: "
+                    + missingModelTypes.toString());
             }
             xmlNode.addAllModelTypes(modelTypes);
             pipelineRootNodes.add(xmlNode);
@@ -356,12 +288,12 @@ public class PipelineDefinitionOperations {
      * Converts a {@link Set} of {@link ParameterSetName} instances to a {@link Map} that provides
      * the parameter set class as a key and the {@link ParameterSetName} as a value.
      */
-    private Map<ClassWrapper<Parameters>, ParameterSetName> parseParameterSets(
-        Set<ParameterSetName> parameterSetNames) {
-        Map<ClassWrapper<Parameters>, ParameterSetName> parameterSets = new HashMap<>();
+    private Map<ClassWrapper<ParametersInterface>, String> parseParameterSets(
+        Set<String> parameterSetNames) {
+        Map<ClassWrapper<ParametersInterface>, String> parameterSets = new HashMap<>();
         ParameterSetCrud paramCrud = parameterSetCrud();
-        for (ParameterSetName pipelineParamSetName : parameterSetNames) {
-            String xmlParamName = pipelineParamSetName.getName();
+        for (String pipelineParamSetName : parameterSetNames) {
+            String xmlParamName = pipelineParamSetName;
             ParameterSet parameterSet = paramCrud.retrieveLatestVersionForName(xmlParamName);
 
             if (parameterSet == null) {
@@ -419,5 +351,4 @@ public class PipelineDefinitionOperations {
         }
         return modelCrud;
     }
-
 }

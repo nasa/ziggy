@@ -1,118 +1,72 @@
 package gov.nasa.ziggy.services.messages;
 
 import java.util.Date;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.services.messaging.MessageHandler;
 import gov.nasa.ziggy.services.process.StatusMessage;
 
-public class WorkerStatusMessage extends StatusMessage {
-    private static final long serialVersionUID = 20210310L;
+/**
+ * Informs recipients of the status of a worker process.
+ *
+ * @author PT
+ */
+public class WorkerStatusMessage extends StatusMessage implements Comparable<WorkerStatusMessage> {
+    private static final long serialVersionUID = 20230522L;
 
     public static Logger log = LoggerFactory.getLogger(WorkerStatusMessage.class);
 
-    private int threadNumber;
-    private String state;
-    private String instanceId;
-    private String taskId;
-    private String module;
-    private String moduleUow;
-    private long processingStartTime;
+    private final int workerNumber;
+    private final String state;
+    private final String instanceId;
+    private final String taskId;
+    private final String module;
+    private final String moduleUow;
+    private final long processingStartTime;
+    private final boolean lastMessageFromWorker;
 
-    /**
-     * @param state
-     * @param module
-     * @param moduleUow
-     * @param processingStartTime
-     */
-    public WorkerStatusMessage(int threadNumber, String state, String instanceId, String taskId,
-        String module, String moduleUow, long processingStartTime) {
-        this.threadNumber = threadNumber;
+    public WorkerStatusMessage(int workerNumber, String state, String instanceId, String taskId,
+        String module, String moduleUow, long processingStartTime, boolean lastMessageFromWorker) {
+        this.workerNumber = workerNumber;
         this.state = state;
         this.instanceId = instanceId;
         this.taskId = taskId;
         this.module = module;
         this.moduleUow = moduleUow;
         this.processingStartTime = processingStartTime;
-    }
-
-    public WorkerStatusMessage() {
+        this.lastMessageFromWorker = lastMessageFromWorker;
     }
 
     @Override
     public String uniqueKey() {
-        return super.uniqueKey() + ":" + threadNumber;
+        return super.uniqueKey() + ":" + workerNumber;
     }
 
-    /**
-     * @return Returns the module.
-     */
     public String getModule() {
         return module;
     }
 
-    /**
-     * @param module The module to set.
-     */
-    public void setModule(String module) {
-        this.module = module;
-    }
-
-    /**
-     * @return Returns the processingStartTime.
-     */
     public long getProcessingStartTime() {
         return processingStartTime;
     }
 
-    /**
-     * @param processingStartTime The processingStartTime to set.
-     */
-    public void setProcessingStartTime(long processingStartTime) {
-        this.processingStartTime = processingStartTime;
-    }
-
-    /**
-     * @return Returns the state.
-     */
     public String getState() {
         return state;
     }
 
-    /**
-     * @param state The state to set.
-     */
-    public void setState(String state) {
-        this.state = state;
-    }
-
-    /**
-     * @return the moduleUow
-     */
     public String getModuleUow() {
         return moduleUow;
     }
 
-    /**
-     * @param moduleUow the moduleUow to set
-     */
-    public void setModuleUow(String moduleUow) {
-        this.moduleUow = moduleUow;
-    }
-
-    public int getThreadNumber() {
-        return threadNumber;
-    }
-
-    public void setThreadNumber(int threadNumber) {
-        this.threadNumber = threadNumber;
+    public int getWorkerNumber() {
+        return workerNumber;
     }
 
     @Override
     public String briefStatus() {
-        return "WS:" + super.briefStatus() + "(" + threadNumber + "):" + "[" + state + ":"
+        return "WS:" + super.briefStatus() + "(" + workerNumber + "):" + "[" + state + ":"
             + instanceId + "-" + taskId + ":" + module + "{" + moduleUow + "}:since "
             + new Date(processingStartTime) + "]";
     }
@@ -121,21 +75,35 @@ public class WorkerStatusMessage extends StatusMessage {
         return taskId;
     }
 
-    public void setTaskId(String taskId) {
-        this.taskId = taskId;
-    }
-
     public String getInstanceId() {
         return instanceId;
     }
 
-    public void setInstanceId(String instanceId) {
-        this.instanceId = instanceId;
+    public boolean isLastMessageFromWorker() {
+        return lastMessageFromWorker;
     }
 
     @Override
-    public Object handleMessage(MessageHandler handler) {
-        handler.handleWorkerStatusMessage(this);
-        return null;
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        return prime * result + Objects.hash(taskId);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!super.equals(obj) || getClass() != obj.getClass()) {
+            return false;
+        }
+        WorkerStatusMessage other = (WorkerStatusMessage) obj;
+        return Objects.equals(taskId, other.taskId);
+    }
+
+    @Override
+    public int compareTo(WorkerStatusMessage o) {
+        return (int) (Long.parseLong(taskId) - Long.parseLong(o.taskId));
     }
 }

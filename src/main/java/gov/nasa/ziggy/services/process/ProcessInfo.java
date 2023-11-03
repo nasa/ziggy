@@ -10,31 +10,32 @@ import gov.nasa.ziggy.util.HostNameUtils;
  * @author Todd Klaus
  */
 public class ProcessInfo implements Serializable {
-    private static final long serialVersionUID = -2089578114844840384L;
+    private static final long serialVersionUID = 20230511L;
 
     private String name;
     private String host;
-    private int pid;
+    private long pid;
     private int jvmid;
 
     private final String key;
 
-    public ProcessInfo(String name, String host, int pid, int jvmid) {
+    public ProcessInfo(String name, long pid, int jvmid) {
         this.name = name;
-        this.host = HostNameUtils.callerHostNameOrLocalhost(host);
+        host = HostNameUtils.hostName();
         this.pid = pid;
         this.jvmid = jvmid;
-
-        key = name + ":" + host + ":" + pid + "(" + jvmid + ")";
+        String shortKey = this.name + ": " + HostNameUtils.callerHostNameOrLocalhost(host) + ": "
+            + this.pid;
+        key = this.jvmid == 0 ? shortKey : shortKey + "(" + this.jvmid + ")";
     }
 
     public ProcessInfo(ProcessInfo other) {
         name = other.name;
-        host = HostNameUtils.callerHostNameOrLocalhost(other.host);
+        host = other.host;
         pid = other.pid;
         jvmid = other.jvmid;
 
-        key = name + ":" + host + ":" + pid + "(" + jvmid + ")";
+        key = other.key;
     }
 
     public String getKey() {
@@ -91,7 +92,7 @@ public class ProcessInfo implements Serializable {
     /**
      * @return the pid
      */
-    public int getPid() {
+    public long getPid() {
         return pid;
     }
 
@@ -101,5 +102,4 @@ public class ProcessInfo implements Serializable {
     public void setPid(int pid) {
         this.pid = pid;
     }
-
 }

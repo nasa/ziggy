@@ -6,6 +6,9 @@ import java.text.SimpleDateFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+
 /**
  * A single line from a memdrone log file. Lines in the memdrone log take the following form:
  *
@@ -44,6 +47,7 @@ public class MemdroneSample {
         valid = true;
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private boolean parse(String memdroneLogLine) {
         String[] elements = memdroneLogLine.split("\\s+");
 
@@ -63,8 +67,7 @@ public class MemdroneSample {
         try {
             timestampMillis = parseDate(timestampString);
             memoryKilobytes = Integer.parseInt(elements[7]);
-
-        } catch (Exception e) {
+        } catch (ParseException | NumberFormatException e) {
             log.warn("Parse error: " + e);
             return false;
         }

@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
 import java.util.Collection;
 
 import org.slf4j.Logger;
@@ -25,12 +24,12 @@ public class MacOSXMemInfo extends AbstractMemInfo {
 
     private static final String UNAVAILABLE = "Unavailable";
 
-    public MacOSXMemInfo() throws IOException {
+    public MacOSXMemInfo() {
         super(commandOutput(TOP_COMMAND));
     }
 
     @Override
-    protected void parse(Collection<String> topOutput) throws IOException {
+    protected void parse(Collection<String> topOutput) {
         for (String line : topOutput) {
             log.debug("line = " + line);
 

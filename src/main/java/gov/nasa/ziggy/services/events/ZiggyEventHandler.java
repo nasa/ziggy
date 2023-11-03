@@ -4,13 +4,13 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -20,39 +20,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
-import org.apache.commons.configuration.CompositeConfiguration;
-import org.apache.commons.configuration.PropertyConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.pipeline.InstanceAndTasks;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionName;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.messages.EventHandlerToggleStateRequest;
+import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Handles a single type of Ziggy event. Ziggy events are a system that automatically starts
@@ -66,7 +61,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_ZIGGY_EVENT_HANDLER")
+@Table(name = "ziggy_EventHandler")
 public class ZiggyEventHandler implements Runnable {
 
     private static final Logger log = LoggerFactory.getLogger(ZiggyEventHandler.class);
@@ -101,7 +96,7 @@ public class ZiggyEventHandler implements Runnable {
     /**
      * Determines whether the {@link ZiggyEventHandler} should be enabled when the cluster is
      * started. By default, event handlers must be manually enabled; this field signals to the
-     * worker process that, upon startup, this event handler should start.
+     * supervisor process that, upon startup, this event handler should start.
      */
     @XmlAttribute
     private boolean enableOnClusterStart;
@@ -119,9 +114,7 @@ public class ZiggyEventHandler implements Runnable {
      * Pipeline to start when an event is detected.
      */
     @XmlAttribute(required = true)
-    @XmlJavaTypeAdapter(PipelineDefinitionName.PipelineNameAdapter.class)
-    @ManyToOne(targetEntity = PipelineDefinitionName.class, fetch = FetchType.EAGER)
-    private PipelineDefinitionName pipelineName;
+    private String pipelineName;
 
     @Transient
     private PipelineOperations pipelineOperations;
@@ -134,6 +127,12 @@ public class ZiggyEventHandler implements Runnable {
 
     public ZiggyEventHandler() {
         ZiggyShutdownHook.addShutdownHook(this::stop);
+        ZiggyMessenger.subscribe(EventHandlerToggleStateRequest.class, message -> {
+            EventHandlerToggleStateRequest request = message;
+            if (request.getHandlerName().equals(name)) {
+                toggleStatus();
+            }
+        });
     }
 
     /**
@@ -164,6 +163,7 @@ public class ZiggyEventHandler implements Runnable {
      * Checks for the ready-indicator file and starts the pipeline if it is present.
      */
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_IN_RUNNABLE)
     public void run() {
 
         try {
@@ -172,6 +172,12 @@ public class ZiggyEventHandler implements Runnable {
                 readyFile.delete(interpolatedDirectory());
             }
         } catch (Exception e) {
+            // If we got here, something bad happened either when looking for ready files
+            // or when starting the pipeline that responds to the ready file. In either case,
+            // we don't want the event handler to try again in a few seconds, but we also
+            // don't want the event handler infrastructure itself to fail as a result. For
+            // this reason, we catch Exception here (to include both runtime exceptions and
+            // unexpected checked exceptions), and then stop this particular event handler.
             log.error("ZiggyEventHandler " + name + " disabled due to exception", e);
             alertService().generateAndBroadcastAlert("Event handler " + name, 0, Severity.WARNING,
                 "Event handler shut down due to exception");
@@ -224,7 +230,7 @@ public class ZiggyEventHandler implements Runnable {
         log.info(
             "Event name \"" + readyFile.getName() + "\" has " + readyFile.labelCount() + " labels");
         log.debug("Event handler labels: " + readyFile.labels());
-        log.info("Event handler " + name + " starting pipeline " + pipelineName.getName() + "...");
+        log.info("Event handler " + name + " starting pipeline " + pipelineName + "...");
 
         // Start by saving the event labels as a parameter set.
         String paramSetName = (String) DatabaseTransactionFactory.performTransaction(() -> {
@@ -236,7 +242,7 @@ public class ZiggyEventHandler implements Runnable {
             ParameterSet paramSet = new ParameterSetCrud()
                 .retrieveLatestVersionForName(parameterSetName);
             if (paramSet != null) {
-                eventLabels = (ZiggyEventLabels) paramSet.getParameters().getInstance();
+                eventLabels = (ZiggyEventLabels) paramSet.parametersInstance();
                 eventLabels.setEventName(readyFile.getName());
                 eventLabels.setEventLabels(readyFile.labelsArray());
                 pipelineOperations().updateParameterSet(paramSet, eventLabels,
@@ -248,35 +254,25 @@ public class ZiggyEventHandler implements Runnable {
                 eventLabels.setEventHandlerName(name);
                 eventLabels.setEventName(readyFile.getName());
                 eventLabels.setEventLabels(readyFile.labelsArray());
-                paramSet.setParameters(new BeanWrapper<Parameters>(eventLabels));
-                new ParameterSetCrud().create(paramSet);
+                paramSet.populateFromParametersInstance(eventLabels);
+                new ParameterSetCrud().persist(paramSet);
             }
             return parameterSetName;
         });
 
         // Create a new pipeline instance that includes the event handler labels parameter set.
+        PipelineDefinition pipelineDefinition = (PipelineDefinition) DatabaseTransactionFactory
+            .performTransaction(
+                () -> new PipelineDefinitionCrud().retrieveLatestVersionForName(pipelineName));
+        PipelineInstance pipelineInstance = pipelineOperations().fireTrigger(pipelineDefinition,
+            instanceName(), null, null, paramSetName);
+        ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
         DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineDefinition pipelineDefinition = new PipelineDefinitionCrud()
-                .retrieveLatestVersionForName(pipelineName);
-            InstanceAndTasks instanceInfo = pipelineOperations().fireTrigger(pipelineDefinition,
-                instanceName(), null, null, paramSetName);
-            sendWorkerMessageForTasks(instanceInfo.getPipelineTasks());
-            final ZiggyEvent event = new ZiggyEvent(name, pipelineName,
-                instanceInfo.getPipelineInstance().getId());
-            new ZiggyEventCrud().create(event);
+            final ZiggyEvent event = new ZiggyEvent(name, pipelineName, pipelineInstance.getId());
+            new ZiggyEventCrud().persist(event);
             return null;
         });
-        log.info(
-            "Event handler " + name + " starting pipeline " + pipelineName.getName() + "...done");
-    }
-
-    /**
-     * Sends task messages to the worker. Package scoped so it can be mocked out.
-     */
-    void sendWorkerMessageForTasks(List<PipelineTask> pipelineTasks) {
-        for (PipelineTask pipelineTask : pipelineTasks) {
-            pipelineOperations().sendWorkerMessageForTask(pipelineTask);
-        }
+        log.info("Event handler " + name + " starting pipeline " + pipelineName + "...done");
     }
 
     /**
@@ -315,11 +311,11 @@ public class ZiggyEventHandler implements Runnable {
         this.directory = directory;
     }
 
-    public PipelineDefinitionName getPipelineName() {
+    public String getPipelineName() {
         return pipelineName;
     }
 
-    public void setPipelineName(PipelineDefinitionName pipelineName) {
+    public void setPipelineName(String pipelineName) {
         this.pipelineName = pipelineName;
     }
 
@@ -359,17 +355,8 @@ public class ZiggyEventHandler implements Runnable {
         return name + "-" + Iso8601Formatter.dateTimeLocalFormatter().format(new Date());
     }
 
-    Path interpolatedDirectory() {
-        return Paths.get((String) PropertyConverter.interpolate(directory, configuration()));
-    }
-
-    /**
-     * Returns the Ziggy configuration, cast back to its actual class
-     * ({@link CompositeConfiguration}). Because this does not work correctly in test, the method is
-     * broken out so that it can be mocked in test cases.
-     */
-    CompositeConfiguration configuration() {
-        return (CompositeConfiguration) ZiggyConfiguration.unsynchronizedInstance();
+    private Path interpolatedDirectory() {
+        return Paths.get((String) ZiggyConfiguration.interpolate(directory));
     }
 
     @Override
@@ -399,7 +386,7 @@ public class ZiggyEventHandler implements Runnable {
      */
     public static class ZiggyEventHandlerInfoForDisplay implements Serializable {
 
-        private static final long serialVersionUID = 20220707L;
+        private static final long serialVersionUID = 20230511L;
 
         private String name;
         private boolean enabled;
@@ -410,7 +397,7 @@ public class ZiggyEventHandler implements Runnable {
             name = eventHandler.getName();
             enabled = eventHandler.isRunning();
             directory = eventHandler.interpolatedDirectory().toString();
-            pipelineName = eventHandler.getPipelineName().getName();
+            pipelineName = eventHandler.getPipelineName();
         }
 
         public String getName() {
@@ -444,7 +431,6 @@ public class ZiggyEventHandler implements Runnable {
         public void setPipelineName(String pipelineName) {
             this.pipelineName = pipelineName;
         }
-
     }
 
     /**
@@ -482,9 +468,15 @@ public class ZiggyEventHandler implements Runnable {
             return count == filenames.size();
         }
 
-        public void delete(Path directory) throws IOException {
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+        public void delete(Path directory) {
+
             for (String filename : filenames) {
-                Files.delete(directory.resolve(filename));
+                try {
+                    Files.delete(directory.resolve(filename));
+                } catch (IOException e) {
+                    throw new UncheckedIOException("Unable to delete file " + filename, e);
+                }
             }
         }
 
@@ -520,7 +512,5 @@ public class ZiggyEventHandler implements Runnable {
             ReadyFile other = (ReadyFile) obj;
             return Objects.equals(name, other.name);
         }
-
     }
-
 }

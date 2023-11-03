@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Date;
@@ -22,21 +23,23 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.hibernate.service.config.spi.ConfigurationService;
+import org.hibernate.engine.config.spi.ConfigurationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.MatlabJavaInitialization;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.SpotBugsUtils;
 
@@ -78,7 +81,7 @@ public class Memdrone {
      */
     public static final boolean memdroneEnabled() {
         return ZiggyConfiguration.getInstance()
-            .getBoolean(PropertyNames.MEMDRONE_ENABLED_PROP_NAME, false);
+            .getBoolean(PropertyName.MEMDRONE_ENABLED.property(), false);
     }
 
     public Memdrone(String binaryName, long instanceId) {
@@ -93,12 +96,17 @@ public class Memdrone {
      * created with the current time as its timestamp and is returned as a {@link Path} instance.
      *
      * @return the {@link Path} for the new directory.
-     * @throws IOException if directory creation fails.
      */
-    Path createNewMemdronePath() throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    Path createNewMemdronePath() {
         Path memdronePath = memdroneRootPath
             .resolve(nameRoot + Iso8601Formatter.dateTimeLocalFormatter().format(date()));
-        Files.createDirectories(memdronePath);
+        try {
+            Files.createDirectories(memdronePath);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to create directory " + memdronePath.toString(),
+                e);
+        }
         return memdronePath;
     }
 
@@ -110,27 +118,33 @@ public class Memdrone {
      * @return {@link Path} for the most recent memory statistics directory.
      * @throws IOException if listing the files in the statistics main directory fails.
      */
-    public Path latestMemdronePath() throws IOException {
-        Path memdronePath = null;
-        if (Files.exists(memdroneRootPath) && Files.isDirectory(memdroneRootPath)) {
-            Pattern filenamePattern = Pattern.compile(nameRoot + "([0-9]{8})T([0-9]{6})");
-            try (Stream<Path> stream = Files.list(memdroneRootPath)) {
-                List<Path> matchingDirs = stream.filter(Files::isDirectory)
-                    .filter(s -> filenamePattern.matcher(s.getFileName().toString()).matches())
-                    .collect(Collectors.toList());
-                if (matchingDirs != null && !matchingDirs.isEmpty()) {
-                    Optional<Path> result = matchingDirs.stream()
-                        .max((o1, o2) -> o1.getFileName()
-                            .toString()
-                            .compareTo(o2.getFileName().toString()));
-                    memdronePath = result.get();
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public Path latestMemdronePath() {
+        try {
+            Path memdronePath = null;
+            if (Files.exists(memdroneRootPath) && Files.isDirectory(memdroneRootPath)) {
+                Pattern filenamePattern = Pattern.compile(nameRoot + "([0-9]{8})T([0-9]{6})");
+                try (Stream<Path> stream = Files.list(memdroneRootPath)) {
+                    List<Path> matchingDirs = stream.filter(Files::isDirectory)
+                        .filter(s -> filenamePattern.matcher(s.getFileName().toString()).matches())
+                        .collect(Collectors.toList());
+                    if (matchingDirs != null && !matchingDirs.isEmpty()) {
+                        Optional<Path> result = matchingDirs.stream()
+                            .max((o1, o2) -> o1.getFileName()
+                                .toString()
+                                .compareTo(o2.getFileName().toString()));
+                        memdronePath = result.get();
+                    }
                 }
             }
+            if (memdronePath == null) {
+                memdronePath = createNewMemdronePath();
+            }
+            return memdronePath;
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to list files in dir " + memdroneRootPath.toString(), e);
         }
-        if (memdronePath == null) {
-            memdronePath = createNewMemdronePath();
-        }
-        return memdronePath;
     }
 
     private String memdroneNameInvariantPart() {
@@ -140,16 +154,14 @@ public class Memdrone {
     /**
      * Starts the shell script that acquires memory usage information. Before executing this, the
      * user must create the directory for storing memory usage statistics.
-     *
-     * @throws IOException if the path for the memory statistics cannot be located.
      */
-    public void startMemdrone() throws IOException {
+    public void startMemdrone() {
 
-        Configuration config = ZiggyConfiguration.getInstance();
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
         CommandLine commandLine = new CommandLine(
             DirectoryProperties.ziggyBinDir().resolve("memdrone").toString());
         commandLine.addArgument(binaryName);
-        commandLine.addArgument(config.getString(PropertyNames.MEMDRONE_SLEEP_PROP_NAME, "60"));
+        commandLine.addArgument(config.getString(PropertyName.MEMDRONE_SLEEP.property(), "60"));
         Path memdronePath = latestMemdronePath();
         commandLine.addArgument(memdronePath.toString());
         if (watchdogMap.containsKey(nameRoot)) {
@@ -184,11 +196,12 @@ public class Memdrone {
      * information has already been collected and serialized, it is deserialized and returned.
      *
      * @return a {@link Map} from process ID to memory usage time series.
-     * @throws Exception if any file operations fail.
      */
     @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
-    public Map<String, DescriptiveStatistics> statsByPid() throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public Map<String, DescriptiveStatistics> statsByPid() {
         Path cacheFile = latestMemdronePath().resolve(MEMDRONE_STATS_CACHE_FILENAME);
         Map<String, DescriptiveStatistics> taskStats = null;
 
@@ -200,6 +213,13 @@ public class Memdrone {
                 Map<String, DescriptiveStatistics> obj = (Map<String, DescriptiveStatistics>) ois
                     .readObject();
                 taskStats = obj;
+            } catch (IOException e) {
+                throw new UncheckedIOException(
+                    "IOException occurred reading from " + cacheFile.toString(), e);
+            } catch (ClassNotFoundException e) {
+                // This can never occur. This class both writes and reads the serialized
+                // Java object so the existence and use of the correct class is guaranteed.
+                throw new AssertionError(e);
             }
         } else { // no cache
             log.info("Creating stats cache file");
@@ -218,7 +238,9 @@ public class Memdrone {
      */
     @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
-    public Map<String, String> subTasksByPid() throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public Map<String, String> subTasksByPid() {
         Path cacheFile = latestMemdronePath().resolve(PID_MAP_CACHE_FILENAME);
         Map<String, String> pidToSubTask = null;
 
@@ -231,6 +253,13 @@ public class Memdrone {
                 pidToSubTask = obj;
 
                 log.debug("pid cache: " + obj);
+            } catch (IOException e) {
+                throw new UncheckedIOException(
+                    "IOException occurred reading from " + cacheFile.toString(), e);
+            } catch (ClassNotFoundException e) {
+                // This can never occur. The class used in the readObject() call is the
+                // same one used to write the file in the first place.
+                throw new AssertionError(e);
             }
         } else { // no cache
             log.info("Creating pid cache file");
@@ -242,10 +271,9 @@ public class Memdrone {
 
     /**
      * Generates and serializes the {@link Map} between process ID and memory usage time series.
-     *
-     * @throws Exception if any file operations fail.
      */
-    public Map<String, DescriptiveStatistics> createStatsCache() throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public Map<String, DescriptiveStatistics> createStatsCache() {
         Path latestMemdronePath = latestMemdronePath();
         Path cacheFile = latestMemdronePath.resolve(MEMDRONE_STATS_CACHE_FILENAME);
         Map<String, DescriptiveStatistics> taskStats = new HashMap<>();
@@ -275,8 +303,9 @@ public class Memdrone {
                 new BufferedOutputStream(new FileOutputStream(cacheFile.toFile())))) {
                 oos.writeObject(taskStats);
                 oos.flush();
-            } catch (Exception e) {
-                log.warn("failed to create cache file, caught e = " + e);
+            } catch (IOException e) {
+                throw new UncheckedIOException("Unable to write to file " + cacheFile.toString(),
+                    e);
             }
         }
 
@@ -285,10 +314,10 @@ public class Memdrone {
 
     /**
      * Generates and serializes the {@link} map between process ID and task/subtask.
-     *
-     * @throws Exception if any file operations fail.
      */
-    public Map<String, String> createPidMapCache() throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public Map<String, String> createPidMapCache() {
         Path cacheFile = latestMemdronePath().resolve(PID_MAP_CACHE_FILENAME);
         Map<String, String> pidToSubTask = new HashMap<>();
 
@@ -321,14 +350,18 @@ public class Memdrone {
                         File pidsFile = new File(subTaskDir,
                             MatlabJavaInitialization.MATLAB_PIDS_FILENAME);
                         if (pidsFile.exists()) {
-                            String hostPid = FileUtils.readFileToString(pidsFile,
-                                MatlabJavaInitialization.PID_FILE_CHARSET);
+                            String hostPid;
+                            try {
+                                hostPid = FileUtils.readFileToString(pidsFile,
+                                    MatlabJavaInitialization.PID_FILE_CHARSET);
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(
+                                    "Unable to read from file " + pidsFile.toString(), e);
+                            }
 
                             pidToSubTask.put(hostPid, subTaskId);
-
                         }
                     }
-
                 }
             }
         }
@@ -339,8 +372,8 @@ public class Memdrone {
                 new FileOutputStream(cacheFile.toAbsolutePath().toString())))) {
             oos.writeObject(pidToSubTask);
             oos.flush();
-        } catch (Exception e) {
-            log.warn("failed to create cache file, caught e = " + e);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to write to file " + cacheFile.toString(), e);
         }
         return pidToSubTask;
     }
@@ -356,5 +389,4 @@ public class Memdrone {
     void setDate(Date date) {
         this.date = date;
     }
-
 }

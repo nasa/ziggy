@@ -2,18 +2,17 @@ package gov.nasa.ziggy.services.messaging;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
-import java.rmi.AccessException;
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Before;
@@ -22,182 +21,176 @@ import org.junit.experimental.categories.Category;
 
 import gov.nasa.ziggy.RunByNameTestCategory;
 import gov.nasa.ziggy.TestEventDetector;
-import gov.nasa.ziggy.services.messages.WorkerHeartbeatMessage;
-import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ClientSideMessageHandlerForTest;
-import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ConsoleMessageDispatcherForTest;
-import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.InstrumentedWorkerHeartbeatManager;
-import gov.nasa.ziggy.services.messaging.MessageHandlersForTest.ServerSideMessageHandlerForTest;
-import gov.nasa.ziggy.ui.common.ProcessHeartbeatManager;
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.services.messages.HeartbeatMessage;
+import gov.nasa.ziggy.services.messages.PipelineMessage;
+import gov.nasa.ziggy.services.messaging.MessagingTestUtils.Message1;
+import gov.nasa.ziggy.services.messaging.ZiggyRmiServer.RmiClientThread;
 
 /**
  * Tests the RMI communication classes for Ziggy in the context where the client and server sides
- * (or UI and worker, if you prefer) are running in the same process and thus the same JVM.
- * <P>
- * Intra-process communication isn't actually a use-case for the production Ziggy systems, but it
- * simplifies some debugging tasks and thus these tests are provided. Also, there seem to be
- * problems when the intra- and inter-process tests are in the same class (specifically, an
- * inter-process test will always fail if immediately preceded by an intra-process test). Moving
- * them to separate classes seems to eliminate this problem, which suggests that the intra-process
- * tests are leaving some state configuration behind that is breaking the inter-process tests.
+ * are running in the same process and thus the same JVM. This is analogous to the use-case in which
+ * the supervisor starts the {@link ZiggyRmiServer} and also has a {@link ZiggyRmiClient} of its
+ * own.
  *
  * @author PT
  */
 @Category(RunByNameTestCategory.class)
 public class RmiIntraProcessCommunicationTest {
 
-    private ServerSideMessageHandlerForTest messageHandler1;
-    private ClientSideMessageHandlerForTest messageHandler2;
     private int port = 4788;
     private Registry registry;
-    private ProcessHeartbeatManager heartbeatManager = mock(ProcessHeartbeatManager.class);
 
     @Before
     public void setup() {
-        messageHandler1 = new ServerSideMessageHandlerForTest();
-        messageHandler2 = new ClientSideMessageHandlerForTest();
         registry = null;
+        ZiggyRmiClient.clearDetectedMessages();
     }
 
     @After
-    public void teardown()
-        throws AccessException, RemoteException, NotBoundException, InterruptedException {
+    public void teardown() throws RemoteException, InterruptedException {
 
-        UiCommunicator.stopHeartbeatListener();
-        if (WorkerCommunicator.isInitialized() && WorkerCommunicator.getRegistry() != null) {
-            WorkerCommunicator.shutdown();
+        if (ZiggyRmiServer.isInitialized() && ZiggyRmiServer.getRegistry() != null) {
+            ZiggyRmiServer.shutdown();
         }
         if (registry != null) {
             UnicastRemoteObject.unexportObject(registry, true);
         }
-        UiCommunicator.reset();
-        messageHandler1 = null;
-        messageHandler2 = null;
+        ZiggyRmiClient.reset();
     }
 
     /**
      * Tests basic initialization of the two classes.
-     *
-     * @throws InterruptedException
      */
     @Test
-    public void testInitialize()
-        throws AccessException, RemoteException, NotBoundException, InterruptedException {
+    public void testInitialize() {
 
-        WorkerCommunicator.initializeInstance(messageHandler1, port);
-        Set<MessageHandlerService> clientStubs = WorkerCommunicator.getClientMessageServiceStubs();
+        ZiggyRmiServer.initializeInstance(port);
+        Set<RmiClientThread> clientStubs = ZiggyRmiServer.getClientServiceStubs();
         assertTrue(clientStubs.isEmpty());
-        assertEquals(messageHandler1, WorkerCommunicator.getMessageHandler());
-        UiCommunicator.setHeartbeatManager(heartbeatManager);
-        UiCommunicator.initializeInstance(messageHandler2, port);
+        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.setUseMessenger(false);
 
-        clientStubs = WorkerCommunicator.getClientMessageServiceStubs();
+        clientStubs = ZiggyRmiServer.getClientServiceStubs();
         assertFalse(clientStubs.isEmpty());
-        assertEquals(messageHandler2, UiCommunicator.getMessageHandler());
+        assertNotNull(ZiggyRmiClient.ziggyRmiServerService());
     }
 
     /**
-     * Tests the case in which the worker crashes and a new WorkerCommunicator needs to be
-     * instantiated.
-     *
-     * @throws InterruptedException
+     * Tests the case in which the server crashes and a new server needs to be instantiated.
      */
     @Test
-    public void testReinitializeWorker() throws InterruptedException {
+    public void testReinitializeServer() {
 
-        WorkerCommunicator.initializeInstance(messageHandler1, port);
+        ZiggyRmiServer.initializeInstance(port);
 
         // Note that for this test we need to preserve a reference to the registry from
-        // the WorkerCommunicator instance that started it; this will be used to shut down
+        // the ZiggyRmiServer instance that started it; this will be used to shut down
         // the registry when the test completes.
-        registry = WorkerCommunicator.getRegistry();
-        WorkerCommunicator.stopHeartbeatExecutor();
-        UiCommunicator.setHeartbeatManager(heartbeatManager);
-        UiCommunicator.initializeInstance(messageHandler2, port);
-        WorkerCommunicator.broadcast(new MessageFromServer("first message"));
-        ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
-            .getMessageHandler();
-        final ClientSideMessageHandlerForTest msgFinal = msg;
-        TestEventDetector.detectTestEvent(1000L, () -> msgFinal.getMessagesFromServer().size() > 0);
-        assertEquals(1, msg.getMessagesFromServer().size());
+        registry = ZiggyRmiServer.getRegistry();
+        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.setUseMessenger(false);
+        ZiggyRmiServer.addToBroadcastQueue(new Message1("first message"));
+        Map<Class<? extends PipelineMessage>, List<PipelineMessage>> messagesDetected = ZiggyRmiClient
+            .messagesDetected();
+        TestEventDetector.detectTestEvent(1000L, () -> messagesDetected.size() > 1);
+        assertEquals(1, messagesDetected.get(Message1.class).size());
 
-        // Emulate a worker crashing and coming back by resetting it and running the
+        // Emulate a server crashing and coming back by resetting it and running the
         // initializer again
-        WorkerCommunicator.reset();
-        WorkerCommunicator.initializeInstance(messageHandler1, port);
-        WorkerCommunicator.stopHeartbeatExecutor();
+        ZiggyRmiServer.reset();
+        ZiggyRmiServer.initializeInstance(port);
+        ZiggyRmiClient.setUseMessenger(false);
 
         // This instance should have no MessageHandler service references from clients
-        assertEquals(0, WorkerCommunicator.getClientMessageServiceStubs().size());
+        assertEquals(0, ZiggyRmiServer.getClientServiceStubs().size());
 
-        // IRL, the UiCommunicator will be restarted by the heartbeat monitor, but since
+        // IRL, the client will be restarted by the heartbeat monitor, but since
         // we're not using that here we have to manually restart it
-        UiCommunicator.restart();
+        ZiggyRmiClient.restart();
+        ZiggyRmiClient.setUseMessenger(false);
         TestEventDetector.detectTestEvent(1000L,
-            () -> WorkerCommunicator.getClientMessageServiceStubs().size() > 0);
+            () -> ZiggyRmiServer.getClientServiceStubs().size() > 0);
 
         // Now the worker should have a MessageHandlerService from the UiCommunicator
-        assertEquals(1, WorkerCommunicator.getClientMessageServiceStubs().size());
+        assertEquals(1, ZiggyRmiServer.getClientServiceStubs().size());
 
-        // The new worker can send a message to the UI
-        WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
-        msg = (ClientSideMessageHandlerForTest) UiCommunicator.getMessageHandler();
-        final ClientSideMessageHandlerForTest msgFinal2 = msg;
+        // The new server can send a message to the client
+        ZiggyRmiServer.addToBroadcastQueue(new Message1("zing!"));
         TestEventDetector.detectTestEvent(1000L,
-            () -> msgFinal2.getMessagesFromServer().size() > 0);
-        assertEquals(2, msg.getMessagesFromServer().size());
-        ServerSideMessageHandlerForTest msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator
-            .getMessageHandler();
+            () -> messagesDetected.get(Message1.class).size() > 1);
+        assertEquals(2, messagesDetected.get(Message1.class).size());
+        assertEquals("zing!",
+            ((Message1) messagesDetected.get(Message1.class).get(1)).getPayload());
 
-        // The UI can send a message to the new worker
-        assertEquals(0, msg2.getMessagesFromClient().size());
-        UiCommunicator.send(new MessageFromClient("back at ya!"));
-        msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator.getMessageHandler();
-        assertEquals(1, msg2.getMessagesFromClient().size());
+        // The client can send a message to the new server, which in turn gets rebroadcast
+        // everywhere.
+        assertEquals(0, ZiggyRmiServer.messagesReceived().size());
+        ZiggyRmiClient.send(new Message1("back at ya!"), null);
+        TestEventDetector.detectTestEvent(1000L,
+            () -> ZiggyRmiServer.messagesReceived().size() > 0);
+        assertEquals(1, ZiggyRmiServer.messagesReceived().size());
+        Integer message1Count = ZiggyRmiServer.messagesReceived().get(Message1.class);
+        assertNotNull(message1Count);
+        assertEquals(1, message1Count.intValue());
+
+        TestEventDetector.detectTestEvent(1000L,
+            () -> messagesDetected.get(Message1.class).size() > 2);
+        assertEquals(3, messagesDetected.get(Message1.class).size());
+        assertEquals("back at ya!",
+            ((Message1) messagesDetected.get(Message1.class).get(2)).getPayload());
     }
 
     /**
-     * Tests the use-case in which the UI exits and a different one starts up.
+     * Tests the use-case in which the client exits and a different one starts up.
      */
     @Test
-    public void testReinitializeUi() throws InterruptedException {
-        WorkerCommunicator.initializeInstance(messageHandler1, port);
-        WorkerCommunicator.stopHeartbeatExecutor();
-        UiCommunicator.setHeartbeatManager(heartbeatManager);
-        UiCommunicator.initializeInstance(messageHandler2, port);
-        WorkerCommunicator.broadcast(new MessageFromServer("first message"));
-        ClientSideMessageHandlerForTest msg = (ClientSideMessageHandlerForTest) UiCommunicator
-            .getMessageHandler();
-        final ClientSideMessageHandlerForTest msgFinal = msg;
-        TestEventDetector.detectTestEvent(1000L, () -> msgFinal.getMessagesFromServer().size() > 0);
-        assertEquals(1, msg.getMessagesFromServer().size());
+    public void testReinitializeClient() {
+        ZiggyRmiServer.initializeInstance(port);
+        ZiggyRmiClient.initializeInstance(port, "test client 1");
+        ZiggyRmiClient.setUseMessenger(false);
+        Map<Class<? extends PipelineMessage>, List<PipelineMessage>> messagesDetected = ZiggyRmiClient
+            .messagesDetected();
+        ZiggyRmiServer.addToBroadcastQueue(new Message1("first message"));
+        TestEventDetector.detectTestEvent(1000L, () -> messagesDetected.size() > 1);
+        assertEquals(2, messagesDetected.size());
+        assertEquals(1, messagesDetected.get(Message1.class).size());
 
-        // Emulate the shutdown of a UI by resetting the existing one
-        UiCommunicator.reset();
+        // This is the heartbeat message that the server sends to a new client.
+        assertEquals(1, messagesDetected.get(HeartbeatMessage.class).size());
 
-        // Emulate the start of a new GUI
-        UiCommunicator.setHeartbeatManager(heartbeatManager);
-        UiCommunicator.initializeInstance(messageHandler2, port);
-        UiCommunicator.stopHeartbeatListener();
+        // Emulate the shutdown of a client by resetting the existing one
+        ZiggyRmiClient.reset();
+
+        // Emulate the start of a new client
+        ZiggyRmiClient.initializeInstance(port, "test client 2");
+        ZiggyRmiClient.setUseMessenger(false);
+
+        // There should now be 2 client stubs -- one from the original client, one from the
+        // new client.
         TestEventDetector.detectTestEvent(1000L,
-            () -> WorkerCommunicator.getClientMessageServiceStubs().size() >= 2);
-        // there should now be 2 client services in the worker
-        assertEquals(2, WorkerCommunicator.getClientMessageServiceStubs().size());
+            () -> ZiggyRmiServer.getClientServiceStubs().size() > 1);
+        assertEquals(2, ZiggyRmiServer.getClientServiceStubs().size());
+
+        // The client should have a stub from the server
+        assertNotNull(ZiggyRmiClient.ziggyRmiServerService());
 
         // broadcast a message
-        assertEquals(1, messageHandler2.getMessagesFromServer().size());
-        WorkerCommunicator.broadcast(new MessageFromServer("zing!"));
+        ZiggyRmiServer.addToBroadcastQueue(new Message1("zing!"));
         TestEventDetector.detectTestEvent(1000L,
-            () -> messageHandler2.getMessagesFromServer().size() >= 2);
-        assertEquals(2, messageHandler2.getMessagesFromServer().size());
+            () -> messagesDetected.get(Message1.class).size() > 1);
+        assertEquals(2, messagesDetected.get(Message1.class).size());
 
-        // the UI should be able to communicate with the worker as well
-        ServerSideMessageHandlerForTest msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator
-            .getMessageHandler();
-        assertEquals(0, msg2.getMessagesFromClient().size());
-        UiCommunicator.send(new MessageFromClient("back at ya!"));
-        msg2 = (ServerSideMessageHandlerForTest) WorkerCommunicator.getMessageHandler();
-        assertEquals(1, msg2.getMessagesFromClient().size());
+        // the client should be able to communicate with the server as well
+        ZiggyRmiClient.send(new Message1("from client"), null);
+        TestEventDetector.detectTestEvent(1000L,
+            () -> messagesDetected.get(Message1.class).size() > 2);
+        assertEquals(3, messagesDetected.get(Message1.class).size());
+        TestEventDetector.detectTestEvent(1000L,
+            () -> ZiggyRmiServer.messagesReceived().size() > 0);
+        assertEquals(1, ZiggyRmiServer.messagesReceived().size());
+        Integer message1Count = ZiggyRmiServer.messagesReceived().get(Message1.class);
+        assertNotNull(message1Count);
+        assertEquals(1, message1Count.intValue());
     }
 
     /**
@@ -208,112 +201,76 @@ public class RmiIntraProcessCommunicationTest {
     @Test
     public void testIntraProcessCommunication() throws IOException {
 
-        ServerTest serverTest = new ServerTest();
+        RmiServerInstantiator serverTest = new RmiServerInstantiator();
         serverTest.startServer(port, 2, null);
-        messageHandler1 = (ServerSideMessageHandlerForTest) WorkerCommunicator.getMessageHandler();
 
-        // broadcast a message before the UiCommunicator has been initialized
-        MessageFromServer m1 = new MessageFromServer("telecaster");
-        WorkerCommunicator.broadcast(m1);
+        // broadcast a message before the client has been initialized
+        Message1 m1 = new Message1("telecaster");
+        broadcastAndWait(m1);
 
-        ClientSideMessageHandlerForTest messageHandler2 = new ClientSideMessageHandlerForTest();
-        UiCommunicator.setHeartbeatManager(heartbeatManager);
-        UiCommunicator.initializeInstance(messageHandler2, port);
-        UiCommunicator.stopHeartbeatListener();
-        assertEquals(0, messageHandler2.getMessagesFromServer().size());
+        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.setUseMessenger(false);
+        Map<Class<? extends PipelineMessage>, List<PipelineMessage>> messagesDetected = ZiggyRmiClient
+            .messagesDetected();
 
-        // broadcast two messages from the worker to the UI
-        MessageFromServer m2 = new MessageFromServer("stratocaster");
-        WorkerCommunicator.broadcast(m2);
+        assertEquals(0, messagesDetected.size());
 
-        MessageFromServer m3 = new MessageFromServer("mustang");
-        WorkerCommunicator.broadcast(m3);
+        // broadcast two messages from the server to the client
+        Message1 m2 = new Message1("stratocaster");
+        ZiggyRmiServer.addToBroadcastQueue(m2);
 
-        Set<MessageFromServer> clientMessages = messageHandler2.getMessagesFromServer();
-        assertEquals(2, clientMessages.size());
-        Set<String> payloads = new HashSet<>();
-        for (MessageFromServer message : clientMessages) {
-            payloads.add(message.getPayload());
-        }
-        assertTrue(payloads.contains("stratocaster"));
-        assertTrue(payloads.contains("mustang"));
+        Message1 m3 = new Message1("mustang");
+        broadcastAndWait(m3);
 
-        // Now construct a MessageFromClient and send it back
-        assertEquals(0, messageHandler1.getMessagesFromClient().size());
-        MessageFromClient m4 = new MessageFromClient("reply");
-        UiCommunicator.send(m4);
+        List<PipelineMessage> detectedMessage1Instances = messagesDetected.get(Message1.class);
+        assertEquals(2, detectedMessage1Instances.size());
+        assertTrue(detectedMessage1Instances.contains(m2));
+        assertTrue(detectedMessage1Instances.contains(m3));
 
-        assertEquals(1, messageHandler1.getMessagesFromClient().size());
-        for (MessageFromClient message : messageHandler1.getMessagesFromClient()) {
-            assertEquals("reply", message.getPayload());
-        }
+        // Now construct a message from the client and send it
+        assertEquals(0, ZiggyRmiServer.messagesReceived().size());
+        Message1 m4 = new Message1("reply");
+        ZiggyRmiClient.send(m4, null);
+        waitForBroadcastCompletion();
+
+        assertEquals(3, detectedMessage1Instances.size());
+        assertTrue(detectedMessage1Instances.contains(m2));
+        assertTrue(detectedMessage1Instances.contains(m3));
+        assertTrue(detectedMessage1Instances.contains(m4));
+        assertEquals(1, ZiggyRmiServer.messagesReceived().size());
+        assertTrue(ZiggyRmiServer.messagesReceived().containsKey(Message1.class));
     }
 
     /**
-     * Tests that heartbeats are properly sent, detected, and handled.
-     *
-     * @throws IOException
+     * Tests that the RMI client decrements a {@link CountDownLatch} as part of its
+     * {@link ZiggyRmiClient#send(PipelineMessage, CountDownLatch)} method.
      */
     @Test
-    public void testHeartbeatManagement() throws InterruptedException, IOException {
-
-        // Start the server
-        ServerTest serverTest = new ServerTest();
+    public void testSendWithCountdownLatch() throws IOException {
+        RmiServerInstantiator serverTest = new RmiServerInstantiator();
         serverTest.startServer(port, 2, null);
+        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.setUseMessenger(false);
 
-        // Start the heartbeat manager and communicator
-        MessageHandler messageHandler = new MessageHandler(
-            new ConsoleMessageDispatcherForTest(null, null, false));
-        InstrumentedWorkerHeartbeatManager h = new InstrumentedWorkerHeartbeatManager(
-            messageHandler);
-        UiCommunicator.setHeartbeatManager(h);
-        UiCommunicator.initializeInstance(messageHandler, port);
-        UiCommunicator.stopHeartbeatListener();
-
-        // Simulate 10 heartbeats getting sent, and a detector that runs at 1/2 the rate
-        // of the heartbeat generator.
-        long startTime = SystemTime.currentTimeMillis();
-        long currentTime = startTime;
-        long heartbeatInterval = 100L;
-        for (int heartbeatDetectionCount = 0; heartbeatDetectionCount < 5; heartbeatDetectionCount++) {
-            currentTime += heartbeatInterval;
-            SystemTime.setUserTime(currentTime);
-            WorkerCommunicator.broadcast(new WorkerHeartbeatMessage());
-            currentTime += heartbeatInterval;
-            SystemTime.setUserTime(currentTime);
-            WorkerCommunicator.broadcast(new WorkerHeartbeatMessage());
-            h.checkForHeartbeat();
-        }
-
-        // There should be 5 checks after starting, all good
-        List<Boolean> checkStatus = h.getCheckStatus();
-        assertEquals(5, checkStatus.size());
-        for (Boolean status : checkStatus) {
-            assertTrue(status);
-        }
-
-        // The check times should be within errors of 200 msec apart, and the
-        // manager's last detection time should be set to the message handler's
-        // last detection time from the preceding detection
-        //
-        // Note: the 1st and 2nd local heartbeat times can be significantly
-        // closer in time than 200 msec because the worker sends the UI a
-        // heartbeat immediately when the UI starts up, which can be at any
-        // time in the normal heartbeat cycle
-        List<Long> messageHandlerHeartbeatTimesAtChecks = h
-            .getMessageHandlerHeartbeatTimesAtChecks();
-        List<Long> localTimesAtChecks = h.getlocalHeartbeatTimesAtChecks();
-        assertEquals(5, messageHandlerHeartbeatTimesAtChecks.size());
-        assertEquals(5, localTimesAtChecks.size());
-
-        for (int i = 0; i < 3; i++) {
-            assertEquals(messageHandlerHeartbeatTimesAtChecks.get(i),
-                localTimesAtChecks.get(i + 1));
-            assertTrue(messageHandlerHeartbeatTimesAtChecks.get(i + 1)
-                - messageHandlerHeartbeatTimesAtChecks.get(i) > 199L);
-            assertTrue(messageHandlerHeartbeatTimesAtChecks.get(i + 1)
-                - messageHandlerHeartbeatTimesAtChecks.get(i) < 201L);
-        }
+        CountDownLatch countdownLatch = new CountDownLatch(1);
+        Message1 m1 = new Message1("telecaster");
+        ZiggyRmiClient.send(m1, countdownLatch);
+        waitForBroadcastCompletion();
+        assertEquals(0, countdownLatch.getCount());
     }
 
+    private void broadcastAndWait(PipelineMessage pipelineMessage) {
+        ZiggyRmiServer.addToBroadcastQueue(pipelineMessage);
+        waitForBroadcastCompletion();
+    }
+
+    /**
+     * Forces the test thread to wait until the {@link ZiggyRmiServer} message broadcasting thread
+     * has completed its work. This corresponds to the message queue being empty and the broadcast
+     * thread in state WAITING.
+     */
+    private void waitForBroadcastCompletion() {
+        assertTrue(
+            TestEventDetector.detectTestEvent(1000L, ZiggyRmiServer::isAllMessagingComplete));
+    }
 }

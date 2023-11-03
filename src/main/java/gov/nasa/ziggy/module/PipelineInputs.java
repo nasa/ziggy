@@ -23,7 +23,7 @@ import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 
@@ -80,7 +80,7 @@ public abstract class PipelineInputs implements Persistable {
      *
      * @return List of parameter classes.
      */
-    public List<Class<? extends Parameters>> requiredParameters() {
+    public List<Class<? extends ParametersInterface>> requiredParameters() {
         return new ArrayList<>();
     }
 
@@ -129,7 +129,7 @@ public abstract class PipelineInputs implements Persistable {
     public SubtaskInformation subtaskInformation(PipelineTask pipelineTask) {
 
         return new SubtaskInformation(pipelineTask.getModuleName(),
-            pipelineTask.getUowTask().getInstance().briefState(), 1, 1);
+            pipelineTask.uowTaskInstance().briefState(), 1, 1);
     }
 
     /**
@@ -251,16 +251,14 @@ public abstract class PipelineInputs implements Persistable {
      *
      * @param seqNum
      */
-    public void writeSubTaskInputs(int seqNum) {
+    public void writeSubTaskInputs() {
         String moduleName = moduleName();
-        String filename = ModuleInterfaceUtils.inputsFileName(moduleName, seqNum);
+        String filename = ModuleInterfaceUtils.inputsFileName(moduleName);
         log.info("Writing file " + filename + " to sub-task directory");
         hdf5ModuleInterface.writeFile(DirectoryProperties.workingDir()
-            .resolve(ModuleInterfaceUtils.inputsFileName(moduleName, seqNum))
+            .resolve(ModuleInterfaceUtils.inputsFileName(moduleName))
             .toFile(), this, true);
-//        hdf5ModuleInterface.writeFile(
-//            new File(ModuleInterfaceUtils.inputsFileName(moduleName, seqNum)), this, true);
-        ModuleInterfaceUtils.writeCompanionXmlFile(this, moduleName, seqNum);
+        ModuleInterfaceUtils.writeCompanionXmlFile(this, moduleName);
     }
 
     /**

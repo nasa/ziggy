@@ -17,7 +17,7 @@ package gov.nasa.ziggy.module;
  * @author Todd Klaus
  */
 public class ModuleFatalProcessingException extends PipelineException {
-    private static final long serialVersionUID = -5155087029123765745L;
+    private static final long serialVersionUID = 20230511L;
 
     public ModuleFatalProcessingException(String errorText, Throwable t) {
         super(errorText, t);

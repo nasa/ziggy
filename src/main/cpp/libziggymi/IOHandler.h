@@ -13,7 +13,7 @@
 class IOHandler {
 public:
 
-    IOHandler(const std::string& dir, const std::string& id, const std::string& binaryName);
+    IOHandler(const std::string& dir, const std::string& binaryName);
 
     virtual ~IOHandler() {
     }
@@ -24,7 +24,6 @@ public:
 
 private:
     std::string dir;
-    std::string id;
     std::string binaryName;
     std::string inputFilename;
     std::string outputFilename;

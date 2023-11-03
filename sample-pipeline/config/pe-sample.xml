@@ -4,6 +4,6 @@
 
   <pipelineEvent name="data-receipt" pipelineName="sample"
 		 enableOnClusterStart="false"
-		 directory="${data.receipt.dir}"/>
+		 directory="${ziggy.pipeline.data.receipt.dir}"/>
 
 </pipelineEventDefinition>

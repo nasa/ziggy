@@ -113,7 +113,6 @@ public class Hdf5ModuleInterfaceTest {
 
         recoveredTestValues.ignoreThisField = 11.5;
         assertTrue(persistableTest2.equals(recoveredTestValues));
-
     }
 
     @Test(expected = PipelineException.class)
@@ -125,5 +124,4 @@ public class Hdf5ModuleInterfaceTest {
         recoveredTestValues.ignoreThisField = 0;
         moduleInterface.readFile(hdf5File, recoveredTestValues, false);
     }
-
 }

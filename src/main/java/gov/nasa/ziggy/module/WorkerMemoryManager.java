@@ -6,18 +6,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.os.MemInfo;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
-import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
+import gov.nasa.ziggy.worker.TaskExecutor;
 
 /**
  * This class maintains a {@link Semaphore} that manages the amount of physical memory available for
  * external processes.
  * <p>
- * Before executing a task, the {@link WorkerTaskRequestDispatcher} should call this class to
- * acquire the necessary memory (as specified in the {@link PipelineModuleDefinition}) and call this
- * class again to release the memory once the task is complete. If insufficient memory is available,
- * the acquire() method will block until the memory becomes available.
+ * Before executing a task, the {@link TaskExecutor} should call this class to acquire the necessary
+ * memory (as specified in the {@link PipelineModuleDefinition}) and call this class again to
+ * release the memory once the task is complete. If insufficient memory is available, the acquire()
+ * method will block until the memory becomes available.
  *
  * @author Todd Klaus
  */
@@ -29,7 +31,7 @@ public class WorkerMemoryManager {
     private Semaphore memorySemaphore;
     private int availableMegaBytes;
 
-    public WorkerMemoryManager() throws Exception {
+    public WorkerMemoryManager() {
         MemInfo memInfo = OperatingSystemType.getInstance().getMemInfo();
         long physicalMemoryMegaBytes = memInfo.getTotalMemoryKB() / KILO;
 
@@ -83,18 +85,25 @@ public class WorkerMemoryManager {
 
     /**
      * @param megaBytes
-     * @throws InterruptedException
      * @see java.util.concurrent.Semaphore#acquire(int)
      */
-    public void acquireMemoryMegaBytes(int megaBytes) throws InterruptedException {
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    public void acquireMemoryMegaBytes(int megaBytes) {
         if (megaBytes == 0) {
             return;
         }
         logAcquirePrediction(megaBytes);
 
-        memorySemaphore.acquire(megaBytes);
-
-        log.info(megaBytes + " megabytes acquired, new pool size: " + availableMemoryMegaBytes());
+        try {
+            memorySemaphore.acquire(megaBytes);
+            log.info(
+                megaBytes + " megabytes acquired, new pool size: " + availableMemoryMegaBytes());
+        } catch (InterruptedException ignored) {
+            // If we got here, it means that a worker thread was waiting for Java heap to become
+            // available but that thread was interrupted. It is therefore no longer waiting for
+            // Java heap! But all the other threads still need the memory manager to function,
+            // so we swallow this exception.
+        }
     }
 
     /**

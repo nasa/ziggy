@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +46,8 @@ import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStatePipelineModule;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
 
 /**
  * Pipeline modules that executes an external process, either directly via a command line run in a
@@ -61,8 +60,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
     implements ProcessingStatePipelineModule {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalProcessPipelineModule.class);
-
-    public static final String ALLOW_PARTIAL_TASKS_PROP = "pi.worker.allowPartialTasks";
 
     /**
      * List of valid processing states
@@ -82,7 +79,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
     private PipelineOutputs pipelineOutputs;
 
     protected boolean processingSuccessful;
-    private boolean doneLooping;
+    protected boolean doneLooping;
 
     /**
      * Copy datastore files needed as inputs to the specified working directory.
@@ -118,8 +115,8 @@ public class ExternalProcessPipelineModule extends PipelineModule
     public ExternalProcessPipelineModule(PipelineTask pipelineTask, RunMode runMode) {
         super(pipelineTask, runMode);
         instanceId = pipelineTask.getPipelineInstance().getId();
-        Configuration config = ZiggyConfiguration.getInstance();
-        haltStep = config.getString(PropertyNames.PIPELINE_HALT_PROP_NAME, "C");
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+        haltStep = config.getString(PropertyName.PIPELINE_HALT.property(), "C");
 
         PipelineModuleDefinition pipelineModuleDefinition = pipelineTask.getPipelineInstanceNode()
             .getPipelineModuleDefinition();
@@ -142,7 +139,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
      * Main processing method accessible to callers.
      */
     @Override
-    public boolean processTask() throws PipelineException {
+    public boolean processTask() {
 
         runMode.run(this);
         return processingSuccessful;
@@ -171,7 +168,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
         processingSuccessful = false;
     }
 
-    void checkHaltRequest(ProcessingState state) {
+    public void checkHaltRequest(ProcessingState state) {
         String stateShortName = state.shortName();
         if (haltStep.equals(stateShortName)) {
             throw new PipelineException("Halting processing at end of step " + state.toString()
@@ -194,20 +191,16 @@ public class ExternalProcessPipelineModule extends PipelineModule
         boolean successful;
         File taskDir = algorithmManager().getTaskDir(true);
         performTransaction(() -> {
-            try {
-                IntervalMetric.measure(CREATE_INPUTS_METRIC, () -> {
+            IntervalMetric.measure(CREATE_INPUTS_METRIC, () -> {
 
-                    // Note: here we retrieve a copy of the pipeline task from the database and
-                    // update its producer task IDs. The existing copy of the task in this object
-                    // is also replaced with the updated task.
-                    pipelineTask = pipelineTaskCrud().retrieve(taskId());
-                    pipelineTask.clearProducerTaskIds();
-                    copyDatastoreFilesToTaskDirectory(taskConfigurationManager(), pipelineTask,
-                        taskDir);
-                });
-            } catch (Exception e) {
-                throw new PipelineException(e);
-            }
+                // Note: here we retrieve a copy of the pipeline task from the database and
+                // update its producer task IDs. The existing copy of the task in this object
+                // is also replaced with the updated task.
+                pipelineTask = pipelineTaskCrud().retrieve(taskId());
+                pipelineTask.clearProducerTaskIds();
+                copyDatastoreFilesToTaskDirectory(taskConfigurationManager(), pipelineTask,
+                    taskDir);
+            });
             taskConfigurationManager().validate();
             return null;
         });
@@ -230,7 +223,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
         log.info("Processing step MARSHALING complete");
         doneLooping = !successful;
         processingSuccessful = doneLooping;
-
     }
 
     /**
@@ -251,7 +243,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
         checkHaltRequest(ProcessingState.ALGORITHM_SUBMITTING);
         doneLooping = true;
         processingSuccessful = false;
-
     }
 
     /**
@@ -267,7 +258,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
         checkHaltRequest(ProcessingState.ALGORITHM_QUEUED);
         doneLooping = true;
         processingSuccessful = false;
-
     }
 
     /**
@@ -337,8 +327,9 @@ public class ExternalProcessPipelineModule extends PipelineModule
             for (String failedSubTask : failureSummary.getFailedSubTaskDirs()) {
                 log.info("    " + failedSubTask);
             }
-            Configuration config = ZiggyConfiguration.getInstance();
-            boolean allowPartialTasks = config.getBoolean(ALLOW_PARTIAL_TASKS_PROP, true);
+            ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+            boolean allowPartialTasks = config
+                .getBoolean(PropertyName.ALLOW_PARTIAL_TASKS.property(), true);
             abandonPersisting = !allowPartialTasks;
         }
         if (failureSummary.isAllTasksFailed()) {
@@ -350,15 +341,11 @@ public class ExternalProcessPipelineModule extends PipelineModule
         }
 
         performTransaction(() -> {
-            try {
-                IntervalMetric.measure(STORE_OUTPUTS_METRIC, () -> {
-                    // process outputs
-                    persistResultsAndDeleteTempFiles(pipelineTask, failureSummary);
-                    return null;
-                });
-            } catch (Exception e) {
-                throw new PipelineException(e);
-            }
+            IntervalMetric.measure(STORE_OUTPUTS_METRIC, () -> {
+                // process outputs
+                persistResultsAndDeleteTempFiles(pipelineTask, failureSummary);
+                return null;
+            });
             return null;
         });
 
@@ -430,15 +417,9 @@ public class ExternalProcessPipelineModule extends PipelineModule
 
         while (!doneLooping) {
 
-            if (WorkerTaskRequestDispatcher.isTaskDeleted(pipelineTask.getId())) {
-                log.info("Exiting task execution due to task deletion");
-                return;
-            }
-
             // Perform the current action (including advancing to the next
             // processing state, if appropriate).
             getProcessingState().taskAction(this);
-
         }
     }
 
@@ -587,7 +568,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
         return new ProcessingFailureSummary(pipelineTask.getModuleName(), getTaskDir());
     }
 
-    AlgorithmLifecycle algorithmManager() {
+    public AlgorithmLifecycle algorithmManager() {
         if (algorithmManager == null) {
             algorithmManager = new AlgorithmLifecycleManager(pipelineTask);
         }
@@ -646,5 +627,4 @@ public class ExternalProcessPipelineModule extends PipelineModule
     public long pipelineTaskId() {
         return taskId();
     }
-
 }

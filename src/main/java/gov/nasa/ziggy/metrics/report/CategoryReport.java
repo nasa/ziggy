@@ -18,8 +18,7 @@ public class CategoryReport extends Report {
         this.isTime = isTime;
     }
 
-    public void generateReport(String moduleName, DescriptiveStatistics stats, TopNList topTen)
-        throws Exception {
+    public void generateReport(String moduleName, DescriptiveStatistics stats, TopNList topTen) {
         String label = moduleName + " : " + category;
 
         HumanReadableStatistics histogramValues = null;

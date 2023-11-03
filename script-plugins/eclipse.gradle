@@ -15,7 +15,7 @@ eclipse {
             entries.each { entry ->
                 if (entry.kind == "src" && entry.hasProperty("output")) {
                     // The use of $buildDir does not return build.
-                    entry.output = entry.output.replace("bin", "build/eclipse")
+                    entry.output = entry.output.replace("bin/", "build/eclipse/")
                 }
             }
         }
@@ -31,7 +31,12 @@ eclipse {
             // TODO Get the following pseudocode to work to avoid hardcoding path
             //File jar = findFileInConfiguration(configurations.runtime, 'jarhdf5-1.12.2')
             //hdf5.setNativeLibraryLocation(jar.getParent())
-            hdf5.setNativeLibraryLocation("$ziggyDependencies/lib")
+            hdf5.setNativeLibraryLocation("$outsideDir/lib")
+        }
+
+        // Add the JPA metamodel directory compiled by Gradle to the Eclipse classpath.
+        file.withXml { xml ->
+            xml.asNode().appendNode("classpathentry", [ kind: "src", path: "build/generated/sources/annotationProcessor/java/main" ])
         }
     }
 }

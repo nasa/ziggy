@@ -40,7 +40,7 @@ public class TypedParameterTest {
         assertEquals(double[].class, t.getType());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = NumberFormatException.class)
     public void testInvalidConstruction() {
         new TypedParameter("dummy", "text", "dOuBlE");
     }
@@ -105,11 +105,8 @@ public class TypedParameterTest {
         v = t.getValueAsArray();
         assertTrue(v instanceof double[]);
         vv = (double[]) v;
-        assertEquals(3, vv.length);
+        assertEquals(1, vv.length);
         assertEquals(0, vv[0], 1e-9);
-        assertEquals(0, vv[1], 1e-9);
-        assertEquals(0, vv[2], 1e-9);
-
     }
 
     @Test
@@ -141,7 +138,6 @@ public class TypedParameterTest {
         vvv = (double[]) v;
         assertEquals(1, vvv.length);
         assertEquals(100.0, vvv[0], 1e-9);
-
     }
 
     @Test

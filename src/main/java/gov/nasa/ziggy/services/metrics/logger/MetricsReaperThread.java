@@ -1,12 +1,14 @@
 package gov.nasa.ziggy.services.metrics.logger;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.MetricsCrud;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 public class MetricsReaperThread extends Thread {
     private static final Logger log = LoggerFactory.getLogger(MetricsReaperThread.class);
@@ -28,11 +30,12 @@ public class MetricsReaperThread extends Thread {
     }
 
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
     public void run() {
         try {
             log.info("MetricsReaperThread: STARTED");
 
-            Configuration config = ZiggyConfiguration.getInstance();
+            ImmutableConfiguration config = ZiggyConfiguration.getInstance();
             checkIntervalMillis = config.getInt(CHECK_INTERVAL_MINS_PROP,
                 DEFAULT_CHECK_INTERVAL_MINS) * 60 * 1000;
             maxRows = config.getInt(MAX_ROWS_PROP, DEFAULT_MAX_ROWS);

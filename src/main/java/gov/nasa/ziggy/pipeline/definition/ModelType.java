@@ -4,14 +4,13 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
 import gov.nasa.ziggy.module.io.ProxyIgnore;
 import gov.nasa.ziggy.util.RegexBackslashManager;
 import gov.nasa.ziggy.util.RegexGroupCounter;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -36,7 +35,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_MODEL_TYPE")
+@Table(name = "ziggy_ModelType")
 public class ModelType implements Comparable<ModelType> {
 
     @XmlAttribute(required = true)
@@ -76,10 +75,9 @@ public class ModelType implements Comparable<ModelType> {
             throw new IllegalStateException(
                 "Version number group " + versionNumberGroup + " does not exist in model " + type);
         }
-        if ((timestampGroup > groupCount) || (versionNumberGroup <= 0 && semanticVersionNumber)) {
+        if (timestampGroup > groupCount || versionNumberGroup <= 0 && semanticVersionNumber) {
             throw new IllegalStateException(
                 "Timestamp group " + versionNumberGroup + " does not exist in model " + type);
-
         }
     }
 
@@ -153,7 +151,7 @@ public class ModelType implements Comparable<ModelType> {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         ModelType other = (ModelType) obj;

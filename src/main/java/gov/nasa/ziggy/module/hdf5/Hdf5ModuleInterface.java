@@ -14,12 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.io.Persistable;
 import hdf.hdf5lib.H5;
 import hdf.hdf5lib.HDF5Constants;
-import hdf.hdf5lib.exceptions.HDF5Exception;
-import hdf.hdf5lib.exceptions.HDF5LibraryException;
 
 /**
  * Handles conversion between Persistable data objects and HDF5 files. The latter are used for data
@@ -76,29 +73,17 @@ public class Hdf5ModuleInterface {
      * @param dataObject Persistable object
      */
     public void writeFile(File file, Persistable dataObject, boolean createGroupsForMissingFields) {
-        long fileId = 0;
-        try {
-
-            // limit the interface to use of HDF5 1.8 functionality, so that hopefully
-            // MATLAB can read files written from here
-            H5.H5Pset_libver_bounds(HDF5Constants.H5P_FILE_ACCESS_DEFAULT,
-                HDF5Constants.H5F_LIBVER_V18, HDF5Constants.H5F_LIBVER_V18);
-            fileId = H5.H5Fcreate(file.getAbsolutePath(), HDF5Constants.H5F_ACC_TRUNC, H5P_DEFAULT,
-                H5P_DEFAULT);
-        } catch (NullPointerException | HDF5Exception | IllegalArgumentException e) {
-            throw new PipelineException("Unable to create HDF5 file " + file.getName()
-                + " in directory " + file.getParent(), e);
-        }
+        // limit the interface to use of HDF5 1.8 functionality, so that hopefully
+        // MATLAB can read files written from here
+        H5.H5Pset_libver_bounds(HDF5Constants.H5P_FILE_ACCESS_DEFAULT, HDF5Constants.H5F_LIBVER_V18,
+            HDF5Constants.H5F_LIBVER_V18);
+        long fileId = H5.H5Fcreate(file.getAbsolutePath(), HDF5Constants.H5F_ACC_TRUNC, H5P_DEFAULT,
+            H5P_DEFAULT);
         AbstractHdf5Array hdf5Array = AbstractHdf5Array.newInstance(dataObject);
         hdf5Array.setCreateGroupsForMissingFields(createGroupsForMissingFields);
         hdf5Array.write(fileId, "/");
-        try {
-            testForUnclosedHdf5Objects(fileId);
-            H5.H5Fclose(fileId);
-        } catch (HDF5LibraryException e) {
-            throw new PipelineException("Unable to close HDF5 file " + file.getName()
-                + " in directory " + file.getParent() + ", HDF5 file ID " + fileId, e);
-        }
+        testForUnclosedHdf5Objects(fileId);
+        H5.H5Fclose(fileId);
     }
 
     /**
@@ -166,18 +151,13 @@ public class Hdf5ModuleInterface {
      */
     static void writeDataTypeAttribute(long fieldGroupId, ZiggyDataType ziggyDataType,
         String fieldName) {
-        try {
-            long dataTypeAttributeSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
-            long dataTypeAttributeId = H5.H5Acreate(fieldGroupId, FIELD_DATA_TYPE_ATT_NAME,
-                ZIGGY_INT.getHdf5Type(), dataTypeAttributeSpace, H5P_DEFAULT, H5P_DEFAULT);
-            H5.H5Awrite(dataTypeAttributeId, ZIGGY_INT.getHdf5Type(),
-                new int[] { ziggyDataType.getAttributeTypeInt() });
-            H5.H5Aclose(dataTypeAttributeId);
-            H5.H5Sclose(dataTypeAttributeSpace);
-        } catch (NullPointerException | HDF5Exception e) {
-            throw new PipelineException(
-                "Unable to create data type attribute for field " + fieldName, e);
-        }
+        long dataTypeAttributeSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
+        long dataTypeAttributeId = H5.H5Acreate(fieldGroupId, FIELD_DATA_TYPE_ATT_NAME,
+            ZIGGY_INT.getHdf5Type(), dataTypeAttributeSpace, H5P_DEFAULT, H5P_DEFAULT);
+        H5.H5Awrite(dataTypeAttributeId, ZIGGY_INT.getHdf5Type(),
+            new int[] { ziggyDataType.getAttributeTypeInt() });
+        H5.H5Aclose(dataTypeAttributeId);
+        H5.H5Sclose(dataTypeAttributeSpace);
     }
 
     static String getFieldName(String fieldName, long[] arrayLocation) {
@@ -201,39 +181,21 @@ public class Hdf5ModuleInterface {
      */
     public boolean readFile(File file, Persistable dataObject, boolean allowMissingFields) {
         long fileId;
-        try {
-            fileId = H5.H5Fopen(file.getAbsolutePath(), HDF5Constants.H5F_ACC_RDONLY, H5P_DEFAULT);
-        } catch (HDF5LibraryException | NullPointerException e) {
-            throw new PipelineException("Unable to open HDF5 file " + file.getName()
-                + " in directory " + file.getParent() + " for reading", e);
-        }
+        fileId = H5.H5Fopen(file.getAbsolutePath(), HDF5Constants.H5F_ACC_RDONLY, H5P_DEFAULT);
         AbstractHdf5Array hdf5Array = AbstractHdf5Array.newInstance(dataObject);
         hdf5Array.setAllowMissingFields(allowMissingFields);
         hdf5Array.read(fileId);
-        try {
-            testForUnclosedHdf5Objects(fileId);
-            H5.H5Fclose(fileId);
-        } catch (HDF5LibraryException e) {
-            throw new PipelineException(
-                "Unable to close HDF5 file " + file.getName() + " in directory " + file.getParent(),
-                e);
-        }
+        testForUnclosedHdf5Objects(fileId);
+        H5.H5Fclose(fileId);
         hdf5Array.isMissingFieldsDetected();
         return hdf5Array.isMissingFieldsDetected();
     }
 
     static ZiggyDataType readDataTypeAttribute(long fieldGroupId, String fieldName) {
-        ZiggyDataType ziggyDataType = null;
-        try {
-            long dataTypeAttributeId = H5.H5Aopen(fieldGroupId, FIELD_DATA_TYPE_ATT_NAME,
-                H5P_DEFAULT);
-            int[] dataTypeArray = new int[1];
-            H5.H5Aread(dataTypeAttributeId, ZIGGY_LONG.getHdf5Type(), dataTypeArray);
-            H5.H5Aclose(dataTypeAttributeId);
-            ziggyDataType = ZiggyDataType.getDataTypeFromAttributeTypeInt(dataTypeArray[0]);
-        } catch (NullPointerException | HDF5Exception e) {
-            throw new PipelineException("Unable to read HDF5 data type of field " + fieldName, e);
-        }
-        return ziggyDataType;
+        long dataTypeAttributeId = H5.H5Aopen(fieldGroupId, FIELD_DATA_TYPE_ATT_NAME, H5P_DEFAULT);
+        int[] dataTypeArray = new int[1];
+        H5.H5Aread(dataTypeAttributeId, ZIGGY_LONG.getHdf5Type(), dataTypeArray);
+        H5.H5Aclose(dataTypeAttributeId);
+        return ZiggyDataType.getDataTypeFromAttributeTypeInt(dataTypeArray[0]);
     }
 }

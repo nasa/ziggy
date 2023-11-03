@@ -1,33 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration>
 
-    <Properties>
-        <Property name="pattern">%d %-5p [%t:%C{1}.%M] %X{logStreamIdentifier} %m%n</Property>
-        <Property name="filename">${sys:cli.logfile:-/dev/null}</Property>
-    </Properties>
-    <Appenders>
+  <Properties>
+    <Property name="pattern">%d %-5p [%t:%C{1}.%M] %X{logStreamIdentifier} %m%n</Property>
+    <Property name="filename">${sys:ziggy.logfile:-/dev/null}</Property>
+    <!-- TODO
+	 1. Rename ziggy.logfile to ziggy.logfile.prefix when we introduce alternate files like ziggy-err.log.
+	 2. When we introduce a prefix, consider an alternative to /dev/null such as "ziggy"
+	 since /dev/null.log is bound to cause trouble.
+    -->
+  </Properties>
+  <Appenders>
+    <!-- The name of the console appender must match the value of TaskLog.CONSOLE_APPENDER_NAME. -->
+    <!-- Console wants to be plain because wrapper formats for us. -->
+    <Console name="console">
+      <PatternLayout pattern="[%C{1}.%M] %m%n"/>
+    </Console>
+
+    <!-- The name of the file appender must match the value of TaskLog.CLI_APPENDER_NAME. -->
+    <File name="cli" filename="${filename}">
+      <PatternLayout pattern="${pattern}"/>
+    </File>
+
+    <!--
+    <RollingFile name="cli" fileName="${filename}" filePattern="${filename}.%i.gz">
+      <LevelRangeFilter minLevel="INFO" maxLevel="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+      <PatternLayout pattern="${pattern}"/>
+      <Policies>
+        <SizeBasedTriggeringPolicy size="8192kb"/>
+      </Policies>
+      <DefaultRolloverStrategy max="4"/>
+    </RollingFile>
+    -->
+  </Appenders>
+  
+  <Loggers>
     
-        <!--  NB the name of the console appender must match the value of 
-            TaskLog.CONSOLE_APPENDER_TYPE. -->
-        <Console name="console"> <!-- Console wants to be plain because wrapper formats for us -->
-            <PatternLayout pattern="[%C{1}.%M] %m%n"/>
-        </Console>
-        <File name="cli" filename="${filename}">
-            <PatternLayout pattern="${pattern}"/>
-        </File>
-    </Appenders>
+    <!-- Can specify an AppenderRef, but then add additivity="false" to the parameters
+	 to avoid duplicate log messages if that appender is found in Root. -->
+    <Logger name="gov.nasa.ziggy.services.database" level="info"/>
+    <Logger name="gov.nasa.ziggy.services.messaging" level="info"/>
+    <Logger name="gov.nasa.ziggy.ui" level="info"/>
+    <Logger name="gov.nasa.ziggy.util.ClasspathScanner" level="info"/>
+    <Logger name="gov.nasa.ziggy" level="info"/>
+    <Logger name="org.hibernate" level="warn"/>
+
+    <!--
+        To view the stack trace whenever DatabaseTransactionFactory.performTransaction is called, uncomment the following.
+        <Logger name="gov.nasa.ziggy.services.database.DatabaseTransactionFactory" level="trace"/>
+    -->
+
+    <!--
+        To view SQL, uncomment the following and add the following VM arguments to your run configuration in Eclipse.
+        -Dlog4j2.configurationFile=etc/log4j2.xml -Dhibernate.show_sql=true -Dhibernate.format_sql=true -Dhibernate.use_sql_comments=true
+        <Logger name="org.hibernate.SQL" level="debug"/>
+    -->
     
-    <Loggers>
+    <Root level="info">
+      <AppenderRef ref="console"/>
+      <AppenderRef ref="cli"/>
+    </Root>
     
-        <Logger name="gov.nasa.ziggy.util.ClasspathScanner" level="info"/>
-        <Logger name="gov.nasa.ziggy" level="info"/>
-        <Logger name="org.hibernate" level="warn"/>
-    
-        <Root level="info">
-            <AppenderRef ref="console"/>
-            <AppenderRef ref="cli"/>
-        </Root>
-        
-    </Loggers>
+  </Loggers>
 
 </Configuration>

@@ -72,5 +72,4 @@ public class PipelineDefinitionFile implements HasXmlSchemaFilename {
     public String getXmlSchemaFilename() {
         return XML_SCHEMA_FILE_NAME;
     }
-
 }

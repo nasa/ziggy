@@ -3,12 +3,13 @@ package gov.nasa.ziggy.services.alert;
 import java.io.Serializable;
 import java.util.Date;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
+
+import gov.nasa.ziggy.services.messages.AlertMessage;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
 /**
  * Contains alert data. Shared by {@link Alert} (used to store alert data in the database) and
@@ -20,7 +21,7 @@ import org.slf4j.event.Level;
 public class Alert implements Serializable {
     private static final Logger log = LoggerFactory.getLogger(Alert.class);
 
-    private static final long serialVersionUID = -6630368734502687993L;
+    private static final long serialVersionUID = 20230511L;
 
     private static final int MAX_MESSAGE_LENGTH = 4000;
 
@@ -29,7 +30,7 @@ public class Alert implements Serializable {
     private long sourceTaskId = -1;
     private String processName = null;
     private String processHost = null;
-    private int processId = -1;
+    private long processId = -1;
     private String severity = Level.ERROR.toString();
     @Column(nullable = true, length = MAX_MESSAGE_LENGTH)
     private String message = null;
@@ -38,7 +39,7 @@ public class Alert implements Serializable {
     }
 
     public Alert(Date timestamp, String sourceComponent, long sourceTaskId, String processName,
-        String processHost, int processId, String message) {
+        String processHost, long processId, String message) {
         this.timestamp = timestamp;
         this.sourceComponent = sourceComponent;
         this.sourceTaskId = sourceTaskId;
@@ -51,7 +52,7 @@ public class Alert implements Serializable {
     }
 
     public Alert(Date timestamp, String sourceComponent, long sourceTaskId, String processName,
-        String processHost, int processId, String severity, String message) {
+        String processHost, long processId, String severity, String message) {
         this.timestamp = timestamp;
         this.sourceComponent = sourceComponent;
         this.sourceTaskId = sourceTaskId;
@@ -75,7 +76,7 @@ public class Alert implements Serializable {
         }
     }
 
-    public int getProcessId() {
+    public long getProcessId() {
         return processId;
     }
 

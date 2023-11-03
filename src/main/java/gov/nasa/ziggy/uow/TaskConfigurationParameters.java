@@ -15,7 +15,7 @@ import gov.nasa.ziggy.parameters.Parameters;
  *
  * @author PT
  */
-public class TaskConfigurationParameters implements Parameters {
+public class TaskConfigurationParameters extends Parameters {
 
     private String taskDirectoryRegex;
     private boolean singleSubtask;
@@ -73,5 +73,4 @@ public class TaskConfigurationParameters implements Parameters {
     public void setMaxAutoResubmits(int maxAutoResubmits) {
         this.maxAutoResubmits = maxAutoResubmits;
     }
-
 }

@@ -10,10 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.ParameterSetName;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
@@ -40,10 +39,10 @@ public class PipelineConfigurator {
     PipelineDefinitionNode currentNode = null;
 
     // pipeline params
-    private Map<ClassWrapper<Parameters>, ParameterSetName> pipelineParameterSetNamesMap = new HashMap<>();
+    private Map<ClassWrapper<ParametersInterface>, String> pipelineParameterSetNamesMap = new HashMap<>();
 
     // module params
-    private Map<PipelineDefinitionNode, Map<ClassWrapper<Parameters>, ParameterSetName>> moduleParameterSetNamesMap = new HashMap<>();
+    private Map<PipelineDefinitionNode, Map<ClassWrapper<ParametersInterface>, String>> moduleParameterSetNamesMap = new HashMap<>();
 
     private int exeTimeout = 60 * 60 * 50; // 50 hours
 
@@ -114,9 +113,10 @@ public class PipelineConfigurator {
             throw new PipelineException("Pipeline not initialized, call createPipeline() first");
         }
 
-        Class<? extends Parameters> paramSetClass = parameterSet.parametersInstance().getClass();
+        Class<? extends ParametersInterface> paramSetClass = parameterSet.parametersInstance()
+            .getClass();
 
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(paramSetClass);
+        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(paramSetClass);
         pipelineParameterSetNamesMap.put(classWrapper, parameterSet.getName());
     }
 
@@ -168,10 +168,10 @@ public class PipelineConfigurator {
 
         PipelineDefinitionNode node = addNode(moduleDef, taskGenerator);
 
-        Map<ClassWrapper<Parameters>, ParameterSetName> paramSetNamesMap = new HashMap<>();
+        Map<ClassWrapper<ParametersInterface>, String> paramSetNamesMap = new HashMap<>();
 
         for (ParameterSet set : paramSets) {
-            ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(
+            ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(
                 set.parametersInstance().getClass());
             paramSetNamesMap.put(classWrapper, set.getName());
         }
@@ -256,12 +256,12 @@ public class PipelineConfigurator {
         PipelineDefinitionNode node = new PipelineDefinitionNode();
         node.setPipelineModuleDefinition(moduleDef);
 
-        Map<ClassWrapper<Parameters>, ParameterSetName> paramSetNamesMap = new HashMap<>();
+        Map<ClassWrapper<ParametersInterface>, String> paramSetNamesMap = new HashMap<>();
 
         for (ParameterSet set : paramSets) {
-            Class<? extends Parameters> paramClass = set.parametersInstance().getClass();
+            Class<? extends ParametersInterface> paramClass = set.parametersInstance().getClass();
 
-            ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(paramClass);
+            ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(paramClass);
             paramSetNamesMap.put(classWrapper, set.getName());
         }
 
@@ -318,16 +318,14 @@ public class PipelineConfigurator {
             .retrieveAllVersionsForName(name);
         for (PipelineModuleDefinition existingModule : existingModules) {
             log.info("deleting existing pipeline module def: " + existingModule);
-            pipelineModuleDefinitionCrud.delete(existingModule);
+            pipelineModuleDefinitionCrud.remove(existingModule);
         }
 
         PipelineModuleDefinition moduleDef = new PipelineModuleDefinition(name);
         moduleDef.setPipelineModuleClass(new ClassWrapper<>(clazz));
         moduleDef.setExeTimeoutSecs(exeTimeout);
 
-        pipelineModuleDefinitionCrud.create(moduleDef);
-
-        return moduleDef;
+        return pipelineModuleDefinitionCrud.merge(moduleDef);
     }
 
     /**
@@ -343,17 +341,15 @@ public class PipelineConfigurator {
         List<ParameterSet> existingParamSets = parameterSetCrud.retrieveAllVersionsForName(name);
         for (ParameterSet set : existingParamSets) {
             log.info("deleting existing pipeline module param set: " + set);
-            parameterSetCrud.delete(set);
+            parameterSetCrud.remove(set);
         }
 
         ParameterSet paramSet = new ParameterSet(name);
         paramSet.setDescription("Created by PipelineConfigurator");
 
-        paramSet.setParameters(new BeanWrapper<>(params));
+        paramSet.populateFromParametersInstance(params);
 
-        parameterSetCrud.create(paramSet);
-
-        return paramSet;
+        return parameterSetCrud.merge(paramSet);
     }
 
     /**
@@ -362,19 +358,19 @@ public class PipelineConfigurator {
      * @param pipelineParams
      */
     public void setPipelineParamNames(
-        Map<ClassWrapper<Parameters>, ParameterSetName> pipelineParams) {
+        Map<ClassWrapper<ParametersInterface>, String> pipelineParams) {
         pipelineParameterSetNamesMap = pipelineParams;
     }
 
     public void setModuleParamNames(PipelineDefinitionNode node,
-        Map<ClassWrapper<Parameters>, ParameterSetName> moduleParams) {
+        Map<ClassWrapper<ParametersInterface>, String> moduleParams) {
         moduleParameterSetNamesMap.put(node, moduleParams);
     }
 
     public void addModuleParamNames(PipelineDefinitionNode node, ParameterSet parameterSet) {
-        Map<ClassWrapper<Parameters>, ParameterSetName> moduleParamsForNode = moduleParameterSetNamesMap
+        Map<ClassWrapper<ParametersInterface>, String> moduleParamsForNode = moduleParameterSetNamesMap
             .get(node);
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(
+        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(
             parameterSet.parametersInstance().getClass());
         moduleParamsForNode.put(classWrapper, parameterSet.getName());
     }
@@ -394,7 +390,7 @@ public class PipelineConfigurator {
             throw new IllegalStateException("Pipeline has no nodes, call addNode() at least once");
         }
 
-        pipelineDefinitionCrud.create(pipeline);
+        pipelineDefinitionCrud.persist(pipeline);
 
         pipeline = null;
         currentNode = null;

@@ -2,9 +2,9 @@ package gov.nasa.ziggy.services.database;
 
 import java.util.Properties;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
@@ -21,19 +21,19 @@ public class ConnectInfo {
     private String password;
 
     public ConnectInfo() {
-        Configuration config = ZiggyConfiguration.getInstance();
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
 
         driverName = ZiggyHibernateConfiguration.driverClassName();
-        url = config.getString(PropertyNames.HIBERNATE_URL_PROP_NAME);
-        username = config.getString(PropertyNames.HIBERNATE_USERNAME_PROP_NAME);
-        password = config.getString(PropertyNames.HIBERNATE_PASSWD_PROP_NAME);
+        url = config.getString(PropertyName.HIBERNATE_URL.property());
+        username = config.getString(PropertyName.HIBERNATE_USERNAME.property());
+        password = config.getString(PropertyName.HIBERNATE_PASSWORD.property());
     }
 
     public ConnectInfo(Properties databaseProperties) {
         driverName = ZiggyHibernateConfiguration.driverClassName();
-        url = databaseProperties.getProperty(PropertyNames.HIBERNATE_URL_PROP_NAME);
-        username = databaseProperties.getProperty(PropertyNames.HIBERNATE_USERNAME_PROP_NAME);
-        password = databaseProperties.getProperty(PropertyNames.HIBERNATE_PASSWD_PROP_NAME);
+        url = databaseProperties.getProperty(PropertyName.HIBERNATE_URL.property());
+        username = databaseProperties.getProperty(PropertyName.HIBERNATE_USERNAME.property());
+        password = databaseProperties.getProperty(PropertyName.HIBERNATE_PASSWORD.property());
     }
 
     public ConnectInfo(String driverName, String url, String username, String password) {
@@ -89,5 +89,4 @@ public class ConnectInfo {
             .append("]");
         return builder.toString();
     }
-
 }

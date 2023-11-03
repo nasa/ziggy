@@ -48,6 +48,5 @@ public class TimestampFileTest {
         long actualTime = TimestampFile.timestamp(directory, TimestampFile.Event.QUEUED_PBS);
 
         assertEquals("timestamp", timeMillis, actualTime);
-
     }
 }

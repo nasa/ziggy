@@ -31,6 +31,8 @@ public interface DatabaseTransaction<T> {
 
     /**
      * Contains the contents of the transaction. Override in concrete class or lambda.
+     *
+     * @throws Exception, given that the transaction could throw just about anything.
      */
     T transaction() throws Exception;
 
@@ -59,13 +61,13 @@ public interface DatabaseTransaction<T> {
     }
 
     /**
-     * Determines whether the database transaction is performed without logging messages. The
-     * default behavior is to generate logging messages, but in some contexts these are overly
-     * distracting or not very useful and so should be suppressed. In those contexts, override this
-     * method to return true.
+     * Determines whether a transaction may be performed in the context of an existing transaction.
+     * In some cases this is not desirable, as transactions performed in that context will not
+     * commit when the transaction completes (they won't commit until the outer transaction
+     * completes). If {@link #allowExistingTransaction()} returns false, a {@link PipelineException}
+     * will be thrown if a transaction occurs in the context of an existing transaction.
      */
-    default boolean silent() {
-        return false;
+    default boolean allowExistingTransaction() {
+        return true;
     }
-
 }

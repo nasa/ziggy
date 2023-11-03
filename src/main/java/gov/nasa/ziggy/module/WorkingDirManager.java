@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -42,8 +45,8 @@ public class WorkingDirManager {
         return new File(workingDirParent(), taskBaseName);
     }
 
-    public synchronized File allocateWorkingDir(PipelineTask pipelineTask, boolean cleanExisting)
-        throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public synchronized File allocateWorkingDir(PipelineTask pipelineTask, boolean cleanExisting) {
         File workingDir = new File(rootWorkingDir, pipelineTask.taskBaseName());
 
         if (workingDir.exists() && cleanExisting) {
@@ -53,9 +56,12 @@ public class WorkingDirManager {
         }
 
         log.info("Creating task working dir: " + workingDir);
-        FileUtils.forceMkdir(workingDir);
+        try {
+            FileUtils.forceMkdir(workingDir);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to create dir " + workingDir.toString(), e);
+        }
 
         return workingDir;
     }
-
 }

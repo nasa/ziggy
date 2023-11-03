@@ -13,10 +13,10 @@ import gov.nasa.ziggy.util.os.OperatingSystemType;
 public class MatlabUtils {
 
     private static OperatingSystemType osType;
+    private static String architecture;
 
     // Never try to instantiate this class.
     private MatlabUtils() {
-
     }
 
     /**
@@ -39,7 +39,11 @@ public class MatlabUtils {
                 openGlString = "opengl" + File.separator + "lib";
                 break;
             case MAC_OS_X:
-                suffix = "maci64";
+                if (architecture().contains("aarch")) {
+                    suffix = "maca64";
+                } else {
+                    suffix = "maci64";
+                }
                 openGlString = "";
                 break;
             default:
@@ -66,8 +70,20 @@ public class MatlabUtils {
         return osType;
     }
 
+    private static String architecture() {
+        if (architecture == null) {
+            architecture = System.getProperty("os.arch").toLowerCase();
+        }
+        return architecture;
+    }
+
     // Use for unit test purposes only.
     static void setOsType(OperatingSystemType osTypeArg) {
         osType = osTypeArg;
+    }
+
+    /** For testing only. */
+    static void setArchitecture(String arch) {
+        architecture = arch;
     }
 }

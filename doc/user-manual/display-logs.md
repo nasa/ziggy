@@ -8,21 +8,21 @@
 
 Ziggy provides a mechanism for viewing task logs that is more convenient than going to the `logs` directory and hunting around.
 
-To use this feature, go to the Instance tab under the Operations tab. Select the task of interest and right-click to bring up the tasks menu:
+To use this feature, go to the instances panel, select the task of interest and right-click to bring up the tasks menu:
 
-<img src="images/tasks-menu.png" style="zoom:50%;"/>
+<img src="images/tasks-menu.png" style="width:15cm;"/>
 
 Select `List task logs`. You'll get this dialog box:
 
-![](images/logs-list.png)
+<img src="images/logs-list.png" style="width:18cm;"/>
 
 By default the logs are ordered by name, which means that they're also ordered by time, from earliest to latest. If you double-click on one of the rows in the table, the log file in question will be opened in a new window:
 
-![](images/task-log-display.png)
+<img src="images/task-log-display.png" style="width:30cm;"/>
 
 The log will always be opened with the view positioned at the end of the log, since that's most often where you can find messages that inform you about the problems. In this case, that's not true, so you can use the `To Top` button to jump to the start of the log, or simply scroll around until you find what you're looking for:
 
-![](images/task-log-showing-problem.png)
+<img src="images/task-log-showing-problem.png" style="width:30cm;"/>
 
 Here you can see the stack trace produced by the Python algorithm when it deliberately threw an exception, and the Java stack trace that was generated when Ziggy detected that the algorithm had thrown an exception. As it happens, the log shows exactly what the problem is: the user set the parameter that tells subtask 0 to fail, and subtask 0 duly failed.
 

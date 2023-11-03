@@ -1,23 +1,20 @@
 package gov.nasa.ziggy.parameters;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_URL_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_USERNAME_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_URL;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_USERNAME;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.GregorianCalendar;
 import java.util.List;
 
-import javax.xml.datatype.DatatypeConfigurationException;
-import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.XMLGregorianCalendar;
-
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.util.ZiggyVersion;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -39,14 +36,8 @@ public class ParameterLibrary implements HasXmlSchemaFilename {
     @XmlAttribute(required = false)
     private String release = "";
 
-    @XmlAttribute(required = false, name = "repository-revision")
-    private String repositoryRevision = "";
-
     @XmlAttribute(required = false, name = "database-user")
     private String databaseUser = "";
-
-    @XmlAttribute(required = false, name = "build-date")
-    private XMLGregorianCalendar buildDate;
 
     @XmlAttribute(required = false, name = "override-only")
     private Boolean overrideOnly = false;
@@ -58,23 +49,15 @@ public class ParameterLibrary implements HasXmlSchemaFilename {
     @XmlAttribute(required = false, name = "database-url")
     private String databaseUrl = "";
 
-    @XmlAttribute(required = false, name = "repository-branch")
-    private String repositoryBranch = "";
-
     @XmlElement(name = "parameter-set")
     private List<ParameterSet> parameterSets = new ArrayList<>();
 
-    public ParameterLibrary() throws DatatypeConfigurationException {
-        Configuration config = ZiggyConfiguration.getInstance();
-        GregorianCalendar gc = new GregorianCalendar();
-        gc.setTime(ZiggyVersion.getBuildDate());
-        buildDate = DatatypeFactory.newInstance().newXMLGregorianCalendar(gc);
-        release = ZiggyVersion.getSoftwareVersion();
-        databaseUrl = config.getString(HIBERNATE_URL_PROP_NAME, "");
-        databaseUser = config.getString(HIBERNATE_USERNAME_PROP_NAME, "");
+    public ParameterLibrary() {
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+        release = config.getString(PropertyName.ZIGGY_VERSION.property());
+        databaseUrl = config.getString(HIBERNATE_URL.property(), "");
+        databaseUser = config.getString(HIBERNATE_USERNAME.property(), "");
         overrideOnly = false;
-        repositoryBranch = ZiggyVersion.getBranch();
-        repositoryRevision = ZiggyVersion.getRevision();
     }
 
     public String getRelease() {
@@ -85,28 +68,12 @@ public class ParameterLibrary implements HasXmlSchemaFilename {
         this.release = release;
     }
 
-    public String getRepositoryBranch() {
-        return repositoryBranch;
-    }
-
-    public void setRepositoryBranch(String repositoryBranch) {
-        this.repositoryBranch = repositoryBranch;
-    }
-
     public String getDatabaseUser() {
         return databaseUser;
     }
 
     public void setDatabaseUser(String databaseUser) {
         this.databaseUser = databaseUser;
-    }
-
-    public XMLGregorianCalendar getBuildDate() {
-        return buildDate;
-    }
-
-    public void setBuildDate(XMLGregorianCalendar buildDate) {
-        this.buildDate = buildDate;
     }
 
     public Boolean getOverrideOnly() {
@@ -140,37 +107,33 @@ public class ParameterLibrary implements HasXmlSchemaFilename {
     public void setDatabaseParameterSets(Collection<ParameterSetDescriptor> descriptors) {
         parameterSets.clear();
         for (ParameterSetDescriptor descriptor : descriptors) {
-            parameterSets.add(descriptor.getLibraryParamSet());
+            parameterSets.add(descriptor.getParameterSet());
         }
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public List<ParameterSetDescriptor> getParameterSetDescriptors() {
         List<ParameterSetDescriptor> descriptors = new ArrayList<>();
         for (ParameterSet parameterSet : parameterSets) {
-            ParameterSetDescriptor descriptor = new ParameterSetDescriptor(
-                parameterSet.getName().getName(), parameterSet.getClassname());
+            ParameterSetDescriptor descriptor = new ParameterSetDescriptor(parameterSet.getName(),
+                parameterSet.getClassname());
             try {
                 parameterSet.populateDatabaseFields();
-                descriptor.setImportedParamsBean(parameterSet.getParameters());
             } catch (ClassNotFoundException e) {
+                // This means that the class name entered in the parameter library
+                // XML file doesn't match any class known to the worker. In that
+                // case, we don't want to stop reading in parameter sets, we just
+                // want to mark that this parameter set requires a nonexistent class.
                 descriptor.setState(ParameterSetDescriptor.State.CLASS_MISSING);
             }
+            descriptor.setParameterSet(parameterSet);
             descriptors.add(descriptor);
         }
         return descriptors;
-    }
-
-    public String getRepositoryRevision() {
-        return repositoryRevision;
-    }
-
-    public void setRepositoryRevision(String repositoryRevision) {
-        this.repositoryRevision = repositoryRevision;
     }
 
     @Override
     public String getXmlSchemaFilename() {
         return XML_SCHEMA_FILE_NAME;
     }
-
 }

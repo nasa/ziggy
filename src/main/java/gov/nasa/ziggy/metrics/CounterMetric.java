@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Todd Klaus
  */
 public class CounterMetric extends Metric implements Serializable {
-    private static final long serialVersionUID = -5164077933977735823L;
+    private static final long serialVersionUID = 20230511L;
 
     private final AtomicInteger count = new AtomicInteger(0);
 

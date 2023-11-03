@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](change-param-values.md)
+[[Previous]](organize-tables.md)
 [[Up]](user-manual.md)
 [[Next]](datastore-task-dir.md)
 
@@ -14,12 +14,8 @@ The permanent, and temporary, storage areas for data and other files.
 
 ### [The Task Configuration Parameter Sets](task-configuration.md)
 
-How Ziggy knows how to divide work up into tasks, and much, much more. 
+How Ziggy knows how to divide work up into tasks, and much, much more.
 
-### [The Properties File](properties.md)
-
-Everything you never wanted to know about how Ziggy sets paths, but were forced to find out.
-
-[[Previous]](change-param-values.md)
+[[Previous]](organize-tables.md)
 [[Up]](user-manual.md)
 [[Next]](datastore-task-dir.md)

@@ -11,6 +11,7 @@
         <setting id="cleanup.add_missing_override_annotations" value="true"/>
         <setting id="cleanup.add_missing_override_annotations_interface_methods" value="true"/>
         <setting id="cleanup.add_serial_version_id" value="false"/>
+        <setting id="cleanup.also_simplify_lambda" value="true"/>
         <setting id="cleanup.always_use_blocks" value="true"/>
         <setting id="cleanup.always_use_parentheses_in_expressions" value="false"/>
         <setting id="cleanup.always_use_this_for_non_static_field_access" value="false"/>
@@ -76,7 +77,7 @@
         <setting id="cleanup.push_down_negation" value="true"/>
         <setting id="cleanup.qualify_static_field_accesses_with_declaring_class" value="false"/>
         <setting id="cleanup.qualify_static_member_accesses_through_instances_with_declaring_class" value="true"/>
-        <setting id="cleanup.qualify_static_member_accesses_through_subtypes_with_declaring_class" value="true"/>
+        <setting id="cleanup.qualify_static_member_accesses_through_subtypes_with_declaring_class" value="false"/>
         <setting id="cleanup.qualify_static_member_accesses_with_declaring_class" value="true"/>
         <setting id="cleanup.qualify_static_method_accesses_with_declaring_class" value="false"/>
         <setting id="cleanup.reduce_indentation" value="true"/>
@@ -94,7 +95,7 @@
         <setting id="cleanup.remove_unnecessary_nls_tags" value="true"/>
         <setting id="cleanup.remove_unused_imports" value="true"/>
         <setting id="cleanup.remove_unused_local_variables" value="true"/>
-        <setting id="cleanup.remove_unused_method_parameters" value="true"/>
+        <setting id="cleanup.remove_unused_method_parameters" value="false"/>
         <setting id="cleanup.remove_unused_private_fields" value="true"/>
         <setting id="cleanup.remove_unused_private_members" value="false"/>
         <setting id="cleanup.remove_unused_private_methods" value="true"/>
@@ -110,6 +111,7 @@
         <setting id="cleanup.stringbuffer_to_stringbuilder" value="true"/>
         <setting id="cleanup.stringbuilder" value="true"/>
         <setting id="cleanup.stringbuilder_for_local_vars" value="true"/>
+        <setting id="cleanup.stringconcat_stringbuffer_stringbuilder" value="false"/>
         <setting id="cleanup.stringconcat_to_textblock" value="true"/>
         <setting id="cleanup.substring" value="true"/>
         <setting id="cleanup.switch" value="false"/>

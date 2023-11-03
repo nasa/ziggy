@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -57,6 +57,8 @@ import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.events.ZiggyEventHandlerFile;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -79,16 +81,21 @@ public class XmlSchemaExporter {
     private static final String DEFAULT_XSD_FILE_NAME = "default.xsd";
     private static String destinationDirectory;
 
-    public static void main(String[] args) throws JAXBException, IOException {
-
-        String xmlDir = DirectoryProperties.ziggySchemaBuildDir().toString();
-        destinationDirectory = Paths.get(xmlDir, "xml").toString();
-        new File(destinationDirectory).mkdirs();
-        for (Class<? extends HasXmlSchemaFilename> clazz : XmlSchemaExporter.schemaClasses()) {
-            log.info("Generating XML schema for class " + clazz.getName() + "...");
-            JAXBContext context = JAXBContext.newInstance(clazz);
-            context.generateSchema(new PipelineDefinitionSchemaResolver(clazz));
-            log.info("Generating XML schema for class " + clazz.getName() + "...done");
+    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
+    public static void main(String[] args) {
+        try {
+            String xmlDir = DirectoryProperties.ziggySchemaBuildDir().toString();
+            destinationDirectory = Paths.get(xmlDir, "xml").toString();
+            new File(destinationDirectory).mkdirs();
+            for (Class<? extends HasXmlSchemaFilename> clazz : XmlSchemaExporter.schemaClasses()) {
+                log.info("Generating XML schema for class " + clazz.getName() + "...");
+                JAXBContext context = JAXBContext.newInstance(clazz);
+                context.generateSchema(new PipelineDefinitionSchemaResolver(clazz));
+                log.info("Generating XML schema for class " + clazz.getName() + "...done");
+            }
+        } catch (IOException | JAXBException e) {
+            log.error("Unable to generate schema", e);
+            System.exit(1);
         }
     }
 
@@ -107,6 +114,7 @@ public class XmlSchemaExporter {
             schemaFilename = DEFAULT_XSD_FILE_NAME;
         }
 
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
         public PipelineDefinitionSchemaResolver(Class<? extends HasXmlSchemaFilename> clazz) {
             try {
                 schemaFilename = clazz.getDeclaredConstructor()
@@ -120,6 +128,10 @@ public class XmlSchemaExporter {
         }
 
         @Override
+        /**
+         * @throws IOException for compatibility with the
+         * {@link SchemaOutputResolver#createOutput(String, String)} method in the superclass.
+         */
         public Result createOutput(String namespaceUri, String suggestedFileName)
             throws IOException {
             File schemaFile = new File(destinationDirectory, schemaFilename);

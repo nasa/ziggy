@@ -5,7 +5,7 @@
 
   <pipelines>
     <pipeline name="sampleipeline" description="A sample pipeline" rootNodeNames="samplemodule"
-        instancePriority="1">
+        instancePriority="HIGH">
         <node moduleName="samplemodule" uowClass="gov.nasa.ziggy.uow.SingleUowTask" 
             startNewUow="true" childNodeNames=""/>
     </pipeline>

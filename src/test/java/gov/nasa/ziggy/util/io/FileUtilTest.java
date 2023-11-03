@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.util.io;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -10,6 +10,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,6 +24,8 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
  * Tests the {@link FileUtil} class.
@@ -41,10 +44,10 @@ public class FileUtilTest {
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+        DATASTORE_ROOT_DIR, "/dev/null");
 
     @Rule
-    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
         "/path/to/pipeline-results");
 
     @Before
@@ -67,7 +70,8 @@ public class FileUtilTest {
         // Get a file to find size of
         Path testDirPath = testDir.toPath();
         Path testSubdirPath = testSubdir.toPath();
-        Path codeRoot = Paths.get(System.getProperty("user.dir"));
+        Path codeRoot = Paths
+            .get(ZiggyConfiguration.getInstance().getString(PropertyName.WORKING_DIR.property()));
         Path testSrcFile = codeRoot
             .resolve(Paths.get("test", "data", "configuration", "pipeline-definition.xml"));
         Path testFile = testDir.toPath().resolve("pipeline-definition.xml");
@@ -128,7 +132,6 @@ public class FileUtilTest {
             .relativize(symlinkSubdir.resolve(Paths.get("pipeline-definition-symlink.xml"))));
         assertNotNull(valuePath);
         assertEquals(testSrcFile.toAbsolutePath(), valuePath);
-
     }
 
     @Test
@@ -146,7 +149,6 @@ public class FileUtilTest {
         assertEquals("---------", FileUtil.modeToPosixFileString(0));
 
         assertEquals("rwxr----x", FileUtil.modeToPosixFileString(714));
-
     }
 
     @Test
@@ -164,7 +166,6 @@ public class FileUtilTest {
             PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
         assertEquals("r--------", PosixFilePermissions
             .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
-
     }
 
     @Test
@@ -203,14 +204,97 @@ public class FileUtilTest {
             PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
         assertEquals(FileUtil.FILE_READONLY_PERMISSIONS, PosixFilePermissions
             .toString(Files.getPosixFilePermissions(testSubdirRegularFile.toPath())));
-
     }
 
     @Test
     public void testCleanDirectoryTree() throws IOException {
-        FileUtil.cleanDirectoryTree(testDir.toPath());
-        assertTrue(testDir.exists());
-        assertFalse(archiveDir.exists());
-        assertFalse(testSubdir.exists());
+
+        // Create a sub-directory to the test subdir with a regular file in it.
+        File testSubSubDir = new File(testSubdir, "sub-sub-dir");
+        testSubSubDir.mkdir();
+        File subSubDirRegularFile = new File(testSubSubDir, "sub-sub-dir-regular-file.txt");
+        FileUtils.touch(subSubDirRegularFile);
+
+        // Add a new directory at the same "level" as testSubdir, with a regular file in it.
+        File testNeighborDir = new File(testDir, "neighbor-dir");
+        testNeighborDir.mkdir();
+        File neighborDirRegularFile = new File(testNeighborDir, "neighbor-regular-file.txt");
+        FileUtils.touch(neighborDirRegularFile);
+
+        // Create a symbolic link in the testSubdir to the "neighbor" dir (thus a symlink to
+        // a directory with a regular file).
+        Path neighborDirLink = testSubdir.toPath().resolve("neighbor-dir-link");
+        Files.createSymbolicLink(neighborDirLink, testNeighborDir.toPath());
+
+        // Create a symbolic link to the regular file in the testDir
+        Path regularFileLink = testSubdir.toPath().resolve("regular-file-link");
+        Files.createSymbolicLink(regularFileLink, testRegularFile.toPath());
+
+        // Write-protect everything inside of testDir
+        FileUtil.writeProtectDirectoryTree(testDir.toPath());
+
+        // Clean the testSubdir
+        FileUtil.cleanDirectoryTree(testSubdir.toPath(), true);
+        assertTrue(testSubdir.exists());
+        assertFalse(testSubSubDir.exists());
+        assertFalse(neighborDirLink.toFile().exists());
+        assertFalse(regularFileLink.toFile().exists());
+
+        // The neighbor directory should still be present and should still have content
+        assertTrue(testNeighborDir.exists());
+        assertTrue(neighborDirRegularFile.exists());
+
+        // The regular file that was symlinked should still exist
+        assertTrue(testRegularFile.exists());
+
+        // Check the file permissions
+        assertEquals(FileUtil.DIR_OVERWRITE_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testSubdir.toPath())));
+        assertEquals(FileUtil.DIR_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testNeighborDir.toPath())));
+        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS, PosixFilePermissions
+            .toString(Files.getPosixFilePermissions(neighborDirRegularFile.toPath())));
+        assertEquals(FileUtil.FILE_READONLY_PERMISSIONS,
+            PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
+    }
+
+    @Test(expected = UncheckedIOException.class)
+    public void testUnforcedCleanOfWriteProtectedDirTree() throws IOException {
+        // Create a sub-directory to the test subdir with a regular file in it.
+        File testSubSubDir = new File(testSubdir, "sub-sub-dir");
+        testSubSubDir.mkdir();
+        File subSubDirRegularFile = new File(testSubSubDir, "sub-sub-dir-regular-file.txt");
+        FileUtils.touch(subSubDirRegularFile);
+
+        // Add a new directory at the same "level" as testSubdir, with a regular file in it.
+        File testNeighborDir = new File(testDir, "neighbor-dir");
+        testNeighborDir.mkdir();
+        File neighborDirRegularFile = new File(testNeighborDir, "neighbor-regular-file.txt");
+        FileUtils.touch(neighborDirRegularFile);
+
+        // Create a symbolic link in the testSubdir to the "neighbor" dir (thus a symlink to
+        // a directory with a regular file).
+        Path neighborDirLink = testSubdir.toPath().resolve("neighbor-dir-link");
+        Files.createSymbolicLink(neighborDirLink, testNeighborDir.toPath());
+
+        // Create a symbolic link to the regular file in the testDir
+        Path regularFileLink = testSubdir.toPath().resolve("regular-file-link");
+        Files.createSymbolicLink(regularFileLink, testRegularFile.toPath());
+
+        // Write-protect everything inside of testDir
+        FileUtil.writeProtectDirectoryTree(testDir.toPath());
+
+        // Clean the testSubdir
+        FileUtil.cleanDirectoryTree(testSubdir.toPath());
+    }
+
+    @Test
+    public void testDeleteNonexistentDirectory() throws IOException {
+        FileUtil.deleteDirectoryTree(testDir.toPath().resolve("non-existent-dir"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDeleteNonDirectoryFile() throws IOException {
+        FileUtil.deleteDirectoryTree(testRegularFile.toPath());
     }
 }

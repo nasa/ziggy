@@ -29,6 +29,13 @@ public final class Iso8601Formatter {
     private static final String DATE_FORMAT_STRING = "yyyy-MM-dd";
 
     /**
+     * The {@link SimpleDateFormat} format string for a combined date/time formatter with a space
+     * separator. This is similar to {@link Date#toString()}, but without the milliseconds. The
+     * space separator is not permitted in ISO 8601, but it is tolerated in RFC 3339.
+     */
+    private static final String JAVA_DATE_SANS_MILLIS_FORMAT_STRING = "yyyy-MM-dd HH:mm:ss";
+
+    /**
      * The {@link SimpleDateFormat} format string for a combined date/time formatter.
      */
     private static final String DATE_TIME_FORMAT_STRING = "yyyy-MM-dd'T'HH:mm:ss'Z'";
@@ -75,7 +82,6 @@ public final class Iso8601Formatter {
         dateFormatter.setTimeZone(timeZone);
         formatters.put(format, dateFormatter);
         return dateFormatter;
-
     }
 
     /**
@@ -118,4 +124,14 @@ public final class Iso8601Formatter {
         return createLocalDateFormatter(DATE_TIME_LOCAL_NOSEP_STRING);
     }
 
+    /**
+     * Returns a new instance of a Java Date-like combined date/time formatter that displays time in
+     * the local time zone without milliseconds. The returned formatter should only be used in a
+     * single thread.
+     *
+     * @return a date/time formatter.
+     */
+    public static DateFormat javaDateTimeSansMillisLocalFormatter() {
+        return createLocalDateFormatter(JAVA_DATE_SANS_MILLIS_FORMAT_STRING);
+    }
 }

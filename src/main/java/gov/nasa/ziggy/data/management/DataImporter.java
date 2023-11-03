@@ -110,7 +110,6 @@ public abstract class DataImporter {
         // Preserve import records for use by callers.
         successfulImports = new TreeSet<>(dataFiles.values());
         failedImports = new TreeSet<>(invalidDataFilesMap.values());
-
     }
 
     public PipelineTask getPipelineTask() {
@@ -152,5 +151,4 @@ public abstract class DataImporter {
     public void setFailedImports(Set<Path> failedImports) {
         this.failedImports = failedImports;
     }
-
 }

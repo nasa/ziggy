@@ -138,7 +138,6 @@ public class QstatMonitor implements JobMonitor {
             ids.add(entry.getId());
         }
         return ids;
-
     }
 
     /**
@@ -155,7 +154,7 @@ public class QstatMonitor implements JobMonitor {
 
         // get all the qstat entries, if any, for the specified task name
         List<String> qstatLines = cmdManager.getQstatInfoByTaskName(owner, taskName);
-        if (qstatLines.isEmpty() || (qstatLines.size() == 1 && qstatLines.get(0).isEmpty())) {
+        if (qstatLines.isEmpty() || qstatLines.size() == 1 && qstatLines.get(0).isEmpty()) {
             return Collections.emptySet();
         }
 
@@ -300,7 +299,6 @@ public class QstatMonitor implements JobMonitor {
         String taskName = stateFile.taskBaseName();
         Set<QstatEntry> qstatEntries = taskNameQstatEntryMap.get(taskName);
         return qstatEntries.stream().map(QstatEntry::getId).collect(Collectors.toSet());
-
     }
 
     // getters
@@ -354,7 +352,6 @@ public class QstatMonitor implements JobMonitor {
             // The name, owner, and status are simple strings.
             status = qstatLineParts[QueueCommandManager.STATUS_INDEX];
             name = qstatLineParts[QueueCommandManager.NAME_INDEX];
-
         }
 
         /**
@@ -389,7 +386,7 @@ public class QstatMonitor implements JobMonitor {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             QstatEntry other = (QstatEntry) obj;
@@ -403,7 +400,5 @@ public class QstatMonitor implements JobMonitor {
         public String toString() {
             return id + "";
         }
-
     }
-
 }

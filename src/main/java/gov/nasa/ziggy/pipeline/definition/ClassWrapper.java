@@ -1,17 +1,18 @@
 package gov.nasa.ziggy.pipeline.definition;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
-import javax.persistence.Transient;
-
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
@@ -25,7 +26,6 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     private String clazz = null;
     @Column(nullable = true)
-    private Boolean initialized = false;
 
     @Transient
     private String unmangledClassName;
@@ -42,7 +42,6 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     public ClassWrapper(Class<? extends T> clazz) {
         this.clazz = clazz.getName();
         unmangledClassName = this.clazz;
-        this.initialized = true;
     }
 
     /**
@@ -53,33 +52,29 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
      * @throws PipelineException
      */
     public <E extends T> ClassWrapper(E instance) {
-        this.clazz = instance.getClass().getName();
+        clazz = instance.getClass().getName();
         unmangledClassName = clazz;
-        this.initialized = true;
     }
 
     /**
      * Special purpose constructor for the case of a {@link ParameterSet}. this allows the
-     * {@link ClassWrapper} to mangle the class name for instances of {@link DefaultParameters}, so
-     * that multiple instances of class-wrapped DefaultParameters can coexist in a {@link Set} or
-     * {@link Map}.
+     * {@link ClassWrapper} to mangle the class name for instances of {@link Parameters}, so that
+     * multiple instances of class-wrapped Parameters can coexist in a {@link Set} or {@link Map}.
      */
+    @SuppressWarnings("unchecked")
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public ClassWrapper(ParameterSet paramSet) {
-        @SuppressWarnings("unchecked")
-        Class<? extends Parameters> actualClass = (Class<? extends Parameters>) paramSet
-            .getParameters()
-            .getClazz();
+        Class<? extends Parameters> actualClass = (Class<? extends Parameters>) paramSet.clazz();
         unmangledClassName = actualClass.getName();
-        if (actualClass != DefaultParameters.class) {
-            this.clazz = unmangledClassName;
+        if (actualClass != Parameters.class) {
+            clazz = unmangledClassName;
         } else {
 
             // In this case we append to the class name the parameter set name. The two are
             // separated by whitespace so that there's no risk of confustion with an actual
             // class name.
-            this.clazz = unmangledClassName + " " + paramSet.getName().getName();
+            clazz = unmangledClassName + " " + paramSet.getName();
         }
-        initialized = true;
     }
 
     /**
@@ -88,47 +83,48 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
      * @param otherClassWrapper
      */
     public ClassWrapper(ClassWrapper<T> otherClassWrapper) {
-        this.clazz = otherClassWrapper.clazz;
-        this.unmangledClassName = otherClassWrapper.unmangledClassName;
-        this.initialized = otherClassWrapper.initialized;
+        clazz = otherClassWrapper.clazz;
+        unmangledClassName = otherClassWrapper.unmangledClassName;
     }
 
     /**
      * Returns a new instance of T.
-     *
-     * @throws PipelineException
      */
     @SuppressWarnings("unchecked")
-    public T newInstance() throws PipelineException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public T newInstance() {
         try {
             return (T) Class.forName(unmangledClassName()).getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new PipelineException("failed to instantiate instance with className="
-                + unmangledClassName() + ", caught e = " + e, e);
+        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+            | InvocationTargetException | NoSuchMethodException | SecurityException
+            | ClassNotFoundException e) {
+            throw new PipelineException("Unable to instantiate " + unmangledClassName(), e);
         }
     }
 
     /**
      * Returns a constructor with a particular signature
-     *
-     * @throws ClassNotFoundException
-     * @throws SecurityException
-     * @throws NoSuchMethodException
      */
     @SuppressWarnings("unchecked")
-    public Constructor<T> constructor(Class<?>... classArguments)
-        throws NoSuchMethodException, SecurityException, ClassNotFoundException {
-        return (Constructor<T>) Class.forName(unmangledClassName())
-            .getDeclaredConstructor(classArguments);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public Constructor<T> constructor(Class<?>... classArguments) {
+        try {
+            return (Constructor<T>) Class.forName(unmangledClassName())
+                .getDeclaredConstructor(classArguments);
+        } catch (NoSuchMethodException | SecurityException | ClassNotFoundException e) {
+            throw new PipelineException("Cannot return constructor for " + unmangledClassName(), e);
+        }
     }
 
     @SuppressWarnings("unchecked")
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public Class<T> getClazz() {
         try {
             return (Class<T>) Class.forName(unmangledClassName());
-        } catch (Exception e) {
-            throw new PipelineException("failed to instantiate instance with className="
-                + unmangledClassName() + ", caught e = " + e, e);
+        } catch (ClassNotFoundException e) {
+            // Can never occur. By construction, the class wrapped by an instance of ClassWrapper
+            // is available to the pipeline.
+            throw new AssertionError(e);
         }
     }
 
@@ -147,10 +143,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     }
 
     public boolean isInitialized() {
-        if (initialized == null) {
-            return false;
-        }
-        return initialized;
+        return clazz != null;
     }
 
     @Override
@@ -193,21 +186,28 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
 
         @SuppressWarnings("unchecked")
         @Override
-        public ClassWrapper<T> unmarshal(String v) throws Exception {
+        @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+        public ClassWrapper<T> unmarshal(String v) {
             if (v == null) {
                 return null;
             }
-            Class<? extends T> clazz = (Class<? extends T>) Class.forName(v);
-            return new ClassWrapper<>(clazz);
+            Class<? extends T> clazz;
+            try {
+                clazz = (Class<? extends T>) Class.forName(v);
+                return new ClassWrapper<>(clazz);
+            } catch (ClassNotFoundException e) {
+                // This can never occur. The caller provides the string from the name
+                // of a known existing class.
+                throw new AssertionError(e);
+            }
         }
 
         @Override
-        public String marshal(ClassWrapper<T> v) throws Exception {
+        public String marshal(ClassWrapper<T> v) {
             if (v == null) {
                 return null;
             }
             return v.toString();
         }
-
     }
 }

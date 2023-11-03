@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
+import gov.nasa.ziggy.services.process.ExternalProcess;
 
 /**
  * Determines the number of CPU cores for the current hardware at runtime under the Mac OS X
@@ -12,8 +12,8 @@ import java.io.IOException;
 public class MacOSXCpuInfo extends AbstractSysInfo implements CpuInfo {
     private static final String NUM_CORES_KEY = "hw.physicalcpu";
 
-    public MacOSXCpuInfo() throws IOException {
-        super(commandOutput("/usr/sbin/sysctl -a", "hw."));
+    public MacOSXCpuInfo() {
+        super(ExternalProcess.commandOutput("/usr/sbin/sysctl -a", "hw."));
     }
 
     @Override

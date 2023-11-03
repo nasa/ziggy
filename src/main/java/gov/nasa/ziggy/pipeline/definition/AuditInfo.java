@@ -3,15 +3,14 @@ package gov.nasa.ziggy.pipeline.definition;
 import java.util.Date;
 import java.util.Objects;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
-import javax.persistence.Entity;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
 import gov.nasa.ziggy.services.security.User;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 /**
  * This {@link Embeddable} class is used by {@link Entity} classes that can be modified through the
@@ -23,9 +22,9 @@ import gov.nasa.ziggy.services.security.User;
 @Embeddable
 public class AuditInfo {
     @ManyToOne
-    @JoinColumn(name = "LC_PI_USER_ID")
+    @JoinColumn(name = "lastChangedUser")
     private User lastChangedUser = null;
-    @Column(name = "LC_TIME")
+    @Column(name = "lastChangedTime")
     private Date lastChangedTime = null;
 
     public AuditInfo() {
@@ -75,14 +74,12 @@ public class AuditInfo {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         final AuditInfo other = (AuditInfo) obj;
-        if (!Objects.equals(lastChangedTime, other.lastChangedTime)) {
-            return false;
-        }
-        if (!Objects.equals(lastChangedUser, other.lastChangedUser)) {
+        if (!Objects.equals(lastChangedTime, other.lastChangedTime)
+            || !Objects.equals(lastChangedUser, other.lastChangedUser)) {
             return false;
         }
         return true;

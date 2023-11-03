@@ -2,7 +2,7 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.util.Date;
 
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.crud.SimpleCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
@@ -14,7 +14,6 @@ import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
-import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
 /**
  * Creates a debug pipeline task object. This is useful for testing hibernate objects that need a
@@ -50,9 +49,9 @@ public class FakePipelineTaskFactory {
             // create a module param set def
             ParameterSet parameterSet = new ParameterSet(new AuditInfo(testUser, new Date()),
                 "test mps1");
-            parameterSet.setParameters(new BeanWrapper<Parameters>(new TestModuleParameters()));
+            parameterSet.setTypedParameters(new TestModuleParameters().getParameters());
             if (inDb) {
-                parameterSetCrud.create(parameterSet);
+                parameterSet = parameterSetCrud.merge(parameterSet);
             }
 
             // create a module def
@@ -60,42 +59,41 @@ public class FakePipelineTaskFactory {
             PipelineDefinition pipelineDef = new PipelineDefinition(
                 new AuditInfo(testUser, new Date()), "test pipeline name");
             if (inDb) {
-                pipelineModuleDefinitionCrud.create(moduleDef);
-                pipelineDefinitionCrud.create(pipelineDef);
-
+                moduleDef = pipelineModuleDefinitionCrud.merge(moduleDef);
+                pipelineDef = pipelineDefinitionCrud.merge(pipelineDef);
             }
 
             // create some pipeline def nodes
             PipelineDefinitionNode pipelineDefNode1 = new PipelineDefinitionNode(
-                moduleDef.getName(), pipelineDef.getName().getName());
-            pipelineDefNode1.setUnitOfWorkGenerator(
-                new ClassWrapper<UnitOfWorkGenerator>(new SingleUnitOfWorkGenerator()));
+                moduleDef.getName(), pipelineDef.getName());
+            pipelineDefNode1
+                .setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
             pipelineDefNode1.setStartNewUow(true);
-
+            pipelineDefNode1 = new SimpleCrud<>().merge(pipelineDefNode1);
             pipelineDef.getRootNodes().add(pipelineDefNode1);
             if (inDb) {
-                pipelineDefinitionCrud.create(pipelineDef);
+                pipelineDef = pipelineDefinitionCrud.merge(pipelineDef);
             }
 
             PipelineInstance pipelineInstance = new PipelineInstance(pipelineDef);
-            pipelineInstance.putParameterSet(
-                new ClassWrapper<Parameters>(new TestPipelineParameters()), parameterSet);
+            pipelineInstance.putParameterSet(new ClassWrapper<>(new TestPipelineParameters()),
+                parameterSet);
             if (inDb) {
-                pipelineInstanceCrud.create(pipelineInstance);
+                pipelineInstanceCrud.persist(pipelineInstance);
             }
 
             PipelineInstanceNode pipelineInstanceNode1 = new PipelineInstanceNode(pipelineInstance,
                 pipelineDefNode1, moduleDef);
             if (inDb) {
-                pipelineInstanceNodeCrud.create(pipelineInstanceNode1);
+                pipelineInstanceNodeCrud.persist(pipelineInstanceNode1);
             }
 
             PipelineTask task = new PipelineTask(pipelineInstance, pipelineInstanceNode1);
-            task.setUowTask(new BeanWrapper<>(new UnitOfWork()));
+            task.setUowTaskParameters(new UnitOfWork().getParameters());
             task.setWorkerHost("test worker name");
             task.setSoftwareRevision("42");
             if (inDb) {
-                pipelineTaskCrud.create(task);
+                pipelineTaskCrud.persist(task);
             }
             return task;
         });

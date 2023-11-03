@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.pipeline.definition;
 
 import static com.google.common.base.Preconditions.checkState;
+import static gov.nasa.ziggy.ui.util.HtmlBuilder.htmlBuilder;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -15,31 +16,34 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.persistence.AssociationOverride;
-import javax.persistence.ElementCollection;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToOne;
-import javax.persistence.OrderColumn;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.uow.TaskConfigurationParameters;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.HostNameUtils;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 /**
  * Represents a single pipeline unit of work Associated with a{@link PipelineInstance}, a
@@ -53,7 +57,7 @@ import gov.nasa.ziggy.util.HostNameUtils;
  * @author Todd Klaus
  */
 @Entity
-@Table(name = "PI_PIPELINE_TASK")
+@Table(name = "ziggy_PipelineTask")
 public class PipelineTask implements PipelineExecutionTime {
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineTask.class);
@@ -85,7 +89,7 @@ public class PipelineTask implements PipelineExecutionTime {
          */
         PARTIAL;
 
-        public String htmlString() {
+        public String toHtmlString() {
             String color = "black";
 
             switch (this) {
@@ -110,15 +114,15 @@ public class PipelineTask implements PipelineExecutionTime {
                 default:
             }
 
-            return "<html><b><font color=" + color + ">" + toString() + "</font></b></html>";
+            return htmlBuilder().appendBoldColor(toString(), color).toString();
         }
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PIPE_TASK_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_PipelineTask_generator")
+    @SequenceGenerator(name = "ziggy_PipelineTask_generator", initialValue = 1,
+        sequenceName = "ziggy_PipelineTask_sequence", allocationSize = 1)
+    private Long id;
 
     /** Current state of this task */
     @Enumerated(EnumType.STRING)
@@ -171,31 +175,35 @@ public class PipelineTask implements PipelineExecutionTime {
     /** Count of the number of automatic resubmits performed for this task. */
     private int autoResubmitCount = 0;
 
+    /** Indicates whether the task has been submitted for remote execution. */
+    @Enumerated(EnumType.STRING)
+    private AlgorithmType processingMode;
+
     @ManyToOne
     private PipelineInstance pipelineInstance = null;
 
     @ManyToOne
     private PipelineInstanceNode pipelineInstanceNode = null;
 
-    @Embedded
-    @AssociationOverride(name = "typedProperties", joinTable = @JoinTable(name = "PI_PT_UOW_PROPS"))
-    private BeanWrapper<UnitOfWork> uowTask;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @JoinTable(name = "ziggy_PipelineTask_uowTaskParameters")
+    private Set<TypedParameter> uowTaskParameters;
 
     @ElementCollection
-    @JoinTable(name = "PI_PIPELINE_TASK_METRICS")
+    @JoinTable(name = "ziggy_PipelineTask_summaryMetrics")
     private List<PipelineTaskMetrics> summaryMetrics = new ArrayList<>();
 
     @ElementCollection
     @OrderColumn(name = "idx")
-    @JoinTable(name = "PI_PIPELINE_TASK_EXEC_LOG")
+    @JoinTable(name = "ziggy_PipelineTask_execLog")
     private List<TaskExecutionLog> execLog = new ArrayList<>();
 
     @ElementCollection
-    @JoinTable(name = "PI_PIPELINE_TASK_PRODUCER_IDS")
+    @JoinTable(name = "ziggy_PipelineTask_producerTaskIds")
     private Set<Long> producerTaskIds = new TreeSet<>();
 
     @ElementCollection
-    @JoinTable(name = "PI_PIPELINE_TASK_REMOTE_JOBS")
+    @JoinTable(name = "ziggy_PipelineTask_remoteJobs")
     private Set<RemoteJob> remoteJobs = new HashSet<>();
 
     private int taskLogIndex = 0;
@@ -236,10 +244,8 @@ public class PipelineTask implements PipelineExecutionTime {
     @SuppressWarnings("unchecked")
     public <T extends Parameters> T getParameters(Class<T> parametersClass,
         boolean throwIfMissing) {
-
         ParameterSet parameterSet = getParameterSet(parametersClass, throwIfMissing);
-
-        return parameterSet == null ? (T) parameterSet : (T) parameterSet.parametersInstance();
+        return parameterSet == null ? null : (T) parameterSet.parametersInstance();
     }
 
     /**
@@ -257,7 +263,7 @@ public class PipelineTask implements PipelineExecutionTime {
      * Returns the full {@link Map} of pipeline-level {@link ParameterSet} instances. This is mainly
      * used to force Hibernate to lazy-instantiate the parameters.
      */
-    public Map<ClassWrapper<Parameters>, ParameterSet> getPipelineParameterSets() {
+    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getPipelineParameterSets() {
         return pipelineInstance.getPipelineParameterSets();
     }
 
@@ -265,7 +271,7 @@ public class PipelineTask implements PipelineExecutionTime {
      * Returns the full {@link Map} of module-level {@link ParameterSet} instances. This is mainly
      * used to force Hibernate to lazy-instantiate the parameters.
      */
-    public Map<ClassWrapper<Parameters>, ParameterSet> getModuleParameterSets() {
+    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getModuleParameterSets() {
         return pipelineInstanceNode.getModuleParameterSets();
     }
 
@@ -289,9 +295,8 @@ public class PipelineTask implements PipelineExecutionTime {
 
             if (throwIfMissing) {
                 throw new PipelineException(errMsg);
-            } else {
-                return null;
             }
+            return null;
         }
         if (pipelineParamSet != null && moduleParamSet != null) {
             throw new PipelineException("Parameters for class: " + parametersClass
@@ -326,9 +331,7 @@ public class PipelineTask implements PipelineExecutionTime {
         if (modelMetadata == null) {
             throw new PipelineException("No model metadata found for modelType=" + modelType);
         }
-        int externalId = Integer.parseInt(modelMetadata.getModelRevision());
-
-        return externalId;
+        return Integer.parseInt(modelMetadata.getModelRevision());
     }
 
     /**
@@ -359,7 +362,7 @@ public class PipelineTask implements PipelineExecutionTime {
         for (ParameterSet pset : setOfParameterSets) {
             bldr.append('[').append(pset.getDescription()).append(" ");
             bldr.append(pset.getVersion()).append(" ");
-            Set<TypedParameter> properties = pset.getParameters().getTypedProperties();
+            Set<TypedParameter> properties = pset.getTypedParameters();
             for (TypedParameter property : properties) {
                 bldr.append(property.getName()).append("=").append(property.getValue()).append(" ");
             }
@@ -370,28 +373,27 @@ public class PipelineTask implements PipelineExecutionTime {
     }
 
     public String getModuleName() {
-        return getPipelineInstanceNode().getPipelineModuleDefinition().getName().getName();
+        return getPipelineInstanceNode().getPipelineModuleDefinition().getName();
     }
 
     public PipelineModule getModuleImplementation() {
         return getModuleImplementation(RunMode.STANDARD);
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public PipelineModule getModuleImplementation(RunMode runMode) {
-        PipelineModule module = null;
         ClassWrapper<PipelineModule> moduleWrapper = pipelineInstanceNode
             .getPipelineModuleDefinition()
             .getPipelineModuleClass();
         try {
-            module = moduleWrapper.constructor(PipelineTask.class, RunMode.class)
+            return moduleWrapper.constructor(PipelineTask.class, RunMode.class)
                 .newInstance(this, runMode);
         } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
-            | InvocationTargetException | PipelineException | NoSuchMethodException
-            | SecurityException | ClassNotFoundException e) {
-            throw new PipelineException(
-                "Unable to instantiate module of class " + moduleWrapper.getClazz().toString(), e);
+            | InvocationTargetException e) {
+            // Can never occur. The PipelineModule has a constructor that takes PipelineTask
+            // and RunMode as arguments.
+            throw new AssertionError(e);
         }
-        return module;
     }
 
     public PipelineDefinitionNode getPipelineDefinitionNode() {
@@ -418,35 +420,45 @@ public class PipelineTask implements PipelineExecutionTime {
         return pipelineInstance.getId();
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public BeanWrapper<UnitOfWork> getUowTask() {
-        return uowTask;
+    public Set<TypedParameter> getUowTaskParameters() {
+        return uowTaskParameters;
+    }
+
+    public void setUowTaskParameters(Set<TypedParameter> uowTaskParameters) {
+        this.uowTaskParameters = uowTaskParameters;
     }
 
     @Override
     public String toString() {
-        return "PipelineTask [id=" + id + ", state=" + state + ", uowTask=" + uowTask + "]";
-    }
-
-    public void setUowTask(BeanWrapper<UnitOfWork> uowTask) {
-        this.uowTask = uowTask;
+        return "PipelineTask [id=" + id + ", state=" + state + ", uowTask="
+            + uowTaskInstance().briefState() + "]";
     }
 
     public UnitOfWork uowTaskInstance() {
-        return getUowTask().getInstance();
+        UnitOfWork uow = new UnitOfWork();
+        uow.setParameters(uowTaskParameters);
+        return uow;
     }
 
     public State getState() {
         return state;
     }
 
+    /**
+     * Use of this method is not recommended. Use
+     * {@link PipelineOperations#setTaskState(PipelineTask, gov.nasa.ziggy.pipeline.definition.PipelineTask.State)}
+     * instead.
+     *
+     * @param state
+     */
     public void setState(State state) {
         this.state = state;
     }
@@ -643,22 +655,21 @@ public class PipelineTask implements PipelineExecutionTime {
      */
     public String taskLabelText() {
 
-        String module = getPipelineInstanceNode().getPipelineModuleDefinition().toString();
-        long instanceId = getPipelineInstance().getId();
-        String elapsedTime = elapsedTime();
-        String briefState = uowTaskInstance().briefState();
-
-        String stateString;
-
-        if (state == State.ERROR) {
-            stateString = "<b><font color=red>" + state + "</font></b>";
-        } else {
-            stateString = "<b><font color=green>" + state + "</font></b>";
-        }
-
-        return "<html>  " + "<b>ID:</b> " + instanceId + ":" + id + " <b>WORKER:</b> "
-            + getWorkerName() + " <b>TASK:</b> " + module + " ([" + briefState + "] " + stateString
-            + " <i>" + elapsedTime + "</i>)</html>";
+        return htmlBuilder().appendBold("ID: ")
+            .append(getPipelineInstance().getId())
+            .append(":")
+            .append(id)
+            .appendBold(" WORKER: ")
+            .append(getWorkerName())
+            .appendBold(" TASK: ")
+            .append(getModuleName())
+            .append(" [")
+            .append(uowTaskInstance().briefState())
+            .append("] ")
+            .appendBoldColor(state.toString(), state == State.ERROR ? "red" : "green")
+            .append(" ")
+            .appendItalic(elapsedTime())
+            .toString();
     }
 
     /**
@@ -694,11 +705,8 @@ public class PipelineTask implements PipelineExecutionTime {
         if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final PipelineTask other = (PipelineTask) obj;
-        if (id != other.id) {
-            return false;
-        }
-        return true;
+        PipelineTask other = (PipelineTask) obj;
+        return Objects.equals(id, other.id);
     }
 
     public static final class TaskBaseNameMatcher {
@@ -798,6 +806,22 @@ public class PipelineTask implements PipelineExecutionTime {
         this.remoteJobs = remoteJobs;
     }
 
+    public boolean isRemoteExecution() {
+        return processingMode.equals(AlgorithmType.REMOTE);
+    }
+
+    public void setRemoteExecution(boolean remoteExecution) {
+        processingMode = remoteExecution ? AlgorithmType.REMOTE : AlgorithmType.LOCAL;
+    }
+
+    public AlgorithmType getProcessingMode() {
+        return processingMode;
+    }
+
+    public void setProcessingMode(AlgorithmType mode) {
+        processingMode = mode;
+    }
+
     public int getAutoResubmitCount() {
         return autoResubmitCount;
     }
@@ -817,7 +841,9 @@ public class PipelineTask implements PipelineExecutionTime {
     /**
      * Starts execution clock for {@link PipelineTask} by first using the default method from
      * {@link PipelineExecutionTime}, then starting the clock for the {@link PipelineInstance} as
-     * well.
+     * well. Users are generally advised not to call this method directly, as the clock is started
+     * and stopped at appropriate times when a {@link PipelineOperations} instance is used to set a
+     * task's state.
      */
     @Override
     public void startExecutionClock() {
@@ -893,7 +919,5 @@ public class PipelineTask implements PipelineExecutionTime {
 
             return sb.toString();
         }
-
     }
-
 }

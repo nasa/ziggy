@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.module.remote;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_QUEUE_COMMAND_CLASS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -31,8 +31,7 @@ public class QueueCommandManagerTest {
 
     @Rule
     public ZiggyPropertyRule queueCommandClassPropertyRule = new ZiggyPropertyRule(
-        QUEUE_COMMAND_CLASS_PROP_NAME,
-        "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
+        REMOTE_QUEUE_COMMAND_CLASS, "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
 
     @Before
     public void setup() {
@@ -59,7 +58,6 @@ public class QueueCommandManagerTest {
         assertEquals(2, returnedJobs.size());
         assertTrue(returnedJobs.get(0).equals(job1));
         assertTrue(returnedJobs.get(1).equals(job2));
-
     }
 
     /**
@@ -149,7 +147,6 @@ public class QueueCommandManagerTest {
         // execute the method
         String exitComment = cmdManager.exitComment(9101154L);
         assertTrue(exitComment.equals("test comment"));
-
     }
 
     /**
@@ -196,7 +193,6 @@ public class QueueCommandManagerTest {
         // and task2 job IDs are present, there is an extra space due to null task3 job
         // ID, etc.
         Mockito.verify(cmdManager, Mockito.times(1)).qdel("1234567 7654321 ");
-
     }
 
     /**
@@ -298,5 +294,4 @@ public class QueueCommandManagerTest {
         }
         Mockito.doReturn(replies).when(cmdManager).qstat(command, (String[]) null);
     }
-
 }

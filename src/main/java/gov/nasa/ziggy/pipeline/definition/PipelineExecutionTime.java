@@ -4,6 +4,8 @@ import java.util.Date;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
+import gov.nasa.ziggy.pipeline.PipelineOperations;
+
 /**
  * Provides capabilities needed by classes that track pipeline execution times, such as
  * {@link PipelineTask} and {@link PipelineInstance}. Four pieces of information are managed:
@@ -42,6 +44,10 @@ public interface PipelineExecutionTime {
     /**
      * Starts execution timing for an instance. At start time, the processing-start time is set if
      * currently null, and the start time for the current execution time is also set.
+     * <p>
+     * Users are advised not to call this method directly. The {@link PipelineOperations} class will
+     * call this method when a change in state of a {@link PipelineExecutionTime} implementation
+     * requires it.
      */
     default void startExecutionClock() {
 
@@ -59,6 +65,10 @@ public interface PipelineExecutionTime {
      * Stops execution timing for an instance. The current-execution start time is set to -1 and the
      * elapsed time from the current execution attempt is added to the total execution time. The end
      * processing time is also set.
+     * <p>
+     * Users are advised not to call this method directly. The {@link PipelineOperations} class will
+     * call this method when a change in state of a {@link PipelineExecutionTime} implementation
+     * requires it.
      */
     default void stopExecutionClock() {
 
@@ -100,6 +110,5 @@ public interface PipelineExecutionTime {
         }
         return DurationFormatUtils.formatDuration(totalExecutionTimeAllAttemptsMillis(),
             "HH:mm:ss");
-
     }
 }

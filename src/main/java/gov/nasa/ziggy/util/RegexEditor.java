@@ -2,6 +2,7 @@ package gov.nasa.ziggy.util;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Regular expression processing of text and text files.
@@ -75,85 +77,100 @@ public class RegexEditor {
         return output;
     }
 
-    public static File findAndReplace(File file, Pattern pattern) throws IOException {
+    public static File findAndReplace(File file, Pattern pattern) {
         return findAndReplace(file, pattern, null);
     }
 
-    public static File findAndReplace(File file, Pattern pattern, File directory)
-        throws IOException {
+    public static File findAndReplace(File file, Pattern pattern, File directory) {
         return findAndReplace(file, pattern, new ExtractCaptureGroups(), directory);
     }
 
-    public static File findAndReplace(File file, Pattern pattern, FindAction action, File directory)
-        throws IOException {
-        File tmpFile = File.createTempFile(FilenameUtils.getBaseName(file.toString()),
-            FilenameUtils.getExtension(file.toString()), directory);
-        if (pattern != null) {
-            LineIterator lines = FileUtils.lineIterator(file);
-            List<String> output = new ArrayList<>();
-            if (lines != null) {
-                while (lines.hasNext()) {
-                    String line = lines.nextLine();
-                    Matcher matcher = pattern.matcher(line);
-                    if (matcher.find()) {
-                        line = action.update(matcher);
-                    }
-                    if (line != null) {
-                        output.add(line);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static File findAndReplace(File file, Pattern pattern, FindAction action,
+        File directory) {
+        try {
+            File tmpFile = File.createTempFile(FilenameUtils.getBaseName(file.toString()),
+                FilenameUtils.getExtension(file.toString()), directory);
+            if (pattern != null) {
+                LineIterator lines = FileUtils.lineIterator(file);
+                List<String> output = new ArrayList<>();
+                if (lines != null) {
+                    while (lines.hasNext()) {
+                        String line = lines.nextLine();
+                        Matcher matcher = pattern.matcher(line);
+                        if (matcher.find()) {
+                            line = action.update(matcher);
+                        }
+                        if (line != null) {
+                            output.add(line);
+                        }
                     }
                 }
+                FileUtils.writeLines(tmpFile, output);
+            } else {
+                FileUtils.copyFile(file, tmpFile, true);
             }
-            FileUtils.writeLines(tmpFile, output);
-        } else {
-            FileUtils.copyFile(file, tmpFile, true);
+            return tmpFile;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Find and replace failed in file " + file.toString(), e);
         }
-        return tmpFile;
     }
 
-    public static File findAndReplaceAll(File sourceDir, Pattern pattern, FindAction action)
-        throws IOException {
-        File output = null;
-        if (pattern != null) {
-            Collection<File> files = FileUtils.listFiles(sourceDir, null, false);
-            if (files != null) {
-                for (File file : files) {
-                    output = findAndReplace(file, pattern, action, null);
-                }
-            }
-        } else {
-            output = File.createTempFile(FilenameUtils.getBaseName(sourceDir.toString()), null);
-            FileUtils.forceMkdir(output);
-            FileUtils.copyDirectory(sourceDir, output);
-        }
-        return output;
-    }
-
-    public static File findAndReplace(File sourceDir, IOFileFilter[] filters, Pattern pattern,
-        FindAction action) throws IOException {
-        File output = null;
-        if (filters != null) {
-            output = new File(DirectoryProperties.tmpDir().toFile(),
-                FilenameUtils.getBaseName(sourceDir.toString()));
-            if (output.exists()) {
-                FileUtils.forceDelete(output);
-            }
-            FileUtils.forceMkdir(output);
-            for (IOFileFilter filter : filters) {
-                Collection<File> files = FileUtils.listFiles(sourceDir, filter,
-                    FileFilterUtils.directoryFileFilter());
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static File findAndReplaceAll(File sourceDir, Pattern pattern, FindAction action) {
+        try {
+            File output = null;
+            if (pattern != null) {
+                Collection<File> files = FileUtils.listFiles(sourceDir, null, false);
                 if (files != null) {
-                    File outputFile = null;
-                    File buildTmp = DirectoryProperties.tmpDir().toFile();
                     for (File file : files) {
-                        outputFile = findAndReplace(file, pattern, action, buildTmp);
-                        FileUtils.copyFile(outputFile, new File(output, file.getName()));
+                        output = findAndReplace(file, pattern, action, null);
                     }
                 }
+            } else {
+                output = File.createTempFile(FilenameUtils.getBaseName(sourceDir.toString()), null);
+                FileUtils.forceMkdir(output);
+                FileUtils.copyDirectory(sourceDir, output);
             }
-        } else {
-            output = findAndReplaceAll(sourceDir, pattern, action);
+            return output;
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Find and replace all failed in dir " + sourceDir.toString(), e);
         }
-        return output;
+    }
+
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static File findAndReplace(File sourceDir, IOFileFilter[] filters, Pattern pattern,
+        FindAction action) {
+        try {
+            File output = null;
+            if (filters != null) {
+                output = new File(DirectoryProperties.tmpDir().toFile(),
+                    FilenameUtils.getBaseName(sourceDir.toString()));
+                if (output.exists()) {
+                    FileUtils.forceDelete(output);
+                }
+                FileUtils.forceMkdir(output);
+                for (IOFileFilter filter : filters) {
+                    Collection<File> files = FileUtils.listFiles(sourceDir, filter,
+                        FileFilterUtils.directoryFileFilter());
+                    if (files != null) {
+                        File outputFile = null;
+                        File buildTmp = DirectoryProperties.tmpDir().toFile();
+                        for (File file : files) {
+                            outputFile = findAndReplace(file, pattern, action, buildTmp);
+                            FileUtils.copyFile(outputFile, new File(output, file.getName()));
+                        }
+                    }
+                }
+            } else {
+                output = findAndReplaceAll(sourceDir, pattern, action);
+            }
+            return output;
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Find and replace failed in directory " + sourceDir.toString(), e);
+        }
     }
 
     public static boolean stringEquals(String expectedInput, String actualInput, Pattern[] ignore) {

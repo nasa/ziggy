@@ -5,36 +5,38 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.OrderColumn;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-import javax.persistence.Version;
-
 import org.hibernate.annotations.Cascade;
+import org.hibernate.annotations.CascadeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
 import gov.nasa.ziggy.util.CollectionFilters;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -50,70 +52,47 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_PIPELINE_DEF")
-public class PipelineDefinition implements CanBeDeclaredObsolete {
+@Table(name = "ziggy_PipelineDefinition",
+    uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "version" }) })
+public class PipelineDefinition extends UniqueNameVersionPipelineComponent<PipelineDefinition>
+    implements HasGroup {
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineDefinition.class);
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PD_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,
+        generator = "ziggy_PipelineDefinition_generator")
+    @SequenceGenerator(name = "ziggy_PipelineDefinition_generator", initialValue = 1,
+        sequenceName = "ziggy_PipelineDefinition_sequence", allocationSize = 1)
+    private Long id;
 
     @Embedded
     // init with empty placeholder, to be filled in by console
     private AuditInfo auditInfo = new AuditInfo();
 
-    /**
-     * used by Hibernate to implement optimistic locking. Should prevent 2 different console users
-     * from clobbering each others changes
-     */
-    @Version
-    private int dirty = 0;
-
     @XmlAttribute(required = true)
-    private String description = null;
-
-    // Combination of name+version must be unique (see shared-extra-ddl-create.sql)
-    @XmlAttribute(required = true)
-    @XmlJavaTypeAdapter(PipelineDefinitionName.PipelineNameAdapter.class)
-    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    private PipelineDefinitionName name;
-
-    private int version = 0;
+    private String description;
 
     @ManyToOne
-    private Group group = null;
+    private Group group;
 
     // Using the Integer class rather than int here because XML won't allow optional
     // attributes that are primitive types
     @XmlAttribute(required = false)
-    private Integer instancePriority = PipelineInstance.LOWEST_PRIORITY;
+    @Enumerated(EnumType.STRING)
+    @XmlJavaTypeAdapter(PipelineInstance.Priority.PriorityXmlAdapter.class)
+    private Priority instancePriority = Priority.NORMAL;
 
-    /**
-     * {@link ParameterSetName}s that will be used as {@link Parameters} when an instance of this
-     * pipeline is launched. At launch-time, the {@Link PipelineInstance} will be given a
-     * hard-reference to a specific version (typically latest) of the {@link ParameterSet} for this
-     * {@link ParameterSetName}
-     */
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "PI_TD_PSN")
-    private Map<ClassWrapper<Parameters>, ParameterSetName> pipelineParameterSetNames = new HashMap<>();
+    @ElementCollection
+    @JoinTable(name = "ziggy_PipelineDefinition_pipelineParameterSetNames")
+    private Map<ClassWrapper<ParametersInterface>, String> pipelineParameterSetNames = new HashMap<>();
 
-    /**
-     * Set to true when the first pipeline instance is created using this definition in order to
-     * preserve the data accountability record. Editing a locked definition will result in a new,
-     * unlocked instance with the version incremented
-     */
-    private boolean locked = false;
-
-    @OneToMany
-    @Cascade({ org.hibernate.annotations.CascadeType.SAVE_UPDATE,
-        org.hibernate.annotations.CascadeType.DETACH })
-    @JoinTable(name = "PI_PDN_ROOT_NODES", joinColumns = @JoinColumn(name = "PARENT_PI_PD_ID"),
-        inverseJoinColumns = @JoinColumn(name = "CHILD_PI_PDN_ID"))
-    @OrderColumn(name = "IDX")
+    @ManyToMany
+    @Cascade({ CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH })
+    @JoinTable(name = "ziggy_PipelineDefinition_rootNodes",
+        joinColumns = { @JoinColumn(name = "id") },
+        inverseJoinColumns = @JoinColumn(name = "childNode_id"))
+    @OrderColumn(name = "idx")
     private List<PipelineDefinitionNode> rootNodes = new ArrayList<>();
 
     // Root node names are stored until post-processing can connect them to
@@ -126,7 +105,7 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
     // pipeline in any order in the XML, but it also complicates the bookkeeping required for those
     // objects.
     @XmlElements({ @XmlElement(name = "node", type = PipelineDefinitionNode.class),
-        @XmlElement(name = "pipelineParameter", type = ParameterSetName.class) })
+        @XmlElement(name = "pipelineParameter", type = ParameterSetReference.class) })
     @Transient
     private Set<Object> nodesAndParamSets = new HashSet<>();
 
@@ -134,87 +113,44 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
     }
 
     public PipelineDefinition(String name) {
-        this.name = new PipelineDefinitionName(name);
+        setName(name);
     }
 
     public PipelineDefinition(AuditInfo auditInfo, String name) {
-        this.name = new PipelineDefinitionName(name);
+        setName(name);
         this.auditInfo = auditInfo;
     }
 
     /**
-     * Copy constructor
+     * Constructs a renamed (deep) copy of this pipeline definition.
      *
-     * @param other
+     * @see UniqueNameVersionPipelineComponent#newInstance()
      */
-    public PipelineDefinition(PipelineDefinition other) {
-        name = other.name;
-        description = other.description;
-        auditInfo = other.auditInfo;
-        version = 0;
-        group = other.group;
-        locked = false;
-
-        for (PipelineDefinitionNode otherNode : other.rootNodes) {
-            rootNodes.add(new PipelineDefinitionNode(otherNode));
-        }
-    }
-
     @Override
-    public void rename(String name) {
-        this.name = new PipelineDefinitionName(name);
-    }
-
-    /**
-     * Creates a new, unlocked version of this {@link PipelineDefinition} Called by the console when
-     * the user edits a locked instance. If the instance is unlocked, the instance itself will be
-     * returned.
-     */
-    public PipelineDefinition newVersion() {
-        return newVersion(false);
-    }
-
-    /**
-     * Creates a new, unlocked version of this {@link PipelineDefinition} that has had its content
-     * replaced by the content of another {@link PipelineDefinition} instance. If the instance is
-     * unlocked, the instance itself will be returned.
-     */
-    public PipelineDefinition newVersionWithUpdatedContent(PipelineDefinition contentSource) {
-        PipelineDefinition newVersion = newVersion(true);
-        newVersion.description = contentSource.description;
-        newVersion.instancePriority = contentSource.instancePriority;
-        newVersion.rootNodeNames = contentSource.rootNodeNames;
-        newVersion.nodesAndParamSets = contentSource.nodesAndParamSets;
-        return newVersion;
-    }
-
-    private PipelineDefinition newVersion(boolean clearNodesAndParams) throws PipelineException {
-        PipelineDefinition newVersion = this;
-        if (locked) {
-            newVersion = new PipelineDefinition(this);
-            newVersion.version = version + 1;
+    public PipelineDefinition newInstance() {
+        PipelineDefinition pipelineDefinition = super.newInstance();
+        pipelineDefinition.id = null;
+        if (auditInfo != null) {
+            pipelineDefinition.auditInfo = new AuditInfo(auditInfo.getLastChangedUser(),
+                auditInfo.getLastChangedTime());
+        }
+        if (group != null) {
+            pipelineDefinition.group = new Group(group);
         }
 
-        if (clearNodesAndParams) {
-            newVersion.pipelineParameterSetNames.clear();
-            newVersion.rootNodes.clear();
+        pipelineDefinition.pipelineParameterSetNames = new HashMap<>();
+        for (Entry<ClassWrapper<ParametersInterface>, String> pipelineParameterSetName : pipelineParameterSetNames
+            .entrySet()) {
+            pipelineDefinition.pipelineParameterSetNames.put(pipelineParameterSetName.getKey(),
+                pipelineParameterSetName.getValue());
         }
-        return newVersion;
-    }
 
-    /**
-     * Sets the state of this {@link PipelineDefinition}, and all associated
-     * {@link PipelineDefinitionNode}s, {@link PipelineModuleDefinition}s, and
-     * {@link ParameterSet}s.
-     * <p>
-     * Normally called by the {@link PipelineExecutor} when a pipeline instance is launched in order
-     * to preserve the data accountability record by preventing these definitions from being
-     * modified once they are used.
-     *
-     * @throws PipelineException
-     */
-    public void lock() throws PipelineException {
-        locked = true;
+        pipelineDefinition.rootNodes = new ArrayList<>();
+        for (PipelineDefinitionNode rootNode : rootNodes) {
+            pipelineDefinition.rootNodes.add(new PipelineDefinitionNode(rootNode));
+        }
+
+        return pipelineDefinition;
     }
 
     /**
@@ -248,26 +184,6 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         }
     }
 
-    public long getId() {
-        return id;
-    }
-
-    public PipelineDefinitionName getName() {
-        return name;
-    }
-
-    /**
-     * @return Returns the locked.
-     */
-    public boolean isLocked() {
-        return locked;
-    }
-
-    @Override
-    public String toString() {
-        return name.toString();
-    }
-
     public List<PipelineDefinitionNode> getRootNodes() {
         return rootNodes;
     }
@@ -286,7 +202,7 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         }
         StringBuilder sb = new StringBuilder();
         for (PipelineDefinitionNode node : rootNodes) {
-            sb.append(node.getModuleName().getName());
+            sb.append(node.getModuleName());
             sb.append(", ");
         }
         sb.setLength(sb.length() - 2);
@@ -326,7 +242,10 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         for (PipelineDefinitionNode node : allNodes) {
             node.populateXmlFields();
         }
-        nodesAndParamSets.addAll(pipelineParameterSetNames.values());
+        nodesAndParamSets.addAll(pipelineParameterSetNames.values()
+            .stream()
+            .map(ParameterSetReference::new)
+            .collect(Collectors.toSet()));
 
         // Don't touch the rootNodeNames String unless the rootNodes List is populated
         if (!rootNodes.isEmpty()) {
@@ -350,12 +269,8 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         this.description = description;
     }
 
-    public int getVersion() {
-        return version;
-    }
-
     @Override
-    public Group getGroup() {
+    public Group group() {
         return group;
     }
 
@@ -364,55 +279,42 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         this.group = group;
     }
 
-    public int getDirty() {
-        return dirty;
+    public Long getId() {
+        return id;
     }
 
-    /**
-     * For TEST USE ONLY
-     */
-    public void setDirty(int dirty) {
-        this.dirty = dirty;
-    }
-
-    @Override
     public String getGroupName() {
-        Group group = getGroup();
+        Group group = group();
         if (group == null) {
-            return Group.DEFAULT_GROUP.getName();
+            return Group.DEFAULT.getName();
         }
         return group.getName();
     }
 
-    @Override
-    public String getDatabaseName() {
-        return getName().getName();
-    }
-
-    public int getInstancePriority() {
+    public Priority getInstancePriority() {
         return instancePriority;
     }
 
-    public void setInstancePriority(int instancePriority) {
+    public void setInstancePriority(Priority instancePriority) {
         this.instancePriority = instancePriority;
     }
 
-    public Map<ClassWrapper<Parameters>, ParameterSetName> getPipelineParameterSetNames() {
+    public Map<ClassWrapper<ParametersInterface>, String> getPipelineParameterSetNames() {
         return pipelineParameterSetNames;
     }
 
     // Populates the Map from Parameter class to ParameterSetName.
     public void setPipelineParameterSetNames(
-        Map<ClassWrapper<Parameters>, ParameterSetName> pipelineParameterSetNames) {
+        Map<ClassWrapper<ParametersInterface>, String> pipelineParameterSetNames) {
         this.pipelineParameterSetNames = pipelineParameterSetNames;
-        CollectionFilters.removeTypeFromCollection(nodesAndParamSets, ParameterSetName.class);
+        CollectionFilters.removeTypeFromCollection(nodesAndParamSets, String.class);
         populateXmlFields();
     }
 
     // Adds an element to the Map from Parameter class to ParameterSetName.
-    public void addPipelineParameterSetName(Class<? extends Parameters> parameterClass,
+    public void addPipelineParameterSetName(Class<? extends ParametersInterface> parameterClass,
         ParameterSet parameterSet) {
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(parameterClass);
+        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(parameterClass);
         if (pipelineParameterSetNames.containsKey(classWrapper)) {
             throw new PipelineException(
                 "This PipelineDefinition already contains a pipeline parameter set for class: "
@@ -448,7 +350,7 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         }
         List<PipelineDefinitionNode> nodes = getNodes();
         List<PipelineDefinitionNode> nodeNameMatches = nodes.stream()
-            .filter(s -> name.equals(s.getModuleName().getName()))
+            .filter(s -> name.equals(s.getModuleName()))
             .collect(Collectors.toList());
         PipelineDefinitionNode matchedNode = null;
         if (!nodeNameMatches.isEmpty()) {
@@ -461,8 +363,11 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         return CollectionFilters.filterToSet(nodesAndParamSets, PipelineDefinitionNode.class);
     }
 
-    public Set<ParameterSetName> getParameterSetNames() {
-        return CollectionFilters.filterToSet(nodesAndParamSets, ParameterSetName.class);
+    public Set<String> getParameterSetNames() {
+        return CollectionFilters.filterToSet(nodesAndParamSets, ParameterSetReference.class)
+            .stream()
+            .map(ParameterSetReference::getName)
+            .collect(Collectors.toSet());
     }
 
     public String getRootNodeNames() {
@@ -474,4 +379,14 @@ public class PipelineDefinition implements CanBeDeclaredObsolete {
         this.rootNodeNames = rootNodeNames;
     }
 
+    // TODO: Define what totalEquals() should do in the case of a pipeline definition.
+    @Override
+    public boolean totalEquals(Object other) {
+        return false;
+    }
+
+    @Override
+    protected void clearDatabaseId() {
+        id = null;
+    }
 }

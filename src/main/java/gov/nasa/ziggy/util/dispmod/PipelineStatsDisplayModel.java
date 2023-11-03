@@ -9,7 +9,9 @@ import java.util.Objects;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
+import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.util.TaskProcessingTimeStats;
+import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel.ProcessingStatistics;
 
 /**
  * Aggregates and displays stats for processing times for the {@link PipelineTask}s that make up the
@@ -19,7 +21,12 @@ import gov.nasa.ziggy.util.TaskProcessingTimeStats;
  *
  * @author Todd Klaus
  */
-public class PipelineStatsDisplayModel extends DisplayModel {
+public class PipelineStatsDisplayModel extends DisplayModel
+    implements TableModelContentClass<ProcessingStatistics> {
+
+    private static final String[] COLUMN_NAMES = { "Module", "State", "Count", "Sum (hrs)",
+        "Min (hrs)", "Max (hrs)", "Mean (hrs)", "Std (hrs)", "Start", "End", "Elapsed (hrs)" };
+
     private List<ProcessingStatistics> stats = new LinkedList<>();
 
     public PipelineStatsDisplayModel(List<PipelineTask> tasks, List<String> orderedModuleNames) {
@@ -77,7 +84,7 @@ public class PipelineStatsDisplayModel extends DisplayModel {
 
     @Override
     public int getColumnCount() {
-        return 11;
+        return COLUMN_NAMES.length;
     }
 
     @Override
@@ -85,65 +92,33 @@ public class PipelineStatsDisplayModel extends DisplayModel {
         ProcessingStatistics statsForTaskType = stats.get(rowIndex);
         TaskProcessingTimeStats s = statsForTaskType.getProcessingStats();
 
-        switch (columnIndex) {
-            case 0:
-                return statsForTaskType.getModuleName();
-            case 1:
-                return statsForTaskType.getState();
-            case 2:
-                return s.getCount();
-            case 3:
-                return formatDouble(s.getSum());
-            case 4:
-                return formatDouble(s.getMin());
-            case 5:
-                return formatDouble(s.getMax());
-            case 6:
-                return formatDouble(s.getMean());
-            case 7:
-                return formatDouble(s.getStddev());
-            case 8:
-                return formatDate(s.getMinStart());
-            case 9:
-                return formatDate(s.getMaxEnd());
-            case 10:
-                return formatDouble(s.getTotalElapsed());
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + columnIndex);
-        }
+        return switch (columnIndex) {
+            case 0 -> statsForTaskType.getModuleName();
+            case 1 -> statsForTaskType.getState();
+            case 2 -> s.getCount();
+            case 3 -> formatDouble(s.getSum());
+            case 4 -> formatDouble(s.getMin());
+            case 5 -> formatDouble(s.getMax());
+            case 6 -> formatDouble(s.getMean());
+            case 7 -> formatDouble(s.getStddev());
+            case 8 -> formatDate(s.getMinStart());
+            case 9 -> formatDate(s.getMaxEnd());
+            case 10 -> formatDouble(s.getTotalElapsed());
+            default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
+        };
     }
 
     @Override
     public String getColumnName(int column) {
-        switch (column) {
-            case 0:
-                return "Module";
-            case 1:
-                return "State";
-            case 2:
-                return "Count";
-            case 3:
-                return "Sum (hrs)";
-            case 4:
-                return "Min (hrs)";
-            case 5:
-                return "Max (hrs)";
-            case 6:
-                return "Mean (hrs)";
-            case 7:
-                return "Std (hrs)";
-            case 8:
-                return "Start";
-            case 9:
-                return "End";
-            case 10:
-                return "Elapsed (hrs)";
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + column);
-        }
+        return COLUMN_NAMES[column];
     }
 
-    private static class ProcessingStatistics {
+    @Override
+    public Class<ProcessingStatistics> tableModelContentClass() {
+        return ProcessingStatistics.class;
+    }
+
+    public static class ProcessingStatistics {
 
         private final String moduleName;
         private final State state;
@@ -178,7 +153,7 @@ public class PipelineStatsDisplayModel extends DisplayModel {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             ProcessingStatistics other = (ProcessingStatistics) obj;

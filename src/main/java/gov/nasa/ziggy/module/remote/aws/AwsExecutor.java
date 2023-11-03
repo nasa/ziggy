@@ -1,9 +1,5 @@
 package gov.nasa.ziggy.module.remote.aws;
 
-import java.io.IOException;
-
-import org.apache.commons.configuration.ConfigurationException;
-
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteExecutor;
@@ -77,8 +73,7 @@ public class AwsExecutor extends RemoteExecutor {
     }
 
     @Override
-    protected void submitForExecution(StateFile stateFile)
-        throws IOException, ConfigurationException {
+    protected void submitForExecution(StateFile stateFile) {
         submitToPbsInternal(stateFile, pipelineTask, algorithmLogDir(), taskDataDir());
     }
 }

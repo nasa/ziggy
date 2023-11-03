@@ -69,7 +69,6 @@ public class RemoteArchitectureOptimizerTest {
         descriptor = optimizer.optimalArchitecture(remoteParameters, 0, RemoteNodeDescriptor
             .nodesWithSufficientRam(descriptors, remoteParameters.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.HASWELL, descriptor);
-
     }
 
     @Test
@@ -85,7 +84,6 @@ public class RemoteArchitectureOptimizerTest {
             RemoteNodeDescriptor.nodesWithSufficientRam(descriptors,
                 remoteParameters.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.HASWELL, descriptor);
-
     }
 
     @Test
@@ -117,5 +115,4 @@ public class RemoteArchitectureOptimizerTest {
                 remoteParameters.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.IVY_BRIDGE, descriptor);
     }
-
 }

@@ -2,10 +2,9 @@ package gov.nasa.ziggy.pipeline;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -18,27 +17,30 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.models.ModelRegistryOperations;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.parameters.ParametersUtils;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
-import gov.nasa.ziggy.pipeline.definition.ModuleName;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.ParameterSetName;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
+import gov.nasa.ziggy.pipeline.definition.TypedParameterCollection;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.messages.WorkerFireTriggerRequest;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 public class PipelineOperations {
+    @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineOperations.class);
 
     private static final String CSV_REPORT_DELIMITER = ":";
@@ -52,29 +54,15 @@ public class PipelineOperations {
      * @param moduleName
      * @return
      */
-    public PipelineModuleDefinition retrieveLatestModuleDefinition(ModuleName moduleName) {
+    public PipelineModuleDefinition retrieveLatestModuleDefinition(String moduleName) {
         PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
         return crud.retrieveLatestVersionForName(moduleName);
     }
 
     /**
-     * Get the latest version for the specified parameterSetName
-     *
-     * @param parameterSetName
-     * @return
+     * Get the latest version for the specified parameter set name.
      */
     public ParameterSet retrieveLatestParameterSet(String parameterSetName) {
-        ParameterSetCrud crud = new ParameterSetCrud();
-        return crud.retrieveLatestVersionForName(parameterSetName);
-    }
-
-    /**
-     * Get the latest version for the specified {@link ParameterSetName}
-     *
-     * @param parameterSetName
-     * @return
-     */
-    public ParameterSet retrieveLatestParameterSet(ParameterSetName parameterSetName) {
         ParameterSetCrud crud = new ParameterSetCrud();
         return crud.retrieveLatestVersionForName(parameterSetName);
     }
@@ -88,20 +76,20 @@ public class PipelineOperations {
      * @param pipelineNode
      * @return
      */
-    public Set<ClassWrapper<Parameters>> retrieveRequiredParameterClassesForNode(
+    public Set<ClassWrapper<ParametersInterface>> retrieveRequiredParameterClassesForNode(
         PipelineDefinitionNode pipelineNode) {
         PipelineModuleDefinitionCrud modDefCrud = new PipelineModuleDefinitionCrud();
         PipelineModuleDefinition modDef = modDefCrud
             .retrieveLatestVersionForName(pipelineNode.getModuleName());
 
-        Set<ClassWrapper<Parameters>> allRequiredParams = new HashSet<>();
+        Set<ClassWrapper<ParametersInterface>> allRequiredParams = new HashSet<>();
 
-        List<Class<? extends Parameters>> uowParams = UnitOfWorkGenerator
+        List<Class<? extends ParametersInterface>> uowParams = UnitOfWorkGenerator
             .unitOfWorkGenerator(pipelineNode)
             .newInstance()
             .requiredParameterClasses();
-        for (Class<? extends Parameters> uowParam : uowParams) {
-            allRequiredParams.add(new ClassWrapper<Parameters>(uowParam));
+        for (Class<? extends ParametersInterface> uowParam : uowParams) {
+            allRequiredParams.add(new ClassWrapper<>(uowParam));
         }
         allRequiredParams.addAll(modDef.getRequiredParameterClasses());
 
@@ -121,7 +109,7 @@ public class PipelineOperations {
      * @param forceSave If true, save the new ParameterSet even if nothing changed
      * @return
      */
-    public ParameterSet updateParameterSet(ParameterSetName parameterSetName, Parameters parameters,
+    public ParameterSet updateParameterSet(String parameterSetName, Parameters parameters,
         boolean forceSave) {
         ParameterSet parameterSet = retrieveLatestParameterSet(parameterSetName);
 
@@ -140,8 +128,8 @@ public class PipelineOperations {
      * @param parameterSet
      * @return
      */
-    public ParameterSet updateParameterSet(ParameterSet parameterSet, Parameters newParameters,
-        boolean forceSave) {
+    public ParameterSet updateParameterSet(ParameterSet parameterSet,
+        ParametersInterface newParameters, boolean forceSave) {
         return updateParameterSet(parameterSet, newParameters, parameterSet.getDescription(),
             forceSave);
     }
@@ -151,21 +139,14 @@ public class PipelineOperations {
      * <p>
      * If if the parameters instance is different than the parameter set, then apply the changes. If
      * locked, first create a new version.
-     * <p>
-     * The new ParameterSet version is returned if one was created, otherwise the old one is
-     * returned.
      *
-     * @param newParameters
-     * @return
+     * @return the new ParameterSet version if one was created; otherwise the old one is returned
      */
-    public ParameterSet updateParameterSet(ParameterSet parameterSet, Parameters newParameters,
-        String newDescription, boolean forceSave) {
-        BeanWrapper<Parameters> currentParamsBean = parameterSet.getParameters();
-        BeanWrapper<Parameters> newParamsBean = new BeanWrapper<>(newParameters);
+    public ParameterSet updateParameterSet(ParameterSet parameterSet,
+        ParametersInterface newParameters, String newDescription, boolean forceSave) {
+        ParametersInterface currentParameters = parameterSet.parametersInstance();
 
         String currentDescription = parameterSet.getDescription();
-
-        ParameterSet updatedParameterSet = parameterSet;
 
         boolean descriptionChanged = false;
         if (currentDescription == null) {
@@ -176,75 +157,32 @@ public class PipelineOperations {
             descriptionChanged = true;
         }
 
-        boolean propsChanged = !compareParameters(currentParamsBean, newParamsBean);
-
-        if (propsChanged || descriptionChanged || forceSave) {
-            ParameterSetCrud crud = new ParameterSetCrud();
-            if (parameterSet.isLocked()) {
-                updatedParameterSet = parameterSet.newVersion();
-                // Evict the exiting parameter set object so that we don't get
-                // a Hibernate error about a duplicate ParameterSetName.
-                crud.evict(parameterSet);
-            }
-
-            updatedParameterSet.setParameters(newParamsBean);
-            updatedParameterSet.setDescription(newDescription);
-            crud.create(updatedParameterSet);
+        if (!compareParameters(currentParameters, newParameters) || descriptionChanged
+            || forceSave) {
+            parameterSet.setTypedParameters(newParameters.getParameters());
+            parameterSet.setDescription(newDescription);
+            return new ParameterSetCrud().merge(parameterSet);
         }
-
-        return updatedParameterSet;
+        return parameterSet;
     }
 
     /**
-     * Indicates whether the specified beans contain the same parameters and values
+     * Indicates whether the specified parameters contain the same parameters and values.
      *
-     * @param currentParamsBean
-     * @param newParamsBean
-     * @return true if same
+     * @return true if same or both null
      */
-    public boolean compareParameters(BeanWrapper<Parameters> currentParamsBean,
-        BeanWrapper<Parameters> newParamsBean) {
-        Map<String, String> currentProps = BeanWrapper
-            .propertyValueByName(currentParamsBean.getTypedProperties());
-        Map<String, String> newProps = BeanWrapper
-            .propertyValueByName(newParamsBean.getTypedProperties());
+    public boolean compareParameters(ParametersInterface currentParameters,
+        ParametersInterface newParameters) {
 
-        boolean propsSame = true;
-        if (currentProps == null) {
-            if (newProps != null) {
-                propsSame = false;
-            }
-        } else {
-            propsSame = currentProps.equals(newProps);
+        if (currentParameters == null) {
+            return newParameters == null;
+        }
+        if (newParameters == null) {
+            return false;
         }
 
-        log.debug("currentProps.size = " + currentProps.size());
-        log.debug("newProps.size = " + newProps.size());
-
-        return propsSame;
-    }
-
-    /**
-     * Sends a fire-trigger request message to the worker.
-     */
-    public void sendTriggerMessage(WorkerFireTriggerRequest triggerRequest) {
-        new PipelineExecutor().sendTriggerMessage(triggerRequest);
-    }
-
-    /**
-     * Sends a request for information on whether any pipelines are running or queued.
-     */
-    public void sendRunningPipelinesCheckRequestMessage() {
-        new PipelineExecutor().sendRunningPipelinesCheckRequestMessage();
-    }
-
-    /**
-     * Create the launcher and launch a new pipeline instance using the specified
-     * {@link PipelineDefinition} and startNode/endNode
-     */
-    public InstanceAndTasks fireTrigger(PipelineDefinition pipelineDefinition, String instanceName,
-        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode) {
-        return fireTrigger(pipelineDefinition, instanceName, startNode, endNode, null);
+        return new TypedParameterCollection(currentParameters.getParameters())
+            .totalEquals(new TypedParameterCollection(newParameters.getParameters()));
     }
 
     /**
@@ -253,7 +191,7 @@ public class PipelineOperations {
      * {@link ParameterSet} generated by an event handler, if the pipeline launch operation is
      * driven by an event handler.
      */
-    public InstanceAndTasks fireTrigger(PipelineDefinition pipelineDefinition, String instanceName,
+    public PipelineInstance fireTrigger(PipelineDefinition pipelineDefinition, String instanceName,
         PipelineDefinitionNode startNode, PipelineDefinitionNode endNode,
         String eventHandlerParamSetName) {
         TriggerValidationResults validationResults = validateTrigger(pipelineDefinition);
@@ -264,10 +202,6 @@ public class PipelineOperations {
 
         return pipelineExecutor().launch(pipelineDefinition, instanceName, startNode, endNode,
             eventHandlerParamSetName);
-    }
-
-    public void sendWorkerMessageForTask(PipelineTask task) {
-        pipelineExecutor().sendWorkerMessageForTask(task);
     }
 
     /**
@@ -313,7 +247,7 @@ public class PipelineOperations {
         PipelineDefinitionNode pipelineDefinitionNode, TriggerValidationResults validationResults) {
         String errorLabel = "module: " + pipelineDefinitionNode.getModuleName();
 
-        Set<ClassWrapper<Parameters>> requiredParameterClasses = retrieveRequiredParameterClassesForNode(
+        Set<ClassWrapper<ParametersInterface>> requiredParameterClasses = retrieveRequiredParameterClassesForNode(
             pipelineDefinitionNode);
 
         validateParameterClassExists(pipelineDefinitionNode.getModuleParameterSetNames(),
@@ -334,14 +268,15 @@ public class PipelineOperations {
      *
      * @param validationResults
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void validateTriggerParameters(
-        Set<ClassWrapper<Parameters>> requiredModuleParameterClasses,
-        Map<ClassWrapper<Parameters>, ParameterSetName> pipelineParameterSetNames,
-        Map<ClassWrapper<Parameters>, ParameterSetName> moduleParameterSetNames, String errorLabel,
+        Set<ClassWrapper<ParametersInterface>> requiredModuleParameterClasses,
+        Map<ClassWrapper<ParametersInterface>, String> pipelineParameterSetNames,
+        Map<ClassWrapper<ParametersInterface>, String> moduleParameterSetNames, String errorLabel,
         TriggerValidationResults validationResults) {
-        ParameterSetName paramSetName = null;
+        String paramSetName = null;
 
-        for (ClassWrapper<Parameters> classWrapper : requiredModuleParameterClasses) {
+        for (ClassWrapper<ParametersInterface> classWrapper : requiredModuleParameterClasses) {
             boolean found = false;
 
             // check at the module level first
@@ -365,8 +300,7 @@ public class PipelineOperations {
                 } else {
                     // check for new fields
                     ParameterSet paramSet = retrieveLatestParameterSet(paramSetName);
-                    BeanWrapper<Parameters> bean = paramSet.getParameters();
-                    if (bean.hasNewUnsavedFields()) {
+                    if (paramSet.hasNewUnsavedFields()) {
                         validationResults.addError(errorLabel + ": parameter set: " + paramSetName
                             + " has new fields that have been added since the last time this parameter set was saved.  "
                             + "Please edit the parameter set in the parameter library, verify that it has the correct values, and save it.");
@@ -374,7 +308,7 @@ public class PipelineOperations {
 
                     // Validate the parameters.
                     try {
-                        bean.getInstance().validate();
+                        paramSet.parametersInstance().validate();
                     } catch (Exception ex) {
                         validationResults.addError(errorLabel + ": parameter set: " + paramSetName
                             + " has invalid values: " + ex.toString());
@@ -388,7 +322,8 @@ public class PipelineOperations {
          * because this makes the data accountability trace less clear (could possibly support this
          * in the future)
          */
-        for (ClassWrapper<Parameters> moduleParameterClass : moduleParameterSetNames.keySet()) {
+        for (ClassWrapper<ParametersInterface> moduleParameterClass : moduleParameterSetNames
+            .keySet()) {
             if (pipelineParameterSetNames.containsKey(moduleParameterClass)) {
                 validationResults.addError(
                     "Ambiguous configuration: Module parameter and pipeline parameter Maps both contain a value for parameter class: "
@@ -402,10 +337,11 @@ public class PipelineOperations {
      * @param errorLabel
      * @param validationResults
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void validateParameterClassExists(
-        Map<ClassWrapper<Parameters>, ParameterSetName> parameterSetNames, String errorLabel,
+        Map<ClassWrapper<ParametersInterface>, String> parameterSetNames, String errorLabel,
         TriggerValidationResults validationResults) {
-        for (ClassWrapper<Parameters> classWrapper : parameterSetNames.keySet()) {
+        for (ClassWrapper<ParametersInterface> classWrapper : parameterSetNames.keySet()) {
             try {
                 classWrapper.getClazz();
             } catch (RuntimeException e) {
@@ -414,6 +350,104 @@ public class PipelineOperations {
                     + classWrapper.getClassName());
             }
         }
+    }
+
+    /**
+     * Updates the state of a {@link PipelineTask} and simultaneously updates the state of that
+     * task's {@link PipelineInstance} if need be. Returns a {@link TaskStateSummary} that has the
+     * {@link TaskCounts} for the instance and also the task's {@link PipelineInstanceNode}. This is
+     * a safer method to use than the "bare"
+     * {@link PipelineTask#setState(gov.nasa.ziggy.pipeline.definition.PipelineTask.State)} because
+     * it also automatically updates the pipeline instance, and starts or stops execution clocks as
+     * needed.
+     */
+    public TaskStateSummary setTaskState(PipelineTask task, PipelineTask.State state) {
+        task.setState(state);
+        if (state == PipelineTask.State.COMPLETED || state == PipelineTask.State.ERROR
+            || state == PipelineTask.State.PARTIAL) {
+            task.stopExecutionClock();
+        } else {
+            task.startExecutionClock();
+        }
+        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
+        // First set the task state.
+        PipelineTask mergedTask = pipelineTaskCrud.merge(task);
+
+        // Obtain the task counts for the instance.
+        TaskCounts instanceCounts = taskCounts(mergedTask.getPipelineInstance());
+
+        // Obtain the task counts for the instance node.
+        TaskCounts instanceNodeCounts = taskCounts(mergedTask.getPipelineInstanceNode());
+
+        // Update the instance state
+        updateInstanceState(mergedTask, instanceNodeCounts);
+        PipelineInstance mergedInstance = new PipelineInstanceCrud()
+            .merge(mergedTask.getPipelineInstance());
+
+        return new TaskStateSummary(instanceCounts, instanceNodeCounts, mergedTask, mergedInstance);
+    }
+
+    /**
+     * Sets the state of a {@link PipelineInstance} based on the {@link TaskCounts} object that
+     * summarizes the task states for the instance. Also starts or stops the execution clock as
+     * needed. Returns the merged {@link PipelineInstance} object (which includes the updated
+     * state).
+     */
+    public void updateInstanceState(PipelineTask pipelineTask, TaskCounts instanceNodeCounts) {
+        PipelineInstance instance = pipelineTask.getPipelineInstance();
+
+        PipelineInstance.State state = PipelineInstance.State.INITIALIZED;
+
+        if (allInstanceNodesComplete(instance)) {
+
+            // If all the instance nodes are done, we can set the instance state to
+            // either completed or stalled.
+            state = instanceNodeCounts.isInstanceNodeComplete() ? PipelineInstance.State.COMPLETED
+                : PipelineInstance.State.ERRORS_STALLED;
+        } else if (instanceNodeCounts.isInstanceNodeExecutionComplete()) {
+
+            // If the current node is done, then the state is either stalled or processing.
+            state = instanceNodeCounts.isInstanceNodeComplete() ? PipelineInstance.State.PROCESSING
+                : PipelineInstance.State.ERRORS_STALLED;
+        } else {
+
+            // If the current instance node is still grinding away, then the state is either
+            // errors running or processing
+            state = instanceNodeCounts.getFailedTaskCount() == 0 ? PipelineInstance.State.PROCESSING
+                : PipelineInstance.State.ERRORS_RUNNING;
+        }
+
+        state.setExecutionClockState(instance);
+        instance.setState(state);
+    }
+
+    /**
+     * Returns a {@link TaskCounts} instance for a given {@link PipelineInstance}.
+     */
+    public TaskCounts taskCounts(PipelineInstance pipelineInstance) {
+        return TaskCounts.from(new PipelineTaskCrud().retrieveStates(pipelineInstance));
+    }
+
+    /**
+     * Returns a {@link TaskCounts} instance for a given {@link PipelineInstanceNode}.
+     */
+    public TaskCounts taskCounts(PipelineInstanceNode pipelineInstanceNode) {
+        return TaskCounts.from(new PipelineTaskCrud().retrieveStates(pipelineInstanceNode));
+    }
+
+    /**
+     * Determines whether all pipeline instances have completed execution. This means that all nodes
+     * have tasks that submitted and all tasks for all nodes are either complete or errored.
+     */
+    public boolean allInstanceNodesComplete(PipelineInstance pipelineInstance) {
+        List<PipelineInstanceNode> instanceNodes = new PipelineInstanceNodeCrud()
+            .retrieveAll(pipelineInstance);
+        for (PipelineInstanceNode node : instanceNodes) {
+            if (!taskCounts(node).isInstanceNodeExecutionComplete()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -440,13 +474,12 @@ public class PipelineOperations {
         report.append(nl);
         report.append("Definition Name: " + instance.getPipelineDefinition().getName() + nl);
         report.append("Definition Version: " + instance.getPipelineDefinition().getVersion() + nl);
-        report.append("Definition ID: " + instance.getPipelineDefinition().getId() + nl);
 
         report.append(nl);
         report.append("Pipeline Parameter Sets" + nl);
-        Map<ClassWrapper<Parameters>, ParameterSet> pipelineParamSets = instance
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> pipelineParamSets = instance
             .getPipelineParameterSets();
-        for (ClassWrapper<Parameters> paramClassWrapper : pipelineParamSets.keySet()) {
+        for (ClassWrapper<ParametersInterface> paramClassWrapper : pipelineParamSets.keySet()) {
             ParameterSet paramSet = pipelineParamSets.get(paramClassWrapper);
 
             appendParameterSetToReport(report, paramSet, "  ", false);
@@ -460,17 +493,20 @@ public class PipelineOperations {
 
         for (PipelineInstanceNode node : pipelineNodes) {
             PipelineModuleDefinition module = node.getPipelineModuleDefinition();
+            TaskCounts instanceNodeCounts = taskCounts(node);
 
             appendModule(nl, report, module);
 
-            report.append("    # Tasks (total/completed/failed): " + node.getNumTasks() + "/"
-                + node.getNumCompletedTasks() + "/" + node.getNumFailedTasks() + nl);
+            report
+                .append("    # Tasks (total/completed/failed): " + instanceNodeCounts.getTaskCount()
+                    + "/" + instanceNodeCounts.getCompletedTaskCount() + "/"
+                    + instanceNodeCounts.getFailedTaskCount() + nl);
             List<String> nodeSoftwareRevisions = pipelineTaskCrud.distinctSoftwareRevisions(node);
             report.append("    Software Revisions for node:" + nodeSoftwareRevisions + nl);
 
-            Map<ClassWrapper<Parameters>, ParameterSet> moduleParamSets = node
+            Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParamSets = node
                 .getModuleParameterSets();
-            for (ClassWrapper<Parameters> paramClassWrapper : moduleParamSets.keySet()) {
+            for (ClassWrapper<ParametersInterface> paramClassWrapper : moduleParamSets.keySet()) {
                 ParameterSet moduleParamSet = moduleParamSets.get(paramClassWrapper);
 
                 appendParameterSetToReport(report, moduleParamSet, "    ", false);
@@ -489,40 +525,35 @@ public class PipelineOperations {
     /**
      * Generate a text report about the specified {@link PipelineDefinition} including all parameter
      * sets and their values.
-     *
-     * @param pipelineDefinition
-     * @return
      */
-    public String generateTriggerReport(PipelineDefinition pipelineDefinition) {
+    public String generatePipelineReport(PipelineDefinition pipelineDefinition) {
         String nl = System.lineSeparator();
         StringBuilder report = new StringBuilder();
         ParameterSetCrud paramSetCrud = new ParameterSetCrud();
         PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
 
-        report.append("Trigger ID: " + pipelineDefinition.getId() + nl);
-        report.append("Trigger Name: " + pipelineDefinition.getName() + nl);
-        report.append("Trigger Priority: " + pipelineDefinition.getInstancePriority() + nl);
+        report.append("Pipeline version: " + pipelineDefinition.getVersion() + nl);
+        report.append("Pipeline name: " + pipelineDefinition.getName() + nl);
+        report.append("Pipeline priority: " + pipelineDefinition.getInstancePriority() + nl);
         report.append(nl);
 
         TriggerValidationResults validationErrors = validateTrigger(pipelineDefinition);
         if (validationErrors.hasErrors()) {
-            report.append("*** Trigger Validation Errors ***" + nl);
+            report.append("*** Pipeline Validation Errors ***" + nl);
             report.append(nl);
             report.append(validationErrors.errorReport("  "));
             report.append(nl);
         }
 
-        report.append("Definition Name: " + pipelineDefinition.getName().getName() + nl);
-
         report.append("Pipeline Parameter Sets" + nl);
-        Map<ClassWrapper<Parameters>, ParameterSetName> pipelineParamSets = pipelineDefinition
+        Map<ClassWrapper<ParametersInterface>, String> pipelineParamSets = pipelineDefinition
             .getPipelineParameterSetNames();
-        for (ClassWrapper<Parameters> paramClassWrapper : pipelineParamSets.keySet()) {
-            ParameterSetName paramSetName = pipelineParamSets.get(paramClassWrapper);
+        for (ClassWrapper<ParametersInterface> paramClassWrapper : pipelineParamSets.keySet()) {
+            String paramSetName = pipelineParamSets.get(paramClassWrapper);
             ParameterSet paramSet = paramSetCrud.retrieveLatestVersionForName(paramSetName);
 
-            appendParameterSetToReport(report, paramSet, "  ", false);
             report.append(nl);
+            appendParameterSetToReport(report, paramSet, "  ", false);
         }
 
         report.append(nl);
@@ -530,22 +561,22 @@ public class PipelineOperations {
 
         List<PipelineDefinitionNode> nodes = pipelineDefinition.getNodes();
         for (PipelineDefinitionNode node : nodes) {
-            ModuleName moduleName = node.getModuleName();
+            String moduleName = node.getModuleName();
 
             PipelineModuleDefinition modDef = pipelineModuleDefinitionCrud
                 .retrieveLatestVersionForName(moduleName);
 
             appendModule(nl, report, modDef);
 
-            Map<ClassWrapper<Parameters>, ParameterSetName> moduleParamSetNames = node
+            Map<ClassWrapper<ParametersInterface>, String> moduleParamSetNames = node
                 .getModuleParameterSetNames();
-            for (ClassWrapper<Parameters> paramClassWrapper : moduleParamSetNames.keySet()) {
-                ParameterSetName moduleParamSetName = moduleParamSetNames.get(paramClassWrapper);
+            for (ClassWrapper<ParametersInterface> paramClassWrapper : moduleParamSetNames
+                .keySet()) {
+                String moduleParamSetName = moduleParamSetNames.get(paramClassWrapper);
                 ParameterSet moduleParamSet = paramSetCrud
                     .retrieveLatestVersionForName(moduleParamSetName);
 
                 appendParameterSetToReport(report, moduleParamSet, "    ", false);
-                report.append(nl);
             }
         }
 
@@ -555,8 +586,8 @@ public class PipelineOperations {
     private void appendModule(String nl, StringBuilder report, PipelineModuleDefinition module) {
         report.append(nl);
         report.append(
-            "  Module Definition: " + module.getName() + ", version=" + module.getVersion() + nl);
-        report.append("    Java Classname: "
+            "  Module definition: " + module.getName() + ", version=" + module.getVersion() + nl);
+        report.append("    Java classname: "
             + module.getPipelineModuleClass().getClazz().getSimpleName() + nl);
         report.append("    exe timeout seconds: " + module.getExeTimeoutSecs() + nl);
         report.append("    min memory MB: " + module.getMinMemoryMegaBytes() + nl);
@@ -565,40 +596,42 @@ public class PipelineOperations {
     /**
      * @param pipelineDefinition
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void exportPipelineParams(PipelineDefinition pipelineDefinition,
         File destinationDirectory) {
         if (!destinationDirectory.exists()) {
             try {
                 FileUtils.forceMkdir(destinationDirectory);
             } catch (IOException e) {
-                throw new PipelineException(
-                    "failed to create [" + destinationDirectory + "], caught e = " + e, e);
+                throw new UncheckedIOException(
+                    "Unable to create directory " + destinationDirectory.toString(), e);
             }
         }
 
         ParameterSetCrud paramSetCrud = new ParameterSetCrud();
         Map<String, Parameters> paramsToExport = new HashMap<>();
 
-        Map<ClassWrapper<Parameters>, ParameterSetName> pipelineParamSets = pipelineDefinition
+        Map<ClassWrapper<ParametersInterface>, String> pipelineParamSets = pipelineDefinition
             .getPipelineParameterSetNames();
-        for (ClassWrapper<Parameters> paramClassWrapper : pipelineParamSets.keySet()) {
-            ParameterSetName paramSetName = pipelineParamSets.get(paramClassWrapper);
+        for (ClassWrapper<ParametersInterface> paramClassWrapper : pipelineParamSets.keySet()) {
+            String paramSetName = pipelineParamSets.get(paramClassWrapper);
             ParameterSet paramSet = paramSetCrud.retrieveLatestVersionForName(paramSetName);
 
-            paramsToExport.put(paramSetName.getName(), paramSet.parametersInstance());
+            paramsToExport.put(paramSetName, paramSet.parametersInstance());
         }
 
         List<PipelineDefinitionNode> nodes = pipelineDefinition.getNodes();
         for (PipelineDefinitionNode node : nodes) {
-            Map<ClassWrapper<Parameters>, ParameterSetName> moduleParamSetNames = node
+            Map<ClassWrapper<ParametersInterface>, String> moduleParamSetNames = node
                 .getModuleParameterSetNames();
-            for (ClassWrapper<Parameters> paramClassWrapper : moduleParamSetNames.keySet()) {
-                ParameterSetName moduleParamSetName = moduleParamSetNames.get(paramClassWrapper);
+            for (ClassWrapper<ParametersInterface> paramClassWrapper : moduleParamSetNames
+                .keySet()) {
+                String moduleParamSetName = moduleParamSetNames.get(paramClassWrapper);
                 ParameterSet moduleParamSet = paramSetCrud
                     .retrieveLatestVersionForName(moduleParamSetName);
 
-                paramsToExport.put(moduleParamSetName.getName(),
-                    moduleParamSet.parametersInstance());
+                paramsToExport.put(moduleParamSetName, moduleParamSet.parametersInstance());
             }
         }
 
@@ -606,11 +639,7 @@ public class PipelineOperations {
             Parameters params = paramsToExport.get(paramSetName);
             File file = new File(destinationDirectory, paramSetName + ".properties");
 
-            try {
-                ParametersUtils.exportParameters(file, params);
-            } catch (IOException e) {
-                throw new PipelineException("failed to export [" + file + "], caught e = " + e, e);
-            }
+            ParametersUtils.exportParameters(file, params);
         }
     }
 
@@ -641,33 +670,31 @@ public class PipelineOperations {
      * @param paramSet
      * @param indent
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void appendParameterSetToReport(StringBuilder report, ParameterSet paramSet,
         String indent, boolean csvMode) {
         String nl = System.lineSeparator();
         String paramsIndent = indent + "  ";
-        BeanWrapper<Parameters> parameters = paramSet.getParameters();
         String parameterClassName = "";
 
         try {
-            parameterClassName = parameters.getClazz().getSimpleName();
-        } catch (RuntimeException e) {
-            parameterClassName = " <deleted>: " + parameters.getClassName();
+            parameterClassName = Class.forName(paramSet.getClassname()).getSimpleName();
+        } catch (RuntimeException | ClassNotFoundException e) {
+            parameterClassName = " <deleted>: " + paramSet.getClassname();
         }
 
         if (!csvMode) {
-            report.append(indent + "Parameter Set: " + paramSet.getName() + " (type="
+            report.append(indent + "Parameter set: " + paramSet.getName() + " (type="
                 + parameterClassName + ", version=" + paramSet.getVersion() + ")" + nl);
         }
 
-        Map<String, TypedParameter> params = BeanWrapper
-            .typedPropertyByName(parameters.getTypedProperties());
-        if (params.isEmpty() && !csvMode) {
+        Set<TypedParameter> parameters = paramSet.parametersInstance().getParameters();
+        if (parameters.isEmpty() && !csvMode) {
             report.append(paramsIndent + "(no parameters)" + nl);
         } else {
-            List<String> sortedKeys = new LinkedList<>(params.keySet());
-            Collections.sort(sortedKeys);
-            for (String key : sortedKeys) {
-                String value = params.get(key).getString();
+            for (TypedParameter parameter : parameters) {
+                String key = parameter.getName();
+                String value = parameter.getString();
 
                 if (csvMode) {
                     report.append(paramSet.getName() + CSV_REPORT_DELIMITER);
@@ -682,19 +709,19 @@ public class PipelineOperations {
         }
     }
 
-    public Map<ClassWrapper<Parameters>, ParameterSet> retrieveParameterSets(
+    public Map<ClassWrapper<ParametersInterface>, ParameterSet> retrieveParameterSets(
         PipelineDefinition pipelineDefinition, String moduleName) {
-        Map<ClassWrapper<Parameters>, ParameterSetName> parameterSetNameMap = new HashMap<>(
+        Map<ClassWrapper<ParametersInterface>, String> parameterSetNameMap = new HashMap<>(
             pipelineDefinition.getPipelineParameterSetNames());
         for (PipelineDefinitionNode pipelineDefinitionNode : pipelineDefinition.getNodes()) {
-            if (pipelineDefinitionNode.getModuleName().getName().equals(moduleName)) {
+            if (pipelineDefinitionNode.getModuleName().equals(moduleName)) {
                 parameterSetNameMap.putAll(pipelineDefinitionNode.getModuleParameterSetNames());
             }
         }
 
         ParameterSetCrud parameterSetCrud = new ParameterSetCrud();
-        Map<ClassWrapper<Parameters>, ParameterSet> parameterSetMap = new HashMap<>();
-        for (Entry<ClassWrapper<Parameters>, ParameterSetName> entry : parameterSetNameMap
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> parameterSetMap = new HashMap<>();
+        for (Entry<ClassWrapper<ParametersInterface>, String> entry : parameterSetNameMap
             .entrySet()) {
             ParameterSet parameterSet = parameterSetCrud
                 .retrieveLatestVersionForName(entry.getValue());
@@ -706,5 +733,45 @@ public class PipelineOperations {
 
     public PipelineExecutor pipelineExecutor() {
         return new PipelineExecutor();
+    }
+
+    /**
+     * Container used to provide information to the caller after execution of the
+     * {@link PipelineOperations#setTaskState(PipelineTask, gov.nasa.ziggy.pipeline.definition.PipelineTask.State)}.
+     * The updated {@link PipelineTask} and {@link PipelineInstance} are returned, as are the
+     * {@link TaskCounts} instances for the pipeline instance and instance node for the task.
+     *
+     * @author PT
+     */
+    public static class TaskStateSummary {
+
+        private final TaskCounts instanceCounts;
+        private final TaskCounts instanceNodeCounts;
+        private final PipelineTask task;
+        private final PipelineInstance instance;
+
+        public TaskStateSummary(TaskCounts instanceCounts, TaskCounts instanceNodeCounts,
+            PipelineTask mergedTask, PipelineInstance mergedInstance) {
+            this.instanceCounts = instanceCounts;
+            this.instanceNodeCounts = instanceNodeCounts;
+            task = mergedTask;
+            instance = mergedInstance;
+        }
+
+        public TaskCounts getInstanceCounts() {
+            return instanceCounts;
+        }
+
+        public TaskCounts getInstanceNodeCounts() {
+            return instanceNodeCounts;
+        }
+
+        public PipelineTask getTask() {
+            return task;
+        }
+
+        public PipelineInstance getInstance() {
+            return instance;
+        }
     }
 }

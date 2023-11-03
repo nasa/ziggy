@@ -147,7 +147,6 @@ public class LockManagerTest {
         task.start();
         task.join();
         assertTrue(task.isLockObtained());
-
     }
 
     /**
@@ -211,7 +210,6 @@ public class LockManagerTest {
         public boolean isDoneTryingLock() {
             return doneTryingLock;
         }
-
     }
 
     /**
@@ -235,7 +233,6 @@ public class LockManagerTest {
         protected void releaseLock() throws IOException {
             LockManager.releaseReadLock(getLockFile().toFile());
         }
-
     }
 
     /**
@@ -271,7 +268,6 @@ public class LockManagerTest {
                 LockManager.releaseWriteLock(getLockFile().toFile());
             }
         }
-
     }
 
     /**
@@ -295,7 +291,5 @@ public class LockManagerTest {
         protected void releaseLock() throws IOException {
             LockManager.releaseWriteLock(getLockFile().toFile());
         }
-
     }
-
 }

@@ -1,24 +1,24 @@
 package gov.nasa.ziggy.services.alert;
 
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 /**
  * @author Todd Klaus
  */
 @Entity
-@Table(name = "PI_ALERT")
+@Table(name = "ziggy_AlertLog")
 public class AlertLog {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PD_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_AlertLog_generator")
+    @SequenceGenerator(name = "ziggy_AlertLog_generator", initialValue = 1,
+        sequenceName = "ziggy_AlertLog_sequence", allocationSize = 1)
+    private Long id;
 
     @Embedded
     private Alert alertData;
@@ -36,7 +36,7 @@ public class AlertLog {
     /**
      * @return the id
      */
-    public long getId() {
+    public Long getId() {
         return id;
     }
 

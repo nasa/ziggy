@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -37,13 +37,20 @@ package gov.nasa.ziggy.services.config;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
 
-import org.apache.commons.configuration.ConfigurationUtils;
-import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.configuration2.ConfigurationUtils;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -65,34 +72,42 @@ public class ConfigMerge {
         this.mergedPath = mergedPath;
     }
 
-    public void merge() throws Exception {
-        // Read base file
-        File baseFile = new File(basePath);
-        if (!baseFile.exists()) {
-            throw new Exception("baseFile: " + baseFile + " does not exist");
-        }
-
-        log.info("reading base file: " + baseFile);
-        PropertiesConfiguration baseConfig = new PropertiesConfiguration(baseFile);
-
-        // Read the override file
-        File overrideFile = new File(overridePath);
-        if (!overrideFile.exists()) {
-            throw new Exception("overrideFile: " + overrideFile + " does not exist");
-        }
-
-        log.info("reading override file: " + overrideFile);
-        PropertiesConfiguration overrideConfig = new PropertiesConfiguration(overrideFile);
-
-        // Copy the override properties to the base config
-        ConfigurationUtils.copy(overrideConfig, baseConfig);
-
-        // Write out the merged config .properties file
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void merge() {
         File mergedFile = new File(mergedPath);
-        log.info("writing merged file: " + mergedFile);
-        BufferedWriter outputWriter = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(mergedFile), FileUtil.ZIGGY_CHARSET));
-        baseConfig.save(outputWriter);
+        try {
+            // Read base file
+            File baseFile = new File(basePath);
+            if (!baseFile.exists()) {
+                throw new PipelineException("baseFile: " + baseFile + " does not exist");
+            }
+
+            log.info("reading base file: " + baseFile);
+            PropertiesConfiguration baseConfig = new Configurations().properties(baseFile);
+
+            // Read the override file
+            File overrideFile = new File(overridePath);
+            if (!overrideFile.exists()) {
+                throw new PipelineException("overrideFile: " + overrideFile + " does not exist");
+            }
+
+            log.info("reading override file: " + overrideFile);
+            PropertiesConfiguration overrideConfig = new Configurations().properties(overrideFile);
+
+            // Copy the override properties to the base config
+            ConfigurationUtils.copy(overrideConfig, baseConfig);
+
+            // Write out the merged config .properties file
+            log.info("writing merged file: " + mergedFile);
+            BufferedWriter outputWriter = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(mergedFile), FileUtil.ZIGGY_CHARSET));
+            baseConfig.write(outputWriter);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to write to file " + mergedFile.toString(), e);
+        } catch (ConfigurationException e) {
+            throw new PipelineException("Unable to construct PropertiesConfiguration instance", e);
+        }
     }
 
     /**

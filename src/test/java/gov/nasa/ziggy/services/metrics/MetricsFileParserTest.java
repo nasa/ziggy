@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.Date;
@@ -47,7 +46,7 @@ public class MetricsFileParserTest {
 
         MetricsFileParser parser = new MetricsFileParser(new File("bogus")) {
             @Override
-            protected Reader openReader() throws IOException {
+            protected Reader openReader() {
                 return new StringReader(testInput.toString());
             }
         };

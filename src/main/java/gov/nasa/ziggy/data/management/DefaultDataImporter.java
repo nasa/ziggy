@@ -15,9 +15,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.services.alert.AlertService;
+import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Default implementation of the {@link DataImporter} interface. This class can be used for data
@@ -35,13 +39,14 @@ import gov.nasa.ziggy.uow.UnitOfWork;
 public class DefaultDataImporter extends DataImporter {
 
     private final Path dataImportPath;
+    private AlertService alertService;
 
     public DefaultDataImporter(PipelineTask pipelineTask, Path dataReceiptPath,
         Path datastoreRoot) {
         super(pipelineTask, dataReceiptPath, datastoreRoot);
 
         // Obtain the UOW
-        UnitOfWork uow = pipelineTask.getUowTask().getInstance();
+        UnitOfWork uow = pipelineTask.uowTaskInstance();
         dataImportPath = dataReceiptPath.resolve(DirectoryUnitOfWorkGenerator.directory(uow));
     }
 
@@ -85,7 +90,9 @@ public class DefaultDataImporter extends DataImporter {
     }
 
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public Set<Path> importFiles(Map<Path, Path> dataFiles) {
+        int exceptionCount = 0;
         Set<Path> importedFiles = new HashSet<>();
         Set<Path> datastoreDirectories = new HashSet<>();
         for (Path destPath : dataFiles.values()) {
@@ -101,8 +108,14 @@ public class DefaultDataImporter extends DataImporter {
                 moveOrSymlink(fullSourcePath, fullDestPath);
                 importedFiles.add(sourceFile);
             } catch (IOException e) {
-                log.error("Unable to import data file " + sourceFile.toString(), e);
+                log.error("Failed to import file " + sourceFile.toString(), e);
+                exceptionCount++;
             }
+        }
+        if (exceptionCount > 0) {
+            alertService().generateAlert("DefaultDataImporter", Severity.WARNING,
+                "Data file import encountered " + exceptionCount + " import failures, "
+                    + "see log file for details");
         }
         return importedFiles;
     }
@@ -117,4 +130,10 @@ public class DefaultDataImporter extends DataImporter {
         return dataImportPath;
     }
 
+    AlertService alertService() {
+        if (alertService == null) {
+            alertService = AlertService.getInstance();
+        }
+        return alertService;
+    }
 }

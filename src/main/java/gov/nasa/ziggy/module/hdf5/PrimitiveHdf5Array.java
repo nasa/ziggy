@@ -26,8 +26,6 @@ import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import hdf.hdf5lib.H5;
 import hdf.hdf5lib.HDF5Constants;
-import hdf.hdf5lib.exceptions.HDF5Exception;
-import hdf.hdf5lib.exceptions.HDF5LibraryException;
 
 /**
  * Main class that provides impedance matching as needed between Java storage of numeric, string,
@@ -40,13 +38,13 @@ import hdf.hdf5lib.exceptions.HDF5LibraryException;
 public class PrimitiveHdf5Array extends AbstractHdf5Array {
 
     /**
-     * Constructs a PrimitiveHdf5Array that is optimized for reading the contents of a
-     * DefaultParameters parameter.
+     * Constructs a PrimitiveHdf5Array that is optimized for reading the contents of a Parameters
+     * parameter.
      *
      * @param groupId HDF5 group of the parameter.
      * @param fieldName Name of the HDF5 group.
      */
-    static final PrimitiveHdf5Array forReadingDefaultParameters(long groupId, String fieldName) {
+    static final PrimitiveHdf5Array forReadingParameters(long groupId, String fieldName) {
         PrimitiveHdf5Array p = new PrimitiveHdf5Array();
         p.returnAs = ReturnAs.ARRAY;
         p.fieldName = fieldName;
@@ -290,9 +288,9 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         Object emptyReturn = null;
 
         if (returnAs.equals(ReturnAs.SCALAR)) {
-            if ((dataTypeOfReturn == ZiggyDataType.ZIGGY_STRING
-                || dataTypeOfReturn == ZiggyDataType.ZIGGY_ENUM)
-                || (dataTypeOfReturn == ZiggyDataType.ZIGGY_CHAR)) {
+            if (dataTypeOfReturn == ZiggyDataType.ZIGGY_STRING
+                || dataTypeOfReturn == ZiggyDataType.ZIGGY_ENUM
+                || dataTypeOfReturn == ZiggyDataType.ZIGGY_CHAR) {
                 emptyReturn = null;
             } else {
                 emptyReturn = dataTypeOfReturn.boxedZero();
@@ -380,7 +378,6 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
             convertedObject = ZiggyArrayUtils.unbox(convertedObject);
         }
         return convertedObject;
-
     }
 
     public ZiggyDataType getDataTypeOfReturn() {
@@ -408,86 +405,77 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
             nElements *= iSize;
         }
 
-        try {
-            // create data space
-            long dataSpace = H5.H5Screate_simple(arraySize.length, arraySize, null);
+        // create data space
+        long dataSpace = H5.H5Screate_simple(arraySize.length, arraySize, null);
 
-            // set up compression if desired
-            long deflateProperty;
+        // set up compression if desired
+        long deflateProperty;
 
-            // if the array was originally a boolean array, but is now logical,
-            // we need to create an attribute that signals this to future users
-            // of the data
-            if (getHdf5DataType() == ZIGGY_BOOLEAN) {
+        // if the array was originally a boolean array, but is now logical,
+        // we need to create an attribute that signals this to future users
+        // of the data
+        if (getHdf5DataType() == ZIGGY_BOOLEAN) {
+            long scalarSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
+            long logicalAttribute = H5.H5Acreate(fieldGroupId,
+                Hdf5ModuleInterface.BOOLEAN_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(), scalarSpace,
+                H5P_DEFAULT, H5P_DEFAULT);
+            H5.H5Aclose(logicalAttribute);
+            H5.H5Sclose(scalarSpace);
+        }
+
+        // set the data type
+        long dataType = getDataTypeToSave().getHdf5Type();
+
+        // if this is a string array, there is considerable special preparation
+        // that needs to be made: we need to create a variable-length datatype,
+        // note whether the original data came from a string array
+
+        if (getDataTypeToSave() == ZIGGY_STRING) {
+            dataType = H5.H5Tcopy(ZIGGY_STRING.getHdf5Type());
+            H5.H5Tset_size(dataType, HDF5Constants.H5T_VARIABLE);
+            if (!isScalar()) {
                 long scalarSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
-                long logicalAttribute = H5.H5Acreate(fieldGroupId,
-                    Hdf5ModuleInterface.BOOLEAN_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(),
+                long stringArrayAttribute = H5.H5Acreate(fieldGroupId,
+                    Hdf5ModuleInterface.STRING_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(),
                     scalarSpace, H5P_DEFAULT, H5P_DEFAULT);
-                H5.H5Aclose(logicalAttribute);
+                H5.H5Aclose(stringArrayAttribute);
                 H5.H5Sclose(scalarSpace);
             }
-
-            // set the data type
-            long dataType = getDataTypeToSave().getHdf5Type();
-
-            // if this is a string array, there is considerable special preparation
-            // that needs to be made: we need to create a variable-length datatype,
-            // note whether the original data came from a string array
-
-            if (getDataTypeToSave() == ZIGGY_STRING) {
-                dataType = H5.H5Tcopy(ZIGGY_STRING.getHdf5Type());
-                H5.H5Tset_size(dataType, HDF5Constants.H5T_VARIABLE);
-                if (!isScalar()) {
-                    long scalarSpace = H5.H5Screate(HDF5Constants.H5S_SCALAR);
-                    long stringArrayAttribute = H5.H5Acreate(fieldGroupId,
-                        Hdf5ModuleInterface.STRING_ARRAY_ATT_NAME, ZIGGY_BYTE.getHdf5Type(),
-                        scalarSpace, H5P_DEFAULT, H5P_DEFAULT);
-                    H5.H5Aclose(stringArrayAttribute);
-                    H5.H5Sclose(scalarSpace);
-                }
-            }
-
-            // construct the dataset, write the data, close everything
-            long dataset;
-            if (getDataTypeToSave() == ZIGGY_STRING) {
-                deflateProperty = Hdf5ModuleInterface.chunkAndDeflateProperty(nElements, arraySize);
-                dataset = H5.H5Dcreate(fieldGroupId, fieldName, dataType, dataSpace, H5P_DEFAULT,
-                    deflateProperty, H5P_DEFAULT);
-                H5.H5Dwrite_VLStrings(dataset, dataType, HDF5Constants.H5S_ALL,
-                    HDF5Constants.H5S_ALL, H5P_DEFAULT, (Object[]) toHdf5());
-            } else {
-
-                // here we need to iterate over hyperslabs to stay below the HDF5-Java limit of
-                // 2.2 GB per hyperslab
-                PrimitiveHdf5Array.HyperslabIterator hI = new HyperslabIterator();
-                deflateProperty = Hdf5ModuleInterface.chunkAndDeflateProperty(nElements,
-                    hI.chunkSize());
-                dataset = H5.H5Dcreate(fieldGroupId, fieldName, dataType, dataSpace, H5P_DEFAULT,
-                    deflateProperty, H5P_DEFAULT);
-                while (hI.hasNext()) {
-                    PrimitiveHdf5Array.Hyperslab h = hI.next();
-                    H5.H5Sselect_hyperslab(dataSpace, HDF5Constants.H5S_SELECT_SET,
-                        h.hyperslabStart(), h.hyperslabStride(), h.hyperslabCount(),
-                        h.hyperslabBlock());
-                    long memSpace = H5.H5Screate_simple(arraySize.length, h.hyperslabBlock(), null);
-                    H5.H5Dwrite(dataset, dataType, memSpace, dataSpace, H5P_DEFAULT,
-                        toHdf5(h.getHyperslab()));
-                    H5.H5Sclose(memSpace);
-                }
-            }
-            H5.H5Dclose(dataset);
-            if (dataType != getDataTypeToSave().getHdf5Type()) {
-                H5.H5Tclose(dataType);
-            }
-            H5.H5Pclose(deflateProperty);
-            H5.H5Sclose(dataSpace);
-        } catch (NullPointerException | IllegalArgumentException | HDF5Exception e) {
-            throw new PipelineException(
-                "Unable to write primitive array from field " + fieldName + " to HDF5 group", e);
-        } catch (IllegalAccessException | NoSuchFieldException | SecurityException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
+
+        // construct the dataset, write the data, close everything
+        long dataset;
+        if (getDataTypeToSave() == ZIGGY_STRING) {
+            deflateProperty = Hdf5ModuleInterface.chunkAndDeflateProperty(nElements, arraySize);
+            dataset = H5.H5Dcreate(fieldGroupId, fieldName, dataType, dataSpace, H5P_DEFAULT,
+                deflateProperty, H5P_DEFAULT);
+            H5.H5Dwrite_VLStrings(dataset, dataType, HDF5Constants.H5S_ALL, HDF5Constants.H5S_ALL,
+                H5P_DEFAULT, (Object[]) toHdf5());
+        } else {
+
+            // here we need to iterate over hyperslabs to stay below the HDF5-Java limit of
+            // 2.2 GB per hyperslab
+            PrimitiveHdf5Array.HyperslabIterator hI = new HyperslabIterator();
+            deflateProperty = Hdf5ModuleInterface.chunkAndDeflateProperty(nElements,
+                hI.chunkSize());
+            dataset = H5.H5Dcreate(fieldGroupId, fieldName, dataType, dataSpace, H5P_DEFAULT,
+                deflateProperty, H5P_DEFAULT);
+            while (hI.hasNext()) {
+                PrimitiveHdf5Array.Hyperslab h = hI.next();
+                H5.H5Sselect_hyperslab(dataSpace, HDF5Constants.H5S_SELECT_SET, h.hyperslabStart(),
+                    h.hyperslabStride(), h.hyperslabCount(), h.hyperslabBlock());
+                long memSpace = H5.H5Screate_simple(arraySize.length, h.hyperslabBlock(), null);
+                H5.H5Dwrite(dataset, dataType, memSpace, dataSpace, H5P_DEFAULT,
+                    toHdf5(h.getHyperslab()));
+                H5.H5Sclose(memSpace);
+            }
+        }
+        H5.H5Dclose(dataset);
+        if (dataType != getDataTypeToSave().getHdf5Type()) {
+            H5.H5Tclose(dataType);
+        }
+        H5.H5Pclose(deflateProperty);
+        H5.H5Sclose(dataSpace);
 
         return emptyGroupIdList;
     }
@@ -496,77 +484,60 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
     public void read(long fieldGroupId) {
         // If the return is an empty field, detect and handle that now
 
-        try {
-            if (H5.H5Aexists(fieldGroupId, Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME)) {
-                return;
-            }
-        } catch (HDF5LibraryException | NullPointerException e1) {
-            throw new PipelineException(
-                "HDF5 error occurred attempting to detect empty field attribute", e1);
+        if (H5.H5Aexists(fieldGroupId, Hdf5ModuleInterface.EMPTY_FIELD_ATT_NAME)) {
+            return;
         }
-        try {
-            // get the dataset for the numeric array, which will have the same name as the group,
-            // which in turn is the same as the name of the field
-            long dataSetId = H5.H5Dopen(fieldGroupId, getFieldName(), H5P_DEFAULT);
+        // get the dataset for the numeric array, which will have the same name as the group,
+        // which in turn is the same as the name of the field
+        long dataSetId = H5.H5Dopen(fieldGroupId, getFieldName(), H5P_DEFAULT);
 
-            // get the type and the dimensions of the HDF5 array
-            long hdf5TypeInt = H5.H5Dget_type(dataSetId);
+        // get the type and the dimensions of the HDF5 array
+        long hdf5TypeInt = H5.H5Dget_type(dataSetId);
 
-            long dataSpaceId = H5.H5Dget_space(dataSetId);
-            int nDims = H5.H5Sget_simple_extent_ndims(dataSpaceId);
-            long[] dimensions = new long[nDims];
-            long[] maxDimensions = new long[nDims];
-            H5.H5Sget_simple_extent_dims(dataSpaceId, dimensions, maxDimensions);
+        long dataSpaceId = H5.H5Dget_space(dataSetId);
+        int nDims = H5.H5Sget_simple_extent_ndims(dataSpaceId);
+        long[] dimensions = new long[nDims];
+        long[] maxDimensions = new long[nDims];
+        H5.H5Sget_simple_extent_dims(dataSpaceId, dimensions, maxDimensions);
 
-            // construct an array to capture the data in the dataset
+        // construct an array to capture the data in the dataset
 
-            ZiggyDataType hType = Hdf5ModuleInterface.readDataTypeAttribute(fieldGroupId,
-                getFieldName());
+        ZiggyDataType hType = Hdf5ModuleInterface.readDataTypeAttribute(fieldGroupId,
+            getFieldName());
 
-            // in the special case in which there is no data type to return set, set
-            // it to match the data type of the HDF5 data
-            if (dataTypeOfReturn == null) {
-                dataTypeOfReturn = hType;
-            }
-
-            // get the values out of the dataspace
-            if (hType == ZIGGY_STRING) {
-                Object dataArray = ZiggyArrayUtils.constructFullArray(dimensions, hType, false);
-                Object flattenedArray = flattenArray(dataArray);
-                long typeId = H5.H5Dget_type(dataSetId);
-                H5.H5Dread_VLStrings(dataSetId, typeId, HDF5Constants.H5S_ALL,
-                    HDF5Constants.H5S_ALL, H5P_DEFAULT, (Object[]) flattenedArray);
-                unflattenArray(flattenedArray, dataArray);
-                setArray(dataArray);
-            } else {
-                PrimitiveHdf5Array.HyperslabIterator hI = new HyperslabIterator(dimensions, hType);
-                while (hI.hasNext()) {
-                    PrimitiveHdf5Array.Hyperslab h = hI.next();
-                    H5.H5Sselect_hyperslab(dataSpaceId, HDF5Constants.H5S_SELECT_SET,
-                        h.hyperslabStart(), h.hyperslabStride(), h.hyperslabCount(),
-                        h.hyperslabBlock());
-                    long memSpace = H5.H5Screate_simple(dimensions.length, h.hyperslabBlock(),
-                        null);
-                    Object dataArray = ZiggyArrayUtils.constructFullArray(h.hyperslabBlock(), hType,
-                        false);
-                    H5.H5Dread(dataSetId, hdf5TypeInt, memSpace, dataSpaceId, H5P_DEFAULT,
-                        dataArray);
-                    h.putHyperslab(dataArray);
-                    H5.H5Sclose(memSpace);
-                }
-            }
-
-            H5.H5Sclose(dataSpaceId);
-            H5.H5Dclose(dataSetId);
-        } catch (HDF5Exception e) {
-            throw new PipelineException(
-                "Unable to read numeric array from HDF5 for field " + getFieldName(), e);
-        } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException
-            | SecurityException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        // in the special case in which there is no data type to return set, set
+        // it to match the data type of the HDF5 data
+        if (dataTypeOfReturn == null) {
+            dataTypeOfReturn = hType;
         }
 
+        // get the values out of the dataspace
+        if (hType == ZIGGY_STRING) {
+            Object dataArray = ZiggyArrayUtils.constructFullArray(dimensions, hType, false);
+            Object flattenedArray = flattenArray(dataArray);
+            long typeId = H5.H5Dget_type(dataSetId);
+            H5.H5Dread_VLStrings(dataSetId, typeId, HDF5Constants.H5S_ALL, HDF5Constants.H5S_ALL,
+                H5P_DEFAULT, (Object[]) flattenedArray);
+            unflattenArray(flattenedArray, dataArray);
+            setArray(dataArray);
+        } else {
+            PrimitiveHdf5Array.HyperslabIterator hI = new HyperslabIterator(dimensions, hType);
+            while (hI.hasNext()) {
+                PrimitiveHdf5Array.Hyperslab h = hI.next();
+                H5.H5Sselect_hyperslab(dataSpaceId, HDF5Constants.H5S_SELECT_SET,
+                    h.hyperslabStart(), h.hyperslabStride(), h.hyperslabCount(),
+                    h.hyperslabBlock());
+                long memSpace = H5.H5Screate_simple(dimensions.length, h.hyperslabBlock(), null);
+                Object dataArray = ZiggyArrayUtils.constructFullArray(h.hyperslabBlock(), hType,
+                    false);
+                H5.H5Dread(dataSetId, hdf5TypeInt, memSpace, dataSpaceId, H5P_DEFAULT, dataArray);
+                h.putHyperslab(dataArray);
+                H5.H5Sclose(memSpace);
+            }
+        }
+
+        H5.H5Sclose(dataSpaceId);
+        H5.H5Dclose(dataSetId);
     }
 
     /**
@@ -588,14 +559,6 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         Hyperslab(long[] size, long[] location) {
             super(longToInt1d(ZiggyArrayUtils.getArraySize(arrayObject)), longToInt1d(size),
                 longToInt1d(location));
-//            this.size = size;
-//            this.location = location;
-//            this.arrayObjectSize = ZiggyArrayUtils.getArraySize(arrayObject);
-//            if (!checkSlabParameters()) {
-//                throw new PipelineException("Unable to obtain hyperslab of size "
-//                    + Arrays.toString(size) + " and location " + Arrays.toString(location)
-//                    + " from array of size " + Arrays.toString(arrayObjectSize));
-//            }
         }
 
         /**
@@ -608,14 +571,6 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
          */
         Hyperslab(long[] size, long[] location, long[] arrayObjectSize) {
             super(longToInt1d(arrayObjectSize), longToInt1d(size), longToInt1d(location));
-//            this.size = size;
-//            this.location = location;
-//            this.arrayObjectSize = arrayObjectSize;
-//            if (!checkSlabParameters()) {
-//                throw new PipelineException("Unable to obtain hyperslab of size "
-//                    + Arrays.toString(size) + " and location " + Arrays.toString(location)
-//                    + " from array of size " + Arrays.toString(arrayObjectSize));
-//            }
         }
 
         /**
@@ -806,7 +761,6 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
                 System.arraycopy(slabArray, 0, array, location0, (int) slabSize[0]);
             }
         }
-
     }
 
     /**
@@ -821,14 +775,8 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
          * Constructor to use for writing to HDF5 -- in this case, we know the type and the size of
          * the array based on the arrayObject and dataTypeToSave members of the PrimitiveHdf5Array
          * object
-         *
-         * @throws SecurityException
-         * @throws NoSuchFieldException
-         * @throws IllegalAccessException
-         * @throws IllegalArgumentException
          */
-        HyperslabIterator() throws IllegalArgumentException, IllegalAccessException,
-            NoSuchFieldException, SecurityException {
+        HyperslabIterator() {
             this(ZiggyArrayUtils.getArraySize(arrayObject), dataTypeToSave);
         }
 
@@ -838,13 +786,8 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
          *
          * @param arraySize
          * @param dataType
-         * @throws SecurityException
-         * @throws NoSuchFieldException
-         * @throws IllegalAccessException
-         * @throws IllegalArgumentException
          */
-        HyperslabIterator(long[] arraySize, ZiggyDataType dataType) throws IllegalArgumentException,
-            IllegalAccessException, NoSuchFieldException, SecurityException {
+        HyperslabIterator(long[] arraySize, ZiggyDataType dataType) {
             this(arraySize, dataType, Hdf5ModuleInterface.MAX_BYTES_PER_HYPERSLAB);
         }
 
@@ -856,14 +799,8 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
          * @param arraySize
          * @param dataType
          * @param maxBytes
-         * @throws SecurityException
-         * @throws NoSuchFieldException
-         * @throws IllegalAccessException
-         * @throws IllegalArgumentException
          */
-        HyperslabIterator(long[] arraySize, ZiggyDataType dataType, long maxBytes)
-            throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException,
-            SecurityException {
+        HyperslabIterator(long[] arraySize, ZiggyDataType dataType, long maxBytes) {
             super(longToInt1d(arraySize), (int) maxBytes / elementSizeBytes(dataType));
         }
 
@@ -885,5 +822,4 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
             return intToLong1d(getSize());
         }
     }
-
 }

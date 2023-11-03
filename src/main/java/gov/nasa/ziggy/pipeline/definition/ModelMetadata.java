@@ -4,19 +4,22 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.regex.Matcher;
 
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
 import gov.nasa.ziggy.models.SemanticVersionNumber;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.Iso8601Formatter;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -34,13 +37,13 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_MODEL_METADATA")
+@Table(name = "ziggy_ModelMetadata")
 public class ModelMetadata implements Comparable<ModelMetadata> {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_MODEL_METADATA_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_ModelMetadata_generator")
+    @SequenceGenerator(name = "ziggy_ModelMetadata_generator", initialValue = 1,
+        sequenceName = "ziggy_ModelMetadata_sequence", allocationSize = 1)
+    private Long id;
 
     /** A String identifying the model type (like 'GEOMETRY' or 'SPACECRAFT_EPHEMERIS') */
     @ManyToOne(fetch = FetchType.EAGER)
@@ -95,23 +98,14 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
     public ModelMetadata() {
     }
 
-    /**
-     * Constructor. Will throw an IllegalArgumentException if the version of this instance is &lt;=
-     * the version in the current registry metadata.
-     *
-     * @param modelType
-     * @param modelName
-     * @param modelDescription
-     * @param currentRegistryMetadata
-     */
     public ModelMetadata(ModelType modelType, String modelName, String modelDescription,
-        ModelMetadata currentRegistryMetadata) {
+        String revision, ModelMetadata currentRegistryMetadata) {
 
         String version = getNewVersion(modelType, modelName, currentRegistryMetadata);
         String datastoreName = datastoreName(modelType, modelName, version);
         importTime = currentDate();
         locked = false;
-        modelRevision = version;
+        modelRevision = revision;
         datastoreFileName = datastoreName;
         originalFileName = modelName;
         this.modelDescription = modelDescription;
@@ -121,6 +115,12 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
                 + " and version " + version + " cannot be imported because existing version "
                 + currentRegistryMetadata.getModelRevision() + " has a higher version");
         }
+    }
+
+    public ModelMetadata(ModelType modelType, String modelName, String modelDescription,
+        ModelMetadata currentRegistryMetadata) {
+        this(modelType, modelName, modelDescription,
+            getNewVersion(modelType, modelName, currentRegistryMetadata), currentRegistryMetadata);
     }
 
     /**
@@ -144,7 +144,7 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
      * then the new version will be 1 larger than the current one. If neither of the preceding is
      * true, the version will be "1".
      */
-    private String getNewVersion(ModelType modelType, String modelName,
+    private static String getNewVersion(ModelType modelType, String modelName,
         ModelMetadata currentRegistryMetadata) {
         String version;
         // Do different things depending on whether the model type includes a version
@@ -227,7 +227,7 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
         this.locked = locked;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
@@ -283,32 +283,39 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
     private static class DateAdapter extends XmlAdapter<XMLGregorianCalendar, Date> {
 
         @Override
-        public Date unmarshal(XMLGregorianCalendar v) throws Exception {
+        public Date unmarshal(XMLGregorianCalendar v) {
             return v.toGregorianCalendar().getTime();
         }
 
         @Override
-        public XMLGregorianCalendar marshal(Date v) throws Exception {
+        @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+        public XMLGregorianCalendar marshal(Date v) {
             GregorianCalendar gc = new GregorianCalendar();
             gc.setTime(v);
-            return DatatypeFactory.newInstance().newXMLGregorianCalendar(gc);
+            try {
+                return DatatypeFactory.newInstance().newXMLGregorianCalendar(gc);
+            } catch (DatatypeConfigurationException e) {
+                // This can never occur. To be precise, according to
+                // https://stackoverflow.com/a/6953002/12166780
+                // newInstance().newXMLGregorianCalendar is guaranteed to
+                // never throw DatatypeConfigurationException.
+                throw new AssertionError(e);
+            }
         }
-
     }
 
     private class ModelTypeAdapter extends XmlAdapter<String, ModelType> {
 
         @Override
-        public ModelType unmarshal(String v) throws Exception {
+        public ModelType unmarshal(String v) {
             ModelType modelType = new ModelType();
             modelType.setType(v);
             return modelType;
         }
 
         @Override
-        public String marshal(ModelType v) throws Exception {
+        public String marshal(ModelType v) {
             return modelType.getType();
         }
-
     }
 }

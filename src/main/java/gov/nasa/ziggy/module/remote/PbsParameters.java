@@ -7,6 +7,7 @@ import static gov.nasa.ziggy.module.remote.RemoteNodeDescriptor.nodeHasSufficien
 import static gov.nasa.ziggy.module.remote.RemoteNodeDescriptor.nodesWithSufficientRam;
 import static gov.nasa.ziggy.module.remote.RemoteQueueDescriptor.descriptorsSortedByMaxTime;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -107,7 +108,7 @@ public class PbsParameters {
     public void populateResourceParameters(RemoteParameters remoteParameters,
         int totalSubtaskCount) {
 
-        computeActiveCoresPerNode(remoteParameters);
+        computeActiveCoresPerNode(remoteParameters, totalSubtaskCount);
         double subtasksPerCore = subtasksPerCore(remoteParameters, totalSubtaskCount);
 
         // Set the number of nodes and the number of subtasks per node
@@ -181,7 +182,6 @@ public class PbsParameters {
             }
         }
         return subtasksPerCore;
-
     }
 
     /**
@@ -198,10 +198,12 @@ public class PbsParameters {
     /**
      * Determine the number of active cores per node. This is the number of cores that can run given
      * the user-specified requirement on the amount of RAM needed for each subtask; the active
-     * number of cores is the lower of: the total number of cores in the node, or the number of GB
-     * of RAM in the node divided by the number of GB needed per subtask.
+     * number of cores is the lowest of: the total number of cores in the node; the number of GB of
+     * RAM in the node divided by the number of GB needed per subtask; the number of subtasks in the
+     * task.
      */
-    public void computeActiveCoresPerNode(RemoteParameters remoteParameters) {
+    public void computeActiveCoresPerNode(RemoteParameters remoteParameters,
+        int totalSubtaskCount) {
         if (!remoteParameters.isNodeSharing()) {
             activeCoresPerNode = 1;
             return;
@@ -209,6 +211,7 @@ public class PbsParameters {
         double gigsPerNode = architecture.getGigsPerCore() * minCoresPerNode;
         activeCoresPerNode = (int) Math
             .min(Math.floor(gigsPerNode / remoteParameters.getGigsPerSubtask()), minCoresPerNode);
+        activeCoresPerNode = Math.min(activeCoresPerNode, totalSubtaskCount);
     }
 
     /**
@@ -247,10 +250,12 @@ public class PbsParameters {
             }
         } else {
             RemoteQueueDescriptor descriptor = RemoteQueueDescriptor
-                .fromName(remoteParameters.getQueueName());
+                .fromQueueName(remoteParameters.getQueueName());
             if (descriptor.equals(RemoteQueueDescriptor.UNKNOWN)) {
                 log.warn("Unable to determine max wall time for queue "
                     + remoteParameters.getQueueName());
+                queueName = remoteParameters.getQueueName();
+            } else if (descriptor.equals(RemoteQueueDescriptor.RESERVED)) {
                 queueName = remoteParameters.getQueueName();
             } else {
                 if (descriptor.getMaxWallTimeHours() < requestedWallTimeHours) {
@@ -276,6 +281,67 @@ public class PbsParameters {
         double costFactor = architecture.getCostFactor();
         estimatedCost = costFactor * minCoresPerNode / architecture.getMinCores()
             * requestedNodeCount * TimeFormatter.timeStringHhMmSsToTimeInHours(requestedWallTime);
+    }
+
+    /**
+     * Aggregates PBS parameters across a {@link Collection} of parameter instances. For most
+     * parameters the value in the aggregated parameter instance is the same as the value in the
+     * last of the collection to be looped over, and it is assumed that all the members of the
+     * collection have the same value for these parameters (i.e., all of the instances in the
+     * collection have the same architecture, remote group, etc.). In the case of the wall time and
+     * the active cores per node, the aggregated value is the largest value across all instances in
+     * the collection. In the case of the queue name, the aggregated value is the queue with the
+     * longest maximum time. In the case of the number of nodes and the estimated cost, the
+     * aggregated value is the sum across all instances in the collection.
+     * <p>
+     * This method allows the estimation of the overall cost and parameters for running a given
+     * pipeline module, given the parameters for each task that will run in the module.
+     */
+    public static PbsParameters aggregatePbsParameters(
+        Collection<PbsParameters> pbsParametersCollection) {
+        PbsParameters aggregatedParameters = new PbsParameters();
+
+        // Loop over PbsParameters instances and collect values.
+        for (PbsParameters pbsParameters : pbsParametersCollection) {
+
+            // Start with the fields that are the same for all members of the collection.
+            aggregatedParameters.setEnabled(pbsParameters.isEnabled());
+            aggregatedParameters.setMinGigsPerNode(pbsParameters.getMinGigsPerNode());
+            aggregatedParameters.setMinCoresPerNode(pbsParameters.getMinCoresPerNode());
+            aggregatedParameters.setGigsPerSubtask(pbsParameters.getGigsPerSubtask());
+            aggregatedParameters.setRemoteGroup(pbsParameters.getRemoteGroup());
+            aggregatedParameters.setArchitecture(pbsParameters.getArchitecture());
+            aggregatedParameters.setRemoteGroup(pbsParameters.getRemoteGroup());
+
+            // Next the fields where we need to find the maximum value across all
+            // members of the collection.
+            double wallTimeHours = StringUtils.isEmpty(aggregatedParameters.getRequestedWallTime())
+                ? 0
+                : TimeFormatter
+                    .timeStringHhMmSsToTimeInHours(aggregatedParameters.getRequestedWallTime());
+            wallTimeHours = Math.max(wallTimeHours,
+                TimeFormatter.timeStringHhMmSsToTimeInHours(pbsParameters.getRequestedWallTime()));
+            aggregatedParameters
+                .setRequestedWallTime(TimeFormatter.timeInHoursToStringHhMmSs(wallTimeHours));
+            aggregatedParameters
+                .setActiveCoresPerNode(Math.max(aggregatedParameters.getActiveCoresPerNode(),
+                    pbsParameters.getActiveCoresPerNode()));
+            RemoteQueueDescriptor pbsQueue = RemoteQueueDescriptor
+                .fromQueueName(pbsParameters.getQueueName());
+            RemoteQueueDescriptor aggregatorQueue = StringUtils
+                .isEmpty(aggregatedParameters.getQueueName()) ? pbsQueue
+                    : RemoteQueueDescriptor.fromQueueName(aggregatedParameters.getQueueName());
+            RemoteQueueDescriptor longerQueue = RemoteQueueDescriptor.max(pbsQueue,
+                aggregatorQueue);
+            aggregatedParameters.setQueueName(longerQueue.getQueueName());
+
+            // Finally the fields where we need to sum across the collection.
+            aggregatedParameters.setRequestedNodeCount(aggregatedParameters.getRequestedNodeCount()
+                + pbsParameters.getRequestedNodeCount());
+            aggregatedParameters.setEstimatedCost(
+                aggregatedParameters.getEstimatedCost() + pbsParameters.getEstimatedCost());
+        }
+        return aggregatedParameters;
     }
 
     public boolean isEnabled() {
@@ -365,5 +431,4 @@ public class PbsParameters {
     public void setEstimatedCost(double estimatedCost) {
         this.estimatedCost = estimatedCost;
     }
-
 }

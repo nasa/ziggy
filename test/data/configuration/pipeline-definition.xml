@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-    <pipeline description="first pipeline" name="pipeline 1" instancePriority="2" rootNodeNames="module 1">
+    <pipeline description="first pipeline" name="pipeline 1" instancePriority="LOW" rootNodeNames="module 1">
         <pipelineParameter name="Pipeline parameters"/>
         <node startNewUow="true" moduleName="module 2" childNodeNames="module 4">
             <moduleParameter name="Convergence criteria"/>
@@ -19,7 +19,7 @@
             <outputDataFileType name="flight L2 data"/>
             <modelType name="Temperature references"/>
         </node>
-        <node startNewUow="true" uowGenerator="gov.nasa.ziggy.uow.SingleUowTaskGenerator" 
+        <node startNewUow="true" uowGenerator="gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator" 
                 moduleName="module 1" childNodeNames="module 2, module 3">
             <moduleParameter name="Convergence criteria"/>
             <moduleParameter name="Remote execution"/>

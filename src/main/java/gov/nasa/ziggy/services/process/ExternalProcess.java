@@ -3,6 +3,7 @@ package gov.nasa.ziggy.services.process;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.StringUtils;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.os.ProcessUtils;
@@ -273,6 +276,8 @@ public class ExternalProcess {
         return retCode;
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private int executeAndReturnStatus() {
         int retCode = 0;
         try {
@@ -284,11 +289,13 @@ public class ExternalProcess {
         } catch (ExecuteException e) {
             retCode = e.getExitValue();
         } catch (IOException e) {
-            throw new PipelineException("Exception occurred during command line execute", e);
+            throw new UncheckedIOException("Unable to execute command: " + commandLine.toString(),
+                e);
         }
         return retCode;
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void executeAsynchronously() {
         DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
         try {
@@ -300,7 +307,6 @@ public class ExternalProcess {
         } catch (Exception e) {
             throw new PipelineException("Exception occurred during command line execute", e);
         }
-
     }
 
     private void initializeWriters() {
@@ -481,6 +487,19 @@ public class ExternalProcess {
     }
 
     /**
+     * Executes a command as an external process and returns the result as a {@link List} of
+     * {@link String}s. The results are filtered to only include strings that themselves contain one
+     * or more target strings.
+     */
+    public static final List<String> commandOutput(String command, String... targets) {
+        ExternalProcess commandProcess = simpleExternalProcess(command);
+        commandProcess.writeStdErr(true);
+        commandProcess.writeStdOut(true);
+        commandProcess.run(true, 0);
+        return commandProcess.stdout(targets);
+    }
+
+    /**
      * Sets a shutdown hook that finds process IDs for all descendants of the current process and
      * sends SIGTERM to them. Also starts a periodic thread that captures all of the child processes
      * of the main process (the process within which the ExternalProcess runs).
@@ -512,5 +531,4 @@ public class ExternalProcess {
             externalProcessesShutdownHookSet = true;
         }
     }
-
 }

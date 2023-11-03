@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.module;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,9 +22,9 @@ import gov.nasa.ziggy.data.management.DataFileManager;
 import gov.nasa.ziggy.data.management.DataFileType;
 import gov.nasa.ziggy.data.management.DatastorePathLocator;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
-import gov.nasa.ziggy.parameters.DefaultParameters;
 import gov.nasa.ziggy.parameters.ModuleParameters;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
@@ -35,6 +36,8 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Default pipeline inputs class for use by pipeline modules that employ DataFileType instances to
@@ -97,7 +100,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
         Set<DataFileType> dataFileTypes = pipelineTask.getPipelineDefinitionNode()
             .getInputDataFileTypes();
 
-        UnitOfWork uow = pipelineTask.getUowTask().getInstance();
+        UnitOfWork uow = pipelineTask.uowTaskInstance();
 
         // find the data files for the task
         DataFileManager dataFileManager = dataFileManager(DirectoryProperties.datastoreRootDir(),
@@ -130,7 +133,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
             .addAll(pipelineTask.getPipelineDefinitionNode().getOutputDataFileTypes());
 
         // Obtain the unit of work
-        UnitOfWork uow = pipelineTask.getUowTask().getInstance();
+        UnitOfWork uow = pipelineTask.uowTaskInstance();
         String directory = DirectoryUnitOfWorkGenerator.directory(uow);
         log.info("Unit of work directory: " + directory);
 
@@ -162,7 +165,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
         // for each truncated file name
         Map<String, Set<Path>> subtaskPathsMap = new TreeMap<>();
         for (String truncatedFileName : truncatedFilenames) {
-            subtaskPathsMap.put(truncatedFileName, new HashSet<Path>());
+            subtaskPathsMap.put(truncatedFileName, new HashSet<>());
         }
 
         // Loop over DataFileType instances from the dataFilesMap
@@ -213,7 +216,6 @@ public class DefaultPipelineInputs extends PipelineInputs {
         log.info("Writing parameters to task directory");
         writeToTaskDir(pipelineTask, taskDirectory.toFile());
         log.info("Task directory preparation complete");
-
     }
 
     /**
@@ -312,9 +314,8 @@ public class DefaultPipelineInputs extends PipelineInputs {
             dataFileManager.copyFilesByNameFromTaskDirToWorkingDir(modelFilenames);
         }
         log.info("Persisting inputs information to subtask directory");
-        writeSubTaskInputs(0);
+        writeSubTaskInputs();
         log.info("Persisting inputs completed");
-
     }
 
     /**
@@ -322,6 +323,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
      * ExternalProcessPipelineModule after the module processing has completed successfully.
      */
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void deleteTempInputsFromTaskDirectory(PipelineTask pipelineTask, Path taskDirectory) {
 
         // Obtain the data file types that the module requires
@@ -344,12 +346,11 @@ public class DefaultPipelineInputs extends PipelineInputs {
                 try {
                     Files.delete(modelFile);
                 } catch (IOException e) {
-                    throw new PipelineException("Unable to delete model file "
-                        + modelFile.getFileName().toString() + " from task directory");
+                    throw new UncheckedIOException("Unable to delete file " + modelFile.toString(),
+                        e);
                 }
             }
         }
-
     }
 
     /**
@@ -357,7 +358,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
      */
     protected void populateModuleParameters(PipelineTask pipelineTask) {
 
-        List<Parameters> allParameters = new ArrayList<>();
+        List<ParametersInterface> allParameters = new ArrayList<>();
         log.info("Retrieving module and pipeline parameters");
         allParameters.addAll(
             getModuleParameters(pipelineTask.getPipelineInstance().getPipelineParameterSets()));
@@ -375,7 +376,7 @@ public class DefaultPipelineInputs extends PipelineInputs {
      */
     @Override
     public SubtaskInformation subtaskInformation(PipelineTask pipelineTask) {
-        UnitOfWork uow = pipelineTask.getUowTask().getInstance();
+        UnitOfWork uow = pipelineTask.uowTaskInstance();
         if (DatastoreDirectoryUnitOfWorkGenerator.singleSubtask(uow)) {
             return new SubtaskInformation(pipelineTask.getModuleName(), uow.briefState(), 1, 1);
         }
@@ -394,21 +395,20 @@ public class DefaultPipelineInputs extends PipelineInputs {
     /**
      * Inner method for parameter retrieval.
      */
-    private List<Parameters> getModuleParameters(
-        Map<ClassWrapper<Parameters>, ParameterSet> parameterSetMap) {
-        List<Parameters> parameters = new ArrayList<>();
+    private List<ParametersInterface> getModuleParameters(
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> parameterSetMap) {
+        List<ParametersInterface> parameters = new ArrayList<>();
 
         Collection<ParameterSet> parameterSets = parameterSetMap.values();
         for (ParameterSet parameterSet : parameterSets) {
             Parameters instance = parameterSet.parametersInstance();
-            if (instance instanceof DefaultParameters) {
-                DefaultParameters defaultInstance = (DefaultParameters) instance;
-                defaultInstance.setName(parameterSet.getName().getName());
+            if (instance instanceof Parameters) {
+                Parameters defaultInstance = instance;
+                defaultInstance.setName(parameterSet.getName());
             }
             parameters.add(instance);
         }
         return parameters;
-
     }
 
     public void setDataFilenames(List<String> filenames) {
@@ -454,5 +454,4 @@ public class DefaultPipelineInputs extends PipelineInputs {
         }
         return alertService;
     }
-
 }

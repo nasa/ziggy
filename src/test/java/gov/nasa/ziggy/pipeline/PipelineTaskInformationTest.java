@@ -24,10 +24,9 @@ import gov.nasa.ziggy.module.PipelineInputs;
 import gov.nasa.ziggy.module.SubtaskInformation;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.ParameterSetName;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -52,13 +51,13 @@ public class PipelineTaskInformationTest {
     private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud = mock(
         PipelineModuleDefinitionCrud.class);
     private PipelineTaskInformation pipelineTaskInformation = spy(PipelineTaskInformation.class);
-    private ParameterSetName instancePars1Name = new ParameterSetName("Instance Pars 1");
-    private ParameterSetName instancePars2Name = new ParameterSetName("Instance Pars 2");
-    private ParameterSet instanceParSet1 = new ParameterSet(instancePars1Name.getName());
-    private ParameterSet instanceParSet2 = new ParameterSet(instancePars2Name.getName());
-    private ParameterSetName moduleParsName = new ParameterSetName("Module Pars");
+    private String instancePars1Name = "Instance Pars 1";
+    private String instancePars2Name = "Instance Pars 2";
+    private ParameterSet instanceParSet1 = new ParameterSet(instancePars1Name);
+    private ParameterSet instanceParSet2 = new ParameterSet(instancePars2Name);
+    private String moduleParsName = "Module Pars";
     private RemoteParameters remoteParams = new RemoteParameters();
-    private ParameterSet moduleParSet = new ParameterSet(moduleParsName.getName());
+    private ParameterSet moduleParSet = new ParameterSet(moduleParsName);
     private PipelineTask p1 = new PipelineTask();
     private PipelineTask p2 = new PipelineTask();
     private SubtaskInformation s1, s2;
@@ -84,19 +83,17 @@ public class PipelineTaskInformationTest {
         moduleDefinition.setInputsClass(inputsClass);
         node.setModuleName(moduleDefinition.getName());
         pipelineDefinition = new PipelineDefinition("pipeline");
-        node.setPipelineName(pipelineDefinition.getName().getName());
+        node.setPipelineName(pipelineDefinition.getName());
         when(pipelineDefinitionCrud.retrieveLatestVersionForName("pipeline"))
             .thenReturn(pipelineDefinition);
 
         // Set up of instance-level parameters
-        Map<ClassWrapper<Parameters>, ParameterSetName> instanceParameterNames = new HashMap<>();
-        instanceParameterNames.put(new ClassWrapper<Parameters>(InstancePars1.class),
-            instancePars1Name);
-        instanceParameterNames.put(new ClassWrapper<Parameters>(InstancePars2.class),
-            instancePars2Name);
+        Map<ClassWrapper<ParametersInterface>, String> instanceParameterNames = new HashMap<>();
+        instanceParameterNames.put(new ClassWrapper<>(InstancePars1.class), instancePars1Name);
+        instanceParameterNames.put(new ClassWrapper<>(InstancePars2.class), instancePars2Name);
         pipelineDefinition.setPipelineParameterSetNames(instanceParameterNames);
-        instanceParSet1.setParameters(new BeanWrapper<Parameters>(new InstancePars1()));
-        instanceParSet2.setParameters(new BeanWrapper<Parameters>(new InstancePars2()));
+        instanceParSet1.setTypedParameters(new InstancePars1().getParameters());
+        instanceParSet2.setTypedParameters(new InstancePars2().getParameters());
         when(parameterSetCrud.retrieveLatestVersionForName(instancePars1Name))
             .thenReturn(instanceParSet1);
         when(parameterSetCrud.retrieveLatestVersionForName(instancePars2Name))
@@ -105,11 +102,10 @@ public class PipelineTaskInformationTest {
         // Set up of module-level parameters
         when(pipelineModuleDefinitionCrud.retrieveLatestVersionForName(moduleDefinition.getName()))
             .thenReturn(moduleDefinition);
-        Map<ClassWrapper<Parameters>, ParameterSetName> moduleParameterNames = new HashMap<>();
-        moduleParameterNames.put(new ClassWrapper<Parameters>(RemoteParameters.class),
-            moduleParsName);
+        Map<ClassWrapper<ParametersInterface>, String> moduleParameterNames = new HashMap<>();
+        moduleParameterNames.put(new ClassWrapper<>(RemoteParameters.class), moduleParsName);
         node.setModuleParameterSetNames(moduleParameterNames);
-        moduleParSet.setParameters(new BeanWrapper<Parameters>(remoteParams));
+        moduleParSet.setTypedParameters(remoteParams.getParameters());
         when(parameterSetCrud.retrieveLatestVersionForName(moduleParsName))
             .thenReturn(moduleParSet);
 
@@ -122,7 +118,8 @@ public class PipelineTaskInformationTest {
         uowList.add(u2);
         doReturn(uowList).when(pipelineTaskInformation)
             .unitsOfWork(ArgumentMatchers.<ClassWrapper<UnitOfWorkGenerator>> any(),
-                ArgumentMatchers.<Map<Class<? extends Parameters>, Parameters>> any());
+                ArgumentMatchers
+                    .<Map<Class<? extends ParametersInterface>, ParametersInterface>> any());
 
         // Set up pipeline task generation
         p1.setId(1L);
@@ -152,34 +149,32 @@ public class PipelineTaskInformationTest {
         assertTrue(subtaskInfo.contains(s1));
         assertTrue(subtaskInfo.contains(s2));
 
-        ParameterSetName psn = PipelineTaskInformation.remoteParameters(node);
-        assertEquals(moduleParsName.getName(), psn.getName());
+        String psn = PipelineTaskInformation.remoteParameters(node);
+        assertEquals(moduleParsName, psn);
 
         // Resetting it should cause it to disappear again
         PipelineTaskInformation.reset(node);
         assertFalse(PipelineTaskInformation.hasPipelineDefinitionNode(node));
-
     }
 
     @Test
     public void testRemoteParamsAtInstanceLevel() {
 
         pipelineDefinition.getPipelineParameterSetNames()
-            .put(new ClassWrapper<Parameters>(RemoteParameters.class), moduleParsName);
+            .put(new ClassWrapper<>(RemoteParameters.class), moduleParsName);
         node.getModuleParameterSetNames().clear();
-        ParameterSetName psn = PipelineTaskInformation.remoteParameters(node);
-        assertEquals(moduleParsName.getName(), psn.getName());
-
+        String psn = PipelineTaskInformation.remoteParameters(node);
+        assertEquals(moduleParsName, psn);
     }
 
     @Test
     public void testNoRemoteParams() {
         node.getModuleParameterSetNames().clear();
-        ParameterSetName psn = PipelineTaskInformation.remoteParameters(node);
+        String psn = PipelineTaskInformation.remoteParameters(node);
         assertNull(psn);
     }
 
-    public static class InstancePars1 implements Parameters {
+    public static class InstancePars1 extends Parameters {
         private int intParam;
 
         public int getIntParam() {
@@ -191,7 +186,7 @@ public class PipelineTaskInformationTest {
         }
     }
 
-    public static class InstancePars2 implements Parameters {
+    public static class InstancePars2 extends Parameters {
         private float floatParam;
 
         public float getFloatParam() {
@@ -202,5 +197,4 @@ public class PipelineTaskInformationTest {
             this.floatParam = floatParam;
         }
     }
-
 }

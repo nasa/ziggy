@@ -1,7 +1,6 @@
 package gov.nasa.ziggy.services.logging;
 
-import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
-import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -11,6 +10,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -34,6 +34,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.logging.TaskLog.LogType;
 
 /**
@@ -43,7 +44,7 @@ import gov.nasa.ziggy.services.logging.TaskLog.LogType;
  * @author PT
  */
 public class TaskLogTest {
-    private static final String LOG4J_CONFIG_FILE = TEST_DATA.resolve("logging")
+    private static final String LOG4J_CONFIG_FILE = Paths.get("etc")
         .resolve("log4j2.xml")
         .toString();
     private static Logger log;
@@ -54,8 +55,8 @@ public class TaskLogTest {
     private static final int THREAD_NUMBER_1 = 5;
     private static final int THREAD_NUMBER_2 = 6;
 
-    private static final int INSTANCE_ID = 2;
-    private static final int TASK_ID = 42;
+    private static final long INSTANCE_ID = 2;
+    private static final long TASK_ID = 42;
 
     private static final int STEP_INDEX_0 = 0;
     private static final int STEP_INDEX_1 = 1;
@@ -73,9 +74,9 @@ public class TaskLogTest {
 
     @Rule
     public ZiggyPropertyRule log4j2ConfigurationFilePropertyRule = new ZiggyPropertyRule(
-        "log4j2.configurationFile", LOG4J_CONFIG_FILE);
+        PropertyName.LOG4J2_CONFIGURATION_FILE, LOG4J_CONFIG_FILE);
 
-    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
         directoryRule);
 
     @Rule
@@ -172,7 +173,7 @@ public class TaskLogTest {
                 .resolve("logs")
                 .resolve("algorithm")
                 .resolve("2-42-testexename.0-1.log"),
-            THREAD_NUMBER_1, TEST_LOG_MESSAGE_1, THREAD_NUMBER_2, TEST_LOG_MESSAGE_2).toFile();
+            TEST_LOG_MESSAGE_1, THREAD_NUMBER_2, TEST_LOG_MESSAGE_2).toFile();
 
         assertTrue("log file exists", algorithmLog1.exists());
 
@@ -181,7 +182,6 @@ public class TaskLogTest {
         assertEquals("log file # lines", 2, logContents.size());
         assertTrue("log file contents", logContents.get(0).contains(TEST_LOG_MESSAGE_1));
         assertTrue("log file contents", logContents.get(1).contains(TEST_LOG_MESSAGE_2));
-
     }
 
     private void checkTaskLogInformationValues(TaskLogInformation taskLogInfo,
@@ -230,14 +230,14 @@ public class TaskLogTest {
         }
     }
 
-    private Path createAndPopulateTaskLog(Path taskFileName, int threadNumber, String message,
-        int altThreadNumber, String altLogMessage) {
+    private Path createAndPopulateTaskLog(Path taskFileName, String message, int altThreadNumber,
+        String altLogMessage) {
         TaskLog taskLog = new TaskLog(taskFileName.toString());
         populateTaskLog(taskLog, message, altThreadNumber, altLogMessage);
         return taskLog.getTaskLogFile();
     }
 
-    private Path createAndPopulateTaskLog(int threadNumber, int instanceId, int taskId,
+    private Path createAndPopulateTaskLog(int threadNumber, long instanceId, long taskId,
         int stepIndex, String message, int altThreadNumber, String altLogMessage) {
         TaskLog taskLog = new TaskLog(threadNumber,
             createPipelineTask(instanceId, taskId, stepIndex));
@@ -259,7 +259,7 @@ public class TaskLogTest {
         taskLog.endLogging();
     }
 
-    private PipelineTask createPipelineTask(int instanceId, int taskId, int stepIndex) {
+    private PipelineTask createPipelineTask(long instanceId, long taskId, int stepIndex) {
         PipelineTask task = new PipelineTask();
         PipelineInstance instance = new PipelineInstance();
         instance.setId(instanceId);
@@ -273,7 +273,7 @@ public class TaskLogTest {
         return task;
     }
 
-    private File createAlgorithmTaskLog(int instanceId, int taskId, int jobIndex, int stepIndex)
+    private File createAlgorithmTaskLog(long instanceId, long taskId, int jobIndex, int stepIndex)
         throws IOException {
         PipelineTask task = createPipelineTask(instanceId, taskId, stepIndex);
         String algorithmLogFilename = task.logFilename(jobIndex);
@@ -281,10 +281,7 @@ public class TaskLogTest {
         File algorithmLogFile = DirectoryProperties.algorithmLogsDir()
             .resolve(algorithmLogFilename)
             .toFile();
-//        File algorithmLogFile = new File(algorithmDirectory, algorithmLogFilename);
         algorithmLogFile.createNewFile();
         return algorithmLogFile;
-
     }
-
 }

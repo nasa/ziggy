@@ -29,7 +29,5 @@ public class DatastoreProducerConsumerTest {
             DatastoreProducerConsumer.DataReceiptFileType.DATA);
         assertEquals(FILE_SPEC, r.getFilename());
         assertEquals(TASK_ID, r.getProducer());
-
     }
-
 }

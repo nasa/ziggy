@@ -1,32 +1,34 @@
 package gov.nasa.ziggy.pipeline.definition;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-
-import javax.persistence.AssociationOverride;
-import javax.persistence.CascadeType;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToOne;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-import javax.persistence.Version;
+import java.util.TreeSet;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.InternalParameters;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * This class models a set of module parameters. A parameter set may be shared by multiple pipeline
@@ -36,55 +38,32 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_PS")
-public class ParameterSet {
+@Table(name = "ziggy_ParameterSet",
+    uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "version" }) })
+public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSet>
+    implements HasGroup {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PS_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_ParameterSet_generator")
+    @SequenceGenerator(name = "ziggy_ParameterSet_generator", initialValue = 1,
+        sequenceName = "ziggy_ParameterSet_sequence", allocationSize = 1)
+    private Long id;
 
     @Embedded
     // init with empty placeholder, to be filled in by console
     private AuditInfo auditInfo = new AuditInfo();
 
-    // Combination of name+version must be unique (see shared-extra-ddl-create.sql)
-    @XmlAttribute(required = true)
-    @XmlJavaTypeAdapter(ParameterSetName.ParameterSetNameAdapter.class)
-    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    private ParameterSetName name;
-
-    @XmlAttribute(required = false)
-    private Integer version = 0;
-
-    /**
-     * used by Hibernate to implement optimistic locking. Should prevent 2 different console users
-     * from clobbering each others changes
-     */
-    @Version
-    private int dirty = 0;
-
     @ManyToOne
     private Group group = null;
 
-    /**
-     * Set to true when the first pipeline instance is created using this definition in order to
-     * preserve the data accountability record. Editing a locked definition will result in a new,
-     * unlocked instance with the version incremented
-     */
-    @XmlAttribute(required = false)
-    private Boolean locked = false;
-
     private String description = null;
 
-    @Embedded
-    @AssociationOverride(name = "typedProperties", joinTable = @JoinTable(name = "PI_PS_PROPS"))
-    private BeanWrapper<Parameters> parameters = null;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @JoinTable(name = "ziggy_ParameterSet_parameters")
+    private Set<TypedParameter> typedParameters;
 
     // Used to support the XML interface for parameter sets
     @XmlAttribute(required = false)
-    @Transient
-    private String classname = "gov.nasa.ziggy.parameters.DefaultParameters";
+    private String classname = Parameters.class.getName();
 
     // Used to support the XML interface for parameter sets
     @XmlElement(name = "parameter")
@@ -95,79 +74,77 @@ public class ParameterSet {
     }
 
     public ParameterSet(String name) {
-        this.name = new ParameterSetName(name);
+        setName(name);
     }
 
     public ParameterSet(AuditInfo auditInfo, String name) {
         this.auditInfo = auditInfo;
-        this.name = new ParameterSetName(name);
-    }
-
-    /**
-     * Copy constructor
-     */
-    public ParameterSet(ParameterSet other) {
-        this(other, false);
-    }
-
-    ParameterSet(ParameterSet other, boolean exact) {
-        auditInfo = other.auditInfo;
-        name = other.name;
-        group = other.group;
-        description = other.description;
-        parameters = new BeanWrapper<>(other.parameters);
-
-        if (exact) {
-            version = other.version;
-            locked = other.locked;
-        } else {
-            version = 0;
-            locked = false;
-        }
-    }
-
-    public void rename(String name) {
-        this.name = new ParameterSetName(name);
-    }
-
-    public ParameterSet newVersion() throws PipelineException {
-        if (!locked) {
-            throw new PipelineException("Can't version an unlocked instance");
-        }
-
-        ParameterSet copy = new ParameterSet(this);
-        copy.version = version + 1;
-
-        return copy;
+        setName(name);
     }
 
     // Populates the XML fields (classname and xmlParameters) from the database fields
     public void populateXmlFields() {
-        classname = parameters.getClassName();
-        for (TypedParameter typedProperty : parameters.typedProperties) {
+        for (TypedParameter typedProperty : typedParameters) {
             xmlParameters.add(new Parameter(typedProperty));
         }
     }
 
-    // populates the parameters field from the XML fields.
-    @SuppressWarnings("unchecked")
+    // Populates the parameters field from the XML fields.
     public void populateDatabaseFields() throws ClassNotFoundException {
-        Class<? extends Parameters> beanClass;
-        beanClass = (Class<? extends Parameters>) Class.forName(classname);
-        BeanWrapper<Parameters> paramsBean = new BeanWrapper<>(beanClass);
-        Set<TypedParameter> typedProperties = new HashSet<>();
+        Set<TypedParameter> typedParameters = new HashSet<>();
         for (Parameter parameter : xmlParameters) {
-            typedProperties.add(parameter.typedProperty());
+            typedParameters.add(parameter.typedProperty());
         }
-        paramsBean.setTypedProperties(typedProperties);
-        parameters = paramsBean;
+        this.typedParameters = typedParameters;
     }
 
     /**
-     * just set locked = true
+     * Construct an instance of the desired {@link Parameters} subclass and populate with values
+     * from the typed parameters of the parameter set.
      */
-    public void lock() {
-        locked = true;
+    public <T extends ParametersInterface> T parametersInstance() {
+        return parametersInstance(true);
+    }
+
+    /**
+     * Construct an instance of the desired {@link Parameters} subclass and optionally populate with
+     * values from the typed parameters of the parameter set.
+     */
+    @SuppressWarnings("unchecked")
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public <T extends ParametersInterface> T parametersInstance(boolean populate) {
+        T parametersInstance;
+        try {
+            parametersInstance = (T) Class.forName(classname)
+                .getDeclaredConstructor()
+                .newInstance();
+            if (populate) {
+                parametersInstance.populate(typedParameters);
+            }
+            return parametersInstance;
+        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+            | InvocationTargetException | NoSuchMethodException | SecurityException
+            | ClassNotFoundException e) {
+            throw new PipelineException(e);
+        }
+    }
+
+    /**
+     * Populates the fields of the {@link ParameterSet} from an instance of
+     * {@link ParametersInterface}.
+     */
+    public <T extends ParametersInterface> void populateFromParametersInstance(
+        T parametersInstance) {
+        setTypedParameters(parametersInstance.getParameters());
+        setClassname(parametersInstance.getClass().getName());
+    }
+
+    public Class<?> clazz() {
+        try {
+            return Class.forName(classname);
+        } catch (ClassNotFoundException e) {
+            throw new PipelineException(e);
+        }
     }
 
     /**
@@ -175,53 +152,14 @@ public class ParameterSet {
      * {@link InternalParameters}.
      */
     public boolean visibleParameterSet() {
-        return !(parameters.getInstance() instanceof InternalParameters);
+        return !(parametersInstance() instanceof InternalParameters);
     }
 
-    /**
-     * @return Returns the description.
-     */
-    public String getDescription() {
-        return description;
-    }
-
-    /**
-     * @param description The description to set.
-     */
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    /**
-     * @return Returns the name.
-     */
-    public ParameterSetName getName() {
-        return name;
-    }
-
-    /**
-     * @return Returns the version.
-     */
-    public int getVersion() {
-        return version;
-    }
-
-    /**
-     * @return the parameters
-     */
-    public BeanWrapper<Parameters> getParameters() {
-        return parameters;
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T extends Parameters> T parametersInstance() {
-        return (T) getParameters().getInstance();
-    }
-
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public boolean parametersClassDeleted() {
         boolean deleted = false;
         try {
-            parameters.getInstance();
+            parametersInstance();
         } catch (PipelineException e) {
             deleted = true;
         }
@@ -229,10 +167,43 @@ public class ParameterSet {
     }
 
     /**
-     * @param parameters the parameters to set
+     * Returns true if new fields have been added to the class, but do not exist in the database.
      */
-    public void setParameters(BeanWrapper<Parameters> parameters) {
-        this.parameters = parameters;
+    public <T extends ParametersInterface> boolean hasNewUnsavedFields() {
+        T instance = parametersInstance();
+
+        boolean sameKeys = true;
+        for (TypedParameter newProperty : instance.getParameters()) {
+            if (!typedParameters.contains(newProperty)) {
+                sameKeys = false;
+            }
+        }
+
+        return !sameKeys;
+    }
+
+    public Set<TypedParameter> copyOfTypedParameters() {
+        Set<TypedParameter> copiedParameters = new TreeSet<>();
+        for (TypedParameter typedParameter : typedParameters) {
+            copiedParameters.add(new TypedParameter(typedParameter));
+        }
+        return copiedParameters;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Set<TypedParameter> getTypedParameters() {
+        return typedParameters;
+    }
+
+    public void setTypedParameters(Set<TypedParameter> typedParameters) {
+        this.typedParameters = typedParameters;
         populateXmlFields();
     }
 
@@ -244,32 +215,18 @@ public class ParameterSet {
         this.auditInfo = auditInfo;
     }
 
-    public boolean isLocked() {
-        return locked;
-    }
-
     @Override
-    public String toString() {
-        return name != null ? name.getName() : "UNNAMED";
-    }
-
-    public Group getGroup() {
+    public Group group() {
         return group;
     }
 
+    @Override
     public void setGroup(Group group) {
         this.group = group;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
-    }
-
-    /**
-     * For TEST USE ONLY
-     */
-    public void setDirty(int dirty) {
-        this.dirty = dirty;
     }
 
     public String getClassname() {
@@ -286,6 +243,24 @@ public class ParameterSet {
 
     public void setXmlParameters(Set<Parameter> xmlParameters) {
         this.xmlParameters = xmlParameters;
+    }
+
+    // For a parameter set, total equals includes the names, types, and values of all TypedParameter
+    // instances.
+    @Override
+    public boolean totalEquals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        ParameterSet other = (ParameterSet) obj;
+        return Objects.equals(auditInfo, other.auditInfo)
+            && Objects.equals(classname, other.classname)
+            && Objects.equals(description, other.description) && Objects.equals(group, other.group)
+            && Objects.equals(id, other.id) && new TypedParameterCollection(typedParameters)
+                .totalEquals(new TypedParameterCollection(other.typedParameters));
     }
 
     @XmlAccessorType(XmlAccessType.NONE)
@@ -324,13 +299,16 @@ public class ParameterSet {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             Parameter other = (Parameter) obj;
             return Objects.equals(name, other.name);
         }
-
     }
 
+    @Override
+    protected void clearDatabaseId() {
+        id = null;
+    }
 }

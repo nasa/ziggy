@@ -13,6 +13,11 @@ import org.junit.Test;
 import org.slf4j.event.Level;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 public class AlertLogCrudTest {
@@ -46,64 +51,89 @@ public class AlertLogCrudTest {
 
     @Test
     public void testRetrieveComponents() {
-        List<String> components = alertCrud.retrieveComponents();
-        assertEquals(0, components.size());
+        DatabaseTransactionFactory.performTransaction(() -> {
+            List<String> components = alertCrud.retrieveComponents();
+            assertEquals(0, components.size());
+            return null;
+        });
 
         populateObjects();
+        DatabaseTransactionFactory.performTransaction(() -> {
+            List<String> components = alertCrud.retrieveComponents();
 
-        components = alertCrud.retrieveComponents();
-
-        // Check number of components as well as sort.
-        assertEquals(8, components.size());
-        assertEquals("s1", components.get(0));
-        assertEquals("s2", components.get(1));
-        assertEquals("s3", components.get(2));
-        assertEquals("s4", components.get(3));
+            // Check number of components as well as sort.
+            assertEquals(8, components.size());
+            assertEquals("s1", components.get(0));
+            assertEquals("s2", components.get(1));
+            assertEquals("s3", components.get(2));
+            assertEquals("s4", components.get(3));
+            return null;
+        });
     }
 
     @Test
     public void testRetrieveSeverities() {
-        List<String> severities = alertCrud.retrieveSeverities();
-        assertEquals(0, severities.size());
-
+        DatabaseTransactionFactory.performTransaction(() -> {
+            List<String> severities = alertCrud.retrieveSeverities();
+            assertEquals(0, severities.size());
+            return null;
+        });
         populateObjects();
 
-        severities = alertCrud.retrieveSeverities();
+        DatabaseTransactionFactory.performTransaction(() -> {
+            List<String> severities = alertCrud.retrieveSeverities();
 
-        // Check number of components as well as sort.
-        assertEquals(4, severities.size());
-        assertEquals(Level.DEBUG.toString(), severities.get(0));
-        assertEquals(Level.ERROR.toString(), severities.get(1));
-        assertEquals(Level.INFO.toString(), severities.get(2));
-        assertEquals(Level.WARN.toString(), severities.get(3));
+            // Check number of components as well as sort.
+            assertEquals(4, severities.size());
+            assertEquals(Level.DEBUG.toString(), severities.get(0));
+            assertEquals(Level.ERROR.toString(), severities.get(1));
+            assertEquals(Level.INFO.toString(), severities.get(2));
+            assertEquals(Level.WARN.toString(), severities.get(3));
+            return null;
+        });
     }
 
     @Test
     public void testCreateRetrieve() throws Exception {
         populateObjects();
 
-        List<AlertLog> alerts = alertCrud.retrieve(date2, date6);
-        assertEquals("alerts.size()", 6, alerts.size());
+        DatabaseTransactionFactory.performTransaction(() -> {
+            List<AlertLog> alerts = alertCrud.retrieve(date2, date6);
+            assertEquals("alerts.size()", 6, alerts.size());
+            return null;
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = PipelineException.class)
     public void testRetrieveNullStart() {
-        alertCrud.retrieve(null, null, null, null);
+        DatabaseTransactionFactory.performTransaction(() -> {
+            alertCrud.retrieve(null, null, null, null);
+            return null;
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = PipelineException.class)
     public void testRetrieveNullEnd() {
-        alertCrud.retrieve(new Date(), null, null, null);
+        DatabaseTransactionFactory.performTransaction(() -> {
+            alertCrud.retrieve(new Date(), null, null, null);
+            return null;
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = PipelineException.class)
     public void testRetrieveNullComponent() {
-        alertCrud.retrieve(new Date(), new Date(), null, null);
+        DatabaseTransactionFactory.performTransaction(() -> {
+            alertCrud.retrieve(new Date(), new Date(), null, null);
+            return null;
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = PipelineException.class)
     public void testRetrieveNullSeverity() {
-        alertCrud.retrieve(new Date(), new Date(), new String[0], null);
+        DatabaseTransactionFactory.performTransaction(() -> {
+            alertCrud.retrieve(new Date(), new Date(), new String[0], null);
+            return null;
+        });
     }
 
     @Test
@@ -114,79 +144,129 @@ public class AlertLogCrudTest {
         taskIds.add(5L);
         taskIds.add(1L);
 
-        List<AlertLog> alerts = alertCrud.retrieveByPipelineTaskIds(taskIds);
-        assertEquals(4, alerts.size());
+        DatabaseTransactionFactory.performTransaction(() -> {
+            List<AlertLog> alerts = alertCrud.retrieveByPipelineTaskIds(taskIds);
+            assertEquals(4, alerts.size());
+            return null;
+        });
     }
 
     @Test
     public void testRetrieve() {
         populateObjects();
 
-        // Test that empty components means that all components are considered.
-        String[] components = {};
-        String[] severities = {};
-        List<AlertLog> alerts = alertCrud.retrieve(date2, date6, components, severities);
-        assertEquals(6, alerts.size());
+        DatabaseTransactionFactory.performTransaction(() -> {
 
-        // This component isn't in the date range.
-        components = new String[] { "s4" };
-        alerts = alertCrud.retrieve(date2, date6, components, severities);
-        assertEquals(0, alerts.size());
+            // Test that empty components means that all components are considered.
+            String[] components = {};
+            String[] severities = {};
+            List<AlertLog> alerts = alertCrud.retrieve(date2, date6, components, severities);
+            assertEquals(6, alerts.size());
 
-        // This component has one entry in and one outside of the range.
-        components[0] = "s1";
-        alerts = alertCrud.retrieve(date2, date6, components, severities);
-        assertEquals(1, alerts.size());
-        assertEquals("D", alerts.get(0).getAlertData().getProcessName());
+            // This component isn't in the date range.
+            components = new String[] { "s4" };
+            alerts = alertCrud.retrieve(date2, date6, components, severities);
+            assertEquals(0, alerts.size());
 
-        // Specify all components; check sort.
-        components = new String[] { "s1", "s2", "s3", "s4" };
-        severities = new String[] { Level.ERROR.toString(), Level.ERROR.toString(),
-            Level.DEBUG.toString(), Level.INFO.toString(), Level.WARN.toString(),
-            Level.ERROR.toString() };
-        alerts = alertCrud.retrieve(date1, date7, components, severities);
-        assertEquals(5, alerts.size());
-        assertEquals("D", alerts.get(0).getAlertData().getProcessName());
-        assertEquals("E", alerts.get(1).getAlertData().getProcessName());
-        assertEquals("C", alerts.get(2).getAlertData().getProcessName());
-        assertEquals("B", alerts.get(3).getAlertData().getProcessName());
-        assertEquals("A", alerts.get(4).getAlertData().getProcessName());
-        assertEquals(Level.ERROR.toString(), alerts.get(0).getAlertData().getSeverity());
+            // This component has one entry in and one outside of the range.
+            components[0] = "s1";
+            alerts = alertCrud.retrieve(date2, date6, components, severities);
+            assertEquals(1, alerts.size());
+            assertEquals("D", alerts.get(0).getAlertData().getProcessName());
 
-        components = new String[] { "s5", "s6", "s7", "s8" };
-        alerts = alertCrud.retrieve(date1, date7, components, severities);
-        assertEquals(5, alerts.size());
-        assertEquals(Level.ERROR.toString(), alerts.get(0).getAlertData().getSeverity());
-        assertEquals(Level.ERROR.toString(), alerts.get(1).getAlertData().getSeverity());
-        assertEquals(Level.DEBUG.toString(), alerts.get(2).getAlertData().getSeverity());
-        assertEquals(Level.INFO.toString(), alerts.get(3).getAlertData().getSeverity());
-        assertEquals(Level.WARN.toString(), alerts.get(4).getAlertData().getSeverity());
+            // Specify all components; check sort.
+            components = new String[] { "s1", "s2", "s3", "s4" };
+            severities = new String[] { Level.ERROR.toString(), Level.ERROR.toString(),
+                Level.DEBUG.toString(), Level.INFO.toString(), Level.WARN.toString(),
+                Level.ERROR.toString() };
+            alerts = alertCrud.retrieve(date1, date7, components, severities);
+            assertEquals(5, alerts.size());
+            assertEquals("D", alerts.get(0).getAlertData().getProcessName());
+            assertEquals("E", alerts.get(1).getAlertData().getProcessName());
+            assertEquals("C", alerts.get(2).getAlertData().getProcessName());
+            assertEquals("B", alerts.get(3).getAlertData().getProcessName());
+            assertEquals("A", alerts.get(4).getAlertData().getProcessName());
+            assertEquals(Level.ERROR.toString(), alerts.get(0).getAlertData().getSeverity());
 
-        // Check just the SEVERE severity.
-        severities = new String[] { Level.ERROR.toString() };
-        alerts = alertCrud.retrieve(date1, date7, components, severities);
-        assertEquals(2, alerts.size());
-        assertEquals(Level.ERROR.toString(), alerts.get(0).getAlertData().getSeverity());
+            components = new String[] { "s5", "s6", "s7", "s8" };
+            alerts = alertCrud.retrieve(date1, date7, components, severities);
+            assertEquals(5, alerts.size());
+            assertEquals(Level.ERROR.toString(), alerts.get(0).getAlertData().getSeverity());
+            assertEquals(Level.ERROR.toString(), alerts.get(1).getAlertData().getSeverity());
+            assertEquals(Level.DEBUG.toString(), alerts.get(2).getAlertData().getSeverity());
+            assertEquals(Level.INFO.toString(), alerts.get(3).getAlertData().getSeverity());
+            assertEquals(Level.WARN.toString(), alerts.get(4).getAlertData().getSeverity());
+
+            // Check just the SEVERE severity.
+            severities = new String[] { Level.ERROR.toString() };
+            alerts = alertCrud.retrieve(date1, date7, components, severities);
+            assertEquals(2, alerts.size());
+            assertEquals(Level.ERROR.toString(), alerts.get(0).getAlertData().getSeverity());
+            return null;
+        });
+    }
+
+    @Test
+    public void testRetrieveForPipelineInstance() {
+        populateInstancesAndTasks();
+        populateObjects();
+
+        DatabaseTransactionFactory.performTransaction(() -> {
+            List<AlertLog> logs = alertCrud.retrieveForPipelineInstance(1L);
+            assertEquals(4, logs.size());
+            return null;
+        });
     }
 
     private void populateObjects() {
         DatabaseTransactionFactory.performTransaction(() -> {
-            alertCrud.create(new AlertLog(new Alert(date7, "s1", 5, "E", "e", 105, "message5")));
-            alertCrud.create(new AlertLog(new Alert(date5, "s1", 4, "D", "d", 104, "message4")));
-            alertCrud.create(new AlertLog(new Alert(date4, "s2", 3, "C", "c", 103, "message3")));
-            alertCrud.create(new AlertLog(new Alert(date3, "s3", 2, "B", "b", 102, "message2")));
-            alertCrud.create(new AlertLog(new Alert(date1, "s4", 1, "A", "a", 101, "message1")));
+            alertCrud.persist(new AlertLog(new Alert(date7, "s1", 5, "E", "e", 5, "message5")));
+            alertCrud.persist(new AlertLog(new Alert(date5, "s1", 4, "D", "d", 4, "message4")));
+            alertCrud.persist(new AlertLog(new Alert(date4, "s2", 3, "C", "c", 3, "message3")));
+            alertCrud.persist(new AlertLog(new Alert(date3, "s3", 2, "B", "b", 2, "message2")));
+            alertCrud.persist(new AlertLog(new Alert(date1, "s4", 1, "A", "a", 1, "message1")));
 
-            alertCrud.create(new AlertLog(
-                new Alert(date5, "s5", 4, "DS", "d", 104, Level.ERROR.toString(), "message4")));
-            alertCrud.create(new AlertLog(
-                new Alert(date7, "s5", 5, "EF", "e", 105, Level.ERROR.toString(), "message5")));
-            alertCrud.create(new AlertLog(
-                new Alert(date4, "s6", 3, "CD", "c", 103, Level.DEBUG.toString(), "message3")));
-            alertCrud.create(new AlertLog(
-                new Alert(date3, "s7", 2, "BI", "b", 102, Level.INFO.toString(), "message2")));
-            alertCrud.create(new AlertLog(
-                new Alert(date1, "s8", 1, "AW", "a", 101, Level.WARN.toString(), "message1")));
+            alertCrud.persist(new AlertLog(
+                new Alert(date5, "s5", 4, "DS", "d", 4, Level.ERROR.toString(), "message4")));
+            alertCrud.persist(new AlertLog(
+                new Alert(date7, "s5", 5, "EF", "e", 5, Level.ERROR.toString(), "message5")));
+            alertCrud.persist(new AlertLog(
+                new Alert(date4, "s6", 3, "CD", "c", 3, Level.DEBUG.toString(), "message3")));
+            alertCrud.persist(new AlertLog(
+                new Alert(date3, "s7", 2, "BI", "b", 2, Level.INFO.toString(), "message2")));
+            alertCrud.persist(new AlertLog(
+                new Alert(date1, "s8", 1, "AW", "a", 1, Level.WARN.toString(), "message1")));
+            return null;
+        });
+    }
+
+    private void populateInstancesAndTasks() {
+        DatabaseTransactionFactory.performTransaction(() -> {
+
+            PipelineInstance instance1 = new PipelineInstance();
+            PipelineTask task1 = new PipelineTask();
+            task1.setPipelineInstance(instance1);
+            PipelineTask task2 = new PipelineTask();
+            task2.setPipelineInstance(instance1);
+
+            PipelineInstance instance2 = new PipelineInstance();
+            PipelineTask task3 = new PipelineTask();
+            task3.setPipelineInstance(instance2);
+            PipelineTask task4 = new PipelineTask();
+            task4.setPipelineInstance(instance2);
+            PipelineTask task5 = new PipelineTask();
+            task5.setPipelineInstance(instance2);
+
+            PipelineInstanceCrud instanceCrud = new PipelineInstanceCrud();
+            instanceCrud.persist(instance1);
+            instanceCrud.persist(instance2);
+
+            PipelineTaskCrud taskCrud = new PipelineTaskCrud();
+            taskCrud.persist(task1);
+            taskCrud.persist(task2);
+            taskCrud.persist(task3);
+            taskCrud.persist(task4);
+            taskCrud.persist(task5);
             return null;
         });
     }

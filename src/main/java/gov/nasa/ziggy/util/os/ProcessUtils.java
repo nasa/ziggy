@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.util.ArrayList;
@@ -11,11 +12,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -109,15 +113,17 @@ public class ProcessUtils {
      * @param mainClass The class containing the main() method.
      * @param mainArgs The parameters to pass to the class's main method.
      * @return a {@link Process} object.
-     * @throws IOException if the process could not be started.
      */
-    public static Process runJava(Class<?> mainClass, List<String> mainArgs) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Process runJava(Class<?> mainClass, List<String> mainArgs) {
 
         String className = mainClass.getCanonicalName();
         RuntimeMXBean rmx = ManagementFactory.getRuntimeMXBean();
         String classPath = rmx.getClassPath();
         List<String> javaCommandLineParameters = rmx.getInputArguments();
-        String javaExe = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
+        String javaExe = ZiggyConfiguration.getInstance()
+            .getString(PropertyName.JAVA_HOME.property()) + File.separator + "bin" + File.separator
+            + "java";
 
         List<String> commandList = new ArrayList<>();
         StringBuilder cmd = new StringBuilder();
@@ -148,22 +154,24 @@ public class ProcessUtils {
 
         String[] commandArray = new String[commandList.size()];
         commandList.toArray(commandArray);
+        try {
+            log.info("Executing java process with command line \"" + cmd + "\".");
+            Process process = Runtime.getRuntime().exec(commandArray);
+            BufferedReader errors = new BufferedReader(
+                new InputStreamReader(process.getErrorStream(), FileUtil.ZIGGY_CHARSET_NAME));
 
-        log.info("Executing java process with command line \"" + cmd + "\".");
-        Process process = Runtime.getRuntime().exec(commandArray);
-        BufferedReader errors = new BufferedReader(
-            new InputStreamReader(process.getErrorStream(), FileUtil.ZIGGY_CHARSET_NAME));
+            // Report stderr if the process fails to launch. Unfortunately, if there
+            // is a problem here, it seems you have to be stepping in the debugger
+            // in order for errors.ready() to return true so that output can be
+            // seen.
+            while (errors.ready()) {
+                String errString = errors.readLine();
+                log.error(errString);
+            }
 
-        // Report stderr if the process fails to launch. Unfortunately, if there
-        // is a problem here, it seems you have to be stepping in the debugger
-        // in order for errors.ready() to return true so that output can be
-        // seen.
-        while (errors.ready()) {
-            String errString = errors.readLine();
-            log.error(errString);
+            return process;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Runjava failed for class " + mainClass.toString(), e);
         }
-
-        return process;
     }
-
 }

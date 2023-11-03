@@ -3,43 +3,97 @@ package gov.nasa.ziggy.buildutil;
 import java.io.File;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.OutputFiles;
 import org.gradle.api.tasks.TaskAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.buildutil.ZiggyCppPojo.BuildType;
 
 /**
  * Performs mexfile builds for Gradle. The sequence of build steps is as follows:
- * 1. The C/C++ files are compiled with a MATLAB_MEX_FILE compiler directive.
- * 2. The object files from (1) are linked into a shared object library.
- * 3. The actual mexfiles are built from the appropriate object files and the 
- *     shared object library.
+ * <ol>
+ * <li>The C/C++ files are compiled with a MATLAB_MEX_FILE compiler directive. The resulting object
+ * files are saved in $buildDir/obj .
+ * <li>The object files from (1) are linked into a shared object library. The shared object library
+ * is saved in $buildDir/lib .
+ * <li>The actual mexfiles are built from the appropriate object files and the shared object
+ * library. The mexfile is saved in $buildDir/mex .
+ * </ol>
+ * <p>
  * The user specifies the following:
- * 1. The path to the C/C++ files
- * 2. Compiler and linker options, including libraries, library paths, include 
- *     file paths, optimization flags.
- * 3. The names of the desired mexfiles.
- * 4. Optionally, a name for the shared library (otherwise a default name is generated
- *     from the C++ source file path).
- * 
- * Because it is effectively impossible to unit test any class that extends DefaultTask,
- * the actual workings of the ZiggyCppMex class are in a separate class, ZiggyCppMexPojo,
- * which has appropriate unit testing. This class provides a thin interface between 
- * Gradle and the ZiggyCppMexPojo class.
- * 
- * @author PT
+ * <ol>
+ * <li>The path to the C/C++ files
+ * <li>Compiler and linker options, including libraries, library paths, include file paths,
+ * optimization flags.
+ * <li>The names of the desired mexfiles.
+ * <li>Optionally, a name for the shared library (otherwise a default name is generated from the C++
+ * source file path).
+ * </ol>
+ * <p>
+ * Usage example: assume that mexfile main functions are in files foo.cpp and bar.cpp, which are in
+ * the src/cpp/foo subdirectory of $projectDir, along with header files and potentially additional
+ * C++ files. The user wishes to build mexfiles from these functions, which depend on additional
+ * libraries elsewhere on the system. The task
  *
+ * <pre>
+ * task mexFoo(type : ZiggyCppMex) {
+ *     cppFilePath      = "$projectDir/src/cpp/foo"
+ *     includeFilePaths = ["$projectDir/src/cpp/foo", "$projectDir/include"]
+ *     libraryPaths     = ["$buildDir/lib", "$rootDir/project2/build/lib"]
+ *     libraries        = ["blas", "lapack"]
+ *     mexfileNames     = ["foo", "bar"]
+ *     compileOptions   = ["std=c++11", "O2"]
+ *     outputName       = "baz"
+ * }
+ * </pre>
+ *
+ * will compile the contents of $projectDir/src/cpp/mex into object files in $buildDir/obj, and link
+ * them into library libbaz.(so, dylib) in $buildDir/lib; mexfiles foo.(mexa64, mexmaci64,
+ * mexmaca64) and bar.(mexa64, mexmaci64, mexmaca64) are then generated in $buildDir/mex by linking
+ * against libraries libblas and liblapack, which are located in the directories specified by the
+ * libraryPaths property. Options "-std=c++11" and "-O2" will be applied at compile time; link
+ * options can be specified with the linkOptions property (not shown).
+ * <p>
+ * Note that the user does not need to specify the locations for MATLAB include files, the locations
+ * or names of MATLAB libraries, or indeed the location of MATLAB's mex executable. The MATLAB
+ * top-level directory comes from either the $matlabHome Gradle variable or the $MATLAB_HOME
+ * environment variable; from this location, the operating system, and the CPU architecture, all of
+ * the MATLAB libraries, library directories, and mexfile suffix are automatically determined.
+ * <p>
+ * By default, object files produced by {@link ZiggyCppMex} are saved in $buildDir/obj, libraries in
+ * $buildDir/lib, and mexfiles in $buildDir/mex. This behavior can be overridden. If the property
+ * outputDir is specified, then all 3 types of files will be stored in the location specified by
+ * outputDir. If the property outputDirParent is specified, then the 3 file types will be saved in
+ * <outputDirParent>/obj, <outputDirParent>/lib, and <outputDirParent>/mex, respectively. If both
+ * outputDir and outputDirParent are specified, the outputDir value will be used and the
+ * outputDirParent value ignored.
+ * <p>
+ * Because it is effectively impossible to unit test any class that extends DefaultTask, the actual
+ * workings of the ZiggyCppMex class are in a separate class, ZiggyCppMexPojo, which has appropriate
+ * unit testing. This class provides a thin interface between Gradle and the ZiggyCppMexPojo class.
+ *
+ * @author PT
  */
 public class ZiggyCppMex extends DefaultTask {
 
     private static final Logger log = LoggerFactory.getLogger(ZiggyCppMex.class);
+
+    private static final String DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY = "defaultCppMexCompileOptions";
+    private static final String DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY = "defaultCppMexLinkOptions";
+    private static final String DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY = "defaultCppMexReleaseOptimizations";
+    private static final String DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY = "defaultCppMexDebugOptimizations";
+    private static final String MATLAB_PATH_PROJECT_PROPERTY = "matlabHome";
+    private static final String MATLAB_PATH_ENV_VAR = "MATLAB_HOME";
+
     private ZiggyCppMexPojo ziggyCppMexObject = new ZiggyCppMexPojo();
 
     /**
@@ -53,21 +107,21 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setBuildDir(project.getBuildDir());
         ziggyCppMexObject.setRootDir(ZiggyCpp.pipelineRootDir(project));
         ziggyCppMexObject.setProjectDir(project.getProjectDir());
-        if (project.hasProperty(ZiggyCppMexPojo.DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
-            ziggyCppMexObject.setCompileOptions(ZiggyCppPojo.gradlePropertyToList(
-                project.property(ZiggyCppMexPojo.DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
+            ziggyCppMexObject.setCppCompileOptions(ZiggyCppPojo
+                .gradlePropertyToList(project.property(DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)));
         }
-        if (project.hasProperty(ZiggyCppMexPojo.DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)) {
-            ziggyCppMexObject.setLinkOptions(ZiggyCppPojo.gradlePropertyToList(
-                project.property(ZiggyCppMexPojo.DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)) {
+            ziggyCppMexObject.setLinkOptions(ZiggyCppPojo
+                .gradlePropertyToList(project.property(DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)));
         }
-        if (project.hasProperty(ZiggyCppMexPojo.DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)) {
-            ziggyCppMexObject.setReleaseOptimizations(ZiggyCppPojo.gradlePropertyToList(
-                project.findProperty(ZiggyCppMexPojo.DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)) {
+            ziggyCppMexObject.setReleaseOptimizations(ZiggyCppPojo
+                .gradlePropertyToList(project.findProperty(DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)));
         }
-        if (project.hasProperty(ZiggyCppMexPojo.DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)) {
-            ziggyCppMexObject.setDebugOptimizations(ZiggyCppPojo.gradlePropertyToList(
-                project.findProperty(ZiggyCppMexPojo.DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)) {
+            ziggyCppMexObject.setDebugOptimizations(ZiggyCppPojo
+                .gradlePropertyToList(project.findProperty(DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)));
         }
         setMatlabPath();
     }
@@ -81,7 +135,7 @@ public class ZiggyCppMex extends DefaultTask {
     /** Specifies that the C/C++ source files are the input files for this Gradle task. */
     @InputFiles
     public List<File> getCppFiles() {
-        return ziggyCppMexObject.getCppFiles();
+        return ziggyCppMexObject.getSourceFiles();
     }
 
     /** Specifies that the mexfiles are the output files for this Gradle task. */
@@ -112,6 +166,7 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setCppFilePath(cppFilePath);
     }
 
+    @Internal
     public String getCppFilePath() {
         return ziggyCppMexObject.getCppFilePaths().get(0);
     }
@@ -121,15 +176,17 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setIncludeFilePaths(includeFilePaths);
     }
 
+    @Internal
     public List<String> getIncludeFilePaths() {
         return ziggyCppMexObject.getIncludeFilePaths();
     }
 
-    // paths for libraries that must be linked in
+    // Paths for libraries that must be linked in.
     public void setLibraryPaths(List<? extends Object> libraryPaths) {
         ziggyCppMexObject.setLibraryPaths(libraryPaths);
     }
 
+    @Internal
     public List<String> getLibraryPaths() {
         return ziggyCppMexObject.getLibraryPaths();
     }
@@ -139,18 +196,19 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setLibraries(libraries);
     }
 
+    @Internal
     public List<String> getLibraries() {
         return ziggyCppMexObject.getLibraries();
     }
 
     // compiler options
     public void setCompileOptions(List<? extends Object> compileOptions) {
-        ziggyCppMexObject.setCompileOptions(compileOptions);
-        ;
+        ziggyCppMexObject.setCppCompileOptions(compileOptions);
     }
 
+    @Internal
     public List<String> getCompileOptions() {
-        return ziggyCppMexObject.getCompileOptions();
+        return ziggyCppMexObject.getCppCompileOptions();
     }
 
     // linker options
@@ -158,6 +216,7 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setLinkOptions(linkOptions);
     }
 
+    @Internal
     public List<String> getLinkOptions() {
         return ziggyCppMexObject.getLinkOptions();
     }
@@ -167,6 +226,7 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setOutputType(outputType);
     }
 
+    @Internal
     public BuildType getOutputType() {
         return ziggyCppMexObject.getOutputType();
     }
@@ -176,6 +236,7 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setOutputName(name);
     }
 
+    @Internal
     public String getOutputName() {
         return ziggyCppMexObject.getOutputName();
     }
@@ -185,8 +246,33 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setMexfileNames(mexfileNames);
     }
 
+    @Internal
     public List<String> getMexfileNames() {
         return ziggyCppMexObject.getMexfileNames();
+    }
+
+    // Directory to use for build product
+    public void setOutputDir(Object outputDir) {
+        ziggyCppMexObject.setOutputDir(outputDir);
+    }
+
+    @Input
+    @Optional
+    public String getOutputDir() {
+        return ziggyCppMexObject.getOutputDir();
+    }
+
+    // Parent directory for build product (i.e., build products go in this location + "/obj",
+    // "/bin", or "/lib")
+
+    public void setOutputDirParent(Object outputDirParent) {
+        ziggyCppMexObject.setOutputDirParent(outputDirParent);
+    }
+
+    @Input
+    @Optional
+    public String getOutputDirParent() {
+        return ziggyCppMexObject.getOutputDirParent();
     }
 
     /**
@@ -200,9 +286,8 @@ public class ZiggyCppMex extends DefaultTask {
     public void setMatlabPath() {
         String matlabPath = null;
         Project project = getProject();
-        if (project.hasProperty(ZiggyCppMexPojo.MATLAB_PATH_PROJECT_PROPERTY)) {
-            matlabPath = project.findProperty(ZiggyCppMexPojo.MATLAB_PATH_PROJECT_PROPERTY)
-                .toString();
+        if (project.hasProperty(MATLAB_PATH_PROJECT_PROPERTY)) {
+            matlabPath = project.findProperty(MATLAB_PATH_PROJECT_PROPERTY).toString();
             log.info("MATLAB path set from project extra property: " + matlabPath);
         }
         if (matlabPath == null) {
@@ -220,7 +305,7 @@ public class ZiggyCppMex extends DefaultTask {
             }
         }
         if (matlabPath == null) {
-            String matlabHome = System.getenv(ZiggyCppMexPojo.MATLAB_PATH_ENV_VAR);
+            String matlabHome = System.getenv(MATLAB_PATH_ENV_VAR);
             if (matlabHome != null) {
                 matlabPath = matlabHome;
                 log.info("MATLAB path set from MATLAB_HOME environment variable: " + matlabPath);

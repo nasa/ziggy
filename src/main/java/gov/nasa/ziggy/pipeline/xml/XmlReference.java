@@ -50,7 +50,7 @@ public class XmlReference {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         XmlReference other = (XmlReference) obj;
@@ -64,7 +64,6 @@ public class XmlReference {
         public InputTypeReference(String name) {
             super(name);
         }
-
     }
 
     public static class OutputTypeReference extends XmlReference {
@@ -74,7 +73,6 @@ public class XmlReference {
         public OutputTypeReference(String name) {
             super(name);
         }
-
     }
 
     public static class ModelTypeReference extends XmlReference {
@@ -84,6 +82,14 @@ public class XmlReference {
         public ModelTypeReference(String name) {
             super(name);
         }
+    }
 
+    public static class ParameterSetReference extends XmlReference {
+        public ParameterSetReference() {
+        }
+
+        public ParameterSetReference(String name) {
+            super(name);
+        }
     }
 }

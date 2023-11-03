@@ -70,5 +70,4 @@ public class DatastoreConfigurationFile implements HasXmlSchemaFilename {
     public String getXmlSchemaFilename() {
         return XML_SCHEMA_FILE_NAME;
     }
-
 }

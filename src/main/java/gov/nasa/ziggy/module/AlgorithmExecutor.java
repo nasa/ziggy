@@ -1,8 +1,7 @@
 package gov.nasa.ziggy.module;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -18,8 +17,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.process.ExternalProcess;;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;;
 
 /**
  * Superclass for algorithm execution. This includes local execution via the
@@ -32,7 +31,8 @@ public abstract class AlgorithmExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(AlgorithmExecutor.class);
 
-    protected static final String EXECUTABLE_NAME = "runjava";
+    public static final String ZIGGY_PROGRAM = "ziggy";
+
     protected static final String NODE_MASTER_NAME = "compute-node-master";
 
     protected final PipelineTask pipelineTask;
@@ -85,24 +85,24 @@ public abstract class AlgorithmExecutor {
             return new LocalAlgorithmExecutor(pipelineTask);
         }
         return newRemoteInstance(pipelineTask);
-
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public static final AlgorithmExecutor newRemoteInstance(PipelineTask pipelineTask) {
-        AlgorithmExecutor executor = null;
         Constructor<? extends AlgorithmExecutor> ctor;
-        Class<? extends AlgorithmExecutor> implementationClass = null;
+        Class<? extends AlgorithmExecutor> implementationClass = SupportedRemoteClusters
+            .remoteCluster()
+            .getRemoteExecutorClass();
         try {
-            implementationClass = SupportedRemoteClusters.remoteCluster().getRemoteExecutorClass();
             ctor = implementationClass.getDeclaredConstructor(PipelineTask.class);
             ctor.setAccessible(true);
-            executor = ctor.newInstance(pipelineTask);
-        } catch (Exception e) {
-            throw new PipelineException(
-                "Unable to instantiate instance of class " + implementationClass.getName(), e);
+            return ctor.newInstance(pipelineTask);
+        } catch (NoSuchMethodException | InstantiationException | IllegalAccessException
+            | IllegalArgumentException | InvocationTargetException e) {
+            // This can never occur. By construction the desired constructor signature
+            // must exist.
+            throw new AssertionError(e);
         }
-        return executor;
-
     }
 
     protected AlgorithmExecutor(PipelineTask pipelineTask) {
@@ -129,25 +129,19 @@ public abstract class AlgorithmExecutor {
     public void submitAlgorithm(TaskConfigurationManager inputsHandler) {
 
         prepareToSubmitAlgorithm(inputsHandler);
-        try {
 
-            IntervalMetric.measure(PipelineMetrics.SEND_METRIC, () -> {
-                log.info("Submitting task for execution (taskId=" + pipelineTask.getId() + ")");
+        IntervalMetric.measure(PipelineMetrics.SEND_METRIC, () -> {
+            log.info("Submitting task for execution (taskId=" + pipelineTask.getId() + ")");
 
-                Files.createDirectories(algorithmLogDir());
-                Files.createDirectories(DirectoryProperties.stateFilesDir());
-                Files.createDirectories(taskDataDir());
-                SubtaskUtils.clearStaleAlgorithmStates(WorkingDirManager.workingDir(pipelineTask));
+            Files.createDirectories(algorithmLogDir());
+            Files.createDirectories(DirectoryProperties.stateFilesDir());
+            Files.createDirectories(taskDataDir());
+            SubtaskUtils.clearStaleAlgorithmStates(WorkingDirManager.workingDir(pipelineTask));
 
-                log.info("Start remote monitoring (taskId=" + pipelineTask.getId() + ")");
-                addToMonitor(stateFile);
-                submitForExecution(stateFile);
-                return null;
-            });
-        } catch (Exception e) {
-            throw new PipelineException(e);
-        }
-
+            log.info("Start remote monitoring (taskId=" + pipelineTask.getId() + ")");
+            submitForExecution(stateFile);
+            return null;
+        });
     }
 
     private void prepareToSubmitAlgorithm(TaskConfigurationManager inputsHandler) {
@@ -193,7 +187,7 @@ public abstract class AlgorithmExecutor {
 
     /**
      * Resubmit the pipeline task to the appropriate {@link AlgorithmMonitor}. This is used in the
-     * case where the worker has been stopped and restarted but tasks are still running (usually
+     * case where the supervisor has been stopped and restarted but tasks are still running (usually
      * remotely). This notifies the monitor that there are tasks that it should be looking out for.
      */
     public void resumeMonitoring() {
@@ -203,7 +197,7 @@ public abstract class AlgorithmExecutor {
 
     protected abstract void addToMonitor(StateFile stateFile);
 
-    protected abstract void submitForExecution(StateFile stateFile) throws Exception;
+    protected abstract void submitForExecution(StateFile stateFile);
 
     /**
      * Generates an updated instance of {@link PbsParameters}. The method is abstract because each
@@ -213,16 +207,16 @@ public abstract class AlgorithmExecutor {
     public abstract PbsParameters generatePbsParameters(RemoteParameters remoteParameters,
         int totalSubtaskCount);
 
-    protected abstract Path algorithmLogDir();
+    protected Path algorithmLogDir() {
+        return DirectoryProperties.algorithmLogsDir();
+    }
 
-    protected abstract Path taskDataDir();
+    protected Path taskDataDir() {
+        return DirectoryProperties.taskDataDir();
+    }
 
     protected Path workingDir() {
         return taskDataDir().resolve(pipelineTask.taskBaseName());
-    }
-
-    protected File pipelineConfigFile() {
-        return ZiggyConfiguration.getConfigServicesFile();
     }
 
     public abstract AlgorithmType algorithmType();
@@ -257,66 +251,12 @@ public abstract class AlgorithmExecutor {
         return stateFile;
     }
 
-    /**
-     * Convenience class that packages the strings needed to call the task master via an instance of
-     * {@link ExternalProcess}.
-     *
-     * @author PT
-     */
-    public class JobSubmissionPaths {
-
-        private final String workingDirPath;
-        private final String homeDirPath;
-        private final String stateFilePath;
-        private final String pipelineConfigPath;
-        private final String binPath;
-
-        public JobSubmissionPaths() throws IOException {
-
-            workingDirPath = workingDir().toString();
-            homeDirPath = DirectoryProperties.ziggyHomeDir().toString();
-            binPath = DirectoryProperties.ziggyBinDir().toString();
-            stateFilePath = DirectoryProperties.stateFilesDir()
-                .resolve(stateFile.name())
-                .toString();
-            pipelineConfigPath = pipelineConfigFile().getCanonicalPath();
-
-            log.info("location of working directory: " + workingDirPath);
-            log.info("Location of home directory: " + homeDirPath);
-            log.info("Location of state file: " + stateFilePath);
-            log.info("Location of pipeline config file: " + pipelineConfigPath);
-
-        }
-
-        public String getWorkingDirPath() {
-            return workingDirPath;
-        }
-
-        public String getHomeDirPath() {
-            return homeDirPath;
-        }
-
-        public String getBinPath() {
-            return binPath;
-        }
-
-        public String getStateFilePath() {
-            return stateFilePath;
-        }
-
-        public String getPipelineConfigPath() {
-            return pipelineConfigPath;
-        }
-
-    }
-
     public enum AlgorithmType {
         /** local execution only */
         LOCAL,
 
         /** Pleiades execution (database server is inside NAS enclave) */
-        REMOTE;
+        REMOTE
 
     }
-
 }

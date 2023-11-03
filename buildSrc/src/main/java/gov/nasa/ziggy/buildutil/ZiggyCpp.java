@@ -5,30 +5,89 @@ import java.util.List;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
-import org.gradle.api.tasks.Input;
-
 
 import gov.nasa.ziggy.buildutil.ZiggyCppPojo.BuildType;
 
 /**
- * Performs C++ builds for Gradle. Ziggy and its pipelines use this instead of the 
- * standard Gradle C++ task classes because it provides only the options we actually 
- * need without many that we can't use, and also because it allows us to use the CXX
- * environment variable to define the location of the C++ compiler. This allows us to
- * use the same compiler as some of the third party libraries used by Ziggy (they also
- * use CXX to select their compiler). 
- * 
- * Because Gradle classes that extend DefaultTask are effectively impossible to unit test,
- * all of the actual data and work are managed by the ZiggyCppPojo class (which does have
- * unit tests), while this class simply provides access to the ZiggyCppPojo class for Gradle. 
- * 
- * @author PT
+ * Performs C++ builds for Gradle. Ziggy and its pipelines use this instead of the standard Gradle
+ * C++ task classes because it provides only the options we actually need without many that we can't
+ * use, and also because it allows us to use the CXX environment variable to define the location of
+ * the C++ compiler. This allows us to use the same compiler as some of the third party libraries
+ * used by Ziggy (they also use CXX to select their compiler).
+ * <p>
+ * Usage example: assume that the user wishes to construct a shared object library, libfoo.(so,
+ * dylib) from the contents of directories $projectDir/foo and $projectDir/bar, with additional
+ * include files in $projectDir/include and $rootDir/project2/include. The task
  *
+ * <pre>
+ * task fooLib(type : ZiggyCpp) {
+ *     outputName        = "foo"
+ *     cppFilePaths      = ["$projectDir/foo", "$projectDir/bar"]
+ *     includeFilePaths  = ["$projectDir/include", "$rootDir/project2/include"]
+ *     outputType        = "shared"
+ *     compileOptions    = ["std=c++11", "O2"]
+ *     maxCompileThreads = 10
+ * }
+ * </pre>
+ *
+ * will compile the contents of the specified C++ file paths, placing the resulting object files in
+ * $buildDir/obj, and then link them into shared object library libfoo.(so, dylib), placed in
+ * $buildDir/lib. Options "-std=c++11" and "-O2" will be applied at compile time. During the compile
+ * phase, up to 10 threads will run in order to compile source files in parallel. If
+ * maxCompileThreads is not specified, a default value equal to the number of cores on the system
+ * will be used.
+ * <p>
+ * If a static library had been desired in the prior example, the outputType would be changed to
+ * "static", and file libfoo.a would be saved to $buildDir/lib. If a standalone executable was
+ * needed, the outputType would be changed to "executable" and the resulting file foo would be
+ * placed in $buildDir/bin. In this latter case, the user can specify additional libraries and
+ * library paths via additional options:
+ *
+ * <pre>
+ * task fooProgram(type : ZiggyCpp) {
+ *     outputName        = "foo"
+ *     cppFilePaths      = ["$projectDir/foo", "$projectDir/bar"]
+ *     includeFilePaths  = ["$projectDir/include", "$rootDir/project2/include"]
+ *     outputType        = "executable"
+ *     cppCompileOptions = ["std=c++11", "O2"]
+ *     cCompileOptions   = ["O2"]
+ *     libraryPaths      = ["$buildDir/lib", "$rootDir/project2/build/lib"]
+ *     libraries         = ["math1", "spelling2"]
+ * }
+ * </pre>
+ *
+ * would link using libmath1 and libmath2, located in $buildDir/lib and/or
+ * $rootDir/project2/build/lib.
+ * <p>
+ * The user can override the default directories used to store build products, which are:
+ * $buildDir/lib, $buildDir/obj, and $buildDir/bin, respectively, for libraries, object files, and
+ * executables. There are two ways to override: the first is to specify a directory that will be
+ * used for all output products using the property name "outputDir". The other is to specify a
+ * parent directory for the output directories using the property name "outputDirParent". In this
+ * latter case, outputs will go to <outputDirParent>/lib, <outputDirParent>/obj, and
+ * <outputDirParent>/bin, respectively, for libraries, object files, and executables. If both
+ * outputDir and outputDirParent are specified, outputDir will take precedence.
+ * <p>
+ * Because Gradle classes that extend DefaultTask are effectively impossible to unit test, all of
+ * the actual data and work are managed by the ZiggyCppPojo class (which does have unit tests),
+ * while this class simply provides access to the ZiggyCppPojo class for Gradle.
+ *
+ * @author PT
  */
 public class ZiggyCpp extends DefaultTask {
+
+    private static final String DEFAULT_CPP_COMPILE_OPTIONS_GRADLE_PROPERTY = "defaultCppCompileOptions";
+    private static final String DEFAULT_C_COMPILE_OPTIONS_GRADLE_PROPERTY = "defaultCCompileOptions";
+    private static final String DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY = "defaultLinkOptions";
+    private static final String DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY = "defaultReleaseOptimizations";
+    private static final String DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY = "defaultDebugOptimizations";
+    private static final String PIPELINE_ROOT_DIR_PROP_NAME = "pipelineRootDir";
 
     /**
      * Data and methods used to perform the C++ compile and link.
@@ -43,21 +102,25 @@ public class ZiggyCpp extends DefaultTask {
         Project project = getProject();
         ziggyCppPojo.setBuildDir(project.getBuildDir());
         ziggyCppPojo.setRootDir(pipelineRootDir(project));
-        if (project.hasProperty(ZiggyCppPojo.DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
-            ziggyCppPojo.setCompileOptions(ZiggyCppPojo.gradlePropertyToList(
-                project.property(ZiggyCppPojo.DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_CPP_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
+            ziggyCppPojo.setCppCompileOptions(ZiggyCppPojo.gradlePropertyToList(
+                project.property(DEFAULT_CPP_COMPILE_OPTIONS_GRADLE_PROPERTY)));
         }
-        if (project.hasProperty(ZiggyCppPojo.DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)) {
-            ziggyCppPojo.setLinkOptions(ZiggyCppPojo.gradlePropertyToList(
-                project.property(ZiggyCppPojo.DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_C_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
+            ziggyCppPojo.setCCompileOptions(ZiggyCppPojo
+                .gradlePropertyToList(project.property(DEFAULT_C_COMPILE_OPTIONS_GRADLE_PROPERTY)));
         }
-        if (project.hasProperty(ZiggyCppPojo.DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)) {
-            ziggyCppPojo.setReleaseOptimizations(ZiggyCppPojo.gradlePropertyToList(
-                project.findProperty(ZiggyCppPojo.DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)) {
+            ziggyCppPojo.setLinkOptions(ZiggyCppPojo
+                .gradlePropertyToList(project.property(DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)));
         }
-        if (project.hasProperty(ZiggyCppPojo.DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)) {
-            ziggyCppPojo.setDebugOptimizations(ZiggyCppPojo.gradlePropertyToList(
-                project.findProperty(ZiggyCppPojo.DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)));
+        if (project.hasProperty(DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)) {
+            ziggyCppPojo.setReleaseOptimizations(ZiggyCppPojo
+                .gradlePropertyToList(project.findProperty(DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY)));
+        }
+        if (project.hasProperty(DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)) {
+            ziggyCppPojo.setDebugOptimizations(ZiggyCppPojo
+                .gradlePropertyToList(project.findProperty(DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY)));
         }
     }
 
@@ -70,9 +133,8 @@ public class ZiggyCpp extends DefaultTask {
      */
     public static File pipelineRootDir(Project project) {
         File pipelineRootDir = null;
-        if (project.hasProperty(ZiggyCppPojo.PIPELINE_ROOT_DIR_PROP_NAME)) {
-            pipelineRootDir = new File(
-                project.property(ZiggyCppPojo.PIPELINE_ROOT_DIR_PROP_NAME).toString());
+        if (project.hasProperty(PIPELINE_ROOT_DIR_PROP_NAME)) {
+            pipelineRootDir = new File(project.property(PIPELINE_ROOT_DIR_PROP_NAME).toString());
         } else {
             pipelineRootDir = project.getRootDir();
         }
@@ -93,7 +155,7 @@ public class ZiggyCpp extends DefaultTask {
      */
     @InputFiles
     public List<File> getCppFiles() {
-        return ziggyCppPojo.getCppFiles();
+        return ziggyCppPojo.getSourceFiles();
     }
 
     /**
@@ -138,7 +200,7 @@ public class ZiggyCpp extends DefaultTask {
         return ziggyCppPojo.getIncludeFilePaths();
     }
 
-    // paths for libraries that must be linked in
+    // Paths for libraries that must be linked in.
     public void setLibraryPaths(List<? extends Object> libraryPaths) {
         ziggyCppPojo.setLibraryPaths(libraryPaths);
     }
@@ -160,13 +222,12 @@ public class ZiggyCpp extends DefaultTask {
 
     // compiler options
     public void setCompileOptions(List<? extends Object> compileOptions) {
-        ziggyCppPojo.setCompileOptions(compileOptions);
-        ;
+        ziggyCppPojo.setCppCompileOptions(compileOptions);
     }
 
     @Input
     public List<String> getCompileOptions() {
-        return ziggyCppPojo.getCompileOptions();
+        return ziggyCppPojo.getCppCompileOptions();
     }
 
     // linker options
@@ -197,5 +258,38 @@ public class ZiggyCpp extends DefaultTask {
     @Input
     public String getOutputName() {
         return ziggyCppPojo.getOutputName();
+    }
+
+    // Directory to use for build product
+    public void setOutputDir(Object outputDir) {
+        ziggyCppPojo.setOutputDir(outputDir);
+    }
+
+    @Input
+    @Optional
+    public String getOutputDir() {
+        return ziggyCppPojo.getOutputDir();
+    }
+
+    // Parent directory for build product (i.e., build products go in this location + "/obj",
+    // "/bin", or "/lib")
+
+    public void setOutputDirParent(Object outputDirParent) {
+        ziggyCppPojo.setOutputDirParent(outputDirParent);
+    }
+
+    @Input
+    @Optional
+    public String getOutputDirParent() {
+        return ziggyCppPojo.getOutputDirParent();
+    }
+
+    public void setMaxCompileThreads(int maxCompileThreads) {
+        ziggyCppPojo.setMaxCompileThreads(maxCompileThreads);
+    }
+
+    @Internal
+    public int getMaxCompileThreads() {
+        return ziggyCppPojo.getMaxCompileThreads();
     }
 }

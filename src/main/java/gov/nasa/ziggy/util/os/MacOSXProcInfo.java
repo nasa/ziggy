@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,19 +23,19 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
 
     private final long pid;
 
-    public MacOSXProcInfo(long pid) throws IOException {
+    public MacOSXProcInfo(long pid) {
         super(commandOutput(String.format(PS_COMMAND, pid)));
         this.pid = pid;
     }
 
-    public MacOSXProcInfo() throws IOException {
+    public MacOSXProcInfo() {
         super(
             commandOutput(String.format(PS_COMMAND, gov.nasa.ziggy.util.os.ProcessUtils.getPid())));
         pid = gov.nasa.ziggy.util.os.ProcessUtils.getPid();
     }
 
     @Override
-    protected void parse(Collection<String> commandOutput) throws IOException {
+    protected void parse(Collection<String> commandOutput) {
         for (String line : commandOutput) {
             log.debug("line = " + line);
 
@@ -54,12 +53,12 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
     }
 
     @Override
-    public List<Long> getChildPids() throws IOException {
+    public List<Long> getChildPids() {
         return getChildPids(null);
     }
 
     @Override
-    public List<Long> getChildPids(String name) throws IOException {
+    public List<Long> getChildPids(String name) {
         long currentPid = Long.parseLong(get("Pid"));
         List<String> commandOutput = commandOutput(PS_LIST_COMMAND);
         List<Long> childPids = new LinkedList<>();
@@ -87,7 +86,7 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
     }
 
     @Override
-    public long getParentPid() throws Exception {
+    public long getParentPid() {
         return Long.parseLong(get("PPid"));
     }
 
@@ -102,13 +101,9 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
      * @return -1 for unlimited.
      */
     @Override
-    public int getOpenFileLimit() throws IOException {
-        try {
-            List<String> commandOutput = commandOutput(ULIMIT_COMMAND);
-            return Integer.parseInt(commandOutput.get(0));
-        } catch (NumberFormatException e) {
-            return -1;
-        }
+    public int getOpenFileLimit() {
+        List<String> commandOutput = commandOutput(ULIMIT_COMMAND);
+        return Integer.parseInt(commandOutput.get(0));
     }
 
     /**

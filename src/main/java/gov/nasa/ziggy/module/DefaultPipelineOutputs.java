@@ -42,7 +42,6 @@ public class DefaultPipelineOutputs extends PipelineOutputs {
     private DataFileManager dataFileManager;
 
     public DefaultPipelineOutputs() {
-
     }
 
     /**
@@ -75,8 +74,7 @@ public class DefaultPipelineOutputs extends PipelineOutputs {
         DefaultPipelineInputs inputs = new DefaultPipelineInputs();
         String filename = ModuleInterfaceUtils.inputsFileName(moduleName());
         hdf5ModuleInterface.readFile(new File(taskDir.toFile(), filename), inputs, true);
-        Set<DataFileType> dataFileTypes = new HashSet<>(inputs.getOutputDataFileTypes());
-        return dataFileTypes;
+        return new HashSet<>(inputs.getOutputDataFileTypes());
     }
 
     /**
@@ -143,5 +141,4 @@ public class DefaultPipelineOutputs extends PipelineOutputs {
         return dataFileManager(null, PipelineInputsOutputsUtils.taskDir(), null)
             .workingDirHasFilesOfTypes(outputDataFileTypes());
     }
-
 }

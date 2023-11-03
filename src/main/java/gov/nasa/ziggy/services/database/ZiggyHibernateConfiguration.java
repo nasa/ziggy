@@ -1,20 +1,20 @@
 package gov.nasa.ziggy.services.database;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_DIALECT_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_DRIVER_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_ID_NEW_GENERATOR_MAPPINGS_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_URL_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.HIBERNATE_USERNAME_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_DIALECT;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_DRIVER;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_URL;
+import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_USERNAME;
 
 import java.util.Iterator;
-import java.util.Properties;
 import java.util.Set;
 
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.hibernate.cfg.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
@@ -23,8 +23,8 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
  * It uses {@link AnnotatedPojoList} to scan the class path for annotated classes and adds them to
  * the configuration.
  * <p>
- * It also copies all properties that are prefixed with "hibernate." from the configuration service
- * to the Hibernate @{link AnnotatedConfiguration} object.
+ * It also copies all properties that are prefixed with "hibernate." from the Ziggy configuration to
+ * the Hibernate @{link AnnotatedConfiguration} object.
  * <p>
  * This class is used by the {@link HibernateDatabaseService} to initialize the
  * {@link DatabaseService}. It is also used by the various ant tasks that create the schema
@@ -35,13 +35,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 public class ZiggyHibernateConfiguration {
     private static final Logger log = LoggerFactory.getLogger(ZiggyHibernateConfiguration.class);
 
-    /**
-     * Recommended setting for applications that use the @GeneratedValue annotation. The default
-     * setting in Hibernate 5 is true, so we can consider deleting this setting when we upgrade.
-     */
-    public static final boolean HIBERNATE_ID_NEW_GENERATOR_MAPPINGS_DEFAULT = true;
-
-    private static final String ANNOTATED_POJO_PACKAGE_FILTER = "gov.nasa";
+    private static final String ANNOTATED_POJO_PACKAGE_FILTER = "^gov\\.nasa\\..*";
 
     /**
      * Private to prevent instantiation. Static method only
@@ -56,72 +50,29 @@ public class ZiggyHibernateConfiguration {
      * @throws PipelineException
      */
     public static Configuration buildHibernateConfiguration() {
-        return buildHibernateConfiguration(null);
-    }
-
-    /**
-     * Build a {@link Configuration} instance using Ziggy-specific resources.
-     *
-     * @return
-     * @throws PipelineException
-     */
-    public static Configuration buildHibernateConfiguration(Properties hibernateProperties) {
-        org.apache.commons.configuration.Configuration ziggyConfig = ZiggyConfiguration
-            .getInstance();
+        ImmutableConfiguration ziggyConfig = ZiggyConfiguration.getInstance();
 
         log.debug("Initializing Hibernate");
 
         Configuration hibernateConfig = new Configuration();
 
-        hibernateConfig.setNamingStrategy(ZiggyNamingStrategy.INSTANCE);
+        // Get the props from the from the Ziggy configuration.
+        for (Iterator<?> iter = ziggyConfig.getKeys("hibernate"); iter.hasNext();) {
+            String key = (String) iter.next();
+            String value = ziggyConfig.getString(key);
 
-        // Copy hibernate-related properties from the props source to the Hibernate configuration.
-        if (hibernateProperties != null) {
-            // Use the Properties passed in.
-            for (Object okey : hibernateProperties.keySet()) {
-                String key = (String) okey;
-                String value = hibernateProperties.getProperty(key);
-
-                if (value == null) {
-                    throw new PipelineException("Property values must not be null, key=" + key);
-                }
-                log.debug("copying property, key=" + key + ", value=" + value);
-                hibernateConfig.setProperty(key, value);
-            }
-        } else {
-            // Get the props from the from the ConfigurationService.
-            for (Iterator<?> iter = ziggyConfig.getKeys("hibernate"); iter.hasNext();) {
-                String key = (String) iter.next();
-                String value = ziggyConfig.getString(key);
-
-                log.debug("copying property, key=" + key + ", value=" + value);
-                hibernateConfig.setProperty(key, value);
-            }
+            log.debug("copying property, key=" + key + ", value=" + value);
+            hibernateConfig.setProperty(key, value);
         }
 
         // Inject properties defined by our code.
-        hibernateConfig.setProperty(HIBERNATE_DIALECT_PROP_NAME, hibernateDialect());
-        hibernateConfig.setProperty(HIBERNATE_DRIVER_PROP_NAME, driverClassName());
-        if (hibernateConfig.getProperty(HIBERNATE_ID_NEW_GENERATOR_MAPPINGS_PROP_NAME) == null) {
-            hibernateConfig.setProperty(HIBERNATE_ID_NEW_GENERATOR_MAPPINGS_PROP_NAME,
-                Boolean.toString(HIBERNATE_ID_NEW_GENERATOR_MAPPINGS_DEFAULT));
-        }
+        hibernateConfig.setProperty(HIBERNATE_DIALECT.property(), hibernateDialect());
+        hibernateConfig.setProperty(HIBERNATE_DRIVER.property(), driverClassName());
 
-        log.info("Database URL: " + hibernateConfig.getProperty(HIBERNATE_URL_PROP_NAME));
-        log.debug("Database User: " + hibernateConfig.getProperty(HIBERNATE_USERNAME_PROP_NAME));
+        log.info("Database URL: " + hibernateConfig.getProperty(HIBERNATE_URL.property()));
+        log.debug("Database User: " + hibernateConfig.getProperty(HIBERNATE_USERNAME.property()));
 
-        AnnotatedPojoList annotatedPojoList = new AnnotatedPojoList();
-        annotatedPojoList.getPackageFilters().add(ANNOTATED_POJO_PACKAGE_FILTER);
-
-        Set<Class<?>> detectedClasses;
-
-        try {
-            log.debug("Scanning for annotated POJOs");
-            detectedClasses = annotatedPojoList.scanForClasses();
-        } catch (Exception e) {
-            throw new PipelineException(
-                "failed to auto-scan for annotated classes, caught e = " + e, e);
-        }
+        Set<Class<?>> detectedClasses = annotatedClasses();
 
         log.debug("Adding " + detectedClasses.size() + " annotated POJOs to Hibernate");
 
@@ -138,21 +89,32 @@ public class ZiggyHibernateConfiguration {
     }
 
     /**
+     * Returns a non-null set of classes in the classpath with Hibernate annotations. The classes
+     * are limited to packages starting with {@value #ANNOTATED_POJO_PACKAGE_FILTER}.
+     */
+    public static Set<Class<?>> annotatedClasses() {
+        AnnotatedPojoList annotatedPojoList = new AnnotatedPojoList();
+        annotatedPojoList.getPackageFilters().add(ANNOTATED_POJO_PACKAGE_FILTER);
+
+        return annotatedPojoList.scanForClasses();
+    }
+
+    /**
      * Returns the name of the Java class to be used as the database driver. If the property
-     * hibernate.connection.driver_class is specified in the properties file, its value is used. If
-     * not, the database controller's value for the driver class is used.
+     * {@link PropertyName#HIBERNATE_DRIVER} is specified in the properties file, its value is used.
+     * If not, the database controller's value for the driver class is used.
      *
      * @throws PipelineException if the class can not be found in either the property or database
      * controller
      */
     public static String driverClassName() {
         String driverClassName = ZiggyConfiguration.getInstance()
-            .getString(HIBERNATE_DRIVER_PROP_NAME, null);
+            .getString(HIBERNATE_DRIVER.property(), null);
         if (driverClassName == null) {
             DatabaseController controller = DatabaseController.newInstance();
             if (controller == null) {
-                throw new PipelineException(
-                    "Cannot determine database driver class from hibernate.connection.driver_class property or DatabaseController");
+                throw new PipelineException("Cannot determine database driver class from "
+                    + HIBERNATE_DRIVER + " property or DatabaseController");
             }
             driverClassName = controller.driver();
         }
@@ -161,20 +123,20 @@ public class ZiggyHibernateConfiguration {
 
     /**
      * Returns the name of the SQL dialect to be used for database activities. If the property
-     * hibernate.dialect is specified in the properties file, its value is used. If not, the
-     * database controller's value for the dialect is used.
+     * {@link PropertyName#HIBERNATE_DIALECT} is specified in the properties file, its value is
+     * used. If not, the database controller's value for the dialect is used.
      *
      * @throws PipelineException if the dialect can not be found in either the property or database
      * controller
      */
     public static String hibernateDialect() {
         String hibernateDialect = ZiggyConfiguration.getInstance()
-            .getString(HIBERNATE_DIALECT_PROP_NAME, null);
+            .getString(HIBERNATE_DIALECT.property(), null);
         if (hibernateDialect == null) {
             DatabaseController controller = DatabaseController.newInstance();
             if (controller == null) {
-                throw new PipelineException(
-                    "Cannot determine database dialect from hibernate.dialect property or DatabaseController");
+                throw new PipelineException("Cannot determine database dialect from "
+                    + HIBERNATE_DIALECT + " property or DatabaseController");
             }
             hibernateDialect = controller.sqlDialect().dialect();
         }

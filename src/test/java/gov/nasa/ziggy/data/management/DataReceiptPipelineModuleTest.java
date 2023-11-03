@@ -1,11 +1,11 @@
 package gov.nasa.ziggy.data.management;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_HOME_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.USE_SYMLINKS_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.DATA_RECEIPT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HOME_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.USE_SYMLINKS;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -22,14 +22,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -46,7 +44,6 @@ import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
 import gov.nasa.ziggy.models.ModelImporter;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadataTest.ModelMetadataFixedDate;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
@@ -63,7 +60,6 @@ import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -88,26 +84,26 @@ public class DataReceiptPipelineModuleTest {
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
-        DATA_RECEIPT_DIR_PROP_NAME, directoryRule, "data-import");
+    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(DATA_RECEIPT_DIR,
+        directoryRule, "data-import");
 
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, directoryRule, "datastore");
+        DATASTORE_ROOT_DIR, directoryRule, "datastore");
 
     @Rule
-    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
-        PIPELINE_HOME_DIR_PROP_NAME, (String) null);
+    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(PIPELINE_HOME_DIR,
+        (String) null);
 
-    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
         directoryRule);
 
     @Rule
-    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS_PROP_NAME,
+    public ZiggyPropertyRule useSymlinksPropertyRule = new ZiggyPropertyRule(USE_SYMLINKS,
         (String) null);
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, DirectoryProperties.ziggyCodeBuildDir().toString());
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -190,7 +186,7 @@ public class DataReceiptPipelineModuleTest {
         setUpModelsForImport(dataImporterPath);
         constructManifests();
 
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
 
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
@@ -289,7 +285,7 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(dataSubdirUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(dataSubdirUow);
 
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
@@ -379,7 +375,7 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(modelSubdirUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(modelSubdirUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
 
@@ -454,7 +450,6 @@ public class DataReceiptPipelineModuleTest {
         assertEquals(DataReceiptStatus.VALID, dbManifest.getStatus());
         assertEquals("model-importer-subdir-manifest.xml", dbManifest.getName());
         assertNotNull(dbManifest.getImportTime());
-
     }
 
     @Test
@@ -468,7 +463,7 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
 
@@ -608,7 +603,7 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
 
@@ -618,61 +613,11 @@ public class DataReceiptPipelineModuleTest {
         module.processTask();
     }
 
-    @Ignore
-    @Test
-    public void testInterruptInAlgorithm()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        InterruptedException, JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException, ExecutionException {
-
-        // Populate the models
-        setUpModelsForImport(dataImporterPath);
-        constructManifests();
-
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
-
-        // Perform the import
-        DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
-            RunMode.STANDARD);
-        execThread.submit(module).get();
-        WorkerTaskRequestDispatcher.deleteTask(101L);
-        assertTrue(module.isAlgorithmStarted());
-        assertFalse(module.isAlgorithmCompleted());
-        assertFalse(module.isStoringStarted());
-        assertFalse(module.isStoringCompleted());
-        assertFalse(module.isTaskCompleted());
-    }
-
-    @Ignore
-    @Test
-    public void testInterruptInStoring()
-        throws IOException, InstantiationException, IllegalAccessException, SAXException,
-        InterruptedException, JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
-
-        // Populate the models
-        setUpModelsForImport(dataImporterPath);
-        constructManifests();
-
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
-
-        // Perform the import
-        DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
-            RunMode.STANDARD);
-        execThread.submit(module);
-        WorkerTaskRequestDispatcher.deleteTask(101L);
-        assertTrue(module.isAlgorithmStarted());
-        assertTrue(module.isAlgorithmCompleted());
-        assertTrue(module.isStoringStarted());
-        assertFalse(module.isStoringCompleted());
-        assertFalse(module.isTaskCompleted());
-    }
-
     @Test
     public void testImportOnEmptyDirectory() throws IOException {
 
         FileUtils.cleanDirectory(dataImporterPath.toFile());
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
             RunMode.STANDARD);
@@ -682,7 +627,7 @@ public class DataReceiptPipelineModuleTest {
 
     @Test(expected = PipelineException.class)
     public void testMissingManifest() {
-        Mockito.when(pipelineTask.getUowTask()).thenReturn(new BeanWrapper<>(singleUow));
+        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
             RunMode.STANDARD);
@@ -739,7 +684,6 @@ public class DataReceiptPipelineModuleTest {
         sample1.createNewFile();
         filenames.add(sample1.getName());
         return filenames;
-
     }
 
     private void setUpModelsForImport(Path modelDirPath) throws IOException {
@@ -749,7 +693,6 @@ public class DataReceiptPipelineModuleTest {
         new File(modelImportDir, "tess2020321141517-12345_025-geometry.xml").createNewFile();
         new File(modelImportDir, "calibration-4.12.19.h5").createNewFile();
         new File(modelImportDir, "simple-text.h5").createNewFile();
-
     }
 
     private void constructManifests() throws IOException, InstantiationException,
@@ -800,7 +743,6 @@ public class DataReceiptPipelineModuleTest {
         protected ModelCrud modelCrud() {
             return crud;
         }
-
     }
 
     /**
@@ -818,54 +760,23 @@ public class DataReceiptPipelineModuleTest {
         private Set<FailedImport> failedImportsDataAccountability = new HashSet<>();
         private Manifest manifest;
 
-        boolean algorithmStarted = false;
-        boolean algorithmCompleted = false;
-        boolean storingStarted = false;
-        boolean storingCompleted = false;
-        boolean taskCompleted = false;
-
         public DataReceiptModuleForTest(PipelineTask pipelineTask, RunMode runMode) {
             super(pipelineTask, runMode);
         }
 
         @Override
         public void executingTaskAction() {
-            algorithmStarted = true;
             super.executingTaskAction();
-            algorithmCompleted = true;
         }
 
         @Override
         public void storingTaskAction() {
-            storingStarted = true;
             super.storingTaskAction();
-            storingCompleted = true;
         }
 
         @Override
         public void processingCompleteTaskAction() {
             super.processingCompleteTaskAction();
-            taskCompleted = true;
-        }
-
-        public boolean isAlgorithmStarted() {
-            return algorithmStarted;
-        }
-
-        public boolean isAlgorithmCompleted() {
-            return algorithmCompleted;
-        }
-
-        public boolean isStoringStarted() {
-            return storingStarted;
-        }
-
-        public boolean isStoringCompleted() {
-            return storingCompleted;
-        }
-
-        public boolean isTaskCompleted() {
-            return taskCompleted;
         }
 
         @Override
@@ -916,7 +827,6 @@ public class DataReceiptPipelineModuleTest {
 
         @Override
         protected void flushDatabase() {
-
         }
 
         public void disableDirectoryCleanup() {
@@ -948,7 +858,7 @@ public class DataReceiptPipelineModuleTest {
         private class ManifestCrudForTest extends ManifestCrud {
 
             @Override
-            public void create(Object o) {
+            public void persist(Object o) {
                 manifest = (Manifest) o;
             }
 
@@ -962,7 +872,5 @@ public class DataReceiptPipelineModuleTest {
         public void run() {
             processTask();
         }
-
     }
-
 }

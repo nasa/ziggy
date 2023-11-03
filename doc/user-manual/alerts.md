@@ -8,11 +8,11 @@
 
 Ziggy uses alerts to tell the pipeline operator that something has happened that they ought to know about. Alerts are displayed on the `Alerts` status panel. It looks like this:
 
-![](images/monitoring-alerts.png)
+<img src="images/monitoring-alerts.png" style="width:32cm;"/>
 
-There are two flavors of alert that you're likely to see: warnings and errors. Warnings will turn the alerts stoplight yellow, errors turn it red. The alerts panel shows which task generated the alert, when it happened, and a hopefully-useful message. If there are no alerts, the stoplight will be green. 
+There are two flavors of alert that you're likely to see: warnings and errors. Warnings will turn the alerts stoplight yellow, errors turn it red. The alerts panel shows which task generated the alert, when it happened, and a hopefully-useful message. If there are no alerts, the stoplight will be green.
 
-Sadly, in this case it tells you pretty much what you already knew: task 12 blew up. 
+Sadly, in this case it tells you pretty much what you already knew: task 12 blew up.
 
 ### Acknowledging Alerts
 
@@ -20,7 +20,7 @@ Once an alert arrives, the stoplight color will stay whatever color is appropria
 
 ### Clearing Alerts
 
-Alternately, once an alert is addressed you may want to get it completely out of the table of alerts. The `Clear` button will clear all alerts from the display and return the stoplight to green. 
+Alternately, once an alert is addressed you may want to get it completely out of the table of alerts. The `Clear` button will clear all alerts from the display and return the stoplight to green.
 
 [[Previous]](monitoring.md)
 [[Up]](ziggy-gui-troubleshooting.md)

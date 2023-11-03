@@ -5,13 +5,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.Table;
-import javax.persistence.Version;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 /**
  * A user object.
@@ -20,7 +20,7 @@ import javax.persistence.Version;
  * @author Todd Klaus
  */
 @Entity
-@Table(name = "PI_USER")
+@Table(name = "ziggy_User")
 public class User {
 
     @Id
@@ -31,11 +31,11 @@ public class User {
     private Date created;
 
     @ManyToMany
-    @JoinTable(name = "PI_USER_ROLE")
+    @JoinTable(name = "ziggy_User_roles")
     private List<Role> roles = new ArrayList<>();
 
     @ElementCollection
-    @JoinTable(name = "PI_USER_PRIVS")
+    @JoinTable(name = "ziggy_User_privileges")
     private List<String> privileges = new ArrayList<>();
 
     /**
@@ -152,7 +152,7 @@ public class User {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         final User other = (User) obj;

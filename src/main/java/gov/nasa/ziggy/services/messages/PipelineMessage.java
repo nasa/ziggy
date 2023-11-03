@@ -2,18 +2,22 @@ package gov.nasa.ziggy.services.messages;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.Objects;
 
-import gov.nasa.ziggy.services.messaging.MessageHandler;
+import gov.nasa.ziggy.util.os.ProcessUtils;
 
 /**
  * Superclass for all classes that are sent over RMI.
  *
  * @author Todd Klaus
+ * @author PT
  */
 public abstract class PipelineMessage implements Serializable {
-    private static final long serialVersionUID = 20210318L;
 
-    private Date timeSent = new Date();
+    private static final long serialVersionUID = 20230513L;
+
+    private final Date timeSent = new Date();
+    private final long senderProcessId = ProcessUtils.getPid();
 
     public PipelineMessage() {
     }
@@ -25,33 +29,30 @@ public abstract class PipelineMessage implements Serializable {
         return timeSent;
     }
 
-    /**
-     * @param timeSent the timeSent to set
-     */
-    public void setTimeSent(Date timeSent) {
-        this.timeSent = timeSent;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof PipelineMessage)) {
-            return false;
-        }
-
-        PipelineMessage other = (PipelineMessage) o;
-        return timeSent.equals(other.timeSent);
+    public long getSenderProcessId() {
+        return senderProcessId;
     }
 
     @Override
     public int hashCode() {
-        return timeSent.hashCode();
+        return Objects.hash(senderProcessId, timeSent, getClass());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        PipelineMessage other = (PipelineMessage) obj;
+        return senderProcessId == other.senderProcessId && Objects.equals(timeSent, other.timeSent);
     }
 
     @Override
     public String toString() {
-        return "PipelineMessage, timeSent :" + timeSent.toString();
+        return getClass().getSimpleName() + ": timeSent=" + timeSent.toString()
+            + ", senderProcessId=" + senderProcessId;
     }
-
-    public abstract Object handleMessage(MessageHandler messageHandler);
-
 }

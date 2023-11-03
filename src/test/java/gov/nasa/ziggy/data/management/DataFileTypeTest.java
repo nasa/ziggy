@@ -69,7 +69,6 @@ public class DataFileTypeTest {
         d.setFileNameRegexForTaskDir("perm-(\\S+)-(set-[0-9])-(file-[0-9]).png");
         d.setFileNameWithSubstitutionsForDatastore("$2/L0/$1-$3.png");
         assertTrue(d.fileNameInTaskDirMatches("perm-nasa_logo-set-1-file-0.png"));
-
     }
 
     @Test
@@ -133,5 +132,4 @@ public class DataFileTypeTest {
         d.setName("");
         d.validate();
     }
-
 }

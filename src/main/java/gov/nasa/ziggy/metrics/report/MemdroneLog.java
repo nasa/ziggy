@@ -3,8 +3,11 @@ package gov.nasa.ziggy.metrics.report;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -24,9 +29,11 @@ public class MemdroneLog {
     private InputStream input;
     private int lineCount = 0;
     private int skipCount = 0;
+    private File memdroneLogFile;
     // Map<ProcessId, DescriptiveStats>
     private Map<String, DescriptiveStatistics> logContents;
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public MemdroneLog(File memdroneLogFile) {
         if (!memdroneLogFile.exists()) {
             throw new PipelineException(
@@ -40,22 +47,20 @@ public class MemdroneLog {
 
         try {
             input = new FileInputStream(memdroneLogFile);
-            parse();
-        } catch (Exception e) {
-            throw new PipelineException("failed to parse file, caught e = " + e, e);
+        } catch (FileNotFoundException e) {
+            throw new UncheckedIOException("File " + memdroneLogFile.toString() + " not found", e);
         }
+        this.memdroneLogFile = memdroneLogFile;
+        parse();
     }
 
     public MemdroneLog(InputStream input) {
         this.input = input;
-        try {
-            parse();
-        } catch (Exception e) {
-            throw new PipelineException("failed to parse file, caught e = " + e, e);
-        }
+        parse();
     }
 
-    private void parse() throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private void parse() {
         log.info("Parse started");
 
         logContents = new HashMap<>();
@@ -63,7 +68,6 @@ public class MemdroneLog {
         try (BufferedReader br = new BufferedReader(
             new InputStreamReader(input, FileUtil.ZIGGY_CHARSET))) {
             String line = null;
-
             while ((line = br.readLine()) != null) {
                 lineCount++;
                 MemdroneSample s = new MemdroneSample(line);
@@ -78,6 +82,9 @@ public class MemdroneLog {
                     skipCount++;
                 }
             }
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "IOException occurred reading from " + memdroneLogFile.toString(), e);
         }
 
         log.info("Parse complete");

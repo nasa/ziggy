@@ -3,6 +3,9 @@ package gov.nasa.ziggy.metrics;
 import java.io.Serializable;
 import java.util.concurrent.Callable;
 
+import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.SystemTime;
 
 /**
@@ -11,14 +14,14 @@ import gov.nasa.ziggy.util.SystemTime;
  * @author Todd Klaus
  */
 public class IntervalMetric extends ValueMetric implements Serializable {
-    private static final long serialVersionUID = 6018286347911138007L;
+    private static final long serialVersionUID = 20230511L;
 
     @FunctionalInterface
     public interface Perform {
-        void apply() throws Exception;
+        void apply();
     }
 
-    public static void report(String metricName, Perform p) throws Exception {
+    public static void report(String metricName, Perform p) {
         IntervalMetricKey metricKey = start();
         try {
             p.apply();
@@ -57,11 +60,14 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      * @param name
      * @param target
      */
-    public static <V> V measure(String name, Callable<V> target) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static <V> V measure(String name, Callable<V> target) {
         IntervalMetricKey key = IntervalMetric.start();
 
         try {
             return target.call();
+        } catch (Exception e) {
+            throw new PipelineException("Exception in call()", e);
         } finally {
             IntervalMetric.stop(name, key);
         }
@@ -73,7 +79,7 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      * @param name
      * @param target
      */
-    public static void measure(String name, Runnable target) throws Exception {
+    public static void measure(String name, Runnable target) {
         IntervalMetricKey key = IntervalMetric.start();
 
         try {
@@ -127,5 +133,4 @@ public class IntervalMetric extends ValueMetric implements Serializable {
         copy.count = count;
         return copy;
     }
-
 }

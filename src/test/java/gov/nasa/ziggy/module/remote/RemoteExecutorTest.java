@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.module.remote;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -52,7 +52,7 @@ public class RemoteExecutorTest {
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
         directoryRule);
 
     @Rule
@@ -137,7 +137,6 @@ public class RemoteExecutorTest {
         // get called.
         verify(crud, never()).processingSummary(any(long.class));
         verify(parameterSetCrud, never()).retrieveRemoteParameters(any(PipelineTask.class));
-
     }
 
     @Test
@@ -171,7 +170,6 @@ public class RemoteExecutorTest {
         checkStateFileValues(gExecutor.pbsParameters, stateFile);
 
         assertEquals(stateFile, gExecutor.monitoredStateFile);
-
     }
 
     private void checkPbsParameterValues(RemoteParameters rParameters, PbsParameters pParameters) {
@@ -226,7 +224,6 @@ public class RemoteExecutorTest {
         parameters.setMinGigsPerNode("101");
         parameters.setMinCoresPerNode("51");
         return parameters;
-
     }
 
     private static class GenericRemoteExecutor extends RemoteExecutor {
@@ -271,9 +268,8 @@ public class RemoteExecutorTest {
         }
 
         @Override
-        protected void submitForExecution(StateFile stateFile) throws Exception {
-            // do nothing
+        protected void submitForExecution(StateFile stateFile) {
+            addToMonitor(stateFile);
         }
     }
-
 }

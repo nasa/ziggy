@@ -6,14 +6,18 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gov.nasa.ziggy.IntegrationTestCategory;
 
 /**
  * Tests the OS-specific implementation of the {@link ProcInfo} class.
  *
  * @author Forrest Girouard
  */
+@Category(IntegrationTestCategory.class)
 public class ProcInfoTest {
     private static final Logger log = LoggerFactory.getLogger(ProcInfoTest.class);
 

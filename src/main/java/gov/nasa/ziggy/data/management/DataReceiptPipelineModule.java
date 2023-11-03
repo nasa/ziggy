@@ -3,6 +3,7 @@ package gov.nasa.ziggy.data.management;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -18,11 +19,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
 import gov.nasa.ziggy.models.ModelImporter;
@@ -41,14 +41,14 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
-import gov.nasa.ziggy.worker.WorkerTaskRequestDispatcher;
-import jakarta.xml.bind.JAXBException;
 
 /**
  * Pipeline module that performs data receipt, defined as the process that brings science data and
@@ -101,15 +101,14 @@ public class DataReceiptPipelineModule extends PipelineModule
     }
 
     @Override
-    public boolean processTask() throws PipelineException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public boolean processTask() {
 
         // Get the top-level DR directory and the datastore root directory
-        Configuration config = ZiggyConfiguration.getInstance();
-        dataReceiptDir = config.getString(PropertyNames.DATA_RECEIPT_DIR_PROP_NAME);
-        checkState(dataReceiptDir != null,
-            PropertyNames.DATA_RECEIPT_DIR_PROP_NAME + " missing or empty");
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+        dataReceiptDir = config.getString(PropertyName.DATA_RECEIPT_DIR.property());
         datastoreRoot = DirectoryProperties.datastoreRootDir();
-        UnitOfWork uow = pipelineTask.getUowTask().getInstance();
+        UnitOfWork uow = pipelineTask.uowTaskInstance();
         dataReceiptTopLevelPath = Paths.get(dataReceiptDir);
         dataImportPathForTask = dataReceiptTopLevelPath
             .resolve(DirectoryUnitOfWorkGenerator.directory(uow));
@@ -117,16 +116,18 @@ public class DataReceiptPipelineModule extends PipelineModule
             dataImportPathForTask.toString() + " not a directory");
 
         boolean containsNonHiddenFiles = false;
+        Path filePathForException = null;
         try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(dataImportPathForTask)) {
             for (Path filePath : dirStream) {
+                filePathForException = filePath;
                 if (!Files.isHidden(filePath)) {
                     containsNonHiddenFiles = true;
                     break;
                 }
             }
         } catch (IOException e) {
-            throw new PipelineException(
-                "Unable to list directory " + dataImportPathForTask.toString());
+            throw new UncheckedIOException(
+                "Unable to check hidden status of " + filePathForException.toString(), e);
         }
 
         if (!containsNonHiddenFiles) {
@@ -167,10 +168,6 @@ public class DataReceiptPipelineModule extends PipelineModule
     public void processingMainLoop() {
 
         while (!processingComplete) {
-            if (WorkerTaskRequestDispatcher.isTaskDeleted(pipelineTask.getId())) {
-                log.error("Exiting Data Receipt pipeline module due to task deletion");
-                return;
-            }
             getProcessingState().taskAction(this);
         }
     }
@@ -209,7 +206,7 @@ public class DataReceiptPipelineModule extends PipelineModule
 
         // Save the manifest information in the database.
         manifest.setAcknowledged(true);
-        manifestCrud().create(manifest);
+        manifestCrud().persist(manifest);
 
         // Make sure that all the regular files in the directory tree have been validated
         // (i.e., there are no files in the directory tree that are absent from the
@@ -220,18 +217,10 @@ public class DataReceiptPipelineModule extends PipelineModule
     }
 
     private void readManifest() {
-
-        try {
-            manifest = Manifest.readManifest(dataImportPathForTask);
-            if (manifest == null) {
-                throw new PipelineException(
-                    "No manifest file present in directory " + dataImportPathForTask.toString());
-            }
-        } catch (InstantiationException | IllegalAccessException | IOException | SAXException
-            | JAXBException | IllegalArgumentException | SecurityException
-            | InvocationTargetException | NoSuchMethodException e) {
-            throw new PipelineException("Unable to read manifest from directory " + dataReceiptDir,
-                e);
+        manifest = Manifest.readManifest(dataImportPathForTask);
+        if (manifest == null) {
+            throw new PipelineException(
+                "No manifest file present in directory " + dataImportPathForTask.toString());
         }
         log.info("Read manifest from file " + manifest.getName());
     }
@@ -241,14 +230,8 @@ public class DataReceiptPipelineModule extends PipelineModule
         ack = Acknowledgement.of(manifest, dataImportPathForTask, pipelineTask.getId());
 
         // Write the acknowledgement to the directory.
-        try {
-            ack.write(dataImportPathForTask);
-            log.info("Acknowledgement file written: " + ack.getName());
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-            | IllegalArgumentException | SecurityException | InvocationTargetException
-            | NoSuchMethodException e) {
-            throw new PipelineException("Unable to write manifest acknowledgement", e);
-        }
+        ack.write(dataImportPathForTask);
+        log.info("Acknowledgement file written: " + ack.getName());
 
         // If the acknowledgement has bad status, throw an exception now.
         if (ack.getTransferStatus().equals(DataReceiptStatus.INVALID)) {
@@ -264,36 +247,27 @@ public class DataReceiptPipelineModule extends PipelineModule
         // be the set of all names in the manifest)
         List<String> namesOfValidFiles = ack.namesOfValidFiles();
 
-        try {
-            Map<Path, Path> regularFilesInDirTree = FileUtil
-                .regularFilesInDirTree(dataImportPathForTask);
-            List<String> filenamesInDirTree = regularFilesInDirTree.keySet()
-                .stream()
-                .map(Path::toString)
-                .collect(Collectors.toList());
-            filenamesInDirTree.removeAll(namesOfValidFiles);
-            filenamesInDirTree.remove(manifest.getName());
-            filenamesInDirTree.remove(ack.getName());
-            if (filenamesInDirTree.size() != 0) {
-                log.error("Data receipt directory " + dataImportPathForTask.toString()
-                    + " contains files not listed in manifest ");
-                for (String filename : filenamesInDirTree) {
-                    log.error("File missing from manifest: " + filename);
-                }
-                ack.write(dataImportPathForTask);
-                manifest.setAcknowledged(true);
-                log.info("Acknowledgement file written: " + ack.getName());
-                throw new PipelineException("Unable to import files from data receipt directory "
-                    + dataImportPathForTask.toString()
-                    + " due to presence of files not listed in manifest");
+        Map<Path, Path> regularFilesInDirTree = FileUtil
+            .regularFilesInDirTree(dataImportPathForTask);
+        List<String> filenamesInDirTree = regularFilesInDirTree.keySet()
+            .stream()
+            .map(Path::toString)
+            .collect(Collectors.toList());
+        filenamesInDirTree.removeAll(namesOfValidFiles);
+        filenamesInDirTree.remove(manifest.getName());
+        filenamesInDirTree.remove(ack.getName());
+        if (filenamesInDirTree.size() != 0) {
+            log.error("Data receipt directory " + dataImportPathForTask.toString()
+                + " contains files not listed in manifest ");
+            for (String filename : filenamesInDirTree) {
+                log.error("File missing from manifest: " + filename);
             }
-        } catch (IOException e1) {
-            throw new PipelineException(
-                "Unable to find regular files in directory " + dataImportPathForTask.toString(),
-                e1);
-        } catch (InvocationTargetException | NoSuchMethodException | InstantiationException
-            | IllegalAccessException | SAXException | JAXBException e) {
-            throw new PipelineException("Unable to write manifest acknowledgement", e);
+            ack.write(dataImportPathForTask);
+            manifest.setAcknowledged(true);
+            log.info("Acknowledgement file written: " + ack.getName());
+            throw new PipelineException("Unable to import files from data receipt directory "
+                + dataImportPathForTask.toString()
+                + " due to presence of files not listed in manifest");
         }
     }
 
@@ -327,27 +301,24 @@ public class DataReceiptPipelineModule extends PipelineModule
         incrementProcessingState();
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_IN_RUNNABLE)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void generateFilenamesForImport() {
         try (Stream<Path> filestream = Files.list(dataImportPathForTask)) {
             namesOfFilesToImport = filestream.filter(t -> {
-
-                // Seriously, JDK? You're going to force me to have a try-catch block
-                // inside a stream if I ever want to use any java.nio.file methods within
-                // the stream? You can't simply manage it on the basis of the entire stream
-                // operation sitting inside a try-catch block?
                 try {
                     return !Files.isHidden(t);
                 } catch (IOException e) {
-                    throw new PipelineException(
-                        "IOException when checking hidden status of file " + t.toString(), e);
+                    throw new UncheckedIOException(
+                        "Unable to check hidden status of file" + t.toString(), e);
                 }
             })
                 .map(s -> dataImportPathForTask.relativize(s))
                 .map(Path::toString)
                 .collect(Collectors.toList());
         } catch (IOException e1) {
-            throw new PipelineException(
-                "Unable to stream file list in directory " + dataImportPathForTask.toString(), e1);
+            throw new UncheckedIOException(
+                "Unable to list files in directory " + dataImportPathForTask.toString(), e1);
         }
     }
 
@@ -410,7 +381,7 @@ public class DataReceiptPipelineModule extends PipelineModule
 
             Path dataReceiptPath = Paths.get(dataReceiptDir);
             // get the unit of work from the pipeline task
-            UnitOfWork uow = pipelineTask.getUowTask().getInstance();
+            UnitOfWork uow = pipelineTask.uowTaskInstance();
             Path importDirectory = dataReceiptPath
                 .resolve(DirectoryUnitOfWorkGenerator.directory(uow));
             log.info("Importing models from directory: " + importDirectory.toString());
@@ -448,7 +419,6 @@ public class DataReceiptPipelineModule extends PipelineModule
                         pipelineTask.getId(), AlertService.Severity.WARNING,
                         "Failed to import " + failedImports.size() + " model files (out of "
                             + (successfulImports.size() + failedImports.size()) + ")");
-
                 }
                 // Flush the session so that as soon as the next task starts importing model files
                 // it already has an up to date registry
@@ -465,12 +435,14 @@ public class DataReceiptPipelineModule extends PipelineModule
     }
 
     // Allows a caller to supply a data receipt instance for test purposes
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     DataImporter dataImporter(Path dataReceiptPath, Path datastoreRootPath) {
         if (dataImporter == null) {
 
             // Get the data importer implementation
-            Configuration config = ZiggyConfiguration.getInstance();
-            String classname = config.getString(PropertyNames.DATA_RECEIPT_CLASS_PROP_NAME,
+            ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+            String classname = config.getString(PropertyName.DATA_IMPORTER_CLASS.property(),
                 DEFAULT_DATA_RECEIPT_CLASS);
             Class<?> dataReceiptClass = null;
             try {
@@ -490,10 +462,10 @@ public class DataReceiptPipelineModule extends PipelineModule
                     .newInstance(pipelineTask, dataReceiptPath, datastoreRootPath);
             } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
-                throw new PipelineException("Unable to instantiate object of class " + classname,
-                    e);
+                // Can never occur. By construction, the data importer class is known and has
+                // a constructor with an appropriate signature.
+                throw new AssertionError(e);
             }
-
         }
         return dataImporter;
     }
@@ -505,6 +477,7 @@ public class DataReceiptPipelineModule extends PipelineModule
      * acknowledgement directory. If the UOW used a subdirectory of the main DR directory, that
      * directory is deleted.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void performDirectoryCleanup() {
 
         try {
@@ -538,10 +511,10 @@ public class DataReceiptPipelineModule extends PipelineModule
             if (!dataImportPathForTask.equals(dataReceiptTopLevelPath)) {
                 FileUtils.deleteDirectory(dataImportPathForTask.toFile());
             }
-
         } catch (IOException e) {
-            throw new PipelineException(
-                "Unable to perform post-import cleanup of directory " + dataImportPathForTask, e);
+            throw new UncheckedIOException(
+                "IOException occurred cleaning up directory " + dataImportPathForTask.toString(),
+                e);
         }
     }
 
@@ -577,7 +550,7 @@ public class DataReceiptPipelineModule extends PipelineModule
         PipelineInstance dbInstance = pipelineInstanceCrud
             .retrieve(pipelineTask.getPipelineInstance().getId());
         dbInstance.setModelRegistry(modelRegistry);
-        pipelineInstanceCrud.update(dbInstance);
+        pipelineInstanceCrud.merge(dbInstance);
         pipelineTask.getPipelineInstance().setModelRegistry(modelRegistry);
     }
 
@@ -608,7 +581,6 @@ public class DataReceiptPipelineModule extends PipelineModule
     @Override
     protected List<RunMode> defaultRestartModes() {
         return Arrays.asList(RunMode.RESUME_CURRENT_STEP);
-
     }
 
     @Override
@@ -616,7 +588,7 @@ public class DataReceiptPipelineModule extends PipelineModule
     }
 
     @Override
-    protected void resumeCurrentStep() throws PipelineException {
+    protected void resumeCurrentStep() {
         processingMainLoop();
     }
 
@@ -629,7 +601,7 @@ public class DataReceiptPipelineModule extends PipelineModule
     }
 
     @Override
-    protected void runStandard() throws PipelineException {
+    protected void runStandard() {
         processingMainLoop();
     }
 
@@ -666,7 +638,5 @@ public class DataReceiptPipelineModule extends PipelineModule
             DataReceiptPipelineModule.class);
         dataReceiptModule.setPipelineModuleClass(moduleClassWrapper);
         return dataReceiptModule;
-
     }
-
 }

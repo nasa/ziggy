@@ -65,9 +65,8 @@ public class SemanticVersionNumber implements Comparable<SemanticVersionNumber> 
         }
         if (minor != o.minor) {
             return minor - o.minor;
-        } else {
-            return patch - o.patch;
         }
+        return patch - o.patch;
     }
 
     public int getMajor() {
@@ -104,20 +103,13 @@ public class SemanticVersionNumber implements Comparable<SemanticVersionNumber> 
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         SemanticVersionNumber other = (SemanticVersionNumber) obj;
-        if (major != other.major) {
-            return false;
-        }
-        if (minor != other.minor) {
-            return false;
-        }
-        if (patch != other.patch) {
+        if (major != other.major || minor != other.minor || patch != other.patch) {
             return false;
         }
         return true;
     }
-
 }

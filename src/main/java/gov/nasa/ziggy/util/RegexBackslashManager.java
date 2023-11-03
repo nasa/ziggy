@@ -36,14 +36,13 @@ public class RegexBackslashManager {
     public static class XmlRegexAdapter extends XmlAdapter<String, String> {
 
         @Override
-        public String unmarshal(String xmlString) throws Exception {
+        public String unmarshal(String xmlString) {
             return toSingleBackslash(xmlString);
         }
 
         @Override
-        public String marshal(String javaString) throws Exception {
+        public String marshal(String javaString) {
             return toDoubleBackslash(javaString);
         }
-
     }
 }

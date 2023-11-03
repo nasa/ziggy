@@ -4,36 +4,42 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.gradle.api.GradleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.gradle.api.GradleException;
-import org.gradle.internal.os.OperatingSystem;
 
 /**
- * Performs compilation and linking of C++ code for Ziggy and for pipelines based on Ziggy.
- * The command line options, source directory, include paths, library paths, library names, and
- * type of build (executable, shared library, static library) and output file name
- * must be specified in the Gradle task that makes use of this class. The compiler is determined 
- * from the CXX environment variable, thus is compatible with third-party packages that use the same 
- * convention. Actual source file names are deduced from listing the source directory, object file 
- * information is generated during the compile and saved for use in the link. 
- * 
- * If Gradle's JVM has cppdebug set to true as a system property, the compile and link commands will
- * have appropriate options (-g and -Og). These will be placed after the compile / link options, thus
- * will override any optimization options supplied to Gradle. 
- * 
- * NB: this is a POJO that makes minimal use of the Gradle API. In particular, it does not extend
- * DefaultTask. This is because classes that extend DefaultTask are de facto impossible to unit test
- * in Java. The ZiggyCpp class embeds a ZiggyCpp class to perform its actions and store its members.
- * 
- * @author PT
+ * Performs compilation and linking of C++ code for Ziggy and for pipelines based on Ziggy. The
+ * command line options, source directory, include paths, library paths, library names, and type of
+ * build (executable, shared library, static library) and output file name must be specified in the
+ * Gradle task that makes use of this class. The compiler is determined from the CXX environment
+ * variable, thus is compatible with third-party packages that use the same convention. Actual
+ * source file names are deduced from listing the source directory, object file information is
+ * generated during the compile and saved for use in the link. If Gradle's JVM has cppdebug set to
+ * true as a system property, the compile and link commands will have appropriate options (-g and
+ * -Og). These will be placed after the compile / link options, thus will override any optimization
+ * options supplied to Gradle. NB: this is a POJO that makes minimal use of the Gradle API. In
+ * particular, it does not extend DefaultTask. This is because classes that extend DefaultTask are
+ * de facto impossible to unit test in Java. The ZiggyCpp class embeds a ZiggyCpp class to perform
+ * its actions and store its members.
  *
+ * @author PT
  */
 
 public class ZiggyCppPojo {
@@ -45,15 +51,43 @@ public class ZiggyCppPojo {
         SHARED, STATIC, EXECUTABLE
     }
 
+    enum Compiler {
+        C(".c", C_COMPILER), CPP(".cpp", CPP_COMPILER);
+
+        private String fileSuffix;
+        private String compiler;
+
+        Compiler(String fileSuffix, String compiler) {
+            this.fileSuffix = fileSuffix;
+            this.compiler = compiler;
+        }
+
+        public String fileSuffix() {
+            return fileSuffix;
+        }
+
+        public String compiler() {
+            return compiler;
+        }
+    }
+
     public static final String CPP_COMPILER_ENV_VAR = "CXX";
-    public static final String[] CPP_FILE_TYPES = { ".c", ".cpp" };
+    public static final String C_COMPILER_ENV_VAR = "CC";
     public static final String CPP_DEBUG_PROPERTY_NAME = "cppdebug";
 
-    public static final String DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY = "defaultCppCompileOptions";
-    public static final String DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY = "defaultCppLinkOptions";
-    public static final String DEFAULT_RELEASE_OPTS_GRADLE_PROPERTY = "defaultCppReleaseOptimizations";
-    public static final String DEFAULT_DEBUG_OPTS_GRADLE_PROPERTY = "defaultCppDebugOptimizations";
-    public static final String PIPELINE_ROOT_DIR_PROP_NAME = "pipelineRootDir";
+    // The compiler Strings cannot be final because they need to be overridden
+    // during test.
+    public static String CPP_COMPILER = System.getenv(CPP_COMPILER_ENV_VAR);
+    public static String C_COMPILER = System.getenv(C_COMPILER_ENV_VAR);
+
+    private static final List<String> DEFAULT_CPP_COMPILE_OPTIONS = List.of("-Wall", "-fPIC",
+        "-std=c++11");
+    private static final List<String> DEFAULT_C_COMPILE_OPTIONS = List.of("-fPIC");
+    private static final List<String> DEFAULT_LINK_OPTIONS = List.of();
+    private static final List<String> DEFAULT_RELEASE_OPTS = List.of("-O2", "-DNDEBUG", "-g");
+    private static final List<String> DEFAULT_DEBUG_OPTS = List.of("-Og", "-g");
+    private static final int DEFAULT_PARALLEL_COMPILE_THREADS = Runtime.getRuntime()
+        .availableProcessors();
 
     /** Path to the C++ files to be compiled */
     private List<String> cppFilePaths = null;
@@ -68,16 +102,19 @@ public class ZiggyCppPojo {
     private List<String> libraries = new ArrayList<>();
 
     /** compile options (minus the initial hyphen) */
-    private List<String> compileOptions = new ArrayList<>();
+    private List<String> cppCompileOptions = DEFAULT_CPP_COMPILE_OPTIONS;
+
+    /** compile options (minus the initial hyphen) */
+    private List<String> cCompileOptions = DEFAULT_C_COMPILE_OPTIONS;
 
     /** linker options (minus the initial hyphen) */
-    private List<String> linkOptions = new ArrayList<>();
+    private List<String> linkOptions = DEFAULT_LINK_OPTIONS;
 
     /** Optimizations, if any, desired for a build without cppdebug=true system property */
-    private List<String> releaseOptimizations = new ArrayList<>();
+    private List<String> releaseOptimizations = DEFAULT_RELEASE_OPTS;
 
     /** Optimizations, if any, desired for a build with cppdebug=true system property */
-    private List<String> debugOptimizations = new ArrayList<>();
+    private List<String> debugOptimizations = DEFAULT_DEBUG_OPTS;
 
     /** Caller-selected build type */
     private BuildType outputType = null;
@@ -85,8 +122,14 @@ public class ZiggyCppPojo {
     /** Name of the output file (with no "lib" prefix or file type suffix) */
     private String name = null;
 
+    /** Name of the directory for output, if not specified an appropriate default is used. */
+    protected String outputDir;
+
+    /** Parent of the directory for output, if not specified buildDir is used. */
+    protected String outputDirParent;
+
     /** C++ files found in the cppFilePath directory */
-    private List<File> cppFiles = new ArrayList<>();
+    private Map<File, String> cppFiles = new TreeMap<>();
 
     /** Object files built from the C++ files */
     private List<File> objectFiles = new ArrayList<>();
@@ -95,19 +138,19 @@ public class ZiggyCppPojo {
     private File builtFile = null;
 
     /** Desired Gradle build directory, as a File */
-    private File buildDir = null;
+    protected File buildDir = null;
 
     /** Root directory for the parent Gradle project, as a File */
     private File rootDir = null;
-
-    /** C++ compiler command including path to same */
-    private String cppCompiler = null;
 
     /** Default executor used only for testing, do not use for real execution! */
     private DefaultExecutor defaultExecutor = null;
 
     /** Operating system, needed to set options and names for the linker command */
-    private OperatingSystem operatingSystem = OperatingSystem.current();
+    private SystemArchitecture architecture = SystemArchitecture.architecture();
+
+    /** Number of parallel compiler processes to accept. */
+    private int maxCompileThreads = DEFAULT_PARALLEL_COMPILE_THREADS;
 
     // stores logger warning messages. Used only for testing.
     private List<String> loggerWarnings = new ArrayList<>();
@@ -116,35 +159,44 @@ public class ZiggyCppPojo {
      * Converts a list of arguments to a single string that can be used in a command line compiler
      * call
      *
-     * @param argList list of arguments
+     * @param argList list of arguments, may contain null or empty items, which are skipped
      * @param prefix prefix for each argument ("-I", "-L", etc.)
      * @return the list of arguments converted to a string, and with the prefix added to each
      */
     public String argListToString(List<String> argList, String prefix) {
         StringBuilder argStringBuilder = new StringBuilder();
         for (String arg : argList) {
-            argStringBuilder.append(prefix + arg + " ");
+            if (arg != null && !arg.isEmpty()) {
+                argStringBuilder.append(prefix + arg + " ");
+            }
         }
         return argStringBuilder.toString();
     }
 
     File objDir() {
-        return new File(buildDir, "obj");
+        return StringUtils.isEmpty(outputDir) ? new File(outputParent(), "obj")
+            : new File(outputDir);
     }
 
     File libDir() {
-        return new File(buildDir, "lib");
+        return StringUtils.isEmpty(outputDir) ? new File(outputParent(), "lib")
+            : new File(outputDir);
     }
 
     File binDir() {
-        return new File(buildDir, "bin");
+        return StringUtils.isEmpty(outputDir) ? new File(outputParent(), "bin")
+            : new File(outputDir);
+    }
+
+    File outputParent() {
+        return StringUtils.isEmpty(outputDirParent) ? buildDir : new File(outputDirParent);
     }
 
     /**
      * Search the specified file path for C and C++ files, and populate the cppFiles list with same.
      * If the file path is not set or does not exist, a GradleException will be thrown.
      */
-    private void populateCppFiles() {
+    private void populateCppFiles(boolean warn) {
 
         // check that the path is set and exists
         if (cppFilePaths == null) {
@@ -154,37 +206,37 @@ public class ZiggyCppPojo {
         // clear any existing files, and also handle the null pointer case
         // neither of these should ever occur in real life, but why risk it?
         if (cppFiles == null || !cppFiles.isEmpty()) {
-            cppFiles = new ArrayList<>();
+            cppFiles = new TreeMap<>();
         }
 
         for (String cppFilePath : cppFilePaths) {
             File cppFileDir = new File(cppFilePath);
             if (!cppFileDir.exists()) {
-                String w = "C++ file path " + cppFilePath + " does not exist";
-                log.warn(w);
-                addLoggerWarning(w);
-
+                if (warn) {
+                    String w = "C++ file path " + cppFilePath + " does not exist";
+                    log.warn(w);
+                    addLoggerWarning(w);
+                }
             } else {
 
                 // find all C and C++ files and add them to the cppFiles list
-                for (String fileType : CPP_FILE_TYPES) {
-                    File[] cFiles = cppFileDir.listFiles(new FilenameFilter() {
-                        public boolean accept(File dir, String name) {
-                            return name.endsWith(fileType);
-                        }
-                    });
-                    for (File file : cFiles) {
-                        cppFiles.add(file);
+                for (Compiler compiler : Compiler.values()) {
+                    File[] cFiles = cppFileDir.listFiles(
+                        (FilenameFilter) (dir, name) -> name.endsWith(compiler.fileSuffix()));
+                    if (cFiles == null) {
+                        continue;
+                    }
+                    for (File cFile : cFiles) {
+                        cppFiles.put(cFile, compiler.compiler());
                     }
                 }
             }
         }
 
         if (!cppFiles.isEmpty()) {
-            Collections.sort(cppFiles);
             // write the list of files to the log if info logging is set
             StringBuilder fileListBuilder = new StringBuilder();
-            for (File file : cppFiles) {
+            for (File file : cppFiles.keySet()) {
                 fileListBuilder.append(file.getName());
                 fileListBuilder.append(" ");
             }
@@ -218,20 +270,18 @@ public class ZiggyCppPojo {
             prefix = "lib";
             if (outputType == BuildType.STATIC) {
                 fileType = ".a";
+            } else if (architecture == SystemArchitecture.MAC_M1
+                || architecture == SystemArchitecture.MAC_INTEL) {
+                fileType = ".dylib";
+            } else if (architecture == SystemArchitecture.LINUX_INTEL) {
+                fileType = ".so";
             } else {
-                if (operatingSystem.isMacOsX()) {
-                    fileType = ".dylib";
-                } else if (operatingSystem.isLinux()) {
-                    fileType = ".so";
-                } else {
-                    throw new GradleException(
-                        "ZiggyCpp class does not support OS " + operatingSystem.getName());
-                }
+                throw new GradleException(
+                    "ZiggyCpp class does not support OS " + architecture.toString());
             }
         }
         String outputFile = prefix + name + fileType;
         builtFile = new File(outputDirectory, outputFile);
-
     }
 
     /**
@@ -243,9 +293,10 @@ public class ZiggyCppPojo {
     public static String objectNameFromSourceFile(File sourceFile) {
         String sourceName = sourceFile.getName();
         String strippedName = null;
-        for (String fileType : CPP_FILE_TYPES) {
-            if (sourceName.endsWith(fileType)) {
-                strippedName = sourceName.substring(0, sourceName.length() - fileType.length());
+        for (Compiler compiler : Compiler.values()) {
+            if (sourceName.endsWith(compiler.fileSuffix())) {
+                strippedName = sourceName.substring(0,
+                    sourceName.length() - compiler.fileSuffix().length());
                 break;
             }
         }
@@ -254,38 +305,36 @@ public class ZiggyCppPojo {
 
     /**
      * Generates the command to compile a single source file
-     *
-     * @param sourceFile File of the C/C++ source that is to be compiled
-     * @return the compile command as a single string. This command will include the include files
-     * and command line options specified in the object, and will route the output to the correct
-     * output directory (specifically $buildDir/obj). It will also take care of setting options
-     * correctly for a debug build if the JVM has cppdebug=true set as a system property.
      */
-    public String generateCompileCommand(File sourceFile) {
+    public String generateCompileCommand(Map.Entry<File, String> sourceFile) {
         return generateCompileCommand(sourceFile, null, null);
     }
 
     /**
      * Generates the command to compile a single source file, with additional options that are
-     * needed for mexfiles
-     *
-     * @param sourceFile File of the C/C++ source that is to be compiled
-     * @param matlabIncludePath String that indicates the location of MATLAB include files, can be
-     * null
-     * @param matlabCompilerDirective String that contains the MATLAB compiler directive, can be
-     * null
-     * @return the compile command as a single string. This command will include the include files
-     * and command line options specified in the object, and will route the output to the correct
-     * output directory (specifically $buildDir/obj). It will also take care of setting options
-     * correctly for a debug build if the JVM has cppdebug=true set as a system property.
+     * needed for mexfiles.
      */
-    public String generateCompileCommand(File sourceFile, String matlabIncludePath,
+    public String generateCompileCommand(Map.Entry<File, String> sourceFile,
+        String matlabIncludePath, String matlabCompilerDirective) {
+        return generateCompileCommand(sourceFile.getKey(), sourceFile.getValue(), matlabIncludePath,
+            matlabCompilerDirective);
+    }
+
+    public String generateCompileCommand(File sourceFile, String compiler) {
+        return generateCompileCommand(sourceFile, compiler, null, null);
+    }
+
+    /**
+     * Generates the command to compile a single source file, with additional options that are
+     * needed for mexfiles.
+     */
+    public String generateCompileCommand(File sourceFile, String compiler, String matlabIncludePath,
         String matlabCompilerDirective) {
 
         StringBuilder compileStringBuilder = new StringBuilder();
 
         // compiler executable
-        compileStringBuilder.append(getCppCompiler() + " ");
+        compileStringBuilder.append(compiler + " ");
 
         // compile only flag
         compileStringBuilder.append("-c ");
@@ -303,7 +352,11 @@ public class ZiggyCppPojo {
         }
 
         // add the command line options
-        compileStringBuilder.append(argListToString(compileOptions, "-"));
+        if (compiler.equals(CPP_COMPILER)) {
+            compileStringBuilder.append(argListToString(cppCompileOptions, ""));
+        } else {
+            compileStringBuilder.append(argListToString(cCompileOptions, ""));
+        }
 
         // if there is a MATLAB compiler directive, handle that now
         if (matlabCompilerDirective != null && !matlabCompilerDirective.isEmpty()) {
@@ -317,9 +370,9 @@ public class ZiggyCppPojo {
             debug = Boolean.getBoolean(CPP_DEBUG_PROPERTY_NAME);
         }
         if (debug) {
-            compileStringBuilder.append(argListToString(debugOptimizations, "-"));
+            compileStringBuilder.append(argListToString(debugOptimizations, ""));
         } else {
-            compileStringBuilder.append(argListToString(releaseOptimizations, "-"));
+            compileStringBuilder.append(argListToString(releaseOptimizations, ""));
         }
         compileStringBuilder.append(sourceFile.getAbsolutePath());
 
@@ -327,7 +380,6 @@ public class ZiggyCppPojo {
         log.info(compileStringBuilder.toString());
 
         return compileStringBuilder.toString();
-
     }
 
     /**
@@ -355,7 +407,7 @@ public class ZiggyCppPojo {
         if (outputType == BuildType.STATIC) {
             linkStringBuilder.append("ar rs ");
         } else {
-            linkStringBuilder.append(getCppCompiler() + " -o ");
+            linkStringBuilder.append(Compiler.CPP.compiler() + " -o ");
         }
 
         // add the name of the desired output file
@@ -368,17 +420,16 @@ public class ZiggyCppPojo {
             if (matlabLibPath != null && !matlabLibPath.isEmpty()) {
                 linkStringBuilder.append("-L" + matlabLibPath + " ");
             }
-
         }
 
         // add release or debug options
         if (outputType == BuildType.EXECUTABLE) {
-            linkStringBuilder.append(argListToString(linkOptions, "-"));
+            linkStringBuilder.append(argListToString(linkOptions, ""));
             if (System.getProperty(CPP_DEBUG_PROPERTY_NAME) != null
                 && Boolean.getBoolean(CPP_DEBUG_PROPERTY_NAME)) {
-                linkStringBuilder.append(argListToString(debugOptimizations, "-"));
+                linkStringBuilder.append(argListToString(debugOptimizations, ""));
             } else {
-                linkStringBuilder.append(argListToString(releaseOptimizations, "-"));
+                linkStringBuilder.append(argListToString(releaseOptimizations, ""));
             }
         }
 
@@ -391,13 +442,15 @@ public class ZiggyCppPojo {
         // if the OS is Mac OS, set the install name. The install name assumes that the library
         // will be installed in the build/lib directory under the root directory.
 
-        if (operatingSystem.isMacOsX() && outputType == BuildType.SHARED) {
+        if ((architecture == SystemArchitecture.MAC_M1
+            || architecture == SystemArchitecture.MAC_INTEL) && outputType == BuildType.SHARED) {
             linkStringBuilder.append("-install_name " + getRootDir().getAbsolutePath()
                 + "/build/lib/" + getBuiltFile().getName() + " ");
         }
 
-        // add the object files
-        for (File objectFile : objectFiles) {
+        // add the object files, sorted into alphabetical order (to simplify testing).
+        Set<File> sortedObjectFiles = new TreeSet<>(objectFiles);
+        for (File objectFile : sortedObjectFiles) {
             linkStringBuilder.append(objectFile.getName() + " ");
         }
 
@@ -412,7 +465,6 @@ public class ZiggyCppPojo {
 
         log.info(linkStringBuilder.toString());
         return linkStringBuilder.toString();
-
     }
 
     /**
@@ -456,23 +508,37 @@ public class ZiggyCppPojo {
             log.info("mkdir: " + objDir.getAbsolutePath());
             objDir.mkdirs();
         }
-        // loop over source files, compile them and add the object file to the object file list
-        for (File file : getCppFiles()) {
-            DefaultExecutor compilerExec = getDefaultExecutor();
-            compilerExec.setWorkingDirectory(new File(cppFilePaths.get(0)));
-            try {
-                int returnCode = compilerExec
-                    .execute(new CommandLineComparable(generateCompileCommand(file)));
 
-                if (returnCode != 0) {
-                    throw new GradleException("Compilation of file " + file.getName() + " failed");
+        // Create a thread pool for compilation.
+        ExecutorService compilerThreadPool = Executors.newFixedThreadPool(maxCompileThreads);
+        Set<Future<CompilationResult>> compilationResults = new HashSet<>();
+
+        // loop over source files, compile them and add the object file to the object file list
+        for (Map.Entry<File, String> file : getCppFiles(true).entrySet()) {
+            compilationResults.add(compilerThreadPool.submit(() -> compileActionInternal(file)));
+        }
+
+        for (Future<CompilationResult> futureResult : compilationResults) {
+            try {
+                CompilationResult result = futureResult.get();
+                if (result.getReturnCode() != 0) {
+                    throw new GradleException(
+                        "Compilation of file " + result.getSourceFile().getName() + " failed");
                 }
-                objectFiles.add(new File(objDir, objectNameFromSourceFile(file)));
-            } catch (IOException e) {
-                throw new GradleException(
-                    "IOException occurred when attempting to compile " + file.getName(), e);
+                objectFiles.add(new File(objDir, objectNameFromSourceFile(result.getSourceFile())));
+            } catch (ExecutionException | InterruptedException e) {
+                throw new GradleException("Exception occurred during compilation", e);
             }
         }
+    }
+
+    private CompilationResult compileActionInternal(Map.Entry<File, String> sourceFile)
+        throws ExecuteException, IOException {
+        DefaultExecutor compilerExec = getDefaultExecutor();
+        compilerExec.setWorkingDirectory(new File(cppFilePaths.get(0)));
+        int returnCode = compilerExec
+            .execute(new CommandLineComparable(generateCompileCommand(sourceFile)));
+        return new CompilationResult(sourceFile.getKey(), returnCode);
     }
 
     protected void linkAction() {
@@ -491,7 +557,8 @@ public class ZiggyCppPojo {
             destDir.mkdirs();
         }
         try {
-            int returnCode = linkExec.execute(new CommandLineComparable(generateLinkCommand()));
+            String linkCommand = generateLinkCommand();
+            int returnCode = linkExec.execute(new CommandLineComparable(linkCommand));
             if (returnCode != 0) {
                 throw new GradleException(
                     "Link / library construction of " + getBuiltFile().getName() + " failed");
@@ -504,34 +571,48 @@ public class ZiggyCppPojo {
         // copy the files from each of the include directories to buildDir/include
         File includeDest = new File(buildDir, "include");
         for (String include : includeFilePaths) {
-            File[] includeFiles = new File(include).listFiles(new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String name) {
-                    return (name.endsWith(".h") || name.endsWith(".hpp"));
+            File directory = new File(include);
+            if (!directory.exists()) {
+                // Strip rootDir prefix from the entry for easier reading (in most cases).
+                String shortInclude = include;
+                int index = include.indexOf(getRootDir().getAbsolutePath());
+                if (index >= 0) {
+                    // +1: Strip the / after rootDir as well.
+                    shortInclude = include.substring(getRootDir().getAbsolutePath().length() + 1);
                 }
-            });
+                throw new GradleException("The directory " + shortInclude
+                    + " specified in includeFilePaths does not exist");
+            }
+            File[] includeFiles = directory.listFiles(
+                (FilenameFilter) (dir, name) -> name.endsWith(".h") || name.endsWith(".hpp"));
             for (File includeFile : includeFiles) {
                 try {
-                    FileUtils.copyFileToDirectory(includeFile, includeDest);
+                    if (!includeFile.getParentFile()
+                        .getCanonicalFile()
+                        .equals(includeDest.getCanonicalFile())) {
+                        FileUtils.copyFileToDirectory(includeFile, includeDest);
+                    }
                 } catch (IOException e) {
                     throw new GradleException("Unable to copy include files from" + include + " to "
                         + includeDest.getAbsoluteFile(), e);
                 }
             }
         }
-
     }
 
     /**
-     * Converts a list of Objects to a list of Strings, preserving their order.
-     *
-     * @param libraries2 List of objects to be converted.
-     * @return ArrayList of strings obtained by taking toString() of the objects in the objectList.
+     * Converts a list of Objects to a list of Strings, preserving their order. Null objects, empty
+     * strings, or strings consisting solely of whitespace are ignored.
      */
-    static List<String> objectListToStringList(List<? extends Object> libraries2) {
+    static List<String> objectListToStringList(List<? extends Object> objectList) {
         List<String> stringList = new ArrayList<>();
-        for (Object obj : libraries2) {
-            stringList.add(obj.toString());
+        for (Object object : objectList) {
+            if (object != null) {
+                String string = object.toString();
+                if (!string.isBlank()) {
+                    stringList.add(string);
+                }
+            }
         }
         return stringList;
     }
@@ -547,18 +628,15 @@ public class ZiggyCppPojo {
     static List<String> gradlePropertyToList(Object gradleProperty) {
         if (gradleProperty instanceof List<?>) {
             return objectListToStringList((List<? extends Object>) gradleProperty);
-        } else {
-            List<Object> gradlePropertyList = new ArrayList<>();
-            gradlePropertyList.add(gradleProperty);
-            return objectListToStringList((List<? extends Object>) gradlePropertyList);
         }
+
+        return objectListToStringList(List.of(gradleProperty));
     }
 
-//	setters and getters 
+//	setters and getters
 
     public void setCppFilePath(Object cppFilePath) {
-        this.cppFilePaths = new ArrayList<>();
-        cppFilePaths.add(cppFilePath.toString());
+        cppFilePaths = List.of(cppFilePath.toString());
     }
 
     public List<String> getCppFilePaths() {
@@ -574,8 +652,7 @@ public class ZiggyCppPojo {
     }
 
     public void setIncludeFilePaths(List<? extends Object> includeFilePaths) {
-        this.includeFilePaths = new ArrayList<>();
-        this.includeFilePaths.addAll(objectListToStringList(includeFilePaths));
+        this.includeFilePaths = objectListToStringList(includeFilePaths);
     }
 
     public List<String> getLibraryPaths() {
@@ -583,8 +660,7 @@ public class ZiggyCppPojo {
     }
 
     public void setLibraryPaths(List<? extends Object> libraryPaths) {
-        this.libraryPaths = new ArrayList<>();
-        this.libraryPaths.addAll(objectListToStringList(libraryPaths));
+        this.libraryPaths = objectListToStringList(libraryPaths);
     }
 
     public List<String> getLibraries() {
@@ -592,17 +668,23 @@ public class ZiggyCppPojo {
     }
 
     public void setLibraries(List<? extends Object> libraries) {
-        this.libraries = new ArrayList<>();
-        this.libraries.addAll(objectListToStringList(libraries));
+        this.libraries = objectListToStringList(libraries);
     }
 
-    public List<String> getCompileOptions() {
-        return compileOptions;
+    public List<String> getCppCompileOptions() {
+        return cppCompileOptions;
     }
 
-    public void setCompileOptions(List<? extends Object> compileOptions) {
-        this.compileOptions = new ArrayList<>();
-        this.compileOptions.addAll(objectListToStringList(compileOptions));
+    public void setCppCompileOptions(List<? extends Object> compileOptions) {
+        cppCompileOptions = objectListToStringList(compileOptions);
+    }
+
+    public List<String> getCCompileOptions() {
+        return cCompileOptions;
+    }
+
+    public void setCCompileOptions(List<String> cCompileOptions) {
+        this.cCompileOptions = cCompileOptions;
     }
 
     public List<String> getLinkOptions() {
@@ -610,8 +692,7 @@ public class ZiggyCppPojo {
     }
 
     public void setLinkOptions(List<? extends Object> linkOptions) {
-        this.linkOptions = new ArrayList<>();
-        this.linkOptions.addAll(objectListToStringList(linkOptions));
+        this.linkOptions = objectListToStringList(linkOptions);
     }
 
     public List<String> getReleaseOptimizations() {
@@ -619,8 +700,7 @@ public class ZiggyCppPojo {
     }
 
     public void setReleaseOptimizations(List<? extends Object> releaseOptimizations) {
-        this.releaseOptimizations = new ArrayList<>();
-        this.releaseOptimizations.addAll(objectListToStringList(releaseOptimizations));
+        this.releaseOptimizations = objectListToStringList(releaseOptimizations);
     }
 
     public List<String> getDebugOptimizations() {
@@ -628,8 +708,7 @@ public class ZiggyCppPojo {
     }
 
     public void setDebugOptimizations(List<? extends Object> debugOptimizations) {
-        this.debugOptimizations = new ArrayList<>();
-        this.debugOptimizations.addAll(objectListToStringList(debugOptimizations));
+        this.debugOptimizations = objectListToStringList(debugOptimizations);
     }
 
     public BuildType getOutputType() {
@@ -652,13 +731,21 @@ public class ZiggyCppPojo {
         this.name = name.toString();
     }
 
-    public List<File> getCppFiles() {
-        // always generate the list afresh -- necessary because Gradle calls the ZiggyCpp
+    public Map<File, String> getCppFiles() {
+        return getCppFiles(false);
+    }
+
+    public List<File> getSourceFiles() {
+        return new ArrayList<>(getCppFiles().keySet());
+    }
+
+    public Map<File, String> getCppFiles(boolean warn) {
+        // Always generate the list afresh -- necessary because Gradle calls the ZiggyCpp
         // method getCppFiles() prior to the actual build, at which time the directories of
         // source files may or may not exist yet! Thus we can't afford to cache the C++
         // file list, since I can't tell whether Gradle creates a new ZiggyCpp object when
         // it actually does the build, or whether it simply re-uses the one from pre-build.
-        populateCppFiles();
+        populateCppFiles(warn);
         return cppFiles;
     }
 
@@ -671,13 +758,11 @@ public class ZiggyCppPojo {
     }
 
     public void setObjectFiles(File objectFile) {
-        this.objectFiles.add(objectFile);
+        objectFiles.add(objectFile);
     }
 
     public File getBuiltFile() {
-        if (builtFile == null) {
-            populateBuiltFile();
-        }
+        populateBuiltFile();
         return builtFile;
     }
 
@@ -697,20 +782,32 @@ public class ZiggyCppPojo {
         this.rootDir = rootDir;
     }
 
-    public String getCppCompiler() {
-        if (cppCompiler == null) {
-            cppCompiler = System.getenv(CPP_COMPILER_ENV_VAR);
-        }
-        return cppCompiler;
+    public SystemArchitecture getArchitecture() {
+        return architecture;
     }
 
-    public OperatingSystem getOperatingSystem() {
-        return operatingSystem;
+    public String getOutputDir() {
+        return outputDir;
     }
 
-    // this method is intended for use only in testing, for that reason it is package-private
-    void setCppCompiler(String cppCompiler) {
-        this.cppCompiler = cppCompiler;
+    public void setOutputDir(Object outputDir) {
+        this.outputDir = outputDir.toString();
+    }
+
+    public String getOutputDirParent() {
+        return outputDirParent;
+    }
+
+    public void setOutputDirParent(Object outputDirParent) {
+        this.outputDirParent = outputDirParent.toString();
+    }
+
+    public int getMaxCompileThreads() {
+        return maxCompileThreads;
+    }
+
+    public void setMaxCompileThreads(int maxCompileThreads) {
+        this.maxCompileThreads = maxCompileThreads;
     }
 
     // this method is intended for use only in testing, for that reason it is package-private
@@ -719,8 +816,18 @@ public class ZiggyCppPojo {
     }
 
     // this method is intended for use only in testing, for that reason it is package-private
-    void setOperatingSystem(OperatingSystem operatingSystem) {
-        this.operatingSystem = operatingSystem;
+    void setArchitecture(SystemArchitecture architecture) {
+        this.architecture = architecture;
+    }
+
+    /** For testing use only. */
+    static void setCppCompiler(String testCompiler) {
+        CPP_COMPILER = testCompiler;
+    }
+
+    /** For testing use only. */
+    static void setCCompiler(String testCompiler) {
+        C_COMPILER = testCompiler;
     }
 
     /**
@@ -736,10 +843,11 @@ public class ZiggyCppPojo {
             super(CommandLine.parse(executable));
         }
 
+        @Override
         public boolean equals(Object o) {
             if (o instanceof CommandLine) {
                 CommandLine oo = (CommandLine) o;
-                if (this.toString().contentEquals(oo.toString())) {
+                if (toString().contentEquals(oo.toString())) {
                     return true;
                 }
             }
@@ -755,5 +863,24 @@ public class ZiggyCppPojo {
     // retrieve the list of saved logger warnings. Used only for testing.
     List<String> loggerWarnings() {
         return loggerWarnings;
+    }
+
+    private static class CompilationResult {
+
+        private final File sourceFile;
+        private final int returnCode;
+
+        public CompilationResult(File sourceFile, int returnCode) {
+            this.sourceFile = sourceFile;
+            this.returnCode = returnCode;
+        }
+
+        public File getSourceFile() {
+            return sourceFile;
+        }
+
+        public int getReturnCode() {
+            return returnCode;
+        }
     }
 }

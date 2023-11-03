@@ -1,7 +1,5 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
-
 /**
  * @author Forrest Girouard
  * @author PT
@@ -11,7 +9,7 @@ public class LinuxCpuInfo extends AbstractSysInfo implements CpuInfo {
     private static final String SOCKETS_KEY = "Socket(s)";
     private static final String COMMAND = "/usr/bin/lscpu";
 
-    public LinuxCpuInfo() throws IOException {
+    public LinuxCpuInfo() {
         super(commandOutput(COMMAND));
     }
 

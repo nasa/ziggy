@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.data.accounting;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,6 +15,8 @@ import java.util.TreeSet;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Given a set of task ids indicating where data originated from generate the the multi-graph
@@ -36,11 +39,10 @@ public class DataAccountabilityReport {
         this.taskRenderer = taskRenderer;
     }
 
-    public String produceReport() throws IOException {
+    public String produceReport() {
         Map<Long, Set<Long>> consumerProducer = calculateClosure();
         Map<Long, Set<Long>> producerConsumer = invertMap(consumerProducer);
         Set<Long> roots = findRoots(producerConsumer.keySet(), consumerProducer, producerConsumer);
-
         return formatReport(producerConsumer, roots);
     }
 
@@ -132,7 +134,7 @@ public class DataAccountabilityReport {
 
         for (Long producer : producersWithInit) {
             Set<Long> parents = consumerProducer.get(producer);
-            if ((parents == null) || (parents.size() == 0)) {
+            if (parents == null || parents.size() == 0) {
                 roots.add(producer);
             }
         }
@@ -148,13 +150,11 @@ public class DataAccountabilityReport {
      * @throws PipelineException
      */
 
-    protected String formatReport(Map<Long, Set<Long>> producerConsumer, Set<Long> roots)
-        throws IOException {
+    protected String formatReport(Map<Long, Set<Long>> producerConsumer, Set<Long> roots) {
         List<Long> sortedRoots = new ArrayList<>(roots);
         Collections.sort(sortedRoots);
 
         StringBuilder bldr = new StringBuilder();
-
         for (long root : sortedRoots) {
             Set<Long> visited = new HashSet<>();
             printTask(bldr, root, producerConsumer, 0, visited);
@@ -164,7 +164,7 @@ public class DataAccountabilityReport {
     }
 
     protected void printTask(Appendable bldr, long taskId, Map<Long, Set<Long>> producerConsumer,
-        int level, Set<Long> visited) throws IOException {
+        int level, Set<Long> visited) {
         renderLine(bldr, taskId, level);
 
         Set<Long> consumers = producerConsumer.get(taskId);
@@ -187,16 +187,21 @@ public class DataAccountabilityReport {
         }
     }
 
-    protected void renderLine(Appendable bldr, long taskId, int level) throws IOException {
-        for (int i = 0; i < level; i++) {
-            bldr.append("    ");
-        }
-        if (taskId == DATA_RECEIPT_ID) {
-            bldr.append(taskRenderer.renderDefaultTask()).append('\n');
-        } else {
-            PipelineTask task = taskCrud.retrieve(taskId);
-            bldr.append(taskRenderer.renderTask(task));
-            bldr.append("\n");
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    protected void renderLine(Appendable bldr, long taskId, int level) {
+        try {
+            for (int i = 0; i < level; i++) {
+                bldr.append("    ");
+            }
+            if (taskId == DATA_RECEIPT_ID) {
+                bldr.append(taskRenderer.renderDefaultTask()).append('\n');
+            } else {
+                PipelineTask task = taskCrud.retrieve(taskId);
+                bldr.append(taskRenderer.renderTask(task));
+                bldr.append("\n");
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("IOException occurred rendering line ", e);
         }
     }
 }

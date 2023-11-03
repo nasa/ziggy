@@ -201,8 +201,6 @@ Again, really simple: activate the environment; find the location of the environ
 
 All of the above has focused on the permuter algorithm, but the same pattern of "glue" files and design patterns are used for the flip and averaging algorithms.
 
-All of the above has focused on the permuter algorithm, but the same pattern of "glue" files and design patterns are used for the flip and averaging algorithms. 
-
 ### Set up the Properties File
 
 As you can probably imagine, Ziggy actually uses a lot of configuration items: it needs to know numerous paths around your file system, which relational database application you want to use, how much heap space to provide to Ziggy, and on and on. All of this stuff is put into two locations for Ziggy: the pipeline properties file and the Ziggy properties file.
@@ -229,8 +227,6 @@ Answer: the sample properties file sets all its paths relative to the top-level 
 
 Anyway: set those properties now, before going any further.
 
-Anyway: set those properties now, before going any further. 
-
 #### What About the Ziggy Properties File?
 
 The sample properties file contains a property that is the location of the Ziggy properties file. Thus there's no need to have a separate environment variable for that information. Like we said, to the extent possible we've put everything configuration related into the pipeline properties file.
@@ -245,6 +241,11 @@ That said, if you're paying attention you've probably noticed that this article 
 - You activate a Python environment, but -- where did that environment come from? What's in it?
 
 These questions will be discussed in the article on [Building a Pipeline](building-pipeline.md).
+
+<!--
+TODO Discuss how the properties ziggy.pipeline.data.importer.classname, ziggy.pipeline.uow.defaultIdentifier.classname, ziggy.remote.queuecommand.classname, ziggy.test.working.dir are used when rolling your own components.
+See also customizing-ziggy.md.
+-->
 
 [[Previous]](downloading-and-building-ziggy.md)
 [[Up]](user-manual.md)

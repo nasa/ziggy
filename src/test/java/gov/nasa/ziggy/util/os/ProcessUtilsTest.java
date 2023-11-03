@@ -93,7 +93,5 @@ public class ProcessUtilsTest {
         TestEventDetector.detectTestEvent(500L,
             () -> ProcessUtils.descendantProcessIds().size() == 0);
         assertEquals(0, ProcessUtils.descendantProcessIds().size());
-
     }
-
 }

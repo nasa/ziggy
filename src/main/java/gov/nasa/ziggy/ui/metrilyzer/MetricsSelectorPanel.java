@@ -17,13 +17,11 @@ import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
-import javax.swing.WindowConstants;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +29,9 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.metrics.MetricType;
 import gov.nasa.ziggy.metrics.MetricValue;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.ui.common.DateTextField;
-import gov.nasa.ziggy.ui.common.MessageUtil;
+import gov.nasa.ziggy.ui.util.DateTextField;
+import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.util.TimeRange;
 
 /**
@@ -44,6 +43,7 @@ import gov.nasa.ziggy.util.TimeRange;
  */
 @SuppressWarnings("serial")
 public class MetricsSelectorPanel extends javax.swing.JPanel {
+    @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(MetricsSelectorPanel.class);
 
     private static final long DEFAULT_WINDOW_SIZE_MILLIS = 2 /* hrs */ * 60 /* mins/hr */
@@ -102,7 +102,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         if (metricsValueSource == null) {
             throw new NullPointerException("metricsValueSource");
         }
-        initGUI();
+        buildComponent();
     }
 
     public MetricsSelectorPanel(MetricTypeListModel availListModel,
@@ -110,20 +110,15 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         this(availListModel, selectedListModel, metricsValueSource, null);
     }
 
-    private void initGUI() {
-        try {
-            windowEnd = System.currentTimeMillis();
-            windowStart = windowEnd - currentWindowSize;
+    private void buildComponent() {
+        windowEnd = System.currentTimeMillis();
+        windowStart = windowEnd - currentWindowSize;
 
-            BorderLayout thisLayout = new BorderLayout();
-            setLayout(thisLayout);
-            setPreferredSize(new Dimension(600, 300));
-            this.add(getListPanel(), BorderLayout.CENTER);
-            this.add(getFilterPanel(), BorderLayout.SOUTH);
-            this.add(getLoadFilterPanel(), BorderLayout.NORTH);
-        } catch (Exception e) {
-            log.error("initGUI()", e);
-        }
+        setLayout(new BorderLayout());
+        setPreferredSize(new Dimension(600, 300));
+        add(getListPanel(), BorderLayout.CENTER);
+        add(getFilterPanel(), BorderLayout.SOUTH);
+        add(getLoadFilterPanel(), BorderLayout.NORTH);
     }
 
     private JPanel getListPanel() {
@@ -379,9 +374,6 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
     }
 
     private void loadButtonActionPerformed(ActionEvent evt) {
-        log.debug(
-            "loadButtonActionPerformed(ActionEvent) - loadButton.actionPerformed, event=" + evt);
-
         try {
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
             availListModel.loadMetricTypes();
@@ -393,9 +385,6 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
     }
 
     private void addButtonActionPerformed(ActionEvent evt) {
-        log.debug(
-            "addButtonActionPerformed(ActionEvent) - addButton.actionPerformed, event=" + evt);
-
         if (availListModel.getSize() <= 0) {
             return;
         }
@@ -410,9 +399,6 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
     }
 
     private void removeButtonActionPerformed(ActionEvent evt) {
-        log.debug("removeButtonActionPerformed(ActionEvent) - removeButton.actionPerformed, event="
-            + evt);
-
         if (selectedListModel.getSize() <= 0) {
             return;
         }
@@ -427,10 +413,6 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
     }
 
     private void windowLeftButtonActionPerformed(ActionEvent evt) {
-        log.debug(
-            "windowLeftButtonActionPerformed(ActionEvent) - windowLeftButton.actionPerformed, event="
-                + evt);
-
         try {
             updateWindow();
         } catch (Exception e) {
@@ -444,10 +426,6 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
     }
 
     private void windowRightButtonActionPerformed(ActionEvent evt) {
-        log.debug(
-            "windowRightButtonActionPerformed(ActionEvent) - windowRightButton.actionPerformed, event="
-                + evt);
-
         try {
             updateWindow();
         } catch (Exception e) {
@@ -461,9 +439,6 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
     }
 
     private void plotButtonActionPerformed(ActionEvent evt) {
-        log.debug(
-            "refreshButtonActionPerformed(ActionEvent) - plotButton.actionPerformed, event=" + evt);
-
         try {
             boolean binEnabled = binCheckBox.isSelected();
             int binSizeMillis = 0;
@@ -556,18 +531,11 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         currentWindowSize = windowEnd - windowStart;
     }
 
-    /**
-     * Auto-generated main method to display this JPanel inside a new JFrame.
-     */
     public static void main(String[] args) {
-        JFrame frame = new JFrame();
         DatabaseMetricsTypeListModel availMetrics = new DatabaseMetricsTypeListModel();
         DatabaseMetricsTypeListModel selectedMetrics = new DatabaseMetricsTypeListModel();
         DatabaseMetricsValueSource metricsSource = new DatabaseMetricsValueSource();
-        frame.getContentPane()
-            .add(new MetricsSelectorPanel(availMetrics, selectedMetrics, metricsSource));
-        frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        frame.pack();
-        frame.setVisible(true);
+        ZiggySwingUtils.displayTestDialog(
+            new MetricsSelectorPanel(availMetrics, selectedMetrics, metricsSource));
     }
 }

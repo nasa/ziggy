@@ -13,6 +13,8 @@ import com.google.common.primitives.Primitives;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.io.Persistable;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import hdf.hdf5lib.HDF5Constants;
 
 /**
@@ -78,7 +80,6 @@ public enum ZiggyDataType {
         public Object typedValue(String value) {
             return StringUtils.isEmpty(value) ? Boolean.valueOf(false) : Boolean.valueOf(value);
         }
-
     },
     ZIGGY_BYTE(byte.class, "B", true, ZiggyDataTypeConstants.BYTE_TYPE_INT,
         HDF5Constants.H5T_NATIVE_INT8, "H5T_NATIVE_INT8") {
@@ -852,7 +853,8 @@ public enum ZiggyDataType {
      * @param clazz
      * @return ZiggyDataType associated with the class.
      */
-    static ZiggyDataType getDataTypeFromClass(Class<?> clazz) {
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public static ZiggyDataType getDataTypeFromClass(Class<?> clazz) {
         ZiggyDataType hdf5Type = null;
         String simpleName = clazz.getSimpleName().toLowerCase();
         int bracketLocation = simpleName.indexOf("[");
@@ -879,8 +881,10 @@ public enum ZiggyDataType {
                 hdf5Type = ZIGGY_PERSISTABLE;
             }
         } catch (ClassNotFoundException e) {
-            throw new PipelineException(
-                "Unable to perform forName operation for class " + simpleName, e);
+            // This can never occur. The class name comes from an actual
+            // instance of the class, so by definition it can't be "not
+            // found."
+            throw new AssertionError(e);
         }
 
         // if it's still null, then this isn't something we can persist...
@@ -908,6 +912,7 @@ public enum ZiggyDataType {
     /**
      * Determines the ZiggyDataType of a {@link Field}.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public static ZiggyDataType getDataType(Field field) {
         field.setAccessible(true);
         Class<?> clazz = null;
@@ -923,23 +928,27 @@ public enum ZiggyDataType {
             }
             return getDataTypeFromClass(clazz);
         } catch (ClassNotFoundException e) {
-            throw new PipelineException("Unable to determine HDF5 class of " + fieldClass.getName(),
-                e);
+            // This can never occur. The class name comes from an actual
+            // instance of the class, so by definition it can't be "not
+            // found."
+            throw new AssertionError(e);
         }
     }
 
     /**
      * Returns the contents of a {@link Field}, as a {@link String}. Assumes that the type of the
      * {@link Field} is one of the {@link ZiggyDataType} types, or a 1-dimensional array of same.
-     *
-     * @throws IllegalAccessException
-     * @throws IllegalArgumentException
      */
-    public static String objectToString(Object obj, Field field)
-        throws IllegalArgumentException, IllegalAccessException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static String objectToString(Object obj, Field field) {
         field.setAccessible(true);
-        return objectToString(field.get(obj), ZiggyDataType.getDataType(field),
-            field.getType().isArray());
+        try {
+            return objectToString(field.get(obj), ZiggyDataType.getDataType(field),
+                field.getType().isArray());
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException("Unable to convert field " + field.getName()
+                + " to string on object of class " + obj.getClass().getName(), e);
+        }
     }
 
     public static String objectToString(Object obj) {
@@ -983,12 +992,17 @@ public enum ZiggyDataType {
      * Sets the value of a {@link Field} in an {@link Object}. The {@param value} argument is
      * converted from a {@link String} to a scalar or 1-d array of values of the appropriate type.
      */
-    public static void setField(Object obj, Field field, String value)
-        throws IllegalArgumentException, IllegalAccessException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static void setField(Object obj, Field field, String value) {
         ZiggyDataType dataType = getDataType(field);
         boolean isArray = field.getType().isArray();
         field.setAccessible(true);
-        field.set(obj, stringToObject(value, dataType, isArray));
+        try {
+            field.set(obj, stringToObject(value, dataType, isArray));
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException("Unable to set field " + field.getName()
+                + " in object of class " + obj.getClass().getName(), e);
+        }
     }
 
     /**
@@ -1003,14 +1017,19 @@ public enum ZiggyDataType {
         return ZiggyArrayUtils.stringToArray(value, dataType);
     }
 
-    public static int elementSizeBytes(ZiggyDataType dataType)
-        throws IllegalArgumentException, IllegalAccessException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static int elementSizeBytes(ZiggyDataType dataType) {
         int elementSize = 1;
         Class<?> boxedClass = dataType.javaBoxedClass;
         for (Field field : boxedClass.getFields()) {
-            if (field.getName().contentEquals("BYTES")) {
-                elementSize = field.getInt(null);
-                break;
+            try {
+                if (field.getName().contentEquals("BYTES")) {
+                    elementSize = field.getInt(null);
+                    break;
+                }
+            } catch (IllegalAccessException e) {
+                throw new IllegalArgumentException("Unable to get size of field " + field.getName(),
+                    e);
             }
         }
         return elementSize;

@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.module.remote.nas;
 
-import static gov.nasa.ziggy.module.remote.RemoteExecutionProperties.GROUP_PROPERTY;
+import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_GROUP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -21,7 +21,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 public class NasExecutorTest {
 
     @Rule
-    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(GROUP_PROPERTY, "12345");
+    public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(REMOTE_GROUP, "12345");
 
     @Test
     public void testGeneratePbsParameters() {
@@ -46,7 +46,5 @@ public class NasExecutorTest {
         assertEquals(3, pbsParameters.getRequestedNodeCount());
         assertEquals(10.8, pbsParameters.getEstimatedCost(), 1e-9);
         assertEquals("12345", pbsParameters.getRemoteGroup());
-
     }
-
 }

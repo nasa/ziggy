@@ -2,6 +2,7 @@ package gov.nasa.ziggy.util.os;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,6 +12,10 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * This class parses /proc/PID/status on a Linux box and provides the contents as a {@link Map}.
@@ -29,24 +34,24 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
 
     private final long pid;
 
-    public LinuxProcInfo(long pid) throws IOException {
+    public LinuxProcInfo(long pid) {
         super(commandOutput(String.format(PROC_STATUS_FILE, pid)));
         this.pid = pid;
     }
 
-    public LinuxProcInfo() throws IOException {
+    public LinuxProcInfo() {
         super(commandOutput(
             String.format(PROC_STATUS_FILE, gov.nasa.ziggy.util.os.ProcessUtils.getPid())));
         pid = gov.nasa.ziggy.util.os.ProcessUtils.getPid();
     }
 
     @Override
-    public List<Long> getChildPids() throws IOException {
+    public List<Long> getChildPids() {
         return getChildPids(null);
     }
 
     @Override
-    public List<Long> getChildPids(String name) throws IOException {
+    public List<Long> getChildPids(String name) {
         int currentPid = Integer.parseInt(get("Pid"));
         File procDir = new File("/proc");
         File[] procFiles = procDir.listFiles();
@@ -89,7 +94,7 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
      * @throws IOException
      */
     @Override
-    public int getOpenFileLimit() throws IOException {
+    public int getOpenFileLimit() {
         int openFileLimit = -1;
 
         List<String> limitsFileOutput = commandOutput(
@@ -109,16 +114,18 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
      * Return the maximum process id value.
      */
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public long getMaximumPid() {
         Path pidMaxFile = Paths.get("/proc/sys/kernel/pid_max");
         try {
-            String pidMaxLine = Files.readAllLines(pidMaxFile).get(0);
+            String pidMaxLine = Files.readAllLines(pidMaxFile, FileUtil.ZIGGY_CHARSET).get(0);
             if (pidMaxLine.endsWith("\n")) {
                 pidMaxLine = pidMaxLine.substring(0, pidMaxLine.length() - 1);
             }
             return Integer.parseInt(pidMaxLine);
         } catch (IOException e) {
-            throw new IllegalStateException("Can't get pid_max from " + pidMaxFile + ".");
+            throw new UncheckedIOException("Read of pid file " + pidMaxFile.toString() + " failed",
+                e);
         }
     }
 }

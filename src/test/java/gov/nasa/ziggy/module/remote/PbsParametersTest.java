@@ -2,11 +2,10 @@ package gov.nasa.ziggy.module.remote;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import java.util.Set;
 
-import gov.nasa.ziggy.ZiggyPropertyRule;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Unit test class for {@link PbsParameters} class.
@@ -18,10 +17,6 @@ public class PbsParametersTest {
     private RemoteParameters remoteParameters;
     private RemoteNodeDescriptor descriptor;
     private PbsParameters pbsParameters;
-
-    @Rule
-    public ZiggyPropertyRule pleiadesGroupPropertyRule = new ZiggyPropertyRule("pleiades.group",
-        "12345");
 
     @Before
     public void setup() {
@@ -93,7 +88,7 @@ public class PbsParametersTest {
         assertEquals(RemoteNodeDescriptor.SANDY_BRIDGE, pbsParameters.getArchitecture());
         assertEquals("normal", pbsParameters.getQueueName());
         assertEquals(1, pbsParameters.getRequestedNodeCount());
-        assertEquals(16, pbsParameters.getActiveCoresPerNode());
+        assertEquals(10, pbsParameters.getActiveCoresPerNode());
         assertEquals(2.115, pbsParameters.getEstimatedCost(), 1e-9);
         assertEquals("4:30:00", pbsParameters.getRequestedWallTime());
     }
@@ -198,6 +193,43 @@ public class PbsParametersTest {
         remoteParameters.setGigsPerSubtask(1000);
         pbsParameters();
         pbsParameters.populateArchitecture(remoteParameters, 500, SupportedRemoteClusters.NAS);
+    }
+
+    /**
+     * Ensure that even when the required wall time is low, neither the DEBUG nor the DEVEL queue is
+     * selected.
+     */
+    @Test
+    public void testSelectQueueSmallJob() {
+        pbsParameters();
+        remoteParameters.setMaxNodes("5");
+        remoteParameters.setSubtaskMaxWallTimeHours(0.5);
+        remoteParameters.setSubtaskTypicalWallTimeHours(0.5);
+        remoteParameters.setGigsPerSubtask(2.0);
+        pbsParameters.populateResourceParameters(remoteParameters, 50);
+        assertEquals(RemoteQueueDescriptor.LOW.getQueueName(), pbsParameters.getQueueName());
+        assertEquals("0:30:00", pbsParameters.getRequestedWallTime());
+    }
+
+    @Test
+    public void testAggregatePbsParameters() {
+        pbsParameters();
+        PbsParameters parameterSet1 = pbsParameters;
+        parameterSet1.populateResourceParameters(remoteParameters, 500);
+        pbsParameters();
+        PbsParameters parameterSet2 = pbsParameters;
+        parameterSet2.populateResourceParameters(remoteParameters, 500);
+        parameterSet2.setActiveCoresPerNode(3);
+        parameterSet2.setRequestedWallTime("20:00:00");
+        parameterSet2.setQueueName("long");
+        Set<PbsParameters> parameterSets = Set.of(parameterSet1, parameterSet2);
+        PbsParameters aggregatedParameters = PbsParameters.aggregatePbsParameters(parameterSets);
+        assertEquals(RemoteNodeDescriptor.SANDY_BRIDGE, aggregatedParameters.getArchitecture());
+        assertEquals("long", aggregatedParameters.getQueueName());
+        assertEquals(5, aggregatedParameters.getActiveCoresPerNode());
+        assertEquals("20:00:00", aggregatedParameters.getRequestedWallTime());
+        assertEquals(24, aggregatedParameters.getRequestedNodeCount());
+        assertEquals(50.76, aggregatedParameters.getEstimatedCost(), 1e-9);
     }
 
     private void pbsParameters() {

@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -34,10 +34,9 @@
 
 package gov.nasa.ziggy.pipeline;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +51,8 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 public class PipelineTaskDebugger {
 
@@ -84,7 +85,7 @@ public class PipelineTaskDebugger {
      * Either set properties, ptd.*, or provide explicit values as the defaults in the config calls
      * in this constructor.
      */
-    public PipelineTaskDebugger(Configuration config) {
+    public PipelineTaskDebugger(ImmutableConfiguration config) {
         // used by all
         pipelineTaskId = config.getInt(PIPELINE_TASK_ID_PROP, 35);
         debugAsyncEnabled = config.getBoolean(DEBUG_ASYNC_ENABLED_PROP, true);
@@ -101,37 +102,42 @@ public class PipelineTaskDebugger {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         PipelineTaskDebugger pipelineTaskDebugger = new PipelineTaskDebugger(
             ZiggyConfiguration.getInstance());
-        DatabaseTransactionFactory.performTransaction(() -> {
-            startProcessingThread(pipelineTaskDebugger);
-            log.info("Completed.");
-            return null;
-        });
+//        DatabaseTransactionFactory.performTransaction(() -> {
+        startProcessingThread(pipelineTaskDebugger);
+        log.info("Completed.");
+//            return null;
+//        });
 
         System.exit(0);
     }
 
-    private static void startProcessingThread(final PipelineTaskDebugger pipelineTaskDebugger)
-        throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
+    private static void startProcessingThread(final PipelineTaskDebugger pipelineTaskDebugger) {
         Thread thread = new Thread() {
             @Override
+            @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
             public void run() {
                 try {
-                    PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-                    PipelineTask pipelineTask = pipelineTaskCrud
-                        .retrieve(pipelineTaskDebugger.getPipelineTaskId());
+                    DatabaseTransactionFactory.performTransaction(() -> {
+                        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
+                        PipelineTask task = pipelineTaskCrud
+                            .retrieve(pipelineTaskDebugger.getPipelineTaskId());
 
-                    dumpConfig(pipelineTaskDebugger, pipelineTask);
-                    if (pipelineTaskDebugger.isDebugAsyncEnabled()) {
-                        debugAsyncLocalFromProcessOutputs(pipelineTask);
-                    } else if (pipelineTaskDebugger.isDebugFromStartEnabled()) {
-                        debugFromStartOfTask(pipelineTask);
-                    } else if (pipelineTaskDebugger.isDebugLaunchTriggerEnabled()) {
+                        dumpConfig(pipelineTaskDebugger, task);
+                        if (pipelineTaskDebugger.isDebugAsyncEnabled()) {
+                            debugAsyncLocalFromProcessOutputs(task);
+                        } else if (pipelineTaskDebugger.isDebugFromStartEnabled()) {
+                            debugFromStartOfTask(task);
+                        } else {
+                            debugDoTransition(task);
+                        }
+                        return null;
+                    });
+                    if (pipelineTaskDebugger.isDebugLaunchTriggerEnabled()) {
                         debugLaunchTrigger();
-                    } else {
-                        debugDoTransition(pipelineTask);
                     }
 
                     DatabaseService.getInstance().flush();
@@ -145,39 +151,28 @@ public class PipelineTaskDebugger {
                 pipelineModule.processTask();
             }
 
-            private void debugAsyncLocalFromProcessOutputs(PipelineTask pipelineTask)
-                throws Exception {
+            private void debugAsyncLocalFromProcessOutputs(PipelineTask pipelineTask) {
+                PipelineModule pipelineModule = pipelineTask.getModuleImplementation();
+                Object moduleName = pipelineModule.getModuleName();
+                if (!(moduleName instanceof String)) {
+                    throw new IllegalStateException(String.format(
+                        "%s: invalid class, getModuleName method did not return String",
+                        pipelineTask.getPipelineInstanceNode()
+                            .getPipelineModuleDefinition()
+                            .getPipelineModuleClass()
+                            .getClassName()));
+                }
 
-                try {
-                    PipelineModule pipelineModule = pipelineTask.getModuleImplementation();
-                    Object moduleName = pipelineModule.getClass()
-                        .getDeclaredMethod("getModuleName")
-                        .invoke(pipelineModule);
-                    if (!(moduleName instanceof String)) {
-                        throw new IllegalStateException(String.format(
-                            "%s: invalid class, getModuleName method did not return String",
-                            pipelineTask.getPipelineInstanceNode()
-                                .getPipelineModuleDefinition()
-                                .getPipelineModuleClass()
-                                .getClassName()));
-                    }
-                    // pipelineModule.processTask(pipelineTask);
-
-                    if (!(pipelineModule instanceof ExternalProcessPipelineModule)) {
-                        log.error(
-                            "Configured pipelineModule must implement ExternalProcessPipelineModule.");
-                    }
-                } catch (NoSuchMethodException | SecurityException | IllegalAccessException
-                    | IllegalArgumentException | InvocationTargetException e) {
-                    log.error(e.getMessage(), e);
-                    throw e;
+                if (!(pipelineModule instanceof ExternalProcessPipelineModule)) {
+                    log.error(
+                        "Configured pipelineModule must implement ExternalProcessPipelineModule.");
                 }
             }
 
             private void debugDoTransition(PipelineTask pipelineTask) {
                 PipelineExecutor pipelineExecutor = new PipelineExecutor();
-                pipelineExecutor.doTransition(pipelineTask.getPipelineInstance(), pipelineTask,
-                    new TaskCounts(0, 0, 0, 0));
+                pipelineExecutor.transitionToNextInstanceNode(pipelineTask.getPipelineInstance(),
+                    pipelineTask, new TaskCounts(0, 0, 0, 0));
             }
 
             private void debugLaunchTrigger() {
@@ -190,16 +185,14 @@ public class PipelineTaskDebugger {
 
                 PipelineOperations pipelineOps = new PipelineOperations();
                 pipelineOps.fireTrigger(pipelineDefinition, "instanceName", pipelineDefinitionNode,
-                    pipelineDefinitionNode);
+                    pipelineDefinitionNode, null);
             }
 
             private PipelineDefinitionNode getPipelineDefinitionNode(
                 List<PipelineDefinitionNode> nodes) {
                 PipelineDefinitionNode returnNode = null;
                 for (PipelineDefinitionNode node : nodes) {
-                    if (node.getModuleName()
-                        .getName()
-                        .equals(pipelineTaskDebugger.getModuleName())) {
+                    if (node.getModuleName().equals(pipelineTaskDebugger.getModuleName())) {
                         returnNode = node;
                     }
 
@@ -214,7 +207,11 @@ public class PipelineTaskDebugger {
             }
         };
         thread.start();
-        thread.join();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            System.exit(2);
+        }
     }
 
     private static void processException(Throwable e) {
@@ -239,19 +236,11 @@ public class PipelineTaskDebugger {
         log.info(String.format("%s=%s\n", MODULE_NAME_PROP, taskDebugger.getModuleName()));
         log.info(String.format("%s=%s\n", TRIGGER_NAME_PROP, taskDebugger.getTriggerName()));
 
-        log.info(String.format("%s=%s\n", ZiggyConfiguration.CONFIG_SERVICE_PROPERTIES_PATH_ENV,
-            System.getenv(ZiggyConfiguration.CONFIG_SERVICE_PROPERTIES_PATH_ENV)));
+        log.info(String.format("%s=%s\n", ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV,
+            System.getenv(ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV)));
 
         PipelineModule pipelineModule = pipelineTask.getModuleImplementation();
-        Object moduleName = null;
-        try {
-            moduleName = pipelineModule.getClass()
-                .getDeclaredMethod("getModuleName")
-                .invoke(pipelineModule);
-        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
-            | NoSuchMethodException | SecurityException e) {
-            e.printStackTrace();
-        }
+        Object moduleName = pipelineModule.getModuleName();
         if (moduleName instanceof String) {
             log.info(String.format("MODULE_NAME=%s\n", (String) moduleName));
         }
@@ -282,7 +271,7 @@ public class PipelineTaskDebugger {
     }
 
     public String getPipelineProperties() {
-        return ZiggyConfiguration.CONFIG_SERVICE_PROPERTIES_PATH_ENV;
+        return ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV;
     }
 
     public String getModuleName() {
@@ -292,5 +281,4 @@ public class PipelineTaskDebugger {
     public String getTriggerName() {
         return triggerName;
     }
-
 }

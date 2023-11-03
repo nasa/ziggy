@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,6 +20,8 @@ import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.SpotBugsUtils;
 
 /**
@@ -42,7 +45,7 @@ import gov.nasa.ziggy.util.SpotBugsUtils;
  */
 public class TaskConfigurationManager implements Serializable {
     private static final Logger log = LoggerFactory.getLogger(TaskConfigurationManager.class);
-    private static final long serialVersionUID = 20220817L;
+    private static final long serialVersionUID = 20230511L;
     private static final String PERSISTED_FILE_NAME = ".task-configuration.ser";
     public static final String LOCK_FILE_NAME = ".lock";
 
@@ -65,6 +68,7 @@ public class TaskConfigurationManager implements Serializable {
      * Construct the current subtask directory and increment the subtask index. Add the subtask
      * files. Put the .lock file into the subtask directory.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void addFilesForSubtask(Set<String> files) {
 
         File subTaskDirectory = subtaskDirectory(taskDir, subtaskCount);
@@ -72,8 +76,9 @@ public class TaskConfigurationManager implements Serializable {
         try {
             new File(subTaskDirectory, LOCK_FILE_NAME).createNewFile();
         } catch (IOException e) {
-            throw new PipelineException(
-                "Unable to create lock file in subtask " + subtaskCount + " directory");
+            throw new UncheckedIOException(
+                "Unable to create file " + new File(subTaskDirectory, LOCK_FILE_NAME).toString(),
+                e);
         }
         subtaskCount++;
     }
@@ -126,7 +131,6 @@ public class TaskConfigurationManager implements Serializable {
             log.error(message);
             throw new PipelineException(message);
         }
-
     }
 
     @Override
@@ -138,19 +142,22 @@ public class TaskConfigurationManager implements Serializable {
         persist(getTaskDir());
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void persist(File dir) {
         File dest = persistedFile(dir);
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dest))) {
             log.info("Persisting inputs metadata to: " + dest);
             oos.writeObject(this);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Unable to persist to: " + dir + ", caught: " + e,
-                e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to persist task configuration manger to dir " + dir.toString(), e);
         }
     }
 
     @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public static TaskConfigurationManager restore(File taskDir) {
         File src = persistedFile(taskDir);
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(src))) {
@@ -160,9 +167,14 @@ public class TaskConfigurationManager implements Serializable {
             s.taskDir = taskDir;
 
             return s;
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
-                "Unable to read persisted object from: " + taskDir + ", caught: " + e, e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to load task configuration manager from dir " + taskDir.toString(), e);
+        } catch (ClassNotFoundException e) {
+            // This can never occur. By construction, the object deserialized here was
+            // serialized at some prior point by this same class, which means that it is
+            // guaranteed to be a TaskConfigurationManager instance.
+            throw new AssertionError(e);
         }
     }
 
@@ -200,11 +212,10 @@ public class TaskConfigurationManager implements Serializable {
      * @param subTaskIndex
      * @return
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static File subtaskDirectory(File taskWorkingDir, int subTaskIndex) {
+        File subTaskDir = new File(taskWorkingDir, "st-" + subTaskIndex);
         try {
-            File subTaskDir = null;
-
-            subTaskDir = new File(taskWorkingDir, "st-" + subTaskIndex);
 
             // ensure that the directory exists
             if (!subTaskDir.exists()) {
@@ -213,7 +224,8 @@ public class TaskConfigurationManager implements Serializable {
 
             return subTaskDir;
         } catch (IOException e) {
-            throw new PipelineException("Failed to create sub-task dir: " + e, e);
+            throw new UncheckedIOException("Unable to create directory " + subTaskDir.toString(),
+                e);
         }
     }
 
@@ -286,5 +298,4 @@ public class TaskConfigurationManager implements Serializable {
     public Class<? extends PipelineOutputs> getOutputsClass() {
         return outputsClass;
     }
-
 }

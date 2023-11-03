@@ -39,10 +39,10 @@ public class ProcessingSummaryOperationsTest {
             PipelineInstance pipelineInstance = new PipelineInstance();
             pipelineTask1.setPipelineInstance(pipelineInstance);
             pipelineTask2.setPipelineInstance(pipelineInstance);
-            new PipelineInstanceCrud().create(pipelineInstance);
+            new PipelineInstanceCrud().persist(pipelineInstance);
             PipelineTaskCrud crud = new PipelineTaskCrud();
-            crud.create(pipelineTask1);
-            crud.create(pipelineTask2);
+            crud.persist(pipelineTask1);
+            crud.persist(pipelineTask2);
             tasks.add(pipelineTask1);
             tasks.add(pipelineTask2);
             return null;
@@ -141,5 +141,4 @@ public class ProcessingSummaryOperationsTest {
             return null;
         });
     }
-
 }

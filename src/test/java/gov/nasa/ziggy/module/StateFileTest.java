@@ -1,10 +1,9 @@
 
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -15,9 +14,8 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.MockitoAnnotations;
-
-import com.google.common.collect.ImmutableList;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -60,12 +58,14 @@ public class StateFileTest {
         StateFile.PREFIX + "2.2.foo.INITIALIZED_1-0-0",
         StateFile.PREFIX + "1.2.foo.INITIALIZED_1-0-0", };
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    @Rule
-    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
         directoryRule);
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(resultsDirPropertyRule);
 
     @Before
     public void setUp() throws IOException {
@@ -87,7 +87,6 @@ public class StateFileTest {
         stateFile.setPfeArrivalTimeMillis(PFE_ARRIVAL_TIME_MILLIS);
         stateFile.setRemoteGroup(REMOTE_GROUP);
         testStateFileProperties(stateFile);
-
     }
 
     private PipelineTask createPipelineTask() {
@@ -95,14 +94,12 @@ public class StateFileTest {
         PipelineDefinition pipelineDefinition = new PipelineDefinition("any");
 
         PipelineInstance instance = new PipelineInstance();
-        instance.setId(42);
+        instance.setId(42L);
 
-        PipelineTask task = new PipelineTask(instance,
-            new PipelineInstanceNode(instance,
-                new PipelineDefinitionNode(moduleDefinition.getName(),
-                    pipelineDefinition.getName().getName()),
-                moduleDefinition));
-        task.setId(43);
+        PipelineTask task = new PipelineTask(instance, new PipelineInstanceNode(instance,
+            new PipelineDefinitionNode(moduleDefinition.getName(), pipelineDefinition.getName()),
+            moduleDefinition));
+        task.setId(43L);
 
         return task;
     }
@@ -171,38 +168,27 @@ public class StateFileTest {
         stateFile.setState(State.CLOSED);
         assertEquals(true, stateFile.isDone());
         assertEquals(false, stateFile.isRunning());
-        assertEquals(false, stateFile.isDeleted());
         assertEquals(false, stateFile.isQueued());
         stateFile.setState(State.COMPLETE);
         assertEquals(true, stateFile.isDone());
         assertEquals(false, stateFile.isRunning());
-        assertEquals(false, stateFile.isDeleted());
         assertEquals(false, stateFile.isQueued());
         stateFile.setState(State.INITIALIZED);
         assertEquals(false, stateFile.isDone());
         assertEquals(false, stateFile.isRunning());
-        assertEquals(false, stateFile.isDeleted());
         assertEquals(false, stateFile.isQueued());
         stateFile.setState(State.PROCESSING);
         assertEquals(false, stateFile.isDone());
         assertEquals(true, stateFile.isRunning());
-        assertEquals(false, stateFile.isDeleted());
         assertEquals(false, stateFile.isQueued());
         stateFile.setState(State.QUEUED);
         assertEquals(false, stateFile.isDone());
         assertEquals(false, stateFile.isRunning());
-        assertEquals(false, stateFile.isDeleted());
         assertEquals(true, stateFile.isQueued());
         stateFile.setState(State.SUBMITTED);
         assertEquals(false, stateFile.isDone());
         assertEquals(false, stateFile.isRunning());
-        assertEquals(false, stateFile.isDeleted());
         assertEquals(false, stateFile.isQueued());
-        stateFile.setState(State.DELETED);
-        assertTrue(stateFile.isDone());
-        assertFalse(stateFile.isRunning());
-        assertTrue(stateFile.isDeleted());
-        assertFalse(stateFile.isQueued());
     }
 
     @Test
@@ -221,7 +207,6 @@ public class StateFileTest {
         assertEquals(StateFile.INVALID_VALUE, stateFile.getPbsSubmitTimeMillis());
         assertEquals(StateFile.INVALID_VALUE, stateFile.getPfeArrivalTimeMillis());
         assertEquals(StateFile.INVALID_VALUE, stateFile.getGigsPerSubtask(), 1e-9);
-
     }
 
     @Test
@@ -241,26 +226,6 @@ public class StateFileTest {
             fail("Unexpected exception " + e);
         }
 
-        // No directory.
-        try {
-            stateFile.persist();
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException expected) {
-        } catch (Exception e) {
-            fail("Unexpected exception " + e);
-        }
-
-        // Directory is a file.
-        try {
-            workingDirectory.createNewFile();
-            stateFile.persist();
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException expected) {
-            workingDirectory.delete();
-        } catch (Exception e) {
-            fail("Unexpected exception " + e);
-        }
-
         // Nominal write and read.
         workingDirectory.mkdirs();
         try {
@@ -270,11 +235,7 @@ public class StateFileTest {
         }
 
         try {
-            StateFile newStateFile = StateFile
-                .newStateFileFromDiskFile(new File(workingDirectory, stateFile.name()), false);
-            checkEqual(stateFile, newStateFile);
-            newStateFile = StateFile
-                .newStateFileFromDiskFile(new File(workingDirectory, stateFile.name()), true);
+            StateFile newStateFile = stateFile.newStateFileFromDiskFile();
             checkEqual(stateFile, newStateFile);
         } catch (Exception e) {
             fail("Unexpected exception " + e);
@@ -283,22 +244,10 @@ public class StateFileTest {
         // Update the state
         StateFile newStateFile = new StateFile(stateFile);
         newStateFile.setState(State.SUBMITTED);
-        StateFile.updateStateFile(stateFile, newStateFile, workingDirectory);
+        StateFile.updateStateFile(stateFile, newStateFile);
         try {
-            stateFile = StateFile
-                .newStateFileFromDiskFile(new File(workingDirectory, newStateFile.name()), false);
+            stateFile = newStateFile.newStateFileFromDiskFile();
             checkEqual(stateFile, newStateFile);
-        } catch (Exception e) {
-            fail("Unexpected exception " + e);
-        }
-
-        // Check fromDirectory. Note that we have left behind one SUBMITTED file above.
-        try {
-            assertEquals(0,
-                StateFile.fromDirectory(workingDirectory, ImmutableList.of(State.COMPLETE)).size());
-            assertEquals(1,
-                StateFile.fromDirectory(workingDirectory, ImmutableList.of(State.SUBMITTED))
-                    .size());
         } catch (Exception e) {
             fail("Unexpected exception " + e);
         }

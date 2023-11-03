@@ -36,7 +36,6 @@ public enum DataReceiptStatus {
         public DataReceiptStatus and(DataReceiptStatus other) {
             return INVALID;
         }
-
     },
     PRESENT {
         @Override
@@ -46,12 +45,10 @@ public enum DataReceiptStatus {
             }
             if (other.equals(ABSENT) || other.equals(INVALID)) {
                 return INVALID;
-            } else {
-                throw new IllegalArgumentException(
-                    "Cannot AND DataReceiptStatus of " + toString() + " with PRESENT");
             }
+            throw new IllegalArgumentException(
+                "Cannot AND DataReceiptStatus of " + toString() + " with PRESENT");
         }
-
     },
     VALID {
         @Override
@@ -61,20 +58,16 @@ public enum DataReceiptStatus {
             }
             if (other.equals(ABSENT) || other.equals(INVALID)) {
                 return INVALID;
-            } else {
-                throw new IllegalArgumentException(
-                    "Cannot AND DataReceiptStatus of " + toString() + " with VALID");
             }
-
+            throw new IllegalArgumentException(
+                "Cannot AND DataReceiptStatus of " + toString() + " with VALID");
         }
-
     },
     INVALID {
         @Override
         public DataReceiptStatus and(DataReceiptStatus other) {
             return INVALID;
         }
-
     },
     IMPORTED {
         @Override
@@ -82,7 +75,6 @@ public enum DataReceiptStatus {
             throw new IllegalArgumentException(
                 "Cannot AND DataReceiptStatus of IMPORTED with other DataReceiptStatus");
         }
-
     },
     NOT_IMPORTED {
         @Override
@@ -90,7 +82,6 @@ public enum DataReceiptStatus {
             throw new IllegalArgumentException(
                 "Cannot AND DataReceiptStatus of NOT_IMPORTED with other DataReceiptStatus");
         }
-
     };
 
     public abstract DataReceiptStatus and(DataReceiptStatus other);
@@ -104,15 +95,13 @@ public enum DataReceiptStatus {
     public static class DataReceiptStatusAdapter extends XmlAdapter<String, DataReceiptStatus> {
 
         @Override
-        public DataReceiptStatus unmarshal(String status) throws Exception {
+        public DataReceiptStatus unmarshal(String status) {
             return DataReceiptStatus.valueOf(status.toUpperCase());
         }
 
         @Override
-        public String marshal(DataReceiptStatus status) throws Exception {
+        public String marshal(DataReceiptStatus status) {
             return status.toString().toLowerCase();
         }
-
     }
-
 }

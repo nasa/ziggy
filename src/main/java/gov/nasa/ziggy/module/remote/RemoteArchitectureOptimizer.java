@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.remote.nas.NasQueueTimeMetrics;
+import gov.nasa.ziggy.util.StringUtils;
 import gov.nasa.ziggy.util.TimeFormatter;
 
 /**
@@ -15,10 +16,11 @@ import gov.nasa.ziggy.util.TimeFormatter;
  */
 public enum RemoteArchitectureOptimizer {
 
-    // Minimizes the fraction of idled cores (they need to be idled due to the subtasks
-    // requiring more RAM than the architecture's gigs per core provides). If the user
-    // specifies one subtask at a time per node, this option is meaningless and
-    // cost will be used instead.
+    /**
+     * Minimizes the fraction of idled cores (they need to be idled due to the subtasks requiring
+     * more RAM than the architecture's gigs per core provides). If the user specifies one subtask
+     * at a time per node, this option is meaningless and cost will be used instead.
+     */
     CORES {
         @Override
         public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
@@ -43,8 +45,10 @@ public enum RemoteArchitectureOptimizer {
         }
     },
 
-    // Selects the architecture that has the smallest queue, as indicated by the number of
-    // days it would take to run all queued jobs for a given architecture and NASA division.
+    /**
+     * Selects the architecture that has the smallest queue, as indicated by the number of days it
+     * would take to run all queued jobs for a given architecture and NASA division.
+     */
     QUEUE_DEPTH {
         @Override
         public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
@@ -69,8 +73,10 @@ public enum RemoteArchitectureOptimizer {
         }
     },
 
-    // Selects the architecture that minimizes the run time when including queue time,
-    // using the "expansion" metric to estimate wait times in the queue.
+    /**
+     * Selects the architecture that minimizes the run time when including queue time, using the
+     * "expansion" metric to estimate wait times in the queue.
+     */
     QUEUE_TIME {
         @Override
         public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
@@ -103,7 +109,7 @@ public enum RemoteArchitectureOptimizer {
         }
     },
 
-    // Selects the architecture that minimizes job cost.
+    /** Selects the architecture that minimizes job cost. */
     COST {
         @Override
         public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
@@ -141,8 +147,8 @@ public enum RemoteArchitectureOptimizer {
         RemoteArchitectureOptimizer option = null;
         for (RemoteArchitectureOptimizer o : RemoteArchitectureOptimizer.values()) {
             String cleanedUpOptimizerName = o.toString().replace("_", "");
-            String cleanedUpRequestName = name.toString().replace("_", "");
-            if (cleanedUpRequestName.toUpperCase().contentEquals(cleanedUpOptimizerName)) {
+            String cleanedUpRequestName = name.replace("_", "");
+            if (cleanedUpRequestName.equalsIgnoreCase(cleanedUpOptimizerName)) {
                 option = o;
             }
         }
@@ -158,4 +164,8 @@ public enum RemoteArchitectureOptimizer {
         return b.toString();
     }
 
+    @Override
+    public String toString() {
+        return StringUtils.constantToSentenceWithSpaces(super.toString());
+    }
 }

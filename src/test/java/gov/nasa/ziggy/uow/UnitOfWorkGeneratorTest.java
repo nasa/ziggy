@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.uow;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
@@ -15,13 +15,14 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrudTest;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 
 /**
@@ -36,7 +37,8 @@ public class UnitOfWorkGeneratorTest {
 
     @Rule
     public ZiggyPropertyRule pipelineDefaultUowIdentifierClassPropertyRule = new ZiggyPropertyRule(
-        PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME, (String) null);
+        PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS,
+        "gov.nasa.ziggy.uow.UnitOfWorkGeneratorTest$SampleUnitOfWorkIdentifier");
 
     /**
      * Tests that units of work are correctly generated; in particular, that the UOW generator and
@@ -72,6 +74,8 @@ public class UnitOfWorkGeneratorTest {
      */
     @Test(expected = PipelineException.class)
     public void testNoDefaultGenerator() {
+        // Clear property set in property rule.
+        ZiggyConfiguration.reset();
         UnitOfWorkGenerator.defaultUnitOfWorkGenerator(PipelineTaskCrudTest.TestModule.class);
     }
 
@@ -80,14 +84,11 @@ public class UnitOfWorkGeneratorTest {
      */
     @Test
     public void testExternalDefaultIdentifier() {
-        System.setProperty(PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS_PROP_NAME,
-            "gov.nasa.ziggy.uow.UnitOfWorkGeneratorTest$SampleUnitOfWorkIdentifier");
         Class<?> generator = UnitOfWorkGenerator
             .defaultUnitOfWorkGenerator(PipelineTaskCrudTest.TestModule.class);
         assertEquals(SingleUnitOfWorkGenerator.class, generator);
         generator = UnitOfWorkGenerator.defaultUnitOfWorkGenerator(DataReceiptPipelineModule.class);
         assertEquals(DataReceiptUnitOfWorkGenerator.class, generator);
-
     }
 
     /**
@@ -97,20 +98,18 @@ public class UnitOfWorkGeneratorTest {
     public void testUowGeneratorFromNodeDefinition() {
 
         PipelineDefinitionNode node = new PipelineDefinitionNode();
-        node.setUnitOfWorkGenerator(
-            new ClassWrapper<UnitOfWorkGenerator>(SingleUnitOfWorkGenerator.class));
+        node.setUnitOfWorkGenerator(new ClassWrapper<>(SingleUnitOfWorkGenerator.class));
         ClassWrapper<UnitOfWorkGenerator> generator = UnitOfWorkGenerator.unitOfWorkGenerator(node);
         assertEquals("gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator", generator.getClassName());
 
         // Now test a node with no UOW generator specified and ensure that the default is retrieved.
         node.setUnitOfWorkGenerator(null);
         PipelineModuleDefinition modDef = new PipelineModuleDefinition("the-module");
-        modDef.setPipelineModuleClass(
-            new ClassWrapper<PipelineModule>(ExternalProcessPipelineModule.class));
+        modDef.setPipelineModuleClass(new ClassWrapper<>(ExternalProcessPipelineModule.class));
         node.setModuleName(modDef.getName());
         DatabaseTransactionFactory.performTransaction(() -> {
             PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
-            crud.create(modDef);
+            crud.persist(modDef);
             return null;
         });
         generator = UnitOfWorkGenerator.unitOfWorkGenerator(node);
@@ -126,13 +125,13 @@ public class UnitOfWorkGeneratorTest {
     private static class SampleUnitOfWorkGenerator implements UnitOfWorkGenerator {
 
         @Override
-        public List<Class<? extends Parameters>> requiredParameterClasses() {
+        public List<Class<? extends ParametersInterface>> requiredParameterClasses() {
             return new ArrayList<>();
         }
 
         @Override
         public List<UnitOfWork> generateTasks(
-            Map<Class<? extends Parameters>, Parameters> parameters) {
+            Map<Class<? extends ParametersInterface>, ParametersInterface> parameters) {
             UnitOfWork uow = new UnitOfWork();
             List<UnitOfWork> uowList = new ArrayList<>();
             uowList.add(uow);
@@ -143,7 +142,6 @@ public class UnitOfWorkGeneratorTest {
         public String briefState(UnitOfWork uow) {
             return "sample brief state";
         }
-
     }
 
     /**
@@ -166,6 +164,5 @@ public class UnitOfWorkGeneratorTest {
             }
             return defaultUowGenerator;
         }
-
     }
 }

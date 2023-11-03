@@ -115,7 +115,6 @@ public class PersistableHdf5ArrayTest {
         assertEquals(p3.get(0), oa3[0]);
         assertEquals(p3.get(1), oa3[1]);
         assertFalse(a3.isScalar());
-
     }
 
     @Test
@@ -150,7 +149,6 @@ public class PersistableHdf5ArrayTest {
         assertNull(a3.getHdf5DataType());
         assertNull(a3.getDimensions());
         assertEquals("persistableList", a3.getFieldName());
-
     }
 
     @Test
@@ -309,7 +307,6 @@ public class PersistableHdf5ArrayTest {
         a2.resetArrayLocationCounter();
         location = a2.nextArrayLocation();
         assertTrue(Arrays.equals(new long[] { 0, 0 }, location));
-
     }
 
     @Test
@@ -318,7 +315,6 @@ public class PersistableHdf5ArrayTest {
             PersistableSample2.class.getDeclaredField("persistableScalar1"));
         Object newObject = a1.newPersistableObject();
         assertEquals(PersistableSample1.class, newObject.getClass());
-
     }
 
     @Test
@@ -344,7 +340,6 @@ public class PersistableHdf5ArrayTest {
         a2 = new PersistableHdf5Array(
             PersistableSample4.class.getDeclaredField("persistableTest2"));
         assertFalse(a2.areAllFieldsPrimitiveScalar());
-
     }
 
     /**
@@ -380,7 +375,6 @@ public class PersistableHdf5ArrayTest {
         assertEquals(pTest1Input, pTest1Result);
 
         H5.H5Gclose(fieldGroupId);
-
     }
 
     @SuppressWarnings("unchecked")
@@ -466,7 +460,6 @@ public class PersistableHdf5ArrayTest {
         subGroupIds = persistableArray.writePersistableScalarObject(fieldGroupId, fieldName);
         assertEquals(100, subGroupIds.size());
         H5.H5Gclose(fieldGroupId);
-
     }
 
     /**
@@ -556,7 +549,6 @@ public class PersistableHdf5ArrayTest {
         assertEquals(92.7F, returnedPersistableArray.getFloatScalar(), 1e-7);
         assertEquals(37, returnedPersistableArray.getIntScalar());
         assertEquals("Allons-y", returnedPersistableArray.getStringScalar());
-
     }
 
     /**
@@ -701,7 +693,6 @@ public class PersistableHdf5ArrayTest {
         public void setBooleanScalar(boolean booleanScalar) {
             this.booleanScalar = booleanScalar;
         }
-
     }
 
     /**
@@ -747,7 +738,6 @@ public class PersistableHdf5ArrayTest {
         public void setBooleanArray(boolean[] booleanArray) {
             this.booleanArray = booleanArray;
         }
-
     }
 
     /**
@@ -766,7 +756,5 @@ public class PersistableHdf5ArrayTest {
         public void setStructArray(PersistableWithScalarPrimitives[][] structArray) {
             this.structArray = structArray;
         }
-
     }
-
 }

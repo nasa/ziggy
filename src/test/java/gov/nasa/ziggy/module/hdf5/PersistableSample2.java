@@ -43,30 +43,19 @@ public class PersistableSample2 implements Persistable {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         PersistableSample2 other = (PersistableSample2) obj;
         if (Double.doubleToLongBits(ignoreThisField) != Double
-            .doubleToLongBits(other.ignoreThisField)) {
+            .doubleToLongBits(other.ignoreThisField) || intScalar != other.intScalar
+            || !Arrays.deepEquals(persistableArray2, other.persistableArray2)
+            || !Objects.equals(persistableList, other.persistableList)) {
             return false;
         }
-        if (intScalar != other.intScalar) {
-            return false;
-        }
-        if (!Arrays.deepEquals(persistableArray2, other.persistableArray2)) {
-            return false;
-        }
-        if (!Objects.equals(persistableList, other.persistableList)) {
-            return false;
-        }
-        if (!Objects.equals(persistableScalar1, other.persistableScalar1)) {
-            return false;
-        }
-        if (!Objects.equals(persistableScalar2, other.persistableScalar2)) {
+        if (!Objects.equals(persistableScalar1, other.persistableScalar1) || !Objects.equals(persistableScalar2, other.persistableScalar2)) {
             return false;
         }
         return true;
     }
-
 }

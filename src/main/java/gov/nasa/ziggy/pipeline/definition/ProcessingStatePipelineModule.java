@@ -120,5 +120,4 @@ public interface ProcessingStatePipelineModule {
      * Defines the task action to be taken when the task state is {@link ProcessingState#COMPLETE}.
      */
     void processingCompleteTaskAction();
-
 }

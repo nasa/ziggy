@@ -46,5 +46,4 @@ public class DataFileInfoTest {
         assertTrue(d1.compareTo(d2) < 0);
         assertTrue(d1.compareTo(d1) == 0);
     }
-
 }

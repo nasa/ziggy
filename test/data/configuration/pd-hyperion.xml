@@ -2,21 +2,8 @@
 
 <pipelineDefinition>
 
-        <module name="importer" description="Hyperion importer" 
-            exeTimeoutSecs="2000000" minMemoryMegaBytes="0" 
-            pipelineModuleClass="gov.nasa.sbg.hyperion.importer.HyperionImporterPipelineModule" />
-        <module name="modelimporter" description="Hyperion model importer"
-            exeTimeoutSecs="2000000" minMemoryMegaBytes="0" 
-            pipelineModuleClass="gov.nasa.sbg.hyperion.importer.HyperionModelImporterPipelineModule"/>
-
-        <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer"
-            instancePriority="5">
-            <node moduleName="importer" startNewUow="true" 
-                uowGenerator="gov.nasa.sbg.hyperion.common.ImporterUnitOfWork"
-                childNodeNames="modelimporter"/>
-            <node moduleName="modelimporter" startNewUow="true"
-                uowGenerator="gov.nasa.ziggy.uow.SingleUowTask"
-                childNodeNames="level0"/>
+        <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="level0"
+            instancePriority="LOWEST">
             <node moduleName="level0" startNewUow="true"
                 childNodeNames="level1">
                 <moduleParameter name="New Remote Hyperion L0"/>

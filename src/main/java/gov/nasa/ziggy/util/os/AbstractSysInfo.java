@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -24,23 +23,10 @@ public abstract class AbstractSysInfo implements SysInfo {
     private final Map<String, String> sysInfoMap = new HashMap<>();
 
     protected static final List<String> commandOutput(String command) {
-        return commandOutput(command, (String[]) null);
+        return ExternalProcess.commandOutput(command, (String[]) null);
     }
 
-    /**
-     * Executes a command as an external process and returns the result as a {@link List} of
-     * {@link String}s. The results are filtered to only include strings that themselves contain one
-     * or more target strings.
-     */
-    protected static final List<String> commandOutput(String command, String... targets) {
-        ExternalProcess commandProcess = ExternalProcess.simpleExternalProcess(command);
-        commandProcess.writeStdErr(true);
-        commandProcess.writeStdOut(true);
-        commandProcess.run(true, 0);
-        return commandProcess.stdout(targets);
-    }
-
-    public AbstractSysInfo(Collection<String> sysInfo) throws IOException {
+    public AbstractSysInfo(Collection<String> sysInfo) {
         parse(sysInfo);
     }
 
@@ -54,7 +40,7 @@ public abstract class AbstractSysInfo implements SysInfo {
         sysInfoMap.put(key.toLowerCase(), value);
     }
 
-    protected void parse(Collection<String> sysInfo) throws IOException {
+    protected void parse(Collection<String> sysInfo) {
         for (String line : sysInfo) {
             log.debug("line = " + line);
 
@@ -68,5 +54,4 @@ public abstract class AbstractSysInfo implements SysInfo {
             }
         }
     }
-
 }

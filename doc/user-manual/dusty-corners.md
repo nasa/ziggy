@@ -8,15 +8,35 @@
 
 Like most software packages, Ziggy has some features that don't see a lot of use or that only get exercised under unusual circumstances. Those oddballs are documented here.
 
-[More on the Relational Database](more-rdbms.md) -- techically the RDBMS is used all the time, but there are a few details about what we do with it that are potentially interesting to users. 
+### [More on the Relational Database](more-rdbms.md)
 
-[More on Parameter Sets](more-parameter-sets.md) -- importing, modifying, version control, and more!
+Techically the RDBMS is used all the time, but there are a few details about what we do with it that are potentially interesting to users.
 
-[Parameter Overrides](parameter-overrides.md) -- how to conveniently package a collection of parameter changes.
+### [More on Parameter Sets](more-parameter-sets.md)
 
-[Redefining a Pipeline](redefine-pipeline.md) -- what to do if you realize that you need to change the configuration of a pipeline.
+Importing, modifying, version control, and more!
 
-[The Edit Trigger Dialog Box](edit-trigger.md) -- additional features on a dialog box we've already used. 
+### [Parameter Overrides](parameter-overrides.md)
+
+How to conveniently package a collection of parameter changes.
+
+### [Redefining a Pipeline](redefine-pipeline.md)
+
+What to do if you realize that you need to change the configuration of a pipeline.
+
+### [The Edit Pipeline Dialog Box](edit-pipeline.md)
+
+Additional features on a dialog box we've already used.
+
+### [Creating Ziggy Nicknames](nicknames.md)
+
+Make it easier to run those Java programs you've written.
+
+<!--
+### [Customizing Ziggy](customizing-ziggy.md)
+
+Add your own parameter set types and more.
+-->
 
 [[Previous]](event-handler-labels.md)
 [[Up]](user-manual.md)

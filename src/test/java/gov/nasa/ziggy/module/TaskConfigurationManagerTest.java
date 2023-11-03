@@ -172,5 +172,4 @@ public class TaskConfigurationManagerTest {
         TaskConfigurationManager h2 = TaskConfigurationManager.restore(h1.getTaskDir());
         assertEquals(h1, h2);
     }
-
 }

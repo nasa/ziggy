@@ -18,6 +18,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -48,7 +49,8 @@ public class ParameterLibraryTest {
     public void testGenerateSchema() throws JAXBException, IOException {
         JAXBContext context = JAXBContext.newInstance(ParameterLibrary.class);
         context.generateSchema(new ParamLibSchemaResolver());
-        List<String> schemaContent = Files.readAllLines(schemaFile.toPath());
+        List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
+            FileUtil.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"parameterLibrary\" type=\"parameterLibrary\"/>");
@@ -59,17 +61,11 @@ public class ParameterLibraryTest {
             "<xs:element name=\"parameter-set\" type=\"parameterSet\" minOccurs=\"0\" maxOccurs=\"unbounded\"/>");
         assertContains(complexTypeContent, "<xs:attribute name=\"release\" type=\"xs:string\"/>");
         assertContains(complexTypeContent,
-            "<xs:attribute name=\"repository-revision\" type=\"xs:string\"/>");
-        assertContains(complexTypeContent,
             "<xs:attribute name=\"database-user\" type=\"xs:string\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"build-date\" type=\"xs:anySimpleType\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"override-only\" type=\"xs:boolean\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"database-url\" type=\"xs:string\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"repository-branch\" type=\"xs:string\"/> ");
 
         complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"parameterSet\">");
@@ -77,8 +73,6 @@ public class ParameterLibraryTest {
             "<xs:element name=\"parameter\" type=\"parameter\" minOccurs=\"0\" maxOccurs=\"unbounded\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>");
-        assertContains(complexTypeContent, "<xs:attribute name=\"version\" type=\"xs:int\"/>");
-        assertContains(complexTypeContent, "<xs:attribute name=\"locked\" type=\"xs:boolean\"/>");
         assertContains(complexTypeContent, "<xs:attribute name=\"classname\" type=\"xs:string\"/>");
 
         complexTypeContent = complexTypeContent(schemaContent,
@@ -88,7 +82,6 @@ public class ParameterLibraryTest {
         assertContains(complexTypeContent,
             "<xs:attribute name=\"value\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent, "<xs:attribute name=\"type\" type=\"xs:string\"/>");
-
     }
 
     @Test
@@ -108,7 +101,5 @@ public class ParameterLibraryTest {
             result.setSystemId(schemaFile.toURI().toURL().toString());
             return result;
         }
-
     }
-
 }

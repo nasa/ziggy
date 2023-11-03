@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATASTORE_ROOT_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_TEST_WORKING_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -33,26 +33,25 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 public class PipelineOutputsTest {
 
     private Path taskDir;
-    private String filename = ModuleInterfaceUtils.outputsFileName("pa", 0);
-    private String otherFilename = ModuleInterfaceUtils.outputsFileName("pa", 2);
+    private String filename = ModuleInterfaceUtils.outputsFileName("pa");
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
-        DATASTORE_ROOT_DIR_PROP_NAME, "/dev/null");
+        DATASTORE_ROOT_DIR, "/dev/null");
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
+        ZIGGY_TEST_WORKING_DIR, (String) null);
 
     @Before
     public void setup() throws IOException {
 
         taskDir = directoryRule.directory().resolve("100-200-pa");
         Path workingDir = taskDir.resolve("st-12");
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR.property(), workingDir.toString());
         // Create the task dir and the subtask dir
         Files.createDirectories(workingDir);
 
@@ -61,7 +60,6 @@ public class PipelineOutputsTest {
         p.populateTaskResults();
         Hdf5ModuleInterface h = new Hdf5ModuleInterface();
         h.writeFile(DirectoryProperties.workingDir().resolve(filename).toFile(), p, true);
-        h.writeFile(DirectoryProperties.workingDir().resolve(otherFilename).toFile(), p, true);
     }
 
     /**
@@ -113,7 +111,6 @@ public class PipelineOutputsTest {
             assertEquals(200L, pr.getOriginator());
             assertEquals(ivalues[i], pr.getValue());
         }
-
     }
 
     /**
@@ -123,12 +120,11 @@ public class PipelineOutputsTest {
     public void testOutputFiles() {
         PipelineOutputsSample1 p = new PipelineOutputsSample1();
         File[] files = p.outputFiles();
-        assertEquals(2, files.length);
+        assertEquals(1, files.length);
         Set<String> filenames = new HashSet<>();
         for (File f : files) {
             filenames.add(f.getName());
         }
         assertTrue(filenames.contains(filename));
-        assertTrue(filenames.contains(otherFilename));
     }
 }

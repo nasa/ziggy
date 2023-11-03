@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 
-import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -31,7 +31,7 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.TimestampFile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.logging.TaskLog;
 
 /**
@@ -43,8 +43,8 @@ public class ComputeNodeMasterTest {
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    public ZiggyPropertyRule resultsDirRule = new ZiggyPropertyRule(
-        PropertyNames.RESULTS_DIR_PROP_NAME, directoryRule);
+    public ZiggyPropertyRule resultsDirRule = new ZiggyPropertyRule(PropertyName.RESULTS_DIR,
+        directoryRule);
 
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule(directoryRule).around(resultsDirRule);
@@ -108,16 +108,13 @@ public class ComputeNodeMasterTest {
 
         // Create the ComputeNodeMaster. To be precise, create an instance of the
         // class that is a Mockito spy.
-        computeNodeMaster = Mockito.spy(new ComputeNodeMaster(taskDir.toString(), "dummy",
-            DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toString(), "dummy",
-            taskLog));
+        computeNodeMaster = Mockito.spy(new ComputeNodeMaster(taskDir.toString(), taskLog));
         doReturn(inputsHandler).when(computeNodeMaster).getInputsHandler();
         doReturn(subtaskServer).when(computeNodeMaster).subtaskServer();
         doReturn(subtaskMasterThreadPool).when(computeNodeMaster).subtaskMasterThreadPool();
         doReturn(true).when(computeNodeMaster)
             .getWriteLockWithoutBlocking(ArgumentMatchers.any(File.class));
         doNothing().when(computeNodeMaster).releaseWriteLock(ArgumentMatchers.any(File.class));
-
     }
 
     /**
@@ -128,21 +125,13 @@ public class ComputeNodeMasterTest {
         throws ConfigurationException, IllegalStateException, IOException, InterruptedException {
 
         // The initial state of the state file should be QUEUED.
-        assertEquals(StateFile.State.QUEUED,
-            StateFile
-                .newStateFileFromDiskFile(
-                    DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true)
-                .getState());
+        assertEquals(StateFile.State.QUEUED, stateFile.newStateFileFromDiskFile().getState());
 
         // Initialize the instance.
         computeNodeMaster.initialize();
 
         // The state file on disk should now be PROCESSING
-        assertEquals(StateFile.State.PROCESSING,
-            StateFile
-                .newStateFileFromDiskFile(
-                    DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true)
-                .getState());
+        assertEquals(StateFile.State.PROCESSING, stateFile.newStateFileFromDiskFile().getState());
 
         // The state file in the ComputeNodeMaster should have correct counts
         assertEquals(5, computeNodeMaster.getStateFileNumTotal());
@@ -180,11 +169,7 @@ public class ComputeNodeMasterTest {
         computeNodeMaster.initialize();
 
         // The state file on disk should still be QUEUED
-        assertEquals(StateFile.State.QUEUED,
-            StateFile
-                .newStateFileFromDiskFile(
-                    DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true)
-                .getState());
+        assertEquals(StateFile.State.QUEUED, stateFile.newStateFileFromDiskFile().getState());
 
         // The state file in the ComputeNodeMaster should have correct counts
         assertEquals(5, computeNodeMaster.getStateFileNumTotal());
@@ -206,7 +191,6 @@ public class ComputeNodeMasterTest {
             TimestampFile.timestamp(taskDir.toFile(), TimestampFile.Event.PBS_JOB_START) > 0);
         assertEquals(-1L,
             TimestampFile.timestamp(taskDir.toFile(), TimestampFile.Event.QUEUED_PBS));
-
     }
 
     /**
@@ -230,11 +214,7 @@ public class ComputeNodeMasterTest {
         computeNodeMaster.initialize();
 
         // The state file on disk should still be QUEUED
-        assertEquals(StateFile.State.QUEUED,
-            StateFile
-                .newStateFileFromDiskFile(
-                    DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true)
-                .getState());
+        assertEquals(StateFile.State.QUEUED, stateFile.newStateFileFromDiskFile().getState());
 
         // The SubtaskServer should not have started
         verify(subtaskServer, times(0)).start();
@@ -244,7 +224,6 @@ public class ComputeNodeMasterTest {
         verify(subtaskMasterThreadPool, times(0)).submit(ArgumentMatchers.any(SubtaskMaster.class),
             ArgumentMatchers.any(ThreadFactory.class));
         assertEquals(-1, computeNodeMaster.getSemaphorePermits());
-
     }
 
     /**
@@ -346,35 +325,6 @@ public class ComputeNodeMasterTest {
 
         // All of the semaphore permits should still be in use.
         assertEquals(0, computeNodeMaster.getSemaphorePermits());
-
-    }
-
-    /**
-     * Tests the performance of the monitoring process when the state file indicates a deleted task.
-     */
-    @Test
-    public void testMonitoringDeletedTask()
-        throws ConfigurationException, IllegalStateException, IOException, InterruptedException {
-
-        when(subtaskServer.isListenerRunning()).thenReturn(true);
-
-        // Initialize the instance.
-        computeNodeMaster.initialize();
-
-        StateFile diskStateFile = StateFile.newStateFileFromDiskFile(
-            DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true);
-        diskStateFile.setState(StateFile.State.DELETED);
-        diskStateFile.persist();
-
-        // Run the monitoring process once.
-        computeNodeMaster.run();
-
-        // The countdown latch should no longer be waiting.
-        assertEquals(0, computeNodeMaster.getCountDownLatchCount());
-
-        // All of the semaphore permits should still be in use.
-        assertEquals(0, computeNodeMaster.getSemaphorePermits());
-
     }
 
     /**
@@ -411,11 +361,7 @@ public class ComputeNodeMasterTest {
         assertEquals(0, computeNodeMaster.getSemaphorePermits());
 
         // The state of the state file should still be processing.
-        assertEquals(StateFile.State.PROCESSING,
-            StateFile
-                .newStateFileFromDiskFile(
-                    DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true)
-                .getState());
+        assertEquals(StateFile.State.PROCESSING, stateFile.newStateFileFromDiskFile().getState());
 
         // The state file in the ComputeNodeMaster should have correct counts
         assertEquals(5, computeNodeMaster.getStateFileNumTotal());
@@ -461,11 +407,7 @@ public class ComputeNodeMasterTest {
         computeNodeMaster.finish();
 
         // The state file on disk should now be PROCESSING
-        assertEquals(StateFile.State.PROCESSING,
-            StateFile
-                .newStateFileFromDiskFile(
-                    DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true)
-                .getState());
+        assertEquals(StateFile.State.PROCESSING, stateFile.newStateFileFromDiskFile().getState());
 
         // The job finish timestamp should be present.
         assertTrue(
@@ -486,11 +428,6 @@ public class ComputeNodeMasterTest {
         // This time, the state file should be updated.
         computeNodeMaster.finish();
 
-        assertEquals(StateFile.State.COMPLETE,
-            StateFile
-                .newStateFileFromDiskFile(
-                    DirectoryProperties.stateFilesDir().resolve(stateFile.name()).toFile(), true)
-                .getState());
-
+        assertEquals(StateFile.State.COMPLETE, stateFile.newStateFileFromDiskFile().getState());
     }
 }

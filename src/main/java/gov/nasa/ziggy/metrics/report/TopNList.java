@@ -11,7 +11,7 @@ import java.util.List;
  * @author Todd Klaus
  */
 public class TopNList implements Serializable {
-    private static final long serialVersionUID = -7121174750685488713L;
+    private static final long serialVersionUID = 20230511L;
 
     private int listMaxLength = 0;
     private final LinkedList<TopNListElement> list = new LinkedList<>();

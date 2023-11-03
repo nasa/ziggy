@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.ui.metrilyzer;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
@@ -13,7 +12,6 @@ import com.google.common.collect.Maps;
 
 import gov.nasa.ziggy.metrics.MetricType;
 import gov.nasa.ziggy.metrics.MetricValue;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.metrics.DeltaMetricValueGenerator;
 import gov.nasa.ziggy.services.metrics.MetricsFileParser;
 import gov.nasa.ziggy.util.TimeRange;
@@ -36,12 +34,8 @@ class FileMetricsValueSource implements MetricsValueSource {
         Map<MetricType, Collection<MetricValue>> rv = Maps
             .newHashMapWithExpectedSize(selectedMetricTypes.size());
         Set<MetricType> typeSet = ImmutableSet.copyOf(selectedMetricTypes);
-        DeltaMetricValueGenerator metricIt = null;
-        try {
-            metricIt = new DeltaMetricValueGenerator(metricsFileParser.parseFile());
-        } catch (IOException ioe) {
-            throw new PipelineException(ioe);
-        }
+        DeltaMetricValueGenerator metricIt = new DeltaMetricValueGenerator(
+            metricsFileParser.parseFile());
         // TODO: could probably break this off after seeing a date
         // greater than the date we are interested in.
         for (MetricValue metricDelta : metricIt) {

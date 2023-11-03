@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition.crud;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_QUEUE_COMMAND_CLASS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -18,6 +18,7 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.crud.SimpleCrud;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerTest;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -43,8 +44,7 @@ public class PipelineTaskOperationsTest {
 
     @Rule
     public ZiggyPropertyRule queueCommandClassPropertyRule = new ZiggyPropertyRule(
-        QUEUE_COMMAND_CLASS_PROP_NAME,
-        "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
+        REMOTE_QUEUE_COMMAND_CLASS, "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
 
     @Before
     public void setUp() {
@@ -165,29 +165,26 @@ public class PipelineTaskOperationsTest {
             assertEquals(otherJob.isFinished(), remoteJob.isFinished());
             assertEquals(otherJob.getCostEstimate(), remoteJob.getCostEstimate(), 1e-9);
         }
-
     }
 
     private PipelineTask createPipelineTask() {
 
         PipelineTask task = new PipelineTask();
-        task.setId(1L);
         PipelineInstance instance = new PipelineInstance();
-        instance.setId(1L);
         PipelineModuleDefinition modDef = new PipelineModuleDefinition("tps");
         PipelineDefinitionNode defNode = new PipelineDefinitionNode(modDef.getName(), "dummy");
         PipelineInstanceNode instNode = new PipelineInstanceNode(instance, defNode, modDef);
         task.setPipelineInstance(instance);
         task.setPipelineInstanceNode(instNode);
         DatabaseTransactionFactory.performTransaction(() -> {
-            new PipelineInstanceCrud().create(instance);
-            new PipelineModuleDefinitionCrud().create(modDef);
-            new PipelineDefinitionCrud().create(defNode);
-            new PipelineInstanceNodeCrud().create(instNode);
+            new PipelineInstanceCrud().persist(instance);
+            new PipelineModuleDefinitionCrud().persist(modDef);
+            new SimpleCrud<>().persist(defNode);
+            new PipelineInstanceNodeCrud().persist(instNode);
             return null;
         });
         DatabaseTransactionFactory.performTransaction(() -> {
-            new PipelineTaskCrud().create(task);
+            new PipelineTaskCrud().persist(task);
             return null;
         });
 
@@ -229,5 +226,4 @@ public class PipelineTaskOperationsTest {
         QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 6020203",
             new String[] { QueueCommandManager.SELECT, QueueCommandManager.WALLTIME }, "");
     }
-
 }

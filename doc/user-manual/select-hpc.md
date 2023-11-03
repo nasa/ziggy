@@ -1,8 +1,8 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](delete-tasks.md)
+[[Previous]](kill-tasks.md)
 [[Up]](user-manual.md)
-[[Next]](remote-dialog.md)
+[[Next]](remote-parameters.md)
 
 ## High Performance Computing Overview
 
@@ -53,7 +53,7 @@ If you change the value of `enabled` to true, then any node that includes this p
 
 That's all it takes. Well, that and access to the NAS.
 
-Note the implications here. First, for a given pipeline the user can select which nodes will run on HPC and which will run locally (here "locally" means "on the system that hosts the worker process", or more generally, "on the system where the cluster runs"). Second, even for nodes that have an instance of `RemoteParameters` connected to them, you can decide at runtime whether you want to run locally or on HPC!
+Note the implications here. First, for a given pipeline the user can select which nodes will run on HPC and which will run locally (here "locally" means "on the system that hosts the supervisor process", or more generally, "on the system where the cluster runs"). Second, even for nodes that have an instance of `RemoteParameters` connected to them, you can decide at runtime whether you want to run locally or on HPC!
 
 The RemoteParameters class is discussed in greater detail in [the Remote Parameters article](remote-parameters.md).
 
@@ -85,7 +85,7 @@ In the event that a really small number of subtasks haven't run when your jobs e
 
 ##### Options for Automatic Resubmission
 
-In the discussion above, we suggested that, in the event that execution times out, you can resubmit the task and the subtasks that didn't run to completion will then be run (subject to the possibility that some of them will then also time out). We also offered the option to disable remote execution if the number of subtasks gets small enough that your local system (i.e., the system that runs the worker process) can readily handle them. This is all true, but it can be a nuisance. For this reason, there are some additional options to consider.
+In the discussion above, we suggested that, in the event that execution times out, you can resubmit the task and the subtasks that didn't run to completion will then be run (subject to the possibility that some of them will then also time out). We also offered the option to disable remote execution if the number of subtasks gets small enough that your local system (i.e., the system that runs the supervisor process) can readily handle them. This is all true, but it can be a nuisance. For this reason, there are some additional options to consider.
 
 First: Ziggy can automatically resubmit tasks that don't complete successfully. This is discussed in [the article on TaskConfigurationParameters](task-configuration.md). You can specify that, in the event that a task doesn't complete, Ziggy should resubmit it. In fact, you can specify the number of times that Ziggy should resubmit the task: after the number of automatic resubmits is exhausted, the task will wait in the ALGORITHM_COMPLETE processing state for you to decide what to do with it (i.e., try to resubmit it again, or fix underlying software problems, or decide that the number of completed subtasks is sufficient and that you want to move on to persisting the results).
 
@@ -95,7 +95,6 @@ Second: Ziggy allows you to automate the decision on whether a given number of s
 
 By using these two parameters, you can, in effect, tell Ziggy in advance about your decisions about whether to resubmit a task and whether to use remote execution even if the number of subtasks to process is fairly small.
 
-[[Previous]](delete-tasks.md)
+[[Previous]](kill-tasks.md)
 [[Up]](user-manual.md)
-[[Next]](remote-dialog.md)
-
+[[Next]](remote-parameters.md)

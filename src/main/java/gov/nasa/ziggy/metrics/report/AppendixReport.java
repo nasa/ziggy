@@ -18,8 +18,7 @@ public class AppendixReport extends Report {
         super(pdfRenderer);
     }
 
-    public void generateReport(PipelineInstance instance, List<PipelineInstanceNode> nodes)
-        throws Exception {
+    public void generateReport(PipelineInstance instance, List<PipelineInstanceNode> nodes) {
         // instance full (all tasks for specified nodes)
         PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
         List<PipelineTask> tasks = new ArrayList<>();

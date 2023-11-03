@@ -31,5 +31,4 @@ public class ReportFilePaths {
             + Iso8601Formatter.dateTimeLocalFormatter().format(new Date()) + ".pdf";
         return DirectoryProperties.reportsDir().resolve(filename);
     }
-
 }

@@ -18,6 +18,8 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.module.io.ProxyIgnore;
+
 /**
  * Utility class for unit tests that uses reflection to do a deep compare of two object trees. It is
  * intended to overcome 2 limitations with the JUnit assertEquals method: 1- Allows deep compare of
@@ -32,6 +34,8 @@ public class ReflectionEquals {
     private static final Logger log = LoggerFactory.getLogger(ReflectionEquals.class);
 
     private final Set<Pattern> excludedFieldPatterns = new HashSet<>();
+    private final Set<String> excludedFieldNames = new HashSet<>();
+    public boolean compareProxyIgnoreFields = true;
 
     public ReflectionEquals() {
     }
@@ -51,6 +55,14 @@ public class ReflectionEquals {
         excludedFieldPatterns.add(Pattern.compile(fullyQualifiedFieldNamePattern));
     }
 
+    public void excludeFieldByName(String fullyQualifiedFieldName) {
+        excludedFieldNames.add(fullyQualifiedFieldName);
+    }
+
+    public void setCompareProxyIgnoreFields(boolean compare) {
+        compareProxyIgnoreFields = compare;
+    }
+
     public void assertEquals(String message, Object expectedObject, Object actualObject)
         throws IllegalAccessException {
         compareObjects(message, "", expectedObject, actualObject);
@@ -58,18 +70,16 @@ public class ReflectionEquals {
 
     public void assertEquals(Object expectedObject, Object actualObject)
         throws IllegalAccessException {
-        compareObjects(expectedObject.getClass().toString(), "", expectedObject, actualObject);
+        compareObjects("", expectedObject.getClass().toString(), expectedObject, actualObject);
     }
 
     private void compareObjects(String message, String fullyQualifiedFieldName,
         Object expectedObject, Object actualObject) throws IllegalAccessException {
         if (matchesExcludeFilter(fullyQualifiedFieldName)) {
-            log.debug("skipping:" + message + " because it's on the exclude list");
             return;
         }
 
         log.debug("comparing: " + message);
-        // log.debug("fqfn=" + fullyQualifiedFieldName);
 
         if (expectedObject == actualObject) {
             // same object, must be equal!
@@ -179,6 +189,9 @@ public class ReflectionEquals {
                 Field[] fields = hClazz.getDeclaredFields();
                 for (Field field2 : fields) {
                     Field field = field2;
+                    if (field.isAnnotationPresent(ProxyIgnore.class) && !compareProxyIgnoreFields) {
+                        continue;
+                    }
 
                     if (!Modifier.isTransient(field.getModifiers())) {
                         // allow us to access the value of private fields
@@ -243,6 +256,11 @@ public class ReflectionEquals {
     }
 
     private boolean matchesExcludeFilter(String fieldName) {
+        for (String excludedFieldName : excludedFieldNames) {
+            if (fieldName.equals(excludedFieldName)) {
+                return true;
+            }
+        }
         for (Pattern pattern : excludedFieldPatterns) {
             Matcher matcher = pattern.matcher(fieldName);
             if (matcher.matches()) {

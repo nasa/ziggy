@@ -2,18 +2,13 @@ package gov.nasa.ziggy.data.management;
 
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.hibernate.Criteria;
-import org.hibernate.criterion.CriteriaSpecification;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
-
 import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -37,7 +32,7 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  *
  * @author PT
  */
-public class DatastoreProducerConsumerCrud extends AbstractCrud {
+public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProducerConsumer> {
 
     public DatastoreProducerConsumerCrud() {
     }
@@ -74,7 +69,7 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
             datastoreNames(datastoreFiles), type);
         for (DatastoreProducerConsumer datastoreProducerConsumer : datastoreProducerConsumers) {
             datastoreProducerConsumer.setProducer(pipelineTask.getId());
-            super.createOrUpdate(datastoreProducerConsumer);
+            merge(datastoreProducerConsumer);
         }
     }
 
@@ -87,11 +82,13 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
      */
     public Set<String> retrieveFilesConsumedByTask(long taskId) {
 
-        Criteria criteria = createCriteria(DatastoreProducerConsumer.class);
-        criteria.setProjection(Projections.property("filename"));
-        criteria.createAlias("consumers", "consumers");
-        criteria.add(Restrictions.in("consumers.elements", Collections.singleton(taskId)));
-        return new HashSet<>(list(criteria));
+        ZiggyQuery<DatastoreProducerConsumer, String> query = createZiggyQuery(
+            DatastoreProducerConsumer.class, String.class);
+        query.select(DatastoreProducerConsumer_.filename);
+        query.where(query.getBuilder()
+            .isMember(taskId, query.getRoot().get(DatastoreProducerConsumer_.consumers)));
+
+        return new HashSet<>(list(query));
     }
 
     /**
@@ -142,7 +139,7 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
     private void addConsumer(DatastoreProducerConsumer datastoreProducerConsumer,
         long pipelineTaskId) {
         datastoreProducerConsumer.addConsumer(pipelineTaskId);
-        super.createOrUpdate(datastoreProducerConsumer);
+        merge(datastoreProducerConsumer);
     }
 
     private Set<String> datastoreNames(Collection<Path> datastoreFiles) {
@@ -157,17 +154,19 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
      * @param pipelineTask Producer task for constructed entries, if null a value of zero will be
      * used for the producer ID of constructed entries
      * @param filenames Names of datastore files to be located in the database table of
-     * {@link DatastoreProducerConsumer} instances
+     * {@link DatastoreProducerConsumer} instances. Must be mutable.
      * @return A {@link List} of {@link DatastoreProducerConsumer} instances, with the database
      * versions for files that have database entries and new instances for those that do not.
      */
-    private List<DatastoreProducerConsumer> retrieveOrCreate(PipelineTask pipelineTask,
+    protected List<DatastoreProducerConsumer> retrieveOrCreate(PipelineTask pipelineTask,
         Set<String> filenames, DataReceiptFileType type) {
 
-        // Start by finding all the files that already have entries
-        Criteria q = createCriteria(DatastoreProducerConsumer.class);
-        q.add(restrictionPropertyIn("filename", filenames));
-        List<DatastoreProducerConsumer> datastoreProducerConsumers = list(q);
+        // Start by finding all the files that already have entries.
+        ZiggyQuery<DatastoreProducerConsumer, DatastoreProducerConsumer> query = createZiggyQuery(
+            DatastoreProducerConsumer.class);
+        query.column(DatastoreProducerConsumer_.filename).chunkedIn(filenames);
+        List<DatastoreProducerConsumer> datastoreProducerConsumers = list(query);
+
         List<String> locatedFilenames = datastoreProducerConsumers.stream()
             .map(DatastoreProducerConsumer::getFilename)
             .collect(Collectors.toList());
@@ -176,8 +175,10 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
         long producerId = pipelineTask != null ? pipelineTask.getId() : 0;
         filenames.removeAll(locatedFilenames);
         for (String filename : filenames) {
-            datastoreProducerConsumers
-                .add(new DatastoreProducerConsumer(producerId, filename, type));
+            DatastoreProducerConsumer instance = new DatastoreProducerConsumer(producerId, filename,
+                type);
+            persist(instance);
+            datastoreProducerConsumers.add(instance);
         }
 
         // Now put the non-found filenames back into the filenames argument, just in case
@@ -196,9 +197,11 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
         List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForModuleAndInstance(
             DataReceiptPipelineModule.DATA_RECEIPT_MODULE_NAME, pipelineInstanceId);
         Set<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toSet());
-        Criteria query = createCriteria(DatastoreProducerConsumer.class);
-        query.add(Restrictions.in("producerId", taskIds));
-        query.setResultTransformer(CriteriaSpecification.DISTINCT_ROOT_ENTITY);
+
+        ZiggyQuery<DatastoreProducerConsumer, DatastoreProducerConsumer> query = createZiggyQuery(
+            DatastoreProducerConsumer.class);
+        query.column(DatastoreProducerConsumer_.producerId).in(taskIds).distinct(true);
+
         return list(query);
     }
 
@@ -214,9 +217,12 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud {
      *
      * @return
      */
-    @SuppressWarnings("unchecked")
     public List<DatastoreProducerConsumer> retrieveAll() {
-        Criteria q = createCriteria(DatastoreProducerConsumer.class);
-        return q.list();
+        return list(createZiggyQuery(DatastoreProducerConsumer.class));
+    }
+
+    @Override
+    public Class<DatastoreProducerConsumer> componentClass() {
+        return DatastoreProducerConsumer.class;
     }
 }

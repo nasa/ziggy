@@ -12,7 +12,7 @@ Anyways, if you look at the logs directory, you'll see this:
 
 ```console
 logs$ ls
-algorithms    cli    db    manifests    state    worker    ziggy
+algorithms    cli    db    manifests    state    supervisor    ziggy
 logs$
 ```
 
@@ -20,11 +20,11 @@ Let us consider each of these directories in turn.
 
 ### db Directory
 
-This is where the log files from the relational database application are stored. We're using Postgresql, so the main content of this directory is `pg.log`. If a system database is being used, this directory will not be present (since the sysadmin and DBA get to decide where the logs go, not you).
+This is where the log files from relational database applications may be stored. If you're using an non-system PostgreSQL database, this directory should contain `pg.log`. If a system database is being used, this directory will not be present since the sysadmin and DBA get to decide where the logs go, not you. It is also not present for databases such as HSQLDB.
 
 ### state Directory
 
-These aren't -- quite -- log files as such. They're actually files that are used to communicate between the algorithm processing system and the worker system (remember that the computer with the worker might not be the one trying to run the algorithm). Here's the contents of that directory:
+These aren't -- quite -- log files as such. They're actually files that are used to communicate between the algorithm processing system and the supervisor system (remember that the computer with the supervisor might not be the one trying to run the algorithm). Here's the contents of that directory:
 
 ```console
 logs$ ls state
@@ -43,7 +43,7 @@ ziggy.3.13.permuter.COMPLETE_4-3-1
 logs$
 ```
 
-Each task has a state file that the task execution system updates with the task processing state and the subtask counts for that task; by which we mean, the task execution system keeps changing the name of the file to reflect the current state of the task. The monitoring subsystem in the worker looks at these files to determine the current state of each task, which is then reflected on the GUI.
+Each task has a state file that the task execution system updates with the task processing state and the subtask counts for that task; by which we mean, the task execution system keeps changing the name of the file to reflect the current state of the task. The monitoring subsystem in the supervisor looks at these files to determine the current state of each task, which is then reflected on the GUI.
 
 In this case, we see that instance 3, task 12 has completed (i.e., the algorithm is no longer running) with final score 4 / 3 / 1, which we already knew.
 
@@ -57,19 +57,19 @@ cluster.log    console.log
 logs$
 ```
 
-The `cluster.log` file is logging from all the cluster commands; `console.log` captures all logging from the console. You'll sometimes see another file, `runjava.log`, which is the logging from other commands executed by `runjava`. Feel free to look into these, but none of them will provide any insight to the exception we're trying to understand.
+The `cluster.log` file is logging from all the cluster commands; `console.log` captures all logging from the console. You'll sometimes see another file, `ziggy.log`, which is the logging from other commands executed by `ziggy`. Feel free to look into these, but none of them will provide any insight to the exception we're trying to understand.
 
-### worker Directory
+### Supervisor Directory
 
-The worker directory's contents look like this:
+The supervisor directory's contents look like this:
 
 ```console
-logs$ ls worker
-metrics-dump-90188.txt          metrics-dump-90188.txt.old      worker.log
+logs$ ls supervisor
+metrics-dump-90188.txt          metrics-dump-90188.txt.old      supervisor.log
 logs$
 ```
 
-The `worker.log` file logs everything the worker does. This is useful for troubleshooting problems that are more directly focused on misbehavior by the worker itself, which isn't our problem today.
+The `supervisor.log` file logs everything the supervisor does. This is useful for troubleshooting problems that are more directly focused on misbehavior by the supervisor itself, which isn't our problem today.
 
 ### ziggy Directory
 

@@ -8,5 +8,4 @@ package gov.nasa.ziggy.services.process;
  */
 public interface StatusReporter {
     StatusMessage reportCurrentStatus();
-
 }

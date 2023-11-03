@@ -3,11 +3,15 @@ package gov.nasa.ziggy.module.remote;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -35,13 +39,14 @@ public class QsubLog {
         logFile = new File(logDirectory, LOG_FILENAME);
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void log(String qsubCommandLine) {
         try (BufferedWriter bw = new BufferedWriter(
             new OutputStreamWriter(new FileOutputStream(logFile, true), FileUtil.ZIGGY_CHARSET))) {
             // append to existing file if it exists
             bw.write(qsubCommandLine + "\n");
-        } catch (Exception e) {
-            log.warn("Failed to write to qsub log file, caught: " + e, e);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to write to file " + logFile.toString(), e);
         }
     }
 }

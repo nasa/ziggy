@@ -53,7 +53,6 @@ public class DataFileTestUtils {
         protected Pattern getPattern() {
             return PATTERN;
         }
-
     }
 
     /**
@@ -88,7 +87,6 @@ public class DataFileTestUtils {
         protected Pattern getPattern() {
             return PATTERN;
         }
-
     }
 
     /**
@@ -117,7 +115,6 @@ public class DataFileTestUtils {
         protected Pattern getPattern() {
             return PATTERN;
         }
-
     }
 
     /**
@@ -136,7 +133,6 @@ public class DataFileTestUtils {
         public void setValue(int value) {
             this.value = value;
         }
-
     }
 
     /**
@@ -200,7 +196,6 @@ public class DataFileTestUtils {
         public Set<Path> findDatastoreFilesForInputs(PipelineTask pipelineTask) {
             return Collections.emptySet();
         }
-
     }
 
     public static class PipelineOutputsSample1 extends PipelineOutputs {
@@ -253,7 +248,6 @@ public class DataFileTestUtils {
         protected boolean subtaskProducedResults() {
             return true;
         }
-
     }
 
     /**
@@ -283,7 +277,6 @@ public class DataFileTestUtils {
             }
             return p;
         }
-
     }
 
     public static final DataFileType dataFileTypeSample1 = new DataFileType();
@@ -308,5 +301,4 @@ public class DataFileTestUtils {
             "EO1H([0-9]{6})([0-9]{4})([0-9]{2})([0-9]{1})([A-Z0-9]{5})_([A-Z]{3})_([0-9]{2})");
         dataFileTypeForDirectories.setFileNameWithSubstitutionsForDatastore("EO1H$1$2$3$4$5_$6_$7");
     }
-
 }

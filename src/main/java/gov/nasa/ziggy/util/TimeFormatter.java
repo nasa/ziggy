@@ -50,5 +50,4 @@ public class TimeFormatter {
     private static String twoDigitString(double value) {
         return String.format("%02d", (int) value);
     }
-
 }

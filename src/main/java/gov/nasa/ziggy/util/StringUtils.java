@@ -1,5 +1,8 @@
 package gov.nasa.ziggy.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -40,9 +43,7 @@ public class StringUtils {
      * @return
      */
     public static String[] convertStringArray(String input) {
-        if (input == null) {
-            throw new IllegalArgumentException("input cannot be null.");
-        }
+        checkNotNull(input, "input");
 
         log.debug("convertStringArray got " + input);
         StringTokenizer st = new StringTokenizer(input, ",");
@@ -61,9 +62,7 @@ public class StringUtils {
      * @return representation of input value in camel case
      */
     public static String constantToAcronym(String value) {
-        if (value == null) {
-            throw new IllegalArgumentException("value cannot be null.");
-        }
+        checkNotNull(value, "value");
 
         StringBuilder builder = new StringBuilder();
         int index = 0;
@@ -88,9 +87,7 @@ public class StringUtils {
      * @return representation of input value in camel case
      */
     public static String constantToCamel(String value) {
-        if (value == null) {
-            throw new IllegalArgumentException("value cannot be null.");
-        }
+        checkNotNull(value, "value");
 
         Matcher matcher = CONSTANT_PART.matcher(value);
         StringBuffer buf = new StringBuffer();
@@ -121,9 +118,7 @@ public class StringUtils {
      * @return representation of input value in camel case with spaces.
      */
     public static String constantToCamelWithSpaces(String value) {
-        if (value == null) {
-            throw new IllegalArgumentException("value cannot be null.");
-        }
+        checkNotNull(value, "value");
 
         Matcher matcher = CONSTANT_PART.matcher(value);
         StringBuffer buf = new StringBuffer();
@@ -132,6 +127,34 @@ public class StringUtils {
                 // All but the first are preceded by a space.
                 matcher.appendReplacement(buf,
                     " " + matcher.group(1).toUpperCase() + matcher.group(2).toLowerCase());
+            } else {
+                // The first has no preceding space, but is otherwise the same.
+                matcher.appendReplacement(buf,
+                    matcher.group(1).toUpperCase() + matcher.group(2).toLowerCase());
+            }
+        }
+        matcher.appendTail(buf);
+
+        return buf.toString();
+    }
+
+    /**
+     * Translate a constant field name to sentence case with spaces. For example, FOO_BAR becomes
+     * Foo bar.
+     *
+     * @param value the name of the constant field (uppercase and underscores)
+     * @return representation of input value in sentence case with spaces.
+     */
+    public static String constantToSentenceWithSpaces(String value) {
+        checkNotNull(value, "value");
+
+        Matcher matcher = CONSTANT_PART.matcher(value);
+        StringBuffer buf = new StringBuffer();
+        while (matcher.find()) {
+            if (buf.length() > 0) {
+                // All but the first are preceded by a space.
+                matcher.appendReplacement(buf,
+                    " " + matcher.group(1).toLowerCase() + matcher.group(2).toLowerCase());
             } else {
                 // The first has no preceding space, but is otherwise the same.
                 matcher.appendReplacement(buf,
@@ -184,13 +207,8 @@ public class StringUtils {
     }
 
     public static String elapsedTime(Date startTime, Date endTime) {
-        if (startTime == null) {
-            throw new IllegalArgumentException("startTime cannot be null.");
-        }
-
-        if (endTime == null) {
-            throw new IllegalArgumentException("endTime cannot be null.");
-        }
+        checkNotNull(startTime, "startTime");
+        checkNotNull(endTime, "startTime");
 
         return elapsedTime(startTime.getTime(), endTime.getTime());
     }
@@ -215,17 +233,12 @@ public class StringUtils {
      * @return A string of length zero of more.
      */
     public static String toHexString(byte[] buf, int off, int len) {
-        if (buf == null) {
-            throw new NullPointerException("buf may not be null.");
-        }
-        if (off < 0) {
-            throw new IllegalArgumentException("off must be non-negative.");
-        }
-        if (len < 0) {
-            throw new IllegalArgumentException("len must be non-negative");
-        }
+        checkNotNull(buf, "buf");
+        checkArgument(off >= 0, "off must be non-negative");
+        checkArgument(len >= 0, "len must be non-negative");
+
         final int nbytes = buf.length - off;
-        if ((off > buf.length - 1) && (off == buf.length && nbytes != 0)) {
+        if (off > buf.length - 1 && off == buf.length && nbytes != 0) {
             throw new IllegalArgumentException("Offset is larger than array.");
         }
 
@@ -250,9 +263,8 @@ public class StringUtils {
      * @return If s null then the return value will be null.
      */
     public static String truncate(String s, int len) {
-        if (len < 0) {
-            throw new IllegalArgumentException("len must be non-negative");
-        }
+        checkArgument(len >= 0, "len must be non-negative");
+
         if (s == null) {
             return null;
         }
@@ -329,5 +341,4 @@ public class StringUtils {
         String[] splitString = string.split(System.lineSeparator());
         return Arrays.asList(splitString);
     }
-
 }

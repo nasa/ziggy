@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.metrics.report;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -27,8 +27,8 @@ public class MemdroneTest {
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    public ZiggyPropertyRule pipelineResultsDirPropertyRule = new ZiggyPropertyRule(
-        RESULTS_DIR_PROP_NAME, directoryRule);
+    public ZiggyPropertyRule pipelineResultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
+        directoryRule);
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -78,6 +78,5 @@ public class MemdroneTest {
 
         Path pLatest = memdrone.latestMemdronePath();
         assertEquals(p2.getFileName().toString(), pLatest.getFileName().toString());
-
     }
 }

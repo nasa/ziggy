@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.module.remote;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.QUEUE_COMMAND_CLASS_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_QUEUE_COMMAND_CLASS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -30,8 +30,7 @@ public class QstatMonitorTest {
 
     @Rule
     public ZiggyPropertyRule queueCommandClassPropertyRule = new ZiggyPropertyRule(
-        QUEUE_COMMAND_CLASS_PROP_NAME,
-        "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
+        REMOTE_QUEUE_COMMAND_CLASS, "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
 
     @Before
     public void setup() {
@@ -60,7 +59,6 @@ public class QstatMonitorTest {
         assertEquals("user", monitor.getOwner());
         assertEquals("host1", monitor.getServerName());
         assertSame(cmdManager, monitor.getQstatCommandManager());
-
     }
 
     /**
@@ -298,5 +296,4 @@ public class QstatMonitorTest {
         assertEquals(1, exitCommentMap.size());
         assertEquals("crashed and burned", exitCommentMap.get(1234597L));
     }
-
 }

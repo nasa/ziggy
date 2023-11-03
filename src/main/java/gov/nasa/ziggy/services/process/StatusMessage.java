@@ -8,10 +8,9 @@ import gov.nasa.ziggy.services.messages.PipelineMessage;
  * @author Todd Klaus
  */
 public abstract class StatusMessage extends PipelineMessage {
-    private static final long serialVersionUID = 20210318L;
+    private static final long serialVersionUID = 20230511L;
 
     private ProcessInfo sourceProcess;
-    private int reportIntervalMillis = 0;
 
     public StatusMessage() {
     }
@@ -40,13 +39,5 @@ public abstract class StatusMessage extends PipelineMessage {
      */
     public void setSourceProcess(ProcessInfo sourceProcess) {
         this.sourceProcess = sourceProcess;
-    }
-
-    public int getReportIntervalMillis() {
-        return reportIntervalMillis;
-    }
-
-    public void setReportIntervalMillis(int reportIntervalMillis) {
-        this.reportIntervalMillis = reportIntervalMillis;
     }
 }

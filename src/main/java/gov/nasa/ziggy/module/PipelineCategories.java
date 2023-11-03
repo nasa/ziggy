@@ -55,5 +55,4 @@ public class PipelineCategories {
         Units.TIME, // commit time
         Units.BYTES // archive size
     };
-
 }

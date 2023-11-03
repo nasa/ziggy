@@ -2,11 +2,13 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.io.Files;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * This class manages zero-length files whose names are used to represent the state of an executing
@@ -96,45 +98,57 @@ public class AlgorithmStateFiles {
         failedFlag.delete();
     }
 
-    public void updateCurrentState(SubtaskState newState) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void updateCurrentState(SubtaskState newState) {
         clearState();
 
-        switch (newState) {
-            case COMPLETE:
-                completeFlag.createNewFile();
-                break;
+        try {
+            switch (newState) {
+                case COMPLETE:
+                    completeFlag.createNewFile();
+                    break;
 
-            case PROCESSING:
-                processingFlag.createNewFile();
-                break;
+                case PROCESSING:
+                    processingFlag.createNewFile();
+                    break;
 
-            case FAILED:
-                failedFlag.createNewFile();
-                break;
+                case FAILED:
+                    failedFlag.createNewFile();
+                    break;
 
-            default:
-                throw new IllegalStateException("Unknown state: " + newState);
+                case NULL:
+                    throw new IllegalArgumentException(
+                        "Unable to create new algorithm state file for state " + newState);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to create new algorithm state file", e);
         }
     }
 
-    public void setResultsFlag() throws IOException {
-        resultsFlag.createNewFile();
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void setResultsFlag() {
+        try {
+            resultsFlag.createNewFile();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to create new file " + resultsFlag.toString(),
+                e);
+        }
     }
 
     public SubtaskState currentSubtaskState() {
         SubtaskState current = SubtaskState.NULL;
 
-        if (robustExists(processingFlag)) {
+        if (processingFlag.exists()) {
             current = SubtaskState.PROCESSING;
         }
-        if (robustExists(completeFlag)) {
+        if (completeFlag.exists()) {
             if (current != SubtaskState.NULL) {
                 log.warn("Duplicate algorithm state files found!");
                 return null;
             }
             current = SubtaskState.COMPLETE;
         }
-        if (robustExists(failedFlag)) {
+        if (failedFlag.exists()) {
             if (current != SubtaskState.NULL) {
                 log.warn("Duplicate algorithm state files found!");
                 return null;
@@ -151,24 +165,7 @@ public class AlgorithmStateFiles {
      * @return
      */
     public boolean subtaskStateExists() {
-        return robustExists(completeFlag) || robustExists(processingFlag)
-            || robustExists(failedFlag);
-    }
-
-    /**
-     * Verifies that a file exists by attempting to read it instead of just using File.exists() in
-     * order to bypass the NFS client cache
-     *
-     * @param f
-     * @return
-     */
-    private boolean robustExists(File f) {
-        try {
-            Files.toByteArray(f);
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
+        return completeFlag.exists() || processingFlag.exists() || failedFlag.exists();
     }
 
     public boolean isProcessing() {
@@ -210,5 +207,4 @@ public class AlgorithmStateFiles {
             return completedSubtasks;
         }
     }
-
 }

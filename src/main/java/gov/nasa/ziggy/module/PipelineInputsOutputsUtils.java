@@ -38,5 +38,4 @@ public abstract class PipelineInputsOutputsUtils implements Persistable {
         String subtaskName = DirectoryProperties.workingDir().getFileName().toString();
         SubtaskUtils.putLogStreamIdentifier(subtaskName);
     }
-
 }

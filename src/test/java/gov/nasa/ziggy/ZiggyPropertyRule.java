@@ -4,10 +4,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.nio.file.Path;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
+import org.apache.commons.configuration2.Configuration;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
+
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /*
  * Idea: If multiple properties need to be set, perhaps it would be more convenient to put them in
@@ -20,7 +22,8 @@ import org.junit.rules.TestRule;
 
 /**
  * Implements a {@link TestRule} for the setting and resetting of properties for use by unit tests.
- * To use, declare a field that refers to this rule as shown.
+ * To use, declare a field that refers to this rule as shown. Note that "foo" can be a string or a
+ * {@link PropertyName}.
  *
  * <pre>
  * &#64;Rule
@@ -34,7 +37,7 @@ import org.junit.rules.TestRule;
  *
  * <pre>
  * public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
- * public ZiggyPropertyRule fooPropertyRule = new ZiggyPropertyRule("foo", "value");
+ * public ZiggyPropertyRule fooPropertyRule = new ZiggyPropertyRule("foo", directoryRule, "bar");
  *
  * &#64;Rule
  * public final RuleChain ruleChain = RuleChain.outerRule(directoryRule).around(fooPropertyRule);
@@ -44,12 +47,10 @@ import org.junit.rules.TestRule;
  * value and a {@link #getPreviousProperty} method to access the value of the property before the
  * test started.
  * <p>
- * This class is marked {@code @NotThreadSafe} as it manipulates system properties that are global
- * across the JVM.
+ * This class is thread-safe as it uses thread-safe configuration objects.
  *
  * @author Bill Wohler
  */
-@NotThreadSafe
 public class ZiggyPropertyRule extends ExternalResource {
 
     private String property;
@@ -57,6 +58,20 @@ public class ZiggyPropertyRule extends ExternalResource {
     private ZiggyDirectoryRule directoryRule;
     private String subdirectory;
     private String previousValue;
+
+    /**
+     * Creates a {@code ZiggyPropertyRule} with the given property and value. See class
+     * documentation for usage.
+     *
+     * @param property the non-{@code null} property to set
+     * @param value the value to set the property to. This can be {@code null} to clear the property
+     * before each test, and reset the property after each test. This is useful if a test modifies
+     * the property or depends on the property being cleared.
+     * @throws NullPointerException if property is {@code null}
+     */
+    public ZiggyPropertyRule(PropertyName property, String value) {
+        this(checkNotNull(property, "property").property(), value);
+    }
 
     /**
      * Creates a {@code ZiggyPropertyRule} with the given property and value. See class
@@ -82,8 +97,37 @@ public class ZiggyPropertyRule extends ExternalResource {
      * and used as the value of the property
      * @throws NullPointerException if property or directoryRule are {@code null}
      */
+    public ZiggyPropertyRule(PropertyName property, ZiggyDirectoryRule directoryRule) {
+        this(property, directoryRule, null);
+    }
+
+    /**
+     * Creates a {@code ZiggyPropertyRule} with the given property and directory. See class
+     * documentation for usage.
+     *
+     * @param property the non-{@code null} property to set
+     * @param directoryRule the non-{@code null} directory rule from which the directory is obtained
+     * and used as the value of the property
+     * @throws NullPointerException if property or directoryRule are {@code null}
+     */
     public ZiggyPropertyRule(String property, ZiggyDirectoryRule directoryRule) {
         this(property, directoryRule, null);
+    }
+
+    /**
+     * Creates a {@code ZiggyPropertyRule} with the given property and directory and subdirectory.
+     * See class documentation for usage.
+     *
+     * @param property the non-{@code null} property to set
+     * @param directoryRule the non-{@code null} directory rule from which the directory is obtained
+     * and used as the value of the property
+     * @param subdirectory the subdirectory, which is appended to the directory and used as the
+     * value of the property; ignored if {@code null}
+     * @throws NullPointerException if property or directoryRule are {@code null}
+     */
+    public ZiggyPropertyRule(PropertyName property, ZiggyDirectoryRule directoryRule,
+        String subdirectory) {
+        this(checkNotNull(property, "property").property(), directoryRule, subdirectory);
     }
 
     /**
@@ -114,32 +158,18 @@ public class ZiggyPropertyRule extends ExternalResource {
             value = directory.toString();
         }
 
+        Configuration configuration = ZiggyConfiguration.getMutableInstance();
+        previousValue = configuration.getString(property, null);
         if (value != null) {
-            previousValue = System.setProperty(property, value);
+            configuration.setProperty(property, value);
         } else {
-            previousValue = System.getProperty(property);
-            System.clearProperty(property);
+            configuration.clearProperty(property);
         }
     }
 
     @Override
     protected void after() {
-        resetSystemProperty(property, previousValue);
-    }
-
-    /**
-     * Sets the given property to the given value. If {@code value} is {@code null}, the property is
-     * cleared.
-     *
-     * @param property the property to set
-     * @param value the value to set the property to, or {@code null} to clear the property
-     */
-    public static void resetSystemProperty(String property, String value) {
-        if (value != null) {
-            System.setProperty(property, value);
-        } else {
-            System.clearProperty(property);
-        }
+        ZiggyConfiguration.reset();
     }
 
     /**

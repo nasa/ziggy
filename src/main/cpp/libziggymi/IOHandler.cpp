@@ -12,13 +12,13 @@
 #include "IOHandler.h"
 #include "hdf5.h"
 
-IOHandler::IOHandler(const std::string& dir_p, const std::string& id_p, const std::string& binaryName_p) : 
-    dir(dir_p), id(id_p), binaryName(binaryName_p) {
+IOHandler::IOHandler(const std::string& dir_p, const std::string& binaryName_p) : 
+    dir(dir_p), binaryName(binaryName_p) {
     
     if (binaryName.rfind("/") != std::string::npos) {
         binaryName = binaryName.substr(binaryName.rfind("/") + 1);
-        inputFilename = dir + "/" + binaryName + "-inputs-" + id + ".h5";
-        outputFilename = dir + "/" + binaryName + "-outputs-" + id + ".h5";
+        inputFilename = dir + "/" + binaryName + "-inputs.h5";
+        outputFilename = dir + "/" + binaryName + "-outputs.h5";
     }
 }
     

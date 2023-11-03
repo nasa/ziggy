@@ -65,7 +65,7 @@ public class ParameterSetHdf5Test {
         assertTrue(((ScalarPars) p4.get(1)).checkVars());
     }
 
-    public static class ScalarPars implements Parameters {
+    public static class ScalarPars extends Parameters {
 
         public int getValue1() {
             return value1;
@@ -98,10 +98,9 @@ public class ParameterSetHdf5Test {
         public boolean checkVars() {
             return value1 == 100 && value2 == 28.56 && value3.equals("surprise!");
         }
-
     }
 
-    public static class NonScalarPars implements Parameters {
+    public static class NonScalarPars extends Parameters {
 
         private int[] value1 = { 1, 2, 3 };
         private double[][] value2 = { { 1.1, 2.2 }, { 3.3, 4.4 } };

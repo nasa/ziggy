@@ -1,11 +1,11 @@
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.MODULE_EXE_BINPATH_PROPERTY_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.MODULE_EXE_LIBPATH_PROPERTY_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.MODULE_EXE_MCRROOT_PROPERTY_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.PIPELINE_HOME_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.RESULTS_DIR_PROP_NAME;
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_HOME_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.BINPATH;
+import static gov.nasa.ziggy.services.config.PropertyName.LIBPATH;
+import static gov.nasa.ziggy.services.config.PropertyName.MCRROOT;
+import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HOME_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -16,12 +16,13 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.ExecuteException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -51,32 +52,35 @@ public class SubtaskExecutorTest {
     private File buildDir;
     private File binDir;
 
-    @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
     @Rule
-    public ZiggyPropertyRule moduleExeBinpathPropertyRule = new ZiggyPropertyRule(
-        MODULE_EXE_BINPATH_PROPERTY_NAME, (String) null);
-
-    @Rule
-    public ZiggyPropertyRule moduleExeLibpathPropertyRule = new ZiggyPropertyRule(
-        MODULE_EXE_LIBPATH_PROPERTY_NAME, "path1" + File.pathSeparator + "path2");
-
-    @Rule
-    public ZiggyPropertyRule moduleExeMcrrootPropertyRule = new ZiggyPropertyRule(
-        MODULE_EXE_MCRROOT_PROPERTY_NAME, (String) null);
-
-    @Rule
-    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(
-        PIPELINE_HOME_DIR_PROP_NAME, (String) null);
-
-    @Rule
-    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR_PROP_NAME,
+    public ZiggyPropertyRule moduleExeBinpathPropertyRule = new ZiggyPropertyRule(BINPATH,
         (String) null);
 
     @Rule
-    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_HOME_DIR_PROP_NAME, "/path/to/ziggy/build");
+    public ZiggyPropertyRule moduleExeLibpathPropertyRule = new ZiggyPropertyRule(LIBPATH,
+        "path1" + File.pathSeparator + "path2");
+
+    @Rule
+    public ZiggyPropertyRule moduleExeMcrrootPropertyRule = new ZiggyPropertyRule(MCRROOT,
+        (String) null);
+
+    // This rule can be set to anything, but if it's not set at all the unit tests fail.
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        "/path/to/ziggy/build");
+
+    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(PIPELINE_HOME_DIR,
+        directoryRule, "build");
+
+    public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
+        directoryRule, "results");
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
+        .around(pipelineHomeDirPropertyRule)
+        .around(resultsDirPropertyRule);
 
     @Before
     public void setup() throws IOException, ConfigurationException {
@@ -85,15 +89,13 @@ public class SubtaskExecutorTest {
         taskDir = new File(rootDir, "10-20-pa");
         subTaskDir = new File(taskDir, "st-0");
         subTaskDir.mkdirs();
-        buildDir = new File(rootDir, "build");
+        buildDir = new File(pipelineHomeDirPropertyRule.getProperty());
         binDir = new File(buildDir, "bin");
         binDir.mkdirs();
         File paFile = new File(binDir, "pa");
         paFile.createNewFile();
 
-        System.setProperty(PIPELINE_HOME_DIR_PROP_NAME, buildDir.toString());
-        System.setProperty(RESULTS_DIR_PROP_NAME, new File(rootDir, "results").getAbsolutePath());
-        new File(System.getProperty(RESULTS_DIR_PROP_NAME)).mkdirs();
+        new File(resultsDirPropertyRule.getProperty()).mkdirs();
 
         // Create the state file directory
         Files.createDirectories(DirectoryProperties.stateFilesDir());
@@ -112,8 +114,6 @@ public class SubtaskExecutorTest {
             .taskDir(taskDir)
             .subtaskIndex(0)
             .timeoutSecs(1000000)
-            .pipelineHomeDir(buildDir.getAbsolutePath())
-            .pipelineConfigPath("/dev/null")
             .build();
         assertEquals("pa", e.binaryName());
         assertEquals(binDir.getCanonicalPath(), e.binaryDir().getCanonicalPath());
@@ -122,13 +122,11 @@ public class SubtaskExecutorTest {
         assertEquals("path1" + File.pathSeparator + "path2", e.libPath());
 
         // with MATLAB paths defined
-        System.setProperty(MODULE_EXE_MCRROOT_PROPERTY_NAME, "/path/to/mcr/v22");
+        System.setProperty(MCRROOT.property(), "/path/to/mcr/v22");
         e = new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
             .timeoutSecs(1000000)
-            .pipelineHomeDir(buildDir.getAbsolutePath())
-            .pipelineConfigPath("/dev/null")
             .build();
         String[] libPaths = e.libPath().split(File.pathSeparator);
 
@@ -156,12 +154,9 @@ public class SubtaskExecutorTest {
                 .taskDir(taskDir)
                 .subtaskIndex(0)
                 .timeoutSecs(1000000)
-                .pipelineHomeDir(buildDir.getAbsolutePath())
-                .pipelineConfigPath("/dev/null")
                 .build();
             assertEquals("cal", e.binaryName());
         }
-
     }
 
     /**
@@ -180,17 +175,14 @@ public class SubtaskExecutorTest {
         new File(binDir3, "pa").createNewFile();
         String binPath = phonyBinDir1 + File.pathSeparator + phonyBinDir2 + File.pathSeparator
             + binDir3;
-        System.setProperty(MODULE_EXE_BINPATH_PROPERTY_NAME, binPath);
+        System.setProperty(BINPATH.property(), binPath);
         SubtaskExecutor e = new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
             .timeoutSecs(1000000)
-            .pipelineHomeDir(buildDir.getAbsolutePath())
-            .pipelineConfigPath("/dev/null")
             .build();
         assertEquals("pa", e.binaryName());
         assertEquals(binDir3File.getCanonicalPath(), e.binaryDir().getCanonicalPath());
-
     }
 
     @Test
@@ -203,14 +195,14 @@ public class SubtaskExecutorTest {
         CommandLine commandLine = externalProcessExecutor.commandLine();
         Mockito.verify(externalProcess).setWorkingDirectory(subTaskDir);
         String cmdString = commandLine.toString();
-        String expectedCommandString = "[/path/to/ziggy/build/bin/runjava, --verbose, "
-            + "-Djava.library.path=/path/to/ziggy/build/lib, "
-            + "-Dlog4j2.configurationFile=/path/to/ziggy/build/etc/log4j2.xml, "
-            + "gov.nasa.ziggy.module.TaskFileManager, "
-            + "gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample]";
+        String expectedCommandString = """
+            [/path/to/ziggy/build/bin/ziggy, --verbose,\s\
+            -Djava.library.path=path1:path2:/path/to/ziggy/build/lib,\s\
+            -Dlog4j2.configurationFile=/path/to/ziggy/build/etc/log4j2.xml,\s\
+            --class=gov.nasa.ziggy.module.TaskFileManager,\s\
+            gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample]""";
         assertEquals(expectedCommandString, cmdString);
         assertEquals(0, retCode);
-
     }
 
     /**
@@ -240,12 +232,11 @@ public class SubtaskExecutorTest {
         Mockito.doReturn(1)
             .when(externalProcessExecutor)
             .runInputsOutputsCommand(PipelineInputsSample.class);
-        int retCode = externalProcessExecutor.execAlgorithmInternal(0);
+        int retCode = externalProcessExecutor.execAlgorithmInternal();
         assertEquals(1, retCode);
         assertTrue(new File(subTaskDir, ".FAILED").exists());
         Mockito.verify(externalProcessExecutor, Mockito.never())
-            .runCommandline(ArgumentMatchers.anyList(), ArgumentMatchers.any(String.class),
-                ArgumentMatchers.any(String.class));
+            .runCommandline(ArgumentMatchers.anyList(), ArgumentMatchers.any(String.class));
     }
 
     @Test
@@ -257,7 +248,7 @@ public class SubtaskExecutorTest {
         List<String> cmdLineArgs = new ArrayList<>();
         cmdLineArgs.add("dummyArg1");
         cmdLineArgs.add("dummyArg2");
-        int retCode = externalProcessExecutor.runCommandline(cmdLineArgs, "a", "b");
+        int retCode = externalProcessExecutor.runCommandline(cmdLineArgs, "a");
         CommandLine commandLine = externalProcessExecutor.commandLine();
         Mockito.verify(externalProcess).setWorkingDirectory(subTaskDir);
         Mockito.verify(externalProcess).setCommandLine(commandLine);
@@ -269,7 +260,6 @@ public class SubtaskExecutorTest {
         // we'll have to do some kind of indirect checking of the command
         assertTrue(cmdString.startsWith("[" + binDir.getAbsolutePath() + "/pa"));
         assertTrue(cmdString.endsWith("pa, dummyArg1, dummyArg2]"));
-
     }
 
     private void setUpMockedObjects() throws IOException {
@@ -278,8 +268,6 @@ public class SubtaskExecutorTest {
             .taskDir(taskDir)
             .subtaskIndex(0)
             .timeoutSecs(1000000)
-            .pipelineHomeDir(buildDir.getAbsolutePath())
-            .pipelineConfigPath("/dev/null")
             .build();
         externalProcessExecutor = Mockito.spy(externalProcessExecutor);
         Mockito.when(externalProcessExecutor.externalProcess(ArgumentMatchers.isNull(),

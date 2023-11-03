@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import gov.nasa.ziggy.pipeline.definition.ParameterSetName;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
 
 /**
@@ -105,11 +104,10 @@ public class XmlUtils {
      * asserts that the two have the same length, and that each name in one {@link Collection} is
      * present in the other.
      */
-    public static void compareParameterSetReferences(
-        Collection<ParameterSetName> groundTruthReferences,
-        Collection<ParameterSetName> nodeReferences) {
+    public static void compareParameterSetReferences(Collection<String> groundTruthReferences,
+        Collection<String> nodeReferences) {
         assertEquals(groundTruthReferences.size(), nodeReferences.size());
-        for (ParameterSetName reference : nodeReferences) {
+        for (String reference : nodeReferences) {
             assertTrue(groundTruthReferences.contains(reference));
         }
     }
@@ -132,7 +130,5 @@ public class XmlUtils {
     public static List<String> simpleTypeContent(List<String> allContents,
         String pipelineDefinitionLine) {
         return xmlElementContent(allContents, pipelineDefinitionLine, "</xs:simpleType>");
-
     }
-
 }

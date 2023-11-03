@@ -30,9 +30,8 @@ public class NodeReport extends Report {
         super(pdfRenderer);
     }
 
-    public void generateReport(PipelineInstanceNode node, List<PipelineTask> tasks)
-        throws Exception {
-        String moduleName = node.getPipelineModuleDefinition().getName().getName();
+    public void generateReport(PipelineInstanceNode node, List<PipelineTask> tasks) {
+        String moduleName = node.getPipelineModuleDefinition().getName();
         pdfRenderer.printText("Pipeline Module: " + moduleName, PdfRenderer.h1Font);
 
         categoryStats = new HashMap<>();
@@ -196,5 +195,4 @@ public class NodeReport extends Report {
             return metricValue;
         }
     }
-
 }

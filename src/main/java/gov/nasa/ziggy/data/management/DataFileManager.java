@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
@@ -43,9 +44,11 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.uow.TaskConfigurationParameters;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -144,7 +147,7 @@ public class DataFileManager {
     private DatastoreCopyType taskDirCopyType() {
         DatastoreCopyType copyType = null;
         boolean useSymlinks = ZiggyConfiguration.getInstance()
-            .getBoolean(PropertyNames.USE_SYMLINKS_PROP_NAME, false);
+            .getBoolean(PropertyName.USE_SYMLINKS.property(), false);
         if (useSymlinks) {
             copyType = DatastoreCopyType.SYMLINK;
         } else {
@@ -331,6 +334,7 @@ public class DataFileManager {
      *
      * @param dataFileTypes Set of DataFileType instances to use in deletion.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void deleteDataFilesByTypeFromTaskDirectory(Set<DataFileType> dataFileTypes) {
 
         Map<DataFileType, Set<Path>> dataFileTypesMap = taskDirectoryDataFilesMap(dataFileTypes);
@@ -346,9 +350,7 @@ public class DataFileManager {
                         FileUtils.deleteDirectory(fullPath.toFile());
                     }
                 } catch (IOException e) {
-                    throw new PipelineException(
-                        "Unable to delete file " + fullPath.getFileName().toString()
-                            + " from task directory " + taskDirectory.toString(),
+                    throw new UncheckedIOException("IO Exception for file " + fullPath.toString(),
                         e);
                 }
             }
@@ -456,6 +458,7 @@ public class DataFileManager {
      * objects are generated from the files in a specified directory. The search for the objects
      * runs through a collection of directories.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public Map<Class<? extends DataFileInfo>, Set<? extends DataFileInfo>> dataFilesMap(
         Collection<Path> dirs, Set<Class<? extends DataFileInfo>> dataFileInfoClasses) {
 
@@ -467,7 +470,7 @@ public class DataFileManager {
             try {
                 filesSet = Files.list(dir).collect(Collectors.toCollection(TreeSet::new));
             } catch (IOException e) {
-                throw new PipelineException("Unable to list files in " + dir.toString(), e);
+                throw new UncheckedIOException("Unable to list files in dir " + dir.toString(), e);
             }
 
             for (Class<? extends DataFileInfo> clazz : dataFileInfoClasses) {
@@ -481,7 +484,6 @@ public class DataFileManager {
                     datastoreMap.put(clazz, dataFilesOfClass);
                 }
             }
-
         }
         return datastoreMap;
     }
@@ -539,24 +541,21 @@ public class DataFileManager {
      * @param dataFiles Set of instances of DataFileInfo subclasses that represent the files to be
      * deleted.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void deleteFromTaskDirectory(Set<? extends DataFileInfo> dataFiles) {
         for (DataFileInfo dataFileInfo : dataFiles) {
             Path taskDirLocation = taskDirectory.resolve(dataFileInfo.getName());
             try {
                 if (Files.isRegularFile(taskDirLocation) || Files.isSymbolicLink(taskDirLocation)) {
                     Files.deleteIfExists(taskDirLocation);
-
                 } else {
                     FileUtils.deleteDirectory(taskDirLocation.toFile());
                 }
             } catch (IOException e) {
-                throw new PipelineException(
-                    "Unable to delete file " + dataFileInfo.getName().toString()
-                        + " from task directory " + taskDirectory.toString(),
-                    e);
+                throw new UncheckedIOException(
+                    "IOException occurred on file " + taskDirLocation.toString(), e);
             }
         }
-
     }
 
     /**
@@ -565,17 +564,21 @@ public class DataFileManager {
      * @param dataFiles Set of instances of DataFileInfo subclasses that represent the files to be
      * moved.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void moveToDatastore(Set<? extends DataFileInfo> dataFiles) {
         Set<Path> datastoreFiles = new HashSet<>();
         for (DataFileInfo dataFileInfo : dataFiles) {
             Path taskDirLocation = taskDirectory.resolve(dataFileInfo.getName());
             Path datastoreLocation = datastorePathLocator.datastorePath(dataFileInfo);
             Path datastoreLocationParent = datastoreLocation.getParent();
+            if (datastoreLocationParent == null) {
+                throw new PipelineException("Unable to obtain parent of datastore location");
+            }
             try {
                 Files.createDirectories(datastoreLocationParent);
             } catch (IOException e) {
-                throw new PipelineException("Unable to create directory " + datastoreLocationParent,
-                    e);
+                throw new UncheckedIOException(
+                    "Unable to create directory " + datastoreLocationParent.toString(), e);
             }
             datastoreCopyType.copy(taskDirLocation, datastoreLocation);
             datastoreFiles.add(datastoreRoot.relativize(datastoreLocation));
@@ -688,8 +691,6 @@ public class DataFileManager {
                 final Path finalPathToRelativize = pathToRelativize;
                 filesSet = pathStream.map(s -> finalPathToRelativize.relativize(s))
                     .collect(Collectors.toCollection(TreeSet::new));
-            } catch (IOException e) {
-                throw new PipelineException("Unable to list files in " + directory.toString(), e);
             } finally {
                 if (pathStream != null) {
                     pathStream.close();
@@ -713,7 +714,6 @@ public class DataFileManager {
             }
         }
         return dataFilesMap;
-
     }
 
     /**
@@ -726,6 +726,8 @@ public class DataFileManager {
      * @return Set of all Paths in files argument that correspond to the specified subclass of
      * DataFileInfo.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     private <T extends DataFileInfo> Set<T> dataFilesOfClass(Class<T> clazz, Set<Path> files) {
         Set<T> dataFiles = new TreeSet<>();
         Set<Path> foundFiles = new HashSet<>();
@@ -737,8 +739,9 @@ public class DataFileManager {
             dataFileInfoForPatternCheck = noArgConstructor.newInstance();
         } catch (NoSuchMethodException | SecurityException | InstantiationException
             | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            throw new PipelineException(
-                "Unable to perform reflection on " + clazz.getCanonicalName(), e);
+            // Can never occur. All DataFileInfo classes can be constructed in the manner
+            // used above.
+            throw new AssertionError(e);
         }
         for (Path file : files) {
 
@@ -749,12 +752,12 @@ public class DataFileManager {
                     dataFiles.add(stringArgConstructor.newInstance(file.getFileName().toString()));
                 } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
                     | InvocationTargetException e) {
-                    throw new PipelineException("Unable to instantiate class "
-                        + clazz.getCanonicalName() + " with file " + file.toString(), e);
+                    // Can never occur. DataFileInfo instances can always be instantiated in
+                    // the manner shown above.
+                    throw new AssertionError(e);
                 }
                 foundFiles.add(file);
             }
-
         }
 
         return dataFiles;
@@ -790,7 +793,6 @@ public class DataFileManager {
                     taskDirectory, dataFileType, dataFile);
                 datastoreFiles.add(datastoreRoot.relativize(dataFilePaths.getDatastorePath()));
                 copyType.copy(dataFilePaths.getSourcePath(), dataFilePaths.getDestinationPath());
-
             }
             if (destination.equals(RegexType.DATASTORE)) {
                 copiedFiles.put(dataFileType, datastoreFiles);
@@ -820,7 +822,6 @@ public class DataFileManager {
             .filter(predicate)
             .map(File::toPath)
             .collect(Collectors.toList());
-
     }
 
     private Set<Path> filterDataFiles(Set<Path> allDataFiles, RegexType destination) {
@@ -879,7 +880,6 @@ public class DataFileManager {
             .filter(s -> Collections.disjoint(s.getAllConsumers(), consumersWithMatchingNode))
             .map(s -> Paths.get(s.getFilename()))
             .collect(Collectors.toSet());
-
     }
 
     /**
@@ -921,11 +921,17 @@ public class DataFileManager {
      * path. Thus the "actual source" is either a non-symlink file that the src file is a link to,
      * or it's a file (symlink or regular file) that lies inside the datastore.
      */
-    public static Path realSourceFile(Path src) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Path realSourceFile(Path src) {
         Path datastoreRoot = DirectoryProperties.datastoreRootDir();
         Path trueSrc = src;
         if (Files.isSymbolicLink(src) && !src.startsWith(datastoreRoot)) {
-            trueSrc = realSourceFile(Files.readSymbolicLink(src));
+            try {
+                trueSrc = realSourceFile(Files.readSymbolicLink(src));
+            } catch (IOException e) {
+                throw new UncheckedIOException("Unable to resolve symbolic link " + src.toString(),
+                    e);
+            }
         }
         return trueSrc;
     }
@@ -964,56 +970,60 @@ public class DataFileManager {
     private enum DatastoreCopyType {
         COPY {
             @Override
-            protected void copyInternal(Path src, Path dest) throws IOException {
-                checkout(src, dest);
-                if (Files.isRegularFile(src)) {
-                    Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
-                } else {
-                    FileUtils.copyDirectory(src.toFile(), dest.toFile());
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            protected void copyInternal(Path src, Path dest) {
+                try {
+                    checkout(src, dest);
+                    if (Files.isRegularFile(src)) {
+                        Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
+                    } else {
+                        FileUtils.copyDirectory(src.toFile(), dest.toFile());
+                    }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to copy " + src.toString() + " to " + dest.toString(), e);
                 }
-            }
-
-            @Override
-            protected String pipelineExceptionFormat() {
-                return "Unable to copy file %s to %s\n";
             }
         },
         MOVE {
             @Override
-            protected void copyInternal(Path src, Path dest) throws IOException {
-                checkout(src, dest);
-                Path trueSrc = DataFileManager.realSourceFile(src);
-                if (Files.exists(dest)) {
-                    FileUtil.prepareDirectoryTreeForOverwrites(dest);
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            protected void copyInternal(Path src, Path dest) {
+                try {
+                    checkout(src, dest);
+                    Path trueSrc = DataFileManager.realSourceFile(src);
+                    if (Files.exists(dest)) {
+                        FileUtil.prepareDirectoryTreeForOverwrites(dest);
+                    }
+                    Files.move(trueSrc, dest, StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+                    FileUtil.writeProtectDirectoryTree(dest);
+                    if (src != trueSrc) {
+                        Files.delete(src);
+                        Files.createSymbolicLink(trueSrc, dest);
+                    }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to move or symlink " + src.toString() + " to " + dest.toString(),
+                        e);
                 }
-                Files.move(trueSrc, dest, StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE);
-                FileUtil.writeProtectDirectoryTree(dest);
-                if (src != trueSrc) {
-                    Files.delete(src);
-                    Files.createSymbolicLink(trueSrc, dest);
-                }
-            }
-
-            @Override
-            protected String pipelineExceptionFormat() {
-                return "Unable to move file %s to %s\n";
             }
         },
         SYMLINK {
             @Override
-            protected void copyInternal(Path src, Path dest) throws IOException {
-                checkout(src, dest);
-                Path trueSrc = DataFileManager.realSourceFile(src);
-                if (Files.exists(dest)) {
-                    Files.delete(dest);
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            protected void copyInternal(Path src, Path dest) {
+                try {
+                    checkout(src, dest);
+                    Path trueSrc = DataFileManager.realSourceFile(src);
+                    if (Files.exists(dest)) {
+                        Files.delete(dest);
+                    }
+                    Files.createSymbolicLink(dest, trueSrc);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to symlink from " + src.toString() + " to " + dest.toString(), e);
                 }
-                Files.createSymbolicLink(dest, trueSrc);
-            }
-
-            @Override
-            protected String pipelineExceptionFormat() {
-                return "Unable to create symlink %s from %s\n";
             }
         };
 
@@ -1021,26 +1031,15 @@ public class DataFileManager {
          * Copy operation that allows / forces the caller to manage any {@link IOException} that
          * occurs.
          */
-        protected abstract void copyInternal(Path src, Path dest) throws IOException;
+        protected abstract void copyInternal(Path src, Path dest);
 
         /**
-         * Provides a formatting string for the {@link PipelineException} thrown by
-         * {@link #copy(Path, Path)}.
-         */
-        protected abstract String pipelineExceptionFormat();
-
-        /**
-         * Copy operation that manages any resulting {@link IOException}}. In this event, a
-         * {@link PipelineException} is thrown, which terminates execution of the datastore
+         * Copy operation that manages any resulting {@link IOException}}. In this event, an
+         * {@link UncheckedIOException} is thrown, which terminates execution of the datastore
          * operations.
          */
         public void copy(Path src, Path dest) {
-            try {
-                copyInternal(src, dest);
-            } catch (IOException e) {
-                throw new PipelineException(
-                    String.format(pipelineExceptionFormat(), src.toString(), dest.toString()), e);
-            }
+            copyInternal(src, dest);
         }
 
         private static void checkout(Path src, Path dest) {
@@ -1049,7 +1048,6 @@ public class DataFileManager {
             checkArgument(Files.exists(src, LinkOption.NOFOLLOW_LINKS),
                 "Source file " + src + " does not exist");
         }
-
     }
 
     /**
@@ -1058,8 +1056,6 @@ public class DataFileManager {
      * symbolic link at the destination that links to the true source file and removal of the
      * symbolic link that was used as the source file. Sources that are not symbolic links will use
      * the {@link DatastoreCopyType#MOVE} operation.
-     *
-     * @throws IOException if any such occurs during the underlying file operations.
      */
     public static void moveOrSymlink(Path src, Path dest) throws IOException {
 
@@ -1070,5 +1066,4 @@ public class DataFileManager {
             DatastoreCopyType.MOVE.copy(src, dest);
         }
     }
-
 }

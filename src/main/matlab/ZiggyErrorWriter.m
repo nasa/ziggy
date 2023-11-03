@@ -3,10 +3,7 @@ classdef ZiggyErrorWriter < handle
 % ZiggyErrorWriter -- writes an HDF5 error file that can be read by Ziggy. The file
 % contains the error type and message, plus a stack trace.
 %
-% The entirety of the class' capabilities is in its constructor. The constructor can take
-% an optional integer argument which is the sequence number to be used in the file name of
-% the error file. If no sequence number is supplied (which is the more typical use-case),
-% a value of 0 will be used. The resulting file will be <module-name>-error-<seq-num>.h5.
+% The entirety of the class' capabilities is in its constructor. 
 %
 
 %=========================================================================================
@@ -22,24 +19,20 @@ end % properties
 methods
     
     % constructor
-    function obj = ZiggyErrorWriter(sequenceNumber)
-        if ~exist('sequenceNumber', 'var') || isempty(sequenceNumber)
-            sequenceNumber = 0;
-        end
-        if ~is_int_valued(sequenceNumber) || ~isscalar(sequenceNumber)
-            sequenceNumber = 0;
+    function obj = ZiggyErrorWriter(lastError)
+        if ~exist('lastError', 'var') || isempty(lastError) 
+            lastError = lasterror;
         end
         
         % get the module name from the directory
         [filePath, ~, ~] = fileparts(pwd);
         [~, taskDir, ~] = fileparts(filePath);
         taskDirParts = split(taskDir, '-');
-        moduleName = taskDirParts{1};
+        moduleName = taskDirParts{3};
         
-        errorFileName = [moduleName, '-error-', num2str(sequenceNumber),'.h5'];
+        errorFileName = [moduleName, '-error.h5'];
         
         % populate the members of this object
-        lastError = lasterror;
         obj.message = lastError.message;
         obj.identifier = lastError.identifier;
         obj.stack = lastError.stack;

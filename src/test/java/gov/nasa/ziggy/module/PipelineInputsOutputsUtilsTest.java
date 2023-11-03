@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.ZIGGY_TEST_WORKING_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_TEST_WORKING_DIR;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -28,14 +28,14 @@ public class PipelineInputsOutputsUtilsTest {
 
     @Rule
     public ZiggyPropertyRule ziggyTestWorkingDirPropertyRule = new ZiggyPropertyRule(
-        ZIGGY_TEST_WORKING_DIR_PROP_NAME, (String) null);
+        ZIGGY_TEST_WORKING_DIR, (String) null);
 
     @Before
     public void setup() throws IOException {
 
         taskDir = directoryRule.directory().resolve("1-2-pa");
         Path workingDir = taskDir.resolve("st-12");
-        System.setProperty(ZIGGY_TEST_WORKING_DIR_PROP_NAME, workingDir.toString());
+        System.setProperty(ZIGGY_TEST_WORKING_DIR.property(), workingDir.toString());
         // Create the task dir and the subtask dir
         Files.createDirectories(workingDir);
     }
@@ -56,5 +56,4 @@ public class PipelineInputsOutputsUtilsTest {
     public void testModuleName() {
         assertEquals("pa", PipelineInputsOutputsUtils.moduleName());
     }
-
 }

@@ -2,6 +2,7 @@ package gov.nasa.ziggy.module;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import org.hibernate.Hibernate;
 import org.slf4j.Logger;
@@ -11,8 +12,10 @@ import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.worker.TaskFileCopy;
-import gov.nasa.ziggy.worker.TaskFileCopyParameters;
+import gov.nasa.ziggy.supervisor.TaskFileCopy;
+import gov.nasa.ziggy.supervisor.TaskFileCopyParameters;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * This class manages the lifecycle of a pipeline algorithm.
@@ -41,7 +44,7 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
 
         // Replace the pipeline task and the executor now, since we have new information
         // about the task's subtask counts.
-        pipelineTask = (PipelineTask) DatabaseTransactionFactory.performTransactionInThread(() -> {
+        pipelineTask = (PipelineTask) DatabaseTransactionFactory.performTransaction(() -> {
             PipelineTask p = new PipelineTaskCrud().retrieve(pipelineTask.getId());
             Hibernate.initialize(p.getModuleParameterSets());
             Hibernate.initialize(p.getPipelineInstance());
@@ -58,6 +61,7 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
     }
 
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public File getTaskDir(boolean cleanExisting) {
         File taskDir = allocateWorkingDir(cleanExisting);
         if (isRemote()) {
@@ -65,13 +69,14 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
             try {
                 stateFileLockFile.createNewFile();
             } catch (IOException e) {
-                throw new PipelineException("Unable to create lock file for state file", e);
+                throw new UncheckedIOException(
+                    "Unable to create file " + stateFileLockFile.toString(), e);
             }
         }
         return taskDir;
     }
 
-    private void doTaskFileCopy() throws PipelineException {
+    private void doTaskFileCopy() {
         if (pipelineTask != null) {
             TaskFileCopyParameters copyParams = pipelineTask
                 .getParameters(TaskFileCopyParameters.class, false);
@@ -80,14 +85,10 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
 
                 log.info("Starting copy of task files for pipelineTask : " + pipelineTask.getId());
 
-                try {
-                    IntervalMetric.measure(PipelineMetrics.COPY_TASK_FILES_METRIC, () -> {
-                        copier.copyTaskFiles();
-                        return null;
-                    });
-                } catch (Exception e) {
-                    throw new PipelineException(e);
-                }
+                IntervalMetric.measure(PipelineMetrics.COPY_TASK_FILES_METRIC, () -> {
+                    copier.copyTaskFiles();
+                    return null;
+                });
 
                 log.info("Finished copy of task files for pipelineTask : " + pipelineTask.getId());
             }
@@ -134,17 +135,9 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
         }
 
         if (defaultWorkingDir == null) {
-            try {
-                defaultWorkingDir = workingDirManager.allocateWorkingDir(pipelineTask,
-                    cleanExisting);
-                log.info("defaultWorkingDir = " + defaultWorkingDir);
-
-            } catch (IOException e) {
-                throw new ModuleFatalProcessingException(
-                    "failed to execute external program, e = " + e);
-            }
+            defaultWorkingDir = workingDirManager.allocateWorkingDir(pipelineTask, cleanExisting);
+            log.info("defaultWorkingDir = " + defaultWorkingDir);
         }
         return defaultWorkingDir;
     }
-
 }

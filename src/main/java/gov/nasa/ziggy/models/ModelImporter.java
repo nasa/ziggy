@@ -2,6 +2,7 @@ package gov.nasa.ziggy.models;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,12 +22,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.data.management.DataFileManager;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Imports models of all types from a specified directory.
@@ -117,7 +119,7 @@ public class ModelImporter {
         for (ModelType modelType : modelTypeFileNamesMap.keySet()) {
             addModels(modelRegistry, modelType, modelTypeFileNamesMap.get(modelType));
         }
-        modelCrud().createOrUpdate(modelRegistry);
+        modelCrud().merge(modelRegistry);
         log.info("Update of model registry complete");
         long unlockedModelRegistryId = modelCrud().retrieveUnlockedRegistryId();
         log.info("Current unlocked model registry ID == " + unlockedModelRegistryId);
@@ -161,7 +163,6 @@ public class ModelImporter {
                 "Unable to import multiple models of an unversioned model type");
         }
         return versionNumberFileNamesMap;
-
     }
 
     /**
@@ -174,6 +175,7 @@ public class ModelImporter {
      * @param modelType Type of model to be imported.
      * @param versionNumberFileNamesMap Map from version numbers to file names.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void addModels(ModelRegistry modelRegistry, ModelType modelType,
         Map<String, String> versionNumberFileNamesMap) {
 
@@ -183,8 +185,8 @@ public class ModelImporter {
             try {
                 Files.createDirectories(modelDir);
             } catch (IOException e) {
-                throw new PipelineException(
-                    "Unable to create models directory " + modelDir.toString(), e);
+                throw new UncheckedIOException("Unable to create directory " + modelDir.toString(),
+                    e);
             }
         }
 
@@ -208,6 +210,8 @@ public class ModelImporter {
      * @param modelDir Directory for models of this type in the datastore.
      * @param modelName File name for the model in the import directory.
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void createModel(ModelRegistry modelRegistry, ModelType modelType, Path modelDir,
         String modelName) {
 
@@ -240,7 +244,7 @@ public class ModelImporter {
         }
 
         // If all that worked, then we can update the model registry
-        modelCrud().create(modelMetadata);
+        modelCrud().persist(modelMetadata);
         modelRegistry.updateModelMetadata(modelMetadata);
         log.info("Imported file " + modelName + " to models directory as "
             + modelMetadata.getDatastoreFileName() + " of type " + modelType.getType());

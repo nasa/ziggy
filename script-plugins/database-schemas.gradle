@@ -1,16 +1,22 @@
 // The logging.captureStandard* settings squelch Hibernate's output. Use gradle --info to see it.
 
-task generateHsqldbCreateScript(type: JavaExec, dependsOn: [jar, copyLibs, copyHdf5Libs]) {
-    inputs.dir "$projectDir/build/libs"
-    outputs.dir "$projectDir/build/schema"
-    outputs.file "$projectDir/build/schema/ddl.hsqldb-create.sql"
+// TODO Disable connection pooling altogether
+// While the HSQLDB memory database allows the tasks to run, it is 10
+// seconds slower then running without a connection pool. Find a
+// property that will disable connection pooling and use it instead of
+// hibernate.connection.url.
+
+task generateHsqldbCreateScript(type: JavaExec, dependsOn: copyLibs) {
+    inputs.dir "$buildDir/libs"
+    outputs.dir "$buildDir/schema"
+    outputs.file "$buildDir/schema/ddl.hsqldb-create.sql"
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
-    classpath fileTree(dir: "$projectDir/build/libs", include: "*.jar")
-    jvmArgs "-Dhibernate.connection.driver_class=org.hsqldb.jdbcDriver",
-        "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect", "-Dhibernate.jdbc.batch_size=0",
-        "-Dlog4j2.configurationFile=$rootDir/etc/log4j2.xml"
-    args "--create", "--output=$projectDir/build/schema/ddl.hsqldb-create.sql"
+    classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
+    jvmArgs "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
+        "-Djava.library.path=$outsideDir/lib",
+        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    args "--create", "--output=$buildDir/schema/ddl.hsqldb-create.sql"
 
     logging.captureStandardOutput LogLevel.INFO
     logging.captureStandardError LogLevel.INFO
@@ -19,17 +25,17 @@ task generateHsqldbCreateScript(type: JavaExec, dependsOn: [jar, copyLibs, copyH
 test.dependsOn generateHsqldbCreateScript
 assemble.dependsOn generateHsqldbCreateScript
 
-task generateHsqldbDropScript(type: JavaExec, dependsOn: [jar, copyLibs, copyHdf5Libs]) {
-    inputs.dir "$projectDir/build/libs"
-    outputs.dir "$projectDir/build/schema"
-    outputs.file "$projectDir/build/schema/ddl.hsqldb-drop.sql"
+task generateHsqldbDropScript(type: JavaExec, dependsOn: copyLibs) {
+    inputs.dir "$buildDir/libs"
+    outputs.dir "$buildDir/schema"
+    outputs.file "$buildDir/schema/ddl.hsqldb-drop.sql"
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
-    classpath fileTree(dir: "$projectDir/build/libs", include: "*.jar")
-    jvmArgs "-Dhibernate.connection.driver_class=org.hsqldb.jdbcDriver",
-        "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect", "-Dhibernate.jdbc.batch_size=0",
-        "-Dlog4j2.configurationFile=$rootDir/etc/log4j2.xml"
-    args "--drop", "--output=$projectDir/build/schema/ddl.hsqldb-drop.sql"
+    classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
+    jvmArgs "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
+        "-Djava.library.path=$outsideDir/lib",
+        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    args "--drop", "--output=$buildDir/schema/ddl.hsqldb-drop.sql"
 
     logging.captureStandardOutput LogLevel.INFO
     logging.captureStandardError LogLevel.INFO
@@ -38,17 +44,17 @@ task generateHsqldbDropScript(type: JavaExec, dependsOn: [jar, copyLibs, copyHdf
 test.dependsOn generateHsqldbDropScript
 assemble.dependsOn generateHsqldbDropScript
 
-task generatePostgresqlCreateScript(type: JavaExec, dependsOn: [jar, copyLibs, copyHdf5Libs]) {
-    inputs.dir "$projectDir/build/libs"
-    outputs.dir "$projectDir/build/schema"
-    outputs.file "$projectDir/build/schema/ddl.postgresql-create.sql"
+task generatePostgresqlCreateScript(type: JavaExec, dependsOn: copyLibs) {
+    inputs.dir "$buildDir/libs"
+    outputs.dir "$buildDir/schema"
+    outputs.file "$buildDir/schema/ddl.postgresql-create.sql"
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
-    classpath fileTree(dir: "$projectDir/build/libs", include: "*.jar")
-    jvmArgs "-Dhibernate.connection.driver_class=org.postgresql.Driver",
-        "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
-        "-Dlog4j2.configurationFile=$rootDir/etc/log4j2.xml"
-    args "--create", "--output=$projectDir/build/schema/ddl.postgresql-create.sql"
+    classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
+    jvmArgs "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
+        "-Djava.library.path=$outsideDir/lib",
+        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    args "--create", "--output=$buildDir/schema/ddl.postgresql-create.sql"
 
     logging.captureStandardOutput LogLevel.INFO
     logging.captureStandardError LogLevel.INFO
@@ -56,17 +62,17 @@ task generatePostgresqlCreateScript(type: JavaExec, dependsOn: [jar, copyLibs, c
 
 assemble.dependsOn generatePostgresqlCreateScript
 
-task generatePostgresqlDropScript(type: JavaExec, dependsOn: [jar, copyLibs, copyHdf5Libs]) {
-    inputs.dir "$projectDir/build/libs"
-    outputs.dir "$projectDir/build/schema"
-    outputs.file "$projectDir/build/schema/ddl.postgresql-drop.sql"
+task generatePostgresqlDropScript(type: JavaExec, dependsOn: copyLibs) {
+    inputs.dir "$buildDir/libs"
+    outputs.dir "$buildDir/schema"
+    outputs.file "$buildDir/schema/ddl.postgresql-drop.sql"
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
-    classpath fileTree(dir: "$projectDir/build/libs", include: "*.jar")
-    jvmArgs "-Dhibernate.connection.driver_class=org.postgresql.Driver",
-        "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
-        "-Dlog4j2.configurationFile=$rootDir/etc/log4j2.xml"
-    args "--drop", "--output=$projectDir/build/schema/ddl.postgresql-drop.sql"
+    classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
+    jvmArgs  "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
+        "-Djava.library.path=$outsideDir/lib",
+        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    args "--drop", "--output=$buildDir/schema/ddl.postgresql-drop.sql"
 
     logging.captureStandardOutput LogLevel.INFO
     logging.captureStandardError LogLevel.INFO

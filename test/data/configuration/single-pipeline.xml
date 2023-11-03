@@ -5,7 +5,7 @@
 
   <pipelines>
       <pipeline name="samplePipeline" description="A sample pipeline" rootNodeNames="10" 
-            instancePriority="1"/>
+            instancePriority="HIGH"/>
   </pipelines>
     
 </def:pipelineDefinition>

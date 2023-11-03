@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -35,7 +35,7 @@
 package gov.nasa.ziggy.data.management;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,28 +51,27 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
-import org.apache.commons.lang3.SystemUtils;
-import org.xml.sax.SAXException;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.io.FileUtil;
-import jakarta.xml.bind.JAXBException;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -101,7 +100,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_MANIFEST")
+@Table(name = "ziggy_Manifest")
 public class Manifest implements HasXmlSchemaFilename {
 
     private static final String SCHEMA_FILENAME = "manifest.xsd";
@@ -123,10 +122,10 @@ public class Manifest implements HasXmlSchemaFilename {
     public static final ChecksumType CHECKSUM_TYPE = ChecksumType.SHA1;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_MANIFEST_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_Manifest_generator")
+    @SequenceGenerator(name = "ziggy_Manifest_generator", initialValue = 1,
+        sequenceName = "ziggy_Manifest_sequence", allocationSize = 1)
+    private Long id;
 
     @Column
     @XmlAttribute(required = true)
@@ -178,7 +177,9 @@ public class Manifest implements HasXmlSchemaFilename {
      * regular files or symlinks to regular files, including files that are in subdirectories of the
      * directory provided as argument.
      */
-    public static Manifest generateManifest(Path directory, long datasetId) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Manifest generateManifest(Path directory, long datasetId) {
 
         Manifest manifest = new Manifest();
         manifest.setDatasetId(datasetId);
@@ -199,8 +200,8 @@ public class Manifest implements HasXmlSchemaFilename {
                     manifestEntry.setSize(Files.size(realFile));
                     manifestEntry.setChecksum(manifest.checksumType.checksum(realFile));
                 } catch (IOException e) {
-                    throw new PipelineException("Unable to calculate checksum or file size "
-                        + " of file " + manifestEntry.getName(), e);
+                    throw new UncheckedIOException(
+                        "Unable to get size of file " + realFile.toString(), e);
                 }
                 return manifestEntry;
             }));
@@ -221,9 +222,7 @@ public class Manifest implements HasXmlSchemaFilename {
      * Writes the manifest to the specified directory. The manifest name must be set to a valid
      * value; if not, a {@link PipelineException} will occur.
      */
-    public void write(Path directory) throws InstantiationException, IllegalAccessException,
-        SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    public void write(Path directory) {
 
         validateName(name);
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
@@ -233,9 +232,8 @@ public class Manifest implements HasXmlSchemaFilename {
         xmlManager.marshal(this, fullPath.toFile());
     }
 
-    public static Manifest readManifest(Path directory) throws InstantiationException,
-        IllegalAccessException, IOException, SAXException, JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Manifest readManifest(Path directory) {
         Manifest manifest = null;
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, entry -> {
@@ -251,6 +249,9 @@ public class Manifest implements HasXmlSchemaFilename {
                 manifest = xmlManager.unmarshal(DataFileManager.realSourceFile(entry).toFile());
                 manifest.setName(entry.getFileName().toString());
             }
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to obtain list of files in dir " + directory.toString(), e);
         }
         return manifest;
     }
@@ -265,25 +266,25 @@ public class Manifest implements HasXmlSchemaFilename {
         User must be able to specify location of files for manifest generation;
         files in the specified directory get size and checksum computed,
         hence no security risk to allowing the user to specify any dir they want.""")
-    public static void main(String[] args) throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
+    public static void main(String[] args) {
         String manifestName = args[0];
         long datasetId = Long.parseLong(args[1]);
-        String manifestDir = SystemUtils.USER_DIR;
+        String userDir = ZiggyConfiguration.getInstance()
+            .getString(PropertyName.WORKING_DIR.property());
+        String manifestDir = userDir;
         if (args.length > 2) {
             manifestDir = args[2];
         }
         Manifest manifest = Manifest.generateManifest(Paths.get(manifestDir), datasetId);
         manifest.setName(manifestName);
-        manifest.write(Paths.get(SystemUtils.USER_DIR));
+        manifest.write(Paths.get(userDir));
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -433,5 +434,4 @@ public class Manifest implements HasXmlSchemaFilename {
         return mEntry.getName().equals(aEntry.getName()) && mEntry.getSize() == aEntry.getSize()
             && mEntry.getChecksum().equals(aEntry.getChecksum());
     }
-
 }

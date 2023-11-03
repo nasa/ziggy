@@ -6,39 +6,43 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.persistence.AttributeOverride;
-import javax.persistence.AttributeOverrides;
-import javax.persistence.Column;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.OrderColumn;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
 import org.hibernate.annotations.Cascade;
+import org.hibernate.annotations.CascadeType;
 
 import gov.nasa.ziggy.data.management.DataFileType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
+import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
+import gov.nasa.ziggy.services.messages.WorkerResources;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import gov.nasa.ziggy.util.CollectionFilters;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -57,13 +61,14 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_PIPELINE_DEF_NODE")
+@Table(name = "ziggy_PipelineDefinitionNode")
 public class PipelineDefinitionNode {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_PDN_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,
+        generator = "ziggy_PipelineDefinitionNode_generator")
+    @SequenceGenerator(name = "ziggy_PipelineDefinitionNode_generator", initialValue = 1,
+        sequenceName = "ziggy_PipelineDefinitionNode_sequence", allocationSize = 1)
+    private Long id;
 
     /**
      * Indicates whether the transition logic should simply propagate the
@@ -78,6 +83,28 @@ public class PipelineDefinitionNode {
     private Boolean startNewUow = true;
 
     /**
+     * Indicates the maximum number of worker processes that should be spun up for this node. If
+     * zero, the pipeline will default to the number of workers specified for the pipeline as a
+     * whole, either in the properties file or the command line arguments used when the cluster was
+     * started.
+     * <p>
+     * Optional XML attributes cannot be primitives.
+     */
+    @XmlAttribute(required = false, name = "maxWorkers")
+    private Integer maxWorkerCount = 0;
+
+    /**
+     * Indicates the maximum total Java heap size, in MB, for worker processes spun up for this
+     * node. If zero, the pipeline will default to the heap size specified for the pipeline as a
+     * whole, either in the properties file or the command line arguments used when the cluster was
+     * started.
+     * <p>
+     * Optional XML attributes cannot be primitives.
+     */
+    @XmlAttribute(required = false, name = "heapSizeMb")
+    private Integer heapSizeMb = 0;
+
+    /**
      * If non-null, this UOW generator definition is used to generate the tasks for this node. May
      * only be null if startNewUow == false (in which case the task from the previous node is just
      * carried forward) and this is not the first node in a pipeline; or if the module for this node
@@ -88,20 +115,18 @@ public class PipelineDefinitionNode {
     @XmlJavaTypeAdapter(ClassWrapper.ClassWrapperAdapter.class)
     @Embedded
     @AttributeOverrides({
-        @AttributeOverride(name = "clazz", column = @Column(name = "UOW_TG_CN")) })
+        @AttributeOverride(name = "clazz", column = @Column(name = "unitOfWorkGenerator")) })
     private ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator;
 
     @XmlAttribute(required = true, name = "moduleName")
-    @XmlJavaTypeAdapter(ModuleName.ModuleNameAdapter.class)
-    @ManyToOne(fetch = FetchType.EAGER)
-    private ModuleName moduleName;
+    private String moduleName;
 
     @OneToMany(fetch = FetchType.EAGER)
-    @Cascade({ org.hibernate.annotations.CascadeType.SAVE_UPDATE,
-        org.hibernate.annotations.CascadeType.DETACH })
-    @JoinTable(name = "PI_PDN_PDN", joinColumns = @JoinColumn(name = "PARENT_PI_PDN_ID"),
-        inverseJoinColumns = @JoinColumn(name = "CHILD_PI_PDN_ID"))
-    @OrderColumn(name = "IDX")
+    @Cascade({ CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH })
+    @JoinTable(name = "ziggy_PipelineDefinitionNode_nextNodes",
+        joinColumns = @JoinColumn(name = "parentNodeId"),
+        inverseJoinColumns = @JoinColumn(name = "childNodeId"))
+    @OrderColumn(name = "idx")
     private List<PipelineDefinitionNode> nextNodes = new ArrayList<>();
 
     // Child node names are stored until post-processing can connect them to
@@ -110,30 +135,31 @@ public class PipelineDefinitionNode {
     @Transient
     private String childNodeNames;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "PI_TDN_MPS")
-    private Map<ClassWrapper<Parameters>, ParameterSetName> moduleParameterSetNames = new HashMap<>();
+    @ElementCollection
+    @JoinTable(name = "ziggy_PipelineDefinitionNode_moduleParameterSetNames")
+    private Map<ClassWrapper<ParametersInterface>, String> moduleParameterSetNames = new HashMap<>();
 
     @ManyToMany
-    @JoinTable(name = "PI_PDN_DFT_INPUTS")
+    @JoinTable(name = "ziggy_PipelineDefinitionNode_inputDataFileTypes")
     private Set<DataFileType> inputDataFileTypes = new HashSet<>();
 
     @ManyToMany
-    @JoinTable(name = "PI_PDN_DFT_OUTPUTS")
+    @JoinTable(name = "ziggy_PipelineDefinitionNode_outputDataFileTypes")
     private Set<DataFileType> outputDataFileTypes = new HashSet<>();
 
     @ManyToMany
-    @JoinTable(name = "PI_PDN_MODEL_TYPES")
+    @JoinTable(name = "ziggy_PipelineDefinitionNode_modelTypes")
     private Set<ModelType> modelTypes = new HashSet<>();
 
     // This construct allows a node's module parameters, input and output data file types, and
     // model types to be entered in the XML file in any order. The downside of this flexibility
     // is that all of the elements wind up in the xmlReferences collection jumbled up together,
     // which complicates the bookkeeping of the various references.
-    @XmlElements(value = { @XmlElement(name = "moduleParameter", type = ParameterSetName.class),
-        @XmlElement(name = "inputDataFileType", type = InputTypeReference.class),
-        @XmlElement(name = "outputDataFileType", type = OutputTypeReference.class),
-        @XmlElement(name = "modelType", type = ModelTypeReference.class) })
+    @XmlElements(
+        value = { @XmlElement(name = "moduleParameter", type = ParameterSetReference.class),
+            @XmlElement(name = "inputDataFileType", type = InputTypeReference.class),
+            @XmlElement(name = "outputDataFileType", type = OutputTypeReference.class),
+            @XmlElement(name = "modelType", type = ModelTypeReference.class) })
     @Transient
     private Set<XmlReference> xmlReferences = new HashSet<>();
 
@@ -150,29 +176,40 @@ public class PipelineDefinitionNode {
     public PipelineDefinitionNode() {
     }
 
-    public PipelineDefinitionNode(ModuleName pipelineModuleDefinitionName,
+    public PipelineDefinitionNode(String pipelineModuleDefinitionName,
         String pipelineDefinitionName) {
         moduleName = pipelineModuleDefinitionName;
         pipelineName = pipelineDefinitionName;
     }
 
     /**
-     * Copy constructor Duplicate this node and all of its child nodes.
-     *
-     * @param other
+     * Duplicates this node and all of its child nodes.
      */
     public PipelineDefinitionNode(PipelineDefinitionNode other) {
         startNewUow = other.startNewUow;
-        moduleName = other.moduleName;
-        pipelineName = other.pipelineName;
+        maxWorkerCount = other.maxWorkerCount;
+        heapSizeMb = other.heapSizeMb;
 
         if (other.unitOfWorkGenerator != null) {
             unitOfWorkGenerator = new ClassWrapper<>(other.unitOfWorkGenerator);
         }
 
+        moduleName = other.moduleName;
+
         for (PipelineDefinitionNode otherNode : other.nextNodes) {
             nextNodes.add(new PipelineDefinitionNode(otherNode));
         }
+
+        for (Entry<ClassWrapper<ParametersInterface>, String> moduleParameterSetName : other.moduleParameterSetNames
+            .entrySet()) {
+            moduleParameterSetNames.put(moduleParameterSetName.getKey(),
+                moduleParameterSetName.getValue());
+        }
+
+        inputDataFileTypes.addAll(other.inputDataFileTypes);
+        outputDataFileTypes.addAll(other.outputDataFileTypes);
+        modelTypes.addAll(other.modelTypes);
+        pipelineName = other.pipelineName;
     }
 
     /**
@@ -200,7 +237,10 @@ public class PipelineDefinitionNode {
         xmlReferences.addAll(modelTypes.stream()
             .map(s -> new ModelTypeReference(s.getType()))
             .collect(Collectors.toSet()));
-        xmlReferences.addAll(moduleParameterSetNames.values());
+        xmlReferences.addAll(moduleParameterSetNames.values()
+            .stream()
+            .map(ParameterSetReference::new)
+            .collect(Collectors.toSet()));
 
         // We don't want to touch the childNodeNames String unless the nextNodes List is populated
         if (!nextNodes.isEmpty()) {
@@ -215,7 +255,7 @@ public class PipelineDefinitionNode {
         }
         StringBuilder sb = new StringBuilder();
         for (PipelineDefinitionNode node : nextNodes) {
-            sb.append(node.getModuleName().getName());
+            sb.append(node.getModuleName());
             sb.append(", ");
         }
         sb.setLength(sb.length() - 2);
@@ -243,9 +283,30 @@ public class PipelineDefinitionNode {
     }
 
     /**
+     * Returns the worker resources for the current node. If resources are not specified, the
+     * resources object will have nulls, in which case default values will be retrieved from the
+     * {@link WorkerResources} singleton when the object is queried.
+     */
+    public WorkerResources workerResources() {
+        Integer workerCount = maxWorkerCount == null || maxWorkerCount <= 0 ? null : maxWorkerCount;
+        Integer heapSize = heapSizeMb == null || heapSizeMb <= 0 ? null : heapSizeMb;
+        return new WorkerResources(workerCount, heapSize);
+    }
+
+    /**
+     * Applies the worker resources values to a pipeline instance node. If the values are the
+     * default ones, the node's values will be set to zero rather than the values returned by the
+     * resources object.
+     */
+    public void applyWorkerResources(WorkerResources resources) {
+        maxWorkerCount = resources.maxWorkerCountIsDefault() ? 0 : resources.getMaxWorkerCount();
+        heapSizeMb = resources.heapSizeIsDefault() ? 0 : resources.getHeapSizeMb();
+    }
+
+    /**
      * @return the id
      */
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
@@ -282,6 +343,30 @@ public class PipelineDefinitionNode {
         this.startNewUow = startNewUow;
     }
 
+    public Integer getMaxWorkerCount() {
+        return maxWorkerCount;
+    }
+
+    public void setMaxWorkerCount(int workers) {
+        maxWorkerCount = workers;
+    }
+
+    public boolean useDefaultWorkerCount() {
+        return maxWorkerCount == null || maxWorkerCount.intValue() == 0;
+    }
+
+    public Integer getHeapSizeMb() {
+        return heapSizeMb;
+    }
+
+    public void setHeapSizeMb(int heapSizeMb) {
+        this.heapSizeMb = heapSizeMb;
+    }
+
+    public boolean useDefaultHeapSize() {
+        return heapSizeMb == null || heapSizeMb.intValue() == 0;
+    }
+
     public ClassWrapper<UnitOfWorkGenerator> getUnitOfWorkGenerator() {
         return unitOfWorkGenerator;
     }
@@ -290,11 +375,11 @@ public class PipelineDefinitionNode {
         this.unitOfWorkGenerator = unitOfWorkGenerator;
     }
 
-    public ModuleName getModuleName() {
+    public String getModuleName() {
         return moduleName;
     }
 
-    public void setModuleName(ModuleName moduleName) {
+    public void setModuleName(String moduleName) {
         this.moduleName = moduleName;
     }
 
@@ -327,13 +412,13 @@ public class PipelineDefinitionNode {
         this.path = path;
     }
 
-    public Map<ClassWrapper<Parameters>, ParameterSetName> getModuleParameterSetNames() {
+    public Map<ClassWrapper<ParametersInterface>, String> getModuleParameterSetNames() {
         return moduleParameterSetNames;
     }
 
-    public ParameterSetName putModuleParameterSetName(Class<? extends Parameters> clazz,
-        ParameterSetName paramSetName) {
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(clazz);
+    public String putModuleParameterSetName(Class<? extends Parameters> clazz,
+        String paramSetName) {
+        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(clazz);
 
         if (moduleParameterSetNames.containsKey(classWrapper)) {
             throw new PipelineException(
@@ -345,14 +430,17 @@ public class PipelineDefinitionNode {
     }
 
     public void setModuleParameterSetNames(
-        Map<ClassWrapper<Parameters>, ParameterSetName> moduleParameterSetNames) {
+        Map<ClassWrapper<ParametersInterface>, String> moduleParameterSetNames) {
         this.moduleParameterSetNames = moduleParameterSetNames;
-        CollectionFilters.removeTypeFromCollection(xmlReferences, ParameterSetName.class);
+        CollectionFilters.removeTypeFromCollection(xmlReferences, ParameterSetReference.class);
         populateXmlFields();
     }
 
-    public Set<ParameterSetName> getParameterSetNames() {
-        return CollectionFilters.filterToSet(xmlReferences, ParameterSetName.class);
+    public Set<String> getParameterSetNames() {
+        return CollectionFilters.filterToSet(xmlReferences, ParameterSetReference.class)
+            .stream()
+            .map(ParameterSetReference::getName)
+            .collect(Collectors.toSet());
     }
 
     public void addInputDataFileType(DataFileType dataFileType) {

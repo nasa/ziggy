@@ -1,5 +1,9 @@
 <!-- -*-visual-line-*- -->
 
+[[Previous]](select-hpc.md)
+[[Up]](select-hpc.md)
+[[Next]](remote-dialog.md)
+
 ## Remote Parameters
 
 The way that you set up a pipeline module to run on a remote (i.e., high-performance computing / cloud computing) system is to create a `ParameterSet` of the `RemoteParameters` class, and then make it a module parameter set for the desired node.
@@ -53,7 +57,7 @@ Anyway, let's talk now about all those parameters.
 
 ##### enabled (boolean)
 
-The `enabled` parameter does what it sounds like: if `enabled` is true, the node will use remote execution; if it's false, it will run locally (i.e., on the same system where the worker process runs).
+The `enabled` parameter does what it sounds like: if `enabled` is true, the node will use remote execution; if it's false, it will run locally (i.e., on the same system where the supervisor process runs).
 
 Note that, since you can edit the parameters, you can use this parameter to decide at runtime whether to run locally or remotely.
 
@@ -123,7 +127,7 @@ This is a more direct way to force Ziggy to a solution with a smaller number of 
 
 Note that Ziggy can request a number of nodes that is smaller than the value for `maxNodes` (which is why it's called `maxNodes` in the first place). This happens if the number of subtasks is small: if you only have 8 subtasks, and `maxNodes` is set to 30, it would clearly be useless to actually ask for 30 nodes, since most of them will be idle but you'll get charged for them anyway. In these sorts of situations (where even the value of `maxNodes` is too large, given the number of subtasks to process), Ziggy will select a number of nodes that ensures that none of the nodes sits idle.
 
-Note that Ziggy can request a number of nodes that is smaller than the value for `maxNodes` (which is why it's called `maxNodes` in the first place). This happens if the number of subtasks is small: if you only have 8 subtasks, and `maxNodes` is set to 30, it would clearly be useless to actually ask for 30 nodes, since most of them will be idle but you'll get charged for them anyway. In these sorts of situations (where even the value of `maxNodes` is too large, given the number of subtasks to process), Ziggy will select a number of nodes that ensures that none of the nodes sits idle. 
+Note that Ziggy can request a number of nodes that is smaller than the value for `maxNodes` (which is why it's called `maxNodes` in the first place). This happens if the number of subtasks is small: if you only have 8 subtasks, and `maxNodes` is set to 30, it would clearly be useless to actually ask for 30 nodes, since most of them will be idle but you'll get charged for them anyway. In these sorts of situations (where even the value of `maxNodes` is too large, given the number of subtasks to process), Ziggy will select a number of nodes that ensures that none of the nodes sits idle.
 
 ##### nodeSharing (boolean)
 
@@ -144,3 +148,7 @@ A close reading of the paragraph above reveals a potential problem: what happens
 If Ziggy determines that it can't ask for enough resources to run your task, it will throw an exception at runtime, and your pipeline will stop. You'll then need to adjust the parameters and restart.
 
 The best way to avoid this outcome is to use the [remote execution dialog](remote-dialog.md) to set the optional parameters. The remote execution dialog won't allow you to save your parameter values if they result in tasks that can't finish because they're starved of compute resources.
+
+[[Previous]](select-hpc.md)
+[[Up]](select-hpc.md)
+[[Next]](remote-dialog.md)

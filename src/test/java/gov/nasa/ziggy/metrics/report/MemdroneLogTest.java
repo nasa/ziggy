@@ -13,12 +13,16 @@ import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gov.nasa.ziggy.IntegrationTestCategory;
 
 /**
  * @author Todd Klaus
  */
+@Category(IntegrationTestCategory.class)
 public class MemdroneLogTest {
     private static final Logger log = LoggerFactory.getLogger(MemdroneLogTest.class);
 

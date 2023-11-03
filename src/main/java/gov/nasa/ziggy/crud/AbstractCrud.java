@@ -1,26 +1,18 @@
 package gov.nasa.ziggy.crud;
 
-import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
-import org.hibernate.Criteria;
-import org.hibernate.Query;
-import org.hibernate.SQLQuery;
 import org.hibernate.Session;
-import org.hibernate.criterion.Disjunction;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
+import org.hibernate.query.Query;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 
 import gov.nasa.ziggy.collections.ListChunkIterator;
-import gov.nasa.ziggy.pipeline.definition.ExternalIdAssignable;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaDelete;
+import jakarta.persistence.criteria.CriteriaUpdate;
 
 /**
  * The parent class for all CRUD classes.
@@ -32,8 +24,7 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  * @author Bill Wohler
  * @author PT
  */
-public abstract class AbstractCrud implements AbstractCrudInterface {
-    private static final Logger log = LoggerFactory.getLogger(AbstractCrud.class);
+public abstract class AbstractCrud<U> implements AbstractCrudInterface<U> {
 
     /**
      * This is the maximum number of dynamically-created expressions sent to the database. This
@@ -45,7 +36,6 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
     public static final int MAX_EXPRESSIONS = 950;
 
     private DatabaseService databaseService;
-    private boolean readOnly;
 
     /**
      * Creates a {@link AbstractCrud} whose read-only property is set to {@code false}.
@@ -54,34 +44,11 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
     }
 
     /**
-     * Creates a {@link AbstractCrud} with the given read-only property. CRUD classes can
-     * instantiate themselves with this parameter set to {@code true} to avoid dirty checking and
-     * therefore save on CPU usage.
-     * <p>
-     * Use {@link #createQuery(String)} to take advantage of this property.
-     */
-    protected AbstractCrud(boolean readOnly) {
-        this.readOnly = readOnly;
-    }
-
-    /**
      * Creates a {@link AbstractCrud} with the given database service whose read-only property is
      * set to {@code false}.
      */
     protected AbstractCrud(DatabaseService databaseService) {
         this.databaseService = databaseService;
-    }
-
-    /**
-     * Creates a {@link AbstractCrud} with the given database service and read-only property. CRUD
-     * classes can instantiate themselves this parameter set to {@code true} to avoid dirty checking
-     * and therefore save on CPU usage.
-     * <p>
-     * Use {@link #createQuery(String)} to take advantage of this property.
-     */
-    protected AbstractCrud(DatabaseService databaseService, boolean readOnly) {
-        this(databaseService);
-        this.readOnly = readOnly;
     }
 
     /**
@@ -112,10 +79,8 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
      * @param id the object ID
      * @return the retrieved object
      */
-    @SuppressWarnings("unchecked")
-    public final <T> T get(Class<T> clazz, Serializable id) {
-        Object r = getSession().get(clazz, id);
-        return (T) r;
+    public final <T> T get(Class<T> clazz, Object id) {
+        return getSession().get(clazz, id);
     }
 
     /**
@@ -129,23 +94,14 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
 
     /**
      * Makes an object persistent.
-     * <p>
-     * <strong>Note:</strong> This should be &lsquo;final&rsquo;, but cannot be, because unit tests
-     * want to mock it.
      */
     @Override
-    public void create(Object o) {
-        getSession().save(o);
+    public void persist(Object o) {
+        getSession().persist(o);
     }
 
-    @Override
-    public void update(Object o) {
-        getSession().update(o);
-    }
-
-    @Override
-    public void createOrUpdate(Object o) {
-        getSession().saveOrUpdate(o);
+    public <T> T merge(T o) {
+        return getSession().merge(o);
     }
 
     /**
@@ -153,15 +109,15 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
      *
      * @param collection the collection of items to persist
      */
-    public void create(Collection<?> collection) {
+    @Override
+    public void persist(Collection<?> collection) {
         for (Object item : collection) {
-            create(item);
+            persist(item);
         }
     }
 
-    @Override
-    public final void delete(Object o) {
-        getSession().delete(o);
+    public final void remove(Object o) {
+        getSession().remove(o);
     }
 
     /**
@@ -169,132 +125,65 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
      *
      * @param collection the collection of items to delete
      */
-    public void delete(Collection<?> collection) {
+    public void remove(Collection<?> collection) {
         for (Object item : collection) {
-            delete(item);
+            remove(item);
         }
     }
 
-    /**
-     * Creates a new instance of {@link Query} for the given HQL query string using this object's
-     * local properties.
-     * <p>
-     * Note that the read-only property only extends to the queried objects. Objects that are lazily
-     * loaded later must be explicitly marked read-only.
-     *
-     * @param queryString the HQL query string
-     * @return a {@link Query} object
-     */
-    @Override
-    public Query createQuery(String queryString) {
-        Query query = getSession().createQuery(queryString);
-        query.setReadOnly(readOnly);
-
-        return query;
+    /** Returns a {@link CriteriaBuilder} object for use in building queries. */
+    public HibernateCriteriaBuilder createCriteriaBuilder() {
+        return getSession().getCriteriaBuilder();
     }
 
-    /**
-     * Creates a new instance of {@link SQLQuery} for the given SQL query string using this object's
-     * local properties.
-     * <p>
-     * Note that the read-only property only extends to the queried objects. Objects that are lazily
-     * loaded later must be explicitly marked read-only.
-     *
-     * @param queryString the SQL query string
-     * @return a {@link SQLQuery} object
-     */
-    @Override
-    public SQLQuery createSQLQuery(String queryString) {
-        SQLQuery query = getSession().createSQLQuery(queryString);
-        query.setReadOnly(readOnly);
-
-        return query;
-    }
-
-    /**
-     * Creates a new {@link Criteria} instance, for the given entity class, or a superclass of an
-     * entity class using this object's local properties.
-     * <p>
-     * Note that the read-only property does not apply to this method. However, use of this method
-     * will allow the CRUD class to take advantage of future properties.
-     *
-     * @param persistentClass the persistent class
-     * @return a {@link Criteria} object
-     */
-    public Criteria createCriteria(Class<?> persistentClass) {
-        return getSession().createCriteria(persistentClass);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public <E> List<E> list(Query query) {
+    public <R> List<R> list(Query<R> query) {
         return query.list();
     }
 
-    @SuppressWarnings("unchecked")
-    public <E> List<E> list(Criteria criteria) {
-        return criteria.list();
+    protected <R> int executeUpdate(CriteriaDelete<R> criteria) {
+        return getSession().createMutationQuery(criteria).executeUpdate();
     }
 
-    @SuppressWarnings("unchecked")
+    protected <R> int executeUpdate(CriteriaUpdate<R> criteria) {
+        return getSession().createMutationQuery(criteria).executeUpdate();
+    }
+
+    protected void lock(Object entity, LockModeType lockMode) {
+        getSession().lock(entity, lockMode);
+    }
+
+    /**
+     * Creates an instance of {@link ZiggyQuery} in which the user wants to return entire rows of
+     * the table (or, on the Java side, the user wants to return whole instances of the class that's
+     * the target of the query).
+     */
     @Override
-    public <T> T uniqueResult(Query query) {
-        return (T) query.uniqueResult();
-    }
-
-    @SuppressWarnings("unchecked")
-    protected <T> T uniqueResult(Criteria criteria) {
-        return (T) criteria.uniqueResult();
+    public <R> ZiggyQuery<R, R> createZiggyQuery(Class<R> returnClass) {
+        return createZiggyQuery(returnClass, returnClass);
     }
 
     /**
-     * Produce a query for the next chunk. Used by aggregateResults() to collect all the results
-     * needed when a single query would have too many expressions.
-     *
-     * @param <T> The type used in the expression used to build the query.
-     * @param <R> The result type of the query.
+     * Creates an instance of {@link ZiggyQuery} in which the user returns column values from the
+     * query result rather than entire rows (or, on the Java side, the user returns fields rather
+     * than entire instances of the class that's the target of the query).
      */
-    @FunctionalInterface
-    public interface QueryFactory<T, R> {
-        Query produceQuery(List<T> nextChunk);
+    @Override
+    public <T, R> ZiggyQuery<T, R> createZiggyQuery(Class<T> databaseClass, Class<R> returnClass) {
+        return new ZiggyQuery<>(databaseClass, returnClass, this);
     }
 
-    /**
-     * Use this to produce a complete list of results when queries must be broken into many distinct
-     * queries in order to satisify database query language limitations.
-     *
-     * @param source The complete list of elements to query.
-     * @param queryFactory creates a new query or sets query parameters for the next chunk of
-     * expressions to evaluate.
-     * @return list of type R, the result type.
-     */
-    protected <T, R> List<R> aggregateResults(Collection<T> source,
-        QueryFactory<T, R> queryFactory) {
-        if (source.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<R> results = Lists.newArrayListWithCapacity(MAX_EXPRESSIONS * 2);
-        ListChunkIterator<T> it = new ListChunkIterator<>(source.iterator(), MAX_EXPRESSIONS);
-        for (List<T> chunk : it) {
-            Query q = queryFactory.produceQuery(chunk);
-            List<R> resultChunk = list(q);
-            results.addAll(resultChunk);
-        }
-        return results;
+    @Override
+    public <T, R> R uniqueResult(ZiggyQuery<T, R> query) {
+        return getSession()
+            .createQuery(query.constructSelectClause().constructWhereClause().getCriteriaQuery())
+            .uniqueResult();
     }
 
-    /**
-     * Use this to produce a Critieron query Restrictions.in() when the number of values in the in()
-     * is potentially too large for the database to manage unless it is first chunked up. Based on:
-     * https://stackoverflow.com/a/59828331 .
-     */
-    protected <T> Disjunction restrictionPropertyIn(String property, Collection<T> values) {
-        Disjunction criterion = Restrictions.disjunction();
-        List<T> valuesList = new ArrayList<>(values);
-        for (List<T> idSubset : Lists.partition(valuesList, MAX_EXPRESSIONS)) {
-            criterion.add(Restrictions.in(property, idSubset));
-        }
-        return criterion;
+    @Override
+    public <T, R> List<R> list(ZiggyQuery<T, R> query) {
+        return getSession()
+            .createQuery(query.constructSelectClause().constructWhereClause().getCriteriaQuery())
+            .getResultList();
     }
 
     /**
@@ -332,52 +221,5 @@ public abstract class AbstractCrud implements AbstractCrudInterface {
             flush();
         }
         clear();
-    }
-
-    /**
-     * Gets the maximum ID for existing database entries on a given table.
-     *
-     * @return Max ID value for existing database entries, as a long, or -1 if no entries are
-     * present.
-     */
-    @SuppressWarnings("unchecked")
-    private <T extends Number> T retrieveMaxDatabaseId(ExternalIdAssignable table) {
-        Class<? extends ExternalIdAssignable> clazz = table.getClass();
-        log.info("Class name: " + clazz.getName());
-        Criteria criteria = createCriteria(clazz);
-        criteria.setProjection(Projections.max("id"));
-        T maxDatabaseId = uniqueResult(criteria);
-        return maxDatabaseId != null ? maxDatabaseId : (T) Integer.valueOf(-1);
-    }
-
-    /**
-     * Determines a model ID for assignment.
-     *
-     * @return A valid model ID that can be assigned. If there are no entries in the relevant
-     * database table, or all the entries are smaller than the min permitted assigned value, the min
-     * permitted assigned value will be returned. If there are values in the database greater than
-     * the min assigned value, the max value in the database + 1 will be returned.
-     */
-    @SuppressWarnings("unchecked")
-    private <T extends Number> T tableIdForAssignment(ExternalIdAssignable table) {
-
-        T maxDatabaseId = retrieveMaxDatabaseId(table);
-        return maxDatabaseId.intValue() >= table.minAllowedAssignedIdNumber()
-            ? (T) Integer.valueOf(maxDatabaseId.intValue() + 1)
-            : (T) Integer.valueOf(table.minAllowedAssignedIdNumber());
-    }
-
-    /**
-     * Returns a valid table ID for a table that implements the ExternalIdAssignable interface
-     *
-     * @param table Table that requires a valid ID
-     * @return the existing table ID if it is valid, otherwise an assigned ID based on values in the
-     * database and the table-specific min valid assigned ID value.
-     */
-    protected int validTableId(ExternalIdAssignable table) {
-
-        // default is to use the table's ID
-        int tableId = table.externalId();
-        return tableId != 0 ? tableId : tableIdForAssignment(table).intValue();
     }
 }

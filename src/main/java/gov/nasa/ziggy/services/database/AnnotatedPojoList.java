@@ -4,15 +4,16 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.Embeddable;
-import javax.persistence.Entity;
-import javax.persistence.MappedSuperclass;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ClasspathScanner;
 import gov.nasa.ziggy.util.ClasspathScannerListener;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Entity;
+import jakarta.persistence.MappedSuperclass;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ClassFile;
 
@@ -47,13 +48,13 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
      * @throws IOException
      * @throws ClassNotFoundException
      */
-    public Set<Class<?>> scanForClasses() throws Exception {
-        log.debug("AnnotatedPojoList: Scanning class path for annotated classes");
+    public Set<Class<?>> scanForClasses() {
+        log.debug("Scanning class path for annotated classes");
 
         ClasspathScanner classpathScanner = new ClasspathScanner();
         classpathScanner.addListener(this);
-        classpathScanner.setJarFilters(jarFilters);
-        classpathScanner.setPackageFilters(packageFilters);
+        classpathScanner.setIncludeJarFilters(jarFilters);
+        classpathScanner.setIncludePackageFilters(packageFilters);
         classpathScanner.setClassPathToScan(classPathToScan);
 
         classpathScanner.scanForClasses();
@@ -62,14 +63,18 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
     }
 
     /**
-     * @throws Exception
      */
     @Override
-    public void processClass(ClassFile classFile) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+    public void processClass(ClassFile classFile) {
         if (isClassAnnotated(classFile)) {
             // log.debug("Found annotated class: " + className);
-            Class<?> clazz = Class.forName(classFile.getName());
-            detectedClasses.add(clazz);
+            try {
+                detectedClasses.add(Class.forName(classFile.getName()));
+            } catch (ClassNotFoundException e) {
+                // Can never occur. The class name comes from a class on the classpath.
+                throw new AssertionError(e);
+            }
         }
     }
 
@@ -112,29 +117,25 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
         return false;
     }
 
-    /**
-     * @return the jarFilters
-     */
     public Set<String> getJarFilters() {
         return jarFilters;
     }
 
     /**
-     * @param jarFilters the jarFilters to set
+     * Only jars that match the given set of regular expressions will be processed. If this is not
+     * set, all jar files will be processed.
      */
     public void setJarFilters(Set<String> jarFilters) {
         this.jarFilters = jarFilters;
     }
 
-    /**
-     * @return the packageFilters
-     */
     public Set<String> getPackageFilters() {
         return packageFilters;
     }
 
     /**
-     * @param packageFilters the packageFilters to set
+     * Only packages that match the given set of regular expressions will be processed. If this is
+     * not set, all packages will be processed.
      */
     public void setPackageFilters(Set<String> packageFilters) {
         this.packageFilters = packageFilters;

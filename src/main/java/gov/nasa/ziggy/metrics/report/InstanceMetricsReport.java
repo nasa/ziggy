@@ -81,7 +81,7 @@ public class InstanceMetricsReport {
         this.rootDirectory = rootDirectory;
     }
 
-    public void generateReport() throws Exception {
+    public void generateReport() {
         instancePdfRenderer = new PdfRenderer(
             new File(rootDirectory, "metrics-" + rootDirectory.getName() + "-instance-rpt.pdf"));
         taskPdfRenderer = new PdfRenderer(
@@ -119,7 +119,7 @@ public class InstanceMetricsReport {
         taskPdfRenderer.close();
     }
 
-    private void parseFiles() throws Exception {
+    private void parseFiles() {
         File[] taskDirs = rootDirectory
             .listFiles((FileFilter) f -> f.getName().contains("-matlab-") && f.isDirectory());
 
@@ -217,7 +217,7 @@ public class InstanceMetricsReport {
         return array;
     }
 
-    private JFreeChart generateHistogram(String label, List<Double> execTimes) throws Exception {
+    private JFreeChart generateHistogram(String label, List<Double> execTimes) {
         if (execTimes == null || execTimes.size() == 0) {
             return null;
         }
@@ -246,7 +246,7 @@ public class InstanceMetricsReport {
         return chart;
     }
 
-    private JFreeChart generateBoxAndWhiskers() throws Exception {
+    private JFreeChart generateBoxAndWhiskers() {
         DefaultBoxAndWhiskerCategoryDataset dataset = new DefaultBoxAndWhiskerCategoryDataset();
 
         Set<String> taskNames = subTaskExecTimesByTask.keySet();
@@ -283,8 +283,7 @@ public class InstanceMetricsReport {
         }
     }
 
-    private void dumpTopTen(PdfRenderer pdfRenderer, String title, TopNList topTenList)
-        throws Exception {
+    private void dumpTopTen(PdfRenderer pdfRenderer, String title, TopNList topTenList) {
         List<TopNListElement> list = topTenList.getList();
 
         pdfRenderer.printText("Top Stragglers", PdfRenderer.h1Font);
@@ -297,5 +296,4 @@ public class InstanceMetricsReport {
             index++;
         }
     }
-
 }

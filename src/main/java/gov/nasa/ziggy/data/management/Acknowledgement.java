@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.data.management;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -16,7 +16,6 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
-import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.module.PipelineException;
@@ -25,10 +24,11 @@ import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
-import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -98,9 +98,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
      * Writes the acknowledgement to the specified directory. The manifest name must be set to a
      * valid value; if not, a {@link PipelineException} will occur.
      */
-    public void write(Path directory) throws InstantiationException, IllegalAccessException,
-        SAXException, JAXBException, IllegalArgumentException, InvocationTargetException,
-        NoSuchMethodException, SecurityException {
+    public void write(Path directory) {
 
         ValidatingXmlManager<Acknowledgement> xmlManager = new ValidatingXmlManager<>(
             Acknowledgement.class);
@@ -137,22 +135,15 @@ public class Acknowledgement implements HasXmlSchemaFilename {
      * whether the manifest has already been acknowledged, which can occur if the data receipt
      * process is interrupted after validation but prior to completion of file imports.
      */
-    public static boolean validAcknowledgementExists(Path workingDir, Manifest manifest)
-        throws IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
-        SecurityException {
+    public static boolean validAcknowledgementExists(Path workingDir, Manifest manifest) {
         Path acknowledgementPath = workingDir.resolve(nameFromManifestName(manifest));
         if (!Files.exists(acknowledgementPath)) {
             return false;
         }
         ValidatingXmlManager<Acknowledgement> xmlManager;
-        try {
-            xmlManager = new ValidatingXmlManager<>(Acknowledgement.class);
-            Acknowledgement ack = xmlManager.unmarshal(acknowledgementPath.toFile());
-            return ack.transferStatus.equals(DataReceiptStatus.VALID);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException e) {
-            throw new PipelineException(
-                "Unable to read acknowledgement " + acknowledgementPath.toString(), e);
-        }
+        xmlManager = new ValidatingXmlManager<>(Acknowledgement.class);
+        Acknowledgement ack = xmlManager.unmarshal(acknowledgementPath.toFile());
+        return ack.transferStatus.equals(DataReceiptStatus.VALID);
     }
 
     public Map<String, AcknowledgementEntry> fileNameToAckEntry() {
@@ -183,6 +174,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
      * @return {@link Acknowledgement} that includes validation status of all files referenced in
      * the manifest.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static Acknowledgement of(Manifest manifest, Path dir, long taskId) {
 
         Acknowledgement acknowledgement = new Acknowledgement(manifest.getChecksumType());
@@ -192,7 +184,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
 
         int maxValidationFailures = (int) (acknowledgement.getFileCount()
             * ZiggyConfiguration.getInstance()
-                .getDouble(PropertyNames.MAX_FAILURE_PERCENTAGE_PROP_NAME,
+                .getDouble(PropertyName.MAX_FAILURE_PERCENTAGE.property(),
                     DEFAULT_MAX_FAILURE_PERCENTAGE)
             / 100);
 
@@ -201,17 +193,8 @@ public class Acknowledgement implements HasXmlSchemaFilename {
         // perform entry-by-entry validation in the dedicated thread pool for same.
         List<Future<AcknowledgementEntry>> futures = new ArrayList<>();
         for (ManifestEntry manifestEntry : manifest.getManifestEntries()) {
-            futures.add(checksumThreadPool.submit(() -> {
-                AcknowledgementEntry ackEntry = null;
-                try {
-                    ackEntry = AcknowledgementEntry.of(manifestEntry, dir,
-                        acknowledgement.getChecksumType());
-                } catch (IOException e) {
-                    throw new PipelineException("Unable to calculate checksum or file size "
-                        + " of file " + manifestEntry.getName(), e);
-                }
-                return ackEntry;
-            }));
+            futures.add(checksumThreadPool.submit(() -> AcknowledgementEntry.of(manifestEntry, dir,
+                acknowledgement.getChecksumType())));
         }
 
         // Capture the AcknowledgementEntry instances as they complete.
@@ -338,34 +321,39 @@ public class Acknowledgement implements HasXmlSchemaFilename {
          * {@link ManifestEntry}. Validation of the file represented by the ManifestEntry is
          * performed, and the validation results are stored in the AcknowledgementEntry.
          */
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
         public static AcknowledgementEntry of(ManifestEntry manifestEntry, Path dir,
-            ChecksumType checksumType) throws IOException {
+            ChecksumType checksumType) {
 
-            AcknowledgementEntry ackEntry = new AcknowledgementEntry();
-            ackEntry.setName(manifestEntry.getName());
-            Path file = dir.resolve(manifestEntry.getName());
             Path realFile = null;
-            ackEntry.setTransferStatus(DataReceiptStatus.ABSENT);
-            ackEntry.setValidationStatus(DataReceiptStatus.INVALID);
+            try {
+                AcknowledgementEntry ackEntry = new AcknowledgementEntry();
+                ackEntry.setName(manifestEntry.getName());
+                Path file = dir.resolve(manifestEntry.getName());
+                ackEntry.setTransferStatus(DataReceiptStatus.ABSENT);
+                ackEntry.setValidationStatus(DataReceiptStatus.INVALID);
 
-            // Start by making sure the file exists and is a regular file (or symlink to same)
-            if (Files.exists(file) || Files.isSymbolicLink(file)) {
-                realFile = DataFileManager.realSourceFile(file);
-                ackEntry.setTransferStatus(DataReceiptStatus.PRESENT);
-            }
-            if (ackEntry.getTransferStatus() == DataReceiptStatus.ABSENT) {
+                // Start by making sure the file exists and is a regular file (or symlink to same)
+                if (Files.exists(file) || Files.isSymbolicLink(file)) {
+                    realFile = DataFileManager.realSourceFile(file);
+                    ackEntry.setTransferStatus(DataReceiptStatus.PRESENT);
+                }
+                if (ackEntry.getTransferStatus() == DataReceiptStatus.ABSENT) {
+                    return ackEntry;
+                }
+
+                // If the transfer was successful, we can set the validation status
+                ackEntry.setSize(Files.size(realFile));
+                ackEntry.setChecksum(checksumType.checksum(realFile));
+                if (ackEntry.getSize() == manifestEntry.getSize()
+                    && ackEntry.getChecksum().equals(manifestEntry.getChecksum())) {
+                    ackEntry.setValidationStatus(DataReceiptStatus.VALID);
+                }
                 return ackEntry;
+            } catch (IOException e) {
+                throw new UncheckedIOException("Unable to get size of file " + realFile.toString(),
+                    e);
             }
-
-            // If the transfer was successful, we can set the validation status
-            ackEntry.setSize(Files.size(realFile));
-            ackEntry.setChecksum(checksumType.checksum(realFile));
-            if (ackEntry.getSize() == manifestEntry.getSize()
-                && ackEntry.getChecksum().equals(manifestEntry.getChecksum())) {
-                ackEntry.setValidationStatus(DataReceiptStatus.VALID);
-            }
-            return ackEntry;
-
         }
 
         public String getName() {
@@ -426,6 +414,5 @@ public class Acknowledgement implements HasXmlSchemaFilename {
                 && size == other.size && transferStatus == other.transferStatus
                 && validationStatus == other.validationStatus;
         }
-
     }
 }

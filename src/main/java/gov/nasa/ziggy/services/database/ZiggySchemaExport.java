@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -34,25 +34,34 @@
 
 package gov.nasa.ziggy.services.database;
 
-import org.hibernate.cfg.Configuration;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.EnumSet;
+
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.tool.hbm2ddl.SchemaExport;
+import org.hibernate.tool.hbm2ddl.SchemaExport.Action;
+import org.hibernate.tool.schema.TargetType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+
 /**
- * This class provides a command-line interface to the Hibernate {@link SchemaExport} class which
- * uses {@link ZiggyHibernateConfiguration} as the configuration source.
- * <p>
- * Why didn't I just use the standard hbm2ddl ant task (which calls SchemaExport directly) to do
- * this instead of writing custom code to do it? Because the standard tools assume you have a
- * hibernate.cfg.xml file that explicitly lists all of your entity class. Rather than deal with that
- * maintenence headache, I wrote my own configurator {@link ZiggyHibernateConfiguration} which scans
- * the classpath for classes with Hibernate annotations and adds them to the configuration
- * dynamically. Hibernate does provide some similar code that scans the classpath, but it is
- * designed to work with JPA-style configuration files (persistence.xml) which has to be bundled in
- * a jar file, so it's difficult to support multiple database configurations.
+ * This class provides a command-line interface to the Hibernate {@link SchemaExport} class. Specify
+ * either the {@code --create} or {@code --drop} option, a {@code --output=<filename>} option, and
+ * define the Java property {@code hibernate.dialect}. For example:
+ *
+ * <pre>
+ * java -Dhibernate.dialect=org.hibernate.dialect.HSQLDialect gov.nasa.ziggy.services.database.ZiggySchemaExport --create --output=build/schema/ddl.hsqldb-create.sql
+ * java -Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect gov.nasa.ziggy.services.database.ZiggySchemaExport --create --output=build/schema/ddl.postgresql-create.sql
+ * </pre>
  *
  * @author Todd Klaus
+ * @author PT
+ * @author Bill Wohler
  */
 public class ZiggySchemaExport {
     private static final Logger log = LoggerFactory.getLogger(ZiggySchemaExport.class);
@@ -60,20 +69,17 @@ public class ZiggySchemaExport {
     public ZiggySchemaExport() {
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
     public static void main(String[] args) {
         try {
-            boolean echoToStdOut = false;
             boolean drop = false;
             boolean create = false;
             boolean halt = true;
-            boolean export = false;
             String outFile = null;
             boolean format = true;
 
             for (String arg : args) {
-                if (arg.equals("--verbose")) {
-                    echoToStdOut = true;
-                } else if (arg.equals("--drop")) {
+                if (arg.equals("--drop")) {
                     drop = true;
                 } else if (arg.equals("--create")) {
                     create = true;
@@ -89,18 +95,30 @@ public class ZiggySchemaExport {
                 }
             }
 
-            Configuration hibernateConfig = ZiggyHibernateConfiguration
-                .buildHibernateConfiguration();
-
-            SchemaExport se = new SchemaExport(hibernateConfig).setHaltOnError(halt)
+            SchemaExport schemaExport = new SchemaExport().setHaltOnError(halt)
                 .setOutputFile(outFile)
                 .setDelimiter(";");
 
             if (format) {
-                se.setFormat(true);
+                schemaExport.setFormat(true);
             }
 
-            se.execute(echoToStdOut, export, drop, create);
+            Action action = Action.NONE;
+            if (create) {
+                action = drop ? Action.BOTH : Action.CREATE;
+            } else if (drop) {
+                action = Action.DROP;
+            }
+
+            MetadataSources metadata = new MetadataSources(
+                new StandardServiceRegistryBuilder().build());
+            for (Class<?> clazz : ZiggyHibernateConfiguration.annotatedClasses()) {
+                metadata.addAnnotatedClass(clazz);
+            }
+
+            Files.deleteIfExists(Paths.get(outFile));
+
+            schemaExport.execute(EnumSet.of(TargetType.SCRIPT), action, metadata.buildMetadata());
         } catch (Exception e) {
             log.error("Error creating schema ", e);
             e.printStackTrace();

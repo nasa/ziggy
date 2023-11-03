@@ -2,22 +2,22 @@ package gov.nasa.ziggy.metrics;
 
 import java.util.Date;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "PI_METRIC_VALUE")
+@Table(name = "ziggy_MetricValue")
 public class MetricValue {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_METRIC_TYPE_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_MetricValue_generator")
+    @SequenceGenerator(name = "ziggy_MetricValue_generator", initialValue = 1,
+        sequenceName = "ziggy_MetricValue_sequence", allocationSize = 1)
+    private Long id;
 
     @ManyToOne
     private MetricType metricType;
@@ -88,7 +88,7 @@ public class MetricValue {
     /**
      * @return the id
      */
-    public long getId() {
+    public Long getId() {
         return id;
     }
 

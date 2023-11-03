@@ -5,7 +5,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,8 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.Metric;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
 
 /**
@@ -59,12 +56,6 @@ public abstract class PipelineModule {
     private boolean partialSuccess = false;
 
     /**
-     * List of tasks to be sent as TMQ messages after the current database transaction is committed.
-     * This is here to support LauncherPipelineModule
-     */
-    private List<PipelineTask> pendingMessages = new LinkedList<>();
-
-    /**
      * Standard constructor. Stores the {@link PipelineTask} and {@link RunMode} for the instance.
      *
      * @param pipelineTask
@@ -92,32 +83,11 @@ public abstract class PipelineModule {
      * how they perform the work for a pipeline task.
      *
      * @return true if task was completed.
-     * @throws PipelineException
+     * @throws Exception if an exception occurs in a concrete implementation. Because the
+     * implementation can throw practically anything, we are forced to be prepared for practically
+     * anything. Hence, {@link Exception} rather than a subclass of {@link Exception}.
      */
-    public abstract boolean processTask() throws PipelineException;
-
-    /**
-     * Queue a new PipelineTask message for sending via TMQ. PipelineTask must already have been
-     * written to the database. The messages will be sent after the database transaction for this
-     * task has been committed.
-     *
-     * @param task
-     */
-    public void queueWorkerMessageForTask(PipelineTask task) {
-        pendingMessages.add(task);
-    }
-
-    /**
-     * Send pending messages. Should only be called after the PipelineTask objects have been
-     * committed to the database.
-     */
-    public void flushWorkerMessages() {
-        PipelineOperations pipelineOperations = new PipelineOperations();
-        for (PipelineTask task : pendingMessages) {
-            pipelineOperations.sendWorkerMessageForTask(task);
-        }
-        pendingMessages.clear();
-    }
+    public abstract boolean processTask() throws Exception;
 
     /**
      * Update the PipelineTask.summaryMetrics.

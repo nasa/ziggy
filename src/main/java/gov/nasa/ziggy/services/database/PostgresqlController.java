@@ -3,6 +3,7 @@ package gov.nasa.ziggy.services.database;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -13,15 +14,17 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Implementation of {@link DatabaseController} for PostgreSQL use. If the
- * {@value PropertyNames#DATABASE_DIR_PROP_NAME} property is empty, then the system database is
- * assumed. A system database cannot be started or stopped, nor can a database be initialized or
- * created. However, the Ziggy schema and tables can be created.
+ * {@link PropertyName#DATABASE_DIR} property is empty, then the system database is assumed. A
+ * system database cannot be started or stopped, nor can a database be initialized or created.
+ * However, the Ziggy schema and tables can be created.
  *
  * @author PT
  * @author Bill Wohler
@@ -49,6 +52,7 @@ public class PostgresqlController extends DatabaseController {
 
     @Override
     public Path dataDir() {
+        // Can't use isSystemDatabase() as that method uses dataDir().
         return databaseDir != null ? databaseDir.resolve(PGDATA_DIR) : null;
     }
 
@@ -75,13 +79,9 @@ public class PostgresqlController extends DatabaseController {
     @Override
     public void createDatabase() {
 
-        if (databaseDir != null) {
+        if (!isSystemDatabase()) {
             initializeDatabase();
-            try {
-                updateConfigFile();
-            } catch (IOException e) {
-                throw new PipelineException("Unable to update configuration file", e);
-            }
+            updateConfigFile();
 
             int dbStartRetCode = start();
             if (dbStartRetCode != 0) {
@@ -89,20 +89,16 @@ public class PostgresqlController extends DatabaseController {
             }
         }
 
-        if (databaseDir != null) {
+        if (!isSystemDatabase()) {
             log.info("Creating database");
-            try {
-                CommandLine createCommand = new CommandLine(commandStringWithPath(CREATEDB));
-                createCommand.addArgument("-h").addArgument(host());
-                createCommand.addArgument("-p");
-                createCommand.addArgument(Integer.toString(port()));
-                createCommand.addArgument(dbName());
-                log.debug("Command line: " + createCommand.toString());
-                if (ExternalProcess.simpleExternalProcess(createCommand).execute(true) != 0) {
-                    throw new PipelineException("Unable to create database " + dbName());
-                }
-            } catch (Exception e) {
-                throw new PipelineException("Unable to create database", e);
+            CommandLine createCommand = new CommandLine(commandStringWithPath(CREATEDB));
+            createCommand.addArgument("-h").addArgument(host());
+            createCommand.addArgument("-p");
+            createCommand.addArgument(Integer.toString(port()));
+            createCommand.addArgument(dbName());
+            log.debug("Command line: " + createCommand.toString());
+            if (ExternalProcess.simpleExternalProcess(createCommand).execute(true) != 0) {
+                throw new PipelineException("Unable to create database " + dbName());
             }
             log.info("Creating database...done");
         }
@@ -112,11 +108,11 @@ public class PostgresqlController extends DatabaseController {
             CommandLine schemaCommand = psqlCommand();
             schemaCommand.addArgument("-f");
             schemaCommand.addArgument(
-                DirectoryProperties.ziggySchemaDir().resolve(SCHEMA_CREATE_FILE).toString());
+                DirectoryProperties.databaseSchemaDir().resolve(SCHEMA_CREATE_FILE).toString());
             log.debug("Command line: " + schemaCommand.toString());
             ExternalProcess.simpleExternalProcess(schemaCommand).exceptionOnFailure().execute(true);
 
-            File[] extraFiles = DirectoryProperties.ziggySchemaDir()
+            File[] extraFiles = DirectoryProperties.databaseSchemaDir()
                 .toFile()
                 .listFiles((FilenameFilter) (dir, name) -> name.startsWith(SCHEMA_EXTRA_PREFIX)
                     && name.endsWith(SCHEMA_EXTRA_SUFFIX));
@@ -129,8 +125,6 @@ public class PostgresqlController extends DatabaseController {
                     .exceptionOnFailure()
                     .execute(true);
             }
-        } catch (Exception e) {
-            throw new PipelineException("Unable to set up database", e);
         } finally {
             stop();
         }
@@ -140,6 +134,7 @@ public class PostgresqlController extends DatabaseController {
     /**
      * Calls initdb and creates the log directory.
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void initializeDatabase() {
 
         log.info("Initializing database");
@@ -156,49 +151,54 @@ public class PostgresqlController extends DatabaseController {
         try {
             Files.createDirectories(logDir());
         } catch (IOException e) {
-            throw new PipelineException("Unable to create log directory", e);
+            throw new UncheckedIOException("Unable to create directory " + logDir(), e);
         }
         log.info("Initializing database...done");
     }
 
-    private void updateConfigFile() throws IOException {
-
-        // Create a directory for lock files. Postgres has a limit of 107 characters for
-        // unix_socket_directories, so remove any redundancies from the path.
-        Path lockFileDir = DirectoryProperties.databaseDir()
-            .resolve(LOCK_FILE_DIR_NAME)
-            .normalize();
-        Files.createDirectory(lockFileDir);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private void updateConfigFile() {
 
         // Append to the postgresql.conf file an optional inclusion of the user's
         // config file and a setting of the lock file directory.
         log.info("Creating configuration file in " + dataDir().toString());
         Path configPath = dataDir().resolve(CONFIG_FILE_NAME);
-        String newline = System.lineSeparator();
-        StringBuilder confFileContents = new StringBuilder();
-        confFileContents.append("unix_socket_directories = '" + lockFileDir + "'" + newline);
-        if (DirectoryProperties.databaseConfFile() != null) {
-            confFileContents
-                .append("include '" + DirectoryProperties.databaseConfFile() + "'" + newline);
+
+        try {
+            // Create a directory for lock files. Postgres has a limit of 107 characters for
+            // unix_socket_directories, so remove any redundancies from the path.
+            Path lockFileDir = DirectoryProperties.databaseDir()
+                .resolve(LOCK_FILE_DIR_NAME)
+                .normalize();
+            Files.createDirectory(lockFileDir);
+            String newline = System.lineSeparator();
+            StringBuilder confFileContents = new StringBuilder();
+            confFileContents.append("unix_socket_directories = '" + lockFileDir + "'" + newline);
+            if (DirectoryProperties.databaseConfFile() != null) {
+                confFileContents
+                    .append("include '" + DirectoryProperties.databaseConfFile() + "'" + newline);
+            }
+            Files.write(configPath, confFileContents.toString().getBytes(FileUtil.ZIGGY_CHARSET),
+                StandardOpenOption.APPEND);
+            log.info("Creating configuration file in " + dataDir().toString() + "...done");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to write to file " + configPath.toString(), e);
         }
-        Files.write(configPath, confFileContents.toString().getBytes(FileUtil.ZIGGY_CHARSET),
-            StandardOpenOption.APPEND);
-        log.info("Creating configuration file in " + dataDir().toString() + "...done");
     }
 
     @Override
     public void dropDatabase() {
         CommandLine schemaCommand = psqlCommand();
         schemaCommand.addArgument("-f");
-        schemaCommand
-            .addArgument(DirectoryProperties.ziggySchemaDir().resolve(SCHEMA_DROP_FILE).toString());
+        schemaCommand.addArgument(
+            DirectoryProperties.databaseSchemaDir().resolve(SCHEMA_DROP_FILE).toString());
         log.debug("Command line: " + schemaCommand.toString());
         ExternalProcess.simpleExternalProcess(schemaCommand).exceptionOnFailure().execute(true);
     }
 
     @Override
     public int start() {
-        if (databaseDir == null) {
+        if (isSystemDatabase()) {
             return NOT_SUPPORTED;
         }
 
@@ -215,14 +215,12 @@ public class PostgresqlController extends DatabaseController {
         startCommand.addArgument("-l");
         startCommand.addArgument(logFile().toString());
         log.debug("Command line: " + startCommand.toString());
-        return ExternalProcess.simpleExternalProcess(startCommand)
-            .exceptionOnFailure(true)
-            .execute(true);
+        return ExternalProcess.simpleExternalProcess(startCommand).exceptionOnFailure().execute();
     }
 
     @Override
     public int stop() {
-        if (databaseDir == null) {
+        if (isSystemDatabase()) {
             return NOT_SUPPORTED;
         }
 
@@ -239,7 +237,7 @@ public class PostgresqlController extends DatabaseController {
 
     @Override
     public int status() {
-        if (databaseDir == null) {
+        if (isSystemDatabase()) {
             return NOT_SUPPORTED;
         }
 
@@ -251,7 +249,7 @@ public class PostgresqlController extends DatabaseController {
 
     @Override
     public boolean dbExists() {
-        if (databaseDir != null) {
+        if (!isSystemDatabase()) {
             return true;
         }
 
@@ -286,8 +284,9 @@ public class PostgresqlController extends DatabaseController {
 
     /**
      * Generates an appropriate command string for database commands. If the user specified a
-     * database.bin.dir property, that is used as the path to the executable; otherwise, the
-     * executable name alone is returned and the executable is assumed to be on the search path.
+     * {@link PropertyName#DATABASE_BIN_DIR} property, that is used as the path to the executable;
+     * otherwise, the executable name alone is returned and the executable is assumed to be on the
+     * search path.
      */
     private String commandStringWithPath(String command) {
         Path databaseBinDir = DirectoryProperties.databaseBinDir();

@@ -34,7 +34,6 @@ public class RemoteNodeDescriptorTest {
             RemoteNodeDescriptor.selectArchitecture(SupportedRemoteClusters.NAS, 25));
         assertEquals(RemoteNodeDescriptor.R5,
             RemoteNodeDescriptor.selectArchitecture(SupportedRemoteClusters.AWS, 25));
-
     }
 
     @Test
@@ -56,7 +55,6 @@ public class RemoteNodeDescriptorTest {
         assertEquals(RemoteNodeDescriptor.C5, descriptors.get(0));
         assertEquals(RemoteNodeDescriptor.M5, descriptors.get(1));
         assertEquals(RemoteNodeDescriptor.R5, descriptors.get(2));
-
     }
 
     @Test
@@ -79,7 +77,6 @@ public class RemoteNodeDescriptorTest {
         assertEquals(RemoteNodeDescriptor.C5, descriptors.get(0));
         assertEquals(RemoteNodeDescriptor.M5, descriptors.get(1));
         assertEquals(RemoteNodeDescriptor.R5, descriptors.get(2));
-
     }
 
     @Test
@@ -94,7 +91,6 @@ public class RemoteNodeDescriptorTest {
         assertEquals(RemoteNodeDescriptor.BROADWELL, acceptableDescriptors.get(2));
         assertEquals(RemoteNodeDescriptor.SKYLAKE, acceptableDescriptors.get(3));
         assertEquals(RemoteNodeDescriptor.HASWELL, acceptableDescriptors.get(4));
-
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -102,7 +98,6 @@ public class RemoteNodeDescriptorTest {
         List<RemoteNodeDescriptor> descriptors = RemoteNodeDescriptor
             .descriptorsSortedByRamThenCost(SupportedRemoteClusters.NAS);
         RemoteNodeDescriptor.nodesWithSufficientRam(descriptors, 1000.0);
-
     }
 
     @Test
@@ -118,5 +113,4 @@ public class RemoteNodeDescriptorTest {
         assertEquals(384, RemoteNodeDescriptor.M5.getMaxGigs());
         assertEquals(768, RemoteNodeDescriptor.R5.getMaxGigs());
     }
-
 }

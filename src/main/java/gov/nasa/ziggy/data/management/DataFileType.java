@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.data.management;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -14,16 +15,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.RegexBackslashManager;
 import gov.nasa.ziggy.util.RegexGroupCounter;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -50,7 +51,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_DATA_FILE_TYPE")
+@Table(name = "ziggy_DataFileType")
 public class DataFileType implements Persistable {
 
     public enum RegexType {
@@ -73,15 +74,20 @@ public class DataFileType implements Persistable {
             }
 
             @Override
-            public Stream<Path> pathStream(Path directory) throws IOException {
-                return Files.list(directory);
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            public Stream<Path> pathStream(Path directory) {
+                try {
+                    return Files.list(directory);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to list files of dir " + directory.toString(), e);
+                }
             }
 
             @Override
             public Path pathToRelativize(Path directory, Path datastoreRoot) {
                 return directory;
             }
-
         },
         DATASTORE {
             @Override
@@ -90,6 +96,7 @@ public class DataFileType implements Persistable {
             }
 
             @Override
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
             public DataFilePaths dataFilePaths(Path datastoreRoot, Path taskDirectory,
                 DataFileType dataFileType, Path dataFile) {
                 Path sourcePath = taskDirectory.resolve(dataFile);
@@ -99,8 +106,8 @@ public class DataFileType implements Persistable {
                 try {
                     Files.createDirectories(destinationPath.getParent());
                 } catch (IOException e) {
-                    throw new PipelineException(
-                        "Unable to create directory " + destinationPath.getParent(), e);
+                    throw new UncheckedIOException(
+                        "Unable to create directory " + destinationPath.getParent().toString(), e);
                 }
                 DataFilePaths paths = new DataFilePaths(sourcePath, destinationPath);
                 paths.setDatastorePathToDestination();
@@ -108,15 +115,20 @@ public class DataFileType implements Persistable {
             }
 
             @Override
-            public Stream<Path> pathStream(Path directory) throws IOException {
-                return Files.walk(directory);
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            public Stream<Path> pathStream(Path directory) {
+                try {
+                    return Files.walk(directory);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to walk directory tree " + directory.toString(), e);
+                }
             }
 
             @Override
             public Path pathToRelativize(Path directory, Path datastoreRoot) {
                 return datastoreRoot;
             }
-
         };
 
         public abstract Pattern getPattern(DataFileType dataFileType);
@@ -124,10 +136,9 @@ public class DataFileType implements Persistable {
         public abstract DataFilePaths dataFilePaths(Path datastoreRoot, Path taskDirectory,
             DataFileType dataFileType, Path dataFile);
 
-        public abstract Stream<Path> pathStream(Path directory) throws IOException;
+        public abstract Stream<Path> pathStream(Path directory);
 
         public abstract Path pathToRelativize(Path directory, Path datastoreRoot);
-
     }
 
     @Transient
@@ -163,7 +174,6 @@ public class DataFileType implements Persistable {
 
     // Used by Hibernate, do not remove.
     public DataFileType() {
-
     }
 
     /**
@@ -424,7 +434,7 @@ public class DataFileType implements Persistable {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         DataFileType other = (DataFileType) obj;
@@ -433,5 +443,4 @@ public class DataFileType implements Persistable {
         }
         return true;
     }
-
 }

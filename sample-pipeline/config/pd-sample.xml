@@ -10,7 +10,7 @@ and outputs, information about models, and parameter sets. Enjoy! -->
 
   <!-- Pipeline modules. The name of each module must correspond to the name of
        a program that can execute from the command line; the program has to be on
-       the path set by property pi.worker.moduleExe.binPath. -->
+       the path set by property ziggy.pipeline.binPath. -->
   <module name="permuter" description="Color Permuter"/>
   <module name="flip" description="Flip Up-Down and Left-Right"/>
   <module name="averaging" description="Average Images Together"/>

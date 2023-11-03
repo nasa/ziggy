@@ -34,7 +34,7 @@ public class PipelineTaskOperations {
      */
     public void createRemoteJobsFromQstat(long pipelineTaskId) {
 
-        DatabaseTransactionFactory.performTransactionInThread(() -> {
+        DatabaseTransactionFactory.performTransaction(() -> {
             PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
             PipelineTask databaseTask = pipelineTaskCrud.retrieve(pipelineTaskId);
             QueueCommandManager queueCommandManager = queueCommandManager();
@@ -126,5 +126,4 @@ public class PipelineTaskOperations {
     QueueCommandManager queueCommandManager() {
         return QueueCommandManager.newInstance();
     }
-
 }

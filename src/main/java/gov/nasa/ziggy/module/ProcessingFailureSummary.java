@@ -33,15 +33,15 @@ public class ProcessingFailureSummary {
         allTasksFailed = failedSubTaskDirs.size() == numSubTasks;
     }
 
-    boolean isAllTasksFailed() {
+    public boolean isAllTasksFailed() {
         return allTasksFailed;
     }
 
-    List<String> getFailedSubTaskDirs() {
+    public List<String> getFailedSubTaskDirs() {
         return failedSubTaskDirs;
     }
 
-    boolean isAllTasksSucceeded() {
+    public boolean isAllTasksSucceeded() {
         return failedSubTaskDirs.size() == 0;
     }
 }

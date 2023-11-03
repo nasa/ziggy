@@ -39,12 +39,11 @@ public class InstanceAndTasks {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         InstanceAndTasks other = (InstanceAndTasks) obj;
         return Objects.equals(pipelineInstance, other.pipelineInstance)
             && Objects.equals(pipelineTasks, other.pipelineTasks);
     }
-
 }

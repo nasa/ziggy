@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -35,18 +35,16 @@
 package gov.nasa.ziggy.services.events;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import jakarta.xml.bind.JAXBException;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Extremely simple class that imports {@link ZiggyEventHandler} definitions into the database. The
@@ -63,9 +61,7 @@ public class ZiggyEventHandlerDefinitionImporter {
     private ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager;
     private File[] files;
 
-    public ZiggyEventHandlerDefinitionImporter(String[] filenames) throws InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
+    public ZiggyEventHandlerDefinitionImporter(String[] filenames) {
         files = new File[filenames.length];
         for (int i = 0; i < filenames.length; i++) {
             files[i] = new File(filenames[i]);
@@ -73,17 +69,16 @@ public class ZiggyEventHandlerDefinitionImporter {
         xmlManager = new ValidatingXmlManager<>(ZiggyEventHandlerFile.class);
     }
 
-    public ZiggyEventHandlerDefinitionImporter(File[] files) throws InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
+    public ZiggyEventHandlerDefinitionImporter(File[] files) {
         this.files = files;
         xmlManager = new ValidatingXmlManager<>(ZiggyEventHandlerFile.class);
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void importFromFiles() {
 
-        List<String> pipelineDefinitionNames = new PipelineDefinitionCrud()
-            .retrievePipelineDefinitionNames();
+        List<String> pipelineDefinitionNames = new PipelineDefinitionCrud().retrieveNames();
 
         ZiggyEventCrud eventCrud = new ZiggyEventCrud();
         for (File file : files) {
@@ -97,15 +92,15 @@ public class ZiggyEventHandlerDefinitionImporter {
             }
             log.info("Unmarshaling file " + file.getName() + "...done");
             for (ZiggyEventHandler handler : handlerFile.getZiggyEventHandlers()) {
-                if (!pipelineDefinitionNames.contains(handler.getPipelineName().getName())) {
+                if (!pipelineDefinitionNames.contains(handler.getPipelineName())) {
                     log.error("Handler " + handler.getName() + " fires pipeline "
-                        + handler.getPipelineName().getName() + ", which is not defined");
+                        + handler.getPipelineName() + ", which is not defined");
                     log.error("Not persisting handler " + handler.getName());
                     continue;
                 }
                 try {
                     log.info("Persisting handler " + handler.getName() + "...");
-                    eventCrud.createOrUpdate(handler);
+                    eventCrud.merge(handler);
                 } catch (Exception e) {
                     log.error("Unable to persist handler " + handler.getName(), e);
                     continue;
@@ -122,14 +117,8 @@ public class ZiggyEventHandlerDefinitionImporter {
             throw new IllegalArgumentException(
                 "No files listed for import as Ziggy event handlers");
         }
-        ZiggyEventHandlerDefinitionImporter importer = null;
-        try {
-            importer = new ZiggyEventHandlerDefinitionImporter(args);
-        } catch (InstantiationException | IllegalAccessException | SAXException | JAXBException
-            | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-            | SecurityException e) {
-            throw new PipelineException("Unable to construct event handler importer ", e);
-        }
+        ZiggyEventHandlerDefinitionImporter importer = new ZiggyEventHandlerDefinitionImporter(
+            args);
         final ZiggyEventHandlerDefinitionImporter finalImporter = importer;
         DatabaseTransactionFactory.performTransaction(() -> {
             finalImporter.importFromFiles();

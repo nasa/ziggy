@@ -1,12 +1,14 @@
 package gov.nasa.ziggy.module;
 
+import static gov.nasa.ziggy.module.AlgorithmExecutor.ZIGGY_PROGRAM;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,7 +17,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.environment.EnvironmentUtils;
@@ -27,9 +29,13 @@ import gov.nasa.ziggy.metrics.IntervalMetricKey;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
 import gov.nasa.ziggy.module.io.matlab.MatlabUtils;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyNames;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.services.process.ExternalProcessUtils;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.HostNameUtils;
 import gov.nasa.ziggy.util.io.FileUtil;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
@@ -60,8 +66,6 @@ public class SubtaskExecutor {
     private final File taskDir;
     private final File workingDir;
     private final int timeoutSecs;
-    private final String pipelineHomeDir;
-    private final String pipelineConfigPath;
 
     private CommandLine commandLine;
     private Map<String, String> environment = new HashMap<>();
@@ -73,31 +77,29 @@ public class SubtaskExecutor {
     private File binaryDir;
 
     // Constructor is private, use the builder instead.
-    private SubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs,
-        String pipelineHomeDir, String pipelineConfigPath) {
+    private SubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs) {
         this.taskDir = taskDir;
         workingDir = TaskConfigurationManager.subtaskDirectory(taskDir, subtaskIndex);
-        this.pipelineHomeDir = pipelineHomeDir;
-        this.pipelineConfigPath = pipelineConfigPath;
         this.timeoutSecs = timeoutSecs;
         this.binaryName = binaryName;
     }
 
     // Initialization is private, use the builder instead.
-    private void initialize() throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private void initialize() {
         SubtaskUtils.putLogStreamIdentifier(workingDir);
-        Configuration config = ZiggyConfiguration.getInstance();
-        libPath = config.getString(PropertyNames.MODULE_EXE_LIBPATH_PROPERTY_NAME, "");
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+        libPath = config.getString(PropertyName.LIBPATH.property(), "");
 
-        String mcrRoot = config.getString(PropertyNames.MODULE_EXE_MCRROOT_PROPERTY_NAME, null);
+        String mcrRoot = config.getString(PropertyName.MCRROOT.property(), null);
         if (mcrRoot != null && !mcrRoot.isEmpty()) {
             libPath = libPath + (!libPath.isEmpty() ? File.pathSeparator : "")
                 + MatlabUtils.mcrPaths(mcrRoot);
         }
 
         // Search for the application first in the path specified by the
-        // MODULE_EXE_BINPATH_PROPERTY_NAME property followed by the pipeline's bin directory.
-        binPath = config.getString(PropertyNames.MODULE_EXE_BINPATH_PROPERTY_NAME, null);
+        // BINPATH property followed by the pipeline's bin directory.
+        binPath = config.getString(PropertyName.BINPATH.property(), null);
         if (binPath == null || binPath.isEmpty()) {
             binPath = DirectoryProperties.pipelineBinDir().toString();
         } else {
@@ -112,12 +114,7 @@ public class SubtaskExecutor {
                 "Unable to locate executable file " + binaryName + " in pathset " + binPath);
         }
 
-        String hostname = "<unknown>";
-        try {
-            hostname = InetAddress.getLocalHost().getHostName();
-        } catch (Exception e) {
-            log.warn("failed to get hostname", e);
-        }
+        String hostname = HostNameUtils.shortHostName();
 
         log.info("osType = " + osType.toString());
         log.info("hostname = " + hostname);
@@ -129,11 +126,16 @@ public class SubtaskExecutor {
         environment.put(MCR_CACHE_ROOT_ENV_VAR_NAME,
             Paths.get("/tmp", "mcr_cache_" + taskDir.getName()).toString());
         environment.put("PATH", binPath);
-        environment.put(CODE_ROOT_ENV_NAME, Paths.get(pipelineHomeDir).getParent().toString());
-        environment.put(ZiggyConfiguration.CONFIG_SERVICE_PROPERTIES_PATH_ENV, pipelineConfigPath);
+        environment.put(CODE_ROOT_ENV_NAME,
+            DirectoryProperties.pipelineHomeDir().getParent().toString());
 
         // Create the MCR cache directory if needed
-        Files.createDirectories(Paths.get(environment.get(MCR_CACHE_ROOT_ENV_VAR_NAME)));
+        try {
+            Files.createDirectories(Paths.get(environment.get(MCR_CACHE_ROOT_ENV_VAR_NAME)));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to create dir "
+                + Paths.get(environment.get(MCR_CACHE_ROOT_ENV_VAR_NAME)).toString(), e);
+        }
 
         // Populate the environment from the properties file.
         populateEnvironmentFromPropertiesFile();
@@ -206,9 +208,9 @@ public class SubtaskExecutor {
      */
     private void populateEnvironmentFromPropertiesFile() {
 
-        Configuration config = ZiggyConfiguration.getInstance();
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
         String environmentFromProperties = config
-            .getString(PropertyNames.RUNTIME_ENVIRONMENT_PROPERTY_NAME, null);
+            .getString(PropertyName.RUNTIME_ENVIRONMENT.property(), null);
         if (environmentFromProperties == null) {
             return;
         }
@@ -237,13 +239,13 @@ public class SubtaskExecutor {
         sb.setLength(sb.length() - 2);
         sb.append("]");
         log.info("Execution environment: " + sb.toString());
-
     }
 
     /**
      * Executes the algorithm on the subtask (including input and output handling) and returns the
      * exit code.
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public int execAlgorithm() {
 
         if (!workingDir.exists() || !workingDir.isDirectory()) {
@@ -255,12 +257,12 @@ public class SubtaskExecutor {
         int retCode = -1;
 
         try {
-            File errorFile = ModuleInterfaceUtils.errorFile(workingDir, binaryName, 0);
+            File errorFile = ModuleInterfaceUtils.errorFile(workingDir, binaryName);
             if (errorFile.exists()) {
                 log.info("Deleting stale error file prior to start of processing");
                 errorFile.delete();
             }
-            retCode = execAlgorithmInternal(0);
+            retCode = execAlgorithmInternal();
 
             if (retCode != 0) {
                 log.warn("Marking subtask as failed because retCode = " + retCode);
@@ -278,11 +280,16 @@ public class SubtaskExecutor {
         return retCode;
     }
 
-    public int execAlgorithmInternal(int sequenceNum) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public int execAlgorithmInternal() {
         List<String> commandLineArgs = new LinkedList<>();
-        String exePath = workingDir.getCanonicalPath();
-        commandLineArgs.add(exePath);
-        commandLineArgs.add("" + sequenceNum);
+        try {
+            String exePath = workingDir.getCanonicalPath();
+            commandLineArgs.add(exePath);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to get path for dir " + workingDir.toString(),
+                e);
+        }
 
         AlgorithmStateFiles stateFile = new AlgorithmStateFiles(workingDir);
         stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.PROCESSING);
@@ -299,7 +306,7 @@ public class SubtaskExecutor {
             retCode = runInputsOutputsCommand(inputsClass);
             if (retCode == 0) {
                 inputsProcessingSucceeded = true;
-                retCode = runCommandline(commandLineArgs, binaryName, "" + sequenceNum);
+                retCode = runCommandline(commandLineArgs, binaryName);
             }
             if (retCode == 0) {
                 algorithmProcessingSucceeded = true;
@@ -311,19 +318,7 @@ public class SubtaskExecutor {
             IntervalMetric.stop(MATLAB_PROCESS_EXEC_METRIC, key);
         }
 
-        File errorFile = ModuleInterfaceUtils.errorFile(workingDir, binaryName, sequenceNum);
-
-        // If the state file for the task is in the DELETED state, then the subtask should
-        // not be put into the COMPLETED or FAILED states, but rather should be left in
-        // PROCESSING. This preserves the symmetry with the way that remote execution subtasks
-        // are left in the PROCESSING state when their parent jobs get deleted from PBS.
-        StateFile taskStateFile = StateFile.of(workingDir.toPath().getParent());
-        taskStateFile = StateFile.newStateFileFromDiskFile(
-            DirectoryProperties.stateFilesDir().resolve(taskStateFile.name()).toFile(), true);
-        if (taskStateFile.getState().equals(StateFile.State.DELETED)) {
-            log.error("Task deleted, ending execution of sub-task");
-            return 0;
-        }
+        File errorFile = ModuleInterfaceUtils.errorFile(workingDir, binaryName);
 
         if (retCode == 0 && !errorFile.exists()) {
             stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.COMPLETE);
@@ -351,10 +346,10 @@ public class SubtaskExecutor {
 
     /**
      * Run an arbitrary process with caller-specified arguments. No {@link AlgorithmStateFiles} is
-     * created and a default logSuffix of "0" is used.
+     * created.
      */
-    public int execSimple(List<String> commandLineArgs) throws IOException {
-        int retCode = runCommandline(commandLineArgs, binaryName + "-", "0");
+    public int execSimple(List<String> commandLineArgs) {
+        int retCode = runCommandline(commandLineArgs, binaryName);
         log.info("execSimple: retCode = " + retCode);
 
         return retCode;
@@ -366,41 +361,36 @@ public class SubtaskExecutor {
      * process that generates results files in the task directory.
      * <p>
      * Given that {@link TaskFileManager} is a Java class, and this is a Java class, why is the
-     * {@link TaskFileManager} invoked using runjava and an external process? By using an external
-     * process, the inputs and outputs classes can use software libraries that do not support
-     * concurrency (for example, HDF5). By running each subtask in a separate process, the subtask
-     * input and output processing can execute in parallel even in cases in which the processing
-     * uses non-concurrent libraries. Running a bunch of instances of {@link TaskFileManager} in
-     * separate threads within a common JVM would not permit this.
+     * {@link TaskFileManager} invoked using the ziggy program and an external process? By using an
+     * external process, the inputs and outputs classes can use software libraries that do not
+     * support concurrency (for example, HDF5). By running each subtask in a separate process, the
+     * subtask input and output processing can execute in parallel even in cases in which the
+     * processing uses non-concurrent libraries. Running a bunch of instances of
+     * {@link TaskFileManager} in separate threads within a common JVM would not permit this.
      *
      * @param inputsOutputsClass Class to be used as argument to TaskFileManager.
-     * @return exit code from runjava, or -1 if an IOException occurs during the command.
-     * @throws IOException if the environment cannot be obtained
+     * @return exit code from the ziggy program
      */
-    int runInputsOutputsCommand(Class<?> inputsOutputsClass) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    int runInputsOutputsCommand(Class<?> inputsOutputsClass) {
 
-        // Locate the runjava executable, which can be someplace other than the bin directories for
+        // Locate the ziggy executable, which can be someplace other than the bin directories for
         // the pipeline.
-        String runjavaCommand = DirectoryProperties.ziggyBinDir() + "/runjava";
+        String ziggyCommand = DirectoryProperties.ziggyBinDir().resolve(ZIGGY_PROGRAM).toString();
+        String javaLibPathArg = ExternalProcessUtils.javaLibraryPath();
+        String log4jConfig = ExternalProcessUtils.log4jConfigString();
 
-        // Build the string that sets up that location as the Java library path
-        String javaLibPathArg = "-Djava.library.path=" + DirectoryProperties.ziggyLibDir();
-
-        // Build the string that sets up the Log4j config file location
-        String log4jConfig = "-Dlog4j2.configurationFile=" + DirectoryProperties.ziggyHomeDir()
-            + "/etc/log4j2.xml";
-
-        // Construct the class arguments for runjava.
+        // Construct the class arguments for the ziggy program.
         String taskFileManagerClassName = TaskFileManager.class.getCanonicalName();
         String inputsOutputsClassName = inputsOutputsClass.getCanonicalName();
 
         // Put it all together.
-        commandLine = new CommandLine(runjavaCommand);
+        commandLine = new CommandLine(ziggyCommand);
         commandLine.addArgument("--verbose");
         commandLine.addArgument(javaLibPathArg);
         commandLine.addArgument(log4jConfig);
 
-        commandLine.addArgument(taskFileManagerClassName);
+        commandLine.addArgument("--class=" + taskFileManagerClassName);
         commandLine.addArgument(inputsOutputsClassName);
 
         // Run the command and return the exit code.
@@ -408,22 +398,27 @@ public class SubtaskExecutor {
         externalProcess.setLogStreamIdentifier(workingDir.getName());
         externalProcess.setWorkingDirectory(workingDir);
         externalProcess.setCommandLine(commandLine);
-        externalProcess.setEnvironment(mergeWithEnvironment(EnvironmentUtils.getProcEnvironment()));
+        try {
+            externalProcess
+                .setEnvironment(mergeWithEnvironment(EnvironmentUtils.getProcEnvironment()));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to get process environment ", e);
+        }
 
         log.info("Executing command: " + commandLine.toString());
         return externalProcess.execute();
     }
 
-    int runCommandline(List<String> commandline, String logPrefix, String logSuffix)
-        throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    int runCommandline(List<String> commandline, String logPrefix) {
         try (
             Writer stdOutWriter = new OutputStreamWriter(
-                new FileOutputStream(new File(workingDir,
-                    ModuleInterfaceUtils.stdoutFileName(logPrefix, logSuffix))),
+                new FileOutputStream(
+                    new File(workingDir, ModuleInterfaceUtils.stdoutFileName(logPrefix))),
                 FileUtil.ZIGGY_CHARSET);
             Writer stdErrWriter = new OutputStreamWriter(
-                new FileOutputStream(new File(workingDir,
-                    ModuleInterfaceUtils.stderrFileName(logPrefix, logSuffix))),
+                new FileOutputStream(
+                    new File(workingDir, ModuleInterfaceUtils.stderrFileName(logPrefix))),
                 FileUtil.ZIGGY_CHARSET)) {
             File binary = new File(binaryDir.getPath(), binaryName);
             if ((!binary.exists() || !binary.isFile())
@@ -454,8 +449,8 @@ public class SubtaskExecutor {
              * MATLABHOME is always set to MCRROOT. If not, the application will run as though it is
              * running inside MATLAB. Hence, the licensing server will be contacted."
              */
-            Configuration config = ZiggyConfiguration.getInstance();
-            String mcrRoot = config.getString(PropertyNames.MODULE_EXE_MCRROOT_PROPERTY_NAME, null);
+            ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+            String mcrRoot = config.getString(PropertyName.MCRROOT.property(), null);
 
             if (mcrRoot != null) {
                 env.put(MATLABHOME_ENV_NAME, mcrRoot);
@@ -492,8 +487,10 @@ public class SubtaskExecutor {
             }
 
             return retCode;
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to create and run command line " + commandLine.toString(), e);
         }
-
     }
 
     private Map<String, String> mergeWithEnvironment(Map<String, String> additionalEnvironment) {
@@ -506,11 +503,7 @@ public class SubtaskExecutor {
     private static void markSubtaskFailed(File workingDir) {
         AlgorithmStateFiles subTaskState = new AlgorithmStateFiles(workingDir);
         if (subTaskState.currentSubtaskState() != AlgorithmStateFiles.SubtaskState.FAILED) {
-            try {
-                subTaskState.updateCurrentState(AlgorithmStateFiles.SubtaskState.FAILED);
-            } catch (IOException e1) {
-                log.error("failed to create .FAILED file for subTask: " + workingDir);
-            }
+            subTaskState.updateCurrentState(AlgorithmStateFiles.SubtaskState.FAILED);
         }
     }
 
@@ -553,8 +546,6 @@ public class SubtaskExecutor {
         private File taskDir;
         private int subtaskIndex = -1;
         private int timeoutSecs = -1;
-        private String pipelineHomeDir;
-        private String pipelineConfigPath;
         private String binaryName;
 
         public Builder() {
@@ -575,22 +566,12 @@ public class SubtaskExecutor {
             return this;
         }
 
-        public Builder pipelineHomeDir(String pipelineHomeDir) {
-            this.pipelineHomeDir = pipelineHomeDir;
-            return this;
-        }
-
-        public Builder pipelineConfigPath(String pipelineConfigPath) {
-            this.pipelineConfigPath = pipelineConfigPath;
-            return this;
-        }
-
         public Builder binaryName(String binaryName) {
             this.binaryName = binaryName;
             return this;
         }
 
-        public SubtaskExecutor build() throws IOException {
+        public SubtaskExecutor build() {
             StringBuilder sb = new StringBuilder();
             if (taskDir == null) {
                 sb.append("taskDir ");
@@ -601,12 +582,6 @@ public class SubtaskExecutor {
             if (timeoutSecs <= 0) {
                 sb.append("timeoutSecs ");
             }
-            if (pipelineHomeDir == null) {
-                sb.append("pipelineHomeDir ");
-            }
-            if (pipelineConfigPath == null) {
-                sb.append("pipelineConfigPath ");
-            }
             if (binaryName == null) {
                 sb.append("binaryName ");
             }
@@ -616,10 +591,9 @@ public class SubtaskExecutor {
                     "Unable to build SubtaskExecutor, bad fields: " + sb.toString());
             }
             SubtaskExecutor subtaskExecutor = new SubtaskExecutor(taskDir, subtaskIndex, binaryName,
-                timeoutSecs, pipelineHomeDir, pipelineConfigPath);
+                timeoutSecs);
             subtaskExecutor.initialize();
             return subtaskExecutor;
         }
     }
-
 }

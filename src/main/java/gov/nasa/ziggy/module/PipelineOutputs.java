@@ -5,7 +5,6 @@ import static gov.nasa.ziggy.module.PipelineInputsOutputsUtils.taskDir;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
@@ -95,7 +94,7 @@ public abstract class PipelineOutputs implements Persistable {
      * subtask, whether or not that subtask produced results. Note that a subtask can run to
      * completion but not produce results.
      */
-    public void setResultsState() throws IOException {
+    public void setResultsState() {
         if (subtaskProducedResults()) {
             new AlgorithmStateFiles(DirectoryProperties.workingDir().toFile()).setResultsFlag();
         }
@@ -240,7 +239,9 @@ public abstract class PipelineOutputs implements Persistable {
         filenames = fileManager
             .filesInCompletedSubtasksWithoutResults(pipelineInputs.requiredDataFileInfoClasses());
         producerConsumerCrud.addNonProducingConsumer(pipelineTask, filenames);
-
     }
 
+    protected Hdf5ModuleInterface hdf5ModuleInterface() {
+        return hdf5ModuleInterface;
+    }
 }

@@ -91,7 +91,7 @@ public class StringUtilsTest {
         assertArrayEquals(new String[] { "a", "b", "c" }, array);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testConvertStringArrayWithNullString() {
         StringUtils.convertStringArray(null);
     }
@@ -114,7 +114,7 @@ public class StringUtilsTest {
         assertEquals("", acronym);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testConstantToAcronymWithNullString() {
         StringUtils.constantToAcronym(null);
     }
@@ -149,7 +149,7 @@ public class StringUtilsTest {
         assertEquals("", camel);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testConstantToCamelWithNullString() {
         StringUtils.constantToCamel(null);
     }
@@ -181,9 +181,35 @@ public class StringUtilsTest {
         assertEquals("", camel);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testConstantToCamelWithSpacesWithNullString() {
         StringUtils.constantToCamelWithSpaces(null);
+    }
+
+    @Test
+    public void testConstantToSentenceWithSpacesWithLeadingUnderscore() {
+        String sentence = StringUtils.constantToSentenceWithSpaces("_FOO_BAR");
+        assertEquals("Foo bar", sentence);
+    }
+
+    @Test
+    public void testConstantToSentenceWithSpacesWithUnderscoreDigit() {
+        String sentence = StringUtils.constantToSentenceWithSpaces("FOO_BAR_1_2");
+        assertEquals("Foo bar 1 2", sentence);
+
+        sentence = StringUtils.constantToSentenceWithSpaces("FOO_BAR_1ABC_2");
+        assertEquals("Foo bar 1abc 2", sentence);
+    }
+
+    @Test
+    public void testConstantToSentenceWithSpacesWithEmptyString() {
+        String sentence = StringUtils.constantToSentenceWithSpaces("");
+        assertEquals("", sentence);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testConstantToSentenceWithSpacesWithNullString() {
+        StringUtils.constantToSentenceWithSpaces(null);
     }
 
     @Test
@@ -212,12 +238,12 @@ public class StringUtilsTest {
         assertEquals("00:00:01", elapsedTime);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testElapsedTimeWithDatesWithNullStartTime() {
         StringUtils.elapsedTime(null, new Date(2000));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testElapsedTimeWithDatesWithNullEndTime() {
         StringUtils.elapsedTime(new Date(1000), null);
     }

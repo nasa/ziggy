@@ -7,7 +7,7 @@ import java.util.Map;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 
@@ -39,7 +39,6 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
         } catch (ClassNotFoundException e) {
             throw new PipelineException("Generator class " + clazz + " not found", e);
         }
-
     }
 
     @Override
@@ -54,7 +53,8 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
      * {@link TaskConfigurationParameters#isSingleSubtask()}.
      */
     @Override
-    public List<UnitOfWork> generateTasks(Map<Class<? extends Parameters>, Parameters> parameters) {
+    public List<UnitOfWork> generateTasks(
+        Map<Class<? extends ParametersInterface>, ParametersInterface> parameters) {
         List<UnitOfWork> tasks = super.generateTasks(parameters);
         TaskConfigurationParameters taskConfigurationParameters = (TaskConfigurationParameters) parameters
             .get(TaskConfigurationParameters.class);
@@ -83,5 +83,4 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
     public void setSingleSubtask(boolean singleSubtask) {
         this.singleSubtask = singleSubtask;
     }
-
 }

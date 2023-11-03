@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -19,6 +20,8 @@ import gov.nasa.ziggy.metrics.CounterMetric;
 import gov.nasa.ziggy.metrics.MetricType;
 import gov.nasa.ziggy.metrics.MetricValue;
 import gov.nasa.ziggy.metrics.ValueMetric;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.TimeRange;
 import gov.nasa.ziggy.util.io.FileUtil;
 
@@ -49,11 +52,10 @@ public class MetricsFileParser {
         this.metricSource = metricSource;
     }
 
-    public Iterator<MetricValue> parseFile() throws IOException {
+    public Iterator<MetricValue> parseFile() {
         if (metricNameToMetricType.isEmpty()) {
             types();
         }
-
         return new LineIterator<>() {
             @Override
             protected MetricValue parseLine(String line) {
@@ -73,9 +75,8 @@ public class MetricsFileParser {
      * Call this after calling parse to get the parsed metrics.
      *
      * @return
-     * @throws IOException
      */
-    public Set<MetricType> types() throws IOException {
+    public Set<MetricType> types() {
         metricNameToMetricType = new HashMap<>();
         LineIterator<MetricMetadata> typeIt = metricMetadataIterator();
         for (MetricMetadata metadata : typeIt) {
@@ -109,7 +110,7 @@ public class MetricsFileParser {
         return rv;
     }
 
-    private LineIterator<MetricMetadata> metricMetadataIterator() throws IOException {
+    private LineIterator<MetricMetadata> metricMetadataIterator() {
         return new LineIterator<>() {
             @Override
             protected MetricMetadata parseLine(String line) {
@@ -136,17 +137,27 @@ public class MetricsFileParser {
             "Parse error.  Unknown metric type \"" + metricTypeStr + "\".");
     }
 
-    protected Reader openReader() throws IOException {
-        return new FileReader(metricsFile, FileUtil.ZIGGY_CHARSET);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    protected Reader openReader() {
+        try {
+            return new FileReader(metricsFile, FileUtil.ZIGGY_CHARSET);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to read from " + metricsFile.toString(), e);
+        }
     }
 
     private abstract class LineIterator<T> implements Iterator<T>, Iterable<T> {
         private String nextLine;
         private final BufferedReader breader;
 
-        LineIterator() throws IOException {
-            breader = new BufferedReader(openReader(), BUFFER_SIZE_BYTES);
-            nextLine = breader.readLine();
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+        LineIterator() {
+            try {
+                breader = new BufferedReader(openReader(), BUFFER_SIZE_BYTES);
+                nextLine = breader.readLine();
+            } catch (IOException e) {
+                throw new UncheckedIOException("Unable to read from file", e);
+            }
         }
 
         @Override
@@ -155,6 +166,7 @@ public class MetricsFileParser {
         }
 
         @Override
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
         public T next() {
             if (nextLine == null) {
                 throw new IllegalStateException();
@@ -163,7 +175,7 @@ public class MetricsFileParser {
             try {
                 nextLine = breader.readLine();
             } catch (IOException e) {
-                throw new IllegalStateException(e);
+                throw new UncheckedIOException("Unable to read from file ", e);
             }
             if (nextLine == null) {
                 FileUtil.close(breader);

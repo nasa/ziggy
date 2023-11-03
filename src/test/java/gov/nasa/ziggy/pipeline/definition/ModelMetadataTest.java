@@ -85,7 +85,6 @@ public class ModelMetadataTest {
         assertEquals(modelType3, modelMetadata.getModelType());
         assertFalse(modelMetadata.isLocked());
         assertEquals(fixedDate, modelMetadata.getImportTime());
-
     }
 
     @Test

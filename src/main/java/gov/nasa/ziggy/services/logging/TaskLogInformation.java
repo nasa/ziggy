@@ -22,7 +22,7 @@ import gov.nasa.ziggy.util.IntegerFormatter;
  */
 public class TaskLogInformation implements Comparable<TaskLogInformation>, Serializable {
 
-    private static final long serialVersionUID = 20220325L;
+    private static final long serialVersionUID = 20230511L;
 
     /**
      * Pattern for logs file names: 10-100-algname.10-0.log, where the numbers are instance, task,
@@ -36,8 +36,8 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
     public static final int JOB_INDEX_GROUP_NUMBER = 3;
     public static final int TASK_LOG_INDEX_NUMBER = 4;
 
-    private final int instanceId;
-    private final int taskId;
+    private final long instanceId;
+    private final long taskId;
     private final int jobIndex;
     private final int taskLogIndex;
     private final long logSizeBytes;
@@ -55,14 +55,13 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         }
         Matcher matcher = LOG_FILE_NAME_PATTERN.matcher(filename);
         matcher.matches();
-        instanceId = Integer.parseInt(matcher.group(INSTANCE_ID_GROUP_NUMBER));
-        taskId = Integer.parseInt(matcher.group(TASK_ID_GROUP_NUMBER));
+        instanceId = Long.parseLong(matcher.group(INSTANCE_ID_GROUP_NUMBER));
+        taskId = Long.parseLong(matcher.group(TASK_ID_GROUP_NUMBER));
         taskLogIndex = Integer.parseInt(matcher.group(TASK_LOG_INDEX_NUMBER));
         jobIndex = Integer.parseInt(matcher.group(JOB_INDEX_GROUP_NUMBER));
         fullPath = taskFile.getAbsolutePath();
         logSizeBytes = taskFile.length();
         lastModified = taskFile.lastModified();
-
     }
 
     public static LogType logType(File taskFile) {
@@ -93,11 +92,11 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         return DateFormat.getDateTimeInstance().format(date);
     }
 
-    public int getInstanceId() {
+    public long getInstanceId() {
         return instanceId;
     }
 
-    public int getTaskId() {
+    public long getTaskId() {
         return taskId;
     }
 
@@ -163,11 +162,11 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
      */
     @Override
     public int compareTo(TaskLogInformation o) {
-        if (Integer.compare(instanceId, o.instanceId) != 0) {
-            return Integer.compare(instanceId, o.instanceId);
+        if (Long.compare(instanceId, o.instanceId) != 0) {
+            return Long.compare(instanceId, o.instanceId);
         }
-        if (Integer.compare(taskId, o.taskId) != 0) {
-            return Integer.compare(taskId, o.taskId);
+        if (Long.compare(taskId, o.taskId) != 0) {
+            return Long.compare(taskId, o.taskId);
         }
         if (Integer.compare(taskLogIndex, o.taskLogIndex) != 0) {
             return Integer.compare(taskLogIndex, o.taskLogIndex);
@@ -177,5 +176,4 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         }
         return 0;
     }
-
 }

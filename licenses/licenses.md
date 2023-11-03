@@ -39,6 +39,7 @@ This file lists the third-party software that is used by Ziggy. Links to the sof
 |[jfreechart](https://www.jfree.org/jfreechart/) [(docs)](https://www.jfree.org/jfreechart/javadoc/index.html) [(license)](org.jfree--jfreechart--1.0.x)|||
 |[jgoodies-forms](https://www.jgoodies.com/freeware/libraries/forms/) [(docs)](https://javadoc.io/doc/com.jgoodies/jgoodies-forms/latest/index.html) [(license)](com.jgoodies--jgoodies-forms--1.9.x)|||
 |[jgoodies-looks](https://www.jgoodies.com/freeware/libraries/looks/) [(docs)](https://javadoc.io/doc/com.jgoodies/jgoodies-looks/latest/index.html) [(license)](com.jgoodies--jgoodies-looks--2.7.x)|||
+|[jsoup](https://jsoup.org/) [(docs)](https://jsoup.org/apidocs/) [(license)](org.jsoup--jsoup--1.16.x)|||
 |[junit](https://junit.org/junit4/) [(docs)](https://junit.org/junit4/javadoc/latest/index.html) [(license)](junit--junit--4.x)|SWE-062|TestNG|
 |[l2fprod-properties-editor](https://bitbucket.org/trosorg/l2fprod-properties-editor/src/master/) [(docs)](https://bitbucket.org/trosorg/l2fprod-properties-editor/src/master/) [(license)](org.tros--l2fprod-properties-editor--1.3.x)|||
 |[log4j-api](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) [(license)](org.apache.logging.log4j--log4j-api--2.19.x)|||

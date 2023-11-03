@@ -2,11 +2,10 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.util.Objects;
 
-import javax.persistence.Embeddable;
-
 import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
 import gov.nasa.ziggy.ui.ZiggyGuiConsole;
 import gov.nasa.ziggy.util.TimeFormatter;
+import jakarta.persistence.Embeddable;
 
 /**
  * Provides information on remote execution jobs associated with a {@link PipelineTask}.
@@ -22,7 +21,7 @@ import gov.nasa.ziggy.util.TimeFormatter;
  * <p>
  * Instances of {@link RemoteJob} are created when the jobs for a {@link PipelineTask} are submitted
  * to the batch system. They get updated when the task leaves algorithm monitoring, when stale task
- * states are cleared at worker start time, and when the user requests a display of task and
+ * states are cleared at supervisor start time, and when the user requests a display of task and
  * instance costs via the {@link ZiggyGuiConsole}.
  *
  * @author PT
@@ -36,7 +35,6 @@ public class RemoteJob {
     private boolean finished;
 
     public RemoteJob() {
-
     }
 
     public RemoteJob(long jobId) {
@@ -77,7 +75,7 @@ public class RemoteJob {
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         RemoteJob other = (RemoteJob) obj;
@@ -129,7 +127,5 @@ public class RemoteJob {
         public void setModel(String model) {
             this.model = model;
         }
-
     }
-
 }

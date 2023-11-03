@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -35,6 +35,8 @@
 package gov.nasa.ziggy.metrics.report;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -57,6 +59,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * @author Todd Klaus
@@ -79,7 +83,8 @@ public class PerformanceReport {
         this.nodes = nodes;
     }
 
-    public Path generateReport() throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public Path generateReport() {
         log.info("Generating performance report");
 
         PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
@@ -94,9 +99,14 @@ public class PerformanceReport {
         }
 
         Path outputPath = ReportFilePaths.performanceReportPath(instanceId);
-        Files.createDirectories(outputPath.getParent());
+        try {
+            Files.createDirectories(outputPath.getParent());
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Unable to create directory " + outputPath.getParent().toString(), e);
+        }
 
-        log.info("Writing report to: " + outputPath.toString());
+        log.info("Writing report to {}...", outputPath.toString());
 
         PdfRenderer pdfRenderer = new PdfRenderer(outputPath.toFile(), false);
 
@@ -137,7 +147,8 @@ public class PerformanceReport {
 
         pdfRenderer.close();
 
-        log.info("DONE Generating performance report");
+        log.info("Writing report to {}...done", outputPath.toString());
+
         return outputPath;
     }
 
@@ -156,8 +167,8 @@ public class PerformanceReport {
     }
 
     private void generateNodeReport(PdfRenderer pdfRenderer, PipelineInstanceNode node,
-        List<PipelineTask> tasks) throws Exception {
-        String moduleName = node.getPipelineModuleDefinition().getName().getName();
+        List<PipelineTask> tasks) {
+        String moduleName = node.getPipelineModuleDefinition().getName();
 
         NodeReport nodeReport = new NodeReport(pdfRenderer);
         nodeReport.generateReport(node, tasks);
@@ -200,6 +211,8 @@ public class PerformanceReport {
         System.exit(-1);
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.USAGE)
+    @AcceptableCatchBlock(rationale = Rationale.USAGE)
     private static NodeIndexRange parseNodesArg(String nodesArg, Options options) {
         String[] parts = nodesArg.split(":");
 
@@ -227,7 +240,9 @@ public class PerformanceReport {
         return new NodeIndexRange(startNodeIndex, endNodeIndex);
     }
 
-    public static void main(String[] args) throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.USAGE)
+    @AcceptableCatchBlock(rationale = Rationale.USAGE)
+    public static void main(String[] args) {
         Options options = new Options();
         options.addOption(INSTANCE_ID_OPT, true, "Pipeline instance ID");
         options.addOption(TASK_FILES_OPT, true, "Top-level task file for instance");

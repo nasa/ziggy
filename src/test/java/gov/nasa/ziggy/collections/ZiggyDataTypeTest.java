@@ -165,7 +165,6 @@ public class ZiggyDataTypeTest {
         }
         Object boxedList = Arrays.asList(boxedArray1);
         assertEquals(type, getDataType(boxedList));
-
     }
 
     /**

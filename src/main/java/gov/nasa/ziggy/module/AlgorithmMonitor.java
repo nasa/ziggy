@@ -3,7 +3,6 @@ package gov.nasa.ziggy.module;
 import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.performTransaction;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -19,7 +18,9 @@ import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
@@ -30,6 +31,13 @@ import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
+import gov.nasa.ziggy.services.messages.TaskCompletionNotification;
+import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Monitors algorithm processing by monitoring state files.
@@ -51,10 +59,10 @@ public class AlgorithmMonitor implements Runnable {
     private static AlgorithmMonitor remoteMonitoringInstance = null;
     private static ScheduledThreadPoolExecutor threadPool = new ScheduledThreadPoolExecutor(2);
 
-    private String stateFileDirPath = null;
     private List<String> corruptedStateFileNames = new ArrayList<>();
     private boolean startLogMessageWritten = false;
-    private boolean monitorRemoteJobs;
+    private AlgorithmType algorithmType;
+    private String monitorVersion;
 
     JobMonitor jobMonitor = null;
 
@@ -73,8 +81,8 @@ public class AlgorithmMonitor implements Runnable {
                 DatabaseTransactionFactory.performTransaction(() -> {
                     PipelineTaskCrud pipelineTaskCrud = monitor.pipelineTaskCrud();
                     PipelineTask dbTask = pipelineTaskCrud.retrieve(pipelineTask.getId());
-                    // Submit tasks for persistence at highest priority.
-                    monitor.pipelineExecutor().sendWorkerMessageForTask(dbTask, 0);
+                    // Submit tasks for persistence at high priority.
+                    monitor.pipelineExecutor().persistTaskResults(dbTask);
                     return null;
                 });
             }
@@ -90,54 +98,40 @@ public class AlgorithmMonitor implements Runnable {
                     .generateAndBroadcastAlert("Algorithm Monitor", pipelineTask.getId(),
                         Severity.WARNING, "Resubmitting task for further processing");
                 PipelineExecutor pipelineExecutor = monitor.pipelineExecutor();
+                PipelineOperations pipelineOperations = monitor.pipelineOperations();
                 PipelineTask databaseTask = (PipelineTask) DatabaseTransactionFactory
                     .performTransaction(() -> {
                         PipelineTaskCrud pipelineTaskCrud = monitor.pipelineTaskCrud();
                         PipelineTask dbTask = pipelineTaskCrud.retrieve(pipelineTask.getId());
                         dbTask.incrementAutoResubmitCount();
-                        dbTask.setState(PipelineTask.State.ERROR);
-                        dbTask.stopExecutionClock();
-                        pipelineTaskCrud.update(dbTask);
-                        pipelineExecutor.updateTaskCountsForCurrentNode(dbTask, false);
-                        pipelineExecutor.updateInstanceState(dbTask.getPipelineInstance());
+                        pipelineOperations.setTaskState(pipelineTask, PipelineTask.State.ERROR);
+                        pipelineTaskCrud.merge(dbTask);
                         return dbTask;
                     });
 
                 // Submit tasks for resubmission at highest priority.
                 DatabaseTransactionFactory.performTransaction(() -> {
-                    pipelineExecutor.restartFailedTask(databaseTask, false);
-                    pipelineExecutor.sendWorkerMessageForTask(databaseTask, 0, false,
+                    pipelineExecutor.restartFailedTasks(List.of(databaseTask), false,
                         RunMode.RESUBMIT);
                     return null;
                 });
             }
         },
 
-        // Algorithm was deleted or has failures but can't be resubmitted. Mark as
+        // Algorithm was killed or has failures but can't be resubmitted. Mark as
         // failed.
         FAIL {
             @Override
             public void performActions(AlgorithmMonitor monitor, PipelineTask pipelineTask) {
                 log.error("Task with id " + pipelineTask.getId() + " failed on remote system, "
                     + "marking task as errored and not restarting.");
-
-                // If the state file was deleted, no alert is needed since one was already
-                // issued;
-                // if it's failed, an alert is still needed.
-                StateFile stateFile = monitor.state.get(StateFile.invariantPart(pipelineTask));
-                if (!stateFile.getState().equals(StateFile.State.DELETED)) {
-                    monitor.handleFailedOrDeletedTask(
-                        monitor.state.get(StateFile.invariantPart(pipelineTask)));
-                }
+                monitor.handleFailedTask(monitor.state.get(StateFile.invariantPart(pipelineTask)));
                 DatabaseTransactionFactory.performTransaction(() -> {
                     PipelineTaskCrud pipelineTaskCrud = monitor.pipelineTaskCrud();
                     PipelineTask databaseTask = pipelineTaskCrud.retrieve(pipelineTask.getId());
-                    databaseTask.setState(PipelineTask.State.ERROR);
-                    databaseTask.stopExecutionClock();
-                    pipelineTaskCrud.update(databaseTask);
-                    PipelineExecutor pipelineExecutor = monitor.pipelineExecutor();
-                    pipelineExecutor.updateTaskCountsForCurrentNode(databaseTask, false);
-                    pipelineExecutor.updateInstanceState(databaseTask.getPipelineInstance());
+                    PipelineOperations pipelineOperations = monitor.pipelineOperations();
+                    pipelineOperations.setTaskState(pipelineTask, PipelineTask.State.ERROR);
+                    pipelineTaskCrud.merge(databaseTask);
                     return null;
                 });
             }
@@ -157,24 +151,47 @@ public class AlgorithmMonitor implements Runnable {
 
     public static void initialize() {
         synchronized (AlgorithmMonitor.class) {
+            if (localMonitoringInstance == null || remoteMonitoringInstance == null) {
+                ZiggyMessenger.subscribe(MonitorAlgorithmRequest.class, message -> {
+                    if (message.getAlgorithmType().equals(AlgorithmType.LOCAL)) {
+                        AlgorithmMonitor.startLocalMonitoring(
+                            message.getStateFile().newStateFileFromDiskFile());
+                    } else {
+                        AlgorithmMonitor.startRemoteMonitoring(
+                            message.getStateFile().newStateFileFromDiskFile());
+                    }
+                });
+            }
             if (localMonitoringInstance == null) {
-                localMonitoringInstance = new AlgorithmMonitor(false);
+                localMonitoringInstance = new AlgorithmMonitor(AlgorithmType.LOCAL);
                 localMonitoringInstance.startMonitoringThread();
             }
             if (remoteMonitoringInstance == null) {
-                remoteMonitoringInstance = new AlgorithmMonitor(true);
+                remoteMonitoringInstance = new AlgorithmMonitor(AlgorithmType.REMOTE);
                 remoteMonitoringInstance.startMonitoringThread();
             }
+
+            // Whenever a worker sends a "last message," run an unscheduled
+            // update of the monitors and tell the ops instances panel to refresh.
+            ZiggyMessenger.subscribe(WorkerStatusMessage.class, message -> {
+                if (message.isLastMessageFromWorker()) {
+                    localMonitoringInstance.run();
+                    remoteMonitoringInstance.run();
+                    ZiggyMessenger.publish(
+                        new TaskCompletionNotification(Long.parseLong(message.getTaskId())));
+                }
+            });
         }
     }
 
     /**
      * Constructor. Default scope for use in unit tests.
      */
-    AlgorithmMonitor(boolean monitorRemoteJobs) {
-        stateFileDirPath = DirectoryProperties.stateFilesDir().toString();
-        this.monitorRemoteJobs = monitorRemoteJobs;
-        log.info("Starting new monitor for: " + stateFileDirPath);
+    AlgorithmMonitor(AlgorithmType algorithmType) {
+        this.algorithmType = algorithmType;
+        monitorVersion = algorithmType.name().toLowerCase();
+
+        log.info("Starting new monitor for: " + DirectoryProperties.stateFilesDir().toString());
         initializeJobMonitor();
     }
 
@@ -182,7 +199,10 @@ public class AlgorithmMonitor implements Runnable {
      * Start the monitoring thread for a given monitor.
      */
     void startMonitoringThread() {
-        if (pollingIntervalMillis() > 0) {
+        long pollingIntervalMillis = pollingIntervalMillis();
+        if (pollingIntervalMillis > 0) {
+            log.info("Starting polling on " + monitorVersion + " with " + pollingIntervalMillis
+                + " msec interval");
             threadPool.scheduleWithFixedDelay(this, 0, pollingIntervalMillis(),
                 TimeUnit.MILLISECONDS);
         }
@@ -197,41 +217,23 @@ public class AlgorithmMonitor implements Runnable {
     }
 
     public static void startLocalMonitoring(StateFile task) {
-        startMonitoring(task, false);
+        startMonitoring(task, AlgorithmType.LOCAL);
     }
 
     public static void startRemoteMonitoring(StateFile task) {
-        startMonitoring(task, true);
+        startMonitoring(task, AlgorithmType.REMOTE);
     }
 
-    /**
-     * Moves state files for locally-executing tasks to the DELETED state, based on a {@link List}
-     * of task IDs that the caller wishes to delete. Returns the task IDs of tasks that were
-     * successfully deleted (since some tasks on the list may have been in the submitted state, or
-     * running remotely).
-     *
-     * @throws IOException
-     */
-    public static List<Long> deleteLocalTasks(List<Long> taskIds) throws IOException {
-        List<Long> deletedTaskIds = new ArrayList<>();
-        for (StateFile stateFile : localMonitoringInstance.state.values()) {
-            if (taskIds.contains(stateFile.getPipelineTaskId())) {
-                localMonitoringInstance.moveStateFileToDeletedState(stateFile);
-                deletedTaskIds.add(stateFile.getPipelineTaskId());
-            }
-        }
-        return deletedTaskIds;
-    }
-
-    private static void startMonitoring(StateFile task, boolean remoteExecution) {
-        AlgorithmMonitor instance = remoteExecution ? remoteMonitoringInstance
+    private static void startMonitoring(StateFile task, AlgorithmType algorithmType) {
+        AlgorithmMonitor instance = algorithmType.equals(AlgorithmType.REMOTE)
+            ? remoteMonitoringInstance
             : localMonitoringInstance;
         instance.startMonitoring(task);
-
     }
 
     void startMonitoring(StateFile task) {
-        log.info("Starting monitoring for: " + task.invariantPart());
+        log.info("Starting monitoring for: " + task.invariantPart() + " on " + monitorVersion
+            + " algorithm monitor");
         state.put(task.invariantPart(), new StateFile(task));
         jobMonitor().addToMonitoring(task);
     }
@@ -241,7 +243,7 @@ public class AlgorithmMonitor implements Runnable {
         List<File> stateDirListing = new LinkedList<>();
 
         // get the raw list, excluding directories
-        File stateDirFile = new File(stateFileDirPath);
+        File stateDirFile = DirectoryProperties.stateFilesDir().toFile();
         List<File> allFiles = new ArrayList<>();
         if (stateDirFile != null) {
             File[] files = stateDirFile.listFiles();
@@ -253,17 +255,16 @@ public class AlgorithmMonitor implements Runnable {
                 .collect(Collectors.toList());
         }
 
-        // throw away everything that doesn't have the correct prefix, and everything
+        // throw away everything that doesn't have the correct pattern, and everything
         // that is on the corrupted list
         List<File> filteredFiles = stateDirListing.stream()
-            .filter(s -> s.getName().startsWith(StateFile.PREFIX))
+            .filter(s -> StateFile.STATE_FILE_NAME_PATTERN.matcher(s.getName()).matches())
             .filter(s -> !corruptedStateFileNames.contains(s.getName()))
             .collect(Collectors.toList());
         return new LinkedList<>(filteredFiles);
     }
 
-    private void performStateFileChecks(StateFile oldState, StateFile remoteState)
-        throws IOException {
+    private void performStateFileChecks(StateFile oldState, StateFile remoteState) {
 
         String key = remoteState.invariantPart();
 
@@ -281,10 +282,6 @@ public class AlgorithmMonitor implements Runnable {
             if (remoteState.isRunning()) {
                 // update processing state
                 attrOps.updateProcessingState(taskId, ProcessingState.ALGORITHM_EXECUTING);
-            }
-
-            if (remoteState.isDeleted()) {
-                handleFailedOrDeletedTask(remoteState);
             }
 
             if (remoteState.isDone()) {
@@ -317,6 +314,7 @@ public class AlgorithmMonitor implements Runnable {
     }
 
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void run() {
 
         if (!startLogMessageWritten) {
@@ -332,11 +330,15 @@ public class AlgorithmMonitor implements Runnable {
                     dumpRemoteState(stateDirListing);
                 }
                 performStateFileLoop(stateDirListing);
-            } // end non-empty state map
-
+            }
         } catch (Exception e) {
-            log.warn("top: caught e=" + e, e);
-        } // end try-catch
+            // We don't want transient problems with the remote monitoring tool
+            // (which is third party software and not under our control) to bring
+            // down the monitor, so we catch all exceptions here including runtime
+            // ones in the hope and expectation that the next time we call the
+            // monitor the transient problem will have resolved itself.
+            log.warn("Task monitor: exception has occurred", e);
+        }
     }
 
     /**
@@ -347,6 +349,7 @@ public class AlgorithmMonitor implements Runnable {
      *
      * @param stateDirListing
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void performStateFileLoop(List<File> stateDirListing) {
         for (File remoteFile : stateDirListing) {
             String name = remoteFile.getName();
@@ -395,14 +398,14 @@ public class AlgorithmMonitor implements Runnable {
 
     /**
      * Handles a task for which processing has failed (either due to error or because the user
-     * deleted it). In this case, several actions need to be taken: the information about the cause
+     * killed it). In this case, several actions need to be taken: the information about the cause
      * of the error has to be captured via qstat and logged locally; the pipeline task entry in the
      * database needs its TaskExecutionLog updated; the remote state file needs to be renamed to
      * indicate that the job errored.
      *
      * @param stateFile StateFile instance for deleted task.
      */
-    private void handleFailedOrDeletedTask(StateFile stateFile) {
+    private void handleFailedTask(StateFile stateFile) {
 
         // get the exit code and comment via qstat
         String exitStatus = taskStatusValues(stateFile);
@@ -430,7 +433,7 @@ public class AlgorithmMonitor implements Runnable {
         }
 
         // issue an alert about the deletion
-        String message = monitorRemoteJobs
+        String message = algorithmType.equals(AlgorithmType.REMOTE)
             ? "Task " + exitState + ", return codes = " + exitStatus + ", comments = " + exitComment
             : "Task " + exitState;
         alertService().generateAndBroadcastAlert("Algorithm Monitor", stateFile.getPipelineTaskId(),
@@ -471,7 +474,6 @@ public class AlgorithmMonitor implements Runnable {
         }
         sb.setLength(sb.length() - 1);
         return sb.toString();
-
     }
 
     /**
@@ -480,30 +482,18 @@ public class AlgorithmMonitor implements Runnable {
      * detected via qstat calls.
      *
      * @param stateFile State file for failed job.
-     * @throws IOException
      */
-    private void moveStateFileToCompleteState(StateFile stateFile) throws IOException {
-        stateFile.setStateAndPersist(StateFile.State.COMPLETE, stateFileDirPath);
-    }
-
-    /**
-     * Moves the state file to the DELETED state. This indicates to the {@link ComputeNodeMaster}
-     * that the worker wants processing of the task to end.
-     *
-     * @param stateFile State file for failed job.
-     * @throws IOException
-     */
-    private void moveStateFileToDeletedState(StateFile stateFile) throws IOException {
-        stateFile.setStateAndPersist(StateFile.State.DELETED, stateFileDirPath);
+    private void moveStateFileToCompleteState(StateFile stateFile) {
+        stateFile.setStateAndPersist(StateFile.State.COMPLETE);
     }
 
     private Disposition determineDisposition(StateFile state, PipelineTask pipelineTask) {
 
-        // Deleted tasks are automatically regarded as failed.
-        if (state.isDeleted()) {
+        // A task that was deliberately killed must be marked as failed regardless of
+        // how many subtasks completed.
+        if (taskIsKilled(pipelineTask.getId())) {
             return Disposition.FAIL;
         }
-
         // The total number of bad subtasks includes both the ones that failed and the
         // ones that never ran / never finished. If there are few enough bad subtasks,
         // then we can persist results.
@@ -557,39 +547,40 @@ public class AlgorithmMonitor implements Runnable {
         return new PipelineExecutor();
     }
 
-    /**
-     * Replace with mocked method for unit testing.
-     */
+    /** Obtains a new {@link PipelineOperations}. Replace with mocked unit for testing. */
+    PipelineOperations pipelineOperations() {
+        return new PipelineOperations();
+    }
+
+    /** Replace with mocked method for unit testing. */
     ProcessingSummaryOperations processingSummaryOperations() {
         return new ProcessingSummaryOperations();
     }
 
-    /**
-     * Replace with mocked method for unit testing.
-     */
+    /** Replace with mocked method for unit testing. */
     PipelineTaskOperations pipelineTaskOperations() {
         return new PipelineTaskOperations();
     }
 
-    /**
-     * Replace with mocked method for unit testing.
-     */
+    /** Replace with mocked method for unit testing. */
     AlertService alertService() {
         return AlertService.getInstance();
     }
 
-    /**
-     * Returns the polling interval, in milliseconds. Replace with mocked method for unit testing.
-     *
-     * @return
-     */
-    long pollingIntervalMillis() {
-        return monitorRemoteJobs ? SSH_POLL_INTERVAL_MILLIS : LOCAL_POLL_INTERVAL_MILLIS;
+    /** Replace with mocked method for unit testing. */
+    boolean taskIsKilled(long taskId) {
+        return TaskRequestHandlerLifecycleManager.taskOnKilledTaskList(taskId);
     }
 
     /**
-     * Stops the thread pool and replaces it. For testing only.
+     * Returns the polling interval, in milliseconds. Replace with mocked method for unit testing.
      */
+    long pollingIntervalMillis() {
+        return algorithmType.equals(AlgorithmType.REMOTE) ? SSH_POLL_INTERVAL_MILLIS
+            : LOCAL_POLL_INTERVAL_MILLIS;
+    }
+
+    /** Stops the thread pool and replaces it. For testing only. */
     static void resetThreadPool() {
         if (threadPool != null) {
             threadPool.shutdownNow();
@@ -597,20 +588,16 @@ public class AlgorithmMonitor implements Runnable {
         threadPool = new ScheduledThreadPoolExecutor(2);
     }
 
-    /**
-     * Gets the {@link StateFile} from the state {@link Map}. For testing only.
-     */
+    /** Gets the {@link StateFile} from the state {@link Map}. For testing only. */
     StateFile getStateFile(StateFile stateFile) {
         return state.get(stateFile.invariantPart());
     }
 
     private void initializeJobMonitor() {
-        jobMonitor = JobMonitor.newInstance(username(), monitorRemoteJobs);
+        jobMonitor = JobMonitor.newInstance(username(), algorithmType);
     }
 
-    /**
-     * Replace with mocked method for unit testing.
-     */
+    /** Replace with mocked method for unit testing. */
     JobMonitor jobMonitor() {
         return jobMonitor;
     }

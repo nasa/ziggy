@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.StandardOpenOption;
@@ -12,6 +13,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 
 /**
@@ -25,23 +28,15 @@ public enum LockManager {
 
     LockManager() {
         ZiggyShutdownHook.addShutdownHook(() -> {
-            try {
-                releaseAllLocks();
-            } catch (IOException e) {
-                // We can swallow this exception because it occurs during a shutdown. Therefore,
-                // by definition there's nothing to be done because we're just trying to exit
-                // Ziggy...
-            }
+            releaseAllLocks();
         });
     }
 
     /**
      * Releases all locks held by the {@link LockManager} singleton instance. For use in testing and
      * in the shutdown hook.
-     *
-     * @throws IOException if exception occurs when releasing locks.
      */
-    public static synchronized void releaseAllLocks() throws IOException {
+    public static synchronized void releaseAllLocks() {
         for (File f : INSTANCE.readerChannels.keySet()) {
             releaseReadLock(f);
         }
@@ -82,9 +77,8 @@ public enum LockManager {
      * lock on the file, an OS file lock is obtained.
      *
      * @param f the file on which to get the lock
-     * @throws IOException if there is an error accessing the file
      */
-    public static void getReadLock(File f) throws IOException {
+    public static void getReadLock(File f) {
         INSTANCE.getReadLockInternal(f);
     }
 
@@ -93,9 +87,8 @@ public enum LockManager {
      * file.
      *
      * @param f the file on which to lock
-     * @throws IOException if there is an error accessing the file
      */
-    public static void releaseReadLock(File f) throws IOException {
+    public static void releaseReadLock(File f) {
         INSTANCE.releaseReadLockInternal(f);
     }
 
@@ -109,9 +102,8 @@ public enum LockManager {
      * {@link #getWriteLockWithoutBlocking(File)}.
      *
      * @param f the file on which to get the lock
-     * @throws IOException if there is an error accessing the file
      */
-    public static void getWriteLockOrBlock(File f) throws IOException {
+    public static void getWriteLockOrBlock(File f) {
         INSTANCE.getWriteLockOrBlockInternal(f);
     }
 
@@ -128,9 +120,8 @@ public enum LockManager {
      * @return true if the lock is obtained, false otherwise. A return of false indicates that
      * either another thread in the current process holds the lock, or that another process entirely
      * holds it.
-     * @throws IOException if there is an error accessing the file.
      */
-    public static boolean getWriteLockWithoutBlocking(File f) throws IOException {
+    public static boolean getWriteLockWithoutBlocking(File f) {
         return INSTANCE.getWriteLockWithoutBlockingInternal(f);
     }
 
@@ -139,13 +130,13 @@ public enum LockManager {
      * lock.
      *
      * @param f the file on which to lock
-     * @throws IOException if there is an error accessing the file
      */
-    public static void releaseWriteLock(File f) throws IOException {
+    public static void releaseWriteLock(File f) {
         INSTANCE.releaseWriteLockInternal(f);
     }
 
-    private void getReadLockInternal(File f) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private void getReadLockInternal(File f) {
         if (!f.exists()) {
             throw new IllegalStateException("Attempted read lock on nonexistent file: " + f);
         }
@@ -153,43 +144,59 @@ public enum LockManager {
 
         AtomicInteger readerCount = getReaderCount(f);
         synchronized (readerChannels) {
-            if (readerCount.incrementAndGet() == 1) {
-                // First reader - must lock file in file system.
-                FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.READ);
-                channel.lock(0L, Long.MAX_VALUE, true);
-                readerChannels.put(f, channel);
+            try {
+                if (readerCount.incrementAndGet() == 1) {
+                    // First reader - must lock file in file system.
+                    FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.READ);
+                    channel.lock(0L, Long.MAX_VALUE, true);
+                    readerChannels.put(f, channel);
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException("Failed to get read lock on file " + f.toString(),
+                    e);
             }
         }
     }
 
-    private void releaseReadLockInternal(File f) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private void releaseReadLockInternal(File f) {
         AtomicInteger readerCount = getReaderCount(f);
         checkNotNull(readerCount, "Tried to release a read lock when never locked");
 
         synchronized (readerChannels) {
-            if (readerCount.decrementAndGet() == 0) {
-                // Last reader - must unlock file in file system.
-                FileChannel channel = readerChannels.remove(f);
-                channel.close();
+            try {
+                if (readerCount.decrementAndGet() == 0) {
+                    // Last reader - must unlock file in file system.
+                    FileChannel channel = readerChannels.remove(f);
+                    channel.close();
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(
+                    "Failed to release read lock on file  " + f.toString(), e);
             }
         }
 
         getLock(f).readLock().unlock();
     }
 
-    private void getWriteLockOrBlockInternal(File f) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private void getWriteLockOrBlockInternal(File f) {
         getLock(f).writeLock().lock();
-
-        f.getParentFile().mkdirs();
-        FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.CREATE,
-            StandardOpenOption.WRITE);
-        channel.lock();
-        synchronized (writerChannels) {
-            writerChannels.put(f, channel);
+        try {
+            f.getParentFile().mkdirs();
+            FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE);
+            channel.lock();
+            synchronized (writerChannels) {
+                writerChannels.put(f, channel);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to get write lock on file " + f.toString(), e);
         }
     }
 
-    private synchronized boolean getWriteLockWithoutBlockingInternal(File f) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private synchronized boolean getWriteLockWithoutBlockingInternal(File f) {
 
         // See if some other thread already has the lock, if so return false.
         if (!getLock(f).writeLock().tryLock()) {
@@ -198,14 +205,18 @@ public enum LockManager {
 
         // Try to get the OS-level lock.
         f.getParentFile().mkdirs();
-        FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.CREATE,
-            StandardOpenOption.WRITE);
-        FileLock fileLock = channel.tryLock();
+        try {
+            FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE);
+            FileLock fileLock = channel.tryLock();
 
-        // If the OS-level lock is obtained, then record that fact and return true.
-        if (fileLock != null) {
-            writerChannels.put(f, channel);
-            return true;
+            // If the OS-level lock is obtained, then record that fact and return true.
+            if (fileLock != null) {
+                writerChannels.put(f, channel);
+                return true;
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to get write lock on file " + f.toString(), e);
         }
 
         // If we got this far then we got the local lock but not the OS-level one.
@@ -214,17 +225,21 @@ public enum LockManager {
         // always in the same state (either got both or ain't got both).
         getLock(f).writeLock().unlock();
         return false;
-
     }
 
-    private void releaseWriteLockInternal(File f) throws IOException {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private void releaseWriteLockInternal(File f) {
         synchronized (writerChannels) {
             FileChannel channel = writerChannels.remove(f);
             checkNotNull(channel, "Tried to release a write lock when never locked");
-            channel.close();
+            try {
+                channel.close();
+            } catch (IOException e) {
+                throw new UncheckedIOException(
+                    "Failed to release write lock on file " + f.toString(), e);
+            }
         }
 
         getLock(f).writeLock().unlock();
     }
-
 }

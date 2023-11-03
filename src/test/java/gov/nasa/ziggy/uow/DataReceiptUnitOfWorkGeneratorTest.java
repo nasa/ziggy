@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.uow;
 
-import static gov.nasa.ziggy.services.config.PropertyNames.DATA_RECEIPT_DIR_PROP_NAME;
+import static gov.nasa.ziggy.services.config.PropertyName.DATA_RECEIPT_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -21,7 +21,7 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.services.events.ZiggyEventLabels;
 
 /**
@@ -32,13 +32,13 @@ import gov.nasa.ziggy.services.events.ZiggyEventLabels;
 public class DataReceiptUnitOfWorkGeneratorTest {
 
     private Path dataImporterPath;
-    Map<Class<? extends Parameters>, Parameters> parametersMap;
+    Map<Class<? extends ParametersInterface>, ParametersInterface> parametersMap;
     TaskConfigurationParameters taskConfig;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
-    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(
-        DATA_RECEIPT_DIR_PROP_NAME, directoryRule, "data-import");
+    public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(DATA_RECEIPT_DIR,
+        directoryRule, "data-import");
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -106,6 +106,5 @@ public class DataReceiptUnitOfWorkGeneratorTest {
             .generateTasks(parametersMap);
         assertEquals(1, unitsOfWork.size());
         assertEquals("", unitsOfWork.get(0).getParameter("directory").getString());
-
     }
 }

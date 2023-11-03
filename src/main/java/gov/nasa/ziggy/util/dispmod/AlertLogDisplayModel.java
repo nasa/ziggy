@@ -30,18 +30,13 @@ public class AlertLogDisplayModel extends DisplayModel {
     public Object getValueAt(int rowIndex, int columnIndex) {
         Alert alert = alerts.get(rowIndex).getAlertData();
 
-        switch (columnIndex) {
-            case 0:
-                return alert.getSourceComponent();
-            case 1:
-                return alert.getSourceTaskId();
-            case 2:
-                return alert.getSeverity();
-            case 3:
-                return alert.getMessage();
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + columnIndex);
-        }
+        return switch (columnIndex) {
+            case 0 -> alert.getSourceComponent();
+            case 1 -> alert.getSourceTaskId();
+            case 2 -> alert.getSeverity();
+            case 3 -> alert.getMessage();
+            default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
+        };
     }
 
     @Override
@@ -56,17 +51,12 @@ public class AlertLogDisplayModel extends DisplayModel {
 
     @Override
     public String getColumnName(int column) {
-        switch (column) {
-            case 0:
-                return "Source";
-            case 1:
-                return "Task";
-            case 2:
-                return "Severity";
-            case 3:
-                return "Message";
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + column);
-        }
+        return switch (column) {
+            case 0 -> "Source";
+            case 1 -> "Task";
+            case 2 -> "Severity";
+            case 3 -> "Message";
+            default -> throw new IllegalArgumentException("Unexpected value: " + column);
+        };
     }
 }

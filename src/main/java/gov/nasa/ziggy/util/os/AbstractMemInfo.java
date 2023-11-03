@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.util.os;
 
-import java.io.IOException;
 import java.util.Collection;
 
 import org.slf4j.Logger;
@@ -15,7 +14,7 @@ public abstract class AbstractMemInfo extends AbstractSysInfo implements MemInfo
 
     public static final long BYTES_PER_KB = 1024L;
 
-    public AbstractMemInfo(Collection<String> commandOutput) throws IOException {
+    public AbstractMemInfo(Collection<String> commandOutput) {
         super(commandOutput);
     }
 

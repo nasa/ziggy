@@ -14,14 +14,13 @@ import gov.nasa.ziggy.module.io.Persistable;
  */
 public class ModuleParameters implements Persistable {
 
-    private List<Parameters> moduleParameters = new ArrayList<>();
+    private List<ParametersInterface> moduleParameters = new ArrayList<>();
 
-    public List<Parameters> getModuleParameters() {
+    public List<ParametersInterface> getModuleParameters() {
         return moduleParameters;
     }
 
-    public void setModuleParameters(List<Parameters> moduleParameters) {
+    public void setModuleParameters(List<ParametersInterface> moduleParameters) {
         this.moduleParameters = moduleParameters;
     }
-
 }

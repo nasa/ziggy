@@ -14,9 +14,9 @@ Before we can look at the datastore, we need to find it! Fortunately, we can ref
 
 ```
 pipeline.root.dir = ${ziggy.root}/sample-pipeline
-pipeline.home.dir = ${pipeline.root.dir}/build
-pipeline.results.dir = ${pipeline.home.dir}/pipeline-results
-datastore.root.dir = ${pipeline.results.dir}/datastore
+ziggy.pipeline.home.dir = ${pipeline.root.dir}/build
+ziggy.pipeline.results.dir = ${ziggy.pipeline.home.dir}/pipeline-results
+ziggy.pipeline.datastore.dir = ${ziggy.pipeline.results.dir}/datastore
 ```
 
 Well, you don't see all of those lines laid out as conveniently as the above, but trust me, they're all there. Anyway, what this is telling us is that Ziggy's data directories are in `build/pipeline-results/datastore`. Looking at that location we see this:
@@ -104,7 +104,7 @@ When Ziggy runs algorithm code, it doesn't the algorithm direct access to files 
 To find the task directory, look first to the pipeline results location in the properties file:
 
 ```
-pipeline.results.dir=${pipeline.home.dir}/pipeline-results
+ziggy.pipeline.results.dir=${ziggy.pipeline.home.dir}/pipeline-results
 ```
 
 The pipeline-results directory contains a number of subdirectories. First, let's look at task-data:
@@ -181,7 +181,7 @@ st-0$
 Ziggy allows the user to select whether to use actual copies of the files or symbolic links. This is configured in -- yeah, you got it -- the properties file:
 
 ```
-moduleExe.useSymlinks = true
+ziggy.pipeline.useSymlinks = true
 ```
 
 The way this works is obvious for the input files: Ziggy puts a symlink in the working directory, and that's all there is to it. For the outputs file, what happens is that the algorithm produces an actual file of results; when Ziggy goes to store the outputs file, it moves it to the datastore and replaces it in the working directory with a symlink. This is a lot of words to say that you can turn this feature on or off at will and your code doesn't need to do anything different either way.
@@ -193,7 +193,7 @@ The advantages of the symlinks are fairly obvious:
 
 There are also situations in which the symlinks may not be a good idea:
 
-- It may be the case that you're using one computer to run the worker and database, and a different one to run the algorithms. In this situation, the datastore can be on a file system that's mounted on the worker machine but not the compute machine, in which case the symlink solution won't work (the compute node can't see the datastore, so it can't follow the link).
+- It may be the case that you're using one computer to run the supervisor, workers, and database, and a different one to run the algorithms. In this situation, the datastore can be on a file system that's mounted on the supervisor machine but not the compute machine, in which case the symlink solution won't work (the compute node can't see the datastore, so it can't follow the link).
 
 [[Previous]](intermediate-topics.md)
 [[Up]](intermediate-topics.md)

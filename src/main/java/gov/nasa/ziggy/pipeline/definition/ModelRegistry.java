@@ -6,21 +6,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 
 import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -36,20 +35,20 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement(name = "modelRegistry")
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "PI_MODEL_REGISTRY")
+@Table(name = "ziggy_ModelRegistry")
 public class ModelRegistry implements HasXmlSchemaFilename {
 
     private static final String XML_SCHEMA_FILE_NAME = "model-registry.xsd";
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sg")
-    @SequenceGenerator(name = "sg", initialValue = 1, sequenceName = "PI_MODREG_SEQ",
-        allocationSize = 1)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_ModelRegistry_generator")
+    @SequenceGenerator(name = "ziggy_ModelRegistry_generator", initialValue = 1,
+        sequenceName = "ziggy_ModelRegistry_sequence", allocationSize = 1)
+    private Long id;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "PI_MODREG_MODEL")
-    @Cascade({ CascadeType.SAVE_UPDATE })
+    @JoinTable(name = "ziggy_ModelRegistry_models")
+    @Cascade({ CascadeType.PERSIST, CascadeType.MERGE })
     private Map<ModelType, ModelMetadata> models = new HashMap<>();
 
     @XmlElement(name = "modelMetadata")
@@ -111,7 +110,7 @@ public class ModelRegistry implements HasXmlSchemaFilename {
         return locked;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
@@ -142,6 +141,10 @@ public class ModelRegistry implements HasXmlSchemaFilename {
         return models.get(modelType);
     }
 
+    public ModelType getModelType(String modelType) {
+        return modelTypesMap.get(modelType);
+    }
+
     public List<ModelMetadata> getModelMetadata() {
         return modelMetadata;
     }
@@ -154,5 +157,4 @@ public class ModelRegistry implements HasXmlSchemaFilename {
     public String getXmlSchemaFilename() {
         return XML_SCHEMA_FILE_NAME;
     }
-
 }

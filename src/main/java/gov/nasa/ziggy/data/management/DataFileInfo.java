@@ -90,5 +90,4 @@ public abstract class DataFileInfo implements Comparable<DataFileInfo> {
     public String toString() {
         return name.toString();
     }
-
 }

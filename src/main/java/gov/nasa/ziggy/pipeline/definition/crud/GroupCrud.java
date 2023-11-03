@@ -2,12 +2,12 @@ package gov.nasa.ziggy.pipeline.definition.crud;
 
 import java.util.List;
 
-import org.hibernate.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.pipeline.definition.Group;
+import gov.nasa.ziggy.pipeline.definition.Group_;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**
@@ -15,7 +15,7 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  *
  * @author Todd Klaus
  */
-public class GroupCrud extends AbstractCrud {
+public class GroupCrud extends AbstractCrud<Group> {
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(GroupCrud.class);
 
@@ -27,8 +27,11 @@ public class GroupCrud extends AbstractCrud {
     }
 
     public List<Group> retrieveAll() {
-        Query q = createQuery("from Group order by name asc");
-        return list(q);
+        return list(createZiggyQuery(Group.class).column(Group_.name).ascendingOrder());
     }
 
+    @Override
+    public Class<Group> componentClass() {
+        return Group.class;
+    }
 }

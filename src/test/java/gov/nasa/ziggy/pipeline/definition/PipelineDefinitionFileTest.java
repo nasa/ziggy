@@ -18,6 +18,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -50,7 +51,8 @@ public class PipelineDefinitionFileTest {
     public void testGenerateSchema() throws JAXBException, IOException {
         JAXBContext context = JAXBContext.newInstance(PipelineDefinitionFile.class);
         context.generateSchema(new PipelineFileSchemaResolver());
-        List<String> schemaContent = Files.readAllLines(schemaFile.toPath());
+        List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
+            FileUtil.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"pipelineDefinition\" type=\"pipelineDefinitionFile\"/>");
@@ -88,20 +90,16 @@ public class PipelineDefinitionFileTest {
         assertContains(complexTypeContent,
             "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,
-            "<xs:attribute name=\"instancePriority\" type=\"xs:int\"/>");
+            "<xs:attribute name=\"instancePriority\" type=\"xs:string\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"rootNodeNames\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,
-            "<xs:element name=\"pipelineParameter\" type=\"parameterSetName\"/>");
-
-        complexTypeContent = complexTypeContent(schemaContent,
-            "<xs:complexType name=\"parameterSetName\">");
-        assertContains(complexTypeContent, "<xs:extension base=\"xmlReference\">");
+            "<xs:element name=\"pipelineParameter\" type=\"parameterSetReference\"/>");
 
         complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineDefinitionNode\">");
         assertContains(complexTypeContent,
-            "<xs:element name=\"moduleParameter\" type=\"parameterSetName\"/>");
+            "<xs:element name=\"moduleParameter\" type=\"parameterSetReference\"/>");
         assertContains(complexTypeContent,
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>");
         assertContains(complexTypeContent,
@@ -130,6 +128,10 @@ public class PipelineDefinitionFileTest {
         assertContains(complexTypeContent, "<xs:extension base=\"xmlReference\">");
 
         complexTypeContent = complexTypeContent(schemaContent,
+            "<xs:complexType name=\"parameterSetReference\">");
+        assertContains(complexTypeContent, "<xs:extension base=\"xmlReference\">");
+
+        complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"xmlReference\">");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>");
@@ -142,7 +144,7 @@ public class PipelineDefinitionFileTest {
         PipelineDefinitionFile pipelineDefinitionFile = (PipelineDefinitionFile) unmarshaller
             .unmarshal(xmlUnmarshalingFile);
         assertEquals(1, pipelineDefinitionFile.getPipelines().size());
-        assertEquals(4, pipelineDefinitionFile.getModules().size());
+        assertEquals(2, pipelineDefinitionFile.getModules().size());
     }
 
     private class PipelineFileSchemaResolver extends SchemaOutputResolver {
@@ -154,7 +156,5 @@ public class PipelineDefinitionFileTest {
             result.setSystemId(schemaFile.toURI().toURL().toString());
             return result;
         }
-
     }
-
 }

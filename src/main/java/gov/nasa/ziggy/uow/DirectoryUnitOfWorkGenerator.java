@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.util.RegexBackslashManager;
 
@@ -37,8 +37,8 @@ public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerato
     public static final String REGEX_PROPERTY_NAME = "taskDirectoryRegex";
 
     @Override
-    public List<Class<? extends Parameters>> requiredParameterClasses() {
-        List<Class<? extends Parameters>> requiredParameterClasses = new ArrayList<>();
+    public List<Class<? extends ParametersInterface>> requiredParameterClasses() {
+        List<Class<? extends ParametersInterface>> requiredParameterClasses = new ArrayList<>();
         requiredParameterClasses.add(TaskConfigurationParameters.class);
         return requiredParameterClasses;
     }
@@ -72,7 +72,8 @@ public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerato
     protected abstract Path rootDirectory();
 
     @Override
-    public List<UnitOfWork> generateTasks(Map<Class<? extends Parameters>, Parameters> parameters) {
+    public List<UnitOfWork> generateTasks(
+        Map<Class<? extends ParametersInterface>, ParametersInterface> parameters) {
         String taskDirectoryRegex = taskDirectoryRegex(parameters);
         List<UnitOfWork> unitsOfWork = new ArrayList<>();
 
@@ -124,7 +125,8 @@ public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerato
      * Returns the regular expression that defines the directory names that are allowed to become
      * units of work. Broken out as a separate method to allow overriding.
      */
-    protected String taskDirectoryRegex(Map<Class<? extends Parameters>, Parameters> parameters) {
+    protected String taskDirectoryRegex(
+        Map<Class<? extends ParametersInterface>, ParametersInterface> parameters) {
         TaskConfigurationParameters taskConfigurationParameters = (TaskConfigurationParameters) parameters
             .get(TaskConfigurationParameters.class);
         if (taskConfigurationParameters == null) {
@@ -164,7 +166,5 @@ public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerato
             briefStateBuilder.append(matcher.group(0));
         }
         return briefStateBuilder.toString();
-
     }
-
 }

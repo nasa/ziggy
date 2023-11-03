@@ -1,26 +1,27 @@
 package gov.nasa.ziggy.pipeline;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.pipeline.definition.BeanWrapper;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.ParameterSetName;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstanceAggregateState;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
@@ -36,18 +37,26 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.database.DatabaseTransaction;
+import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.events.ZiggyEventLabels;
-import gov.nasa.ziggy.services.messages.RunningPipelinesCheckRequest;
-import gov.nasa.ziggy.services.messages.WorkerFireTriggerRequest;
-import gov.nasa.ziggy.services.messages.WorkerTaskRequest;
-import gov.nasa.ziggy.services.messaging.UiCommunicator;
+import gov.nasa.ziggy.services.messages.TaskRequest;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.worker.WorkerPipelineProcess;
 
 /***
- * Encapsulates the launch and transition logic for pipelines**
+ * Encapsulates the launch and transition logic for pipelines.
+ * <p>
+ * Note that the methods
+ * {@link #launch(PipelineDefinition, String, PipelineDefinitionNode, PipelineDefinitionNode, String)}
+ * and {@link #transitionToNextInstanceNode(PipelineInstance, PipelineTask, TaskCounts)} must not be
+ * run in the context of a transaction; these methods provide their own transactions in order to
+ * ensure that the transactions are completed before any task requests can be sent. Other methods,
+ * including {@link #restartFailedTasks(Collection, boolean, RunMode)}, can (or in some cases must)
+ * be run in a transaction context.
  *
  * @author Todd Klaus
  * @author PT
@@ -60,6 +69,7 @@ public class PipelineExecutor {
     private PipelineInstanceCrud pipelineInstanceCrud;
     private PipelineInstanceNodeCrud pipelineInstanceNodeCrud;
     private PipelineTaskCrud pipelineTaskCrud;
+    private PipelineOperations pipelineOperations;
 
     public PipelineExecutor() {
 
@@ -68,15 +78,7 @@ public class PipelineExecutor {
         pipelineInstanceCrud = new PipelineInstanceCrud();
         pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
         pipelineTaskCrud = new PipelineTaskCrud();
-    }
-
-    /**
-     * Launch a new {@link PipelineInstance} for this {@link PipelineDefinition} with optional
-     * startNode and/or endNode.
-     */
-    public InstanceAndTasks launch(PipelineDefinition pipeline, String instanceName,
-        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode) {
-        return launch(pipeline, instanceName, startNode, endNode, null);
+        pipelineOperations = new PipelineOperations();
     }
 
     /**
@@ -85,345 +87,344 @@ public class PipelineExecutor {
      * {@link ParameterSet} created by a {@link ZiggyEventHandler}. This allows the event handler to
      * transfer information to the pipeline that it needs at runtime.
      */
-    public InstanceAndTasks launch(PipelineDefinition pipeline, String instanceName,
+    public PipelineInstance launch(PipelineDefinition pipeline, String instanceName,
         PipelineDefinitionNode startNode, PipelineDefinitionNode endNode,
         String eventHandlerParamSetName) {
-        pipeline.buildPaths();
-        List<PipelineTask> tasks = new LinkedList<>();
 
-        /*
-         * Lock the current version of the model registry and associate it with this pipeline
-         * instance.
-         */
-        ModelCrud modelCrud = new ModelCrud();
-        ModelRegistry modelRegistry = modelCrud.lockCurrentRegistry();
+        List<PipelineInstanceNode> nodesForLaunch = new ArrayList<>();
 
-        int priority = pipeline.getInstancePriority();
+        // Most of this method has to take place inside a database transaction.
+        PipelineInstance pipelineInstance = (PipelineInstance) DatabaseTransactionFactory
+            .performTransaction(() -> {
+                pipeline.buildPaths();
 
-        if (priority < PipelineInstance.HIGHEST_PRIORITY) {
-            priority = PipelineInstance.HIGHEST_PRIORITY;
+                /*
+                 * Lock the current version of the model registry and associate it with this
+                 * pipeline instance.
+                 */
+                ModelCrud modelCrud = new ModelCrud();
+                ModelRegistry modelRegistry = modelCrud.lockCurrentRegistry();
+
+                Priority priority = pipeline.getInstancePriority();
+
+                PipelineInstance instance = new PipelineInstance();
+                instance.setName(instanceName);
+                instance.setPipelineDefinition(pipeline);
+                instance.setState(PipelineInstance.State.PROCESSING);
+
+                instance.startExecutionClock();
+                instance.setPriority(priority);
+                instance.setModelRegistry(modelRegistry);
+
+                /*
+                 * Set the pipeline instance params to the latest version of the name specified in
+                 * the trigger and lock the param set. Also, if the pipeline instance needs a
+                 * parameter set from a ZiggyEventHandler, add that to the parameters.
+                 */
+                Map<ClassWrapper<ParametersInterface>, String> triggerParamNames = pipeline
+                    .getPipelineParameterSetNames();
+                if (eventHandlerParamSetName != null) {
+                    triggerParamNames.put(new ClassWrapper<>(ZiggyEventLabels.class),
+                        eventHandlerParamSetName);
+                }
+                Map<ClassWrapper<ParametersInterface>, ParameterSet> instanceParams = instance
+                    .getPipelineParameterSets();
+
+                bindParameters(triggerParamNames, instanceParams);
+
+                instance.setPipelineParameterSets(instanceParams);
+
+                pipelineInstanceCrud.persist(instance);
+
+                if (startNode == null) {
+                    // start at the root
+                    log.info(
+                        "Creating instance nodes (starting at root because startNode not set)");
+
+                    List<PipelineInstanceNode> rootInstanceNodes = new LinkedList<>();
+
+                    for (PipelineDefinitionNode definitionRootNode : pipeline.getRootNodes()) {
+                        PipelineInstanceNode rootInstanceNode = createInstanceNodes(instance,
+                            pipeline, definitionRootNode, endNode);
+                        rootInstanceNodes.add(rootInstanceNode);
+                    }
+
+                    nodesForLaunch.addAll(rootInstanceNodes);
+                } else {
+                    // start at the specified startNode
+                    log.info(
+                        "Creating instance nodes (startNode set, so starting there instead of root)");
+
+                    PipelineInstanceNode startInstanceNode = createInstanceNodes(instance, pipeline,
+                        startNode, endNode);
+                    instance.setStartNode(startInstanceNode);
+
+                    nodesForLaunch.add(startInstanceNode);
+                }
+
+                // make sure the new PipelineInstanceNodes are in the db for
+                // launchNode, below
+                DatabaseService.getInstance().flush();
+
+                return instance;
+            });
+
+        for (PipelineInstanceNode node : nodesForLaunch) {
+            launchNode(node);
         }
 
-        if (priority > PipelineInstance.LOWEST_PRIORITY) {
-            priority = PipelineInstance.LOWEST_PRIORITY;
-        }
-
-        PipelineInstance instance = new PipelineInstance();
-        instance.setName(instanceName);
-        instance.setPipelineDefinition(pipeline);
-        instance.setState(PipelineInstance.State.PROCESSING);
-        instance.startExecutionClock();
-        instance.setPriority(priority);
-        instance.setModelRegistry(modelRegistry);
-
-        /*
-         * Set the pipeline instance params to the latest version of the name specified in the
-         * trigger and lock the param set. Also, if the pipeline instance needs a parameter set from
-         * a ZiggyEventHandler, add that to the parameters.
-         */
-        Map<ClassWrapper<Parameters>, ParameterSetName> triggerParamNames = pipeline
-            .getPipelineParameterSetNames();
-        if (eventHandlerParamSetName != null) {
-            triggerParamNames.put(new ClassWrapper<Parameters>(ZiggyEventLabels.class),
-                new ParameterSetName(eventHandlerParamSetName));
-        }
-        Map<ClassWrapper<Parameters>, ParameterSet> instanceParams = instance
-            .getPipelineParameterSets();
-
-        bindParameters(triggerParamNames, instanceParams);
-
-        instance.setPipelineParameterSets(instanceParams);
-
-        pipelineInstanceCrud.create(instance);
-
-        if (startNode == null) {
-            // start at the root
-            log.info("Creating instance nodes (starting at root because startNode not set)");
-
-            List<PipelineInstanceNode> rootInstanceNodes = new LinkedList<>();
-
-            for (PipelineDefinitionNode definitionRootNode : pipeline.getRootNodes()) {
-                PipelineInstanceNode rootInstanceNode = createInstanceNodes(instance, pipeline,
-                    definitionRootNode, endNode);
-                rootInstanceNodes.add(rootInstanceNode);
-            }
-
-            // make sure the new PipelineInstanceNodes are in the db for
-            // launchNode, below
-            DatabaseService.getInstance().flush();
-
-            for (PipelineInstanceNode instanceNode : rootInstanceNodes) {
-                tasks.addAll(launchNode(instanceNode));
-            }
-        } else {
-            // start at the specified startNode
-            log.info("Creating instance nodes (startNode set, so starting there instead of root)");
-
-            PipelineInstanceNode startInstanceNode = createInstanceNodes(instance, pipeline,
-                startNode, endNode);
-            instance.setStartNode(startInstanceNode);
-
-            PipelineDefinitionNode taskGeneratorNode = startInstanceNode.getPipelineDefinitionNode()
-                .taskGeneratorNode();
-
-            Map<ClassWrapper<Parameters>, ParameterSetName> uowModuleParamNames = taskGeneratorNode
-                .getModuleParameterSetNames();
-            Map<ClassWrapper<Parameters>, ParameterSet> uowModuleParams = new HashMap<>();
-            bindParameters(uowModuleParamNames, uowModuleParams);
-
-            // make sure the new PipelineInstanceNodes are in the db for
-            // launchNode, below
-            DatabaseService.getInstance().flush();
-
-            tasks.addAll(launchNode(startInstanceNode, taskGeneratorNode, uowModuleParams));
-
-        }
-
-        return new InstanceAndTasks(instance, tasks);
-    }
-
-    public TaskCounts updateTaskCountsForCurrentNode(PipelineTask task,
-        boolean currentTaskSuccessful) {
-        log.info("currentTaskSuccessful: " + currentTaskSuccessful);
-
-        long pipelineInstanceNodeId = task.getPipelineInstanceNode().getId();
-        TaskCounts newTaskCounts;
-
-        // This code obtains the lock on PI_PIPELINE_INST_NODE with 'select for
-        // update'.
-        // The lock is held until the next commit
-        if (currentTaskSuccessful) {
-            newTaskCounts = pipelineInstanceNodeCrud
-                .incrementCompletedTaskCount(pipelineInstanceNodeId);
-        } else {
-            newTaskCounts = pipelineInstanceNodeCrud
-                .incrementFailedTaskCount(pipelineInstanceNodeId);
-        }
-
-        return newTaskCounts;
+        // Get the current state of the pipeline instance from the database and return same.
+        return (PipelineInstance) DatabaseTransactionFactory
+            .performTransaction(() -> pipelineInstanceCrud.retrieve(pipelineInstance.getId()));
     }
 
     /**
      * The transition logic generates the worker task request messages for the next module in this
-     * pipeline.
-     * <p>
-     * This method should only be called if the current task completed successfully.
-     *
-     * @param instance
-     * @param task
-     * @throws PipelineException
+     * pipeline. This method only executes if the task in question completed successfully.
      */
-    public LinkedList<PipelineTask> doTransition(PipelineInstance instance, PipelineTask task,
+    public void transitionToNextInstanceNode(PipelineInstance instance, PipelineTask task,
         TaskCounts currentNodeTaskCounts) {
 
-        LinkedList<PipelineTask> tasks = new LinkedList<>();
-
-        log.debug("doTransition(WorkerTaskRequest, PipelineInstanceNode) - start");
-        log.debug("doTransition: current task = " + task.getId());
+        List<PipelineInstanceNode> nodesForLaunch = new ArrayList<>();
+        List<PipelineDefinitionNode> nextPipelineDefinitionNodesSimpleTransition = new ArrayList<>();
+        List<PipelineDefinitionNode> nextPipelineDefinitionNodesNewUowTransition = new ArrayList<>();
+        log.debug("current task = " + task.getId());
         log.info("task.isRetried(): " + task.isRetry());
 
-        Memdrone memdrone = new Memdrone(task.getModuleName(), task.getPipelineInstance().getId());
-        try {
+        // Determine which pipeline definition nodes can perform a simple transition and which ones
+        // require a new-UOW transition.
+        DatabaseTransactionFactory.performTransaction(() -> {
+
+            Memdrone memdrone = new Memdrone(task.getModuleName(),
+                task.getPipelineInstance().getId());
             if (Memdrone.memdroneEnabled()) {
                 memdrone.createStatsCache();
                 memdrone.createPidMapCache();
             }
-        } catch (Exception e) {
-            throw new PipelineException("Memdrone processing failed with exception", e);
+
+            log.info("instanceNode " + currentNodeTaskCounts.log());
+            List<PipelineDefinitionNode> nextNodes = task.getPipelineDefinitionNode()
+                .getNextNodes();
+            nextPipelineDefinitionNodesSimpleTransition
+                .addAll(nodesWithSimpleTransition(nextNodes));
+            nextPipelineDefinitionNodesNewUowTransition.addAll(nextNodes);
+            nextPipelineDefinitionNodesNewUowTransition
+                .removeAll(nextPipelineDefinitionNodesSimpleTransition);
+            return null;
+        });
+
+        // If there are simple transitions to later nodes, execute them now.
+        if (!nextPipelineDefinitionNodesSimpleTransition.isEmpty()) {
+            simpleTransition(instance, task, nextPipelineDefinitionNodesSimpleTransition);
         }
 
-        PipelineInstanceNode instanceNode = pipelineInstanceNodeCrud.retrieve(instance,
-            task.getPipelineDefinitionNode());
+        // The new-UOW transitions need to do some additional database work.
+        DatabaseTransactionFactory.performTransaction(() -> {
 
-        log.info("doTransition: instanceNode " + currentNodeTaskCounts.log());
+            PipelineInstanceNode instanceNode = task.getPipelineInstanceNode();
+            TaskCounts instanceNodeCounts = pipelineOperations.taskCounts(instanceNode);
 
-        // @formatter:off
-        /**
-         * (using javadoc-style comments to keep eclipse from munging
-         * formatting)
-         *
-         * <pre>
-         *
-         * if there is another node in this pipeline,
-         *   for each nextNode
-         *     if nextNode.isStartNewUow() == true
-         *       if all tasks for this node are complete
-         *         use the task generator for nextNode to generate the next set of tasks
-         *       else
-         *         create a new task with the same uowTask as the last task
-         * else
-         *   pipeline complete for this UOW
-         *
-         * </pre>
-         */
-        //@ formatter:on
+            // If there are any tasks still running, then we can't perform any new-UOW transitions.
+            if (!instanceNodeCounts.isInstanceNodeExecutionComplete()) {
+                log.info("Tasks remaining for this node, doing nothing");
+                return null;
+            }
 
-        // true if the user specified an optional end node (not null and equal
-        // to the current node)
-        PipelineInstanceNode endNode = instance.getEndNode();
-        boolean isEndNode = endNode != null && instanceNode.getId() == endNode.getId();
+            // If there aren't any pipeline definition nodes to transition to, return.
+            if (nextPipelineDefinitionNodesNewUowTransition.isEmpty()) {
+                return null;
+            }
 
-        if (!isEndNode && task.getPipelineDefinitionNode().getNextNodes().size() > 0) {
-            log.debug("more nodes remaining for this pipeline");
-            for (PipelineDefinitionNode nextDefinitionNode : task.getPipelineDefinitionNode()
-                .getNextNodes()) {
+            // If we got here, then the tasks for the current node are done and there are additional
+            // nodes that need to be run. However! We can't do that if the instance is stalled due
+            // to
+            // errored tasks.
+            if (!currentNodeTaskCounts.isInstanceNodeComplete()) {
+                log.error("Halting pipeline execution due to errors in node {}",
+                    instanceNode.getPipelineDefinitionNode().getModuleName());
+                return null;
+            }
+
+            // Generate instance nodes for the remaining definition nodes.
+            for (PipelineDefinitionNode node : nextPipelineDefinitionNodesNewUowTransition) {
+                log.info("Launching node {} with a new UOW", node.getModuleName());
                 PipelineInstanceNode nextInstanceNode = pipelineInstanceNodeCrud.retrieve(instance,
-                    nextDefinitionNode);
-
-                if (nextDefinitionNode.isStartNewUow()) { // synchronized
-                    // transition
-                    log.debug("isWaitForPreviousTasks == true, checking to see if all tasks for this node are complete");
-
-                    if (currentNodeTaskCounts.isInstanceNodeComplete()) {
-                        log.info("doTransition: all tasks for this node done");
-
-
-                        log.info("doTransition: launching next node with a new UOW");
-                        tasks.addAll(launchNode(nextInstanceNode));
-                    } else {
-                        log.info("doTransition: there are uncompleted tasks remaining for this node, doing nothing");
-                    }
-                } else {
-                    /*
-                     * Simple transition: just propagate the last task to the
-                     * nextNode
-                     */
-
-                    log.info("doTransition: nextNode uses the same UOW, just creating a single task with the UOW from this task");
-
-                    BeanWrapper<UnitOfWork> nextUowTask = null;
-
-                    if (task.getUowTask() != null) {
-                        nextUowTask = new BeanWrapper<>(task.getUowTask().getInstance());
-                    }
-
-                    tasks.add(launchTask(nextInstanceNode, instance, nextUowTask));
-                    pipelineInstanceNodeCrud.incrementSubmittedTaskCount(nextInstanceNode.getId());
-                }
+                    node);
+                nodesForLaunch.add(nextInstanceNode);
             }
-        } else {
-            if (isEndNode) {
-                log.info("doTransition: end of pipeline reached for this UOW (reached specified endNode)");
-            }
+            return null;
+        });
 
-            log.info("doTransition: end of pipeline reached for this UOW");
+        // Finally, launch the nodes.
+        for (PipelineInstanceNode node : nodesForLaunch) {
+            launchNode(node);
         }
-
-        return tasks;
     }
 
     /**
-     * Updates the PipelineInstance state based on the aggregate
-     * PipelineInstanceNode task counts. Called after the transition logic runs.
-     *
-     * @param instance
+     * Returns the {@link PipelineDefinitionNode}s that have a simple transition from the current
+     * node (here "simple transition" means that no new UOW is started).
      */
-    public void updateInstanceState(PipelineInstance instance) {
-        PipelineInstanceAggregateState state = pipelineInstanceCrud.instanceState(instance);
-
-        if (state.getNumCompletedTasks().equals(state.getNumTasks())) {
-            // completed successfully
-            instance.setState(PipelineInstance.State.COMPLETED);
-            instance.stopExecutionClock();
-        } else if (state.getNumFailedTasks() > 0) {
-            if (state.getNumFailedTasks() + state.getNumCompletedTasks() == state
-                .getNumSubmittedTasks()) {
-                instance.setState(PipelineInstance.State.ERRORS_STALLED);
-                instance.stopExecutionClock();
-            } else {
-                instance.setState(PipelineInstance.State.ERRORS_RUNNING);
-            }
-        } else {
-            // situation normal
-            instance.setState(PipelineInstance.State.PROCESSING);
+    private List<PipelineDefinitionNode> nodesWithSimpleTransition(
+        List<PipelineDefinitionNode> nodes) {
+        List<PipelineDefinitionNode> nodesWithSimpleTransition = new ArrayList<>();
+        if (CollectionUtils.isEmpty(nodes)) {
+            return nodesWithSimpleTransition;
         }
-
-        log.info("updateInstanceState: all nodes: numTasks/numSubmittedTasks/numCompletedTasks/numFailedTasks =  "
-            + state.getNumTasks()
-            + "/"
-            + state.getNumSubmittedTasks()
-            + "/"
-            + state.getNumCompletedTasks() + "/" + state.getNumFailedTasks());
-
-        log.info("updateInstanceState: updated PipelineInstance.state = " + instance.getState()
-        + " for id: " + instance.getId());
+        for (PipelineDefinitionNode node : nodes) {
+            if (!node.isStartNewUow()) {
+                nodesWithSimpleTransition.add(node);
+            }
+        }
+        return nodesWithSimpleTransition;
     }
 
     /**
-     * Restart a PipelineTask in the ERROR state. Usually called from the console.
-     *
-     * @param task
-     * @param doTransitionOnly
+     * Performs simple transitions. Simple transitions are transitions that reuse a unit of work,
+     * which means that they do not need to wait for all the tasks in the current instance node to
+     * complete before launching new tasks.
      */
-    public void restartFailedTask(PipelineTask task, boolean doTransitionOnly) {
+    private void simpleTransition(PipelineInstance instance, PipelineTask task,
+        List<PipelineDefinitionNode> nextNodesSimpleTransition) {
+        for (PipelineDefinitionNode node : nextNodesSimpleTransition) {
+
+            log.info("Node {} uses the same UOW as {}, creating task with reused UOW",
+                node.getModuleName(), task.getPipelineDefinitionNode().getModuleName());
+            PipelineInstanceNode nextInstanceNode = (PipelineInstanceNode) DatabaseTransactionFactory
+                .performTransaction(() -> pipelineInstanceNodeCrud.retrieve(instance, node));
+            UnitOfWork nextUowTask = task.uowTaskInstance();
+
+            launchTasks(nextInstanceNode, instance, List.of(nextUowTask));
+        }
+    }
+
+    /**
+     * Logs the PipelineInstance state based on the aggregate PipelineInstanceNode task counts.
+     * Called after the transition logic runs.
+     */
+    public void logUpdatedInstanceState(PipelineInstance pipelineInstance) {
+        TaskCounts state = pipelineOperations.taskCounts(pipelineInstance);
+
+        log.info("""
+            updateInstanceState: all nodes:\s\
+            numTasks/numSubmittedTasks/numCompletedTasks/numFailedTasks =\s\s\
+            {} / {} / {} / {}""", state.getTaskCount(), state.getSubmittedTaskCount(),
+            state.getCompletedTaskCount(), state.getFailedTaskCount());
+
+        log.info("updateInstanceState: updated PipelineInstance.state = {} for id: ",
+            pipelineInstance.getState(), pipelineInstance.getId());
+    }
+
+    /**
+     * Restart {@link PipelineTask}s in the ERROR state. This method performs the following steps:
+     * <ol>
+     * <li>Sets the {@link PipelineInstanceNode}s represented by the tasks into the not-yet-run
+     * state.
+     * <li>Checks each task to make sure it's in a condition that permits a resubmit.
+     * <li>Sets the state of each task to SUBMITTED.
+     * <li>Sends a task request for each task.
+     * <li>Sets the instance states back to already-started state.
+     * </ol>
+     */
+    public void restartFailedTasks(Collection<PipelineTask> tasks, boolean doTransitionOnly,
+        RunMode restartMode) {
         log.debug("runTask(long) - start");
 
+        // Map between the instance nodes and the tasks.
+        Map<PipelineInstanceNode, List<PipelineTask>> nodesToTasks = new HashMap<>();
+        for (PipelineTask task : tasks) {
+            PipelineInstanceNode node = task.getPipelineInstanceNode();
+            if (!nodesToTasks.containsKey(node)) {
+                nodesToTasks.put(node, new ArrayList<>());
+            }
+            nodesToTasks.get(node).add(task);
+        }
+
+        // Perform restarts by instance node.
+        for (Entry<PipelineInstanceNode, List<PipelineTask>> entry : nodesToTasks.entrySet()) {
+            restartFailedTasksForNode(entry, doTransitionOnly, restartMode);
+        }
+    }
+
+    /**
+     * Performs task restart for all tasks associated with a particular
+     * {@link PipelineInstanceNode}.
+     */
+    private void restartFailedTasksForNode(
+        Map.Entry<PipelineInstanceNode, List<PipelineTask>> entry, boolean doTransitionOnly,
+        RunMode restartMode) {
+        PipelineInstanceNode node = entry.getKey();
+        List<PipelineTask> tasks = entry.getValue();
+        log.info("Restarting {} tasks for instance node {} ({})", tasks.size(), node.getId(),
+            node.getPipelineDefinitionNode().getModuleName());
+
+        pipelineOperations.taskCounts(node);
+        logInstanceNodeCounts(node, "initial");
+
+        // Loop over tasks and prepare for restart, including sending the task request message.
+        for (PipelineTask task : tasks) {
+            restartFailedTask(task, doTransitionOnly, restartMode);
+        }
+
+        // Update and log the instance state.
+        PipelineInstance instance = node.getPipelineInstance();
+        logUpdatedInstanceState(instance);
+        pipelineInstanceCrud.merge(instance);
+
+        logInstanceNodeCounts(node, "final");
+    }
+
+    private void logInstanceNodeCounts(PipelineInstanceNode node, String initialOrFinal) {
+        TaskCounts instanceNodeCounts = pipelineOperations.taskCounts(node);
+        log.info("""
+            node {} state:\s\
+            numTasks/numSubmittedTasks/numCompletedTasks/numFailedTasks =\s\s\
+            {} / {} {} / {}""", initialOrFinal, instanceNodeCounts.getTaskCount(),
+            instanceNodeCounts.getSubmittedTaskCount(), instanceNodeCounts.getCompletedTaskCount(),
+            instanceNodeCounts.getFailedTaskCount());
+    }
+
+    /**
+     * Performs restart activities for a single {@link PipelineTask}.
+     */
+    private void restartFailedTask(PipelineTask task, boolean doTransitionOnly,
+        RunMode restartMode) {
         boolean okayToRestart = false;
         PipelineTask.State oldState = task.getState();
         if (oldState == PipelineTask.State.ERROR) {
-            okayToRestart = true ;
+            okayToRestart = true;
         } else {
             ProcessingSummary processingState = new ProcessingSummaryOperations()
                 .processingSummary(task.getId());
-            if (processingState.getProcessingState() == ProcessingState.COMPLETE &&
-                processingState.getFailedSubtaskCount() > 0) {
-                okayToRestart = true ;
+            if (processingState.getProcessingState() == ProcessingState.COMPLETE
+                && processingState.getFailedSubtaskCount() > 0) {
+                okayToRestart = true;
             }
         }
 
         log.info("Restarting failed task id=" + task.getId() + ", oldState : " + oldState);
 
         if (!okayToRestart) {
-            throw new PipelineException("Can only restart ERROR tasks or COMPLETE tasks with failed sub-tasks!  state = " + oldState);
+            log.warn("Task {} is in state {}, not restarting", task.getId(), oldState);
+            return;
         }
 
-        // Retrieve the task so that it can be modified in the database using the Hibernate infrastructure
+        // Retrieve the task so that it can be modified in the database using the Hibernate
+        // infrastructure
         PipelineTask databaseTask = pipelineTaskCrud.retrieve(task.getId());
-        databaseTask.setState(PipelineTask.State.SUBMITTED);
-        databaseTask.startExecutionClock();
+        log.info("Restarting task id={}, oldState : {}", databaseTask.getId(), oldState);
+
         databaseTask.setRetry(true);
+        pipelineOperations.setTaskState(databaseTask, PipelineTask.State.SUBMITTED);
+        removeTaskFromKilledTaskList(pipelineTaskCrud.merge(databaseTask).getId());
 
-        PipelineInstance instance = databaseTask.getPipelineInstance();
-        PipelineInstanceNode instanceNode = pipelineInstanceNodeCrud.retrieve(instance,
-            task.getPipelineDefinitionNode());
-
-        log.info("restartFailedTask: currentNode: numTasks/numSubmittedTasks/numCompletedTasks/numFailedTasks =  "
-            + instanceNode.getNumTasks()
-            + "/"
-            + instanceNode.getNumSubmittedTasks()
-            + "/"
-            + instanceNode.getNumCompletedTasks() + "/" + instanceNode.getNumFailedTasks());
-
-        pipelineInstanceNodeCrud.decrementFailedTaskCount(instanceNode.getId());
-
-        updateInstanceState(instance);
-        pipelineInstanceCrud.update(instance);
-        pipelineTaskCrud.update(databaseTask);
-
-        restartTask(task, doTransitionOnly);
+        // Send the task message to the supervisor.
+        sendTaskRequestMessage(databaseTask, Priority.HIGHEST, doTransitionOnly, restartMode);
     }
 
-    /**
-     * Re-submit a task to the worker queue without making any changes to the {@link PipelineTask}
-     * object in the database.
-     *
-     * @param task
-     * @param doTransitionOnly
-     */
-    public void restartTask(PipelineTask task, boolean doTransitionOnly) {
-        PipelineTask.State oldState = task.getState();
-
-        log.info("Restarting task id=" + task.getId() + ", oldState : " + oldState);
-    }
-
-    /**
-     * Re-submit a task to the worker queue without making any changes to the {@link PipelineTask}
-     * object in the database.
-     *
-     * @param task
-     */
-    public void restartTask(PipelineTask task) {
-        restartTask(task, false);
+    /** Replace with dummy method in unit testing. */
+    public void removeTaskFromKilledTaskList(long taskId) {
+        TaskRequestHandlerLifecycleManager.removeTaskFromKilledTaskList(taskId);
     }
 
     /**
@@ -433,13 +434,14 @@ public class PipelineExecutor {
      * @param queueName
      * @return
      */
-    private LinkedList<PipelineTask> launchNode(PipelineInstanceNode instanceNode) {
-        Map<ClassWrapper<Parameters>, ParameterSet> uowModuleParameterSets = instanceNode
+    private void launchNode(PipelineInstanceNode instanceNode) {
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> uowModuleParameterSets = instanceNode
             .getModuleParameterSets();
-        PipelineDefinitionNode taskGeneratorNode = instanceNode
-            .getPipelineDefinitionNode().taskGeneratorNode();
+        log.debug("launchNode 1: start");
+        PipelineDefinitionNode taskGeneratorNode = instanceNode.getPipelineDefinitionNode()
+            .taskGeneratorNode();
 
-        return launchNode(instanceNode, taskGeneratorNode, uowModuleParameterSets);
+        launchNode(instanceNode, taskGeneratorNode, uowModuleParameterSets);
     }
 
     /**
@@ -450,32 +452,34 @@ public class PipelineExecutor {
      * @param uowModuleParameterSets
      * @return
      */
-    private LinkedList<PipelineTask> launchNode(PipelineInstanceNode instanceNode,
+    private void launchNode(PipelineInstanceNode instanceNode,
         PipelineDefinitionNode taskGeneratorNode,
-        Map<ClassWrapper<Parameters>, ParameterSet> uowModuleParameterSets) {
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> uowModuleParameterSets) {
         PipelineInstance instance = instanceNode.getPipelineInstance();
-        PipelineDefinitionNode definitionNode = instanceNode.getPipelineDefinitionNode();
-        ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = unitOfWorkGenerator(taskGeneratorNode);
+        instanceNode.getPipelineDefinitionNode();
+        ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = unitOfWorkGenerator(
+            taskGeneratorNode);
 
+        log.debug("launchNode 2: start");
 
         if (!unitOfWorkGenerator.isInitialized()) {
             throw new PipelineException(
                 "Configuration Error: Unable to launch node because no UnitOfWorkGenerator class is defined");
         }
 
-        Map<ClassWrapper<Parameters>, ParameterSet> pipelineParameterSets = instance
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> pipelineParameterSets = instance
             .getPipelineParameterSets();
 
         /*
-         * Create a Map containing all of the entries from the pipeline
-         * parameters plus the module parameters for this node for use by the
-         * UnitOfWorkTaskGenerator. This allows the UOW parameters to be
-         * specified at either the pipeline or module level.
+         * Create a Map containing all of the entries from the pipeline parameters plus the module
+         * parameters for this node for use by the UnitOfWorkTaskGenerator. This allows the UOW
+         * parameters to be specified at either the pipeline or module level.
          */
-        Map<ClassWrapper<Parameters>, ParameterSet> compositeParameterSets = new HashMap<>(
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> compositeParameterSets = new HashMap<>(
             pipelineParameterSets);
 
-        for (ClassWrapper<Parameters> moduleParameterClass : uowModuleParameterSets.keySet()) {
+        for (ClassWrapper<ParametersInterface> moduleParameterClass : uowModuleParameterSets
+            .keySet()) {
             if (compositeParameterSets.containsKey(moduleParameterClass)) {
                 throw new PipelineException(
                     "Configuration Error: Module parameter and pipeline parameter Maps both contain a value for parameter class: "
@@ -485,39 +489,25 @@ public class PipelineExecutor {
                 uowModuleParameterSets.get(moduleParameterClass));
         }
 
-        Map<Class<? extends Parameters>, Parameters> uowParams = new HashMap<>();
+        Map<Class<? extends ParametersInterface>, ParametersInterface> uowParams = new HashMap<>();
 
-        for (ClassWrapper<Parameters> parametersClass : compositeParameterSets.keySet()) {
+        for (ClassWrapper<ParametersInterface> parametersClass : compositeParameterSets.keySet()) {
             ParameterSet parameterSet = compositeParameterSets.get(parametersClass);
-            Class<? extends Parameters> clazz = parametersClass.getClazz();
+            Class<? extends ParametersInterface> clazz = parametersClass.getClazz();
             uowParams.put(clazz, parameterSet.parametersInstance());
         }
 
+        log.debug("Generating tasks");
         List<UnitOfWork> tasks = new ArrayList<>();
         tasks = unitOfWorkGenerator.newInstance().generateUnitsOfWork(uowParams);
+        log.info("Generated " + tasks.size() + " tasks for pipeline definition node "
+            + taskGeneratorNode.getModuleName());
 
         if (tasks.isEmpty()) {
-            throw new PipelineException(
-                "Task generation did not generate any tasks!  UOW class: "
-                    + unitOfWorkGenerator.getClassName());
+            throw new PipelineException("Task generation did not generate any tasks!  UOW class: "
+                + unitOfWorkGenerator.getClassName());
         }
-
-        LinkedList<PipelineTask> pipelineTasks = new LinkedList<>();
-
-        for (UnitOfWork task : tasks) {
-            pipelineTasks.add(launchTask(instanceNode, instance, new BeanWrapper<>(
-                task)));
-        }
-
-        instanceNode.setNumTasks(tasks.size());
-        instanceNode.setNumSubmittedTasks(tasks.size());
-
-        PipelineInstanceNode endNode = instance.getEndNode();
-        if (endNode == null || instanceNode.getId() != endNode.getId()) {
-            propagateTaskCount(instance, definitionNode.getNextNodes(), tasks.size());
-        }
-
-        return pipelineTasks;
+        launchTasks(instanceNode, instance, tasks);
     }
 
     public ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator(PipelineDefinitionNode node) {
@@ -525,11 +515,9 @@ public class PipelineExecutor {
     }
 
     /**
-     * Recursive method to create a {@link PipelineInstanceNode} for all
-     * subsequent {@link PipelineDefinitionNode}s
-     *
-     * This is later used by PipelineInstanceCrud.isNodeComplete() to determine
-     * if all tasks are complete for a given node.
+     * Recursive method to create a {@link PipelineInstanceNode} for all subsequent
+     * {@link PipelineDefinitionNode}s This is later used by PipelineInstanceCrud.isNodeComplete()
+     * to determine if all tasks are complete for a given node.
      *
      * @param instance
      * @param pipeline
@@ -545,16 +533,16 @@ public class PipelineExecutor {
 
         PipelineInstanceNode instanceNode = new PipelineInstanceNode(instance, node,
             moduleDefinition);
-        pipelineInstanceNodeCrud.create(instanceNode);
+        pipelineInstanceNodeCrud.persist(instanceNode);
 
-        Map<ClassWrapper<Parameters>, ParameterSetName> pipelineNodeParameters =
-            node.getModuleParameterSetNames();
-        Map<ClassWrapper<Parameters>, ParameterSet> instanceNodeParams = instanceNode
+        Map<ClassWrapper<ParametersInterface>, String> pipelineNodeParameters = node
+            .getModuleParameterSetNames();
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> instanceNodeParams = instanceNode
             .getModuleParameterSets();
 
         bindParameters(pipelineNodeParameters, instanceNodeParams);
 
-        if (endNode != null && endNode.getId() == node.getId()) {
+        if (endNode != null && endNode.getId().equals(node.getId())) {
             log.info("Reached optional endNode, not creating any more PipelineInstanceNodes");
             instance.setEndNode(instanceNode);
         } else {
@@ -567,17 +555,16 @@ public class PipelineExecutor {
     }
 
     /**
-     * For each {@link ParamSetName}, retrieve the latest version of the
-     * {@link ParamSet}, lock it, and put it into the params map. Used for both
-     * pipeline params and module params.
+     * For each {@link ParamSetName}, retrieve the latest version of the {@link ParamSet}, lock it,
+     * and put it into the params map. Used for both pipeline params and module params.
      *
      * @param paramNames
      * @param params
      */
-    private void bindParameters(Map<ClassWrapper<Parameters>, ParameterSetName> paramNames,
-        Map<ClassWrapper<Parameters>, ParameterSet> params) {
-        for (ClassWrapper<Parameters> paramClass : paramNames.keySet()) {
-            ParameterSetName pipelineParamName = paramNames.get(paramClass);
+    private void bindParameters(Map<ClassWrapper<ParametersInterface>, String> paramNames,
+        Map<ClassWrapper<ParametersInterface>, ParameterSet> params) {
+        for (ClassWrapper<ParametersInterface> paramClass : paramNames.keySet()) {
+            String pipelineParamName = paramNames.get(paramClass);
             ParameterSet paramSet = parameterSetCrud
                 .retrieveLatestVersionForName(pipelineParamName);
             params.put(paramClass, paramSet);
@@ -586,96 +573,56 @@ public class PipelineExecutor {
     }
 
     /**
-     * Create a new {@link PipelineTask} and the corresponding
-     * {@link WorkerTaskRequest} message.
-     *
-     * @param instanceNode
-     * @param queueName
-     * @param instance
-     * @param definitionNode
-     * @param task
-     * @return
+     * Create new {@link PipelineTask}s and the corresponding {@link TaskRequest} messages.
      */
-    private PipelineTask launchTask(PipelineInstanceNode instanceNode, PipelineInstance instance,
-        BeanWrapper<UnitOfWork> task) {
-        PipelineTask pipelineTask = new PipelineTask(instance, instanceNode);
-        pipelineTask.setState(PipelineTask.State.SUBMITTED);
-        pipelineTask.setUowTask(task);
+    private void launchTasks(PipelineInstanceNode instanceNode, PipelineInstance instance,
+        List<UnitOfWork> tasks) {
+        List<PipelineTask> pipelineTasks = new ArrayList<>();
+        for (UnitOfWork task : tasks) {
+            PipelineTask pipelineTask = new PipelineTask(instance, instanceNode);
 
-        pipelineTaskCrud.create(pipelineTask);
-
-        return pipelineTask;
-    }
-
-    /**
-     * Propagate numTasks to later instance nodes that share the same UOW
-     *
-     * @param nextDefinitionNodes
-     * @param numTasks
-     */
-    private void propagateTaskCount(PipelineInstance instance,
-        List<PipelineDefinitionNode> nextDefinitionNodes, int numTasks) {
-        for (PipelineDefinitionNode nextDefinitionNode : nextDefinitionNodes) {
-            if (!nextDefinitionNode.isStartNewUow()) {
-                PipelineInstanceNode instanceNode = pipelineInstanceNodeCrud.retrieve(instance,
-                    nextDefinitionNode);
-                instanceNode.setNumTasks(numTasks);
-
-                PipelineInstanceNode endNode = instance.getEndNode();
-                if (endNode == null || instanceNode.getId() != endNode.getId()) {
-                    propagateTaskCount(instance, nextDefinitionNode.getNextNodes(), numTasks);
-                }
+            pipelineTask.setState(PipelineTask.State.SUBMITTED);
+            pipelineTask.setUowTaskParameters(task.getParameters());
+            pipelineTasks.add(pipelineTask);
+        }
+        DatabaseTransactionFactory.performTransaction(new DatabaseTransaction<Void>() {
+            @Override
+            public Void transaction() {
+                pipelineTaskCrud.persist(pipelineTasks);
+                return null;
             }
+
+            // Do not allow in the context of an existing transaction.
+            @Override
+            public boolean allowExistingTransaction() {
+                return false;
+            }
+        });
+        for (PipelineTask pipelineTask : pipelineTasks) {
+            sendTaskRequestMessage(pipelineTask, pipelineTask.getPipelineInstance().getPriority(),
+                false, RunMode.STANDARD);
         }
     }
 
-    public void sendWorkerMessageForTask(PipelineTask task) {
-        sendWorkerMessageForTask(task, task.getPipelineInstance().getPriority(), false);
+    public void persistTaskResults(PipelineTask task) {
+        sendTaskRequestMessage(task, Priority.HIGH, false, RunMode.STANDARD);
     }
 
-    public void sendWorkerMessageForTask(PipelineTask task, int priority) {
-        sendWorkerMessageForTask(task, priority, false);
-    }
+    private void sendTaskRequestMessage(PipelineTask task, Priority priority,
+        boolean doTransitionOnly, RunMode runMode) {
 
-    /**
-     * @param task
-     * @throws PipelineException
-     *
-     * Note: the doTransitionOnly arg is heritage from the Kepler and TESS source (PI and Spiffy,
-     * respectively). AFAICT, there is no use-case anywhere in our code for setting doTransitionOnly to
-     * true. I'm keeping the option here just in case.
-     */
-    public void sendWorkerMessageForTask(PipelineTask task, int priority, boolean doTransitionOnly) {
-    	sendWorkerMessageForTask(task, priority, doTransitionOnly, RunMode.STANDARD);
-    }
-
-    public void sendWorkerMessageForTask(PipelineTask task, int priority, boolean doTransitionOnly,
-    		RunMode runMode) {
+        if (!taskRequestEnabled()) {
+            return;
+        }
 
         log.debug("Generating worker task message for task=" + task.getId() + ", module="
-                + task.getModuleName());
+            + task.getModuleName());
 
-            WorkerTaskRequest workerTaskRequest = new WorkerTaskRequest(task.pipelineInstanceId(),
-                task.pipelineInstanceNodeId(), task.getId(), priority, doTransitionOnly,
-                runMode);
+        TaskRequest taskRequest = new TaskRequest(task.pipelineInstanceId(),
+            task.pipelineInstanceNodeId(), task.getPipelineDefinitionNode().getId(), task.getId(),
+            priority, doTransitionOnly, runMode);
 
-            WorkerPipelineProcess.workerTaskRequestQueue.put(workerTaskRequest);
-
-    }
-
-    /**
-     * Sends a fire-trigger request message to the worker.
-     */
-    public void sendTriggerMessage(WorkerFireTriggerRequest triggerRequest) {
-        UiCommunicator.send(triggerRequest);
-    }
-
-    /**
-     * Sends a request for information on whether any pipelines are running or queued.
-     */
-    public void sendRunningPipelinesCheckRequestMessage() {
-        log.info("Sending message to request status of running instances");
-        UiCommunicator.send(new RunningPipelinesCheckRequest());
+        ZiggyMessenger.publish(taskRequest);
     }
 
     /**
@@ -700,7 +647,8 @@ public class PipelineExecutor {
         this.pipelineInstanceNodeCrud = pipelineInstanceNodeCrud;
     }
 
-    void setPipelineModuleDefinitionCrud(PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud) {
+    void setPipelineModuleDefinitionCrud(
+        PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud) {
         this.pipelineModuleDefinitionCrud = pipelineModuleDefinitionCrud;
     }
 
@@ -708,4 +656,11 @@ public class PipelineExecutor {
         this.parameterSetCrud = parameterSetCrud;
     }
 
+    public void setPipelineOperations(PipelineOperations pipelineOperations) {
+        this.pipelineOperations = pipelineOperations;
+    }
+
+    public boolean taskRequestEnabled() {
+        return true;
+    }
 }

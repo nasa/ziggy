@@ -1,17 +1,19 @@
 package gov.nasa.ziggy.ui;
 
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.OK;
+
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import java.awt.Window;
 
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.WindowConstants;
 
-import gov.nasa.ziggy.util.ZiggyVersion;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
  * About dialog for the console
@@ -21,12 +23,13 @@ import gov.nasa.ziggy.util.ZiggyVersion;
 @SuppressWarnings("serial")
 public class AboutDialog extends javax.swing.JDialog {
 
-    public AboutDialog(JFrame frame) {
-        super(frame, true);
-        initGUI();
+    public AboutDialog(Window owner) {
+        super(owner, DEFAULT_MODALITY_TYPE);
+        buildComponent();
+        setLocationRelativeTo(owner);
     }
 
-    private void initGUI() {
+    private void buildComponent() {
         setSize(500, 160);
         getContentPane().add(contentPanel(), BorderLayout.CENTER);
         getContentPane().add(buttonPanel(), BorderLayout.SOUTH);
@@ -39,9 +42,8 @@ public class AboutDialog extends javax.swing.JDialog {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new GridLayout(3, 2));
         contentPanel.add(new JLabel("Software version: ", SwingConstants.RIGHT));
-        contentPanel.add(new JLabel(ZiggyVersion.getSoftwareVersion()));
-        contentPanel.add(new JLabel("Build date: ", SwingConstants.RIGHT));
-        contentPanel.add(new JLabel(ZiggyVersion.getBuildDate().toString()));
+        contentPanel.add(new JLabel(
+            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property())));
         contentPanel.add(new JLabel("URI: ", SwingConstants.RIGHT));
         contentPanel.add(new JLabel("github.com/nasa/ziggy"));
 
@@ -49,7 +51,7 @@ public class AboutDialog extends javax.swing.JDialog {
     }
 
     private JPanel buttonPanel() {
-        JButton closeButton = new JButton("OK");
+        JButton closeButton = new JButton(OK);
         closeButton.addActionListener(event -> {
             setVisible(false);
             dispose();
@@ -60,16 +62,7 @@ public class AboutDialog extends javax.swing.JDialog {
         return buttonPanel;
     }
 
-    /**
-     * Auto-generated main method to display this JDialog
-     */
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame();
-            frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-            AboutDialog dialog = new AboutDialog(frame);
-            dialog.setVisible(true);
-            frame.dispose();
-        });
+        ZiggySwingUtils.displayTestDialog(new AboutDialog(null));
     }
 }

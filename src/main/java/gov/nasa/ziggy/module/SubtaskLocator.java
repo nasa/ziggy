@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the National
- * Aeronautics and Space Administration. All Rights Reserved.
+ * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
  * Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A,
@@ -46,6 +46,8 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * Locates the subtask or subtasks within a task that use a specified file as an input or an
@@ -59,6 +61,7 @@ import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
  */
 public class SubtaskLocator {
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static void main(String[] args) {
 
         Option directoryOption = new Option("d", "directory", true, "Task directory");
@@ -71,12 +74,11 @@ public class SubtaskLocator {
         try {
             cmdLine = new DefaultParser().parse(options, args);
         } catch (ParseException e) {
-            throw new PipelineException("Unable to parse SubtaskLocator command line", e);
+            throw new PipelineException("Unable to parse options", e);
         }
         if (!cmdLine.hasOption(directoryOption.getOpt())
             || !cmdLine.hasOption(fileOption.getOpt())) {
             throw new PipelineException("SubtaskLocator requires both directory and file options");
-
         }
 
         String taskDir = cmdLine.getOptionValue(directoryOption.getOpt());
