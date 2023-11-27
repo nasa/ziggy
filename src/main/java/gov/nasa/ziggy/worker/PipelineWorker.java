@@ -51,6 +51,7 @@ import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
+import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
 import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -59,6 +60,7 @@ import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
 import gov.nasa.ziggy.services.process.AbstractPipelineProcess;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.supervisor.TaskRequestHandler;
+import gov.nasa.ziggy.util.SystemProxy;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 
 /**
@@ -105,7 +107,7 @@ public class PipelineWorker extends AbstractPipelineProcess {
         workerProcess.initialize();
         workerProcess.processTask(taskId, runMode);
         log.info("Worker exiting with status 0");
-        System.exit(0);
+        SystemProxy.exit(0);
     }
 
     /**
@@ -115,9 +117,11 @@ public class PipelineWorker extends AbstractPipelineProcess {
      * process, and because each worker processes one and only one task, this approach (killing the
      * task by killing the worker) is the easiest and most robust way to ensure that the task is
      * stopped.
+     * <p>
+     * Default access (package-only) for unit test purposes.
      */
-    public static void killWorker() {
-        System.exit(1);
+    void killWorker() {
+        SystemProxy.exit(0);
     }
 
     public PipelineWorker(String name, int workerId) {
@@ -211,6 +215,31 @@ public class PipelineWorker extends AbstractPipelineProcess {
     }
 
     /**
+     * Determines whether a {@link KillTasksRequest} wants to kill the task in this worker, and if
+     * so sends the desired confirmation method and exits.
+     * <p>
+     * Default axis (package-only) for unit tests.
+     *
+     * @param message
+     */
+    void killTasks(KillTasksRequest message) {
+        if (message.getTaskIds().contains(taskId)) {
+            sendKilledTaskMessage(message, taskId);
+            killWorker();
+        }
+    }
+
+    /**
+     * Sends the {@link KilledTaskMessage} confirming that the task was in this worker and has been
+     * killed.
+     * <p>
+     * Default access (package-only) for unit tests.
+     */
+    void sendKilledTaskMessage(KillTasksRequest message, long taskId) {
+        ZiggyMessenger.publish(new KilledTaskMessage(message, taskId));
+    }
+
+    /**
      * Subscribes to messages where the worker as a whole is the intended recipient.
      */
     private void subscribe() {
@@ -224,14 +253,21 @@ public class PipelineWorker extends AbstractPipelineProcess {
             t.setDaemon(true);
             t.start();
         });
+
+        // When a shutdown request comes in, honor it.
         ZiggyMessenger.subscribe(ShutdownMessage.class, message -> {
             log.info("Shutting down due to shutdown signal");
-            System.exit(0);
+            SystemProxy.exit(0);
         });
+
+        // When a kill-tasks request comes in, honor it if appropriate.
         ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
-            if (message.getTaskIds().contains(taskId)) {
-                killWorker();
-            }
+            killTasks(message);
         });
+    }
+
+    /** For testing only. */
+    void setTaskId(long taskId) {
+        this.taskId = taskId;
     }
 }

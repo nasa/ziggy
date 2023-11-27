@@ -3,6 +3,7 @@ package gov.nasa.ziggy.module.remote.nas;
 import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_GROUP;
 import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_HOST;
 import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_USER;
+import static gov.nasa.ziggy.services.config.PropertyName.TEST_ENVIRONMENT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -28,6 +29,9 @@ public class RemoteExecutionPropertiesTest {
 
     @Rule
     public ZiggyPropertyRule userPropertyRule = new ZiggyPropertyRule(REMOTE_USER, "u1");
+
+    @Rule
+    public ZiggyPropertyRule testEnvRule = new ZiggyPropertyRule(TEST_ENVIRONMENT, "true");
 
     @Test
     public void testPropertiesRetrieval() {

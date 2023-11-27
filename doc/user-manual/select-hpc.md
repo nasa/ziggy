@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](kill-tasks.md)
+[[Previous]](halt-tasks.md)
 [[Up]](user-manual.md)
 [[Next]](remote-parameters.md)
 
@@ -95,6 +95,6 @@ Second: Ziggy allows you to automate the decision on whether a given number of s
 
 By using these two parameters, you can, in effect, tell Ziggy in advance about your decisions about whether to resubmit a task and whether to use remote execution even if the number of subtasks to process is fairly small.
 
-[[Previous]](kill-tasks.md)
+[[Previous]](halt-tasks.md)
 [[Up]](user-manual.md)
 [[Next]](remote-parameters.md)

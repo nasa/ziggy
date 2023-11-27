@@ -35,6 +35,22 @@ public class PipelineInstanceNodeCrud extends AbstractCrud<PipelineInstanceNode>
         return instanceNodes;
     }
 
+    public PipelineInstanceNode markTransitionComplete(long pipelineInstanceNodeId) {
+        PipelineInstanceNode node = uniqueResult(
+            createZiggyQuery(PipelineInstanceNode.class).column(PipelineInstanceNode_.id)
+                .in(pipelineInstanceNodeId));
+        node.setTransitionComplete(true);
+        return merge(node);
+    }
+
+    public PipelineInstanceNode markTransitionIncomplete(long pipelineInstanceNodeId) {
+        PipelineInstanceNode node = uniqueResult(
+            createZiggyQuery(PipelineInstanceNode.class).column(PipelineInstanceNode_.id)
+                .in(pipelineInstanceNodeId));
+        node.setTransitionComplete(false);
+        return merge(node);
+    }
+
     /**
      * Retrieve the PipelineInstanceNode for the specified id.
      *
@@ -69,6 +85,9 @@ public class PipelineInstanceNodeCrud extends AbstractCrud<PipelineInstanceNode>
             .in(pipelineDefinitionNode);
 
         PipelineInstanceNode instanceNode = uniqueResult(query);
+        if (instanceNode == null) {
+            return null;
+        }
         populateXmlFields(instanceNode);
         return instanceNode;
     }

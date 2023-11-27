@@ -48,7 +48,7 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
  * <li>Reads the contents of datastore files that contain data or models required for processing
  * (see {@link #readResultsFile(DataFileInfo, PipelineResults)}).
  * <li>Serializes an HDF5 file containing all of the inputs for processing into the sub-task
- * directory (see {@link writeSubTaskInputs(int)}).
+ * directory (see {@link #writeSubTaskInputs()}).
  * </ol>
  * <p>
  * The abstract method {@link populateSubTaskInputs()} performs the steps that read from the task
@@ -78,7 +78,7 @@ public abstract class PipelineInputs implements Persistable {
      * PipelineInputs subclasses should override this method to provide required parameters in cases
      * where there are such.
      *
-     * @return List of parameter classes.
+     * @return List of parameter classes
      */
     public List<Class<? extends ParametersInterface>> requiredParameters() {
         return new ArrayList<>();
@@ -87,8 +87,8 @@ public abstract class PipelineInputs implements Persistable {
     /**
      * Returns an instance of a DatastorePathLocator subclass for use in the pipeline.
      *
-     * @param pipelineTask PipelineTask for the current task.
-     * @return DatastorePathLocator for this task.
+     * @param pipelineTask PipelineTask for the current task
+     * @return DatastorePathLocator for this task
      */
     public abstract DatastorePathLocator datastorePathLocator(PipelineTask pipelineTask);
 
@@ -97,9 +97,9 @@ public abstract class PipelineInputs implements Persistable {
      * datastore that are needed in the task directory in order to form the inputs, and copy them to
      * that location.
      *
-     * @param taskConfigurationManager TaskConfigurationManager for this task.
-     * @param pipelineTask PipelineTask for this task.
-     * @param taskDirectory task directory for this task.
+     * @param taskConfigurationManager TaskConfigurationManager for this task
+     * @param pipelineTask PipelineTask for this task
+     * @param taskDirectory task directory for this task
      */
     public abstract void copyDatastoreFilesToTaskDirectory(
         TaskConfigurationManager taskConfigurationManager, PipelineTask pipelineTask,
@@ -109,8 +109,8 @@ public abstract class PipelineInputs implements Persistable {
      * Used by {@link ExternalProcessPipelineModule}, or its subclasses, to identify the files in
      * the datastore that are provided to the current task as inputs.
      *
-     * @param pipelineTask PipelineTask for this task.
-     * @return {@link Set} of {@link Path} instances for task inputs. Must never be null.
+     * @param pipelineTask PipelineTask for this task
+     * @return a non-null {@link Set} of {@link Path} instances for task inputs
      */
     public abstract Set<Path> findDatastoreFilesForInputs(PipelineTask pipelineTask);
 
@@ -147,9 +147,6 @@ public abstract class PipelineInputs implements Persistable {
      * Writes a partially-populated input to an HDF5 file in the task directory. This allows the
      * pipeline to provide a set of inputs that are common to all sub-tasks in the task directory.
      * This is intended to be used by the worker, which has access to the pipeline task instance.
-     *
-     * @param taskDir
-     * @param pipelineTask
      */
     public void writeToTaskDir(PipelineTask pipelineTask, File taskDir) {
         String filename = ModuleInterfaceUtils.inputsFileName(pipelineTask.getModuleName());
@@ -181,8 +178,6 @@ public abstract class PipelineInputs implements Persistable {
 
     /**
      * Returns the sub-task index. Assumes that the working directory is the sub-task directory.
-     *
-     * @return
      */
     public int subtaskIndex() {
         if (subTaskIndex == null) {
@@ -200,8 +195,6 @@ public abstract class PipelineInputs implements Persistable {
     /**
      * Returns the files for the current subtask, based on the contents of a serialized instance of
      * {@link TaskConfigurationManager}.
-     *
-     * @return
      */
     public Set<String> filesForSubtask() {
         return TaskConfigurationManager.restoreAndRetrieveFilesForSubtask(
@@ -211,9 +204,6 @@ public abstract class PipelineInputs implements Persistable {
     /**
      * Returns a map from DataFileInfo subclasses to files in the parent directory that can be
      * managed by each subclass.
-     *
-     * @param dataFileInfoClasses
-     * @return
      */
     public Map<Class<? extends DataFileInfo>, Set<? extends DataFileInfo>> resultsFiles(
         Set<Class<? extends DataFileInfo>> dataFileInfoClasses) {
@@ -224,8 +214,6 @@ public abstract class PipelineInputs implements Persistable {
      * Returns a map from DataFileInfo subclasses to files in the parent directory that can be
      * managed by each subclass, where the set of subclasses is the set of all DataFileInfo
      * subclasses required by a given PipelineInputs class.
-     *
-     * @return
      */
     public Map<Class<? extends DataFileInfo>, Set<? extends DataFileInfo>> resultsFiles() {
         return resultsFiles(requiredDataFileInfoClasses());
@@ -233,11 +221,6 @@ public abstract class PipelineInputs implements Persistable {
 
     /**
      * Loads an HDF5 file into a PipelineResults instance.
-     *
-     * @param <S>
-     * @param <T>
-     * @param dataFileInfo
-     * @param resultsInstance
      */
     public <S extends DataFileInfo, T extends PipelineResults> void readResultsFile(S dataFileInfo,
         T resultsInstance) {
@@ -248,8 +231,6 @@ public abstract class PipelineInputs implements Persistable {
 
     /**
      * Saves the object as an HDF5 file in the sub-task directory.
-     *
-     * @param seqNum
      */
     public void writeSubTaskInputs() {
         String moduleName = moduleName();
@@ -265,7 +246,7 @@ public abstract class PipelineInputs implements Persistable {
      * Deletes temporary copies of datastore files used as task inputs from the task directory.
      *
      * @param pipelineTask pipeline task that used the inputs
-     * @param taskDirectory Directory to be cleared of temporary inputs.
+     * @param taskDirectory Directory to be cleared of temporary inputs
      */
     public void deleteTempInputsFromTaskDirectory(PipelineTask pipelineTask, Path taskDirectory) {
         DataFileManager fileManager = new DataFileManager(null, null, taskDirectory);

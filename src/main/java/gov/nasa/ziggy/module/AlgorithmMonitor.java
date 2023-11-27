@@ -5,6 +5,7 @@ import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.perfor
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -32,10 +33,9 @@ import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
-import gov.nasa.ziggy.services.messages.TaskCompletionNotification;
 import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
+import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -172,27 +172,38 @@ public class AlgorithmMonitor implements Runnable {
             }
 
             // Whenever a worker sends a "last message," run an unscheduled
-            // update of the monitors and tell the ops instances panel to refresh.
+            // update of the monitors.
             ZiggyMessenger.subscribe(WorkerStatusMessage.class, message -> {
                 if (message.isLastMessageFromWorker()) {
                     localMonitoringInstance.run();
                     remoteMonitoringInstance.run();
-                    ZiggyMessenger.publish(
-                        new TaskCompletionNotification(Long.parseLong(message.getTaskId())));
                 }
             });
         }
     }
 
     /**
+     * Returns the collection of {@link StateFile} instances currently being tracked by the remote
+     * execution monitor.
+     */
+    public static Collection<StateFile> remoteTaskStateFiles() {
+        if (remoteMonitoringInstance == null || remoteMonitoringInstance.state.isEmpty()) {
+            return null;
+        }
+        return remoteMonitoringInstance.state.values();
+    }
+
+    /**
      * Constructor. Default scope for use in unit tests.
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     AlgorithmMonitor(AlgorithmType algorithmType) {
         this.algorithmType = algorithmType;
         monitorVersion = algorithmType.name().toLowerCase();
 
         log.info("Starting new monitor for: " + DirectoryProperties.stateFilesDir().toString());
         initializeJobMonitor();
+
     }
 
     /**
@@ -569,7 +580,7 @@ public class AlgorithmMonitor implements Runnable {
 
     /** Replace with mocked method for unit testing. */
     boolean taskIsKilled(long taskId) {
-        return TaskRequestHandlerLifecycleManager.taskOnKilledTaskList(taskId);
+        return PipelineSupervisor.taskOnKilledTaskList(taskId);
     }
 
     /**

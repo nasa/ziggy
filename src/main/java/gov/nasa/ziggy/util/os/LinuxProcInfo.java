@@ -90,8 +90,7 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
     /**
      * Return the maximum number of open files for this process.
      *
-     * @return -1 for unlimited.
-     * @throws IOException
+     * @return -1 for unlimited
      */
     @Override
     public int getOpenFileLimit() {

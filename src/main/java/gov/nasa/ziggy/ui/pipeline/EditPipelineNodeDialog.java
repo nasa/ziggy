@@ -15,7 +15,6 @@ import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -24,11 +23,9 @@ import javax.swing.JTextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.proxy.PipelineModuleDefinitionCrudProxy;
@@ -47,7 +44,6 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
     private JPanel dataPanel;
     private JTextArea errorTextArea;
     private JLabel uowTypeLabel;
-    private JCheckBox startNewUowCheckBox;
     private JPanel uowPanel;
     private JPanel buttonPanel;
     private JComboBox<PipelineModuleDefinition> moduleComboBox;
@@ -77,12 +73,10 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
     private void save(ActionEvent evt) {
 
         try {
-            boolean startNewUowSelected = startNewUowCheckBox.isSelected();
 
             PipelineModuleDefinition selectedModule = (PipelineModuleDefinition) moduleComboBox
                 .getSelectedItem();
             pipelineNode.setPipelineModuleDefinition(selectedModule);
-            pipelineNode.setStartNewUow(startNewUowSelected);
 
             setVisible(false);
         } catch (Exception e) {
@@ -96,61 +90,6 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
         setVisible(false);
     }
 
-    /**
-     * Make sure that the selected UOW task generator generates the {@link UnitOfWorkGenerator} type
-     * that the selected {@link PipelineModule} expects.
-     * <p>
-     * If the startNewUowCheckBox is not checked, we actually want to validate against the previous
-     * node (TBD)
-     */
-    private void validateUnitOfWork() {
-        try {
-
-            if (!startNewUowCheckBox.isSelected()) {
-                PipelineDefinitionNode parentNode = pipelineNode.getParentNode();
-
-                while (parentNode != null && !parentNode.isStartNewUow()) {
-                    parentNode = parentNode.getParentNode();
-                }
-
-                if (parentNode != null) {
-                    ClassWrapper<UnitOfWorkGenerator> nodeTg = pipelineNode
-                        .getUnitOfWorkGenerator();
-                    ClassWrapper<UnitOfWorkGenerator> parentTg = parentNode
-                        .getUnitOfWorkGenerator();
-                    if (parentTg != null && nodeTg != null) {
-
-                        if (!nodeTg.toString().equals(parentTg.toString())) {
-                            setError(pipelineNode.getModuleName() + " expects " + nodeTg.toString()
-                                + ", but the previous node (" + parentNode.getModuleName()
-                                + ") uses " + parentTg.toString()
-                                + ". Select 'Start new unit of work' or select a different module");
-                        } else {
-                            setError("");
-                        }
-                    }
-                } else {
-                    setError("Unit of Work type must be set for the first node in a pipeline");
-                }
-            }
-        } catch (PipelineException e) {
-            log.warn("Failed to validate UOW type", e);
-            MessageUtil.showError(this, e);
-        }
-    }
-
-    /**
-     * @param evt
-     */
-    private void startNewUow(ActionEvent evt) {
-        boolean selected = startNewUowCheckBox.isSelected();
-        // grey out the uow tg settings if the checkbox is not checked
-        uowTypeLabel.setEnabled(selected);
-        uowFullNameLabel.setEnabled(selected);
-
-        validateUnitOfWork();
-    }
-
     private void buildComponent() throws Exception {
 
         setTitle("Edit pipeline node");
@@ -158,7 +97,6 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
         getContentPane().add(getButtonPanel(), BorderLayout.SOUTH);
 
-        validateUnitOfWork();
         pack();
     }
 
@@ -293,9 +231,6 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
             uowPanelLayout.columnWidths = new int[] { 7, 7, 7, 7 };
             uowPanel.setLayout(uowPanelLayout);
             uowPanel.setBorder(BorderFactory.createTitledBorder("Unit of Work"));
-            uowPanel.add(getStartNewUowCheckBox(),
-                new GridBagConstraints(0, 0, 4, 1, 0.0, 0.0, GridBagConstraints.LINE_START,
-                    GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
             uowPanel.add(getUowTypeLabel(),
                 new GridBagConstraints(0, 1, 1, 1, 0.0, 0.0, GridBagConstraints.LINE_START,
                     GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
@@ -304,17 +239,6 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
                     GridBagConstraints.HORIZONTAL, new Insets(0, 0, 0, 0), 0, 0));
         }
         return uowPanel;
-    }
-
-    private JCheckBox getStartNewUowCheckBox() {
-        if (startNewUowCheckBox == null) {
-            startNewUowCheckBox = new JCheckBox();
-            startNewUowCheckBox.setText("Start new unit of work");
-            startNewUowCheckBox.setSelected(pipelineNode.isStartNewUow());
-            startNewUowCheckBox.addActionListener(this::startNewUow);
-            startNewUowCheckBox.setEnabled(!pipeline.isLocked());
-        }
-        return startNewUowCheckBox;
     }
 
     private JLabel getUowTypeLabel() {

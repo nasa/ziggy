@@ -64,7 +64,6 @@ public class PipelineDefinitionNodeTest {
 
         // Construct a new node for the test
         node = new Node("module 1", null);
-        node.setStartNewUow(true);
         node.setUnitOfWorkGenerator(new ClassWrapper<>(SingleUnitOfWorkGenerator.class));
         node.setChildNodeNames("module 2, module 3");
         Set<XmlReference> xmlReferences = new HashSet<>();
@@ -86,7 +85,7 @@ public class PipelineDefinitionNodeTest {
         List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
         assertEquals(8, xmlContent.size());
         List<String> nodeContent = nodeContent(xmlContent,
-            "<node startNewUow=\"true\" " + "maxWorkers=\"0\" " + "heapSizeMb=\"0\" "
+            "<node " + "maxWorkers=\"0\" " + "heapSizeMb=\"0\" "
                 + "uowGenerator=\"gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator\" "
                 + "moduleName=\"module 1\" childNodeNames=\"module 2, module 3\">");
         String[] xmlLines = { "<moduleParameter name=\"Convergence criteria\"/>",
@@ -105,7 +104,6 @@ public class PipelineDefinitionNodeTest {
         Unmarshaller unmarshaller = context.createUnmarshaller();
         PipelineDefinitionNode node = (Node) unmarshaller.unmarshal(xmlUnmarshalingFile);
         assertEquals("module 1", node.getModuleName());
-        assertTrue(node.isStartNewUow());
         assertEquals("module 2, module 3", node.getChildNodeNames());
         assertEquals(2, node.getParameterSetNames().size());
         assertTrue(node.getParameterSetNames().contains("Remote execution"));
@@ -140,7 +138,6 @@ public class PipelineDefinitionNodeTest {
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>",
             "<xs:element name=\"outputDataFileType\" type=\"outputTypeReference\"/>",
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>",
-            "<xs:attribute name=\"startNewUow\" type=\"xs:boolean\"/>",
             "<xs:attribute name=\"uowGenerator\" type=\"xs:string\"/>",
             "<xs:attribute name=\"maxWorkers\" type=\"xs:int\"/>",
             "<xs:attribute name=\"moduleName\" type=\"xs:string\" use=\"required\"/>",
@@ -175,7 +172,6 @@ public class PipelineDefinitionNodeTest {
     public void testNodeListConstruction() {
 
         PipelineDefinitionNode node2 = new PipelineDefinitionNode("module 2", null);
-        node2.setStartNewUow(true);
         node2.addXmlReference(new ParameterSetReference("Remote execution"));
         node2.addXmlReference(new ParameterSetReference("Convergence criteria"));
         node2.addXmlReference(new InputTypeReference("flight L1 data"));
@@ -185,7 +181,6 @@ public class PipelineDefinitionNodeTest {
         node.addNextNode(node2);
 
         PipelineDefinitionNode node3 = new PipelineDefinitionNode("module 3", null);
-        node3.setStartNewUow(true);
         node3.addXmlReference(new ParameterSetReference("Excluded bands"));
         node3.addXmlReference(new InputTypeReference("flight L1 data"));
         node3.addXmlReference(new OutputTypeReference("flight L2 data"));

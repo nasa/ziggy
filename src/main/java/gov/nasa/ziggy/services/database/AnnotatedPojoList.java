@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.services.database;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -43,10 +42,6 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
     /**
      * For each element in the classpath, scan the contents (either a recursive directory search or
      * a JAR scan) for annotated classes.
-     *
-     * @return
-     * @throws IOException
-     * @throws ClassNotFoundException
      */
     public Set<Class<?>> scanForClasses() {
         log.debug("Scanning class path for annotated classes");
@@ -62,8 +57,6 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
         return detectedClasses;
     }
 
-    /**
-     */
     @Override
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public void processClass(ClassFile classFile) {
@@ -80,9 +73,6 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
 
     /**
      * Use the Javassist library to check the .class file for JPA annotations
-     *
-     * @param classFile
-     * @return
      */
     private boolean isClassAnnotated(ClassFile classFile) {
         // TODO: do we care about global metadata?

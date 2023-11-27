@@ -58,7 +58,6 @@ import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import jakarta.xml.bind.JAXBException;
 
 /**
  * Performs import of DataFileType and ModelType instances to the database.
@@ -132,8 +131,6 @@ public class DataFileTypeImporter {
      * other DataFileTypes will be imported. If any duplicate names are present in the set of
      * DataFileType instances to be imported, none will be imported. The import also imports model
      * definitions.
-     *
-     * @throws JAXBException
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
@@ -237,7 +234,7 @@ public class DataFileTypeImporter {
         }
     }
 
-// default scope for mocking in unit tests
+    // default scope for mocking in unit tests
     DataFileTypeCrud dataFileTypeCrud() {
         if (dataFileTypeCrud == null) {
             dataFileTypeCrud = new DataFileTypeCrud();

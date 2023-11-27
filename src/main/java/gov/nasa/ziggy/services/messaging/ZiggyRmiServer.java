@@ -25,7 +25,7 @@ import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 
 /**
@@ -316,8 +316,8 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
                 // Wait for up to 1 second for the message queues to empty and the
                 // broadcast threads to block while waiting for a new message.
                 // This ensures that the clients can receive the shutdown message.
-                long startWaitTime = SystemTime.currentTimeMillis();
-                while (SystemTime.currentTimeMillis()
+                long startWaitTime = SystemProxy.currentTimeMillis();
+                while (SystemProxy.currentTimeMillis()
                     - startWaitTime < MAX_WAIT_FOR_QUEUE_CLEARANCE_DURING_SHUTDOWN_MILLIS) {
                     if (isAllMessagingComplete()) {
                         break;

@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.services.config;
 
-import static gov.nasa.ziggy.services.config.PropertyName.GRADLE_TEST_WORKER;
 import static gov.nasa.ziggy.services.config.PropertyName.JAVA_RUNTIME_NAME;
 import static gov.nasa.ziggy.services.config.PropertyName.JAVA_VM_VERSION;
 import static gov.nasa.ziggy.services.config.PropertyName.SUN_BOOT_LIBRARY_PATH;
@@ -83,9 +82,7 @@ public class ZiggyConfiguration {
      */
     public static synchronized ImmutableConfiguration getInstance() {
         if (instance == null) {
-            String testRun = System.getProperty(GRADLE_TEST_WORKER.property());
-            Configuration configuration = mutableInstance != null ? mutableInstance
-                : getConfiguration(testRun == null);
+            Configuration configuration = getConfiguration();
             instance = ConfigurationUtils.unmodifiableConfiguration(configuration);
             interpolator = configuration.getInterpolator();
         }
@@ -96,13 +93,23 @@ public class ZiggyConfiguration {
      * Returns a configuration as described in {@link #getInstance()}.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    private static Configuration getConfiguration(boolean loadPipelineProperties) {
+    private static Configuration getConfiguration() {
         CompositeConfiguration config = new CompositeConfiguration();
         config.setThrowExceptionOnMissing(true);
 
         loadSystemConfiguration(config);
-        if (loadPipelineProperties) {
+
+        // We know that we are in a test environment if there's a mutable instance.
+        // However, in rare cases, the mutable instance is null even though we are
+        // in a test environment. In those cases, the test can define the
+        // TEST_ENVIRONMENT as a system property to accomplish the same thing.
+        boolean testConfiguration = mutableInstance != null
+            || config.getString(PropertyName.TEST_ENVIRONMENT.toString(), null) != null;
+
+        if (!testConfiguration) {
             loadPipelineConfiguration(config);
+        } else if (mutableInstance != null) {
+            config.addConfiguration(mutableInstance);
         }
         loadZiggyConfiguration(config);
         loadBuildConfiguration(config);
@@ -249,7 +256,7 @@ public class ZiggyConfiguration {
      */
     public static synchronized Configuration getMutableInstance() {
         if (mutableInstance == null) {
-            mutableInstance = getConfiguration(false);
+            mutableInstance = getConfiguration();
             mutableInstance.setSynchronizer(new ReadWriteSynchronizer());
             instance = null;
         }

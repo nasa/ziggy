@@ -13,7 +13,7 @@ import java.util.UUID;
  * Note that while the requestor identifier can be any {@link Object} of any class, each
  * {@link Requestor} must have one. In use cases wherein the identifier is required to be unique, it
  * is recommended that users implement {@link #requestorIdentifier()} with classes that are
- * inherently and automatically unique, such as {@link UUID#randomUuid()}.
+ * inherently and automatically unique, such as {@link UUID#randomUUID()}.
  *
  * @author PT
  */

@@ -22,6 +22,7 @@ import org.netbeans.swing.outline.RowModel;
 
 import gov.nasa.ziggy.parameters.ParameterSetDescriptor;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
+import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.services.security.Privilege;
 import gov.nasa.ziggy.services.security.User;

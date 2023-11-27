@@ -205,10 +205,10 @@ public class TasksPanel extends JPanel {
             this::retrieveLogInfo);
         JMenuItem restartFailedTasksMenuItem = createMenuItem("Restart failed tasks" + DIALOG,
             this::restartFailedTasks);
-        JMenuItem killTasksMenuItem = createMenuItem("Kill selected tasks", this::killTasks);
+        JMenuItem haltTasksMenuItem = createMenuItem("Halt selected tasks", this::haltTasks);
 
         JPopupMenu tasksPopupMenu = createPopupMenu(detailsMenuItem, retrieveLogInfoMenuItem,
-            MENU_SEPARATOR, restartFailedTasksMenuItem, MENU_SEPARATOR, killTasksMenuItem);
+            MENU_SEPARATOR, restartFailedTasksMenuItem, MENU_SEPARATOR, haltTasksMenuItem);
 
         tasksTable.getTable().addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -266,11 +266,11 @@ public class TasksPanel extends JPanel {
         instancesTasksPanel.restartTasks(selectedTasks.values());
     }
 
-    private void killTasks(ActionEvent evt) {
+    private void haltTasks(ActionEvent evt) {
         if (selectedTasks.isEmpty()) {
             return;
         }
-        instancesTasksPanel.killTasks(selectedTasks.values());
+        instancesTasksPanel.haltTasks(selectedTasks.values());
     }
 
     private PipelineTask selectedTask() {

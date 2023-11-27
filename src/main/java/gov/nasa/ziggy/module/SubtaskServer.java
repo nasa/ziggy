@@ -69,7 +69,7 @@ public class SubtaskServer implements Runnable {
     /**
      * Shuts down the listener thread. This is accomplished by interrupting the listener thread,
      * which will cause the {@link ArrayBlockingQueue#take()} call in the listener to terminate with
-     * an {@link InterruptException}.
+     * an {@link InterruptedException}.
      */
     public void shutdown() {
         listenerThread.interrupt();
@@ -82,8 +82,6 @@ public class SubtaskServer implements Runnable {
     /**
      * Adds a {@link Request} to the queue. The {@link SubtaskClient} that submits the request will
      * block until the request is accepted into the queue.
-     *
-     * @param request
      */
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public static void submitRequest(Request request) {
@@ -219,12 +217,12 @@ public class SubtaskServer implements Runnable {
         }
     }
 
-    // For testing only.
+    /** For testing only. */
     static ArrayBlockingQueue<Request> getRequestQueue() {
         return requestQueue;
     }
 
-    // For testing only.
+    /** For testing only. */
     Thread getListenerThread() {
         return listenerThread;
     }

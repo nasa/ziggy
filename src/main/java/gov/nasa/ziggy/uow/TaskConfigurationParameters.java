@@ -4,7 +4,7 @@ import gov.nasa.ziggy.module.io.ProxyIgnore;
 import gov.nasa.ziggy.parameters.Parameters;
 
 /**
- * Defines the task and subtask generation for pipeline modules that use the DefaultUnitOfWork.
+ * Defines the task and subtask generation for Ziggy unit of work generators.
  * <p>
  * The taskDirectoryRegex parameter defines a regular expression for the directories below the
  * datastore root that are to be made into units of work. For example, "sector-([0-9]{4})/cal" would

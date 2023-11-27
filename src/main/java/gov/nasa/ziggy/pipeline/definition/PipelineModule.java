@@ -43,12 +43,6 @@ public abstract class PipelineModule {
     protected RunMode runMode;
 
     /**
-     * If set to true by a sub-class, the current task will be committed when the task completes,
-     * but the transition logic will not be run.
-     */
-    private boolean haltPipelineOnTaskCompletion = false;
-
-    /**
      * Used by sub-classes to indicate that only a subset of the unit of work was processed
      * successfully. In this case, the transaction will be committed and the transition logic will
      * be executed, but the {@link PipelineTask} state will be set to PARTIAL instead of COMPLETE.
@@ -151,14 +145,6 @@ public abstract class PipelineModule {
         log.debug("[" + getModuleName() + "]instance node id = " + task.getId());
         log.debug(
             "[" + getModuleName() + "]instance node uow = " + task.uowTaskInstance().briefState());
-    }
-
-    public boolean isHaltPipelineOnTaskCompletion() {
-        return haltPipelineOnTaskCompletion;
-    }
-
-    public void setHaltPipelineOnTaskCompletion(boolean haltPipelineOnTaskCompletion) {
-        this.haltPipelineOnTaskCompletion = haltPipelineOnTaskCompletion;
     }
 
     public boolean isPartialSuccess() {

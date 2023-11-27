@@ -83,12 +83,6 @@ public enum PropertyName {
     MATLAB_LOG4J_CONFIG_INITIALIZE("matlab.log4j.initialize"),
 
     /**
-     * Property that is true if {@code gradle test} is running. As it is not user-modifiable, this
-     * property should not be documented in the manual.
-     */
-    GRADLE_TEST_WORKER("org.gradle.test.worker"),
-
-    /**
      * Name for the operating system. As it is not user-modifiable, this property should not be
      * documented in the manual.
      */
@@ -260,6 +254,15 @@ public enum PropertyName {
      * that is not already in use on the system.
      */
     SUPERVISOR_PORT("ziggy.supervisor.port"),
+
+    /**
+     * Allows Ziggy unit test classes to inform the configuration system that it is, in fact, a test
+     * environment, hence to not load the pipeline properties. Usually this is accomplished
+     * automatically, but there are some corner cases where it's necessary to manually inform the
+     * configuration system. In this case, it's necessary to set this as a system property so that
+     * it survives resets of the configuration.
+     */
+    TEST_ENVIRONMENT("ziggy.test.environment"),
 
     /**
      * Property used by tests to ensure that ziggy.properties can be read. Its value is expected to

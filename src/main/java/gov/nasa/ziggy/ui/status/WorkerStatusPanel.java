@@ -219,7 +219,7 @@ public class WorkerStatusPanel extends JPanel {
                 case 4 -> message.getTaskId();
                 case 5 -> message.getModule();
                 case 6 -> message.getModuleUow();
-                default -> new String();
+                default -> "";
             };
         }
 

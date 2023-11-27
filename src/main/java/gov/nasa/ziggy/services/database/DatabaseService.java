@@ -24,10 +24,6 @@ public abstract class DatabaseService {
      * database service that is used by all threads; however, the HibernateDatabaseService has a
      * ThreadLocal&lt;Session&gt;. Thus all objects in a given instance use the same session for
      * their database access.
-     *
-     * @author Sean McCauliff
-     * @author Todd Klaus
-     * @author PT
      */
     public static synchronized DatabaseService getInstance() {
 

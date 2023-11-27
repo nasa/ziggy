@@ -9,6 +9,7 @@ import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -52,6 +53,11 @@ public class ZiggyConfigurationTest {
     @Rule
     public ZiggyPropertyRule barPropertyRule = new ZiggyPropertyRule(ALLOW_PARTIAL_TASKS, "true");
 
+    @Rule
+    public ZiggyPropertyRule schemaRule = new ZiggyPropertyRule(
+        PropertyName.ZIGGY_HOME_DIR.property(),
+        Paths.get(System.getProperty(PropertyName.WORKING_DIR.property()), "build").toString());
+
     private static final String BOOLEAN_PROPERTY = ALLOW_PARTIAL_TASKS.property();
 
     @Test
@@ -60,7 +66,6 @@ public class ZiggyConfigurationTest {
         ImmutableConfiguration configuration2 = ZiggyConfiguration.getInstance();
         assertNotNull(configuration1);
         assertTrue(configuration1 == configuration2);
-
         assertEquals(BigDecimal.ONE, configuration1.getBigDecimal(NUMERIC_PROPERTY));
         assertEquals(BigInteger.ONE, configuration1.getBigInteger(NUMERIC_PROPERTY));
         assertEquals(Byte.parseByte("1"), configuration1.getByte(NUMERIC_PROPERTY));
@@ -147,7 +152,6 @@ public class ZiggyConfigurationTest {
     @Test
     public void testDefaultFileProperty() {
         // Force getInstance() to read from ziggy.properties.
-        ZiggyConfiguration.reset();
         ZiggyConfiguration.getMutableInstance();
 
         assertEquals(ZIGGY_PROPERTIES_VALUE,

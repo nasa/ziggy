@@ -176,7 +176,7 @@ public class DefaultDataImporterTest {
         // The PDC file should remain in the import directory
         assertEquals(2, dataImporterPath.toFile().listFiles().length);
         assertTrue(dataImporterPath.resolve(Paths.get("sub-dir")).toFile().exists());
-        assertTrue(dataImporterPath.resolve(Paths.get("pdc-1-1-20-results.h5")).toFile().exists());
+        assertTrue(dataImporterPath.resolve(Paths.get("pdc-1-1-21-results.h5")).toFile().exists());
 
         // The subdir files should be untouched
         assertEquals(2, dataImporterSubdirPath.toFile().listFiles().length);
@@ -211,7 +211,7 @@ public class DefaultDataImporterTest {
         // The top-level import directory should be untouched
         assertEquals(4, dataImporterPath.toFile().listFiles().length);
         assertTrue(dataImporterPath.resolve(Paths.get("sub-dir")).toFile().exists());
-        assertTrue(dataImporterPath.resolve(Paths.get("pdc-1-1-20-results.h5")).toFile().exists());
+        assertTrue(dataImporterPath.resolve(Paths.get("pdc-1-1-21-results.h5")).toFile().exists());
         assertTrue(
             dataImporterPath.resolve(Paths.get("pa-001234567-20-results.h5")).toFile().exists());
         assertTrue(
@@ -247,7 +247,7 @@ public class DefaultDataImporterTest {
         // The PDC and PA files should remain in the import directory
         assertEquals(3, dataImporterPath.toFile().listFiles().length);
         assertTrue(dataImporterPath.resolve(Paths.get("sub-dir")).toFile().exists());
-        assertTrue(dataImporterPath.resolve(Paths.get("pdc-1-1-20-results.h5")).toFile().exists());
+        assertTrue(dataImporterPath.resolve(Paths.get("pdc-1-1-21-results.h5")).toFile().exists());
         assertTrue(
             dataImporterPath.resolve(Paths.get("pa-001234567-20-results.h5")).toFile().exists());
 
@@ -283,7 +283,7 @@ public class DefaultDataImporterTest {
         filenames.add(sample2.getName());
 
         // create a file that matches neither pattern
-        sample1 = new File(dataImporterPath.toFile(), "pdc-1-1-20-results.h5");
+        sample1 = new File(dataImporterPath.toFile(), "pdc-1-1-21-results.h5");
         sample1.createNewFile();
         filenames.add(sample1.getName());
         return filenames;

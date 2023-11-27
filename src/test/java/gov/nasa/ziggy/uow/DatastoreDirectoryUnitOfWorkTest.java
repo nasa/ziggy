@@ -22,7 +22,7 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 
 /**
- * Unit test class for DefaultUnitOfWork.
+ * Unit test class for DatastoreDirectoryUnitOfWorkGenerator.
  *
  * @author PT
  */

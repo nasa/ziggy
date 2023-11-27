@@ -1,6 +1,6 @@
 package gov.nasa.ziggy;
 
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * Provides a means for unit tests to wait for either a timeout or else a specified event.
@@ -43,9 +43,9 @@ import gov.nasa.ziggy.util.SystemTime;
 public class TestEventDetector {
 
     public static boolean detectTestEvent(long timeout, TestEventDefinition definition) {
-        long startTime = SystemTime.currentTimeMillis();
+        long startTime = SystemProxy.currentTimeMillis();
         boolean eventDetected = false;
-        while (SystemTime.currentTimeMillis() < startTime + timeout && !eventDetected) {
+        while (SystemProxy.currentTimeMillis() < startTime + timeout && !eventDetected) {
             eventDetected = definition.eventDetected();
         }
         return eventDetected;

@@ -66,7 +66,7 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
       11.4.​ [Re-Run or Resume a Failed Task](rerun-task.md)
 
-      11.5.​ [Killing Tasks](kill-tasks.md)
+      11.5.​ [Halting Tasks](halt-tasks.md)
 
 12. [High Performance Computing](select-hpc.md)
 

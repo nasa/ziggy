@@ -158,6 +158,14 @@ public class ZiggyPropertyRule extends ExternalResource {
             value = directory.toString();
         }
 
+        // the TEST_ENVIRONMENT property requires special handling because it needs
+        // to keep its value across ZiggyConfiguration resets. To accomplish that,
+        // it is placed into the system properties.
+        if (property.equals(PropertyName.TEST_ENVIRONMENT.property())) {
+            System.setProperty(PropertyName.TEST_ENVIRONMENT.property(), "true");
+            return;
+        }
+
         Configuration configuration = ZiggyConfiguration.getMutableInstance();
         previousValue = configuration.getString(property, null);
         if (value != null) {
@@ -170,6 +178,9 @@ public class ZiggyPropertyRule extends ExternalResource {
     @Override
     protected void after() {
         ZiggyConfiguration.reset();
+        if (property.equals(PropertyName.TEST_ENVIRONMENT.property())) {
+            System.clearProperty(PropertyName.TEST_ENVIRONMENT.property());
+        }
     }
 
     /**

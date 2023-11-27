@@ -49,10 +49,7 @@ public class PipelineOperations {
     }
 
     /**
-     * Get the latest version for the specified {@link ModuleName}
-     *
-     * @param moduleName
-     * @return
+     * Get the latest version for the specified module name.
      */
     public PipelineModuleDefinition retrieveLatestModuleDefinition(String moduleName) {
         PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
@@ -72,9 +69,6 @@ public class PipelineOperations {
      * {@link PipelineDefinitionNode}. This is a union of the Parameters classes required by the
      * PipelineModule itself and the Parameters classes required by the UnitOfWorkTaskGenerator
      * associated with the node.
-     *
-     * @param pipelineNode
-     * @return
      */
     public Set<ClassWrapper<ParametersInterface>> retrieveRequiredParameterClassesForNode(
         PipelineDefinitionNode pipelineNode) {
@@ -97,7 +91,7 @@ public class PipelineOperations {
     }
 
     /**
-     * Update the specified {@link ParameterSetName} with the specified {@link Parameters}.
+     * Update the specified {@link ParameterSet} with the specified {@link Parameters}.
      * <p>
      * If if the parameters instance is different than the parameter set, then apply the changes. If
      * locked, first create a new version.
@@ -105,9 +99,10 @@ public class PipelineOperations {
      * The new ParameterSet version is returned if one was created, otherwise the old one is
      * returned.
      *
-     * @param parameters
-     * @param forceSave If true, save the new ParameterSet even if nothing changed
-     * @return
+     * @param parameterSetName the name of the parameter set
+     * @param parameters the parameters to save
+     * @param forceSave if true, save the new ParameterSet even if nothing changed
+     * @return the object to use after this call
      */
     public ParameterSet updateParameterSet(String parameterSetName, Parameters parameters,
         boolean forceSave) {
@@ -124,9 +119,6 @@ public class PipelineOperations {
      * <p>
      * The new ParameterSet version is returned if one was created, otherwise the old one is
      * returned.
-     *
-     * @param parameterSet
-     * @return
      */
     public ParameterSet updateParameterSet(ParameterSet parameterSet,
         ParametersInterface newParameters, boolean forceSave) {
@@ -207,7 +199,7 @@ public class PipelineOperations {
     /**
      * Validates that this {@link PipelineDefinition} is valid for firing. Checks that the
      * associated pipeline definition objects have not changed in an incompatible way and that all
-     * {@link ParameterSetName}s are set.
+     * {@link ParameterSet}s are set.
      */
     public TriggerValidationResults validateTrigger(PipelineDefinition pipelineDefinition) {
         if (pipelineDefinition == null) {
@@ -225,9 +217,6 @@ public class PipelineOperations {
     /**
      * Validate that the trigger {@link ParameterSetName}s are all set and match the parameter
      * classes specified in the {@link PipelineDefinition}
-     *
-     * @param pipelineDefinition
-     * @param validationResults
      */
     private void validateTriggerParameters(PipelineDefinition pipelineDefinition,
         TriggerValidationResults validationResults) {
@@ -239,10 +228,6 @@ public class PipelineOperations {
         }
     }
 
-    /**
-     * @param pipelineDefinition
-     * @param validationResults
-     */
     private void validateTriggerParametersForNode(PipelineDefinition pipelineDefinition,
         PipelineDefinitionNode pipelineDefinitionNode, TriggerValidationResults validationResults) {
         String errorLabel = "module: " + pipelineDefinitionNode.getModuleName();
@@ -265,8 +250,6 @@ public class PipelineOperations {
     /**
      * Validate that the trigger {@link ParameterSetName}s are all set and match the parameter
      * classes specified in the {@link PipelineDefinition} for a given trigger node (module)
-     *
-     * @param validationResults
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void validateTriggerParameters(
@@ -332,11 +315,6 @@ public class PipelineOperations {
         }
     }
 
-    /**
-     * @param parameterSetNames
-     * @param errorLabel
-     * @param validationResults
-     */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void validateParameterClassExists(
         Map<ClassWrapper<ParametersInterface>, String> parameterSetNames, String errorLabel,
@@ -350,6 +328,19 @@ public class PipelineOperations {
                     + classWrapper.getClassName());
             }
         }
+    }
+
+    /**
+     * Updates the state of a {@link PipelineTask} and simultaneously updates the state of that
+     * task's {@link PipelineInstance} if need be. Returns a {@link TaskStateSummary} that has the
+     * {@link TaskCounts} for the instance and also the task's {@link PipelineInstanceNode}. This is
+     * a safer method to use than the "bare"
+     * {@link PipelineTask#setState(gov.nasa.ziggy.pipeline.definition.PipelineTask.State)} because
+     * it also automatically updates the pipeline instance, and starts or stops execution clocks as
+     * needed.
+     */
+    public TaskStateSummary setTaskState(long taskId, PipelineTask.State state) {
+        return setTaskState(new PipelineTaskCrud().retrieve(taskId), state);
     }
 
     /**
@@ -435,6 +426,11 @@ public class PipelineOperations {
         return TaskCounts.from(new PipelineTaskCrud().retrieveStates(pipelineInstanceNode));
     }
 
+    public TaskCounts taskCounts(long pipelineInstanceNodeId) {
+        return TaskCounts.from(new PipelineTaskCrud()
+            .retrieveStates(new PipelineInstanceNodeCrud().retrieve(pipelineInstanceNodeId)));
+    }
+
     /**
      * Determines whether all pipeline instances have completed execution. This means that all nodes
      * have tasks that submitted and all tasks for all nodes are either complete or errored.
@@ -453,9 +449,6 @@ public class PipelineOperations {
     /**
      * Generate a text report containing pipeline instance metadata including all parameter sets and
      * their values.
-     *
-     * @param instance
-     * @return
      */
     public String generatePedigreeReport(PipelineInstance instance) {
         PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
@@ -593,9 +586,6 @@ public class PipelineOperations {
         report.append("    min memory MB: " + module.getMinMemoryMegaBytes() + nl);
     }
 
-    /**
-     * @param pipelineDefinition
-     */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void exportPipelineParams(PipelineDefinition pipelineDefinition,
@@ -646,9 +636,6 @@ public class PipelineOperations {
     /**
      * Creates a textual report of all ParameterSets in the Parameter Library, including name, type,
      * keys and values.
-     *
-     * @param csvMode
-     * @return
      */
     public String generateParameterLibraryReport(boolean csvMode) {
         StringBuilder report = new StringBuilder();
@@ -665,10 +652,6 @@ public class PipelineOperations {
 
     /**
      * Used by generatePedigreeReport
-     *
-     * @param report
-     * @param paramSet
-     * @param indent
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void appendParameterSetToReport(StringBuilder report, ParameterSet paramSet,

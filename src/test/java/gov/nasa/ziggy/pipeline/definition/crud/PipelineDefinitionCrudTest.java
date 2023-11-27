@@ -116,10 +116,8 @@ public class PipelineDefinitionCrudTest {
         pipelineNode1.getNextNodes().add(pipelineNode2);
 
         pipelineNode1.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-        pipelineNode1.setStartNewUow(false);
 
         pipelineNode2.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-        pipelineNode2.setStartNewUow(false);
 
         pipelineDef.addRootNode(pipelineNode1);
 
@@ -405,7 +403,6 @@ public class PipelineDefinitionCrudTest {
             expectedModuleDef3.getName(), pipelineDef.getName());
         pipelineDef.getRootNodes().get(0).getNextNodes().get(0).getNextNodes().add(newPipelineNode);
         newPipelineNode.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-        newPipelineNode.setStartNewUow(false);
         return newPipelineNode;
     }
 
@@ -458,7 +455,6 @@ public class PipelineDefinitionCrudTest {
             expectedModuleDef3.getName(), pipelineDef.getName());
         pipelineDef.getRootNodes().get(0).getNextNodes().add(newPipelineNode);
         newPipelineNode.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-        newPipelineNode.setStartNewUow(false);
         return newPipelineNode;
     }
 

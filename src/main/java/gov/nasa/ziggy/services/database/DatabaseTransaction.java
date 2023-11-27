@@ -21,7 +21,6 @@ import gov.nasa.ziggy.module.PipelineException;
  * {@link PipelineException} is thrown at the end of the catch block (if the method returns false).
  * Default is false (i.e., at the end of the catch block throw another exception).
  * </ol>
- * <p>
  *
  * @see gov.nasa.ziggy.services.database.DatabaseTransactionFactory
  * @author PT
@@ -32,7 +31,7 @@ public interface DatabaseTransaction<T> {
     /**
      * Contains the contents of the transaction. Override in concrete class or lambda.
      *
-     * @throws Exception, given that the transaction could throw just about anything.
+     * @throws Exception given that the transaction could throw just about anything
      */
     T transaction() throws Exception;
 

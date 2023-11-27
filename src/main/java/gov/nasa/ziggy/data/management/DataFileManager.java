@@ -127,8 +127,9 @@ public class DataFileManager {
 
     /**
      * Constructor with PipelineTask and Paths to the task directory and the datastore root. Used in
-     * pipeline modules that use the DefaultUnitOfWork and DataFileType instances to identify and
-     * manage files that need to be moved between the task directory and the datastore.
+     * pipeline modules that use the UnitOfWorkGenerator.defaultUnitOfWorkGenerator() and
+     * DataFileType instances to identify and manage files that need to be moved between the task
+     * directory and the datastore.
      */
     public DataFileManager(Path datastoreRoot, Path taskDirectory, PipelineTask pipelineTask) {
         this.pipelineTask = pipelineTask;
@@ -215,8 +216,7 @@ public class DataFileManager {
      *
      * @param datastoreDataFilesMap files to be copied, in the form of a {@link Map} that uses
      * {@link DataFileType} as its key and a {@link Set} of data file {@link Path} instances as the
-     * map values.
-     * @param taskConfig {@link TaskConfigurationParameters} instance.
+     * map values
      */
     public Map<DataFileType, Set<Path>> copyDataFilesByTypeToTaskDirectory(
         Map<DataFileType, Set<Path>> datastoreDataFilesMap) {
@@ -227,13 +227,11 @@ public class DataFileManager {
         for (Set<Path> paths : datastoreFilesMap.values()) {
             datastoreFiles.addAll(paths);
         }
-        // obtain the originators for all datastore files and add them as producers to the
-        // current pipeline task; also delete any existing ones so that in the event of a
-        // reprocess the correct information is reflected.
-        Set<Long> producerTaskIds = datastoreProducerConsumerCrud()
-            .retrieveProducers(datastoreFiles);
-        pipelineTask.clearProducerTaskIds();
-        pipelineTask.setProducerTaskIds(producerTaskIds);
+
+        // Obtain the originators for all datastore files and replace them as producers to the
+        // current pipeline task; in the event of a reprocess the correct information is reflected.
+        pipelineTask
+            .setProducerTaskIds(datastoreProducerConsumerCrud().retrieveProducers(datastoreFiles));
 
         return datastoreFilesMap;
     }
@@ -243,8 +241,6 @@ public class DataFileManager {
      *
      * @param datastoreSubDir subdirectory of datastore to use as the file source
      * @param dataFileTypes set of DataFileType instances to use for the search
-     * @param taskConfig {@link TaskConfigurationManager} instance that indicates whether full
-     * processing or "keep ahead" processing is performed
      * @return non @code{null} set of {@link Path} instances for data files to be used as input
      */
     public Set<Path> dataFilesForInputs(Path datastoreSubDir, Set<DataFileType> dataFileTypes) {
@@ -503,13 +499,10 @@ public class DataFileManager {
                 taskDirectory.resolve(dataFileInfo.getName()));
         }
 
-        // obtain the originators for all datastore files and add them as producers to the
-        // current pipeline task; also delete any existing ones so that in the event of a
-        // reprocess the correct information is reflected.
-        Set<Long> producerTaskIds = datastoreProducerConsumerCrud()
-            .retrieveProducers(new HashSet<>(dataFileInfoToPath.values()));
-        pipelineTask.clearProducerTaskIds();
-        pipelineTask.setProducerTaskIds(producerTaskIds);
+        // Obtain the originators for all datastore files and replace them as producers to the
+        // current pipeline task; in the event of a reprocess the correct information is reflected.
+        pipelineTask.setProducerTaskIds(datastoreProducerConsumerCrud()
+            .retrieveProducers(new HashSet<>(dataFileInfoToPath.values())));
     }
 
     /**

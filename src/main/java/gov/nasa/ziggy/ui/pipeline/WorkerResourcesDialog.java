@@ -74,10 +74,9 @@ public class WorkerResourcesDialog extends JDialog implements TableMouseListener
 
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
         getContentPane()
-            .add(
-                createButtonPanel(createButton(CANCEL,
-                    "Cancel any changes made here and close dialog box.", this::cancel),
-                    createButton(CLOSE, "Close this dialog box.", this::close)),
+            .add(createButtonPanel(createButton(CLOSE, "Close this dialog box.", this::close),
+                createButton(CANCEL, "Cancel any changes made here and close dialog box.",
+                    this::cancel)),
                 BorderLayout.SOUTH);
 
         setMinimumSize(ZiggySwingUtils.MIN_DIALOG_SIZE);

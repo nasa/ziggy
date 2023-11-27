@@ -83,11 +83,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
 
     /**
      * Copy datastore files needed as inputs to the specified working directory.
-     *
-     * @param taskConfigurationManager
-     * @param pipelineTask
-     * @param taskWorkingDirectory
-     * @throws PipelineException
      */
     protected void copyDatastoreFilesToTaskDirectory(
         TaskConfigurationManager taskConfigurationManager, PipelineTask pipelineTask,
@@ -180,9 +175,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
      * Performs inputs marshaling for MARSHALING processing state, also clear all existing producer
      * task IDs and update the PipelineTask instance after new producer task IDs are set. Updates
      * the processing state to the ALGORITHM_SUBMITTING.
-     *
-     * @return true if inputs were produced and processing can continue, false if no inputs produced
-     * so processing must stop.
      */
     @Override
     public void marshalingTaskAction() {
@@ -593,32 +585,32 @@ public class ExternalProcessPipelineModule extends PipelineModule
         return pipelineTask.getModuleName();
     }
 
-    // Used in testing. Thus package scope.
+    /** For testing only. */
     PipelineInputs pipelineInputs() {
         return pipelineInputs;
     }
 
-    // Used in testing. Thus package scope.
+    /** For testing only. */
     PipelineOutputs pipelineOutputs() {
         return pipelineOutputs;
     }
 
-    // Used in testing, thus package scope.
+    /** For testing only. */
     boolean isProcessingSuccessful() {
         return processingSuccessful;
     }
 
-    // Used in testing, thus package scope.
+    /** For testing only. */
     DatastoreProducerConsumerCrud datastoreProducerConsumerCrud() {
         return new DatastoreProducerConsumerCrud();
     }
 
-    // Used in testing, thus package scope.
+    /** For testing only. */
     boolean getDoneLooping() {
         return doneLooping;
     }
 
-    // Used in testing, thus package scope.
+    /** For testing only. */
     void setDoneLooping(boolean doneLooping) {
         this.doneLooping = doneLooping;
     }

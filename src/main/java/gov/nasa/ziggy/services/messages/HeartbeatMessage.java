@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.StatusMessage;
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * Provides a signal, with timestamp, from the supervisor to all clients currently in contact with
@@ -46,7 +46,7 @@ public class HeartbeatMessage extends StatusMessage {
 
     public HeartbeatMessage() {
         log.debug("Supervisor heartbeat message generated");
-        heartbeatTimeMillis = SystemTime.currentTimeMillis();
+        heartbeatTimeMillis = SystemProxy.currentTimeMillis();
     }
 
     public long getHeartbeatTimeMillis() {

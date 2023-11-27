@@ -14,7 +14,7 @@ import gov.nasa.ziggy.ui.util.models.AbstractDatabaseListModel;
 import gov.nasa.ziggy.ui.util.proxy.ParameterSetCrudProxy;
 
 /**
- * Select a {@link ParameterSetName} from a list or create a new one.
+ * Select a {@link ParameterSet} from a list or create a new one.
  *
  * @author Todd Klaus
  */

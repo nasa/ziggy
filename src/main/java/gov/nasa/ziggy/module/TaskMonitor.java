@@ -24,7 +24,6 @@ import gov.nasa.ziggy.util.io.LockManager;
  * </ol>
  * In addition, once the {@link ComputeNodeMaster} has completed its post-processing, the class
  * allows the state file to be marked as complete.
- * <p>
  *
  * @author PT
  */

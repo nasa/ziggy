@@ -8,11 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
@@ -41,9 +39,9 @@ import gov.nasa.ziggy.services.database.DatabaseTransaction;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.events.ZiggyEventLabels;
+import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
@@ -182,75 +180,39 @@ public class PipelineExecutor {
      * The transition logic generates the worker task request messages for the next module in this
      * pipeline. This method only executes if the task in question completed successfully.
      */
-    public void transitionToNextInstanceNode(PipelineInstance instance, PipelineTask task,
+    public void transitionToNextInstanceNode(PipelineInstanceNode instanceNode,
         TaskCounts currentNodeTaskCounts) {
 
         List<PipelineInstanceNode> nodesForLaunch = new ArrayList<>();
-        List<PipelineDefinitionNode> nextPipelineDefinitionNodesSimpleTransition = new ArrayList<>();
         List<PipelineDefinitionNode> nextPipelineDefinitionNodesNewUowTransition = new ArrayList<>();
-        log.debug("current task = " + task.getId());
-        log.info("task.isRetried(): " + task.isRetry());
 
         // Determine which pipeline definition nodes can perform a simple transition and which ones
         // require a new-UOW transition.
         DatabaseTransactionFactory.performTransaction(() -> {
 
-            Memdrone memdrone = new Memdrone(task.getModuleName(),
-                task.getPipelineInstance().getId());
-            if (Memdrone.memdroneEnabled()) {
-                memdrone.createStatsCache();
-                memdrone.createPidMapCache();
-            }
-
-            log.info("instanceNode " + currentNodeTaskCounts.log());
-            List<PipelineDefinitionNode> nextNodes = task.getPipelineDefinitionNode()
+            List<PipelineDefinitionNode> nextNodes = instanceNode.getPipelineDefinitionNode()
                 .getNextNodes();
-            nextPipelineDefinitionNodesSimpleTransition
-                .addAll(nodesWithSimpleTransition(nextNodes));
             nextPipelineDefinitionNodesNewUowTransition.addAll(nextNodes);
-            nextPipelineDefinitionNodesNewUowTransition
-                .removeAll(nextPipelineDefinitionNodesSimpleTransition);
             return null;
         });
 
-        // If there are simple transitions to later nodes, execute them now.
-        if (!nextPipelineDefinitionNodesSimpleTransition.isEmpty()) {
-            simpleTransition(instance, task, nextPipelineDefinitionNodesSimpleTransition);
-        }
-
         // The new-UOW transitions need to do some additional database work.
         DatabaseTransactionFactory.performTransaction(() -> {
-
-            PipelineInstanceNode instanceNode = task.getPipelineInstanceNode();
-            TaskCounts instanceNodeCounts = pipelineOperations.taskCounts(instanceNode);
-
-            // If there are any tasks still running, then we can't perform any new-UOW transitions.
-            if (!instanceNodeCounts.isInstanceNodeExecutionComplete()) {
-                log.info("Tasks remaining for this node, doing nothing");
-                return null;
-            }
 
             // If there aren't any pipeline definition nodes to transition to, return.
             if (nextPipelineDefinitionNodesNewUowTransition.isEmpty()) {
                 return null;
             }
 
-            // If we got here, then the tasks for the current node are done and there are additional
-            // nodes that need to be run. However! We can't do that if the instance is stalled due
-            // to
-            // errored tasks.
-            if (!currentNodeTaskCounts.isInstanceNodeComplete()) {
-                log.error("Halting pipeline execution due to errors in node {}",
-                    instanceNode.getPipelineDefinitionNode().getModuleName());
-                return null;
-            }
-
-            // Generate instance nodes for the remaining definition nodes.
+            // Retrieve instance nodes for the remaining definition nodes (there might not
+            // be any if we're at the end of the pipeline instance).
             for (PipelineDefinitionNode node : nextPipelineDefinitionNodesNewUowTransition) {
-                log.info("Launching node {} with a new UOW", node.getModuleName());
-                PipelineInstanceNode nextInstanceNode = pipelineInstanceNodeCrud.retrieve(instance,
-                    node);
-                nodesForLaunch.add(nextInstanceNode);
+                PipelineInstanceNode nextInstanceNode = pipelineInstanceNodeCrud
+                    .retrieve(instanceNode.getPipelineInstance(), node);
+                if (nextInstanceNode != null) {
+                    log.info("Launching node {} with a new UOW", node.getModuleName());
+                    nodesForLaunch.add(nextInstanceNode);
+                }
             }
             return null;
         });
@@ -258,43 +220,6 @@ public class PipelineExecutor {
         // Finally, launch the nodes.
         for (PipelineInstanceNode node : nodesForLaunch) {
             launchNode(node);
-        }
-    }
-
-    /**
-     * Returns the {@link PipelineDefinitionNode}s that have a simple transition from the current
-     * node (here "simple transition" means that no new UOW is started).
-     */
-    private List<PipelineDefinitionNode> nodesWithSimpleTransition(
-        List<PipelineDefinitionNode> nodes) {
-        List<PipelineDefinitionNode> nodesWithSimpleTransition = new ArrayList<>();
-        if (CollectionUtils.isEmpty(nodes)) {
-            return nodesWithSimpleTransition;
-        }
-        for (PipelineDefinitionNode node : nodes) {
-            if (!node.isStartNewUow()) {
-                nodesWithSimpleTransition.add(node);
-            }
-        }
-        return nodesWithSimpleTransition;
-    }
-
-    /**
-     * Performs simple transitions. Simple transitions are transitions that reuse a unit of work,
-     * which means that they do not need to wait for all the tasks in the current instance node to
-     * complete before launching new tasks.
-     */
-    private void simpleTransition(PipelineInstance instance, PipelineTask task,
-        List<PipelineDefinitionNode> nextNodesSimpleTransition) {
-        for (PipelineDefinitionNode node : nextNodesSimpleTransition) {
-
-            log.info("Node {} uses the same UOW as {}, creating task with reused UOW",
-                node.getModuleName(), task.getPipelineDefinitionNode().getModuleName());
-            PipelineInstanceNode nextInstanceNode = (PipelineInstanceNode) DatabaseTransactionFactory
-                .performTransaction(() -> pipelineInstanceNodeCrud.retrieve(instance, node));
-            UnitOfWork nextUowTask = task.uowTaskInstance();
-
-            launchTasks(nextInstanceNode, instance, List.of(nextUowTask));
         }
     }
 
@@ -311,7 +236,7 @@ public class PipelineExecutor {
             {} / {} / {} / {}""", state.getTaskCount(), state.getSubmittedTaskCount(),
             state.getCompletedTaskCount(), state.getFailedTaskCount());
 
-        log.info("updateInstanceState: updated PipelineInstance.state = {} for id: ",
+        log.info("updateInstanceState: updated PipelineInstance.state = {} for id: {}",
             pipelineInstance.getState(), pipelineInstance.getId());
     }
 
@@ -379,7 +304,7 @@ public class PipelineExecutor {
         log.info("""
             node {} state:\s\
             numTasks/numSubmittedTasks/numCompletedTasks/numFailedTasks =\s\s\
-            {} / {} {} / {}""", initialOrFinal, instanceNodeCounts.getTaskCount(),
+            {} / {} / {} / {}""", initialOrFinal, instanceNodeCounts.getTaskCount(),
             instanceNodeCounts.getSubmittedTaskCount(), instanceNodeCounts.getCompletedTaskCount(),
             instanceNodeCounts.getFailedTaskCount());
     }
@@ -424,7 +349,7 @@ public class PipelineExecutor {
 
     /** Replace with dummy method in unit testing. */
     public void removeTaskFromKilledTaskList(long taskId) {
-        TaskRequestHandlerLifecycleManager.removeTaskFromKilledTaskList(taskId);
+        ZiggyMessenger.publish(new RemoveTaskFromKilledTasksMessage(taskId));
     }
 
     /**
@@ -438,10 +363,8 @@ public class PipelineExecutor {
         Map<ClassWrapper<ParametersInterface>, ParameterSet> uowModuleParameterSets = instanceNode
             .getModuleParameterSets();
         log.debug("launchNode 1: start");
-        PipelineDefinitionNode taskGeneratorNode = instanceNode.getPipelineDefinitionNode()
-            .taskGeneratorNode();
 
-        launchNode(instanceNode, taskGeneratorNode, uowModuleParameterSets);
+        launchNode(instanceNode, uowModuleParameterSets);
     }
 
     /**
@@ -453,12 +376,11 @@ public class PipelineExecutor {
      * @return
      */
     private void launchNode(PipelineInstanceNode instanceNode,
-        PipelineDefinitionNode taskGeneratorNode,
         Map<ClassWrapper<ParametersInterface>, ParameterSet> uowModuleParameterSets) {
         PipelineInstance instance = instanceNode.getPipelineInstance();
         instanceNode.getPipelineDefinitionNode();
         ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = unitOfWorkGenerator(
-            taskGeneratorNode);
+            instanceNode.getPipelineDefinitionNode());
 
         log.debug("launchNode 2: start");
 
@@ -501,7 +423,7 @@ public class PipelineExecutor {
         List<UnitOfWork> tasks = new ArrayList<>();
         tasks = unitOfWorkGenerator.newInstance().generateUnitsOfWork(uowParams);
         log.info("Generated " + tasks.size() + " tasks for pipeline definition node "
-            + taskGeneratorNode.getModuleName());
+            + instanceNode.getPipelineDefinitionNode().getModuleName());
 
         if (tasks.isEmpty()) {
             throw new PipelineException("Task generation did not generate any tasks!  UOW class: "

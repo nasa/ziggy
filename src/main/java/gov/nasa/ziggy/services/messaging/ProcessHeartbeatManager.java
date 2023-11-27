@@ -14,7 +14,7 @@ import gov.nasa.ziggy.ui.status.ProcessesStatusPanel;
 import gov.nasa.ziggy.ui.status.StatusPanel;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 
 /**
@@ -33,8 +33,8 @@ import gov.nasa.ziggy.util.ZiggyShutdownHook;
  * If there have been no new heartbeats since the last one recorded by the
  * {@link ProcessHeartbeatManager}, the Processes summary goes "Yellow," the {@link ZiggyRmiClient}
  * instance is deleted, and a new instance is created; this is necessary because, if the supervisor
- * has restarted, it needs new copies of the {@link MessageHandler} from each UI, which are provided
- * during construction of the {@link ZiggyRmiClient}.
+ * has restarted, it needs new {@link ZiggyRmiClient} services from each process that uses
+ * {@link ZiggyRmiClient}.
  * <p>
  * If, after deleting and reconstructing the {@link ZiggyRmiClient}, the supervisor is still not
  * heard from, the Processes summary goes to "Red," and the heartbeat monitoring is terminated. At
@@ -68,9 +68,6 @@ public class ProcessHeartbeatManager {
      * Constructor for test purposes. This allows the caller to supply a mocked instance of the
      * class that performs all "external" methods (where in this case an external method is one we
      * want to mock and/or detect the use of).
-     *
-     * @param messageHandler
-     * @param externalMethodsManager
      */
     protected ProcessHeartbeatManager(HeartbeatManagerAssistant heartbeatManagerAssistant,
         ClusterController clusterController) {
@@ -124,7 +121,7 @@ public class ProcessHeartbeatManager {
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private void initializeHeartbeatManagerInternal() {
         heartbeatCountdownLatch = new CountDownLatch(1);
-        SystemTime.currentTimeMillis();
+        SystemProxy.currentTimeMillis();
         log.debug("Heartbeat time: " + heartbeatTime);
         try {
             // If the console, for example, is stopped for a few hours and then resumed,
@@ -206,8 +203,6 @@ public class ProcessHeartbeatManager {
      * Check for a heartbeat more recent than the last one recorded. If none has happened, attempt
      * to delete and recreate the {@link ZiggyRmiClient} and restart checking for heartbeats. If
      * those attempts fail, stop all automated checking and set the Processes summary to "Red."
-     *
-     * @throws NoHeartbeatException
      */
     protected void checkForHeartbeat() throws NoHeartbeatException {
         if (heartbeatTime > priorHeartbeatTime) {
@@ -263,22 +258,22 @@ public class ProcessHeartbeatManager {
         return heartbeatTime;
     }
 
-    // For testing use only.
+    /** For testing use only. */
     protected void setClusterController(ClusterController clusterController) {
         this.clusterController = clusterController;
     }
 
-    // For testing use only.
+    /** For testing use only. */
     void setReinitializeOnMissedHeartbeat(boolean reinitialize) {
         reinitializeOnMissedHeartbeat = reinitialize;
     }
 
-    // For testing use only.
+    /** For testing use only. */
     void setHeartbeatTime(long heartbeatTime) {
         this.heartbeatTime = heartbeatTime;
     }
 
-    // For testing use only.
+    /** For testing use only. */
     static void setInitializeInThread(boolean initInThread) {
         initializeInThread = initInThread;
     }

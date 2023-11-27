@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,11 +15,11 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
+import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messages.WorkerResources;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -46,12 +45,11 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     private static final Logger log = LoggerFactory
         .getLogger(TaskRequestHandlerLifecycleManager.class);
 
-    /** Singleton instance */
-    private static TaskRequestHandlerLifecycleManager instance;
+    /** Singleton instance. */
+    protected static TaskRequestHandlerLifecycleManager instance;
 
     private CountDownLatch taskRequestThreadCountdownLatch;
     private final PriorityBlockingQueue<TaskRequest> taskRequestQueue = new PriorityBlockingQueue<>();
-    private final Set<Long> killedTaskIds = ConcurrentHashMap.newKeySet();
 
     // Use a boxed instance so it can be null.
     private Long pipelineDefinitionNodeId;
@@ -77,7 +75,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
 
         // Subscribe to kill tasks messages.
         ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
-            killQueuedTasksAction(message.getTaskIds());
+            killQueuedTasksAction(message);
         });
     }
 
@@ -103,40 +101,38 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
      * <p>
      * This method is package scoped to facilitate testing.
      */
-    void killQueuedTasksAction(List<Long> taskIds) {
-        // Add the IDs to the supervisor's list of task IDs for use later when the tasks already
-        // in workers are killed
-        killedTaskIds.addAll(taskIds);
-        log.info("Deleting tasks: {}", taskIds);
+    void killQueuedTasksAction(KillTasksRequest request) {
+        List<Long> taskIds = request.getTaskIds();
+
+        // Locate the tasks that are queued and which are in the kill request.
+        log.info("Halting queued tasks: {}", taskIds);
         List<TaskRequest> tasksForDeletion = new ArrayList<>();
         Set<Long> taskIdsForDeletion = new HashSet<>();
-        for (TaskRequest request : taskRequestQueue) {
-            if (taskIds.contains(request.getTaskId())) {
-                tasksForDeletion.add(request);
-                taskIdsForDeletion.add(request.getTaskId());
+        for (TaskRequest taskRequest : taskRequestQueue) {
+            if (taskIds.contains(taskRequest.getTaskId())) {
+                tasksForDeletion.add(taskRequest);
+                taskIdsForDeletion.add(taskRequest.getTaskId());
             }
         }
+
+        // Take the selected tasks out of the queue.
         taskRequestQueue.removeAll(tasksForDeletion);
 
-        // For tasks that were waiting to run, i.e. in the submitted state, we need to manually
-        // set them to ERRORed in the database and update all counts and instance states.
-        if (!taskIdsForDeletion.isEmpty()) {
-            DatabaseTransactionFactory.performTransaction(() -> {
-                PipelineTaskCrud pipelineTaskCrud = pipelineTaskCrud();
-                PipelineOperations pipelineOperations = pipelineOperations();
-                List<PipelineTask> tasks = pipelineTaskCrud.retrieveAll(taskIdsForDeletion);
-                for (PipelineTask task : tasks) {
-                    pipelineOperations.setTaskState(task, PipelineTask.State.ERROR);
-                }
-                return null;
-            });
-
-            // Issue alerts, too!
-            for (long taskId : taskIdsForDeletion) {
-                alertService().generateAndBroadcastAlert("PI", taskId, AlertService.Severity.ERROR,
-                    "Task " + taskId + " deleted from processing queue.");
-            }
+        // Removing a task from the queue is easy, so we can just assume this was successful
+        // and publish the success messages.
+        for (TaskRequest taskRequest : tasksForDeletion) {
+            publishKilledTaskMessage(request, taskRequest.getTaskId());
         }
+    }
+
+    /**
+     * Publishes the {@link KilledTaskMessage}.
+     */
+    // TODO Inline
+    // This requires that the ZiggyMessenger.publish() call can be verified by Mockito.
+    // The KillTaskMessage.timeSent field makes it difficult.
+    void publishKilledTaskMessage(KillTasksRequest request, long taskId) {
+        ZiggyMessenger.publish(new KilledTaskMessage(request, taskId));
     }
 
     /** CRUD class constructor. Broken out to facilitate testing. */
@@ -220,12 +216,9 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                     taskRequestHandlers.add(handlers);
                 }
 
-                // Wait for the countdown latch to hit zero.
+                // Wait for the countdown latch to hit zero, then loop back to
+                // process tasks for some other pipeline instance node.
                 taskRequestThreadCountdownLatch.await();
-
-                // Discard the existing thread pool and loop back to the top to wait for
-                // a new task request.
-                pipelineDefinitionNodeId = null;
             }
         } catch (InterruptedException e) {
             shutdown();
@@ -252,12 +245,9 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                 .workerResources());
     }
 
-    public static boolean taskOnKilledTaskList(long taskId) {
-        return instance.killedTaskIds.contains(taskId);
-    }
-
-    public static void removeTaskFromKilledTaskList(long taskId) {
-        instance.killedTaskIds.remove(taskId);
+    /** For testing only. */
+    static void setInstance(TaskRequestHandlerLifecycleManager instance) {
+        TaskRequestHandlerLifecycleManager.instance = instance;
     }
 
     /** For testing only. */
@@ -276,7 +266,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     }
 
     /**
-     * For testing only. Public scope because the {@link AlgorithmMonitorTest} needs to see whether
+     * For testing only. Public scope because the {@code AlgorithmMonitorTest} needs to see whether
      * the task requests have been properly managed.
      */
     public int taskRequestSize() {

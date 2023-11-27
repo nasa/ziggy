@@ -178,7 +178,7 @@ public class InstancesTable extends JPanel {
             ZiggySwingUtils.MENU_SEPARATOR,
             createMenuItem("Restart all failed tasks" + DIALOG, this::restartTasks),
             ZiggySwingUtils.MENU_SEPARATOR,
-            createMenuItem("Kill all incomplete tasks", this::killTasks));
+            createMenuItem("Halt all incomplete tasks", this::haltTasks));
     }
 
     private void displayDetails(ActionEvent evt) {
@@ -245,8 +245,8 @@ public class InstancesTable extends JPanel {
         instancesTasksPanel.restartTasks(null);
     }
 
-    private void killTasks(ActionEvent evt) {
-        instancesTasksPanel.killTasks(null);
+    private void haltTasks(ActionEvent evt) {
+        instancesTasksPanel.haltTasks(null);
     }
 
     public ETable getTable() {
@@ -266,7 +266,7 @@ public class InstancesTable extends JPanel {
     }
 
     public PipelineInstance selectedPipelineInstance() {
-        if (selectedInstanceIndex <= 0) {
+        if (selectedInstanceIndex < 0) {
             return null;
         }
         return instancesTableModel.getContentAtRow(selectedInstanceIndex).getPipelineInstance();
@@ -338,9 +338,7 @@ public class InstancesTable extends JPanel {
 
                 @Override
                 protected void done() {
-                    if (isModelValid()) {
-                        fireTableDataChanged();
-                    }
+                    fireTableDataChanged();
                 }
             };
             swingWorker.execute();

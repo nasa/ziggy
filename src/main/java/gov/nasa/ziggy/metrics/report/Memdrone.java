@@ -62,6 +62,7 @@ public class Memdrone {
 
     static final String MEMDRONE_STATS_CACHE_FILENAME = ".memdrone-stats-cache.ser";
     static final String PID_MAP_CACHE_FILENAME = ".pid-map-cache.ser";
+
     /**
      * Stores the relationship between the name root of a {@link Memdrone} instance and the
      * {@link ExecuteWatchdog} associated with its running shell script. Must be static so that an
@@ -115,8 +116,7 @@ public class Memdrone {
      * match the module name and instance ID, and returning the one with the most recent timestamp
      * in its name.
      *
-     * @return {@link Path} for the most recent memory statistics directory.
-     * @throws IOException if listing the files in the statistics main directory fails.
+     * @return {@link Path} for the most recent memory statistics directory
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public Path latestMemdronePath() {
@@ -195,7 +195,7 @@ public class Memdrone {
      * Collects the memory usage statistics for each process and returns as a {@link Map}. If the
      * information has already been collected and serialized, it is deserialized and returned.
      *
-     * @return a {@link Map} from process ID to memory usage time series.
+     * @return a {@link Map} from process ID to memory usage time series
      */
     @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
@@ -233,8 +233,7 @@ public class Memdrone {
      * Generates a {@link Map} between each process ID and the corresponding task/subtask. If the
      * mapping has already been generated and serialized, it is deserialized and returned.
      *
-     * @return {@link Map} from process ID to task information.
-     * @throws Exception if any file operations fail.
+     * @return {@link Map} from process ID to task information
      */
     @SuppressFBWarnings(value = "OBJECT_DESERIALIZATION",
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
@@ -313,7 +312,7 @@ public class Memdrone {
     }
 
     /**
-     * Generates and serializes the {@link} map between process ID and task/subtask.
+     * Generates and serializes the map between process ID and task/subtask.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
@@ -385,7 +384,7 @@ public class Memdrone {
         return date;
     }
 
-    // This method is for test purposes only
+    /** For testing only. */
     void setDate(Date date) {
         this.date = date;
     }

@@ -133,13 +133,11 @@ public class PipelineInstanceTaskCrudTest {
                 pipelineDef.getName());
             pipelineDefNode1
                 .setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-            pipelineDefNode1.setStartNewUow(true);
 
             pipelineDefNode2 = new PipelineDefinitionNode(moduleDef.getName(),
                 pipelineDef.getName());
             pipelineDefNode2
                 .setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-            pipelineDefNode2.setStartNewUow(true);
 
             pipelineDef.getRootNodes().add(pipelineDefNode1);
             pipelineDefNode1.getNextNodes().add(pipelineDefNode2);

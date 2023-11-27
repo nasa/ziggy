@@ -10,7 +10,7 @@ import gov.nasa.ziggy.services.messages.SpecifiedRequestorMessage;
 import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager.HeartbeatManagerAssistant;
 import gov.nasa.ziggy.ui.ClusterController;
 import gov.nasa.ziggy.ui.status.Indicator;
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * Assorted message handling utilities for testing purposes.
@@ -58,7 +58,7 @@ public class MessagingTestUtils {
          * necessary for the tests, but useful for when a human being is looking at the results.
          */
         private synchronized static long systemTimeOffset() {
-            long sysTime = SystemTime.currentTimeMillis();
+            long sysTime = SystemProxy.currentTimeMillis();
             long scaledSysTime = sysTime / SYS_TIME_SCALING;
             return SYS_TIME_SCALING * scaledSysTime;
         }

@@ -73,7 +73,7 @@ import gov.nasa.ziggy.util.io.LockManager;
  * instances as they complete existing subtasks and are free to start new ones.
  * <p>
  * The {@link ComputeNodeMaster} requires that the environment variable PIPELINE_CONFIG_PATH be set
- * on the computer that runs the {@ComputeNodeMaster} instance.
+ * on the computer that runs the {@link ComputeNodeMaster} instance.
  *
  * @author Todd Klaus
  * @author PT

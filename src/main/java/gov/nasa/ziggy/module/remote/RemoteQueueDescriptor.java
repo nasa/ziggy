@@ -64,7 +64,7 @@ public enum RemoteQueueDescriptor implements Comparator<RemoteQueueDescriptor> {
     }
 
     /**
-     * Uses the standard {@link #compare(RemoteQueueDescriptor, RemoteQueueDescriptor) method
+     * Uses the standard {@link #compare(RemoteQueueDescriptor, RemoteQueueDescriptor)} method
      * enforced by the {@link Comparator} interface to construct a knock-off of the
      * {@link #compareTo(RemoteQueueDescriptor)} method. The reason for this is that enumerations
      * have a final {@link #compareTo(RemoteQueueDescriptor)}, so it cannot be overridden, and the

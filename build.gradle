@@ -7,7 +7,7 @@
 // To view a dependency graph using the taskinfo plugin, run "./gradlew tiTree build"
 
 plugins {
-    id 'com.github.spotbugs' version '5.1.+'
+    id 'com.github.spotbugs' version '5.2.+'
     id 'eclipse'
     id 'jacoco'
     id 'java'
@@ -198,11 +198,13 @@ jacocoTestReport {
 javadoc {
     title = "Ziggy API"
     options.overview = "src/main/java/overview.html"
+    options.addBooleanOption("Xdoclint:-missing", true)
 }
 
 // The SpotBugs plugin adds spotbugsMain and spotbugsTest to the check task.
 spotbugs {
     // The SMP requires that all high priority problems are addressed before testing can commence.
+    // Set reportLevel to 'low' to reveal a handful of interesting and potential bugs.
     reportLevel = 'high'
 }
 

@@ -11,7 +11,6 @@ import java.awt.event.ActionEvent;
 import java.util.List;
 
 import javax.swing.GroupLayout;
-import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -87,11 +86,6 @@ public class TaskInfoDialog extends javax.swing.JDialog {
         JLabel failureCountLabel = boldLabel("Failure count:");
         JLabel failureCountTextField = new JLabel(Integer.toString(pipelineTask.getFailureCount()));
 
-        JLabel transitionLabel = boldLabel("Transition complete:");
-        JCheckBox transitionCheckBox = new JCheckBox();
-        transitionCheckBox.setSelected(pipelineTask.isTransitionComplete());
-        transitionCheckBox.setEnabled(false);
-
         ZiggyTable<ModuleTaskMetrics> processingBreakdownTable = createProcessingBreakdownTable();
         JScrollPane processingBreakdownTableScrollPane = new JScrollPane(
             processingBreakdownTable.getTable());
@@ -115,8 +109,7 @@ public class TaskInfoDialog extends javax.swing.JDialog {
                         .addComponent(endLabel)
                         .addComponent(createdLabel)
                         .addComponent(revisionLabel)
-                        .addComponent(failureCountLabel)
-                        .addComponent(transitionLabel))
+                        .addComponent(failureCountLabel))
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addGroup(dataPanelLayout.createParallelGroup()
                         .addComponent(idTextField)
@@ -130,8 +123,7 @@ public class TaskInfoDialog extends javax.swing.JDialog {
                         .addComponent(endTextField)
                         .addComponent(createdTextField)
                         .addComponent(revisionTextField)
-                        .addComponent(failureCountTextField)
-                        .addComponent(transitionCheckBox)))
+                        .addComponent(failureCountTextField)))
                 .addComponent(processingBreakdownTableScrollPane)));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
@@ -166,9 +158,6 @@ public class TaskInfoDialog extends javax.swing.JDialog {
             .addGroup(dataPanelLayout.createParallelGroup()
                 .addComponent(failureCountLabel)
                 .addComponent(failureCountTextField))
-            .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(transitionLabel)
-                .addComponent(transitionCheckBox))
             .addPreferredGap(ComponentPlacement.UNRELATED)
             .addComponent(processingBreakdownTableScrollPane));
 

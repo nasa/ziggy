@@ -302,7 +302,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
 
             PipelineDefinition existingPipeline = pipelineModel.pipelineByName(newName);
 
-            if (existingPipeline != null && newName != pipeline.getName()) {
+            if (existingPipeline != null && !newName.equals(pipeline.getName())) {
                 // Operator changed pipeline name & it conflicts with an existing
                 // pipeline.
                 JOptionPane.showMessageDialog(this,

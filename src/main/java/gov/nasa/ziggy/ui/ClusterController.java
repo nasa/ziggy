@@ -167,7 +167,6 @@ public class ClusterController {
         STOP_COMMAND, STATUS_COMMAND, CONSOLE_COMMAND, VERSION_COMMAND);
 
     // Uncategorized constants
-    private static final long DATABASE_SETTLE_MILLIS = 4000L;
     private static final String COMMAND_HELP = """
 
         Commands:
@@ -480,19 +479,6 @@ public class ClusterController {
         return ExternalProcess.simpleExternalProcess(supervisorStatusCommand).execute() == 0;
     }
 
-    /**
-     * Waits the given number of milliseconds for a process to settle. Some processes, like
-     * Postgres, will shut down and exit if they are pinged too soon.
-     */
-    private void waitForProcessToSettle(long millis) {
-        try {
-            log.debug("Waiting for process to settle");
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
     private void startCluster(boolean force) {
 
         if (isClusterRunning()) {
@@ -515,7 +501,6 @@ public class ClusterController {
                 } else {
                     int dbStartStatus = databaseController.start();
                     if (dbStartStatus == 0) {
-                        waitForProcessToSettle(DATABASE_SETTLE_MILLIS);
                         log.info("Database started");
                     } else if (dbStartStatus == DatabaseController.NOT_SUPPORTED) {
                         log.info("Not starting a system database");
@@ -613,6 +598,18 @@ public class ClusterController {
             .toString();
         log.debug("Command line: " + consoleCommand);
         ExternalProcess.simpleExternalProcess(consoleCommand).execute(false);
+    }
+
+    /**
+     * Waits the given number of milliseconds for a process to settle.
+     */
+    public static void waitForProcessToSettle(long millis) {
+        try {
+            log.debug("Waiting for process to settle");
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static void usageAndExit(Options options, String message) {

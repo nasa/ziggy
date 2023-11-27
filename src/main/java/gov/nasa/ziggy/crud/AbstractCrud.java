@@ -66,7 +66,7 @@ public abstract class AbstractCrud<U> implements AbstractCrudInterface<U> {
      * Convenience method that returns the current persistence session. Do not cache this locally as
      * it can vary between threads.
      *
-     * @return the persistence session.
+     * @return the persistence session
      */
     protected final Session getSession() {
         return getDatabaseService().getSession();

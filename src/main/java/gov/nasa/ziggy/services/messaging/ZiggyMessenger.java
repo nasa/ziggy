@@ -25,12 +25,12 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
  * <ol>
  * <li>The {@link ZiggyMessenger#subscribe(Class, MessageAction)} allows a user to specify an action
  * that must be taken when a message of a specified class is received.
- * <li>The {@link ZiggyMessenger#publish(PipelineMessage) causes a {@link PipelineMessage} to be
+ * <li>The {@link ZiggyMessenger#publish(PipelineMessage)} causes a {@link PipelineMessage} to be
  * dispatched. If the process hosting the {@link ZiggyMessenger} has an initialized instance of
  * {@link ZiggyRmiClient}, the message is sent to all Ziggy RMI clients via the
- * {@link ZiggyRmiClient#send(PipelineMessage)} method; otherwise, the subscriptions in the current
- * process are used to determine if any action needs to be taken locally. Note that messages that
- * are sent via RMI are then received by all clients, so
+ * {@link ZiggyRmiClient#send(PipelineMessage, CountDownLatch)} method; otherwise, the subscriptions
+ * in the current process are used to determine if any action needs to be taken locally. Note that
+ * messages that are sent via RMI are then received by all clients, so
  * {@link ZiggyMessenger#publish(PipelineMessage)} always works for messages from one activity in a
  * process to another activity in the same process.
  * </ol>
@@ -55,9 +55,7 @@ public class ZiggyMessenger {
      */
     private static LinkedBlockingQueue<PipelineMessage> outgoingMessageQueue = new LinkedBlockingQueue<>();
 
-    /**
-     * For testing only.
-     */
+    /** For testing only. */
     static List<PipelineMessage> messagesFromOutgoingQueue = new ArrayList<>();
 
     /**
@@ -139,7 +137,7 @@ public class ZiggyMessenger {
         }
     }
 
-    // Package scope for testing.
+    /** For testing only. */
     static void initializeInstance() {
         if (!isInitialized()) {
             log.info("Initializing ZiggyMessenger singleton");
@@ -191,8 +189,6 @@ public class ZiggyMessenger {
 
     /**
      * Publishes a message via the {@link ZiggyMessenger} singleton.
-     *
-     * @throws InterruptedException
      */
     public static void publish(PipelineMessage message) {
         publish(message, null);
@@ -221,8 +217,6 @@ public class ZiggyMessenger {
      * Acts on a message via the {@link ZiggyMessenger} singleton. If the singleton has not been
      * initialized, a {@link PipelineException} will be thrown. Package scoped because only
      * {@link ZiggyRmiClient} should use this method.
-     *
-     * @param message
      */
     static void actOnMessage(PipelineMessage message) {
         if (!isInitialized()) {

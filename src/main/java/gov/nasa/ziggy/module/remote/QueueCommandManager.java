@@ -10,12 +10,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob.RemoteJobQstatInfo;
@@ -263,14 +265,30 @@ public abstract class QueueCommandManager {
      *
      * @param pipelineTasks selected pipeline tasks.
      */
-    public void deleteJobsForPipelineTasks(List<PipelineTask> pipelineTasks) {
+    public int deleteJobsForPipelineTasks(List<PipelineTask> pipelineTasks) {
         String qdelArgs = qdelArgsForPipelineTasks(pipelineTasks);
-        qdel(qdelArgs);
+        return qdel(qdelArgs);
     }
 
-    public void deleteJobsByJobId(Collection<Long> jobIds) {
+    public int deleteJobsByJobId(Collection<Long> jobIds) {
         String qdelArgs = qdelArgsForJobIds(jobIds);
-        qdel(qdelArgs);
+        return qdel(qdelArgs);
+    }
+
+    /** Issues the delete command for a single task, based on its state file. */
+    public int deleteJobsForStateFile(StateFile stateFile) {
+
+        // Add the task to monitoring.
+        QstatMonitor monitor = new QstatMonitor(this);
+        monitor.addToMonitoring(stateFile);
+        monitor.update();
+
+        // Get the job IDs.
+        Set<Long> jobIds = monitor.allIncompleteJobIds(stateFile);
+        if (!CollectionUtils.isEmpty(jobIds)) {
+            return qdel(qdelArgsForJobIds(jobIds));
+        }
+        return 0;
     }
 
     /**
@@ -326,7 +344,7 @@ public abstract class QueueCommandManager {
      *
      * @param commandString
      */
-    protected abstract void qdel(String commandString);
+    protected abstract int qdel(String commandString);
 
     // In normal operations these return the hostname and username, which are used
     // to eliminate duplicates from the queue listings. For test purposes they can

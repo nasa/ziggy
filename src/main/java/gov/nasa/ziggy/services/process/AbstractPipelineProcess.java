@@ -101,8 +101,6 @@ public abstract class AbstractPipelineProcess {
     /**
      * Abstract pipeline process should or should not attempt to initialize the datbaase server when
      * starting up.
-     *
-     * @param initDatabaseService
      */
     public void setInitDatabaseService(boolean initDatabaseService) {
         this.initDatabaseService = initDatabaseService;

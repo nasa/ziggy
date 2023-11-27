@@ -57,7 +57,7 @@ public class TaskLog {
 
     /**
      * Enumeration of supported log types. The {#logDir()} method provides the location of the log
-     * files of the selected type. The {@link #taskLogFileAppender(File)} method returns an
+     * files of the selected type. The {@link #taskLogFileAppender(Path)} method returns an
      * appropriate {@link FileAppender} for each task log type.
      *
      * @author PT

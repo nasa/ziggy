@@ -326,8 +326,8 @@ public class ZiggySwingUtils {
     }
 
     /**
-     * Adds buttons to a button panel created with {@link #createButtonPanel()}. Do not use this
-     * method to add buttons at the bottom of the dialog as the results are undefined.
+     * Adds buttons to a button panel created with {@link #createButtonPanel(JButton...)}. Do not
+     * use this method to add buttons at the bottom of the dialog as the results are undefined.
      */
     public static void addButtonsToPanel(JPanel panel, JButton... buttons) {
         JPanel buttonGrid = (JPanel) panel.getComponent(0);
@@ -339,8 +339,8 @@ public class ZiggySwingUtils {
     }
 
     /**
-     * Prepends buttons to a button panel created with {@link #createButtonPanel()}. Do not use this
-     * method to add buttons at the bottom of the dialog as the results are undefined.
+     * Prepends buttons to a button panel created with {@link #createButtonPanel(JButton...)}. Do
+     * not use this method to add buttons at the bottom of the dialog as the results are undefined.
      */
     public static void prependButtonsToPanel(JPanel panel, JButton... buttons) {
         JPanel buttonGrid = (JPanel) panel.getComponent(0);

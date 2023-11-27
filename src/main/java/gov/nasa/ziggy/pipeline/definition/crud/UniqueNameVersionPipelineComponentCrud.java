@@ -75,7 +75,10 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
      */
     public List<String> retrieveNames() {
         ZiggyQuery<U, String> query = createZiggyQuery(componentClass(), String.class);
-        query.column(UniqueNameVersionPipelineComponent_.NAME).select().distinct(true);
+        query.column(UniqueNameVersionPipelineComponent_.NAME)
+            .select()
+            .distinct(true)
+            .ascendingOrder();
         return list(query);
     }
 
@@ -143,7 +146,7 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
      * {@link AbstractCrud#merge(Object)}. The persistent instance is returned. Note that in this
      * case, we're taking advantage of the fact that merge can also be used to persist an object in
      * the database, with some caveats.
-     * <ol>
+     * </ol>
      */
     @SuppressWarnings("unchecked")
     @Override

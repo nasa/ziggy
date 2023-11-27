@@ -13,13 +13,15 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
@@ -29,11 +31,16 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.metrics.MetricsDumper;
 import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.module.AlgorithmMonitor;
+import gov.nasa.ziggy.module.StateFile;
+import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud.ClearStaleStateResults;
+import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -45,6 +52,9 @@ import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.DefaultWorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.EventHandlerRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
+import gov.nasa.ziggy.services.messages.KillTasksRequest;
+import gov.nasa.ziggy.services.messages.KilledTaskMessage;
+import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
 import gov.nasa.ziggy.services.messages.SingleTaskLogMessage;
 import gov.nasa.ziggy.services.messages.SingleTaskLogRequest;
 import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
@@ -79,9 +89,14 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     private static final String SUPERVISOR_BIN_NAME = "supervisor";
     public static final int WORKER_STATUS_REPORT_INTERVAL_MILLIS_DEFAULT = 15000;
 
-    private static final Set<ZiggyEventHandler> ziggyEventHandlers = new HashSet<>();
+    private static final Set<ZiggyEventHandler> ziggyEventHandlers = ConcurrentHashMap.newKeySet();
+
+    // Global list of task IDs that have been killed by the TaskRequestHandlerLifecycleManager,
+    // a PipelineWorker, or the delete command of a remote system's batch scheduler.
+    private static final Set<Long> killedTaskIds = ConcurrentHashMap.newKeySet();
 
     private ScheduledExecutorService heartbeatExecutor;
+    private QueueCommandManager queueCommandManager;
 
     public PipelineSupervisor(int workerCount, int workerHeapSize) {
         super(NAME);
@@ -237,6 +252,15 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         ZiggyMessenger.subscribe(DefaultWorkerResourcesRequest.class, message -> {
             ZiggyMessenger.publish(WorkerResources.getDefaultResources());
         });
+        ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
+            killRemoteTasks(message);
+        });
+        ZiggyMessenger.subscribe(RemoveTaskFromKilledTasksMessage.class, message -> {
+            killedTaskIds.remove(message.getTaskId());
+        });
+        ZiggyMessenger.subscribe(KilledTaskMessage.class, message -> {
+            handleKilledTaskMessage(message);
+        });
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
@@ -257,14 +281,57 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         return stepLogContents;
     }
 
-    public static Set<ZiggyEventHandler> ziggyEventHandlers() {
-        return ziggyEventHandlers;
+    /**
+     * Kills tasks that run remotely. The {@link AlgorithmManager} for remote jobs is queried for
+     * the {@link StateFile} instances of all the tasks it's monitoring. If there are any such, it
+     * uses the PBS qdel command to delete all such tasks from PBS.
+     * <p>
+     * Package scoped for unit testing.
+     */
+    void killRemoteTasks(KillTasksRequest message) {
+        Collection<StateFile> stateFiles = remoteTaskStateFiles();
+        if (CollectionUtils.isEmpty(stateFiles)) {
+            return;
+        }
+        for (StateFile stateFile : stateFiles) {
+            if (message.getTaskIds().contains(stateFile.getPipelineTaskId())
+                && getQueueCommandManager().deleteJobsForStateFile(stateFile) == 0) {
+                publishKilledTaskMessage(message, stateFile.getPipelineTaskId());
+            }
+        }
     }
 
-    public static Set<ZiggyEventHandlerInfoForDisplay> serializableZiggyEventHandlers() {
-        return ziggyEventHandlers.stream()
-            .map(ZiggyEventHandlerInfoForDisplay::new)
-            .collect(Collectors.toSet());
+    /** Sends killed-task message. */
+    // TODO Inline
+    // This requires that the ZiggyMessenger.publish() call can be verified by Mockito.
+    // The KillTaskMessage.timeSent field makes it difficult.
+    void publishKilledTaskMessage(KillTasksRequest message, long taskId) {
+        ZiggyMessenger.publish(new KilledTaskMessage(message, taskId));
+    }
+
+    /**
+     * Performs the aspects of halting tasks that are cluster wide, to wit:
+     * <ol>
+     * <li>Add to the list of successfully halted tasks (so other classes can find out which ones
+     * got halted).
+     * <li>Set the state of the {@link PipelineTask} to ERROR.
+     * <li>Issue an alert that the task has been halted.
+     * </ol>
+     * <p>
+     * Package scoped for unit testing.
+     */
+    void handleKilledTaskMessage(KilledTaskMessage message) {
+        killedTaskIds.add(message.getTaskId());
+
+        // Issue an alert.
+        alertService().generateAndBroadcastAlert("PI", message.getTaskId(),
+            AlertService.Severity.ERROR, "Task " + message.getTaskId() + " halted");
+
+        // Set the task state.
+        DatabaseTransactionFactory.performTransaction(() -> {
+            pipelineOperations().setTaskState(message.getTaskId(), PipelineTask.State.ERROR);
+            return null;
+        });
     }
 
     public static CommandLine supervisorCommand(WrapperCommand cmd, int workerCount,
@@ -304,6 +371,47 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         commandLine.addArgument(cmd.toString());
 
         return commandLine;
+    }
+
+    public static Set<ZiggyEventHandler> ziggyEventHandlers() {
+        return ziggyEventHandlers;
+    }
+
+    public static Set<ZiggyEventHandlerInfoForDisplay> serializableZiggyEventHandlers() {
+        return ziggyEventHandlers.stream()
+            .map(ZiggyEventHandlerInfoForDisplay::new)
+            .collect(Collectors.toSet());
+    }
+
+    public static boolean taskOnKilledTaskList(long taskId) {
+        return killedTaskIds.contains(taskId);
+    }
+
+    public static void removeTaskFromKilledTaskList(long taskId) {
+        killedTaskIds.remove(taskId);
+    }
+
+    // Package scoped for testing purposes.
+    Collection<StateFile> remoteTaskStateFiles() {
+        return AlgorithmMonitor.remoteTaskStateFiles();
+    }
+
+    // Package scoped for testing purposes.
+    QueueCommandManager getQueueCommandManager() {
+        if (queueCommandManager == null) {
+            queueCommandManager = QueueCommandManager.newInstance();
+        }
+        return queueCommandManager;
+    }
+
+    // Package scoped for testing purposes.
+    AlertService alertService() {
+        return AlertService.getInstance();
+    }
+
+    // Package scoped for testing purposes.
+    PipelineOperations pipelineOperations() {
+        return new PipelineOperations();
     }
 
     /**

@@ -114,9 +114,6 @@ public class ModuleInterfaceUtils {
      * restarted task finishes, the Java process will see the stale error file and think that the
      * new process failed, when in fact it was the old (previous) process. We mitigate that by
      * deleting any existing error files before launching the process.
-     *
-     * @param dataDir
-     * @param filenamePrefix
      */
     public static void clearStaleErrorState(File dataDir, String filenamePrefix) {
         File currentErrorFile = errorFile(dataDir, filenamePrefix);
@@ -140,9 +137,6 @@ public class ModuleInterfaceUtils {
     /**
      * Returns the name of the task inputs file for a given module. This is used only in the case
      * where a partially-populated inputs file is to be written into the task directory.
-     *
-     * @param moduleName
-     * @return
      */
     public static String inputsFileName(String moduleName) {
         return moduleName + "-inputs." + BIN_FILE_TYPE;
@@ -150,10 +144,6 @@ public class ModuleInterfaceUtils {
 
     /**
      * Returns the name of the sub-task outputs file for a given module and sequence number.
-     *
-     * @param moduleName
-     * @param seqNum
-     * @return
      */
     public static String outputsFileName(String moduleName) {
         return moduleName + "-outputs." + BIN_FILE_TYPE;
@@ -162,9 +152,6 @@ public class ModuleInterfaceUtils {
     /**
      * Returns a pattern that can be used to match filenames to see whether they are pipeline output
      * files.
-     *
-     * @param moduleName
-     * @return
      */
     public static Pattern outputsFileNamePattern(String moduleName) {
         String regex = moduleName + "-outputs." + BIN_FILE_TYPE;
@@ -173,10 +160,6 @@ public class ModuleInterfaceUtils {
 
     /**
      * Returns the name of the sub-task error file for a given module and sequence number.
-     *
-     * @param moduleName
-     * @param seqNum
-     * @return
      */
     public static String errorFileName(String moduleName) {
         return moduleName + "-error." + BIN_FILE_TYPE;
@@ -184,10 +167,6 @@ public class ModuleInterfaceUtils {
 
     /**
      * Returns the name of the sub-task XML companion file for a given module and sequence number.
-     *
-     * @param moduleName
-     * @param seqNum
-     * @return
      */
     public static String xmlFileName(String moduleName) {
         return moduleName + "-digest.xml";
@@ -195,10 +174,6 @@ public class ModuleInterfaceUtils {
 
     /**
      * Returns the name of the file for capture of stdout from a task.
-     *
-     * @param moduleName
-     * @param logSuffix
-     * @return
      */
     public static String stdoutFileName(String moduleName) {
         return moduleName + "-stdout.log";
@@ -206,10 +181,6 @@ public class ModuleInterfaceUtils {
 
     /**
      * Returns the name of the file for capture of stderr from a task.
-     *
-     * @param moduleName
-     * @param logSuffix
-     * @return
      */
     public static String stderrFileName(String moduleName) {
         return moduleName + "-stdout.log";

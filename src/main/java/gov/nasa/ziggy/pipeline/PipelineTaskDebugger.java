@@ -171,8 +171,8 @@ public class PipelineTaskDebugger {
 
             private void debugDoTransition(PipelineTask pipelineTask) {
                 PipelineExecutor pipelineExecutor = new PipelineExecutor();
-                pipelineExecutor.transitionToNextInstanceNode(pipelineTask.getPipelineInstance(),
-                    pipelineTask, new TaskCounts(0, 0, 0, 0));
+                pipelineExecutor.transitionToNextInstanceNode(
+                    pipelineTask.getPipelineInstanceNode(), new TaskCounts(0, 0, 0, 0));
             }
 
             private void debugLaunchTrigger() {

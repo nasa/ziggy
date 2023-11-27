@@ -16,6 +16,7 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.ui.ClusterController;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
@@ -47,6 +48,7 @@ public class PostgresqlController extends DatabaseController {
     private static final String DRIVER_CLASS_NAME = "org.postgresql.Driver";
     private static final String CONFIG_FILE_NAME = "postgresql.conf";
     private static final String LOCK_FILE_DIR_NAME = "lockfiles";
+    private static final long DATABASE_SETTLE_MILLIS = 4000L;
 
     private Path databaseDir = DirectoryProperties.databaseDir();
 
@@ -215,7 +217,14 @@ public class PostgresqlController extends DatabaseController {
         startCommand.addArgument("-l");
         startCommand.addArgument(logFile().toString());
         log.debug("Command line: " + startCommand.toString());
-        return ExternalProcess.simpleExternalProcess(startCommand).exceptionOnFailure().execute();
+        int status = ExternalProcess.simpleExternalProcess(startCommand)
+            .exceptionOnFailure()
+            .execute();
+
+        // Postgres will shut down and exit if it is pinged too soon.
+        ClusterController.waitForProcessToSettle(DATABASE_SETTLE_MILLIS);
+
+        return status;
     }
 
     @Override

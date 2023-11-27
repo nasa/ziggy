@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -49,10 +48,8 @@ public class DataAccountabilityReport {
     /**
      * Calculates the transitive closure of the relation produced(c,p).
      *
-     * @param initialTaskIds
-     * @param acctCrud
-     * @return A {@link Map} from consumer to producer task id. If nothing then this returns an
-     * empty map.
+     * @return a {@link Map} from consumer to producer task id. If nothing then this returns an
+     * empty map
      */
     Map<Long, Set<Long>> calculateClosure() {
         Map<Long, Set<Long>> consumerProducer = new HashMap<>();
@@ -88,10 +85,6 @@ public class DataAccountabilityReport {
         return consumerProducer;
     }
 
-    /**
-     * @param consumerProducer consumer->producer
-     * @return producer->consumer
-     */
     Map<Long, Set<Long>> invertMap(Map<Long, Set<Long>> consumerProducer) {
         Map<Long, Set<Long>> producerConsumer = new HashMap<>();
 
@@ -111,8 +104,6 @@ public class DataAccountabilityReport {
     /**
      * Finds the ids which are not pointed at by anything. Find all the producers which are not
      * themselves consumers.
-     *
-     * @return
      */
     Set<Long> findRoots(Set<Long> producers, Map<Long, Set<Long>> consumerProducer,
         Map<Long, Set<Long>> producerConsumer) {
@@ -141,14 +132,6 @@ public class DataAccountabilityReport {
 
         return roots;
     }
-
-    /**
-     * @param producerConsumer producer -&gt; consumer
-     * @param roots The top level consumers.
-     * @return report
-     * @throws IOException
-     * @throws PipelineException
-     */
 
     protected String formatReport(Map<Long, Set<Long>> producerConsumer, Set<Long> roots) {
         List<Long> sortedRoots = new ArrayList<>(roots);

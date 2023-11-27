@@ -77,11 +77,6 @@ public class PdfRenderer {
 
     /**
      * Render the chart to the document.
-     *
-     * @param chart
-     * @param width
-     * @param height
-     * @throws Exception
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void printChart(JFreeChart chart, int width, int height) {
@@ -97,12 +92,6 @@ public class PdfRenderer {
 
     /**
      * Render the chart to the next cell of the specified {@link PdfPTable}
-     *
-     * @param table
-     * @param chart
-     * @param width
-     * @param height
-     * @throws Exception
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void printChart(PdfPTable table, JFreeChart chart, int width, int height) {

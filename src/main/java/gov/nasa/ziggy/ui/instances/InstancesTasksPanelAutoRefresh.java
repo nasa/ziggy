@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.services.messages.TaskCompletionNotification;
+import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.status.Indicator;
 import gov.nasa.ziggy.ui.status.StatusPanel;
@@ -47,8 +47,10 @@ public class InstancesTasksPanelAutoRefresh implements Runnable {
         this.tasksTableModel = tasksTableModel;
         this.taskStatusSummaryPanel = taskStatusSummaryPanel;
 
-        // Whenever a worker status message comes through, update the display.
-        ZiggyMessenger.subscribe(TaskCompletionNotification.class, message -> {
+        // Whenever a worker status message comes through, update the display. This will
+        // include both the status message that is sent on worker startup and the one sent
+        // on worker shutdown.
+        ZiggyMessenger.subscribe(WorkerStatusMessage.class, message -> {
             updatePanel();
         });
     }

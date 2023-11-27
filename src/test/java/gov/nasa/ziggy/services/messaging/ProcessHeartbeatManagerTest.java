@@ -26,7 +26,7 @@ import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager.HeartbeatManage
 import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager.NoHeartbeatException;
 import gov.nasa.ziggy.ui.ClusterController;
 import gov.nasa.ziggy.ui.status.Indicator;
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * Unit tests for {@link ProcessHeartbeatManager} class.
@@ -74,7 +74,7 @@ public class ProcessHeartbeatManagerTest {
     public void testGoodStart() throws InterruptedException, NoHeartbeatException {
         manager = new ProcessHeartbeatManager(assistant, clusterController);
         manager.setHeartbeatTime(1L);
-        SystemTime.setUserTime(5L);
+        SystemProxy.setUserTime(5L);
         manager.initializeHeartbeatManager();
         assertNotNull(manager.getHeartbeatListener());
         assertFalse(manager.getHeartbeatListener().isShutdown());
@@ -93,21 +93,21 @@ public class ProcessHeartbeatManagerTest {
 
         // Set conditions such that initialization believes that a heartbeat has been detected.
         manager.setHeartbeatTime(1L);
-        SystemTime.setUserTime(5L);
+        SystemProxy.setUserTime(5L);
         manager.initializeHeartbeatManager();
 
         // Send 2 additional heartbeats at later times.
-        SystemTime.setUserTime(105L);
+        SystemProxy.setUserTime(105L);
         manager.setHeartbeatTime(105L);
-        SystemTime.setUserTime(205L);
+        SystemProxy.setUserTime(205L);
         manager.setHeartbeatTime(205L);
         manager.checkForHeartbeat();
         verify(assistant, times(0)).setRmiIndicator(Indicator.State.WARNING);
 
         // Send 2 more heartbeats at even later times.
-        SystemTime.setUserTime(305L);
+        SystemProxy.setUserTime(305L);
         manager.setHeartbeatTime(305L);
-        SystemTime.setUserTime(405L);
+        SystemProxy.setUserTime(405L);
         manager.setHeartbeatTime(405L);
         ZiggyMessenger.publish(heartbeatMessage);
         manager.checkForHeartbeat();
@@ -143,7 +143,7 @@ public class ProcessHeartbeatManagerTest {
         throws InterruptedException, NoHeartbeatException {
 
         // Set conditions such that initialization believes that a heartbeat has been detected.
-        SystemTime.setUserTime(5L);
+        SystemProxy.setUserTime(5L);
         manager = new ProcessHeartbeatManager(assistant, clusterController);
         manager.setHeartbeatTime(1L);
         manager.initializeHeartbeatManager();
@@ -166,7 +166,7 @@ public class ProcessHeartbeatManagerTest {
     @Test
     public void testHeartbeatDetectorSuccessfulRestart()
         throws InterruptedException, NoHeartbeatException {
-        SystemTime.setUserTime(5L);
+        SystemProxy.setUserTime(5L);
         manager = new ProcessHeartbeatManager(assistant, clusterController);
         manager.setHeartbeatTime(5L);
         manager.initializeHeartbeatManager();
@@ -175,11 +175,11 @@ public class ProcessHeartbeatManagerTest {
         // simulate waiting in the initializer for a new heartbeat.
         manager.setReinitializeOnMissedHeartbeat(false);
         assertFalse(manager.getHeartbeatListener().isShutdown());
-        SystemTime.setUserTime(205L);
+        SystemProxy.setUserTime(205L);
         manager.checkForHeartbeat();
         assertEquals(0L, manager.getHeartbeatTime());
         assertFalse(manager.getHeartbeatListener().isShutdown());
-        SystemTime.setUserTime(305L);
+        SystemProxy.setUserTime(305L);
         manager.setHeartbeatTime(300L);
 
         // Here is where we simulate detecting the new heartbeat in the initializer.

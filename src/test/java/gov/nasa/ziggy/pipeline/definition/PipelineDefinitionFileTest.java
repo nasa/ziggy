@@ -107,8 +107,6 @@ public class PipelineDefinitionFileTest {
         assertContains(complexTypeContent,
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>");
         assertContains(complexTypeContent,
-            "<xs:attribute name=\"startNewUow\" type=\"xs:boolean\"/>");
-        assertContains(complexTypeContent,
             "<xs:attribute name=\"uowGenerator\" type=\"xs:string\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"moduleName\" type=\"xs:string\" use=\"required\"/>");

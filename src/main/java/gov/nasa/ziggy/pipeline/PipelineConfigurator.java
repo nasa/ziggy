@@ -269,9 +269,6 @@ public class PipelineConfigurator {
 
         if (taskGenerator != null) {
             node.setUnitOfWorkGenerator(new ClassWrapper<>(taskGenerator));
-            node.setStartNewUow(true);
-        } else {
-            node.setStartNewUow(false);
         }
 
         if (currentNode != null) {

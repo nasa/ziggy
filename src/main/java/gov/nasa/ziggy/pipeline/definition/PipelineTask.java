@@ -142,11 +142,6 @@ public class PipelineTask implements PipelineExecutionTime {
     private int failedSubtaskCount;
 
     /**
-     * Flag that indicates whether the transition logic has run successfully for this task
-     */
-    private boolean transitionComplete = false;
-
-    /**
      * Flag that indicates that this task was re-run from the console after an error
      */
     private boolean retry = false;
@@ -533,14 +528,6 @@ public class PipelineTask implements PipelineExecutionTime {
             return host + ":" + workerThread;
         }
         return "-";
-    }
-
-    public boolean isTransitionComplete() {
-        return transitionComplete;
-    }
-
-    public void setTransitionComplete(boolean transitionComplete) {
-        this.transitionComplete = transitionComplete;
     }
 
     public PipelineInstanceNode getPipelineInstanceNode() {

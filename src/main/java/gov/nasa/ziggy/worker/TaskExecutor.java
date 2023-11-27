@@ -42,7 +42,6 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 /**
  * Coordinates processing of inbound worker task request messages. Manages the database and
  * messaging transaction context, invokes the module, then invokes the transition logic.
- * <p>
  *
  * @author Todd Klaus
  * @author PT
@@ -69,11 +68,6 @@ public class TaskExecutor implements StatusReporter {
     private long taskId;
     private RunMode runMode;
 
-    /**
-     * @param processInfo
-     * @param threadNum
-     * @param memoryManager
-     */
     public TaskExecutor(int workerNumber, long taskId, TaskLog taskLog, RunMode runMode) {
         this.taskId = taskId;
         this.workerNumber = workerNumber;
@@ -209,7 +203,6 @@ public class TaskExecutor implements StatusReporter {
                 new PipelineOperations().setTaskState(pipelineTask, PipelineTask.State.PROCESSING);
                 pipelineTask.setWorkerHost(getProcessInfo().getHost());
                 pipelineTask.setWorkerThread(workerNumber);
-                pipelineTask.setTransitionComplete(false);
                 pipelineTask.setSoftwareRevision(ZiggyConfiguration.getInstance()
                     .getString(PropertyName.ZIGGY_VERSION.property()));
             }
@@ -220,8 +213,7 @@ public class TaskExecutor implements StatusReporter {
     /**
      * Invoke PipelineModule.processTask() and execute the transition logic (if applicable)
      *
-     * @throws Throwable
-     * @returns boolean If true, task is done (no more steps)
+     * @returns true if task is done (no more steps)
      */
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private boolean processTask() throws Exception {
@@ -301,8 +293,6 @@ public class TaskExecutor implements StatusReporter {
 
     /**
      * Update the PipelineTask in the db with the results of the processing
-     *
-     * @param summaryMetrics
      */
     private void postProcessing(boolean done, boolean success) {
 
@@ -371,10 +361,6 @@ public class TaskExecutor implements StatusReporter {
         return taskDone;
     }
 
-    /**
-     * @param task
-     * @return
-     */
     private String contextString(TaskContext context) {
         return "IID=" + context.getPipelineInstanceId() + ", TID=" + taskId + ", M="
             + context.getModule() + ", UOW=" + context.getModuleUow();

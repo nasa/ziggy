@@ -36,10 +36,11 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
  * <li>{@link #generateTasks(Map)}, which returns a {@link List} of {@link UnitOfWork} instances.
  * The method can make use of the {@link Parameters} instances passed to it in the form of a
  * {@link Map}.
- * <li>{@link #briefState(UnitOfWork), which generates a brief state {@link String} for an instance
+ * <li>{@link #briefState(UnitOfWork)}, which generates a brief state {@link String} for an instance
  * based on its properties, and adds same to the properties collection in the {@link UnitOfWork}
  * instance. This is used for display purposes, and so should be informative about what the UOW
  * represents.
+ * </ol>
  *
  * @author Todd Klaus
  * @author PT
@@ -103,8 +104,8 @@ public interface UnitOfWorkGenerator {
 
     /**
      * Obtains the UOW generator for a pipeline node. The generator is the one in the database for
-     * that node, unless that unit of work is {@link DefaultUnitOfWork}; in that case, the default
-     * unit of work must be looked up and returned.
+     * that node. If none is present, the default unit of work generator must be looked up and
+     * returned.
      */
     static ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator(PipelineDefinitionNode node) {
 
@@ -132,41 +133,42 @@ public interface UnitOfWorkGenerator {
     static Class<? extends UnitOfWorkGenerator> defaultUnitOfWorkGenerator(
         Class<? extends PipelineModule> module) {
 
-        Class<? extends UnitOfWorkGenerator> defaultUnitOfWork = null;
+        Class<? extends UnitOfWorkGenerator> defaultUnitOfWorkGenerator = null;
 
-        // Start by using the pipeline-side manager for default UOWs, if any is specified
-        String pipelineUowManagerClassName = ZiggyConfiguration.getInstance()
+        // Start by using the pipeline-side identifier for default UOWs, if any is specified
+        String pipelineUowIdentifierClassName = ZiggyConfiguration.getInstance()
             .getString(PropertyName.PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS.property(), null);
-        if (pipelineUowManagerClassName != null) {
+        if (pipelineUowIdentifierClassName != null) {
 
             // Try to instantiate the Pipeline-side default UOW generator, and throw an exception
             // if unable to do so.
             try {
-                DefaultUnitOfWorkIdentifier pipelineManager = (DefaultUnitOfWorkIdentifier) Class
-                    .forName(pipelineUowManagerClassName)
+                DefaultUnitOfWorkIdentifier pipelineUowIdentifier = (DefaultUnitOfWorkIdentifier) Class
+                    .forName(pipelineUowIdentifierClassName)
                     .getConstructor()
                     .newInstance();
-                defaultUnitOfWork = pipelineManager.defaultUnitOfWorkGeneratorForClass(module);
+                defaultUnitOfWorkGenerator = pipelineUowIdentifier
+                    .defaultUnitOfWorkGeneratorForClass(module);
             } catch (InstantiationException | IllegalAccessException | ClassNotFoundException
                 | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
                 | SecurityException e) {
                 throw new PipelineException("Pipeline default unit of work generator class "
-                    + pipelineUowManagerClassName + " could not be instantiated", e);
+                    + pipelineUowIdentifierClassName + " could not be instantiated", e);
             }
         }
 
-        if (defaultUnitOfWork == null) { // try the Ziggy version
-            defaultUnitOfWork = ziggyDefaultUowGenerators().get(module);
+        if (defaultUnitOfWorkGenerator == null) { // try the Ziggy version
+            defaultUnitOfWorkGenerator = ziggyDefaultUowGenerators().get(module);
         }
 
         // If we still don't have a default UOW generator, throw an exception, since the only case
         // in which this method is called is when the user specified that the default generator for
         // a module was supposed to be used, and if the module doesn't have one then we have to fail
         // out.
-        if (defaultUnitOfWork == null) {
+        if (defaultUnitOfWorkGenerator == null) {
             throw new PipelineException(
                 "Unable to locate default UOW generator for " + module.getName());
         }
-        return defaultUnitOfWork;
+        return defaultUnitOfWorkGenerator;
     }
 }

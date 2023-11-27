@@ -51,11 +51,11 @@ $
 
 Once you do this, the Pi light on the console will quickly turn green. After a few seconds, you'll see a new pipeline instance appear in the instances panel:
 
-<img src="images/event-handler-instances-1.png" style="width:19cm;"/>
+<img src="images/event-handler-instances-1.png" style="width:13cm;"/>
 
 The event handler automatically names the pipeline with the "bare" pipeline name ("sample"), the event handler name ("data-receipt"), and the timestamp of the event that started the processing. The Event name column shows the name of the event handler as well ("data-receipt"). Note that the Event name column is initially hidden as it duplicates the information in the pipeline name. If you want to sort the table by the event handler name, use the context menu in the table header to enable to Event name column. Then you can click in the header to update the sort. Meanwhile, the tasks table looks like this:
 
-<img src="images/event-handler-tasks-1.png" style="width:19cm;"/>
+<img src="images/event-handler-tasks-1.png" style="width:14cm;"/>
 
 The data receipt task ran to completion before the display could even update, and the pipeline went on to its `permuter` tasks. After the usual few seconds, the pipeline will finish, with `flip` and `averaging` tasks.
 
@@ -103,11 +103,11 @@ $
 
 As soon as the second ready file is created, a new pipeline instance will start:
 
-<img src="images/event-handler-instances-2.png" style="width:19cm;"/>
+<img src="images/event-handler-instances-2.png" style="width:13cm;"/>
 
 The tasks display will look like this:
 
-<img src="images/event-handler-tasks-2.png" style="width:19cm;"/>
+<img src="images/event-handler-tasks-2.png" style="width:14cm;"/>
 
 There's a fair amount of interesting stuff going on here, so let's dig into this display!
 

@@ -2,40 +2,39 @@
 
 <pipelineDefinition>
 
-        <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="level0"
+  <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="level0"
             instancePriority="LOWEST">
-            <node moduleName="level0" startNewUow="true"
-                childNodeNames="level1">
-                <moduleParameter name="New Remote Hyperion L0"/>
-                <moduleParameter name="Hyperion L0 Task Configuration"/>
-                <moduleParameter name="Sample classless parameter set"/>
-                <inputDataFileType name="Hyperion L0"/>
-                <outputDataFileType name="Hyperion L1R"/>
-                <modelType name="bandwidth"/>
-                <modelType name="template"/>
-                <modelType name="gain"/>
-                <modelType name="ratio"/>
-                <modelType name="metadata-updates"/>
-                <modelType name="spectra"/>
-                <modelType name="L0 attributes"/>
-            </node>
-            <node moduleName="level1" startNewUow="true"
-                childNodeNames="">
-                <moduleParameter name="Hyperion L0 Task Configuration"/>
-                <moduleParameter name="ISOFIT module parameters"/>
-                <moduleParameter name="Remote Hyperion L1"/>
-                <inputDataFileType name="Hyperion L1R"/>
-                <outputDataFileType name="Hyperion L2"/>
-                <modelType name="sRTM neural network"/>
-                <modelType name="surface"/>
-                <modelType name="dem"/>
-            </node>
-        </pipeline>
-        
-        <module name="level0" description="Hyperion L0 -> L1R"
-            exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
-        <module name="level1" description="Hyperion L1R -> L2"
-            exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+    <node moduleName="level0"
+          childNodeNames="level1">
+      <moduleParameter name="New Remote Hyperion L0"/>
+      <moduleParameter name="Hyperion L0 Task Configuration"/>
+      <moduleParameter name="Sample classless parameter set"/>
+      <inputDataFileType name="Hyperion L0"/>
+      <outputDataFileType name="Hyperion L1R"/>
+      <modelType name="bandwidth"/>
+      <modelType name="template"/>
+      <modelType name="gain"/>
+      <modelType name="ratio"/>
+      <modelType name="metadata-updates"/>
+      <modelType name="spectra"/>
+      <modelType name="L0 attributes"/>
+    </node>
+    <node moduleName="level1"
+          childNodeNames="">
+      <moduleParameter name="Hyperion L0 Task Configuration"/>
+      <moduleParameter name="ISOFIT module parameters"/>
+      <moduleParameter name="Remote Hyperion L1"/>
+      <inputDataFileType name="Hyperion L1R"/>
+      <outputDataFileType name="Hyperion L2"/>
+      <modelType name="sRTM neural network"/>
+      <modelType name="surface"/>
+      <modelType name="dem"/>
+    </node>
+  </pipeline>
 
-    
+  <module name="level0" description="Hyperion L0 -> L1R"
+          exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+  <module name="level1" description="Hyperion L1R -> L2"
+          exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+
 </pipelineDefinition>

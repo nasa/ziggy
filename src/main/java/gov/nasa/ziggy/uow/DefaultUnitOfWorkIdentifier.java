@@ -1,18 +1,17 @@
 package gov.nasa.ziggy.uow;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
+import gov.nasa.ziggy.services.config.PropertyName;
 
 /**
  * Abstract superclass for classes that map {@link PipelineModule} subclasses to
  * {@link UnitOfWorkGenerator} subclasses. This allows different pipeline modules to use different
- * concrete classes to handle their default units of work, while still allowing the
- * {@link DefaultUnitOfWork} to be the specified default for all pipeline modules.
+ * concrete classes to generate their own units of work. When implementing this class, provide a
+ * no-argument constructor. Specify the fully-qualified name of your subclass in the property
+ * {@link PropertyName#PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS}.
  * <p>
- * The concrete class that supports this functionality for Ziggy pipeline modules is
- * {@link UnitOfWorkGenerator.ZiggyDefaultUnitOfWorkIdentifier}. For additional pipeline modules
- * that are defined for an actual pipeline, the users can specify the fully-qualified name of a
- * class that provides this functionality in those cases, as long as the class is a subclass of
- * {@link DefaultUnitOfWorkIdentifier} and has a no-argument constructor.
+ * The concrete class that supports this functionality for Ziggy pipeline modules does not yet
+ * exist. In the meantime, use the method {@link UnitOfWorkGenerator#ziggyDefaultUowGenerators()}.
  *
  * @author PT
  */

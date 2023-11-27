@@ -124,8 +124,8 @@ public class DataFileManagerTest {
                 ArgumentMatchers.anyBoolean());
         initializeDataFileManager();
 
-        // Now build a DataFileManager for use with DataFileType instances and with the
-        // DefaultUnitOfWork.
+        // Now build a DataFileManager for use with DataFileType instances and Ziggy unit of work
+        // generators.
         initializeDataFileManager2();
         DataFileTestUtils.initializeDataFileTypeSamples();
     }

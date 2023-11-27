@@ -16,7 +16,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
- * About dialog for the console
+ * About dialog for the console.
  *
  * @author Todd Klaus
  */

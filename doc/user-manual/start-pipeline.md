@@ -58,7 +58,7 @@ The pipeline and worker lights are grey again, the instance and all the tasks sh
 
 At this point, you'd probably like an explanation of just what everything on the `Instances` panel is trying to tell you. If so, read on! Specifically, the article on [The Instances Panel](instances-panel.md).
 
-<sup>1</sup> Although the Event name column appears in these screenshots, it is now initially hidden to save space. See the article [Event Handler Examples](event-handler-examples.md) for information on how to show and use this column.
+<sup>1</sup> The Event name column is initially hidden to save space. See the article [Event Handler Examples](event-handler-examples.md) for information on how to show and use this column.
 
 [[Previous]](ziggy-gui.md)
 [[Up]](ziggy-gui.md)

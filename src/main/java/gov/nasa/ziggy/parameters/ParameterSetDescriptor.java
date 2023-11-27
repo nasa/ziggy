@@ -254,44 +254,26 @@ public class ParameterSetDescriptor implements Comparable<ParameterSetDescriptor
         this.state = state;
     }
 
-    /**
-     * @return the libraryProps
-     */
     public String getLibraryProps() {
         return libraryProps;
     }
 
-    /**
-     * @param libraryProps the libraryProps to set
-     */
     public void setLibraryProps(String libraryProps) {
         this.libraryProps = libraryProps;
     }
 
-    /**
-     * @return the fileProps
-     */
     public String getFileProps() {
         return fileProps;
     }
 
-    /**
-     * @param fileProps the fileProps to set
-     */
     public void setFileProps(String fileProps) {
         this.fileProps = fileProps;
     }
 
-    /**
-     * @return the libraryParamSet
-     */
     public ParameterSet getParameterSet() {
         return parameterSet;
     }
 
-    /**
-     * @param libraryParamSet the libraryParamSet to set
-     */
     public void setParameterSet(ParameterSet parameterSet) {
         parameterSet.setClassname(className);
         this.parameterSet = updateTypedParameterTypes(parameterSet);

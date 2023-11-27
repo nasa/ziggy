@@ -164,7 +164,7 @@ public class PipelineOperationsProxy {
     /**
      * Validates that this {@link PipelineDefinition} is valid for starting. Checks that the
      * associated pipeline definition objects have not changed in an incompatible way and that all
-     * {@link ParameterSetName}s are set.
+     * {@link ParameterSet}s are set.
      */
     public TriggerValidationResults validatePipeline(final PipelineDefinition pipelineDefinition) {
         CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);

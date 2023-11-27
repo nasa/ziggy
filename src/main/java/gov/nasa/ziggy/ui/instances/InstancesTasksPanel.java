@@ -2,8 +2,12 @@ package gov.nasa.ziggy.ui.instances;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.swing.GroupLayout;
@@ -11,14 +15,17 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
+import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
+import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.NoRunningOrQueuedPipelinesMessage;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -26,6 +33,9 @@ import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.proxy.PipelineExecutorProxy;
 import gov.nasa.ziggy.ui.util.proxy.PipelineTaskCrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.ProcessingSummaryOpsProxy;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.Requestor;
 
 /**
  * @author Todd Klaus
@@ -33,12 +43,18 @@ import gov.nasa.ziggy.ui.util.proxy.ProcessingSummaryOpsProxy;
  * @author Bill Wohler
  */
 @SuppressWarnings("serial")
-public class InstancesTasksPanel extends javax.swing.JPanel {
+public class InstancesTasksPanel extends javax.swing.JPanel implements Requestor {
+
+    private static final Logger log = LoggerFactory.getLogger(InstancesTasksPanel.class);
+    private static final long AWAIT_DURATION_MILLIS = 5000L;
     private InstancesPanel instancesPanel;
+    private final UUID uuid = UUID.randomUUID();
 
     // Indices in the tasks table of the selected tasks. Not to be confused with the
     // task IDs of the selected tasks (see below).
     protected List<Integer> selectedTasksIndices = new ArrayList<>();
+    private CountDownLatch replyMessagesCountdownLatch;
+    private Map<Long, PipelineTask> tasksToHalt;
 
     private static boolean instancesRemaining = true;
 
@@ -49,6 +65,17 @@ public class InstancesTasksPanel extends javax.swing.JPanel {
         // Subscribe to the NoRunningOrQueuedPipelinesMessage.
         ZiggyMessenger.subscribe(NoRunningOrQueuedPipelinesMessage.class,
             this::clearInstancesRemaining);
+
+        // Subscribe to KilledTaskMessage so we can track whether all the tasks that
+        // were marked for death, were actually halted.
+        ZiggyMessenger.subscribe(KilledTaskMessage.class, message -> {
+            if (isDestination(message)) {
+                tasksToHalt.remove(message.getTaskId());
+                if (replyMessagesCountdownLatch != null) {
+                    replyMessagesCountdownLatch.countDown();
+                }
+            }
+        });
     }
 
     private void buildComponent() {
@@ -77,6 +104,7 @@ public class InstancesTasksPanel extends javax.swing.JPanel {
     /**
      * Unified restart logic for all-tasks-in-instance restart or selected-tasks restart.
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     void restartTasks(Collection<Long> tasksToRestart) {
 
         try {
@@ -141,9 +169,10 @@ public class InstancesTasksPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Unified task-killing logic for all-tasks-in-instance or selected-tasks use-cases.
+     * Unified task-halting logic for all-tasks-in-instance or selected-tasks use-cases.
      */
-    void killTasks(Collection<Long> taskIdsToKill) {
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    void haltTasks(Collection<Long> taskIdsToHalt) {
 
         try {
 
@@ -155,41 +184,59 @@ public class InstancesTasksPanel extends javax.swing.JPanel {
             PipelineTaskCrudProxy taskCrud = new PipelineTaskCrudProxy();
 
             // collect all the processing pipeline tasks.
-            List<PipelineTask> tasksToKill = taskCrud.retrieveAll(selectedInstance,
+            List<PipelineTask> tasksInHaltRequest = taskCrud.retrieveAll(selectedInstance,
                 PipelineTask.State.PROCESSING);
-            tasksToKill
+            tasksInHaltRequest
                 .addAll(taskCrud.retrieveAll(selectedInstance, PipelineTask.State.SUBMITTED));
 
-            if (!CollectionUtils.isEmpty(taskIdsToKill)) { // selected tasks use-case.
-                tasksToKill = tasksToKill.stream()
-                    .filter(s -> taskIdsToKill.contains(s.getId()))
+            if (!CollectionUtils.isEmpty(taskIdsToHalt)) { // selected tasks use-case.
+                tasksInHaltRequest = tasksInHaltRequest.stream()
+                    .filter(s -> taskIdsToHalt.contains(s.getId()))
                     .collect(Collectors.toList());
             }
-            if (CollectionUtils.isEmpty(tasksToKill)) {
+            if (CollectionUtils.isEmpty(tasksInHaltRequest)) {
                 JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
-                    "No running tasks found!", "Kill tasks", JOptionPane.ERROR_MESSAGE);
+                    "No running tasks found!", "Halt tasks", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
             // are you sure you want to do this?
             int confirm = JOptionPane.showConfirmDialog(SwingUtilities.getWindowAncestor(this),
-                "Confirm kill tasks?", "Confirm delete", JOptionPane.OK_CANCEL_OPTION);
+                "Confirm halt tasks?", "Confirm halt", JOptionPane.OK_CANCEL_OPTION);
             if (confirm == JOptionPane.OK_OPTION) {
 
-                // Delete any local-execution tasks.
-                ZiggyMessenger.publish(new KillTasksRequest(tasksToKill));
+                tasksToHalt = new HashMap<>();
+                for (PipelineTask task : tasksInHaltRequest) {
+                    tasksToHalt.put(task.getId(), task);
+                }
+                replyMessagesCountdownLatch = new CountDownLatch(tasksToHalt.size());
+                // Halt any local-execution tasks. Note that we are using raw types because that's
+                // apparently the only way to get from Set<Long> to Collection<Object>.
+                ZiggyMessenger.publish(
+                    KillTasksRequest.forTaskIds(InstancesTasksPanel.this, tasksToHalt.keySet()));
+                replyMessagesCountdownLatch.await(AWAIT_DURATION_MILLIS, TimeUnit.MILLISECONDS);
+                replyMessagesCountdownLatch = null;
 
-                // Delete any remote execution tasks.
-                QueueCommandManager queueCommandManager = QueueCommandManager.newInstance();
-                queueCommandManager.deleteJobsForPipelineTasks(tasksToKill);
+                // If any tasks were not halted within the timeout, update the log, generate
+                // alerts, and pop up a message dialog.
+                if (!tasksToHalt.isEmpty()) {
+                    for (PipelineTask task : tasksToHalt.values()) {
+                        log.error("Failed to halt task {}", task.getId());
+                        AlertService.getInstance()
+                            .generateAndBroadcastAlert("PI", task.getId(),
+                                AlertService.Severity.ERROR, "Failed to halt task " + task.getId());
+                    }
+                    JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
+                        "One or more tasks not halted", "Tasks Not Halted", JOptionPane.OK_OPTION);
+                }
             } else {
 
                 // well, never mind then.
                 JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
-                    "Delete tasks canceled", "Delete tasks", JOptionPane.OK_OPTION);
+                    "Halt tasks canceled", "Halt tasks", JOptionPane.OK_OPTION);
             }
         } catch (Exception e) {
-            MessageUtil.showError(SwingUtilities.getWindowAncestor(this), "Failed to kill jobs",
+            MessageUtil.showError(SwingUtilities.getWindowAncestor(this), "Failed to halt jobs",
                 e.getMessage(), e);
         }
     }
@@ -204,5 +251,10 @@ public class InstancesTasksPanel extends javax.swing.JPanel {
 
     private <T extends PipelineMessage> void clearInstancesRemaining(T message) {
         instancesRemaining = false;
+    }
+
+    @Override
+    public Object requestorIdentifier() {
+        return uuid;
     }
 }

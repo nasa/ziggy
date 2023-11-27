@@ -31,7 +31,6 @@ import gov.nasa.ziggy.util.io.LockManager;
  * <li>Processes the subtask using the specified processing algorithm via a {@link DefaultExecutor}.
  * <li>Once all subtasks are processed, exit.
  * </ol>
- * <p>
  *
  * @author PT
  */

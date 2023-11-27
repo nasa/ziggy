@@ -36,7 +36,7 @@ public class MetricsDumper implements Runnable {
     }
 
     private static int DUMP_INTERVAL_MILLIS = 30000;
-    private static final int MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024 * 2;
+    private static final int MAX_FILE_SIZE_BYTES = Integer.MAX_VALUE;
     private static final int BUF_SIZE_BYTES = 1024 * 1024;
 
     private PrintWriter printWriter;
@@ -67,6 +67,7 @@ public class MetricsDumper implements Runnable {
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void openFile(FileReuseMode reuseMode) {
+        // TODO Fix always true condition comparing int < max-int
         if (countOut != null && countOut.getCount() < MAX_FILE_SIZE_BYTES) {
             return;
         }

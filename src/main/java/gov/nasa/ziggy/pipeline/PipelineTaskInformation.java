@@ -31,8 +31,8 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
  * Generates and stores information about the {@link PipelineTask} instances for a particular
  * {@link PipelineDefinition} on a particular {@link PipelineDefinitionNode}. Each task required for
  * the execution of the trigger is stored, along with the {@link SubtaskInformation} instance for
- * each task. The {@link ParameterSetName} for the node's {@link RemoteParameters} instance is
- * stored, if any such exists.
+ * each task. The {@link ParameterSet} for the node's {@link RemoteParameters} instance is stored,
+ * if any such exists.
  * <p>
  * The class provides static methods that can be used to retrieve or delete information on pipeline
  * tasks based on a given {@link PipelineDefinitionNode}. A singleton instance of
@@ -115,8 +115,6 @@ public class PipelineTaskInformation {
     /**
      * Deletes the cached information for a given {@link PipelineDefinitionNode}. Used when the user
      * is aware of changes that should force recalculation.
-     *
-     * @param triggerDefinitionNode
      */
     public synchronized static void reset(PipelineDefinitionNode triggerDefinitionNode) {
         if (subtaskInformationMap.containsKey(triggerDefinitionNode)) {
@@ -149,7 +147,7 @@ public class PipelineTaskInformation {
     }
 
     /**
-     * Returns the {@link ParameterSetName} for a specified node's {@link RemoteParameters}
+     * Returns the name of the {@link ParameterSet} for a specified node's {@link RemoteParameters}
      * instance. If the module has no such parameter set, null is returned.
      */
     public static synchronized String remoteParameters(PipelineDefinitionNode node) {
@@ -211,10 +209,7 @@ public class PipelineTaskInformation {
         populateParameters(triggerParamNames, instanceParams);
         instanceNode.setModuleParameterSets(instanceParams);
 
-        // Get the PipelineInstanceNode that generates UOWs for the selected one.
-        PipelineDefinitionNode taskNode = node.taskGeneratorNode();
-        ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = instance
-            .unitOfWorkGenerator(taskNode);
+        ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = instance.unitOfWorkGenerator(node);
 
         // Produce a combined map from Parameter classes to Parameter instances
         Map<ClassWrapper<ParametersInterface>, ParameterSet> compositeParameterSets = new HashMap<>(

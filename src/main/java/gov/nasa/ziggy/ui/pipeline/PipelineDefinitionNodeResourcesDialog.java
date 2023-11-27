@@ -101,7 +101,7 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
         closeButton = createCloseButton();
         cancelButton = createCancelButton();
-        getContentPane().add(createButtonPanel(cancelButton, closeButton), BorderLayout.SOUTH);
+        getContentPane().add(createButtonPanel(closeButton, cancelButton), BorderLayout.SOUTH);
 
         initializeFieldState();
 

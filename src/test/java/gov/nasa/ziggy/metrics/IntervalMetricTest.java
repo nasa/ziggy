@@ -11,7 +11,7 @@ import java.util.concurrent.Future;
 import org.junit.Before;
 import org.junit.Test;
 
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * @author Todd Klaus
@@ -28,7 +28,7 @@ public class IntervalMetricTest {
     public void testIntervalMetricSimple() throws Exception {
         IntervalMetricKey key = IntervalMetric.start();
         long startTime = System.currentTimeMillis();
-        SystemTime.setUserTime(startTime + 10L);
+        SystemProxy.setUserTime(startTime + 10L);
         IntervalMetric.stop(METRIC_1_NAME, key);
 
         IntervalMetric m = IntervalMetric.getIntervalMetric(METRIC_1_NAME).getGlobalMetric();
@@ -48,21 +48,21 @@ public class IntervalMetricTest {
         long startTime = System.currentTimeMillis();
         long intervalDuration = 100L;
         totalTime += intervalDuration;
-        SystemTime.setUserTime(startTime + intervalDuration);
+        SystemProxy.setUserTime(startTime + intervalDuration);
         IntervalMetric.stop(METRIC_1_NAME, key);
 
         key = IntervalMetric.start();
         startTime = System.currentTimeMillis();
         intervalDuration = 150L;
         totalTime += intervalDuration;
-        SystemTime.setUserTime(startTime + intervalDuration);
+        SystemProxy.setUserTime(startTime + intervalDuration);
         IntervalMetric.stop(METRIC_1_NAME, key);
 
         key = IntervalMetric.start();
         startTime = System.currentTimeMillis();
         intervalDuration = 200L;
         totalTime += intervalDuration;
-        SystemTime.setUserTime(startTime + intervalDuration);
+        SystemProxy.setUserTime(startTime + intervalDuration);
         IntervalMetric.stop(METRIC_1_NAME, key);
 
         IntervalMetric m = IntervalMetric.getIntervalMetric(METRIC_1_NAME).getGlobalMetric();
@@ -87,12 +87,12 @@ public class IntervalMetricTest {
 
             IntervalMetricKey key = IntervalMetric.start();
             long startTime = System.currentTimeMillis();
-            SystemTime.setUserTime(startTime + 100L);
+            SystemProxy.setUserTime(startTime + 100L);
             IntervalMetric.stop(METRIC_1_NAME, key);
 
             key = IntervalMetric.start();
             startTime = System.currentTimeMillis();
-            SystemTime.setUserTime(startTime + 200L);
+            SystemProxy.setUserTime(startTime + 200L);
             IntervalMetric.stop(METRIC_1_NAME, key);
 
             return Metric.getThreadMetrics();
@@ -103,7 +103,7 @@ public class IntervalMetricTest {
 
             IntervalMetricKey key = IntervalMetric.start();
             long startTime = System.currentTimeMillis();
-            SystemTime.setUserTime(startTime + 150L);
+            SystemProxy.setUserTime(startTime + 150L);
             IntervalMetric.stop(METRIC_1_NAME, key);
 
             return Metric.getThreadMetrics();

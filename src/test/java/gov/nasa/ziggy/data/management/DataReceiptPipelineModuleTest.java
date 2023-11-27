@@ -254,7 +254,7 @@ public class DataReceiptPipelineModuleTest {
         assertEquals(5, dataImporterPath.toFile().listFiles().length);
         assertTrue(dataImporterPath.resolve("sub-dir").toFile().exists());
         assertTrue(dataImporterPath.resolve("models-sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-20-results.h5").toFile().exists());
+        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("data-importer-manifest.xml").toFile().exists());
         assertTrue(dataImporterPath.resolve("data-importer-manifest-ack.xml").toFile().exists());
         assertEquals(3, dataImporterSubdirPath.toFile().listFiles().length);
@@ -318,7 +318,7 @@ public class DataReceiptPipelineModuleTest {
         // appropriate
         assertEquals(5, dataImporterPath.toFile().listFiles().length);
         assertTrue(dataImporterPath.resolve("models-sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-20-results.h5").toFile().exists());
+        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("pa-001234567-20-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("cal-1-1-A-20-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("data-importer-manifest.xml").toFile().exists());
@@ -432,7 +432,7 @@ public class DataReceiptPipelineModuleTest {
         // appropriate
         assertEquals(5, dataImporterPath.toFile().listFiles().length);
         assertTrue(dataImporterPath.resolve("sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-20-results.h5").toFile().exists());
+        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("pa-001234567-20-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("cal-1-1-A-20-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("data-importer-manifest.xml").toFile().exists());
@@ -556,7 +556,7 @@ public class DataReceiptPipelineModuleTest {
         assertEquals(7, dataImporterPath.toFile().listFiles().length);
         assertTrue(dataImporterPath.resolve("sub-dir").toFile().exists());
         assertTrue(dataImporterPath.resolve("models-sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-20-results.h5").toFile().exists());
+        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
         assertTrue(dataImporterPath.resolve("pa-001234567-20-results.h5").toFile().exists());
         assertTrue(
             dataImporterPath.resolve("tess2020321141517-12345_025-geometry.xml").toFile().exists());
@@ -680,7 +680,7 @@ public class DataReceiptPipelineModuleTest {
         filenames.add(sample2.getName());
 
         // create a file that matches neither pattern
-        sample1 = new File(dataImporterPath.toFile(), "pdc-1-1-20-results.h5");
+        sample1 = new File(dataImporterPath.toFile(), "pdc-1-1-22-results.h5");
         sample1.createNewFile();
         filenames.add(sample1.getName());
         return filenames;

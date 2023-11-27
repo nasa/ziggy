@@ -33,7 +33,6 @@ import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
  *
  * @author Todd Klaus
  * @author PT
- * @param <T>
  */
 public class ZiggyTreeModel<T extends HasGroup> extends DefaultTreeModel
     implements ConsoleDatabaseModel {

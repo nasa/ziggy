@@ -44,13 +44,13 @@ public class PipelineInstanceNode {
     private Date created = new Date(System.currentTimeMillis());
 
     @ManyToOne
-    private PipelineInstance pipelineInstance = null;
+    private PipelineInstance pipelineInstance;
 
     @ManyToOne
-    private PipelineDefinitionNode pipelineDefinitionNode = null;
+    private PipelineDefinitionNode pipelineDefinitionNode;
 
     @ManyToOne
-    private PipelineModuleDefinition pipelineModuleDefinition = null;
+    private PipelineModuleDefinition pipelineModuleDefinition;
 
     /**
      * {@link ParameterSet}s used as {@link Parameters} for this instance. This is a hard-reference
@@ -60,6 +60,9 @@ public class PipelineInstanceNode {
     @ManyToMany
     @JoinTable(name = "ziggy_PipelineInstanceNode_moduleParameterSets")
     private Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParameterSets = new HashMap<>();
+
+    /** Indicates whether the node completed and kicked off the transition to the next node. */
+    private boolean transitionComplete;
 
     /**
      * Required by Hibernate
@@ -137,6 +140,14 @@ public class PipelineInstanceNode {
         Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParameterSets) {
         this.moduleParameterSets = moduleParameterSets;
         populateXmlFields();
+    }
+
+    public boolean isTransitionComplete() {
+        return transitionComplete;
+    }
+
+    public void setTransitionComplete(boolean transitionComplete) {
+        this.transitionComplete = transitionComplete;
     }
 
     public void populateXmlFields() {

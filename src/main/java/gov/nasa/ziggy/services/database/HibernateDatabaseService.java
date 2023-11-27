@@ -28,7 +28,7 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
     protected final ThreadLocal<Session> threadSession = new ThreadLocal<>();
 
     /**
-     * package-protection to prevent instantiation (use {@link DatabaseServiceFactory} instead)
+     * package-protection to prevent instantiation (use {@link DatabaseServiceFactory} instead).
      */
     HibernateDatabaseService() {
     }
@@ -82,7 +82,7 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
     }
 
     /**
-     * Roll back the existing transaction, if any, and close the Session
+     * Roll back the existing transaction, if any, and close the Session.
      */
     @Override
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
@@ -117,7 +117,7 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
 
     /**
      * Try to close the current {@link Session} and remove it from the ThreadLocal.
-     * {@link #handleException(HibernateException, Session) is called by all methods that have to
+     * {@link #handleException(HibernateException, Session)} is called by all methods that have to
      * handle {@link HibernateException}. The idea here is to ensure that the session gets closed
      * before the {@link HibernateException} passes execution control back to the caller. Think of
      * this as being like a finally block, but implemented as a method so we don't have to duplicate

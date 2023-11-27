@@ -342,15 +342,15 @@ public class DefaultPipelineInputs extends PipelineInputs {
         for (ModelType modelType : modelTypes) {
             ModelMetadata modelMetadata = modelRegistry.getModels().get(modelType);
             Path modelFile = taskDirectory.resolve(modelMetadata.getOriginalFileName());
-            if (Files.isRegularFile(modelFile)) {
-                try {
+            try {
+                if (Files.isRegularFile(modelFile) || Files.isSymbolicLink(modelFile)) {
                     Files.delete(modelFile);
-                } catch (IOException e) {
-                    throw new UncheckedIOException("Unable to delete file " + modelFile.toString(),
-                        e);
                 }
+            } catch (IOException e) {
+                throw new UncheckedIOException("Unable to delete file " + modelFile.toString(), e);
             }
         }
+
     }
 
     /**

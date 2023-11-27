@@ -2,7 +2,7 @@
 
 [[Previous]](display-logs.md)
 [[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](kill-tasks.md)
+[[Next]](halt-tasks.md)
 
 ## Re-Run or Resume a Failed Task
 
@@ -12,7 +12,7 @@ Let's assume at this point that you've investigated the cause of your failed tas
 
 To view the restart dialog box, select your failed task or tasks, right click, and run the `Restart failed tasks` command. You'll see this:
 
-<img src="images/restart-dialog.png" style="width:15cm;"/>
+<img src="images/restart-dialog.png" style="width:17cm;"/>
 
 If you right-click on the `Restart Mode` field, you'll get a menu that offers several restart options.
 
@@ -60,4 +60,4 @@ In real life, it's possible that you'll encounter a situation like this one, in 
 
 [[Previous]](display-logs.md)
 [[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](kill-tasks.md)
+[[Next]](halt-tasks.md)

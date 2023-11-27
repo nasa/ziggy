@@ -71,18 +71,6 @@ public class PipelineDefinitionNode {
     private Long id;
 
     /**
-     * Indicates whether the transition logic should simply propagate the
-     * {@link UnitOfWorkGenerator} to the next node or whether it should check to see if all tasks
-     * for the current node have completed, and if so, invoke the {@link UnitOfWorkGenerator} to
-     * generate the tasks for the next node. See {@link PipelineExecutor.doTransition()}.
-     * <p>
-     * Note that the field is a Boolean rather than a boolean. This is because optional XML
-     * attributes need to be class instances rather than primitives.
-     */
-    @XmlAttribute(required = false)
-    private Boolean startNewUow = true;
-
-    /**
      * Indicates the maximum number of worker processes that should be spun up for this node. If
      * zero, the pipeline will default to the number of workers specified for the pipeline as a
      * whole, either in the properties file or the command line arguments used when the cluster was
@@ -106,10 +94,8 @@ public class PipelineDefinitionNode {
 
     /**
      * If non-null, this UOW generator definition is used to generate the tasks for this node. May
-     * only be null if startNewUow == false (in which case the task from the previous node is just
-     * carried forward) and this is not the first node in a pipeline; or if the module for this node
-     * has a default unit of work, generator, in which case the generator will be determined at
-     * runtime.
+     * only be null if the module for this node does not have a defined unit of work generator, in
+     * which case the generator will be determined at runtime.
      */
     @XmlAttribute(required = false, name = "uowGenerator")
     @XmlJavaTypeAdapter(ClassWrapper.ClassWrapperAdapter.class)
@@ -186,7 +172,6 @@ public class PipelineDefinitionNode {
      * Duplicates this node and all of its child nodes.
      */
     public PipelineDefinitionNode(PipelineDefinitionNode other) {
-        startNewUow = other.startNewUow;
         maxWorkerCount = other.maxWorkerCount;
         heapSizeMb = other.heapSizeMb;
 
@@ -263,26 +248,6 @@ public class PipelineDefinitionNode {
     }
 
     /**
-     * Find the task generator of the specified node. if startNewUow is false for this node, walk
-     * back up the tree until with find a node with startNewUow == true Assumes that the back
-     * pointers have been built with PipelineDefinition.buildPaths()
-     *
-     * @return
-     */
-    public PipelineDefinitionNode taskGeneratorNode() {
-        PipelineDefinitionNode currentNode = this;
-
-        while (!currentNode.isStartNewUow()) {
-            currentNode = currentNode.getParentNode();
-            if (currentNode == null) {
-                throw new PipelineException(
-                    "Configuration Error: Current node and all parent nodes have startNewUow == false");
-            }
-        }
-        return currentNode;
-    }
-
-    /**
      * Returns the worker resources for the current node. If resources are not specified, the
      * resources object will have nulls, in which case default values will be retrieved from the
      * {@link WorkerResources} singleton when the object is queried.
@@ -333,14 +298,6 @@ public class PipelineDefinitionNode {
 
     public void setParentNode(PipelineDefinitionNode parentNode) {
         this.parentNode = parentNode;
-    }
-
-    public boolean isStartNewUow() {
-        return startNewUow;
-    }
-
-    public void setStartNewUow(boolean startNewUow) {
-        this.startNewUow = startNewUow;
     }
 
     public Integer getMaxWorkerCount() {

@@ -68,7 +68,6 @@ public class FakePipelineTaskFactory {
                 moduleDef.getName(), pipelineDef.getName());
             pipelineDefNode1
                 .setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-            pipelineDefNode1.setStartNewUow(true);
             pipelineDefNode1 = new SimpleCrud<>().merge(pipelineDefNode1);
             pipelineDef.getRootNodes().add(pipelineDefNode1);
             if (inDb) {

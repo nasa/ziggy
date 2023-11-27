@@ -404,10 +404,6 @@ public abstract class AbstractHdf5Array {
     /**
      * Reads a string attribute. The string is stored as a byte array to work around what appears to
      * be a but in the HDF5 Java API handling of arrays of variable-length strings.
-     *
-     * @param groupId
-     * @param attributeName
-     * @return
      */
     protected String readStringAttribute(long groupId, String attributeName) {
 

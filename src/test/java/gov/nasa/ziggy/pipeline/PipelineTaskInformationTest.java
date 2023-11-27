@@ -77,7 +77,6 @@ public class PipelineTaskInformationTest {
 
         // Construct the instances of pipeline infrastructure needed for these tests
         node = new PipelineDefinitionNode();
-        node.setStartNewUow(true);
         PipelineModuleDefinition moduleDefinition = new PipelineModuleDefinition(null, "module");
         ClassWrapper<PipelineInputs> inputsClass = new ClassWrapper<>(DefaultPipelineInputs.class);
         moduleDefinition.setInputsClass(inputsClass);

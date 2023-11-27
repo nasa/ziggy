@@ -19,6 +19,7 @@ import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.PipelineOperations.TaskStateSummary;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -63,9 +64,6 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
 
     /**
      * Retrieve all {@link PipelineTask}s for the specified {@link PipelineInstance}
-     *
-     * @param instance
-     * @return
      */
     public List<PipelineTask> retrieveTasksForInstance(PipelineInstance instance) {
         return list(createZiggyQuery(PipelineTask.class).column(PipelineTask_.pipelineInstance)
@@ -127,7 +125,7 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
      *
      * @param moduleName name of desired module
      * @param instanceId number of desired instance
-     * @return list of pipeline tasks, or null if no tasks with that instance and module name.
+     * @return list of pipeline tasks, or null if no tasks with that instance and module name
      */
     public List<PipelineTask> retrieveTasksForModuleAndInstance(String moduleName,
         long instanceId) {
@@ -139,9 +137,6 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
 
     /**
      * Retrieve all {@link PipelineTask}s for the specified {@link PipelineInstanceNode}
-     *
-     * @param pipelineInstanceNode
-     * @return
      */
     public List<PipelineTask> retrieveAll(PipelineInstanceNode pipelineInstanceNode) {
         ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
@@ -153,14 +148,25 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     /**
      * Retrieve all {@link PipelineTask}s that have a specific {@link PipelineDefinitionNode} and
      * have specific task IDs.
+     * <p>
+     * The pipeline definition node is actually located by searching for nodes that have the same
+     * module name as the {@link PipelineDefinitionNode} argument, and also have the same pipeline
+     * name. This ensures that if the node has been duplicated, both the original and the copy will
+     * count as having processed the task in question.
      */
     public List<Long> retrieveIdsForPipelineDefinitionNode(Collection<Long> taskIds,
         PipelineDefinitionNode pipelineDefinitionNode) {
 
+        String pipelineDefinitionNodeName = pipelineDefinitionNode.getModuleName();
+        String pipelineDefinitionName = pipelineDefinitionNode.getPipelineName();
         ZiggyQuery<PipelineTask, Long> query = createZiggyQuery(PipelineTask.class, Long.class);
         query.column(PipelineTask_.id).select();
         query.where(query.in(query.get(PipelineTask_.pipelineInstanceNode)
-            .get(PipelineInstanceNode_.pipelineDefinitionNode), pipelineDefinitionNode));
+            .get(PipelineInstanceNode_.pipelineDefinitionNode)
+            .get(PipelineDefinitionNode_.moduleName), pipelineDefinitionNodeName));
+        query.where(query.in(query.get(PipelineTask_.pipelineInstanceNode)
+            .get(PipelineInstanceNode_.pipelineDefinitionNode)
+            .get(PipelineDefinitionNode_.pipelineName), pipelineDefinitionName));
         query.column(PipelineTask_.id).chunkedIn(taskIds);
         return list(query);
     }
@@ -191,8 +197,8 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     /**
      * Retrieve all {@link PipelineTask}s for the specified {@link Collection} of pipelineTaskIds.
      *
-     * @param pipelineTaskIds {@link Collection} of pipelineTaskIds.
-     * @return {@link List} of {@link PipelineTask}s.
+     * @param pipelineTaskIds {@link Collection} of pipelineTaskIds
+     * @return {@link List} of {@link PipelineTask}s
      */
     public List<PipelineTask> retrieveAll(Collection<Long> pipelineTaskIds) {
         if (pipelineTaskIds.isEmpty()) {
@@ -206,9 +212,6 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
 
     /**
      * Retrieve the list of distinct softwareRevisions for the specified node. Used for reporting
-     *
-     * @param node
-     * @return
      */
     public List<String> distinctSoftwareRevisions(PipelineInstanceNode node) {
         ZiggyQuery<PipelineTask, String> query = createZiggyQuery(PipelineTask.class, String.class);
@@ -223,9 +226,6 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     /**
      * Retrieve the list of distinct softwareRevisions for the specified pipeline instance. Used for
      * reporting
-     *
-     * @param instance
-     * @return
      */
     public List<String> distinctSoftwareRevisions(PipelineInstance instance) {
         ZiggyQuery<PipelineTask, String> query = createZiggyQuery(PipelineTask.class, String.class);
@@ -249,9 +249,6 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
      * This is typically called by the supervisor during startup to clear the stale state of any
      * tasks that were processing when the supervisor exited abnormally (without a chance to set the
      * state to ERROR)
-     *
-     * @param workerHost
-     * @return
      */
     public ClearStaleStateResults clearStaleState() {
         ClearStaleStateResults results = new ClearStaleStateResults();
@@ -412,8 +409,8 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
      * Gets the number of tasks for a given pipeline instance node ID in a given state
      *
      * @param nodeId ID of the pipeline instance node
-     * @param state state of interest (PROCESSING, COMPLETED, etc.).
-     * @return count of the number of tasks in the given state for the given node ID.
+     * @param state state of interest (PROCESSING, COMPLETED, etc.)
+     * @return count of the number of tasks in the given state for the given node ID
      */
     public int retrieveStateCount(long nodeId, PipelineTask.State state) {
 

@@ -23,7 +23,6 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
  * instance's own {@link ArrayBlockingQueue}. This use of blocking queues allows both the server and
  * the client to dispense with busy loops and simply block until they are called upon to do
  * something.
- * <p>
  *
  * @author PT
  */
@@ -39,7 +38,7 @@ public class SubtaskClient {
     }
 
     /**
-     * Client method to report that a sub-task has completed
+     * Client method to report that a sub-task has completed.
      */
     public Response reportSubtaskComplete(int subTaskIndex) {
         return request(RequestType.REPORT_DONE, subTaskIndex);
@@ -82,7 +81,7 @@ public class SubtaskClient {
     /**
      * Sends a message to the {@link SubtaskServer} that is not associated with a subtask index.
      *
-     * @return non-null.
+     * @return non-null response
      */
     private Response request(RequestType command) {
         return request(command, -1);
@@ -91,7 +90,7 @@ public class SubtaskClient {
     /**
      * Send a request to the subtask server and receive a response.
      *
-     * @return non-null.
+     * @return non-null response
      */
     private Response request(RequestType command, int subtaskIndex) {
 

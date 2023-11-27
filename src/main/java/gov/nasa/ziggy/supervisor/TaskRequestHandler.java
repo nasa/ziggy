@@ -13,13 +13,14 @@ import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
@@ -48,21 +49,22 @@ public class TaskRequestHandler implements Runnable, Requestor {
     private final int heapSizeMb;
     private final PriorityBlockingQueue<TaskRequest> taskRequestQueue;
     private final UUID uuid = UUID.randomUUID();
-    private final long pipelineDefinitionNodeId;
-    private final CountDownLatch handlerShutdownCountdownLatch;
 
     /** For testing only. */
     private final Set<TaskRequest> taskRequests = new TreeSet<>();
 
+    private final long pipelineDefinitionNodeId;
+    private final CountDownLatch taskRequestThreadCountdownLatch;
+
     public TaskRequestHandler(int workerId, int workerCount, int heapSizeMb,
         PriorityBlockingQueue<TaskRequest> taskRequestQueue, long pipelineDefinitionNodeId,
-        CountDownLatch handlerShutdownCountdownLatch) {
+        CountDownLatch taskRequestThreadCountdownLatch) {
         this.workerId = workerId;
         this.workerCount = workerCount;
         this.heapSizeMb = heapSizeMb;
         this.taskRequestQueue = taskRequestQueue;
         this.pipelineDefinitionNodeId = pipelineDefinitionNodeId;
-        this.handlerShutdownCountdownLatch = handlerShutdownCountdownLatch;
+        this.taskRequestThreadCountdownLatch = taskRequestThreadCountdownLatch;
     }
 
     /**
@@ -87,10 +89,13 @@ public class TaskRequestHandler implements Runnable, Requestor {
                 // InterruptedException.
                 TaskRequest taskRequest = taskRequestQueue.take();
 
-                // If the pipeline definition node ID has changed, it means that the pipeline
-                // is ready to transition from one definition node to the next. Given that the
-                // next node may need a different number of workers, all the TaskRequestHandlers
-                // should shut down when they see that this has happened.
+                // If the pipeline definition node ID has changed, it means that the next tasks
+                // in the queue belong to a different {@link PipelineDefinitionNode}. The only way
+                // that this can happen is if multiple pipelines are executing simultaneously and
+                // one of them has queued up tasks for a new pipeline definition node and the others
+                // have not. Given that the node for the new task requests may need a different
+                // number of workers, all the TaskRequestHandlers should shut down when they see
+                // that this has happened.
                 if (taskRequest.getPipelineDefinitionNodeId() != pipelineDefinitionNodeId) {
                     log.info("Transitioning to pipeline definition node "
                         + taskRequest.getPipelineDefinitionNodeId()
@@ -101,73 +106,13 @@ public class TaskRequestHandler implements Runnable, Requestor {
                     Thread.currentThread().interrupt();
                     continue;
                 }
+
                 taskRequests.add(taskRequest);
 
                 // For testing purposes, we can allow negative values for the pipeline definition
                 // node id.
-                if (taskRequest.getPipelineDefinitionNodeId() < 0) {
-                    continue;
-                }
-                ExternalProcess externalProcess = ExternalProcess
-                    .simpleExternalProcess(commandLine(taskRequest));
-
-                // If execution blocks here, it will stay blocked until the worker process exits
-                // (successfully or otherwise). However, if the supervisor shuts down, it will send
-                // shutdown messages to all the workers, which will cause all the worker external
-                // processes to exit. That will bring us back here, where we will find that the
-                // thread has been interrupted and we exit the while loop.
-                int status = externalProcess.execute();
-
-                // If the external process returned a nonzero status, we need to ensure that
-                // the task is correctly marked as errored and that the instance is properly
-                // updated.
-                boolean readyForTransition = (boolean) DatabaseTransactionFactory
-                    .performTransaction(() -> {
-                        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-                        PipelineOperations pipelineOperations = new PipelineOperations();
-                        PipelineTask task = pipelineTaskCrud.retrieve(taskRequest.getTaskId());
-
-                        // If the external process returned a nonzero status, we need to ensure that
-                        // the task is correctly marked as errored and that the instance is properly
-                        // updated.
-                        if (status != 0) {
-
-                            // If the external process exited with bad status because its task was
-                            // deliberately killed, we want to present this information as an alert
-                            // and in the log.
-                            if (TaskRequestHandlerLifecycleManager
-                                .taskOnKilledTaskList(taskRequest.getTaskId())) {
-                                log.info("Task " + taskRequest.getTaskId() + " killed by user");
-                                AlertService alertService = AlertService.getInstance();
-                                alertService.generateAndBroadcastAlert("PI",
-                                    taskRequest.getTaskId(), AlertService.Severity.ERROR,
-                                    "Task " + taskRequest.getTaskId()
-                                        + " killed during local execution.");
-                            } else {
-                                log.error("Marking task " + taskRequest.getTaskId()
-                                    + " failed because PipelineWorker return value == " + status);
-
-                                AlertService alertService = AlertService.getInstance();
-                                alertService.generateAndBroadcastAlert("PI",
-                                    taskRequest.getTaskId(), AlertService.Severity.ERROR,
-                                    "Task marked as errored due to WorkerProcess return value "
-                                        + status);
-                            }
-                            if (task.getState() != PipelineTask.State.ERROR) {
-                                pipelineOperations.setTaskState(task, State.ERROR);
-                                pipelineTaskCrud.merge(task);
-                            }
-                        }
-                        return task.getState().equals(PipelineTask.State.COMPLETED);
-                    });
-
-                // Note that the worker will return when the task reaches p-state Ac, at which point
-                // it's still processing; the AlgorithmMonitor then submits it back into the task
-                // queue, at which point another worker will get the task to state COMPLETE. If this
-                // is the end of the first task (i.e., the one that stopped at Ac), we don't want to
-                // try to transition!
-                if (readyForTransition) {
-                    transitionToNextInstanceNode(taskRequest.getTaskId());
+                if (taskRequest.getPipelineDefinitionNodeId() > 0) {
+                    processTaskRequest(taskRequest);
                 }
             }
         } catch (InterruptedException e) {
@@ -176,64 +121,137 @@ public class TaskRequestHandler implements Runnable, Requestor {
             // Set the interrupt flag so we can exit the while loop.
             Thread.currentThread().interrupt();
         } finally {
-            handlerShutdownCountdownLatch.countDown();
+
+            // Before exiting the run() method, tell the lifecycle manager that this
+            // task request handler is finished.
+            taskRequestThreadCountdownLatch.countDown();
         }
     }
 
-    /**
-     * Performs the transition from one pipeline module to the next. The process includes the
-     * following steps:
-     * <ol>
-     * <li>Determine whether the user wants execution to halt with the current module, if so go no
-     * further.
-     * <li>Update task counts for the current module.
-     * <li>Update the state of the current pipeline instance.
-     * <li>If the
-     * {@link PipelineExecutor#transitionToNextInstanceNode(PipelineInstance, PipelineTask, TaskCounts)}
-     * method returns tasks, use {@link PipelineExecutor} to submit them to the task queue. These
-     * tasks are the tasks for the next pipeline module, if transition to that module is
-     * appropriate.
-     * </ol>
-     */
-    private void transitionToNextInstanceNode(long taskId) {
-        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-        PipelineTask task = (PipelineTask) DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTask pipelineTask = pipelineTaskCrud.retrieve(taskId);
+    private void processTaskRequest(TaskRequest taskRequest) {
 
-            // These lines are here to ensure that lazy initialization runs.
-            Hibernate.initialize(pipelineTask.getPipelineInstance());
-            Hibernate.initialize(pipelineTask.getModuleImplementation());
-            return pipelineTask;
+        // If we previously marked this instance node as transitioned, unmark it now. This
+        // is necessary because the combination of node transitioned plus running tasks from
+        // the instance node means that the tasks failed and the pipeline transitioned to
+        // doing nothing, and we are now rerunning the tasks and want to be able to
+        // transition to the next node.
+        markInstanceNodeNotTransitioned(taskRequest.getInstanceNodeId());
+
+        ExternalProcess externalProcess = ExternalProcess
+            .simpleExternalProcess(commandLine(taskRequest));
+
+        // If execution blocks here, it will stay blocked until the worker process exits
+        // (successfully or otherwise). However, if the supervisor shuts down, it will send
+        // shutdown messages to all the workers, which will cause all the worker external
+        // processes to exit. That will bring us back here, where we will find that the
+        // thread has been interrupted and we exit the while loop.
+        int status = externalProcess.execute();
+
+        DatabaseTransactionFactory.performTransaction(() -> {
+            PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
+            PipelineOperations pipelineOperations = new PipelineOperations();
+            PipelineTask task = pipelineTaskCrud.retrieve(taskRequest.getTaskId());
+
+            // If the external process returned a nonzero status, we need to ensure that
+            // the task is correctly marked as errored and that the instance is properly
+            // updated.
+            if (status != 0) {
+
+                // We only need to send alerts and alter task states if the task bombed
+
+                log.error("Marking task " + taskRequest.getTaskId()
+                    + " failed because PipelineWorker return value == " + status);
+
+                AlertService alertService = AlertService.getInstance();
+                alertService.generateAndBroadcastAlert("PI", taskRequest.getTaskId(),
+                    AlertService.Severity.ERROR,
+                    "Task marked as errored due to WorkerProcess return value " + status);
+
+                if (task.getState() != PipelineTask.State.ERROR) {
+                    pipelineOperations.setTaskState(task, State.ERROR);
+                    task = pipelineTaskCrud.merge(task);
+                }
+            }
+            return null;
         });
-        boolean success = task.getState().equals(PipelineTask.State.COMPLETED);
-        PipelineModule currentModule = task.getModuleImplementation();
-        if (currentModule != null && currentModule.isHaltPipelineOnTaskCompletion()) {
-            log.info("currentPipelineModule.isHaltPipelineOnTaskCompletion == true, "
-                + "so NOT executing transition logic for task " + taskId);
+
+        // Finalize the task's memdrone activities.
+        DatabaseTransactionFactory.performTransaction(() -> {
+            PipelineTask task = new PipelineTaskCrud().retrieve(taskRequest.getTaskId());
+            log.info("task {}: isRetried(): {}", task.getId(), task.isRetry());
+
+            Memdrone memdrone = new Memdrone(task.getModuleName(),
+                task.getPipelineInstance().getId());
+            if (Memdrone.memdroneEnabled()) {
+                memdrone.createStatsCache();
+                memdrone.createPidMapCache();
+            }
+            return null;
+        });
+
+        transitionToNextInstanceNode(taskRequest.getInstanceNodeId());
+
+    }
+
+    /**
+     * Checks whether the current instance node is complete and, if so, initiates the transition to
+     * the next instance node. Synchronized to ensure that each transition is executed once and only
+     * once.
+     */
+    private static synchronized void transitionToNextInstanceNode(long instanceNodeId) {
+
+        // Retrieve the instance node, make sure some fields are populated, generate task counts,
+        // perform some logging.
+        PipelineExecutor pipelineExecutor = new PipelineExecutor();
+        PipelineInstanceNodeInformation nodeInformation = (PipelineInstanceNodeInformation) DatabaseTransactionFactory
+            .performTransaction(() -> {
+
+                PipelineInstanceNode instanceNode = new PipelineInstanceNodeCrud()
+                    .retrieve(instanceNodeId);
+                Hibernate.initialize(instanceNode.getPipelineInstance());
+                Hibernate.initialize(instanceNode.getPipelineDefinitionNode());
+                Hibernate.initialize(instanceNode.getPipelineDefinitionNode().getNextNodes());
+                TaskCounts taskCounts = new PipelineOperations().taskCounts(instanceNode);
+                pipelineExecutor.logUpdatedInstanceState(instanceNode.getPipelineInstance());
+                return new PipelineInstanceNodeInformation(instanceNode, taskCounts);
+            });
+
+        // If some other task has already kicked off the transition, don't send it again.
+        if (nodeInformation.getPipelineInstanceNode().isTransitionComplete()) {
             return;
         }
-        log.info("executing transition logic for task " + taskId);
 
-        TaskCounts taskCountsForCurrentNode = (TaskCounts) DatabaseTransactionFactory
-            .performTransaction(
-                () -> new PipelineOperations().taskCounts(task.getPipelineInstanceNode()));
-        PipelineExecutor pipelineExecutor = new PipelineExecutor();
-        PipelineTask mergedTask = task;
-        if (success) {
-            log.info("Executing transition logic");
-
-            pipelineExecutor.transitionToNextInstanceNode(task.getPipelineInstance(), task,
-                taskCountsForCurrentNode);
-
-            mergedTask = (PipelineTask) DatabaseTransactionFactory.performTransaction(() -> {
-                task.setTransitionComplete(true);
-                return pipelineTaskCrud.merge(task);
+        // If the node is done executing then we need to initiate the transition as long as no
+        // tasks have failed.
+        PipelineInstanceNode pipelineInstanceNode = nodeInformation.getPipelineInstanceNode();
+        TaskCounts taskCounts = nodeInformation.getTaskCounts();
+        if (taskCounts.isInstanceNodeExecutionComplete()) {
+            log.info("Node {} execution complete",
+                pipelineInstanceNode.getPipelineDefinitionNode().getModuleName());
+            DatabaseTransactionFactory.performTransaction(() -> {
+                new PipelineInstanceNodeCrud().markTransitionComplete(instanceNodeId);
+                return null;
             });
+
+            log.info("Task counts: {}", taskCounts.log());
+            if (taskCounts.isInstanceNodeComplete()) {
+                pipelineExecutor.transitionToNextInstanceNode(pipelineInstanceNode, taskCounts);
+            } else {
+                log.error("Halting pipeline execution due to errors in node {}",
+                    pipelineInstanceNode.getPipelineDefinitionNode().getModuleName());
+            }
+
+            // Log the pipeline instance state.
         } else {
-            log.info(
-                "postProcessing: not executing transition logic because of current task failure");
+            log.info("Instance node {} not complete", instanceNodeId);
         }
-        pipelineExecutor.logUpdatedInstanceState(mergedTask.getPipelineInstance());
+    }
+
+    private static synchronized void markInstanceNodeNotTransitioned(long pipelineInstanceNodeId) {
+        DatabaseTransactionFactory.performTransaction(() -> {
+            new PipelineInstanceNodeCrud().markTransitionIncomplete(pipelineInstanceNodeId);
+            return null;
+        });
     }
 
     /** For testing only. */
@@ -276,5 +294,31 @@ public class TaskRequestHandler implements Runnable, Requestor {
     @Override
     public Object requestorIdentifier() {
         return uuid;
+    }
+
+    /**
+     * Container class for a {@link PipelineInstanceNode} and its associated {@link TaskCounts}.
+     * Used to transport both out of a database transaction.
+     *
+     * @author PT
+     */
+    public static class PipelineInstanceNodeInformation {
+
+        private final PipelineInstanceNode pipelineInstanceNode;
+        private final TaskCounts taskCounts;
+
+        public PipelineInstanceNodeInformation(PipelineInstanceNode pipelineInstanceNode,
+            TaskCounts taskCounts) {
+            this.pipelineInstanceNode = pipelineInstanceNode;
+            this.taskCounts = taskCounts;
+        }
+
+        public PipelineInstanceNode getPipelineInstanceNode() {
+            return pipelineInstanceNode;
+        }
+
+        public TaskCounts getTaskCounts() {
+            return taskCounts;
+        }
     }
 }

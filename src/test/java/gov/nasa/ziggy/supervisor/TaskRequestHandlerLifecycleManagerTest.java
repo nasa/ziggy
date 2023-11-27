@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.times;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -21,6 +22,7 @@ import org.mockito.Mockito;
 
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
@@ -28,8 +30,10 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.messages.KillTasksRequest;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messages.WorkerResources;
+import gov.nasa.ziggy.util.Requestor;
 
 /**
  * Unit tests for {@link TaskRequestHandlerLifecycleManager} class.
@@ -198,28 +202,28 @@ public class TaskRequestHandlerLifecycleManagerTest {
         assertTrue(
             TestEventDetector.detectTestEvent(500L, () -> allTaskRequestHandlers.size() == 2));
 
-        // The first list should have 1 handler which handled 1 task request,
-        // the first request.
-        List<TaskRequestHandler> handlers = allTaskRequestHandlers.get(0);
-        assertEquals(1, handlers.size());
-        Set<TaskRequest> taskRequests = handlers.get(0).getTaskRequests();
-        assertEquals(1, taskRequests.size());
-        TaskRequest taskRequest = taskRequests.iterator().next();
-        assertEquals(-1L, taskRequest.getPipelineDefinitionNodeId());
-
         // The second list should have 2 handlers which between them handled 3 task
         // requests, the ones for pipeline definition node ID == -2.
-        handlers = allTaskRequestHandlers.get(1);
+        List<TaskRequestHandler> handlers = allTaskRequestHandlers.get(1);
         assertEquals(2, handlers.size());
         final List<TaskRequestHandler> finalHandlers = new ArrayList<>(handlers);
         assertTrue(
             TestEventDetector.detectTestEvent(500L, () -> taskRequestCount(finalHandlers) == 3));
 
-        taskRequests = new HashSet<>(handlers.get(0).getTaskRequests());
+        Set<TaskRequest> taskRequests = new HashSet<>(handlers.get(0).getTaskRequests());
         taskRequests.addAll(handlers.get(1).getTaskRequests());
         assertTrue(taskRequests.contains(t1));
         assertTrue(taskRequests.contains(t2));
         assertTrue(taskRequests.contains(t3));
+
+        // The first list should have 1 handler which handled 1 task request,
+        // the first request.
+        handlers = allTaskRequestHandlers.get(0);
+        assertEquals(1, handlers.size());
+        taskRequests = handlers.get(0).getTaskRequests();
+        assertEquals(1, taskRequests.size());
+        TaskRequest taskRequest = taskRequests.iterator().next();
+        assertEquals(-1L, taskRequest.getPipelineDefinitionNodeId());
     }
 
     private int taskRequestCount(List<TaskRequestHandler> taskRequestHandlers) {
@@ -241,6 +245,7 @@ public class TaskRequestHandlerLifecycleManagerTest {
     @Test
     public void testRemoveRequestsFromQueue() {
 
+        lifecycleManager = Mockito.spy(lifecycleManager);
         // Shut off the task request handler threads so that the tasks don't instantly fly
         // out of the queue.
         assertTrue(
@@ -257,10 +262,15 @@ public class TaskRequestHandlerLifecycleManagerTest {
         // Check that the tasks stayed put
         assertEquals(3, lifecycleManager.taskRequestSize());
 
-        // Remove two of the tasks, and try to remove one that isn't even in there.
-        lifecycleManager.killQueuedTasksAction(List.of(1L, 3L, 4L));
+        KillTasksRequest request = KillTasksRequest.forTaskIds(lifecycleManager,
+            List.of(1L, 3L, 4L));
+        lifecycleManager.killQueuedTasksAction(request);
         assertEquals(1, lifecycleManager.taskRequestSize());
         assertEquals(2, lifecycleManager.taskRequestQueuePeek().getTaskId());
+        Mockito.verify(lifecycleManager).publishKilledTaskMessage(request, 1L);
+        Mockito.verify(lifecycleManager, times(0)).publishKilledTaskMessage(request, 2L);
+        Mockito.verify(lifecycleManager).publishKilledTaskMessage(request, 3L);
+        Mockito.verify(lifecycleManager, times(0)).publishKilledTaskMessage(request, 4L);
     }
 
     /**
@@ -270,14 +280,19 @@ public class TaskRequestHandlerLifecycleManagerTest {
      * @author PT
      */
     public static class InstrumentedTaskRequestHandlerLifecycleManager
-        extends TaskRequestHandlerLifecycleManager {
+        extends TaskRequestHandlerLifecycleManager implements Requestor {
 
         private int maxWorkers;
-        private boolean taskRequestSent;
+        private PipelineTaskCrud pipelineTaskCrud;
+        private PipelineOperations pipelineOperations;
 
         public InstrumentedTaskRequestHandlerLifecycleManager() {
             super(true);
-            taskRequestSent = true;
+            TaskRequestHandlerLifecycleManager.setInstance(this);
+            pipelineTaskCrud = Mockito.mock(PipelineTaskCrud.class);
+            Mockito.when(pipelineTaskCrud.retrieveAll(ArgumentMatchers.<Long> anyList()))
+                .thenReturn(new ArrayList<>());
+            pipelineOperations = Mockito.spy(PipelineOperations.class);
         }
 
         public void setMaxWorkers(int maxWorkers) {
@@ -289,15 +304,8 @@ public class TaskRequestHandlerLifecycleManagerTest {
             return new WorkerResources(maxWorkers, 1);
         }
 
-        public boolean isTaskRequestSent() {
-            return taskRequestSent;
-        }
-
         @Override
         protected PipelineTaskCrud pipelineTaskCrud() {
-            PipelineTaskCrud pipelineTaskCrud = Mockito.mock(PipelineTaskCrud.class);
-            Mockito.when(pipelineTaskCrud.retrieveAll(ArgumentMatchers.<Long> anyList()))
-                .thenReturn(new ArrayList<>());
             return pipelineTaskCrud;
         }
 
@@ -309,6 +317,16 @@ public class TaskRequestHandlerLifecycleManagerTest {
         @Override
         protected AlertService alertService() {
             return Mockito.mock(AlertService.class);
+        }
+
+        @Override
+        protected PipelineOperations pipelineOperations() {
+            return pipelineOperations;
+        }
+
+        @Override
+        public Object requestorIdentifier() {
+            return Long.valueOf(0L);
         }
     }
 }

@@ -128,7 +128,7 @@ public class PipelineGraphCanvas extends JPanel {
             canvasPane.add(widget);
             widget.setBounds(nodeBounds);
         } else if (parentBounds != null) {
-            drawArrow(node.isStartNewUow(), g2, parentBounds, nodeBounds);
+            drawArrow(g2, parentBounds, nodeBounds);
         }
 
         int childColumn = column;
@@ -139,18 +139,13 @@ public class PipelineGraphCanvas extends JPanel {
         }
     }
 
-    private void drawArrow(boolean startNewUow, Graphics2D g2, Rectangle start, Rectangle end) {
+    private void drawArrow(Graphics2D g2, Rectangle start, Rectangle end) {
 
         Stroke oldStroke = g2.getStroke();
 
         BasicStroke lineStroke;
 
-        if (startNewUow) {
-            lineStroke = new BasicStroke(2);
-        } else {
-            lineStroke = new BasicStroke(2, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER, 10.0f,
-                new float[] { 10 }, 0.0f);
-        }
+        lineStroke = new BasicStroke(2);
 
         g2.setStroke(lineStroke);
 
@@ -265,7 +260,6 @@ public class PipelineGraphCanvas extends JPanel {
             PipelineDefinitionNode predecessorNode = selectedNodeWidget.getPipelineNodeParent();
             PipelineDefinitionNode newNode = new PipelineDefinitionNode();
             newNode.setParentNode(predecessorNode);
-            newNode.setStartNewUow(true);
 
             EditPipelineNodeDialog editPipelineNodeDialog = new EditPipelineNodeDialog(
                 SwingUtilities.getWindowAncestor(this), pipeline, newNode);
@@ -304,7 +298,6 @@ public class PipelineGraphCanvas extends JPanel {
             PipelineDefinitionNode selectedNode = selectedNodeWidget.getPipelineNode();
             PipelineDefinitionNode newNode = new PipelineDefinitionNode();
             newNode.setParentNode(selectedNode);
-            newNode.setStartNewUow(true);
 
             EditPipelineNodeDialog editPipelineNodeDialog = new EditPipelineNodeDialog(
                 SwingUtilities.getWindowAncestor(this), pipeline, newNode);
@@ -342,7 +335,6 @@ public class PipelineGraphCanvas extends JPanel {
             PipelineDefinitionNode selectedNode = selectedNodeWidget.getPipelineNode();
             PipelineDefinitionNode newNode = new PipelineDefinitionNode();
             newNode.setParentNode(selectedNode);
-            newNode.setStartNewUow(true);
 
             EditPipelineNodeDialog editPipelineNodeDialog = new EditPipelineNodeDialog(
                 SwingUtilities.getWindowAncestor(this), pipeline, newNode);

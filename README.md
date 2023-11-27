@@ -6,6 +6,8 @@
   </a>
 </div>
 
+[![DOI](https://zenodo.org/badge/518211190.svg)](https://zenodo.org/badge/latestdoi/518211190)
+
 [[Previous]](doc/user-manual/user-manual.md)
 [[Up]](doc/user-manual/user-manual.md)
 [[Next]](doc/user-manual/system-requirements.md)

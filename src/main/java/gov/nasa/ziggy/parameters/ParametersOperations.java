@@ -2,7 +2,6 @@ package gov.nasa.ziggy.parameters;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -44,8 +43,6 @@ public class ParametersOperations {
 
     /**
      * Export the current parameter library to the specified file.
-     *
-     * @param destinationPath
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public List<ParameterSetDescriptor> exportParameterLibrary(String destinationPath,
@@ -104,9 +101,8 @@ public class ParametersOperations {
      * @param sourceFile the file or directory to import
      * @param excludeList contains a list of parameter set names which should not be imported
      * @param ioMode indicates whether execution is to be a full execution, a dry run (which
-     * requires database access), or a database-free execution.
+     * requires database access), or a database-free execution
      * @return list of {@link ParameterSetDescriptor}s
-     * @throws IOException if there were problems reading the parameter files
      */
     public List<ParameterSetDescriptor> importParameterLibrary(File sourceFile,
         List<String> excludeList, ParamIoMode ioMode) {
@@ -147,10 +143,10 @@ public class ParametersOperations {
      * populated and the state will indicate the operation that would have taken effect if dryRun
      * was set to true.
      *
-     * @param sourcePath
-     * @param excludeList Will not be imported
+     * @param sourcePath path to the directory to import
+     * @param excludeList will not be imported
      * @param ioMode indicates whether execution is to be a full execution, a dry run (which
-     * requires database access), or a database-free execution. changed.
+     * requires database access), or a database-free execution. changed
      * @return
      */
     public List<ParameterSetDescriptor> importParameterLibrary(String sourcePath,

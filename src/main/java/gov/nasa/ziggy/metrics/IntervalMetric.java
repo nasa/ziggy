@@ -6,7 +6,7 @@ import java.util.concurrent.Callable;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.SystemTime;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * Metric to measure elapsed time
@@ -36,7 +36,7 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      * @return
      */
     public static IntervalMetricKey start() {
-        return new IntervalMetricKey(SystemTime.currentTimeMillis());
+        return new IntervalMetricKey(SystemProxy.currentTimeMillis());
     }
 
     /**
@@ -44,7 +44,7 @@ public class IntervalMetric extends ValueMetric implements Serializable {
      * @param key
      */
     public static IntervalMetric stop(String name, IntervalMetricKey key) {
-        long stopTime = SystemTime.currentTimeMillis();
+        long stopTime = SystemProxy.currentTimeMillis();
         GlobalThreadMetrics<IntervalMetric> m = getIntervalMetric(name);
         m.getGlobalMetric().stop(key, stopTime);
         if (m.getThreadMetric() != null) {

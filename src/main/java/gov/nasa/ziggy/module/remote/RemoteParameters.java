@@ -10,6 +10,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 
 /**
@@ -119,8 +120,8 @@ public class RemoteParameters extends Parameters {
     /**
      * Copy constructor. Uses a copy of the {@link TypedParameter} instances from the original to
      * instantiate the {@link TypedParameter} collection in the new object, and uses the
-     * {@link ParametersInterface#populate(Set<TypedParameter>)} method to ensure that the fields
-     * are updated with the typed parameter values.
+     * {@link ParametersInterface} {@code populate()} method to ensure that the fields are updated
+     * with the typed parameter values.
      */
     public RemoteParameters(RemoteParameters original) {
         populate(original.getParametersCopy());

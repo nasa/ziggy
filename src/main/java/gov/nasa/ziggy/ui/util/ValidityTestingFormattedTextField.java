@@ -26,7 +26,7 @@ import org.apache.commons.lang3.StringUtils;
  * instance is currently valid.
  * <li>For invalid instances, a red border appears inside the text field when the instance loses
  * focus, and disappears when the instance regains the focus.
- * <li>Each instance can be provided with an instance of the {@link ExecuteOnValidityCheck}
+ * <li>Each instance can be provided with an instance of the {@link Consumer}{@code <Boolean>}
  * functional interface, which can perform actions as part of the validity check depending on
  * whether the check indicates that the instance is currently valid or invalid.
  * <li>Disabled instances are automatically cleared of any values and are treated as valid.
