@@ -27,8 +27,8 @@ public class ZiggyPropertyRuleTest {
 
     @Test
     public void stringConstructorTest() {
-        assertEquals("value", stringPropertyRule.getProperty());
+        assertEquals("value", stringPropertyRule.getValue());
         assertEquals("build/test/ZiggyPropertyRuleTest/stringConstructorTest",
-            stringDirectoryPropertyRule.getProperty());
+            stringDirectoryPropertyRule.getValue());
     }
 }

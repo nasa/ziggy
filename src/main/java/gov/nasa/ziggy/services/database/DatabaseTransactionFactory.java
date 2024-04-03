@@ -50,7 +50,7 @@ public class DatabaseTransactionFactory<T> {
 
     /**
      * Specifies the transaction context. Specifically, specifies whether the call to
-     * {@link DatabaseTransactionFactory#performTransaction(DatabaseTransaction) occurs in the
+     * {@link DatabaseTransactionFactory#performTransaction(DatabaseTransaction)} occurs in the
      * context of an existing transaction. If the context is an existing transaction, then
      * performTransaction should not begin, commit, or roll back the transaction, or close the
      * session at the end of the operation; if the context is outside of an existing transaction,
@@ -58,7 +58,7 @@ public class DatabaseTransactionFactory<T> {
      *
      * @author PT
      */
-    private enum TransactionContext {
+    public enum TransactionContext {
 
         /**
          * Existing transaction, so don't do anything to break the transaction that is outside of

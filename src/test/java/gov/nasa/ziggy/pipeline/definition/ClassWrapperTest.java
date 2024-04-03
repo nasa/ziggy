@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 
@@ -69,19 +68,24 @@ public class ClassWrapperTest {
     @Test
     public void testParameterSetSubclassConstructor() {
         ParameterSet paramSet = new ParameterSet();
-        RemoteParameters params = new RemoteParameters();
+        TestParameters params = new TestParameters();
         paramSet.populateFromParametersInstance(params);
         paramSet.setName("foo");
         ClassWrapper<ParametersInterface> paramWrapper = new ClassWrapper<>(paramSet);
-        assertEquals("gov.nasa.ziggy.module.remote.RemoteParameters", paramWrapper.getClassName());
-        assertEquals("gov.nasa.ziggy.module.remote.RemoteParameters",
+        assertEquals("gov.nasa.ziggy.pipeline.definition.ClassWrapperTest$TestParameters",
+            paramWrapper.getClassName());
+        assertEquals("gov.nasa.ziggy.pipeline.definition.ClassWrapperTest$TestParameters",
             paramWrapper.unmangledClassName());
-        assertEquals(RemoteParameters.class, paramWrapper.getClazz());
+        assertEquals(TestParameters.class, paramWrapper.getClazz());
     }
 
     public static class Foo {
     }
 
     public static class Bar extends Foo {
+    }
+
+    public static class TestParameters extends Parameters {
+
     }
 }

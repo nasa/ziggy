@@ -2,11 +2,11 @@ package gov.nasa.ziggy.uow;
 
 import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.nio.file.Path;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,10 +16,18 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
+import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.data.datastore.DataFileType;
+import gov.nasa.ziggy.data.datastore.DatastoreRegexp;
+import gov.nasa.ziggy.data.datastore.DatastoreTestUtils;
+import gov.nasa.ziggy.data.datastore.DatastoreWalker;
+import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 
 /**
  * Unit test class for DatastoreDirectoryUnitOfWorkGenerator.
@@ -28,9 +36,10 @@ import gov.nasa.ziggy.parameters.ParametersInterface;
  */
 public class DatastoreDirectoryUnitOfWorkTest {
 
-    private Path datastoreRoot;
-    private Map<Class<? extends ParametersInterface>, ParametersInterface> parametersMap;
-    private TaskConfigurationParameters taskConfigurationParameters;
+    private PipelineInstanceNode pipelineInstanceNode;
+    private PipelineDefinitionNode pipelineDefinitionNode;
+    private DatastoreDirectoryUnitOfWorkGenerator uowGenerator;
+    private DataFileType drSciencePixels;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -42,50 +51,28 @@ public class DatastoreDirectoryUnitOfWorkTest {
         .around(datastoreRootDirPropertyRule);
 
     @Before
-    public void setup() {
+    public void setup() throws IOException {
 
-        datastoreRoot = directoryRule.directory();
         // Create the datastore.
-        File datastore = datastoreRoot.toFile();
+        DatastoreTestUtils.createDatastoreDirectories();
 
-        // create some directories within the datastore
-        File sector0001 = new File(datastore, "sector-0001");
-        sector0001.mkdirs();
-        File sector0002 = new File(datastore, "sector-0002");
-        sector0002.mkdirs();
+        // Create data file types.
+        drSciencePixels = new DataFileType("dr science pixels",
+            "sector/mda/dr/pixels/cadenceType/pixelType$science/channel");
 
-        File cal0001 = new File(sector0001, "cal");
-        cal0001.mkdirs();
-        File cal0002 = new File(sector0002, "cal");
-        cal0002.mkdirs();
-        File pa0002 = new File(sector0002, "pa");
-        pa0002.mkdirs();
+        // Create the pipeline instance node and pipeline definition node.
+        pipelineInstanceNode = Mockito.mock(PipelineInstanceNode.class);
+        pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
+        Mockito.when(pipelineInstanceNode.getPipelineDefinitionNode())
+            .thenReturn(pipelineDefinitionNode);
+        Mockito.when(pipelineDefinitionNode.getInputDataFileTypes())
+            .thenReturn(Set.of(drSciencePixels));
 
-        File ccd11 = new File(cal0001, "ccd-1:1");
-        ccd11.mkdirs();
-        File ccd12 = new File(cal0001, "ccd-1:2");
-        ccd12.mkdirs();
-        File ccd21 = new File(cal0001, "ccd-2:1");
-        ccd21.mkdirs();
-        ccd11 = new File(cal0002, "ccd-1:1");
-        ccd11.mkdirs();
-        ccd12 = new File(cal0002, "ccd-1:2");
-        ccd12.mkdirs();
-        ccd21 = new File(cal0002, "ccd-2:1");
-        ccd21.mkdirs();
-        ccd11 = new File(pa0002, "ccd-1:1");
-        ccd11.mkdirs();
-        ccd12 = new File(pa0002, "ccd-1:2");
-        ccd12.mkdirs();
-        ccd21 = new File(pa0002, "ccd-2:1");
-        ccd21.mkdirs();
-
-        // Construct the task configuration parameters and the parameters map
-        taskConfigurationParameters = new TaskConfigurationParameters();
-        taskConfigurationParameters.setSingleSubtask(false);
-        taskConfigurationParameters.setTaskDirectoryRegex("(sector-[0-9]{4})/cal/ccd-(1:[1234])");
-        parametersMap = new HashMap<>();
-        parametersMap.put(TaskConfigurationParameters.class, taskConfigurationParameters);
+        // Create the datastore walker and the UOW generator.
+        DatastoreWalker datastoreWalker = new DatastoreWalker(DatastoreTestUtils.regexpsByName(),
+            DatastoreTestUtils.datastoreNodesByFullPath());
+        uowGenerator = Mockito.spy(DatastoreDirectoryUnitOfWorkGenerator.class);
+        Mockito.doReturn(datastoreWalker).when(uowGenerator).datastoreWalker();
     }
 
     /**
@@ -95,70 +82,396 @@ public class DatastoreDirectoryUnitOfWorkTest {
     @Test
     public void testGenerateUnitsOfWork() {
 
-        DatastoreDirectoryUnitOfWorkGenerator uowGenInstance = new DatastoreDirectoryUnitOfWorkGenerator();
-        List<UnitOfWork> uowList = uowGenInstance.generateUnitsOfWork(parametersMap);
-        assertEquals(4, uowList.size());
+        List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,
+            pipelineInstanceNode);
 
         // construct a map of expected results
         Map<String, String> uowMap = new HashMap<>();
         for (UnitOfWork uow : uowList) {
             uowMap.put(DirectoryUnitOfWorkGenerator.directory(uow), uow.briefState());
-            assertFalse(DatastoreDirectoryUnitOfWorkGenerator.singleSubtask(uow));
         }
-        Set<String> uowKeys = uowMap.keySet();
 
-        // check for the expected results
-        assertTrue(uowKeys.contains("sector-0001/cal/ccd-1:1"));
-        assertEquals("sector-0001,1:1", uowMap.get("sector-0001/cal/ccd-1:1"));
-        assertTrue(uowKeys.contains("sector-0002/cal/ccd-1:1"));
-        assertEquals("sector-0002,1:1", uowMap.get("sector-0002/cal/ccd-1:1"));
-        assertTrue(uowKeys.contains("sector-0001/cal/ccd-1:2"));
-        assertEquals("sector-0001,1:2", uowMap.get("sector-0001/cal/ccd-1:2"));
-        assertTrue(uowKeys.contains("sector-0002/cal/ccd-1:2"));
-        assertEquals("sector-0002,1:2", uowMap.get("sector-0002/cal/ccd-1:2"));
+        // Check the contents of the Map
+        String path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve("1:1:A")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0002;target;1:1:A]");
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve("1:1:B")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0002;target;1:1:B]");
+
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("ffi")
+            .resolve("science")
+            .resolve("1:1:A")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0002;ffi;1:1:A]");
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("ffi")
+            .resolve("science")
+            .resolve("1:1:B")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0002;ffi;1:1:B]");
+
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0003")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve("1:1:A")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0003;target;1:1:A]");
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0003")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve("1:1:B")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0003;target;1:1:B]");
+
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0003")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("ffi")
+            .resolve("science")
+            .resolve("1:1:A")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0003;ffi;1:1:A]");
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0003")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("ffi")
+            .resolve("science")
+            .resolve("1:1:B")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(uowMap.containsKey(path));
+        assertEquals(uowMap.get(path), "[sector-0003;ffi;1:1:B]");
+
+        assertEquals(8, uowMap.size());
     }
 
-    /**
-     * Tests the generation of tasks that will have a single subtask
-     */
+    // Test that include and exclude restrictions on the DatastoreRegexps are correctly
+    // handled.
     @Test
-    public void testGenerateTasksSingleSubtask() {
+    public void testGenerateUnitsOfWorkWithIncludesAndExcludes() {
+        Map<String, DatastoreRegexp> regexpsByName = DatastoreTestUtils.regexpsByName();
+        DatastoreRegexp regexp = regexpsByName.get("sector");
+        regexp.setInclude("sector-0002");
+        regexp = regexpsByName.get("cadenceType");
+        regexp.setExclude("ffi");
 
-        DatastoreDirectoryUnitOfWorkGenerator uowGenInstance = new DatastoreDirectoryUnitOfWorkGenerator();
-        taskConfigurationParameters.setSingleSubtask(true);
-        List<UnitOfWork> uowList = uowGenInstance.generateUnitsOfWork(parametersMap);
+        Mockito
+            .doReturn(
+                new DatastoreWalker(regexpsByName, DatastoreTestUtils.datastoreNodesByFullPath()))
+            .when(uowGenerator)
+            .datastoreWalker();
+
+        List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,
+            pipelineInstanceNode);
+
+        // construct a map of expected results
+        Map<String, String> briefStateByDirectory = new HashMap<>();
+        Map<String, UnitOfWork> uowByBriefState = new HashMap<>();
         for (UnitOfWork uow : uowList) {
-            assertTrue(DatastoreDirectoryUnitOfWorkGenerator.singleSubtask(uow));
+            briefStateByDirectory.put(DirectoryUnitOfWorkGenerator.directory(uow),
+                uow.briefState());
+            uowByBriefState.put(uow.briefState(), uow);
         }
+        // Check the contents of the Map
+        String path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve("1:1:A")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(briefStateByDirectory.containsKey(path));
+        assertEquals(briefStateByDirectory.get(path), "[1:1:A]");
+        path = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve("1:1:B")
+            .toAbsolutePath()
+            .toString();
+        assertTrue(briefStateByDirectory.containsKey(path));
+        assertEquals(briefStateByDirectory.get(path), "[1:1:B]");
+
+        // Test the capture of regexp values.
+        UnitOfWork uow = uowByBriefState.get("[1:1:A]");
+        assertNotNull(uow.getParameter("sector"));
+        assertEquals("sector-0002", uow.getParameter("sector").getString());
+        assertNotNull(uow.getParameter("cadenceType"));
+        assertEquals("target", uow.getParameter("cadenceType").getString());
+        assertNotNull(uow.getParameter("pixelType"));
+        assertEquals("science", uow.getParameter("pixelType").getString());
+        assertNotNull(uow.getParameter("channel"));
+        assertEquals("1:1:A", uow.getParameter("channel").getString());
+
+        // Test the capture of regexp values.
+        uow = uowByBriefState.get("[1:1:B]");
+        assertNotNull(uow.getParameter("sector"));
+        assertEquals("sector-0002", uow.getParameter("sector").getString());
+        assertNotNull(uow.getParameter("cadenceType"));
+        assertEquals("target", uow.getParameter("cadenceType").getString());
+        assertNotNull(uow.getParameter("pixelType"));
+        assertEquals("science", uow.getParameter("pixelType").getString());
+        assertNotNull(uow.getParameter("channel"));
+        assertEquals("1:1:B", uow.getParameter("channel").getString());
     }
 
-    /**
-     * Tests the generation of tasks for which the "brief state" is the full directory
-     */
+    // Tests UOW generation with multiple directories per UOW.
     @Test
-    public void testGenerateFullBriefState() {
+    public void testUowMultipleDirectories() {
 
-        DatastoreDirectoryUnitOfWorkGenerator uowGenInstance = new DatastoreDirectoryUnitOfWorkGenerator();
-        taskConfigurationParameters.setTaskDirectoryRegex("sector-[0-9]{4}/cal/ccd-1:[1234]");
-        List<UnitOfWork> uowList = uowGenInstance.generateUnitsOfWork(parametersMap);
+        // Create two data file types: target and collateral.
+        DataFileType targetSciencePixels = new DataFileType("target science pixels",
+            "sector/mda/dr/pixels/cadenceType$target/pixelType$science/channel");
+        DataFileType collateralSciencePixels = new DataFileType("collateral science pixels",
+            "sector/mda/dr/pixels/cadenceType$target/pixelType$collateral/channel");
 
+        Mockito.when(pipelineDefinitionNode.getInputDataFileTypes())
+            .thenReturn(Set.of(targetSciencePixels, collateralSciencePixels));
+
+        List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,
+            pipelineInstanceNode);
+        Map<String, UnitOfWork> uowsByName = new HashMap<>();
+        for (UnitOfWork uow : uowList) {
+            uowsByName.put(uow.briefState(), uow);
+        }
+
+        testUow(uowsByName.get("[sector-0002;1:1:A]"), "sector-0002", "1:1:A");
+        testUow(uowsByName.get("[sector-0002;1:1:B]"), "sector-0002", "1:1:B");
+        testUow(uowsByName.get("[sector-0003;1:1:A]"), "sector-0003", "1:1:A");
+        testUow(uowsByName.get("[sector-0003;1:1:B]"), "sector-0003", "1:1:B");
         assertEquals(4, uowList.size());
+    }
 
-        Map<String, String> uowMap = new HashMap<>();
+    /** Performs all necessary tests on a {@link UnitOfWork} instance. */
+    private void testUow(UnitOfWork uow, String sector, String channel) {
+        assertNotNull(uow);
+
+        // Test that the correct directories are present.
+        List<String> directories = DirectoryUnitOfWorkGenerator.directories(uow);
+        assertTrue(directories.contains(DirectoryProperties.datastoreRootDir()
+            .resolve(sector)
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve(channel)
+            .toAbsolutePath()
+            .toString()));
+        assertTrue(directories.contains(DirectoryProperties.datastoreRootDir()
+            .resolve(sector)
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("collateral")
+            .resolve(channel)
+            .toAbsolutePath()
+            .toString()));
+        assertNotNull(DirectoryUnitOfWorkGenerator.directory(uow));
+        assertEquals(2, directories.size());
+
+        // Test that the mapping from data file type to directory is correct.
+        Map<String, String> directoriesByDataFileType = DirectoryUnitOfWorkGenerator
+            .directoriesByDataFileType(uow);
+        assertEquals(2, directoriesByDataFileType.size());
+        String dataFileTypeDirectory = directoriesByDataFileType.get("target science pixels");
+        assertNotNull(dataFileTypeDirectory);
+        assertEquals(DirectoryProperties.datastoreRootDir()
+            .resolve(sector)
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve(channel)
+            .toAbsolutePath()
+            .toString(), dataFileTypeDirectory);
+        dataFileTypeDirectory = directoriesByDataFileType.get("collateral science pixels");
+        assertNotNull(dataFileTypeDirectory);
+        assertEquals(DirectoryProperties.datastoreRootDir()
+            .resolve(sector)
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("collateral")
+            .resolve(channel)
+            .toAbsolutePath()
+            .toString(), dataFileTypeDirectory);
+    }
+
+    @Test
+    public void testUowMultipleDirectoriesWithIncludes() {
+
+        // Create two data file types: target and collateral.
+        DataFileType targetSciencePixels = new DataFileType("target science pixels",
+            "sector/mda/dr/pixels/cadenceType$target/pixelType$science/channel");
+        DataFileType collateralSciencePixels = new DataFileType("collateral science pixels",
+            "sector/mda/dr/pixels/cadenceType$target/pixelType$collateral/channel");
+
+        Mockito.when(pipelineDefinitionNode.getInputDataFileTypes())
+            .thenReturn(Set.of(targetSciencePixels, collateralSciencePixels));
+
+        // Create an include restriction.
+        Map<String, DatastoreRegexp> regexpsByName = DatastoreTestUtils.regexpsByName();
+        DatastoreRegexp regexp = regexpsByName.get("sector");
+        regexp.setInclude("sector-0002");
+
+        Mockito
+            .doReturn(
+                new DatastoreWalker(regexpsByName, DatastoreTestUtils.datastoreNodesByFullPath()))
+            .when(uowGenerator)
+            .datastoreWalker();
+
+        List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,
+            pipelineInstanceNode);
+        Map<String, UnitOfWork> uowsByName = new HashMap<>();
         for (UnitOfWork uow : uowList) {
-            uowMap.put(DirectoryUnitOfWorkGenerator.directory(uow), uow.briefState());
-            assertFalse(DatastoreDirectoryUnitOfWorkGenerator.singleSubtask(uow));
+            uowsByName.put(uow.briefState(), uow);
         }
-        Set<String> uowKeys = uowMap.keySet();
 
-        // check for the expected results
-        assertTrue(uowKeys.contains("sector-0001/cal/ccd-1:1"));
-        assertEquals("sector-0001/cal/ccd-1:1", uowMap.get("sector-0001/cal/ccd-1:1"));
-        assertTrue(uowKeys.contains("sector-0002/cal/ccd-1:1"));
-        assertEquals("sector-0002/cal/ccd-1:1", uowMap.get("sector-0002/cal/ccd-1:1"));
-        assertTrue(uowKeys.contains("sector-0001/cal/ccd-1:2"));
-        assertEquals("sector-0001/cal/ccd-1:2", uowMap.get("sector-0001/cal/ccd-1:2"));
-        assertTrue(uowKeys.contains("sector-0002/cal/ccd-1:2"));
-        assertEquals("sector-0002/cal/ccd-1:2", uowMap.get("sector-0002/cal/ccd-1:2"));
+        testUow(uowsByName.get("[1:1:A]"), "sector-0002", "1:1:A");
+        testUow(uowsByName.get("[1:1:B]"), "sector-0002", "1:1:B");
+        assertEquals(2, uowList.size());
+
+        // The pixel type regexp value should be missing, since we are using both science and
+        // collateral pixels in this UOW.
+        UnitOfWork uow = uowsByName.get("[1:1:A]");
+        assertNotNull(uow.getParameter("sector"));
+        assertEquals("sector-0002", uow.getParameter("sector").getString());
+        assertNotNull(uow.getParameter("cadenceType"));
+        assertEquals("target", uow.getParameter("cadenceType").getString());
+        assertNull(uow.getParameter("pixelType"));
+        assertNotNull(uow.getParameter("channel"));
+        assertEquals("1:1:A", uow.getParameter("channel").getString());
+        assertNull(uow.getParameter("pixelType"));
+
+        uow = uowsByName.get("[1:1:B]");
+        assertNotNull(uow.getParameter("sector"));
+        assertEquals("sector-0002", uow.getParameter("sector").getString());
+        assertNotNull(uow.getParameter("cadenceType"));
+        assertEquals("target", uow.getParameter("cadenceType").getString());
+        assertNull(uow.getParameter("pixelType"));
+        assertNotNull(uow.getParameter("channel"));
+        assertEquals("1:1:B", uow.getParameter("channel").getString());
+        assertNull(uow.getParameter("pixelType"));
+    }
+
+    @Test
+    public void testGenerateUowsSingleUowSingleDataFileType() {
+        Map<String, DatastoreRegexp> regexpsByName = DatastoreTestUtils.regexpsByName();
+        DatastoreRegexp regexp = regexpsByName.get("sector");
+        regexp.setInclude("sector-0002");
+        regexp = regexpsByName.get("cadenceType");
+        regexp.setExclude("ffi");
+        regexp = regexpsByName.get("channel");
+        regexp.setInclude("1:1:A");
+
+        Mockito
+            .doReturn(
+                new DatastoreWalker(regexpsByName, DatastoreTestUtils.datastoreNodesByFullPath()))
+            .when(uowGenerator)
+            .datastoreWalker();
+
+        List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,
+            pipelineInstanceNode);
+        assertEquals(1, uowList.size());
+        UnitOfWork uow = uowList.get(0);
+        assertEquals("[sector-0002;target;1:1:A]", uow.briefState());
+        assertEquals("sector-0002", uow.getParameter("sector").getString());
+        assertEquals("target", uow.getParameter("cadenceType").getString());
+        assertEquals("1:1:A", uow.getParameter("channel").getString());
+        assertEquals("science", uow.getParameter("pixelType").getString());
+    }
+
+    @Test
+    public void testGenerateUowsSingleUowMultipleDataFileTypes() {
+        Map<String, DatastoreRegexp> regexpsByName = DatastoreTestUtils.regexpsByName();
+        DatastoreRegexp regexp = regexpsByName.get("sector");
+        regexp.setInclude("sector-0002");
+        regexp = regexpsByName.get("cadenceType");
+        regexp.setExclude("ffi");
+        regexp = regexpsByName.get("channel");
+        regexp.setInclude("1:1:A");
+
+        Mockito
+            .doReturn(
+                new DatastoreWalker(regexpsByName, DatastoreTestUtils.datastoreNodesByFullPath()))
+            .when(uowGenerator)
+            .datastoreWalker();
+
+        // Create another file type.
+        DataFileType drCollateralPixels = new DataFileType("dr science pixels",
+            "sector/mda/dr/pixels/cadenceType/pixelType$collateral/channel");
+
+        Mockito.when(pipelineDefinitionNode.getInputDataFileTypes())
+            .thenReturn(Set.of(drSciencePixels, drCollateralPixels));
+
+        List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,
+            pipelineInstanceNode);
+        assertEquals(1, uowList.size());
+        UnitOfWork uow = uowList.get(0);
+        assertEquals("[sector-0002;target;1:1:A]", uow.briefState());
+        assertEquals("sector-0002", uow.getParameter("sector").getString());
+        assertEquals("target", uow.getParameter("cadenceType").getString());
+        assertEquals("1:1:A", uow.getParameter("channel").getString());
+        assertNull(uow.getParameter("pixelType"));
     }
 }

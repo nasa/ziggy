@@ -23,8 +23,8 @@ import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
@@ -40,8 +40,6 @@ import gov.nasa.ziggy.pipeline.definition.TestModuleParameters;
 import gov.nasa.ziggy.pipeline.definition.TestPipelineParameters;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud.ClearStaleStateResults;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.security.User;
-import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
@@ -57,10 +55,6 @@ public class PipelineInstanceTaskCrudTest {
 
     private static final String TEST_PIPELINE_NAME = "Test Pipeline";
     private static final String TEST_WORKER_NAME = "TestWorker";
-
-    private UserCrud userCrud;
-
-    private User adminUser;
 
     private PipelineDefinitionCrud pipelineDefinitionCrud;
     private PipelineInstanceCrud pipelineInstanceCrud;
@@ -91,8 +85,6 @@ public class PipelineInstanceTaskCrudTest {
     @Before
     public void setUp() {
 
-        userCrud = new UserCrud();
-
         pipelineDefinitionCrud = new PipelineDefinitionCrud();
         pipelineInstanceCrud = new PipelineInstanceCrud();
         pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
@@ -106,38 +98,25 @@ public class PipelineInstanceTaskCrudTest {
     private void populateObjects() {
 
         DatabaseTransactionFactory.performTransaction(() -> {
-            // create users
-            adminUser = new User("admin", "Administrator", "admin@example.com", "x111");
-            userCrud.createUser(adminUser);
-            return null;
-        });
-
-        DatabaseTransactionFactory.performTransaction(() -> {
 
             // create a module param set def
-            parameterSet = new ParameterSet(new AuditInfo(adminUser, new Date()), "test mps1");
+            parameterSet = new ParameterSet("test mps1");
             parameterSet.setTypedParameters(new TestModuleParameters().getParameters());
             parameterSet = parameterSetCrud.merge(parameterSet);
 
             // create a module def
-            moduleDef = new PipelineModuleDefinition(new AuditInfo(adminUser, new Date()),
-                "Test-1");
+            moduleDef = new PipelineModuleDefinition("Test-1");
             moduleDef = pipelineModuleDefinitionCrud.merge(moduleDef);
 
             // Create a pipeline definition.
-            pipelineDef = new PipelineDefinition(new AuditInfo(adminUser, new Date()),
-                TEST_PIPELINE_NAME);
+            pipelineDef = new PipelineDefinition(TEST_PIPELINE_NAME);
 
             // create some pipeline def nodes
             pipelineDefNode1 = new PipelineDefinitionNode(moduleDef.getName(),
                 pipelineDef.getName());
-            pipelineDefNode1
-                .setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
 
             pipelineDefNode2 = new PipelineDefinitionNode(moduleDef.getName(),
                 pipelineDef.getName());
-            pipelineDefNode2
-                .setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
 
             pipelineDef.getRootNodes().add(pipelineDefNode1);
             pipelineDefNode1.getNextNodes().add(pipelineDefNode2);
@@ -189,7 +168,8 @@ public class PipelineInstanceTaskCrudTest {
     private PipelineTask createPipelineTask(PipelineInstanceNode parentPipelineInstanceNode)
         throws PipelineException {
         PipelineTask pipelineTask = new PipelineTask(pipelineInstance, parentPipelineInstanceNode);
-        UnitOfWork uow = new SingleUnitOfWorkGenerator().generateUnitsOfWork(null).get(0);
+        UnitOfWork uow = PipelineExecutor.generateUnitsOfWork(new SingleUnitOfWorkGenerator(), null)
+            .get(0);
         pipelineTask.setUowTaskParameters(uow.getParameters());
         pipelineTask.setWorkerHost(TEST_WORKER_NAME);
         pipelineTask.setSoftwareRevision("42");
@@ -235,6 +215,7 @@ public class PipelineInstanceTaskCrudTest {
             });
 
         ReflectionEquals comparer = new ReflectionEquals();
+        comparer.excludeField(".*\\.lastChangedUser");
         comparer.excludeField(".*\\.lastChangedTime");
         comparer.assertEquals("PipelineInstance", pipelineInstance, actualPipelineInstance);
 
@@ -262,6 +243,8 @@ public class PipelineInstanceTaskCrudTest {
             });
 
         ReflectionEquals comparer = new ReflectionEquals();
+        comparer.excludeField(".*\\.lastChangedUser");
+        comparer.excludeField(".*\\.lastChangedTime");
         comparer.assertEquals("PipelineInstanceNode", pipelineInstanceNode1,
             actualPipelineInstanceNode);
     }
@@ -292,6 +275,8 @@ public class PipelineInstanceTaskCrudTest {
             actualPipelineInstanceNodes.size());
 
         ReflectionEquals comparer = new ReflectionEquals();
+        comparer.excludeField(".*\\.lastChangedUser");
+        comparer.excludeField(".*\\.lastChangedTime");
         comparer.assertEquals("PipelineInstanceNode", pipelineInstanceNode1,
             actualPipelineInstanceNodes.get(0));
     }

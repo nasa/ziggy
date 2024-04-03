@@ -8,6 +8,7 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.text.DecimalFormat;
 import java.util.List;
 
 import javax.swing.GroupLayout;
@@ -24,9 +25,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.proxy.PipelineTaskOperationsProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * Displays cost estimates for a pipeline instance and the tasks within that instance. Costs will be
@@ -126,16 +127,31 @@ public class InstanceCostEstimateDialog extends JDialog {
         setVisible(false);
     }
 
-    private String instanceCost(List<PipelineTask> pipelineTasksInInstance) {
+    static String instanceCost(List<PipelineTask> pipelineTasksInInstance) {
         double totalCost = 0;
         for (PipelineTask task : pipelineTasksInInstance) {
             totalCost += task.costEstimate();
         }
-        return Long.toString(Math.round(totalCost));
+        return formatCost(totalCost);
+    }
+
+    private static String formatCost(double cost) {
+        String format;
+        if (cost < 1) {
+            format = "#.####";
+        } else if (cost < 10) {
+            format = "#.###";
+        } else if (cost < 100) {
+            format = "#.##";
+        } else {
+            format = "#.#";
+        }
+
+        return new DecimalFormat(format).format(cost);
     }
 
     private static class TaskCostEstimateTableModel extends AbstractTableModel
-        implements TableModelContentClass<PipelineTask> {
+        implements ModelContentClass<PipelineTask> {
 
         private static final long serialVersionUID = 20230817L;
 
@@ -171,7 +187,7 @@ public class InstanceCostEstimateDialog extends JDialog {
                 case 1 -> task.getModuleName();
                 case 2 -> task.uowTaskInstance().briefState();
                 case 3 -> task.getState().toString();
-                case 4 -> Long.toString(Math.round(task.costEstimate()));
+                case 4 -> formatCost(task.costEstimate());
                 default -> throw new IllegalArgumentException(
                     "Illegal column number: " + columnIndex);
             };

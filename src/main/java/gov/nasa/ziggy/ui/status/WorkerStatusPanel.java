@@ -16,14 +16,16 @@ import javax.swing.SwingUtilities;
 import org.netbeans.swing.outline.Outline;
 
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
-import gov.nasa.ziggy.services.messages.WorkerResources;
+import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
+import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.process.StatusMessage;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
+import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
  * A status panel for worker processes. Status information is displayed using {@link Outline}.
@@ -40,6 +42,7 @@ public class WorkerStatusPanel extends JPanel {
     private ZiggyTable<WorkerStatusMessage> table = new ZiggyTable<>(model);
     private JLabel countTextField;
     private JLabel heapTextField;
+    private boolean waitingForWorkers;
 
     public WorkerStatusPanel() {
         buildComponent();
@@ -50,7 +53,9 @@ public class WorkerStatusPanel extends JPanel {
 
         ZiggyMessenger.subscribe(WorkerStatusMessage.class, this::update);
 
-        ZiggyMessenger.subscribe(WorkerResources.class, this::updateWorkerResources);
+        ZiggyMessenger.subscribe(WorkerResourcesMessage.class, this::updateWorkerResources);
+
+        ZiggyMessenger.publish(new WorkerResourcesRequest());
     }
 
     private void buildComponent() {
@@ -96,11 +101,30 @@ public class WorkerStatusPanel extends JPanel {
                 : Indicator.State.NORMAL;
             StatusPanel.ContentItem.WORKERS.menuItem().setState(workerState);
         });
+
+        // If there are no workers operating, tell the world that the current resources are
+        // (0, 0), and note that we're waiting for workers to resume working.
+        if (model.getRowCount() == 0) {
+            ZiggyMessenger.publish(new WorkerResourcesMessage(null, new WorkerResources(0, 0)));
+            waitingForWorkers = true;
+        } else if (waitingForWorkers) {
+
+            // Get the resources from the TaskRequestHandlerLifecycleManager and
+            // stop waiting for workers.
+            ZiggyMessenger.publish(new WorkerResourcesRequest());
+            waitingForWorkers = false;
+        }
     }
 
-    public void updateWorkerResources(WorkerResources resources) {
-        countTextField.setText(Integer.toString(resources.getMaxWorkerCount()));
-        heapTextField.setText(resources.humanReadableHeapSize().toString());
+    public void updateWorkerResources(WorkerResourcesMessage resourcesMessage) {
+        if (resourcesMessage.getResources() == null) {
+            return;
+        }
+        WorkerResources resources = resourcesMessage.getResources();
+        SwingUtilities.invokeLater(() -> {
+            countTextField.setText(Integer.toString(resources.getMaxWorkerCount()));
+            heapTextField.setText(resources.humanReadableHeapSize().toString());
+        });
     }
 
     public static void main(String[] args) {
@@ -213,7 +237,7 @@ public class WorkerStatusPanel extends JPanel {
             return switch (columnIndex) {
                 case 0 -> message.getSourceProcess().getKey();
                 case 1 -> message.getState();
-                case 2 -> StringUtils.elapsedTime(message.getProcessingStartTime(),
+                case 2 -> ZiggyStringUtils.elapsedTime(message.getProcessingStartTime(),
                     System.currentTimeMillis());
                 case 3 -> message.getInstanceId();
                 case 4 -> message.getTaskId();

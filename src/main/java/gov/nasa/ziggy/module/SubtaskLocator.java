@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -35,9 +35,9 @@
 package gov.nasa.ziggy.module;
 
 import java.io.File;
-import java.io.FilenameFilter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -45,7 +45,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -55,7 +54,7 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
  * <p>
  * Given a task directory and a filename, the {@link SubtaskLocator} identifies and prints to stdout
  * all the subtasks that use that filename as any kind of input. Note that the class only works on
- * tasks that use {@link DefaultPipelineInputs} to define the inputs.
+ * tasks that use {@link DatastoreDirectoryPipelineInputs} to define the inputs.
  *
  * @author PT
  */
@@ -84,22 +83,18 @@ public class SubtaskLocator {
         String taskDir = cmdLine.getOptionValue(directoryOption.getOpt());
         String filename = cmdLine.getOptionValue(fileOption.getOpt());
 
-        TaskConfigurationManager taskConfigurationManager = TaskConfigurationManager
-            .restore(new File(taskDir));
+        TaskConfiguration taskConfiguration = TaskConfiguration.deserialize(new File(taskDir));
 
-        Hdf5ModuleInterface hdf5mi = new Hdf5ModuleInterface();
-        DefaultPipelineInputs inputs = new DefaultPipelineInputs();
-        File[] inputsFiles = new File(taskDir)
-            .listFiles((FilenameFilter) (dir, name) -> name.endsWith("inputs.h5"));
-        if (inputsFiles.length != 1) {
-            throw new PipelineException("Too many inputs in task directory " + taskDir);
-        }
-        hdf5mi.readFile(new File(taskDir, inputsFiles[0].getName()), inputs, true);
+        DatastoreDirectoryPipelineInputs inputs = new DatastoreDirectoryPipelineInputs();
         List<String> modelFilenames = inputs.getModelFilenames();
 
-        for (int i = 0; i < taskConfigurationManager.getSubtaskCount(); i++) {
+        Path taskDirPath = Paths.get(taskDir);
+        for (int i = 0; i < taskConfiguration.getSubtaskCount(); i++) {
 
-            Set<String> filesForSubtask = taskConfigurationManager.filesForSubtask(i);
+            Path subdirPath = SubtaskUtils.subtaskDirectory(taskDirPath, i);
+            PipelineInputsOutputsUtils.readPipelineInputsFromDirectory(inputs,
+                PipelineInputsOutputsUtils.moduleName(subdirPath.getParent()), subdirPath);
+            List<String> filesForSubtask = inputs.getDataFilenames();
             if (filesForSubtask.contains(filename) || modelFilenames.contains(filename)) {
                 System.out.println("Subtask " + i + " contains file " + filename);
             }

@@ -3,8 +3,8 @@ package gov.nasa.ziggy.module.remote.nas;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteExecutor;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**
@@ -23,11 +23,11 @@ public class NasExecutor extends RemoteExecutor {
      * must be selected and the resource parameters can then be determined without any further ado.
      */
     @Override
-    public PbsParameters generatePbsParameters(RemoteParameters remoteParameters,
-        int totalSubtasks) {
+    public PbsParameters generatePbsParameters(
+        PipelineDefinitionNodeExecutionResources executionResources, int totalSubtasks) {
 
-        PbsParameters pbsParameters = remoteParameters.pbsParametersInstance();
-        pbsParameters.populateArchitecture(remoteParameters, totalSubtasks,
+        PbsParameters pbsParameters = executionResources.pbsParametersInstance();
+        pbsParameters.populateArchitecture(executionResources, totalSubtasks,
             SupportedRemoteClusters.NAS);
 
         // Pleiades doesn't actually make use of the cores or gigs per node specifications,
@@ -35,8 +35,7 @@ public class NasExecutor extends RemoteExecutor {
         // values for the architecture
         pbsParameters.setMinCoresPerNode(pbsParameters.getArchitecture().getMaxCores());
         pbsParameters.setMinGigsPerNode(pbsParameters.getArchitecture().getMaxGigs());
-
-        pbsParameters.populateResourceParameters(remoteParameters, totalSubtasks);
+        pbsParameters.populateResourceParameters(executionResources, totalSubtasks);
 
         return pbsParameters;
     }

@@ -2,7 +2,6 @@ package gov.nasa.ziggy.pipeline;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -19,10 +18,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 
-import gov.nasa.ziggy.module.DefaultPipelineInputs;
+import gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs;
 import gov.nasa.ziggy.module.PipelineInputs;
 import gov.nasa.ziggy.module.SubtaskInformation;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
@@ -56,7 +54,6 @@ public class PipelineTaskInformationTest {
     private ParameterSet instanceParSet1 = new ParameterSet(instancePars1Name);
     private ParameterSet instanceParSet2 = new ParameterSet(instancePars2Name);
     private String moduleParsName = "Module Pars";
-    private RemoteParameters remoteParams = new RemoteParameters();
     private ParameterSet moduleParSet = new ParameterSet(moduleParsName);
     private PipelineTask p1 = new PipelineTask();
     private PipelineTask p2 = new PipelineTask();
@@ -77,8 +74,9 @@ public class PipelineTaskInformationTest {
 
         // Construct the instances of pipeline infrastructure needed for these tests
         node = new PipelineDefinitionNode();
-        PipelineModuleDefinition moduleDefinition = new PipelineModuleDefinition(null, "module");
-        ClassWrapper<PipelineInputs> inputsClass = new ClassWrapper<>(DefaultPipelineInputs.class);
+        PipelineModuleDefinition moduleDefinition = new PipelineModuleDefinition("module");
+        ClassWrapper<PipelineInputs> inputsClass = new ClassWrapper<>(
+            DatastoreDirectoryPipelineInputs.class);
         moduleDefinition.setInputsClass(inputsClass);
         node.setModuleName(moduleDefinition.getName());
         pipelineDefinition = new PipelineDefinition("pipeline");
@@ -102,9 +100,7 @@ public class PipelineTaskInformationTest {
         when(pipelineModuleDefinitionCrud.retrieveLatestVersionForName(moduleDefinition.getName()))
             .thenReturn(moduleDefinition);
         Map<ClassWrapper<ParametersInterface>, String> moduleParameterNames = new HashMap<>();
-        moduleParameterNames.put(new ClassWrapper<>(RemoteParameters.class), moduleParsName);
         node.setModuleParameterSetNames(moduleParameterNames);
-        moduleParSet.setTypedParameters(remoteParams.getParameters());
         when(parameterSetCrud.retrieveLatestVersionForName(moduleParsName))
             .thenReturn(moduleParSet);
 
@@ -117,8 +113,8 @@ public class PipelineTaskInformationTest {
         uowList.add(u2);
         doReturn(uowList).when(pipelineTaskInformation)
             .unitsOfWork(ArgumentMatchers.<ClassWrapper<UnitOfWorkGenerator>> any(),
-                ArgumentMatchers
-                    .<Map<Class<? extends ParametersInterface>, ParametersInterface>> any());
+                ArgumentMatchers.<PipelineInstanceNode> any(),
+                ArgumentMatchers.<PipelineInstance> any());
 
         // Set up pipeline task generation
         p1.setId(1L);
@@ -129,8 +125,8 @@ public class PipelineTaskInformationTest {
                 any(UnitOfWork.class));
 
         // Set up SubtaskInformation returns
-        s1 = new SubtaskInformation("module", "u1", 3, 3);
-        s2 = new SubtaskInformation("module", "u2", 5, 2);
+        s1 = new SubtaskInformation("module", "u1", 3);
+        s2 = new SubtaskInformation("module", "u2", 5);
         doReturn(s1).when(pipelineTaskInformation).subtaskInformation(moduleDefinition, p1);
         doReturn(s2).when(pipelineTaskInformation).subtaskInformation(moduleDefinition, p2);
     }
@@ -148,29 +144,9 @@ public class PipelineTaskInformationTest {
         assertTrue(subtaskInfo.contains(s1));
         assertTrue(subtaskInfo.contains(s2));
 
-        String psn = PipelineTaskInformation.remoteParameters(node);
-        assertEquals(moduleParsName, psn);
-
         // Resetting it should cause it to disappear again
         PipelineTaskInformation.reset(node);
         assertFalse(PipelineTaskInformation.hasPipelineDefinitionNode(node));
-    }
-
-    @Test
-    public void testRemoteParamsAtInstanceLevel() {
-
-        pipelineDefinition.getPipelineParameterSetNames()
-            .put(new ClassWrapper<>(RemoteParameters.class), moduleParsName);
-        node.getModuleParameterSetNames().clear();
-        String psn = PipelineTaskInformation.remoteParameters(node);
-        assertEquals(moduleParsName, psn);
-    }
-
-    @Test
-    public void testNoRemoteParams() {
-        node.getModuleParameterSetNames().clear();
-        String psn = PipelineTaskInformation.remoteParameters(node);
-        assertNull(psn);
     }
 
     public static class InstancePars1 extends Parameters {

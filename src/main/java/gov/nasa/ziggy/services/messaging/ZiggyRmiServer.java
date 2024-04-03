@@ -20,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
@@ -84,7 +86,7 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
     private LinkedBlockingQueue<PipelineMessage> messageQueue = new LinkedBlockingQueue<>();
 
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
-    private ZiggyRmiServer(int rmiPort) throws RemoteException {
+    private ZiggyRmiServer() throws RemoteException {
 
         // Try to create the registry. If that fails due to ExportException, then this
         // is a new SupervisorCommunicator started on a system where the supervisor crashed and
@@ -95,13 +97,13 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
         Registry createdOrRetrievedRegistry = null;
         try {
             log.info("Creating RMI registry");
-            createdOrRetrievedRegistry = LocateRegistry.createRegistry(rmiPort);
+            createdOrRetrievedRegistry = LocateRegistry.createRegistry(rmiPort());
             constructorCreatedRegistry = true;
         } catch (ExportException ignored) {
             // This just means that the registry already exists, but there's no
             // way to know that other than trying to create it and failing.
             log.info("Retrieving registry on localhost");
-            createdOrRetrievedRegistry = LocateRegistry.getRegistry("localhost", rmiPort);
+            createdOrRetrievedRegistry = LocateRegistry.getRegistry("localhost", rmiPort());
         }
         registry = createdOrRetrievedRegistry;
         registryCreated = constructorCreatedRegistry;
@@ -135,15 +137,18 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
      * of {@link ZiggyRmiServerService}, to the RMI registry.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    public static void initializeInstance(int rmiPort) {
+    public static void start() {
 
         if (instance != null) {
             log.info("ZiggyRmiServer instance already available, skipping instantiation");
             return;
         }
+
+        log.info("Starting RMI communications server with registry on port {}", rmiPort());
+
         try {
             log.info("Starting new ZiggyRmiServer instance");
-            ZiggyRmiServer serverInstance = new ZiggyRmiServer(rmiPort);
+            ZiggyRmiServer serverInstance = new ZiggyRmiServer();
 
             log.info("Exporting and binding objects into registry");
             ZiggyRmiServerService commStub = (ZiggyRmiServerService) UnicastRemoteObject
@@ -156,7 +161,8 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
                 log.info("SHUTDOWN: ZiggyRmiServer...done");
             });
             instance = serverInstance;
-            log.info("ZiggyRmiServer construction complete");
+            log.info("Starting RMI communications server with registry on port {}...done",
+                rmiPort());
         } catch (RemoteException e) {
             throw new PipelineException(
                 "Exception occurred when attempting to initialize ZiggyRmiServer", e);
@@ -391,6 +397,11 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
             }
         }
         return true;
+    }
+
+    static int rmiPort() {
+        return ZiggyConfiguration.getInstance()
+            .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
     }
 
     /**

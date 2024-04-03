@@ -12,7 +12,7 @@ The console has the ability to display data receipt activities. Select the `Data
 
 Double-clicking a row in the table brings up a display of all the files in the dataset:
 
-<img src="images/data-receipt-list.png" style="width:19cm;" />
+<img src="images/data-receipt-list.png" style="width:16cm;" />
 
 Note that the file names are the datastore names.
 

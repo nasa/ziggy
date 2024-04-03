@@ -2,8 +2,6 @@ package gov.nasa.ziggy.supervisor;
 
 import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.performTransaction;
 
-import java.util.ArrayList;
-
 import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +60,12 @@ public class PipelineInstanceManager {
     /**
      * Provided with package scope to facilitate testing.
      */
+    // TODO Unused? Delete?
     PipelineInstanceManager() {
+    }
+
+    public PipelineInstanceManager(FireTriggerRequest triggerRequest) {
+        initialize(triggerRequest);
     }
 
     /**
@@ -106,46 +109,50 @@ public class PipelineInstanceManager {
         });
     }
 
-    public PipelineInstanceManager(FireTriggerRequest triggerRequest) {
-        initialize(triggerRequest);
-    }
-
     /**
      * Fires the trigger for the given pipeline. If repetitions are requested, they are also managed
      * by this method.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void fireTrigger() {
-        // loop over repeats
+
         while (repeats < maxRepeats) {
-            StringBuilder currentInstanceName = new StringBuilder().append(instanceName);
+
+            // Append count/total if repeats in use. Use "-" to represent "forever" more briefly
+            // than 2147483647.
+            StringBuilder currentInstanceName = new StringBuilder(
+                instanceName != null ? instanceName : "");
             if (maxRepeats > 1) {
-                currentInstanceName.append(":-").append(Integer.toString(repeats));
+                if (!currentInstanceName.isEmpty()) {
+                    currentInstanceName.append(" ");
+                }
+                currentInstanceName.append(repeats + 1).append("/");
+                if (maxRepeats == Integer.MAX_VALUE) {
+                    currentInstanceName.append("-");
+                } else {
+                    currentInstanceName.append(maxRepeats);
+                }
             }
-            final String finalCurrentInstanceName = currentInstanceName.toString();
-            new ArrayList<>();
+
             PipelineInstance pipelineInstance = pipelineOperations().fireTrigger(pipeline,
-                finalCurrentInstanceName, startNode, endNode, null);
+                currentInstanceName.toString(), startNode, endNode, null);
             currentInstanceId = pipelineInstance.getId();
 
-            // if we're not on the last repeat, we need to start the waiting
-            if (repeats < maxRepeats - 1) {
+            // If we're not on the last repeat, we need to wait.
+            // While the counter is 0-based, messages to the user are 1-based.
+            if (repeats++ < maxRepeats - 1) {
                 try {
                     if (!waitAndCheckStatus()) {
                         throw new ModuleFatalProcessingException(
-                            "Unable to start pipeline repeat " + (repeats + 1)
-                                + " due to errored status of pipeline repeat " + repeats);
+                            "Unable to start pipeline repeat " + repeats
+                                + " due to errored status of pipeline repeat " + (repeats - 1));
                     }
-                    repeats++;
                 } catch (InterruptedException e) {
                     throw new ModuleFatalProcessingException(
-                        "Unable to start pipeline repeat " + (repeats + 1)
-                            + " due to InterruptedException during pipeline repeat" + repeats,
+                        "Unable to start pipeline repeat " + repeats
+                            + " due to InterruptedException during pipeline repeat" + (repeats - 1),
                         e);
                 }
-                // If we're on the last repeat, we can exit the loop by incrementing repeats.
-            } else {
-                repeats++;
             }
         }
     }

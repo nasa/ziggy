@@ -15,7 +15,7 @@ import gov.nasa.ziggy.util.ReflectionUtils;
 public interface ParametersInterface extends Persistable {
 
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
-    default void populate(Set<TypedParameter> typedParameters) {
+    default void populate(Collection<TypedParameter> typedParameters) {
 
         setParameters(typedParameters);
 

@@ -30,21 +30,17 @@ public class ModelCrud extends AbstractCrud<ModelRegistry> {
      */
     public ModelRegistry retrieveCurrentRegistry() {
 
-        // I don't know how to do this in 1 query so I'll use 2.
-        // TODO: reformat as subquery.
-        ZiggyQuery<ModelRegistry, Long> idQuery = createZiggyQuery(ModelRegistry.class, Long.class);
-        idQuery.column(ModelRegistry_.id).max();
-        Long maxId = uniqueResult(idQuery);
-        if (maxId == null) {
-            ModelRegistry modelRegistry = new ModelRegistry();
-            persist(modelRegistry);
-            return modelRegistry;
-        }
-
         ZiggyQuery<ModelRegistry, ModelRegistry> query = createZiggyQuery(ModelRegistry.class);
-        query.column(ModelRegistry_.id).in(maxId);
-
-        return uniqueResult(query);
+        ZiggyQuery<ModelRegistry, Long> idSubquery = query.ziggySubquery(ModelRegistry.class,
+            Long.class);
+        idSubquery.column(ModelRegistry_.id).max();
+        query.column(ModelRegistry_.id).in(idSubquery);
+        ModelRegistry currentRegistry = uniqueResult(query);
+        if (currentRegistry == null) {
+            currentRegistry = new ModelRegistry();
+            persist(currentRegistry);
+        }
+        return currentRegistry;
     }
 
     /**

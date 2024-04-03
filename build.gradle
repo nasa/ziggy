@@ -45,21 +45,21 @@ dependencies {
 
     implementation 'com.github.librepdf:openpdf:1.3.+'
     implementation 'com.github.spotbugs:spotbugs-annotations:4.7.+'
-    implementation 'com.google.guava:guava:23.+'
+    implementation 'com.google.guava:guava:23.6.+'
     implementation 'com.jgoodies:jgoodies-forms:1.9.+'
     implementation 'com.jgoodies:jgoodies-looks:2.7.+'
     implementation 'commons-cli:commons-cli:1.5.+'
-    implementation 'commons-codec:commons-codec:1.+'
+    implementation 'commons-codec:commons-codec:1.16.+'
     implementation 'commons-io:commons-io:2.11.+'
-    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0+'
-    implementation 'org.apache.commons:commons-collections4:4.+'
-    implementation 'org.apache.commons:commons-compress:1.+'
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.+'
+    implementation 'org.apache.commons:commons-collections4:4.4'
+    implementation 'org.apache.commons:commons-compress:1.25.+'
     implementation 'org.apache.commons:commons-configuration2:2.9.+'
     implementation 'org.apache.commons:commons-csv:1.9.+'
-    implementation 'org.apache.commons:commons-exec:1.+'
+    implementation 'org.apache.commons:commons-exec:1.3'
     implementation 'org.apache.commons:commons-lang3:3.12.+'
     implementation 'org.apache.commons:commons-math3:3.6.+'
-    implementation 'org.apache.commons:commons-text:1.+'
+    implementation 'org.apache.commons:commons-text:1.11.+'
     implementation 'org.apache.logging.log4j:log4j-core:2.20.+'
     implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.20.+'
     implementation 'org.hibernate.orm:hibernate-ant:6.2.+'
@@ -67,9 +67,14 @@ dependencies {
     implementation 'org.javassist:javassist:3.29.2-GA'
     implementation 'org.jfree:jfreechart:1.0.+'
     implementation 'org.jsoup:jsoup:1.16.+'
-    implementation 'org.netbeans.api:org-netbeans-swing-outline:+'
+    implementation 'org.netbeans.api:org-netbeans-swing-outline:RELEASE121' // see note below
     implementation 'org.slf4j:slf4j-api:2.0.+'
     implementation 'org.tros:l2fprod-properties-editor:1.3.+'
+
+    // The NetBeans library started emitting the error,
+    // "No SVG loader available for ... columns.svg"
+    // at version 122 (through version 200). Hold version at 121 until
+    // this error is fixed or a workaround is discovered.
 
     // Configuration2 declares the following as optional [1]. It's not, so it's added here.
     // Occasionally, comment out this line--if the tests pass, delete it.
@@ -85,11 +90,10 @@ dependencies {
 
     // Needed to compile unit tests.
     testImplementation 'junit:junit:4.13.+'
-    testImplementation 'org.hamcrest:hamcrest:2.+'
+    testImplementation 'org.hamcrest:hamcrest:2.2'
     testImplementation 'org.mockito:mockito-core:3.12.+'
 
     // Needed at runtime.
-    runtimeOnly 'jakarta.xml.bind:jakarta.xml.bind-api:3.0+'
     runtimeOnly 'org.hibernate.orm:hibernate-hikaricp:6.2.+'
     runtimeOnly 'org.postgresql:postgresql:42.6.+'
 
@@ -200,6 +204,8 @@ javadoc {
     options.overview = "src/main/java/overview.html"
     options.addBooleanOption("Xdoclint:-missing", true)
 }
+
+check.dependsOn javadoc
 
 // The SpotBugs plugin adds spotbugsMain and spotbugsTest to the check task.
 spotbugs {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -36,11 +36,12 @@ package gov.nasa.ziggy.ui;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -76,11 +77,9 @@ import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.FireTriggerRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
-import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
 import gov.nasa.ziggy.ui.util.proxy.PipelineExecutorProxy;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.TasksStates;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.dispmod.AlertLogDisplayModel;
@@ -158,6 +157,9 @@ public class ZiggyConsole {
         Options:""";
 
     private static final int HELP_WIDTH = 100;
+
+    // Other constants.
+    private static final long MESSAGE_SENT_WAIT_MILLIS = 500;
 
     @AcceptableCatchBlock(rationale = Rationale.USAGE)
     @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
@@ -252,7 +254,7 @@ public class ZiggyConsole {
             if (message != null) {
                 System.err.println(message);
             }
-            new HelpFormatter().printHelp(HELP_WIDTH, "ZiggyConsole [options] command...",
+            new HelpFormatter().printHelp(HELP_WIDTH, "ZiggyConsole command [options]",
                 COMMAND_HELP, options, null);
         } else if (e != null) {
             log.error(message, e);
@@ -283,29 +285,61 @@ public class ZiggyConsole {
         return commands.iterator().next();
     }
 
-    private static void startZiggyClient() {
-        int rmiPort = ZiggyConfiguration.getInstance()
-            .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
-        ZiggyRmiClient.initializeInstance(rmiPort, NAME);
+    /**
+     * Starts a {@link ZiggyRmiClient}. This method ensures that the RMI client is no longer needed
+     * before allowing the system to shut down. The caller notifies this code that it is done with
+     * the client by decrementing the latch that this method returns.
+     *
+     * @return a countdown latch that should be decremented after the caller no longer needs the
+     * client
+     */
+    private CountDownLatch startZiggyClient() {
+        ZiggyRmiClient.start(NAME);
+
+        final CountDownLatch clientStillNeededLatch = new CountDownLatch(1);
         ZiggyShutdownHook.addShutdownHook(() -> {
+
+            // Wait for any messages to be sent before we reset the ZiggyRmiClient.
+            try {
+                clientStillNeededLatch.await(MESSAGE_SENT_WAIT_MILLIS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
             ZiggyRmiClient.reset();
         });
+
+        return clientStillNeededLatch;
     }
 
-    private void runCommand(Command command, CommandLine cmdLine, List<String> commands)
-        throws Exception {
+    @AcceptableCatchBlock(rationale = Rationale.USAGE)
+    private void runCommand(Command command, CommandLine cmdLine, List<String> commands) {
 
-        switch (command) {
-            case CANCEL -> cancel();
-            case CONFIG -> config(cmdLine);
-            case DISPLAY -> display(cmdLine);
-            case HELP -> throw new IllegalArgumentException("");
-            case LOG -> log();
-            case RESET -> reset(cmdLine);
-            case RESTART -> restart(cmdLine);
-            case START -> start(commands);
-            case VERSION -> System.out.println(
-                ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
+        Throwable exception = (Throwable) DatabaseTransactionFactory.performTransaction(() -> {
+            try {
+                switch (command) {
+                    case CANCEL -> cancel();
+                    case CONFIG -> config(cmdLine);
+                    case DISPLAY -> display(cmdLine);
+                    case HELP -> throw new IllegalArgumentException("");
+                    case LOG -> log();
+                    case RESET -> reset(cmdLine);
+                    case RESTART -> restart(cmdLine);
+                    case START -> start(commands);
+                    case VERSION -> System.out.println(ZiggyConfiguration.getInstance()
+                        .getString(PropertyName.ZIGGY_VERSION.property()));
+                }
+            } catch (Throwable e) {
+                return e;
+            }
+            return null;
+        });
+
+        if (exception instanceof RuntimeException) {
+            throw (RuntimeException) exception;
+        }
+        if (exception != null) {
+            throw new PipelineException(exception);
         }
     }
 
@@ -635,17 +669,13 @@ public class ZiggyConsole {
         return resetType;
     }
 
+    /**
+     * Sets the pipeline task state to ERROR for any tasks assigned to this worker that are in the
+     * PROCESSING state. This condition indicates that the previous instance of the worker process
+     * on this host died abnormally.
+     */
     private void resetPipelineInstance(PipelineInstance instance, boolean allStalledTasks) {
-
-        /*
-         * Set the pipeline task state to ERROR for any tasks assigned to this worker that are in
-         * the PROCESSING state. This condition indicates that the previous instance of the worker
-         * process on this host died abnormally.
-         */
-        DatabaseTransactionFactory.performTransaction(() -> {
-            new PipelineTaskCrud().resetTaskStates(instance.getId(), allStalledTasks);
-            return null;
-        });
+        new PipelineTaskCrud().resetTaskStates(instance.getId(), allStalledTasks);
     }
 
     private void restart(CommandLine cmdLine) {
@@ -653,7 +683,7 @@ public class ZiggyConsole {
             throw new IllegalArgumentException("One or more tasks are not specified");
         }
 
-        startZiggyClient();
+        CountDownLatch messageSentLatch = startZiggyClient();
 
         Collection<Long> taskIds = new ArrayList<>();
         for (String taskId : cmdLine.getOptionValues(TASK_OPTION)) {
@@ -688,7 +718,8 @@ public class ZiggyConsole {
                     return null;
                 }
 
-                new PipelineExecutorProxy().restartTasks(tasks, RunMode.RESTART_FROM_BEGINNING);
+                new PipelineExecutorProxy().restartTasks(tasks, RunMode.RESTART_FROM_BEGINNING,
+                    messageSentLatch);
 
                 return null;
             }
@@ -700,22 +731,19 @@ public class ZiggyConsole {
             throw new IllegalArgumentException("A pipeline name is not specified");
         }
 
-        startZiggyClient();
+        CountDownLatch messageSentLatch = startZiggyClient();
 
         String pipelineName = commands.get(0);
         String instanceName = commands.size() > 1 ? commands.get(1) : null;
         String startNodeName = commands.size() > 2 ? commands.get(2) : null;
         String stopNodeName = commands.size() > 3 ? commands.get(3) : null;
 
-        if (instanceName == null) {
-            instanceName = Iso8601Formatter.dateTimeLocalFormatter().format(new Date());
-        }
-
         System.out.println(String.format("Launching %s: name=%s, start=%s, stop=%s...",
             pipelineName, instanceName, startNodeName != null ? startNodeName : "",
             stopNodeName != null ? stopNodeName : ""));
         ZiggyMessenger.publish(
-            new FireTriggerRequest(pipelineName, instanceName, startNodeName, stopNodeName, 1, 0));
+            new FireTriggerRequest(pipelineName, instanceName, startNodeName, stopNodeName, 1, 0),
+            messageSentLatch);
         System.out.println(String.format("Launching %s: name=%s, start=%s, stop=%s...done",
             pipelineName, instanceName, startNodeName != null ? startNodeName : "",
             stopNodeName != null ? stopNodeName : ""));

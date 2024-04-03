@@ -8,9 +8,10 @@ and outputs, information about models, and parameter sets. Enjoy! -->
 
 <pipelineDefinition>
 
-  <!-- Pipeline modules. The name of each module must correspond to the name of
-       a program that can execute from the command line; the program has to be on
-       the path set by property ziggy.pipeline.binPath. -->
+  <!-- Pipeline modules. The name of each module must correspond to
+       the name of a program that can execute from the command line;
+       the program has to be on the path set by property
+       ziggy.pipeline.binPath. -->
   <module name="permuter" description="Color Permuter"/>
   <module name="flip" description="Flip Up-Down and Left-Right"/>
   <module name="averaging" description="Average Images Together"/>
@@ -21,27 +22,24 @@ and outputs, information about models, and parameter sets. Enjoy! -->
   <pipeline name="sample" description="Sample Pipeline" rootNodeNames="data-receipt">
 
     <!-- Pipeline parameter sets are applied to every node in the
-	 pipeline. -->
+         pipeline. -->
     <pipelineParameter name="Algorithm Parameters"/>
 
     <!-- Data receipt is the exception to the requirement that the node has to
-	 be a user-defined module. Ziggy provides data receipt "for free" as a
-	 tool to get files into the datastore. The user does have to define the
-	 data types that will be imported. The model types can be defined if
-	 desired; if not, the assumption will be that all model types can be
-	 imported. There's also a task configuration parameter set so that the
-	 user can define which data receipt tasks are to be performed. -->
+         be a user-defined module. Ziggy provides data receipt "for free" as a
+         tool to get files into the datastore. The user does have to define the
+         data types that will be imported. The model types can be defined if
+         desired; if not, the assumption will be that all model types can be
+         imported. There's also a task configuration parameter set so that the
+         user can define which data receipt tasks are to be performed. -->
     <node moduleName="data-receipt" childNodeNames="permuter">
       <inputDataFileType name="raw data"/>
-      <moduleParameter name="Data receipt configuration"/>
     </node>
 
     <node moduleName="permuter" childNodeNames="flip">
       <inputDataFileType name="raw data"/>
       <outputDataFileType name="permuted colors"/>
       <modelType name="dummy model"/>
-      <moduleParameter name="Remote Parameters (permute color)"/>
-      <moduleParameter name="Multiple subtask configuration"/>
     </node>
 
     <!-- Here's an example of a node with one input, two outputs. -->
@@ -49,17 +47,15 @@ and outputs, information about models, and parameter sets. Enjoy! -->
       <inputDataFileType name="permuted colors"/>
       <outputDataFileType name="left-right flipped"/>
       <outputDataFileType name="up-down flipped"/>
-      <moduleParameter name="Multiple subtask configuration"/>
     </node>
 
     <!-- Here's an example of a node with two inputs, one output. Note that there
-	 is no child node listed because it's the last step in the pipeline.
-	 Also, it uses the single-subtask configuration. -->
-    <node moduleName="averaging">
+         is no child node listed because it's the last step in the pipeline.
+         Also, it uses the single-subtask configuration. -->
+    <node moduleName="averaging" singleSubtask="true">
       <inputDataFileType name="left-right flipped"/>
       <inputDataFileType name="up-down flipped"/>
       <outputDataFileType name="averaged image"/>
-      <moduleParameter name="Single subtask configuration"/>
     </node>
 
   </pipeline>

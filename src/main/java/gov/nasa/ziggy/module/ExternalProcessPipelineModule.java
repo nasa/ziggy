@@ -29,12 +29,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
+import gov.nasa.ziggy.data.datastore.DatastoreFileManager;
+import gov.nasa.ziggy.data.datastore.DatastoreFileManager.InputFiles;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.metrics.ValueMetric;
-import gov.nasa.ziggy.module.remote.PbsParameters;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.module.remote.TimestampFile;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
@@ -46,6 +46,7 @@ import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStatePipelineModule;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
@@ -73,40 +74,14 @@ public class ExternalProcessPipelineModule extends PipelineModule
     // Instance members
     private AlgorithmLifecycle algorithmManager;
     private long instanceId;
-    private TaskConfigurationManager taskConfigurationManager;
+    private TaskConfiguration taskConfiguration;
     private String haltStep = "C";
     private PipelineInputs pipelineInputs;
     private PipelineOutputs pipelineOutputs;
 
-    protected boolean processingSuccessful;
-    protected boolean doneLooping;
+    private boolean processingSuccessful;
+    private boolean doneLooping;
 
-    /**
-     * Copy datastore files needed as inputs to the specified working directory.
-     */
-    protected void copyDatastoreFilesToTaskDirectory(
-        TaskConfigurationManager taskConfigurationManager, PipelineTask pipelineTask,
-        File taskWorkingDirectory) {
-        pipelineInputs.copyDatastoreFilesToTaskDirectory(taskConfigurationManager, pipelineTask,
-            taskWorkingDirectory.toPath());
-        processingSummaryOperations().updateSubTaskCounts(pipelineTask.getId(),
-            taskConfigurationManager.getSubtaskCount(), 0, 0);
-    }
-
-    /**
-     * Process and store the algorithm result(s), and delete the temporary copies of datastore files
-     * in the task directory; update input files in the database with new consumers, if necessary.
-     */
-    protected void persistResultsAndDeleteTempFiles(PipelineTask pipelineTask,
-        ProcessingFailureSummary failureSummary) {
-        pipelineInputs.deleteTempInputsFromTaskDirectory(pipelineTask, getTaskDir().toPath());
-        pipelineOutputs.copyTaskDirectoryResultsToDatastore(
-            pipelineInputs.datastorePathLocator(pipelineTask), pipelineTask, getTaskDir().toPath());
-        pipelineOutputs.updateInputFileConsumers(pipelineInputs, pipelineTask,
-            getTaskDir().toPath());
-    }
-
-    // Constructor
     public ExternalProcessPipelineModule(PipelineTask pipelineTask, RunMode runMode) {
         super(pipelineTask, runMode);
         instanceId = pipelineTask.getPipelineInstance().getId();
@@ -116,18 +91,11 @@ public class ExternalProcessPipelineModule extends PipelineModule
         PipelineModuleDefinition pipelineModuleDefinition = pipelineTask.getPipelineInstanceNode()
             .getPipelineModuleDefinition();
         ClassWrapper<PipelineInputs> inputsClass = pipelineModuleDefinition.getInputsClass();
-        pipelineInputs = inputsClass.newInstance();
+        pipelineInputs = PipelineInputsOutputsUtils.newPipelineInputs(inputsClass, pipelineTask,
+            taskDirManager().taskDir());
         ClassWrapper<PipelineOutputs> outputsClass = pipelineModuleDefinition.getOutputsClass();
-        pipelineOutputs = outputsClass.newInstance();
-    }
-
-    /**
-     * Indicates that this class should execute {@link processTask} outside of a database
-     * transaction.
-     */
-    @Override
-    public boolean processTaskRequiresDatabaseTransaction() {
-        return false;
+        pipelineOutputs = PipelineInputsOutputsUtils.newPipelineOutputs(outputsClass, pipelineTask,
+            taskDirManager().taskDir());
     }
 
     /**
@@ -146,9 +114,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
             RunMode.RESUME_CURRENT_STEP, RunMode.RESUME_MONITORING);
     }
 
-    // Concrete, non-override methods
-
-    protected File getTaskDir() {
+    private File getTaskDir() {
         return algorithmManager().getTaskDir(false);
     }
 
@@ -159,16 +125,21 @@ public class ExternalProcessPipelineModule extends PipelineModule
     @Override
     public void initializingTaskAction() {
         checkHaltRequest(ProcessingState.INITIALIZING);
-        incrementProcessingState();
+        incrementDatabaseProcessingState();
         processingSuccessful = false;
     }
 
     public void checkHaltRequest(ProcessingState state) {
         String stateShortName = state.shortName();
-        if (haltStep.equals(stateShortName)) {
+        String haltStepShortName = haltStep();
+        if (haltStepShortName.equals(stateShortName)) {
             throw new PipelineException("Halting processing at end of step " + state.toString()
-                + " due to configuration request for halt after step " + haltStep);
+                + " due to configuration request for halt after step " + haltStep());
         }
+    }
+
+    String haltStep() {
+        return haltStep;
     }
 
     /**
@@ -190,19 +161,17 @@ public class ExternalProcessPipelineModule extends PipelineModule
                 // is also replaced with the updated task.
                 pipelineTask = pipelineTaskCrud().retrieve(taskId());
                 pipelineTask.clearProducerTaskIds();
-                copyDatastoreFilesToTaskDirectory(taskConfigurationManager(), pipelineTask,
-                    taskDir);
+                copyDatastoreFilesToTaskDirectory(taskConfiguration(), taskDir);
             });
-            taskConfigurationManager().validate();
             return null;
         });
 
-        if (!taskConfigurationManager().isEmpty()) {
-            taskConfigurationManager().persist(taskDir);
+        if (taskConfiguration().getSubtaskCount() != 0) {
+            taskConfiguration().serialize(taskDir);
 
             checkHaltRequest(ProcessingState.MARSHALING);
             // Set the next state, whatever it might be
-            incrementProcessingState();
+            incrementDatabaseProcessingState();
 
             // if there are sub-task inputs, then we can go on to the next step...
             successful = true;
@@ -218,6 +187,17 @@ public class ExternalProcessPipelineModule extends PipelineModule
     }
 
     /**
+     * Copy datastore files needed as inputs to the specified working directory.
+     */
+    void copyDatastoreFilesToTaskDirectory(TaskConfiguration taskConfiguration,
+        File taskWorkingDirectory) {
+        pipelineInputs.copyDatastoreFilesToTaskDirectory(taskConfiguration,
+            taskWorkingDirectory.toPath());
+        processingSummaryOperations().updateSubTaskCounts(pipelineTask.getId(),
+            taskConfiguration.getSubtaskCount(), 0, 0);
+    }
+
+    /**
      * Perform the necessary processing for state ALGORITHM_SUBMITTING. This is just calling the
      * algorithm execution method in the algorithm lifecycle object. The processing state is not
      * advanced by this method, it will be advanced by the PBS submission infrastructure if
@@ -227,11 +207,11 @@ public class ExternalProcessPipelineModule extends PipelineModule
     public void submittingTaskAction() {
 
         log.info("Processing step: SUBMITTING");
-        TaskConfigurationManager tcm = null;
+        TaskConfiguration taskConfiguration = null;
         if (runMode.equals(RunMode.STANDARD)) {
-            tcm = taskConfigurationManager();
+            taskConfiguration = taskConfiguration();
         }
-        algorithmManager().executeAlgorithm(tcm);
+        algorithmManager().executeAlgorithm(taskConfiguration);
         checkHaltRequest(ProcessingState.ALGORITHM_SUBMITTING);
         doneLooping = true;
         processingSuccessful = false;
@@ -275,7 +255,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
     public void algorithmCompleteTaskAction() {
 
         checkHaltRequest(ProcessingState.ALGORITHM_COMPLETE);
-        incrementProcessingState();
+        incrementDatabaseProcessingState();
         processingSuccessful = false;
     }
 
@@ -335,7 +315,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
         performTransaction(() -> {
             IntervalMetric.measure(STORE_OUTPUTS_METRIC, () -> {
                 // process outputs
-                persistResultsAndDeleteTempFiles(pipelineTask, failureSummary);
+                persistResultsAndUpdateConsumers();
                 return null;
             });
             return null;
@@ -343,41 +323,59 @@ public class ExternalProcessPipelineModule extends PipelineModule
 
         log.info("Checking for input files that produced no output");
 
-        // Get the names of the input files
-        Set<Path> inputPaths = pipelineInputs().findDatastoreFilesForInputs(pipelineTask);
-        Set<String> inputFiles = inputPaths.stream()
-            .map(Path::toString)
-            .collect(Collectors.toSet());
-
-        // Get the names of the files successfully consumed by this task
-        @SuppressWarnings("unchecked")
-        Set<String> consumedFiles = (Set<String>) performTransaction(
-            () -> datastoreProducerConsumerCrud().retrieveFilesConsumedByTask(taskId()));
-
-        // Remove the latter set from the former
-        inputFiles.removeAll(consumedFiles);
-
-        // If anything is left, write to the log and generate an alert
-        if (inputFiles.isEmpty()) {
-            log.info("All input files produced output");
-        } else {
-            log.warn(inputFiles.size() + " input files produced no output");
-            for (String inputFile : inputFiles) {
-                log.warn("Input file " + inputFile + " produced no output");
-            }
-            AlertService.getInstance()
-                .generateAndBroadcastAlert("Algorithm", taskId(), AlertService.Severity.WARNING,
-                    inputFiles.size() + " input files produced no output, see log for details");
-        }
-
         // Finally, update status
         performTransaction(() -> {
             checkHaltRequest(ProcessingState.STORING);
-            incrementProcessingState();
+            incrementDatabaseProcessingState();
             return null;
         });
         doneLooping = true;
         processingSuccessful = true;
+    }
+
+    /** Process and store the algorithm outputs and update producer-consumer database table. */
+    void persistResultsAndUpdateConsumers() {
+        Set<Path> outputFiles = pipelineOutputs.copyTaskFilesToDatastore();
+
+        log.info("Creating producer information for output files...");
+        datastoreProducerConsumerCrud().createOrUpdateProducer(pipelineTask,
+            datastorePathsToRelative(outputFiles));
+        log.info("Creating producer information for output files...done");
+
+        log.info("Updating consumer information for input files...");
+        InputFiles inputFiles = datastoreFileManager().inputFilesByOutputStatus();
+        datastoreProducerConsumerCrud().addConsumer(pipelineTask,
+            datastorePathsToNames(inputFiles.getFilesWithOutputs()));
+        datastoreProducerConsumerCrud().addNonProducingConsumer(pipelineTask,
+            datastorePathsToNames(inputFiles.getFilesWithoutOutputs()));
+        log.info("Updating consumer information for input files...done");
+
+        if (inputFiles.getFilesWithoutOutputs().isEmpty()) {
+            log.info("All input files produced output");
+        } else {
+            log.warn("{} input files produced no output",
+                inputFiles.getFilesWithoutOutputs().size());
+            for (Path inputFile : inputFiles.getFilesWithoutOutputs()) {
+                log.warn("Input file {} produced no output", inputFile.toString());
+            }
+            AlertService.getInstance()
+                .generateAndBroadcastAlert("Algorithm", taskId(), AlertService.Severity.WARNING,
+                    inputFiles.getFilesWithoutOutputs()
+                        + " input files produced no output, see log for details");
+        }
+    }
+
+    Set<Path> datastorePathsToRelative(Set<Path> datastorePaths) {
+        return datastorePaths.stream()
+            .map(s -> DirectoryProperties.datastoreRootDir().toAbsolutePath().relativize(s))
+            .collect(Collectors.toSet());
+    }
+
+    Set<String> datastorePathsToNames(Set<Path> datastorePaths) {
+        return datastorePaths.stream()
+            .map(s -> DirectoryProperties.datastoreRootDir().toAbsolutePath().relativize(s))
+            .map(Path::toString)
+            .collect(Collectors.toSet());
     }
 
     @Override
@@ -411,7 +409,8 @@ public class ExternalProcessPipelineModule extends PipelineModule
 
             // Perform the current action (including advancing to the next
             // processing state, if appropriate).
-            getProcessingState().taskAction(this);
+            ProcessingState processingState = databaseProcessingState();
+            processingState.taskAction(this);
         }
     }
 
@@ -536,13 +535,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
         return algorithmManager().getExecutor();
     }
 
-    StateFile generateStateFile() {
-        TaskConfigurationManager tcm = taskConfigurationManager();
-        PbsParameters pbsParameters = executor().generatePbsParameters(
-            pipelineTask.getParameters(RemoteParameters.class), tcm.numSubTasks());
-        return StateFile.generateStateFile(pipelineTask, pbsParameters, tcm.numSubTasks());
-    }
-
     long timestampFileElapsedTimeMillis(TimestampFile.Event startEvent,
         TimestampFile.Event finishEvent) {
         return TimestampFile.elapsedTimeMillis(getTaskDir(), startEvent, finishEvent);
@@ -567,13 +559,13 @@ public class ExternalProcessPipelineModule extends PipelineModule
         return algorithmManager;
     }
 
-    TaskConfigurationManager taskConfigurationManager() {
-        if (taskConfigurationManager == null) {
-            taskConfigurationManager = new TaskConfigurationManager(getTaskDir());
-            taskConfigurationManager.setInputsClass(pipelineInputs.getClass());
-            taskConfigurationManager.setOutputsClass(pipelineOutputs.getClass());
+    TaskConfiguration taskConfiguration() {
+        if (taskConfiguration == null) {
+            taskConfiguration = new TaskConfiguration(getTaskDir());
+            taskConfiguration.setInputsClass(pipelineInputs.getClass());
+            taskConfiguration.setOutputsClass(pipelineOutputs.getClass());
         }
-        return taskConfigurationManager;
+        return taskConfiguration;
     }
 
     public long instanceId() {
@@ -603,6 +595,14 @@ public class ExternalProcessPipelineModule extends PipelineModule
     /** For testing only. */
     DatastoreProducerConsumerCrud datastoreProducerConsumerCrud() {
         return new DatastoreProducerConsumerCrud();
+    }
+
+    DatastoreFileManager datastoreFileManager() {
+        return new DatastoreFileManager(pipelineTask, getTaskDir().toPath());
+    }
+
+    TaskDirectoryManager taskDirManager() {
+        return new TaskDirectoryManager(pipelineTask);
     }
 
     /** For testing only. */

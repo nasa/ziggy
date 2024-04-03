@@ -66,11 +66,11 @@ public interface JobMonitor {
     }
 
     default String getOwner() {
-        return new String();
+        return "";
     }
 
     default String getServerName() {
-        return new String();
+        return "";
     }
 
     default QueueCommandManager getQstatCommandManager() {

@@ -126,8 +126,8 @@ public class DataReceiptInstanceDialog extends JDialog {
 
         private static final long serialVersionUID = 20230823L;
 
-        private static final String[] COLUMN_NAMES = { "Task ID", "Name", "Type", "Status" };
-        private static final int[] COLUMN_WIDTHS = { 100, 500, 100, 100 };
+        private static final String[] COLUMN_NAMES = { "Task ID", "Name", "Status" };
+        private static final int[] COLUMN_WIDTHS = { 100, 500, 100 };
 
         private List<DataReceiptFile> dataReceiptFiles = new ArrayList<>();
         private DataReceiptInstance dataReceiptInstance;
@@ -158,8 +158,7 @@ public class DataReceiptInstanceDialog extends JDialog {
             return switch (columnIndex) {
                 case 0 -> dataReceiptFile.getTaskId();
                 case 1 -> dataReceiptFile.getName();
-                case 2 -> dataReceiptFile.getFileType();
-                case 3 -> dataReceiptFile.getStatus();
+                case 2 -> dataReceiptFile.getStatus();
                 default -> throw new IllegalArgumentException(
                     "Invalid column index: " + columnIndex);
             };

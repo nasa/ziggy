@@ -3,6 +3,7 @@ package gov.nasa.ziggy.module;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
@@ -103,9 +104,9 @@ public class SubtaskMaster implements Runnable {
 
             log.debug(threadNumber + ": Processing sub-task: " + subtaskIndex);
 
-            File subtaskDir = TaskConfigurationManager.subtaskDirectory(new File(taskDir),
-                subtaskIndex);
-            File lockFile = new File(subtaskDir, TaskConfigurationManager.LOCK_FILE_NAME);
+            File subtaskDir = SubtaskUtils.subtaskDirectory(Paths.get(taskDir), subtaskIndex)
+                .toFile();
+            File lockFile = new File(subtaskDir, TaskConfiguration.LOCK_FILE_NAME);
 
             try {
                 if (getWriteLockWithoutBlocking(lockFile)) {

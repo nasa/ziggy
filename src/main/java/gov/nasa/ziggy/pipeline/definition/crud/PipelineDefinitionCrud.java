@@ -12,6 +12,9 @@ import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions_;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 
@@ -97,6 +100,38 @@ public class PipelineDefinitionCrud
             deleteNodes(node.getNextNodes());
             remove(node);
         }
+    }
+
+    public boolean processingModeExistsInDatabase(String pipelineName) {
+        return uniqueResult(createZiggyQuery(PipelineDefinitionProcessingOptions.class)
+            .column(PipelineDefinitionProcessingOptions_.pipelineName)
+            .in(pipelineName)) != null;
+    }
+
+    public ProcessingMode retrieveProcessingMode(String pipelineName) {
+        return uniqueResult(
+            createZiggyQuery(PipelineDefinitionProcessingOptions.class, ProcessingMode.class)
+                .column(PipelineDefinitionProcessingOptions_.pipelineName)
+                .in(pipelineName)
+                .column(PipelineDefinitionProcessingOptions_.processingMode)
+                .select());
+    }
+
+    public PipelineDefinitionProcessingOptions updateProcessingMode(String pipelineName,
+        ProcessingMode processingMode) {
+        PipelineDefinitionProcessingOptions pipelineDefinitionProcessingOptions = uniqueResult(
+            createZiggyQuery(PipelineDefinitionProcessingOptions.class)
+                .column(PipelineDefinitionProcessingOptions_.pipelineName)
+                .in(pipelineName));
+        pipelineDefinitionProcessingOptions.setProcessingMode(processingMode);
+        return super.merge(pipelineDefinitionProcessingOptions);
+    }
+
+    public PipelineDefinition merge(PipelineDefinition pipelineDefinition) {
+        if (!processingModeExistsInDatabase(pipelineDefinition.getName())) {
+            persist(new PipelineDefinitionProcessingOptions(pipelineDefinition.getName()));
+        }
+        return super.merge(pipelineDefinition);
     }
 
     @Override

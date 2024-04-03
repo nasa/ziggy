@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -35,7 +34,6 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -62,32 +60,6 @@ public class PipelineOperations {
     public ParameterSet retrieveLatestParameterSet(String parameterSetName) {
         ParameterSetCrud crud = new ParameterSetCrud();
         return crud.retrieveLatestVersionForName(parameterSetName);
-    }
-
-    /**
-     * Returns a {@link Set} containing all {@link Parameters} classes required by the specified
-     * {@link PipelineDefinitionNode}. This is a union of the Parameters classes required by the
-     * PipelineModule itself and the Parameters classes required by the UnitOfWorkTaskGenerator
-     * associated with the node.
-     */
-    public Set<ClassWrapper<ParametersInterface>> retrieveRequiredParameterClassesForNode(
-        PipelineDefinitionNode pipelineNode) {
-        PipelineModuleDefinitionCrud modDefCrud = new PipelineModuleDefinitionCrud();
-        PipelineModuleDefinition modDef = modDefCrud
-            .retrieveLatestVersionForName(pipelineNode.getModuleName());
-
-        Set<ClassWrapper<ParametersInterface>> allRequiredParams = new HashSet<>();
-
-        List<Class<? extends ParametersInterface>> uowParams = UnitOfWorkGenerator
-            .unitOfWorkGenerator(pipelineNode)
-            .newInstance()
-            .requiredParameterClasses();
-        for (Class<? extends ParametersInterface> uowParam : uowParams) {
-            allRequiredParams.add(new ClassWrapper<>(uowParam));
-        }
-        allRequiredParams.addAll(modDef.getRequiredParameterClasses());
-
-        return allRequiredParams;
     }
 
     /**
@@ -184,8 +156,7 @@ public class PipelineOperations {
      * driven by an event handler.
      */
     public PipelineInstance fireTrigger(PipelineDefinition pipelineDefinition, String instanceName,
-        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode,
-        String eventHandlerParamSetName) {
+        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode, Set<String> eventLabels) {
         TriggerValidationResults validationResults = validateTrigger(pipelineDefinition);
         if (validationResults.hasErrors()) {
             throw new PipelineException(
@@ -193,7 +164,7 @@ public class PipelineOperations {
         }
 
         return pipelineExecutor().launch(pipelineDefinition, instanceName, startNode, endNode,
-            eventHandlerParamSetName);
+            eventLabels);
     }
 
     /**
@@ -208,43 +179,7 @@ public class PipelineOperations {
         TriggerValidationResults validationResults = new TriggerValidationResults();
 
         pipelineDefinition.buildPaths();
-
-        validateTriggerParameters(pipelineDefinition, validationResults);
-
         return validationResults;
-    }
-
-    /**
-     * Validate that the trigger {@link ParameterSetName}s are all set and match the parameter
-     * classes specified in the {@link PipelineDefinition}
-     */
-    private void validateTriggerParameters(PipelineDefinition pipelineDefinition,
-        TriggerValidationResults validationResults) {
-        validateParameterClassExists(pipelineDefinition.getPipelineParameterSetNames(),
-            "Pipeline parameters", validationResults);
-
-        for (PipelineDefinitionNode rootNode : pipelineDefinition.getRootNodes()) {
-            validateTriggerParametersForNode(pipelineDefinition, rootNode, validationResults);
-        }
-    }
-
-    private void validateTriggerParametersForNode(PipelineDefinition pipelineDefinition,
-        PipelineDefinitionNode pipelineDefinitionNode, TriggerValidationResults validationResults) {
-        String errorLabel = "module: " + pipelineDefinitionNode.getModuleName();
-
-        Set<ClassWrapper<ParametersInterface>> requiredParameterClasses = retrieveRequiredParameterClassesForNode(
-            pipelineDefinitionNode);
-
-        validateParameterClassExists(pipelineDefinitionNode.getModuleParameterSetNames(),
-            errorLabel, validationResults);
-
-        validateTriggerParameters(requiredParameterClasses,
-            pipelineDefinition.getPipelineParameterSetNames(),
-            pipelineDefinitionNode.getModuleParameterSetNames(), errorLabel, validationResults);
-
-        for (PipelineDefinitionNode childNode : pipelineDefinitionNode.getNextNodes()) {
-            validateTriggerParametersForNode(pipelineDefinition, childNode, validationResults);
-        }
     }
 
     /**
@@ -413,6 +348,18 @@ public class PipelineOperations {
     }
 
     /**
+     * Forces a {@link PipelineInstance} into the ERRORS_STALLED state. This should only be used in
+     * the peculiar circumstance of an instance that has failed without any {@link PipelineTask}s
+     * associated with the instance failing. This is the case when UOW generation for a given
+     * {@link PipelineInstanceNode} has failed in some way.
+     */
+    public void setInstanceToErrorsStalledState(PipelineInstance pipelineInstance) {
+        PipelineInstance.State.ERRORS_STALLED.setExecutionClockState(pipelineInstance);
+        pipelineInstance.setState(PipelineInstance.State.ERRORS_STALLED);
+        new PipelineInstanceCrud().merge(pipelineInstance);
+    }
+
+    /**
      * Returns a {@link TaskCounts} instance for a given {@link PipelineInstance}.
      */
     public TaskCounts taskCounts(PipelineInstance pipelineInstance) {
@@ -480,7 +427,7 @@ public class PipelineOperations {
         }
 
         report.append(nl);
-        report.append("Modules" + nl);
+        report.append("Nodes" + nl);
 
         List<PipelineInstanceNode> pipelineNodes = pipelineInstanceNodeCrud.retrieveAll(instance);
 
@@ -550,7 +497,7 @@ public class PipelineOperations {
         }
 
         report.append(nl);
-        report.append("Modules" + nl);
+        report.append("Nodes" + nl);
 
         List<PipelineDefinitionNode> nodes = pipelineDefinition.getNodes();
         for (PipelineDefinitionNode node : nodes) {
@@ -582,8 +529,6 @@ public class PipelineOperations {
             "  Module definition: " + module.getName() + ", version=" + module.getVersion() + nl);
         report.append("    Java classname: "
             + module.getPipelineModuleClass().getClazz().getSimpleName() + nl);
-        report.append("    exe timeout seconds: " + module.getExeTimeoutSecs() + nl);
-        report.append("    min memory MB: " + module.getMinMemoryMegaBytes() + nl);
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)

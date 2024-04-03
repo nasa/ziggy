@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
-import gov.nasa.ziggy.data.management.DataFileTypeImporter;
+import gov.nasa.ziggy.data.datastore.DatastoreConfigurationImporter;
 import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
@@ -76,7 +76,6 @@ import gov.nasa.ziggy.services.events.ZiggyEventHandlerDefinitionImporter;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
-import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.io.FileUtil;
@@ -192,12 +191,15 @@ public class ClusterController {
 
     private int cpuCount() {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
-        log.info("Setting number of worker threads to number of available processors ("
-            + availableProcessors + ")");
+        log.info("Setting number of worker threads to number of available processors ({})",
+            availableProcessors);
         return availableProcessors;
     }
 
     public static void main(String[] args) {
+
+        log.info("Ziggy cluster (version {})",
+            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
 
         // Define all the command options.
         Options options = new Options()
@@ -296,7 +298,7 @@ public class ClusterController {
         }
 
         if (commands.contains(VERSION_COMMAND)) {
-            log.info(
+            System.out.println(
                 ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
         }
     }
@@ -370,8 +372,8 @@ public class ClusterController {
                         + pipelineDefsDir.toString() + " does not exist");
                 }
 
-                log.info(
-                    "Importing parameter libraries from directory " + pipelineDefsDir.toString());
+                log.info("Importing parameter libraries from directory {}",
+                    pipelineDefsDir.toString());
                 File[] parameterFiles = pipelineDefsDir.toFile()
                     .listFiles(
                         (FilenameFilter) (dir, name) -> (name.startsWith(PARAM_LIBRARY_PREFIX)
@@ -379,24 +381,27 @@ public class ClusterController {
                 Arrays.sort(parameterFiles, Comparator.comparing(File::getName));
                 ParametersOperations paramsOps = new ParametersOperations();
                 for (File parameterFile : parameterFiles) {
-                    log.info("Importing library " + parameterFile.getName());
+                    log.info("Importing library {}", parameterFile.getName());
                     paramsOps.importParameterLibrary(parameterFile, null, ParamIoMode.STANDARD);
                 }
 
-                log.info("Importing data file types from directory " + pipelineDefsDir.toString());
+                log.info("Importing datastore configuration from directory "
+                    + pipelineDefsDir.toString());
                 File[] dataTypeFiles = pipelineDefsDir.toFile()
                     .listFiles((FilenameFilter) (dir,
                         name) -> (name.startsWith(TYPE_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));
                 Arrays.sort(dataTypeFiles, Comparator.comparing(File::getName));
                 List<String> dataTypeFileNames = new ArrayList<>(dataTypeFiles.length);
                 for (File dataTypeFile : dataTypeFiles) {
-                    log.info("Adding " + dataTypeFile.getName() + " to imports list");
+                    log.info("Adding {} to imports list", dataTypeFile.getName());
                     dataTypeFileNames.add(dataTypeFile.getAbsolutePath());
                 }
-                new DataFileTypeImporter(dataTypeFileNames, false).importFromFiles();
+                DatastoreConfigurationImporter importer = new DatastoreConfigurationImporter(
+                    dataTypeFileNames, false);
+                importer.importConfiguration();
 
-                log.info(
-                    "Importing pipeline definitions from directory " + pipelineDefsDir.toString());
+                log.info("Importing pipeline definitions from directory {}",
+                    pipelineDefsDir.toString());
                 File[] pipelineDefinitionFiles = pipelineDefsDir.toFile()
                     .listFiles(
                         (FilenameFilter) (dir, name) -> (name.startsWith(PIPELINE_DEF_FILE_PREFIX)
@@ -404,13 +409,13 @@ public class ClusterController {
                 Arrays.sort(pipelineDefinitionFiles, Comparator.comparing(File::getName));
                 List<File> pipelineDefFileList = new ArrayList<>();
                 for (File pipelineDefinitionFile : pipelineDefinitionFiles) {
-                    log.info("Adding " + pipelineDefinitionFile.getName() + " to imports list");
+                    log.info("Adding {} to imports list", pipelineDefinitionFile.getName());
                     pipelineDefFileList.add(pipelineDefinitionFile);
                 }
                 new PipelineDefinitionOperations().importPipelineConfiguration(pipelineDefFileList);
 
-                log.info(
-                    "Importing event definitions from directory " + pipelineDefsDir.toString());
+                log.info("Importing event definitions from directory {}",
+                    pipelineDefsDir.toString());
                 File[] handlerDefinitionFiles = pipelineDefsDir.toFile()
                     .listFiles((FilenameFilter) (dir,
                         name) -> (name.startsWith(EVENT_HANDLER_DEF_FILE_PREFIX)
@@ -429,6 +434,7 @@ public class ClusterController {
             }
         });
         log.info("Database initialization and creation complete");
+        System.out.println("Cluster initialized");
     }
 
     /**
@@ -475,7 +481,7 @@ public class ClusterController {
     public boolean isSupervisorRunning() {
         CommandLine supervisorStatusCommand = supervisorCommand(WrapperCommand.STATUS, workerCount,
             workerHeapSize);
-        log.debug("Command line: " + supervisorStatusCommand);
+        log.debug("Command line: {}", supervisorStatusCommand);
         return ExternalProcess.simpleExternalProcess(supervisorStatusCommand).execute() == 0;
     }
 
@@ -488,7 +494,7 @@ public class ClusterController {
             if (!force) {
                 throw new PipelineException("Cannot start cluster; cluster not initialized");
             }
-            log.warn("Attempting to start uninitialized cluster");
+            log.error("Attempting to start uninitialized cluster");
         }
 
         try {
@@ -514,17 +520,18 @@ public class ClusterController {
                 log.info("Supervisor already running");
             } else {
                 log.info("Starting supervisor");
-                log.debug("Creating directory " + DirectoryProperties.supervisorLogDir());
+                log.debug("Creating directory {}", DirectoryProperties.supervisorLogDir());
                 Files.createDirectories(DirectoryProperties.supervisorLogDir());
                 CommandLine supervisorStartCommand = supervisorCommand(WrapperCommand.START,
                     workerCount, workerHeapSize);
-                log.debug("Command line: " + supervisorStartCommand.toString());
+                log.debug("Command line: {}", supervisorStartCommand.toString());
                 ExternalProcess.simpleExternalProcess(supervisorStartCommand)
                     .exceptionOnFailure()
                     .execute();
                 log.info("Supervisor started");
             }
             log.info("Cluster started");
+            System.out.println("Cluster started");
         } catch (Throwable t) {
             log.error("Caught exception when trying to start cluster, shutting down", t);
             stopCluster();
@@ -534,12 +541,8 @@ public class ClusterController {
 
     private void stopCluster() {
         // Start RMI in order to publish the shutdown message.
-        int rmiPort = ZiggyConfiguration.getInstance()
-            .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
-        log.info("Starting ZiggyRmiClient instance with registry on port " + rmiPort);
         try {
-            ZiggyRmiClient.initializeInstance(rmiPort, NAME);
-            log.info("Starting ZiggyRmiClient instance...done");
+            ZiggyRmiClient.start(NAME);
             ZiggyMessenger.publish(new ShutdownMessage());
         } catch (PipelineException e) {
             log.info("Starting ZiggyRmiClient instance...(no server to talk to)");
@@ -548,7 +551,7 @@ public class ClusterController {
         log.info("Supervisor stopping");
         CommandLine supervisorStopCommand = supervisorCommand(WrapperCommand.STOP, workerCount,
             workerHeapSize);
-        log.debug("Command line: " + supervisorStopCommand.toString());
+        log.debug("Command line: {}", supervisorStopCommand.toString());
         ExternalProcess.simpleExternalProcess(supervisorStopCommand).execute(true);
         if (!isSupervisorRunning()) {
             log.info("Supervisor stopped");
@@ -570,6 +573,7 @@ public class ClusterController {
         }
         ZiggyRmiClient.reset();
         log.info("Cluster stopped");
+        System.out.println("Cluster stopped");
 
         // Force exit due to the RMI client.
         System.exit(0);
@@ -577,13 +581,13 @@ public class ClusterController {
 
     private void status() {
         int databaseStatus = databaseStatus();
-        log.info("Cluster is " + (isInitialized() ? "initialized" : "NOT initialized"));
-        log.info("Supervisor is " + (isSupervisorRunning() ? "running" : "NOT running"));
-        log.info("Database "
+        System.out.println("Cluster is " + (isInitialized() ? "initialized" : "NOT initialized"));
+        System.out.println("Supervisor is " + (isSupervisorRunning() ? "running" : "NOT running"));
+        System.out.println("Database "
             + (databaseStatus == 0 ? "is"
                 : databaseStatus == DatabaseController.NOT_SUPPORTED ? "should be" : "is NOT")
             + " available");
-        log.info("Cluster is "
+        System.out.println("Cluster is "
             + (isInitialized() && isDatabaseAvailable() && isSupervisorRunning() ? "running"
                 : "NOT running"));
     }
@@ -596,20 +600,8 @@ public class ClusterController {
         String consoleCommand = DirectoryProperties.ziggyBinDir()
             .resolve(ZIGGY_CONSOLE_COMMAND)
             .toString();
-        log.debug("Command line: " + consoleCommand);
+        log.debug("Command line: {}", consoleCommand);
         ExternalProcess.simpleExternalProcess(consoleCommand).execute(false);
-    }
-
-    /**
-     * Waits the given number of milliseconds for a process to settle.
-     */
-    public static void waitForProcessToSettle(long millis) {
-        try {
-            log.debug("Waiting for process to settle");
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     private static void usageAndExit(Options options, String message) {

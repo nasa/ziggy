@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 import org.slf4j.Logger;
@@ -21,7 +22,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
 import gov.nasa.ziggy.util.CollectionFilters;
 import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -31,7 +31,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
@@ -55,7 +54,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 @Table(name = "ziggy_PipelineDefinition",
     uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "version" }) })
 public class PipelineDefinition extends UniqueNameVersionPipelineComponent<PipelineDefinition>
-    implements HasGroup {
+    implements Groupable {
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineDefinition.class);
 
@@ -66,15 +65,8 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         sequenceName = "ziggy_PipelineDefinition_sequence", allocationSize = 1)
     private Long id;
 
-    @Embedded
-    // init with empty placeholder, to be filled in by console
-    private AuditInfo auditInfo = new AuditInfo();
-
     @XmlAttribute(required = true)
     private String description;
-
-    @ManyToOne
-    private Group group;
 
     // Using the Integer class rather than int here because XML won't allow optional
     // attributes that are primitive types
@@ -116,11 +108,6 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         setName(name);
     }
 
-    public PipelineDefinition(AuditInfo auditInfo, String name) {
-        setName(name);
-        this.auditInfo = auditInfo;
-    }
-
     /**
      * Constructs a renamed (deep) copy of this pipeline definition.
      *
@@ -130,13 +117,6 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
     public PipelineDefinition newInstance() {
         PipelineDefinition pipelineDefinition = super.newInstance();
         pipelineDefinition.id = null;
-        if (auditInfo != null) {
-            pipelineDefinition.auditInfo = new AuditInfo(auditInfo.getLastChangedUser(),
-                auditInfo.getLastChangedTime());
-        }
-        if (group != null) {
-            pipelineDefinition.group = new Group(group);
-        }
 
         pipelineDefinition.pipelineParameterSetNames = new HashMap<>();
         for (Entry<ClassWrapper<ParametersInterface>, String> pipelineParameterSetName : pipelineParameterSetNames
@@ -253,14 +233,6 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         }
     }
 
-    public AuditInfo getAuditInfo() {
-        return auditInfo;
-    }
-
-    public void setAuditInfo(AuditInfo auditInfo) {
-        this.auditInfo = auditInfo;
-    }
-
     public String getDescription() {
         return description;
     }
@@ -269,26 +241,8 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         this.description = description;
     }
 
-    @Override
-    public Group group() {
-        return group;
-    }
-
-    @Override
-    public void setGroup(Group group) {
-        this.group = group;
-    }
-
     public Long getId() {
         return id;
-    }
-
-    public String getGroupName() {
-        Group group = group();
-        if (group == null) {
-            return Group.DEFAULT.getName();
-        }
-        return group.getName();
     }
 
     public Priority getInstancePriority() {
@@ -379,10 +333,89 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         this.rootNodeNames = rootNodeNames;
     }
 
-    // TODO: Define what totalEquals() should do in the case of a pipeline definition.
+    /**
+     * Defines {@link UniqueNameVersionPipelineComponent#totalEquals(Object)} for
+     * {@link PipelineDefinition} instances. What this means in practice is the following:
+     * <ol>
+     * <li>the {@link AuditInfo} fields for the two instances are identical.
+     * <li>The {@link Priority} fields for the two instances are identical.
+     * <li>The {@link ParameterSet} names for the two instances are identical (note that the
+     * instances themselves do not have to be identical, because we separately track changes to
+     * parameter sets).
+     * <li>The {@link PipelineDefinitionNode} graphs are identical for the two instances. Here we
+     * mean that the node IDs are identical. The nodes are not name-version controlled because some
+     * of the information in them is tracked separately (i.e., module parameter set name-and-version
+     * are tracked for each pipeline task, so a change in the module parameters doesn't need to be
+     * tracked in the node definition), and the rest is not relevant to data accountability (i.e.,
+     * nobody cares that the user changed from remote to local execution).
+     * </ol>
+     */
     @Override
     public boolean totalEquals(Object other) {
-        return false;
+        PipelineDefinition otherDef = (PipelineDefinition) other;
+
+        if (!java.util.Objects.equals(description, otherDef.description)
+            || !java.util.Objects.equals(instancePriority, otherDef.instancePriority)) {
+            return false;
+        }
+        Map<ClassWrapper<ParametersInterface>, String> otherParameters = otherDef
+            .getPipelineParameterSetNames();
+        if (pipelineParameterSetNames.size() != otherParameters.size()
+            || !pipelineParameterSetNames.values().containsAll(otherParameters.values())
+            || !nodeTreesIdentical(rootNodes, otherDef.rootNodes)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Recursive comparison of the node trees of two {@link PipelineDefinition}s.
+     */
+    private boolean nodeTreesIdentical(List<PipelineDefinitionNode> nodes,
+        List<PipelineDefinitionNode> otherNodes) {
+
+        // Check for empty-or-null condition so we know in subsequent steps that
+        // neither list is null.
+        if (CollectionUtils.isEmpty(nodes) && CollectionUtils.isEmpty(otherNodes)) {
+            return true;
+        }
+
+        // Different sizes means false.
+        if (nodes.size() != otherNodes.size()) {
+            return false;
+        }
+
+        // Different nodes in the two lists (by ID number) means false.
+        Map<Long, PipelineDefinitionNode> nodeMap = pipelineDefinitionNodeIds(nodes);
+        Map<Long, PipelineDefinitionNode> otherNodeMap = pipelineDefinitionNodeIds(otherNodes);
+        if (!nodeMap.keySet().containsAll(otherNodeMap.keySet())) {
+            return false;
+        }
+
+        // At this point we know that the two instances contain the same nodes based on ID numbers.
+        // Now we loop over this list's nodes, retrieve the matching node from the other list,
+        // and compare their child nodes. This is where it gets recursive.
+        boolean nextNodesIdentical = true;
+        for (long id : nodeMap.keySet()) {
+            List<PipelineDefinitionNode> nextNodes = nodeMap.get(id).getNextNodes();
+            List<PipelineDefinitionNode> otherNextNodes = otherNodeMap.get(id).getNextNodes();
+            if (CollectionUtils.isEmpty(nextNodes) && !CollectionUtils.isEmpty(otherNextNodes)
+                || !CollectionUtils.isEmpty(nextNodes) && CollectionUtils.isEmpty(otherNextNodes)) {
+                return false;
+            }
+            nextNodesIdentical = nextNodesIdentical
+                && nodeTreesIdentical(nextNodes, otherNextNodes);
+        }
+        return nextNodesIdentical;
+    }
+
+    Map<Long, PipelineDefinitionNode> pipelineDefinitionNodeIds(
+        List<PipelineDefinitionNode> nodes) {
+        Map<Long, PipelineDefinitionNode> nodeMap = new HashMap<>();
+        for (PipelineDefinitionNode node : nodes) {
+            nodeMap.put(node.getId(), node);
+        }
+        return nodeMap;
     }
 
     @Override

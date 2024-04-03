@@ -2,7 +2,7 @@
 
 [[Previous]](intermediate-topics.md)
 [[Up]](intermediate-topics.md)
-[[Next]](task-configuration.md)
+[[Next]](rdbms.md)
 
 ## The Datastore and the Task Directory
 
@@ -28,50 +28,54 @@ datastore$ tree
 │       └── 2022-10-31.0001-sample-model.txt
 ├── set-1
 │   ├── L0
-│   │   ├── nasa_logo-file-0.png
-│   │   ├── nasa_logo-file-1.png
-│   │   ├── nasa_logo-file-2.png
-│   │   └── nasa_logo-file-3.png
+│   │   ├── nasa-logo-file-0.png
+│   │   ├── nasa-logo-file-1.png
+│   │   ├── nasa-logo-file-2.png
+│   │   └── nasa-logo-file-3.png
 │   ├── L1
-│   │   ├── nasa_logo-file-0.png
-│   │   ├── nasa_logo-file-1.png
-│   │   ├── nasa_logo-file-2.png
-│   │   └── nasa_logo-file-3.png
+│   │   ├── nasa-logo-file-0.perm.png
+│   │   ├── nasa-logo-file-1.perm.png
+│   │   ├── nasa-logo-file-2.perm.png
+│   │   └── nasa-logo-file-3.perm.png
 │   ├── L2A
-│   │   ├── nasa_logo-file-0.png
-│   │   ├── nasa_logo-file-1.png
-│   │   ├── nasa_logo-file-2.png
-│   │   └── nasa_logo-file-3.png
+│   │   ├── nasa-logo-file-0.fliplr.png
+│   │   ├── nasa-logo-file-1.fliplr.png
+│   │   ├── nasa-logo-file-2.fliplr.png
+│   │   └── nasa-logo-file-3.fliplr.png
 │   ├── L2B
-│   │   ├── nasa_logo-file-0.png
-│   │   ├── nasa_logo-file-1.png
-│   │   ├── nasa_logo-file-2.png
-│   │   └── nasa_logo-file-3.png
+│   │   ├── nasa-logo-file-0.flipud.png
+│   │   ├── nasa-logo-file-1.flipud.png
+│   │   ├── nasa-logo-file-2.flipud.png
+│   │   └── nasa-logo-file-3.flipud.png
 │   └── L3
-│       └── averaged-image.png
+│       └── nasa-logo-averaged.png
 └── set-2
- datastore$
+datastore$
 ```
 
 Summarizing what we see:
 
 - a `models` directory, with a `dummy model` subdirectory and within that a sample model.
 - A `set-1` directory and a `set-2` directory. The `set-2` directory layout mirrors the layout of `set-1`; take a look if you don't believe me, I didn't bother to expand set-2 in the interest of not taking up too much space.
-- Within `set-1` we see a directory `L0` with some PNG files in it, a directory `L1` with some PNG files, and then `L2A`, `L2B`, and `L3` directories which (again, trust me or look for yourself) contain additional PNG files.
+- Within `set-1` we see a directory `L0` with some PNG files in it, a directory `L1` with some PNG files, and then `L2A`, `L2B`, and `L3` directories which contain additional PNG files.
 
 Where did all this come from? Let's take a look again at part of the `pt-sample.xml` file:
 
 ```xml
-<dataFileType name="raw data"
-              fileNameRegexForTaskDir="(\\S+)-(set-[0-9])-(file-[0-9]).png"
-              fileNameWithSubstitutionsForDatastore="$2/L0/$1-$3.png"/>
+  <!-- The raw data. this is in the L0 subdir of the dataset
+       directory, with a file name regular expression of
+       "(nasa-logo-file-[0-9]).png" -->
+  <dataFileType name="raw data" location="dataset/L0"
+                fileNameRegexp="(nasa-logo-file-[0-9])\.png"/>
 
-<dataFileType name="permuted colors"
-              fileNameRegexForTaskDir="(\\S+)-(set-[0-9])-(file-[0-9])-perm.png"
-              fileNameWithSubstitutionsForDatastore="$2/L1/$1-$3.png"/>
+  <!-- Results from the first processing step. This goes in the L1 subdir
+       of the dataset directory, with a file name regular expression of
+       "(nasa-logo-file-[0-9])\.perm\.png" -->
+  <dataFileType name="permuted colors" location="dataset/L1"
+                fileNameRegexp="(nasa-logo-file-[0-9])\.perm\.png"/>
 ```
 
-If you don't remember how data file type definitions worked, feel free to [go to the article on Data File Types](data-file-types.md) for a quick refresher course. In any event, you can probably now see what we meant when we said that the data file type definitions implicitly define the structure of the datastore. The `set-1/L0` and `set-2/L0` directories come from the `fileNameWithSubstitutionsForRegex` value for raw data; similarly the permuted colors data type defines the `set-1/L1` and `set-2/L2` directories.
+If you don't remember how data file type definitions worked, feel free to [go to the article on The Datastore](datastore.md) for a quick refresher course. What you can see is that, as advertised, data file type `raw data` has a location that points to the `L0` directory in the datastore, and files with the name convention `"nasa-logo-file-[0-9]\.png"`. Similarly, the files in the `L1` directory have file names that match the `fileNameRegexp` for the `permuted colors` data file type.
 
 #### Model Names in the Datastore
 
@@ -125,30 +129,34 @@ PBS_JOB_FINISH.1667003320029    permuter-inputs.h5          st-2
 PBS_JOB_START.1667003280021     st-0                        st-3
 
 1-2-permuter/st-0:
-SUB_TASK_FINISH.1667003287519    nasa_logo-set-2-file-0-perm.png    permuter-inputs-0.h5     sample-model.txt
-SUB_TASK_START.1667003280036     nasa_logo-set-2-file-0.png         permuter-stdout-0.log
+SUB_TASK_FINISH.1667003287519    nasa_logo-file-0.perm.png    permuter-inputs.h5
+sample-model.txt
+SUB_TASK_START.1667003280036     nasa_logo-file-0.png         permuter-stdout.log
 
 1-2-permuter/st-1:
-SUB_TASK_FINISH.1667003294982    nasa_logo-set-2-file-1-perm.png    permuter-inputs-0.h5     sample-model.txt
-SUB_TASK_START.1667003287523     nasa_logo-set-2-file-1.png         permuter-stdout-0.log
+SUB_TASK_FINISH.1667003294982    nasa_logo-file-1.perm.png    permuter-inputs.h5
+sample-model.txt
+SUB_TASK_START.1667003287523     nasa_logo-file-1.png         permuter-stdout.log
 
 1-2-permuter/st-2:
-SUB_TASK_FINISH.1667003302619    nasa_logo-set-2-file-2-perm.png    permuter-inputs-0.h5     sample-model.txt
-SUB_TASK_START.1667003294987     nasa_logo-set-2-file-2.png         permuter-stdout-0.log
+SUB_TASK_FINISH.1667003302619    nasa_logo-file-2.perm.png    permuter-inputs.h5
+sample-model.txt
+SUB_TASK_START.1667003294987     nasa_logo-file-2.png         permuter-stdout.log
 
 1-2-permuter/st-3:
-SUB_TASK_FINISH.1667003310303    nasa_logo-set-2-file-3-perm.png    permuter-inputs-0.h5     sample-model.txt
-SUB_TASK_START.1667003302623     nasa_logo-set-2-file-3.png         permuter-stdout-0.log
+SUB_TASK_FINISH.1667003310303    nasa_logo-file-3.perm.png    permuter-inputs.h5
+sample-model.txt
+SUB_TASK_START.1667003302623     nasa_logo-file-3.png         permuter-stdout.log
 1-2-permuter$
 ```
 
 At the top level there's some stuff we're not going to talk about now. What's interesting is the contents of the subtask directory, st-0:
 
 - The sample model is present with its original (non-datastore) name, `sample-model.txt`.
-- The inputs file for this subtask is present, also with its original (non-datastore) name, `nasa-logo-set-2-file-0.png`.
-- The outputs file for this subtask is present: `nasa-logo-set-2-file-0-perm.png`.
-- The HDF5 file that contains filenames is present: `permuter-inputs-0.h5`.
-- There's a file that contains all of the standard output (i.e., printing) from the algorithm: `permuter-stdout-0.log`.
+- The inputs file for this subtask is present: `nasa-logo-file-0.png`.
+- The outputs file for this subtask is present: `nasa-logo-file-0.perm.png`.
+- The HDF5 file that contains filenames is present: `permuter-inputs.h5`.
+- There's a file that contains all of the standard output (i.e., printing) from the algorithm: `permuter-stdout.log`.
 - There are a couple of files that show the Linux time that the subtask started and completed processing.
 
 ### The Moral of this Story
@@ -158,43 +166,40 @@ So what's the takeaway from all this? Well, there's actually a couple:
 - Ziggy maintains separate directories for its permanent storage in the datastore and temporary storage for algorithm use in the task directory.
 - The task directory, in turn, contains one directory for each subtask.
 - The subtask directory contains all of the content that the subtask needs to run. This is convenient if troubleshooting is needed: you can copy a subtask directory to a different computer to be worked on, rather than being forced to work on it on the production file system used by Ziggy.
-- There's some name mangling between the datastore and the task directory.
+- There's some name mangling of models between the datastore and the task directory.
 - You can put anything you want into the subtask or task directory; Ziggy only pulls back the results it's been told to pull back. This means that, if you want to dump a lot of diagnostic information into each subtask directory, which you only use if something goes wrong in that subtask, feel free; Ziggy won't mind.
 
-### Postscript: Copies vs. Symbolic Links
+### Postscript: Copies vs. Links
 
-If you look closely at the figure that shows the task directory, you'll notice something curious: the input and output "files" aren't really files. They're symbolic links. Specifically, they're symbolic links to files in the datastore. Looking at an example:
+Are the files in the datastore and the task directory really copies of one another? Well, that depends.
 
-```console
-st-0$ ls -l
-total 64
--rw-r--r--  1       0 Oct 31 16:01 SUB_TASK_FINISH.1667257285445
--rw-r--r--  1       0 Oct 31 16:01 SUB_TASK_START.1667257269376
-lrwxr-xr-x  1     104 Oct 31 16:01 nasa_logo-set-2-file-0-perm.png -> ziggy/sample-pipeline/build/pipeline-results/datastore/set-2/L1/nasa_logo-file-0.png
-lrwxr-xr-x  1     104 Oct 31 16:01 nasa_logo-set-2-file-0.png -> ziggy/sample-pipeline/build/pipeline-results/datastore/set-2/L0/nasa_logo-file-0.png
--rw-r--r--  1   25556 Oct 31 16:01 permuter-inputs-0.h5
--rw-r--r--  1     174 Oct 31 16:01 permuter-stdout-0.log
-lrwxr-xr-x  1     126 Oct 31 16:01 sample-model.txt -> ziggy/sample-pipeline/build/pipeline-results/datastore/models/dummy model/2022-10-31.0001-sample-model.txt
-st-0$
-```
+Most modern file systems offer a facility known as a "link" or a "hard link." The way a link works is as follows: rather than copy a file from Directory A to Directory B, the file system creates a new entry in Directory B for the file, and points it at the spot in the file system that holds the file you care about in Directory A. The file has, in effect, two names: one in Directory A and one in Directory B; but that file still only takes up the space of one file on the file system (rather than two, which is what you get when you copy a file).
 
-Ziggy allows the user to select whether to use actual copies of the files or symbolic links. This is configured in -- yeah, you got it -- the properties file:
+A great property of the link system is that, if we start with a file in Directory A, create a link to that file in Directory B, and then delete the file in Directory A, as far as Directory B is concerned that file is still there and can be accessed, modified, etc. In other words, as long as a file has multiple names (via the link system), "deleting the file" in one place only deletes that reference to the file, not the actual content of the file. The content of the file isn't deleted until the last such reference is removed. In other words, when you "delete" the file from Directory A, the file is still there on the file system, but the only way to find it now is via the name it has in Directory B. When you delete the file from Directory B, there are no longer any directories that have a reference to that file, so the actual content of the file is deleted.
 
-```
-ziggy.pipeline.useSymlinks = true
-```
+There are two limitations to hard links as implemented on typical file systems:
 
-The way this works is obvious for the input files: Ziggy puts a symlink in the working directory, and that's all there is to it. For the outputs file, what happens is that the algorithm produces an actual file of results; when Ziggy goes to store the outputs file, it moves it to the datastore and replaces it in the working directory with a symlink. This is a lot of words to say that you can turn this feature on or off at will and your code doesn't need to do anything different either way.
+- Only regular files can be linked; directories cannot.
+- File links only work within a file system.
 
-The advantages of the symlinks are fairly obvious:
+What does Ziggy do? By default, Ziggy always uses links if it can; that is to say, it does so if the file system in question supports links and if the requested link is on the same file system as the original file. If Ziggy is asked to "copy" a directory from one place on a file system to another, Ziggy will create a new directory at the destination and then fill it with links to the files in the source directory.
 
-- Symbolic links take up approximately zero space on the file system. If you use symbolic links you avoid having multiple copies of every file around (one in the datastore, one in the subtask directory). For large data volumes, this can be valuable.
-- Similarly, symbolic links take approximately zero time to instantiate. Copies take actual finite time. Again, for large data volumes, it can be a lot better to use symlinks than copies in terms of how much time your processing needs.
+If the file system doesn't support links, or if the datastore and the task directory are on separate file systems, Ziggy will use ordinary file copying rather than linking.
 
-There are also situations in which the symlinks may not be a good idea:
+Why would a person ever want to put the datastore and the task directory on separate systems, given all of the aforementioned advantages of co-locating them? Turns out that there are security benefits to putting the datastore on a file system that's not networked all over the place, but rather is directly connected to a single computer (i.e., the one that's running Ziggy for you). By putting the task files on networked file systems, you can use all the other computers that mount that file system for processing data; when you then copy results back to the datastore on the direct-mounted file system, you've eliminated a risk that some other computer is going to come along and mess up your datastore. On the other hand, actually copying files creates performance issues because copying is extremely slow compared to linking, and it means that, at least temporarily, you have two copies of all your files taking up space (the task directory copy and the datastore copy). We report, you decide.
 
-- It may be the case that you're using one computer to run the supervisor, workers, and database, and a different one to run the algorithms. In this situation, the datastore can be on a file system that's mounted on the supervisor machine but not the compute machine, in which case the symlink solution won't work (the compute node can't see the datastore, so it can't follow the link).
+#### Why not Symlinks?
+
+The same file systems that provide links also provide a different way to avoid copying files within a file system: symbolic links, also known as "symlinks" or (somewhat harshly) "slimelinks." Symlinks are somewhat more versatile than hard links: you can symlink to a directory, and you can have symlinks from one file system to another. Meanwhile, they give the same advantages in speed and disk space as hard links. Why doesn't Ziggy use them?
+
+There are a few disadvantages of symlinks that were decisive in our thinking on this issue. Specifically:
+
+- A symlink can target a file on another file system, but it doesn't change the way that the file systems are mounted. Consider a system in which there's a datastore file system that's not networked and a task directory file system that is networked. The Ziggy server creates symlinks on the task directory file system that target files on the datastore file system, then hands execution over to another computer. That computer tries to open the file on the task directory, but it's not really there. It's really on the datastore file system, which the algorithm computer can't read from. Boom! Execution fails.
+- Symlinks create a potential data-loss hazard. Imagine that you have a symlink that targets a directory in the datastore. Meanwhile, the actual files in that directory aren't symlinks; they're real files. Now imagine a user `cd`'s into the symlink directory. When that user accesses the files, they're accessing the files that are in the datastore, not files that are in some other directory. This means that if that user `cd`'s into the directory (which is a symlink), they can `rm` datastore files without realizing it!
+- Because symlinks can target directories as well as regular files, you can wind up with an extremely complicated system in which you have a directory tree that contains a mixture of symlinks and real files / real directories, and in each and every case you need to decide how to handle them. This can quickly become a quagmire from which one will have a lot of trouble escaping.
+
+For all these reasons we decided to stick with hard links and eschew symlinks.
 
 [[Previous]](intermediate-topics.md)
 [[Up]](intermediate-topics.md)
-[[Next]](task-configuration.md)
+[[Next]](rdbms.md)

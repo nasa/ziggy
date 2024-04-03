@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.remote.PbsParameters;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
@@ -38,8 +38,8 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
     }
 
     @Override
-    public PbsParameters generatePbsParameters(RemoteParameters remoteParameters,
-        int totalSubtaskCount) {
+    public PbsParameters generatePbsParameters(
+        PipelineDefinitionNodeExecutionResources executionResources, int totalSubtaskCount) {
         return null;
     }
 

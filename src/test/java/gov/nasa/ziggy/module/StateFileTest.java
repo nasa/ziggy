@@ -202,7 +202,7 @@ public class StateFileTest {
         assertEquals(StateFile.INVALID_VALUE, stateFile.getRequestedNodeCount());
         assertEquals(StateFile.INVALID_VALUE, stateFile.getActiveCoresPerNode());
         assertEquals(StateFile.INVALID_VALUE, stateFile.getMinCoresPerNode());
-        assertEquals(StateFile.INVALID_VALUE, stateFile.getMinGigsPerNode());
+        assertEquals(StateFile.INVALID_VALUE, stateFile.getMinGigsPerNode(), 1e-3);
 
         assertEquals(StateFile.INVALID_VALUE, stateFile.getPbsSubmitTimeMillis());
         assertEquals(StateFile.INVALID_VALUE, stateFile.getPfeArrivalTimeMillis());
@@ -266,7 +266,7 @@ public class StateFileTest {
         assertEquals(stateFile.getActiveCoresPerNode(), newStateFile.getActiveCoresPerNode());
         assertEquals(stateFile.getRequestedNodeCount(), newStateFile.getRequestedNodeCount());
         assertEquals(stateFile.getMinCoresPerNode(), newStateFile.getMinCoresPerNode());
-        assertEquals(stateFile.getMinGigsPerNode(), newStateFile.getMinGigsPerNode());
+        assertEquals(stateFile.getMinGigsPerNode(), newStateFile.getMinGigsPerNode(), 1e-3);
 
         assertEquals(stateFile.getPbsSubmitTimeMillis(), newStateFile.getPbsSubmitTimeMillis());
         assertEquals(stateFile.getPfeArrivalTimeMillis(), newStateFile.getPfeArrivalTimeMillis());
@@ -296,7 +296,7 @@ public class StateFileTest {
         assertEquals(REMOTE_GROUP, stateFile.getRemoteGroup());
         assertEquals(QUEUE_NAME, stateFile.getQueueName());
         assertEquals(MIN_CORES_PER_NODE, stateFile.getMinCoresPerNode());
-        assertEquals(MIN_GIGS_PER_NODE, stateFile.getMinGigsPerNode());
+        assertEquals(MIN_GIGS_PER_NODE, stateFile.getMinGigsPerNode(), 1e-3);
         assertEquals(ACTIVE_CORES_PER_NODE, stateFile.getActiveCoresPerNode());
         assertEquals(REQUESTED_NODE_COUNT, stateFile.getRequestedNodeCount());
         assertEquals(GIGS_PER_SUBTASK, stateFile.getGigsPerSubtask(), 1e-9);

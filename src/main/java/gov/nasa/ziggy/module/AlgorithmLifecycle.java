@@ -16,7 +16,7 @@ public interface AlgorithmLifecycle {
      *
      * @param inputs
      */
-    void executeAlgorithm(TaskConfigurationManager inputs);
+    void executeAlgorithm(TaskConfiguration inputs);
 
     /**
      * Currently generateMemdroneCacheFiles() and doTaskFileCopy().

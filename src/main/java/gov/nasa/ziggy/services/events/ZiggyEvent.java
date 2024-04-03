@@ -2,11 +2,14 @@ package gov.nasa.ziggy.services.events;
 
 import java.util.Date;
 import java.util.Objects;
+import java.util.Set;
 
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
@@ -31,13 +34,19 @@ public class ZiggyEvent {
     private Date eventTime;
     private long pipelineInstanceId;
 
+    @ElementCollection
+    @JoinTable(name = "ziggy_Event_eventLabels")
+    private Set<String> eventLabels;
+
     @SuppressWarnings("unused")
     private ZiggyEvent() {
     }
 
-    public ZiggyEvent(String eventHandlerName, String pipelineName, long pipelineInstance) {
+    public ZiggyEvent(String eventHandlerName, String pipelineName, long pipelineInstance,
+        Set<String> eventLabels) {
         this.eventHandlerName = eventHandlerName;
         this.pipelineName = pipelineName;
+        this.eventLabels = eventLabels;
         eventTime = new Date();
         pipelineInstanceId = pipelineInstance;
     }
@@ -80,6 +89,14 @@ public class ZiggyEvent {
 
     public void setPipelineInstanceId(long pipelineInstance) {
         pipelineInstanceId = pipelineInstance;
+    }
+
+    public Set<String> getEventLabels() {
+        return eventLabels;
+    }
+
+    public void setEventLabels(Set<String> eventLabels) {
+        this.eventLabels = eventLabels;
     }
 
     @Override

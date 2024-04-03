@@ -45,7 +45,7 @@ public class NasQueueTimeMetricsTest {
 
     @Test
     public void testArmdMetrics() {
-        System.setProperty(REMOTE_NASA_DIRECTORATE.property(), "ARMD");
+        nasaDirectoratePropertyRule.setValue("ARMD");
         instance.populate(QS_MOCK_OUTPUT_FILE);
         testValues(RemoteNodeDescriptor.SANDY_BRIDGE, 53.8, 1.0);
         testValues(RemoteNodeDescriptor.IVY_BRIDGE, 197.5, 122.4);
@@ -58,7 +58,7 @@ public class NasQueueTimeMetricsTest {
 
     @Test
     public void testHeomdMetrics() {
-        System.setProperty(REMOTE_NASA_DIRECTORATE.property(), "HEOMD");
+        nasaDirectoratePropertyRule.setValue("HEOMD");
         instance.populate(QS_MOCK_OUTPUT_FILE);
         testValues(RemoteNodeDescriptor.SANDY_BRIDGE, 278.4, 2.0);
         testValues(RemoteNodeDescriptor.IVY_BRIDGE, 218.9, 2.6);
@@ -71,7 +71,7 @@ public class NasQueueTimeMetricsTest {
 
     @Test
     public void testSmdMetrics() {
-        System.setProperty(REMOTE_NASA_DIRECTORATE.property(), "SMD");
+        nasaDirectoratePropertyRule.setValue("SMD");
         instance.populate(QS_MOCK_OUTPUT_FILE);
         testValues(RemoteNodeDescriptor.SANDY_BRIDGE, 175.7, 15.6);
         testValues(RemoteNodeDescriptor.IVY_BRIDGE, 199.8, 31.7);

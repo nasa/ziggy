@@ -38,6 +38,7 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
  */
 @SuppressWarnings("serial")
 public class EditPipelineNodeDialog extends javax.swing.JDialog {
+    @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(EditPipelineNodeDialog.class);
     private JLabel moduleLabel;
 
@@ -73,7 +74,6 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
     private void save(ActionEvent evt) {
 
         try {
-
             PipelineModuleDefinition selectedModule = (PipelineModuleDefinition) moduleComboBox
                 .getSelectedItem();
             pipelineNode.setPipelineModuleDefinition(selectedModule);
@@ -244,7 +244,8 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
     private JLabel getUowTypeLabel() {
         if (uowTypeLabel == null) {
             uowTypeLabel = new JLabel();
-            ClassWrapper<UnitOfWorkGenerator> uowWrapper = pipelineNode.getUnitOfWorkGenerator();
+            ClassWrapper<UnitOfWorkGenerator> uowWrapper = new PipelineModuleDefinitionCrudProxy()
+                .retrieveUnitOfWorkGenerator(pipelineNode.getModuleName());
             String uowName = uowWrapper.getClassName();
             String uowLabel = "Unit of Work Class: " + uowName;
             uowTypeLabel.setText(uowLabel);
@@ -258,6 +259,7 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
      *
      * @param message
      */
+    @SuppressWarnings("unused")
     private void setError(String message) {
         if (saveButton != null) {
             saveButton.setEnabled(message.isEmpty());

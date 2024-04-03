@@ -12,10 +12,9 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
+import javax.swing.ButtonGroup;
 import javax.swing.GroupLayout;
 import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
@@ -23,19 +22,25 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.SpinnerListModel;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.ReportFilePaths;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineTaskInformation;
 import gov.nasa.ziggy.pipeline.TriggerValidationResults;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
-import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.TextualReportDialog;
@@ -44,6 +49,7 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
 import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionCrudProxy;
+import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionNodeCrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
 
 /**
@@ -51,25 +57,27 @@ import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
  */
 @SuppressWarnings("serial")
 public class EditPipelineDialog extends javax.swing.JDialog {
+
+    private static final Logger log = LoggerFactory.getLogger(EditPipelineDialog.class);
+
     private JSpinner prioritySpinner;
     private JLabel pipelineNameTextField;
     private JCheckBox validCheckBox;
     private JList<String> modulesList;
 
+    private JRadioButton reprocessButton;
+
     private PipelineDefinition pipeline;
     private String pipelineName;
-
     private PipelineModulesListModel pipelineModulesListModel;
     private ZiggyTreeModel<PipelineDefinition> pipelineModel;
 
-    // Contains all parameter sets (except remote parameters) that have been edited since this
+    // Contains all parameter sets that have been edited since this
     // window was opened.
     private Map<String, ParametersInterface> editedParameterSets = new HashMap<>();
 
-    // Contains all remote parameter sets that have been edited since this window was opened.
-    // This has to be done separately from the general edited parameter sets because the remote
-    // execution dialog needs some of the parameter set infrastructure.
-    private Map<String, ParameterSet> editedRemoteParameterSets = new HashMap<>();
+    // Contains all pipeline definition nodes with updated execution resources.
+    private Map<Long, PipelineDefinitionNodeExecutionResources> updatedExecutionResources = new HashMap<>();
 
     public EditPipelineDialog(Window owner, String pipelineName,
         ZiggyTreeModel<PipelineDefinition> pipelineModel) {
@@ -85,8 +93,9 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         ZiggyTreeModel<PipelineDefinition> pipelineModel) {
 
         super(owner, DEFAULT_MODALITY_TYPE);
-        this.pipelineName = pipelineName;
         this.pipeline = pipeline;
+        this.pipelineName = !StringUtils.isEmpty(pipelineName) ? pipelineName
+            : this.pipeline.getName();
         this.pipelineModel = pipelineModel;
 
         buildComponent();
@@ -131,12 +140,25 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         validCheckBox = new JCheckBox();
         validCheckBox.setEnabled(false);
 
+        JLabel processingMode = boldLabel("Processing mode");
+        ButtonGroup processConfigButtonGroup = new ButtonGroup();
+        reprocessButton = new JRadioButton("Process all data");
+        JRadioButton forwardProcessButton = new JRadioButton("Process new data");
+        processConfigButtonGroup.add(reprocessButton);
+        processConfigButtonGroup.add(forwardProcessButton);
+
+        if (new PipelineDefinitionCrudProxy()
+            .retrieveProcessingMode(this.pipelineName) == ProcessingMode.PROCESS_ALL) {
+            reprocessButton.setSelected(true);
+        } else {
+            forwardProcessButton.setSelected(true);
+        }
+
         JLabel pipelineParameterSetsGroup = boldLabel("Pipeline parameter sets",
             LabelType.HEADING1);
 
         ParameterSetMapEditorPanel pipelineParameterSetMapEditorPanel = new ParameterSetMapEditorPanel(
-            pipeline.getPipelineParameterSetNames(), new HashSet<>(), new HashMap<>(),
-            editedParameterSets);
+            pipeline.getPipelineParameterSetNames(), new HashMap<>(), editedParameterSets);
         pipelineParameterSetMapEditorPanel
             .setMapListener(source -> pipeline.setPipelineParameterSetNames(
                 pipelineParameterSetMapEditorPanel.getParameterSetsMap()));
@@ -171,8 +193,12 @@ public class EditPipelineDialog extends javax.swing.JDialog {
                     .addComponent(prioritySpinner, GroupLayout.PREFERRED_SIZE,
                         GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addGroup(dataPanelLayout.createSequentialGroup()
-                        .addComponent(valid)
-                        .addComponent(validCheckBox))))
+                        .addGroup(dataPanelLayout.createSequentialGroup()
+                            .addComponent(valid)
+                            .addComponent(validCheckBox)))
+                    .addComponent(processingMode)
+                    .addComponent(reprocessButton)
+                    .addComponent(forwardProcessButton)))
             .addComponent(pipelineParameterSetsGroup)
             .addComponent(pipelineParameterSetMapEditorPanel)
             .addComponent(modulesGroup)
@@ -196,6 +222,10 @@ public class EditPipelineDialog extends javax.swing.JDialog {
             .addGroup(dataPanelLayout.createParallelGroup()
                 .addComponent(valid)
                 .addComponent(validCheckBox))
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(processingMode)
+            .addComponent(reprocessButton)
+            .addComponent(forwardProcessButton)
             .addGap(ZiggySwingUtils.GROUP_GAP)
             .addComponent(pipelineParameterSetsGroup)
             .addPreferredGap(ComponentPlacement.RELATED)
@@ -269,10 +299,6 @@ public class EditPipelineDialog extends javax.swing.JDialog {
             final PipelineDefinitionNode pipelineNode = pipelineModulesListModel
                 .getPipelineNodeAt(selectedRow);
 
-            PipelineOperationsProxy pipelineOps = new PipelineOperationsProxy();
-            Set<ClassWrapper<ParametersInterface>> allRequiredParams = pipelineOps
-                .retrieveRequiredParameterClassesForNode(pipelineNode);
-
             Map<ClassWrapper<ParametersInterface>, String> currentModuleParams = pipelineNode
                 .getModuleParameterSetNames();
             Map<ClassWrapper<ParametersInterface>, String> currentPipelineParams = pipeline
@@ -280,8 +306,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
 
             try {
                 final ModuleParameterSetMapEditorDialog dialog = new ModuleParameterSetMapEditorDialog(
-                    this, currentModuleParams, allRequiredParams, currentPipelineParams,
-                    editedParameterSets);
+                    this, currentModuleParams, currentPipelineParams, editedParameterSets);
 
                 dialog.setMapListener(source -> pipelineNode
                     .setModuleParameterSetNames(dialog.getParameterSetsMap()));
@@ -300,7 +325,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         try {
             String newName = pipelineNameTextField.getText();
 
-            PipelineDefinition existingPipeline = pipelineModel.pipelineByName(newName);
+            PipelineDefinition existingPipeline = pipelineModel.objectByName(newName);
 
             if (existingPipeline != null && !newName.equals(pipeline.getName())) {
                 // Operator changed pipeline name & it conflicts with an existing
@@ -322,16 +347,24 @@ public class EditPipelineDialog extends javax.swing.JDialog {
                 pipelineOperationsProxy.updateParameterSet(mapEntry.getKey(), mapEntry.getValue());
             }
 
-            // Save any remote parameter sets that have been touched since the dialog box
+            // Save any pipeline definition nodes that have been touched since the dialog box
             // was opened.
-            for (Map.Entry<String, ParameterSet> mapEntry : editedRemoteParameterSets.entrySet()) {
-                pipelineOperationsProxy.updateParameterSet(mapEntry.getKey(),
-                    mapEntry.getValue().parametersInstance());
+            PipelineDefinitionNodeCrudProxy nodeProxy = new PipelineDefinitionNodeCrudProxy();
+            for (PipelineDefinitionNodeExecutionResources executionResources : updatedExecutionResources
+                .values()) {
+                updatedExecutionResources.put(executionResources.getId(),
+                    nodeProxy.merge(executionResources));
             }
+
+            // Update the reprocess selection.
+            ProcessingMode processingMode = reprocessButton.isSelected()
+                ? ProcessingMode.PROCESS_ALL
+                : ProcessingMode.PROCESS_NEW;
+            new PipelineDefinitionCrudProxy().updateProcessingMode(newName, processingMode);
 
             setVisible(false);
         } catch (Throwable e) {
-            MessageUtil.showError(this, "Error Saving Pipeline", e.getMessage(), e);
+            MessageUtil.showError(this, "Error saving pipeline", e.getMessage(), e);
         }
     }
 
@@ -352,40 +385,56 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         }
     }
 
-    private void configureResources(ActionEvent evt) {
-        try {
-            new WorkerResourcesDialog(this, pipeline).setVisible(true);
-        } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+    private void configureRemoteExecution(ActionEvent evt) {
+        PipelineDefinitionNode pipelineNode = prepNodeForResourcesUpdate();
+        if (pipelineNode == null) {
+            return;
         }
+
+        PipelineDefinitionNodeExecutionResources executionResources = updatedExecutionResources
+            .get(pipelineNode.getId());
+        RemoteExecutionDialog remoteExecutionDialog = new RemoteExecutionDialog(this,
+            executionResources, pipelineNode,
+            PipelineTaskInformation.subtaskInformation(pipelineNode));
+        remoteExecutionDialog.setVisible(true);
+        log.debug("original == current? {}",
+            executionResources.equals(remoteExecutionDialog.getCurrentConfiguration()));
+        executionResources.populateFrom(remoteExecutionDialog.getCurrentConfiguration());
     }
 
-    private void configureRemoteExecution(ActionEvent evt) {
+    /**
+     * Helper method for locating a {@link PipelineDefinitionNode} instance from the dialog and
+     * retrieving (or creating) its {@link PipelineDefinitionNodeExecutionResources} instance. The
+     * pair are added to the map used to track nodes with updated resources.
+     */
+    private PipelineDefinitionNode prepNodeForResourcesUpdate() {
         int selectedRow = modulesList.getSelectedIndex();
-
         if (selectedRow == -1) {
             MessageUtil.showError(this, "No module selected");
-        } else {
-            final PipelineDefinitionNode pipelineNode = pipelineModulesListModel
-                .getPipelineNodeAt(selectedRow);
-            String remoteParametersName = PipelineTaskInformation.remoteParameters(pipelineNode);
-            if (remoteParametersName == null) {
-                JOptionPane.showMessageDialog(this,
-                    "Selected node has no RemoteParameters instance");
-                return;
-            }
-
-            // Retrieve the remote parameter set if it's not already in the edited parameters map.
-            if (!editedRemoteParameterSets.containsKey(remoteParametersName)) {
-                ParameterSet remoteParameterSet = new PipelineOperationsProxy()
-                    .retrieveLatestParameterSet(remoteParametersName);
-                editedRemoteParameterSets.put(remoteParametersName, remoteParameterSet);
-            }
-            ParameterSet remoteParameters = editedRemoteParameterSets.get(remoteParametersName);
-
-            new RemoteExecutionDialog(this, remoteParameters, pipelineNode,
-                PipelineTaskInformation.subtaskInformation(pipelineNode)).setVisible(true);
+            return null;
         }
+
+        final PipelineDefinitionNode pipelineNode = pipelineModulesListModel
+            .getPipelineNodeAt(selectedRow);
+
+        // Make sure the pipeline node is in the set of nodes with edited remote parameters.
+        if (!updatedExecutionResources.containsKey(pipelineNode.getId())) {
+            updatedExecutionResources.put(pipelineNode.getId(),
+                new PipelineDefinitionNodeCrudProxy()
+                    .retrieveRemoteExecutionConfiguration(pipelineNode));
+        }
+        return pipelineNode;
+    }
+
+    private void configureResources(ActionEvent evt) {
+        PipelineDefinitionNode pipelineNode = prepNodeForResourcesUpdate();
+        if (pipelineNode == null) {
+            return;
+        }
+        PipelineDefinitionNodeExecutionResources executionResources = updatedExecutionResources
+            .get(pipelineNode.getId());
+        new PipelineDefinitionNodeResourcesDialog(this, pipelineName, pipelineNode,
+            executionResources).setVisible(true);
     }
 
     /**

@@ -25,7 +25,6 @@ import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
-import gov.nasa.ziggy.uow.TaskConfigurationParameters;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -44,6 +43,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
  * Represents a single pipeline unit of work Associated with a{@link PipelineInstance}, a
@@ -147,7 +147,7 @@ public class PipelineTask implements PipelineExecutionTime {
     private boolean retry = false;
 
     /** Timestamp this task was created (either by launcher or transition logic) */
-    private Date created = new Date(0); // Date(System.currentTimeMillis());
+    private Date created = new Date();
 
     /** hostname of the worker that processed (or is processing) this task */
     private String workerHost;
@@ -206,6 +206,12 @@ public class PipelineTask implements PipelineExecutionTime {
     private long priorProcessingExecutionTimeMillis = -1;
 
     private long currentExecutionStartTimeMillis;
+
+    @Transient
+    private int maxFailedSubtaskCount;
+
+    @Transient
+    private int maxAutoResubmits;
 
     /**
      * Required by Hibernate
@@ -303,18 +309,6 @@ public class PipelineTask implements PipelineExecutionTime {
         return pipelineParamSet;
     }
 
-    public int maxFailedSubtasks() {
-        TaskConfigurationParameters configParams = getParameters(TaskConfigurationParameters.class,
-            false);
-        return configParams != null ? configParams.getMaxFailedSubtaskCount() : 0;
-    }
-
-    public int maxAutoResubmits() {
-        TaskConfigurationParameters configParams = getParameters(TaskConfigurationParameters.class,
-            false);
-        return configParams != null ? configParams.getMaxAutoResubmits() : 0;
-    }
-
     /**
      * Conveninence method for getting the externalId for a model for this pipeline task.
      *
@@ -391,7 +385,7 @@ public class PipelineTask implements PipelineExecutionTime {
         }
     }
 
-    public PipelineDefinitionNode getPipelineDefinitionNode() {
+    public PipelineDefinitionNode pipelineDefinitionNode() {
         return pipelineInstanceNode.getPipelineDefinitionNode();
     }
 
@@ -413,6 +407,10 @@ public class PipelineTask implements PipelineExecutionTime {
 
     public long pipelineInstanceId() {
         return pipelineInstance.getId();
+    }
+
+    public PipelineDefinition pipelineDefinition() {
+        return pipelineInstance.getPipelineDefinition();
     }
 
     public Long getId() {
@@ -783,6 +781,22 @@ public class PipelineTask implements PipelineExecutionTime {
     @Override
     public long getCurrentExecutionStartTimeMillis() {
         return currentExecutionStartTimeMillis;
+    }
+
+    public int getMaxFailedSubtaskCount() {
+        return maxFailedSubtaskCount;
+    }
+
+    public void setMaxFailedSubtaskCount(int maxFailedSubtaskCount) {
+        this.maxFailedSubtaskCount = maxFailedSubtaskCount;
+    }
+
+    public int getMaxAutoResubmits() {
+        return maxAutoResubmits;
+    }
+
+    public void setMaxAutoResubmits(int maxAutoResubmits) {
+        this.maxAutoResubmits = maxAutoResubmits;
     }
 
     public Set<RemoteJob> getRemoteJobs() {

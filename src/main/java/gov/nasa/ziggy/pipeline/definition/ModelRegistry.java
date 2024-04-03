@@ -53,7 +53,7 @@ public class ModelRegistry implements HasXmlSchemaFilename {
 
     @XmlElement(name = "modelMetadata")
     @Transient
-    private List<ModelMetadata> modelMetadata = new ArrayList<>();
+    private List<ModelMetadata> modelsMetadata = new ArrayList<>();
 
     private boolean locked = false;
     private Date lockTime;
@@ -93,8 +93,8 @@ public class ModelRegistry implements HasXmlSchemaFilename {
     }
 
     public void populateXmlFields() {
-        modelMetadata.clear();
-        modelMetadata.addAll(models.values());
+        modelsMetadata.clear();
+        modelsMetadata.addAll(models.values());
     }
 
     public void lock() {
@@ -145,12 +145,12 @@ public class ModelRegistry implements HasXmlSchemaFilename {
         return modelTypesMap.get(modelType);
     }
 
-    public List<ModelMetadata> getModelMetadata() {
-        return modelMetadata;
+    public List<ModelMetadata> getModelsMetadata() {
+        return modelsMetadata;
     }
 
-    public void setModelMetadata(List<ModelMetadata> modelMetadata) {
-        this.modelMetadata = modelMetadata;
+    public void setModelsMetadata(List<ModelMetadata> modelsMetadata) {
+        this.modelsMetadata = modelsMetadata;
     }
 
     @Override

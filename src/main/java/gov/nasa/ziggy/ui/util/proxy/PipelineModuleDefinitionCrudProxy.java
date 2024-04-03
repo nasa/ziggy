@@ -2,9 +2,11 @@ package gov.nasa.ziggy.ui.util.proxy;
 
 import java.util.List;
 
+import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineModuleExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
-import gov.nasa.ziggy.services.security.Privilege;
+import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
 /**
  * @author Todd Klaus
@@ -14,7 +16,6 @@ public class PipelineModuleDefinitionCrudProxy {
     }
 
     public void delete(final PipelineModuleDefinition module) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
             crud.remove(module);
@@ -25,7 +26,6 @@ public class PipelineModuleDefinitionCrudProxy {
     public PipelineModuleDefinition rename(final PipelineModuleDefinition moduleDef,
         final String newName) {
 
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
             return crud.rename(moduleDef, newName);
@@ -33,7 +33,6 @@ public class PipelineModuleDefinitionCrudProxy {
     }
 
     public List<PipelineModuleDefinition> retrieveAll() {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
             return crud.retrieveAll();
@@ -41,7 +40,6 @@ public class PipelineModuleDefinitionCrudProxy {
     }
 
     public PipelineModuleDefinition retrieveLatestVersionForName(final String name) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
             return crud.retrieveLatestVersionForName(name);
@@ -49,19 +47,39 @@ public class PipelineModuleDefinitionCrudProxy {
     }
 
     public List<PipelineModuleDefinition> retrieveLatestVersions() {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
             return crud.retrieveLatestVersions();
         });
     }
 
-    public void createOrUpdate(PipelineModuleDefinition module) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+    public PipelineModuleDefinition merge(PipelineModuleDefinition module) {
+        return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
-            crud.merge(module);
-            return null;
+            return crud.merge(module);
+        });
+    }
+
+    public PipelineModuleExecutionResources retrievePipelineModuleExecutionResources(
+        PipelineModuleDefinition module) {
+        return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
+            return crud.retrieveExecutionResources(module);
+        });
+    }
+
+    public PipelineModuleExecutionResources mergeExecutionResources(
+        PipelineModuleExecutionResources executionResources) {
+        return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
+            return crud.merge(executionResources);
+        });
+    }
+
+    public ClassWrapper<UnitOfWorkGenerator> retrieveUnitOfWorkGenerator(String moduleName) {
+        return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineModuleDefinitionCrud crud = new PipelineModuleDefinitionCrud();
+            return crud.retrieveUnitOfWorkGenerator(moduleName);
         });
     }
 }

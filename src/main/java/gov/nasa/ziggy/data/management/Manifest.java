@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -104,7 +104,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 public class Manifest implements HasXmlSchemaFilename {
 
     private static final String SCHEMA_FILENAME = "manifest.xsd";
-    static final String FILENAME_SUFFIX = "-manifest.xml";
+    public static final String FILENAME_SUFFIX = "-manifest.xml";
 
     // Thread pool for checksum calculations
     static ExecutorService checksumThreadPool = Executors
@@ -236,8 +236,9 @@ public class Manifest implements HasXmlSchemaFilename {
     public static Manifest readManifest(Path directory) {
         Manifest manifest = null;
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
+        // TODO : fix this!
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, entry -> {
-            Path trueFile = DataFileManager.realSourceFile(entry);
+            Path trueFile = FileUtil.realSourceFile(entry);
             return Files.isRegularFile(trueFile)
                 && entry.getFileName().toString().endsWith(FILENAME_SUFFIX);
         })) {
@@ -246,7 +247,7 @@ public class Manifest implements HasXmlSchemaFilename {
                     throw new IllegalStateException(
                         "Multiple manifest files identified in directory " + directory.toString());
                 }
-                manifest = xmlManager.unmarshal(DataFileManager.realSourceFile(entry).toFile());
+                manifest = xmlManager.unmarshal(FileUtil.realSourceFile(entry).toFile());
                 manifest.setName(entry.getFileName().toString());
             }
         } catch (IOException e) {

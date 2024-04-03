@@ -32,7 +32,7 @@ A lot of options! For now, just put some kind of identifying text in the `Pipeli
 
 As soon as the dialog box disappears, select the `Instances` content menu item. The left side should look something like this<sup>1</sup>:
 
-<img src="images/instances-running.png" style="width:14cm;"/>
+<img src="images/instances-running.png" style="width:17cm;"/>
 
 Select your pipeline instance in the table. On the right you see this:
 

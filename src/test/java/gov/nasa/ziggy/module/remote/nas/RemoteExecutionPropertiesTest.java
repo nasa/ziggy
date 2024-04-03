@@ -3,10 +3,10 @@ package gov.nasa.ziggy.module.remote.nas;
 import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_GROUP;
 import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_HOST;
 import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_USER;
-import static gov.nasa.ziggy.services.config.PropertyName.TEST_ENVIRONMENT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.commons.configuration2.CompositeConfiguration;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -30,9 +30,6 @@ public class RemoteExecutionPropertiesTest {
     @Rule
     public ZiggyPropertyRule userPropertyRule = new ZiggyPropertyRule(REMOTE_USER, "u1");
 
-    @Rule
-    public ZiggyPropertyRule testEnvRule = new ZiggyPropertyRule(TEST_ENVIRONMENT, "true");
-
     @Test
     public void testPropertiesRetrieval() {
 
@@ -46,11 +43,10 @@ public class RemoteExecutionPropertiesTest {
 
     @Test
     public void testEmptyPropertiesRetrieval() {
-
         // This clears properties set by rules, and ensures that ZiggyConfiguration doesn't read the
         // user's property file.
         ZiggyConfiguration.reset();
-        ZiggyConfiguration.getMutableInstance();
+        ZiggyConfiguration.setMutableInstance(new CompositeConfiguration());
 
         assertTrue(RemoteExecutionProperties.getUser().isEmpty());
         assertTrue(RemoteExecutionProperties.getGroup().isEmpty());

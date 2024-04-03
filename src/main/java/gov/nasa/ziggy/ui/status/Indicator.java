@@ -250,6 +250,10 @@ public class Indicator extends JPanel {
         infoPanel.add(component);
     }
 
+    public void removeDataComponent(Component component) {
+        infoPanel.remove(component);
+    }
+
     public IdiotLight getIdiotLight() {
         return idiotLight;
     }

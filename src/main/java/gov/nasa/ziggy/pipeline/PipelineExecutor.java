@@ -7,10 +7,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
@@ -18,6 +22,7 @@ import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -27,18 +32,21 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.services.alert.AlertService;
+import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.DatabaseTransaction;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
-import gov.nasa.ziggy.services.events.ZiggyEventLabels;
 import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -48,13 +56,13 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 /***
  * Encapsulates the launch and transition logic for pipelines.
  * <p>
- * Note that the methods
- * {@link #launch(PipelineDefinition, String, PipelineDefinitionNode, PipelineDefinitionNode, String)}
- * and {@link #transitionToNextInstanceNode(PipelineInstance, PipelineTask, TaskCounts)} must not be
- * run in the context of a transaction; these methods provide their own transactions in order to
- * ensure that the transactions are completed before any task requests can be sent. Other methods,
- * including {@link #restartFailedTasks(Collection, boolean, RunMode)}, can (or in some cases must)
- * be run in a transaction context.
+ * Note that the methods {@link #launch(PipelineDefinition, String, PipelineDefinitionNode,
+ * PipelineDefinitionNode, Set<String>)} and
+ * {@link #transitionToNextInstanceNode(PipelineInstanceNode, TaskCounts)} must not be run in the
+ * context of a transaction; these methods provide their own transactions in order to ensure that
+ * the transactions are completed before any task requests can be sent. Other methods, including
+ * {@link #restartFailedTasks(Collection, boolean, RunMode)}, can (or in some cases must) be run in
+ * a transaction context.
  *
  * @author Todd Klaus
  * @author PT
@@ -62,22 +70,16 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 public class PipelineExecutor {
     private static final Logger log = LoggerFactory.getLogger(PipelineExecutor.class);
 
-    private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud;
+    /** Map from pipeline instance ID to event labels. */
+    private static Map<Long, Set<String>> instanceEventLabels = new HashMap<>();
+
+    private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
     private ParameterSetCrud parameterSetCrud;
     private PipelineInstanceCrud pipelineInstanceCrud;
     private PipelineInstanceNodeCrud pipelineInstanceNodeCrud;
     private PipelineTaskCrud pipelineTaskCrud;
     private PipelineOperations pipelineOperations;
-
-    public PipelineExecutor() {
-
-        pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
-        parameterSetCrud = new ParameterSetCrud();
-        pipelineInstanceCrud = new PipelineInstanceCrud();
-        pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
-        pipelineTaskCrud = new PipelineTaskCrud();
-        pipelineOperations = new PipelineOperations();
-    }
+    private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
 
     /**
      * Launch a new {@link PipelineInstance} for this {@link PipelineDefinition} with optional
@@ -86,8 +88,7 @@ public class PipelineExecutor {
      * transfer information to the pipeline that it needs at runtime.
      */
     public PipelineInstance launch(PipelineDefinition pipeline, String instanceName,
-        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode,
-        String eventHandlerParamSetName) {
+        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode, Set<String> eventLabels) {
 
         List<PipelineInstanceNode> nodesForLaunch = new ArrayList<>();
 
@@ -121,10 +122,6 @@ public class PipelineExecutor {
                  */
                 Map<ClassWrapper<ParametersInterface>, String> triggerParamNames = pipeline
                     .getPipelineParameterSetNames();
-                if (eventHandlerParamSetName != null) {
-                    triggerParamNames.put(new ClassWrapper<>(ZiggyEventLabels.class),
-                        eventHandlerParamSetName);
-                }
                 Map<ClassWrapper<ParametersInterface>, ParameterSet> instanceParams = instance
                     .getPipelineParameterSets();
 
@@ -132,7 +129,7 @@ public class PipelineExecutor {
 
                 instance.setPipelineParameterSets(instanceParams);
 
-                pipelineInstanceCrud.persist(instance);
+                pipelineInstanceCrud().persist(instance);
 
                 if (startNode == null) {
                     // start at the root
@@ -163,6 +160,9 @@ public class PipelineExecutor {
                 // make sure the new PipelineInstanceNodes are in the db for
                 // launchNode, below
                 DatabaseService.getInstance().flush();
+                if (eventLabels != null) {
+                    instanceEventLabels.put(instance.getId(), eventLabels);
+                }
 
                 return instance;
             });
@@ -173,7 +173,7 @@ public class PipelineExecutor {
 
         // Get the current state of the pipeline instance from the database and return same.
         return (PipelineInstance) DatabaseTransactionFactory
-            .performTransaction(() -> pipelineInstanceCrud.retrieve(pipelineInstance.getId()));
+            .performTransaction(() -> pipelineInstanceCrud().retrieve(pipelineInstance.getId()));
     }
 
     /**
@@ -207,11 +207,17 @@ public class PipelineExecutor {
             // Retrieve instance nodes for the remaining definition nodes (there might not
             // be any if we're at the end of the pipeline instance).
             for (PipelineDefinitionNode node : nextPipelineDefinitionNodesNewUowTransition) {
-                PipelineInstanceNode nextInstanceNode = pipelineInstanceNodeCrud
+                PipelineInstanceNode nextInstanceNode = pipelineInstanceNodeCrud()
                     .retrieve(instanceNode.getPipelineInstance(), node);
                 if (nextInstanceNode != null) {
                     log.info("Launching node {} with a new UOW", node.getModuleName());
                     nodesForLaunch.add(nextInstanceNode);
+                    Hibernate.initialize(nextInstanceNode.getPipelineInstance());
+                    Hibernate.initialize(nextInstanceNode.getPipelineDefinitionNode());
+                    Hibernate
+                        .initialize(nextInstanceNode.getPipelineDefinitionNode().getNextNodes());
+                    Hibernate.initialize(
+                        nextInstanceNode.getPipelineDefinitionNode().getInputDataFileTypes());
                 }
             }
             return null;
@@ -228,7 +234,7 @@ public class PipelineExecutor {
      * Called after the transition logic runs.
      */
     public void logUpdatedInstanceState(PipelineInstance pipelineInstance) {
-        TaskCounts state = pipelineOperations.taskCounts(pipelineInstance);
+        TaskCounts state = pipelineOperations().taskCounts(pipelineInstance);
 
         log.info("""
             updateInstanceState: all nodes:\s\
@@ -283,7 +289,7 @@ public class PipelineExecutor {
         log.info("Restarting {} tasks for instance node {} ({})", tasks.size(), node.getId(),
             node.getPipelineDefinitionNode().getModuleName());
 
-        pipelineOperations.taskCounts(node);
+        pipelineOperations().taskCounts(node);
         logInstanceNodeCounts(node, "initial");
 
         // Loop over tasks and prepare for restart, including sending the task request message.
@@ -294,13 +300,13 @@ public class PipelineExecutor {
         // Update and log the instance state.
         PipelineInstance instance = node.getPipelineInstance();
         logUpdatedInstanceState(instance);
-        pipelineInstanceCrud.merge(instance);
+        pipelineInstanceCrud().merge(instance);
 
         logInstanceNodeCounts(node, "final");
     }
 
     private void logInstanceNodeCounts(PipelineInstanceNode node, String initialOrFinal) {
-        TaskCounts instanceNodeCounts = pipelineOperations.taskCounts(node);
+        TaskCounts instanceNodeCounts = pipelineOperations().taskCounts(node);
         log.info("""
             node {} state:\s\
             numTasks/numSubmittedTasks/numCompletedTasks/numFailedTasks =\s\s\
@@ -336,12 +342,12 @@ public class PipelineExecutor {
 
         // Retrieve the task so that it can be modified in the database using the Hibernate
         // infrastructure
-        PipelineTask databaseTask = pipelineTaskCrud.retrieve(task.getId());
+        PipelineTask databaseTask = pipelineTaskCrud().retrieve(task.getId());
         log.info("Restarting task id={}, oldState : {}", databaseTask.getId(), oldState);
 
         databaseTask.setRetry(true);
-        pipelineOperations.setTaskState(databaseTask, PipelineTask.State.SUBMITTED);
-        removeTaskFromKilledTaskList(pipelineTaskCrud.merge(databaseTask).getId());
+        pipelineOperations().setTaskState(databaseTask, PipelineTask.State.SUBMITTED);
+        removeTaskFromKilledTaskList(pipelineTaskCrud().merge(databaseTask).getId());
 
         // Send the task message to the supervisor.
         sendTaskRequestMessage(databaseTask, Priority.HIGHEST, doTransitionOnly, restartMode);
@@ -421,11 +427,19 @@ public class PipelineExecutor {
 
         log.debug("Generating tasks");
         List<UnitOfWork> tasks = new ArrayList<>();
-        tasks = unitOfWorkGenerator.newInstance().generateUnitsOfWork(uowParams);
+        tasks = generateUnitsOfWork(unitOfWorkGenerator.newInstance(), instanceNode, instance);
         log.info("Generated " + tasks.size() + " tasks for pipeline definition node "
             + instanceNode.getPipelineDefinitionNode().getModuleName());
 
         if (tasks.isEmpty()) {
+            AlertService.getInstance()
+                .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK_ID, Severity.ERROR,
+                    "No tasks generated for "
+                        + instanceNode.getPipelineDefinitionNode().getModuleName());
+            DatabaseTransactionFactory.performTransaction(() -> {
+                pipelineOperations().setInstanceToErrorsStalledState(instance);
+                return null;
+            });
             throw new PipelineException("Task generation did not generate any tasks!  UOW class: "
                 + unitOfWorkGenerator.getClassName());
         }
@@ -433,7 +447,7 @@ public class PipelineExecutor {
     }
 
     public ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator(PipelineDefinitionNode node) {
-        return UnitOfWorkGenerator.unitOfWorkGenerator(node);
+        return pipelineModuleDefinitionCrud.retrieveUnitOfWorkGenerator(node.getModuleName());
     }
 
     /**
@@ -455,7 +469,7 @@ public class PipelineExecutor {
 
         PipelineInstanceNode instanceNode = new PipelineInstanceNode(instance, node,
             moduleDefinition);
-        pipelineInstanceNodeCrud.persist(instanceNode);
+        pipelineInstanceNodeCrud().persist(instanceNode);
 
         Map<ClassWrapper<ParametersInterface>, String> pipelineNodeParameters = node
             .getModuleParameterSetNames();
@@ -487,7 +501,7 @@ public class PipelineExecutor {
         Map<ClassWrapper<ParametersInterface>, ParameterSet> params) {
         for (ClassWrapper<ParametersInterface> paramClass : paramNames.keySet()) {
             String pipelineParamName = paramNames.get(paramClass);
-            ParameterSet paramSet = parameterSetCrud
+            ParameterSet paramSet = parameterSetCrud()
                 .retrieveLatestVersionForName(pipelineParamName);
             params.put(paramClass, paramSet);
             paramSet.lock();
@@ -500,17 +514,21 @@ public class PipelineExecutor {
     private void launchTasks(PipelineInstanceNode instanceNode, PipelineInstance instance,
         List<UnitOfWork> tasks) {
         List<PipelineTask> pipelineTasks = new ArrayList<>();
+        PipelineDefinitionNodeExecutionResources resources = pipelineDefinitionNodeCrud
+            .retrieveExecutionResources(instanceNode.getPipelineDefinitionNode());
         for (UnitOfWork task : tasks) {
             PipelineTask pipelineTask = new PipelineTask(instance, instanceNode);
 
             pipelineTask.setState(PipelineTask.State.SUBMITTED);
             pipelineTask.setUowTaskParameters(task.getParameters());
+            pipelineTask.setMaxFailedSubtaskCount(resources.getMaxFailedSubtaskCount());
+            pipelineTask.setMaxAutoResubmits(resources.getMaxAutoResubmits());
             pipelineTasks.add(pipelineTask);
         }
         DatabaseTransactionFactory.performTransaction(new DatabaseTransaction<Void>() {
             @Override
             public Void transaction() {
-                pipelineTaskCrud.persist(pipelineTasks);
+                pipelineTaskCrud().persist(pipelineTasks);
                 return null;
             }
 
@@ -541,45 +559,75 @@ public class PipelineExecutor {
             + task.getModuleName());
 
         TaskRequest taskRequest = new TaskRequest(task.pipelineInstanceId(),
-            task.pipelineInstanceNodeId(), task.getPipelineDefinitionNode().getId(), task.getId(),
+            task.pipelineInstanceNodeId(), task.pipelineDefinitionNode().getId(), task.getId(),
             priority, doTransitionOnly, runMode);
 
         ZiggyMessenger.publish(taskRequest);
     }
 
-    /**
-     * For mocking purposes only
-     *
-     * @param pipelineInstanceCrud the pipelineInstanceCrud to set
-     */
-    public void setPipelineInstanceCrud(PipelineInstanceCrud pipelineInstanceCrud) {
-        this.pipelineInstanceCrud = pipelineInstanceCrud;
+    public static List<UnitOfWork> generateUnitsOfWork(UnitOfWorkGenerator uowGenerator,
+        PipelineInstanceNode pipelineInstanceNode) {
+        return generateUnitsOfWork(uowGenerator, pipelineInstanceNode, null);
     }
 
     /**
-     * For mocking purposes only
-     *
-     * @param pipelineTaskCrud the pipelineTaskCrud to set
+     * Generates the set of UOWs using the
+     * {@link UnitOfWorkGenerator#generateUnitsOfWork(PipelineInstanceNode)} and method of a given
+     * {@link UnitOfWorkGenerator} implementation. The resulting {@link UnitOfWork} instance will
+     * also contain a property that specifies the class name of the generator.
      */
-    public void setPipelineTaskCrud(PipelineTaskCrud pipelineTaskCrud) {
-        this.pipelineTaskCrud = pipelineTaskCrud;
+    public static List<UnitOfWork> generateUnitsOfWork(UnitOfWorkGenerator uowGenerator,
+        PipelineInstanceNode pipelineInstanceNode, PipelineInstance instance) {
+
+        // Produce the tasks.
+        Set<String> eventLabels = instance != null ? instanceEventLabels.get(instance.getId())
+            : null;
+        List<UnitOfWork> uows = uowGenerator.unitsOfWork(pipelineInstanceNode, eventLabels);
+
+        // Add some metadata parameters to all the instances.
+        for (UnitOfWork uow : uows) {
+            uow.addParameter(new TypedParameter(UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
+                uowGenerator.getClass().getCanonicalName(), ZiggyDataType.ZIGGY_STRING));
+        }
+
+        // Now that the UOWs have their brief states properly assigned, sort them by brief state
+        // and return.
+        return uows.stream().sorted().collect(Collectors.toList());
     }
 
-    public void setPipelineInstanceNodeCrud(PipelineInstanceNodeCrud pipelineInstanceNodeCrud) {
-        this.pipelineInstanceNodeCrud = pipelineInstanceNodeCrud;
+    public PipelineInstanceCrud pipelineInstanceCrud() {
+        if (pipelineInstanceCrud == null) {
+            pipelineInstanceCrud = new PipelineInstanceCrud();
+        }
+        return pipelineInstanceCrud;
     }
 
-    void setPipelineModuleDefinitionCrud(
-        PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud) {
-        this.pipelineModuleDefinitionCrud = pipelineModuleDefinitionCrud;
+    public PipelineTaskCrud pipelineTaskCrud() {
+        if (pipelineTaskCrud == null) {
+            pipelineTaskCrud = new PipelineTaskCrud();
+        }
+        return pipelineTaskCrud;
     }
 
-    void setPipelineModuleParameterSetCrud(ParameterSetCrud parameterSetCrud) {
-        this.parameterSetCrud = parameterSetCrud;
+    public PipelineInstanceNodeCrud pipelineInstanceNodeCrud() {
+        if (pipelineInstanceNodeCrud == null) {
+            pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
+        }
+        return pipelineInstanceNodeCrud;
     }
 
-    public void setPipelineOperations(PipelineOperations pipelineOperations) {
-        this.pipelineOperations = pipelineOperations;
+    public ParameterSetCrud parameterSetCrud() {
+        if (parameterSetCrud == null) {
+            parameterSetCrud = new ParameterSetCrud();
+        }
+        return parameterSetCrud;
+    }
+
+    public PipelineOperations pipelineOperations() {
+        if (pipelineOperations == null) {
+            pipelineOperations = new PipelineOperations();
+        }
+        return pipelineOperations;
     }
 
     public boolean taskRequestEnabled() {

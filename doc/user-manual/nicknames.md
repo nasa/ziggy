@@ -6,7 +6,7 @@
 
 ## Creating Ziggy Nicknames
 
-Ziggy nicknames were introduced in the article (Running the Pipeline)[running-pipeline.md]. Those nicknames are defined by properties in `ziggy.properties` with `ziggy.nickname.` prefixes. There is another property called `ziggy.default.jvm.args` that is added to any JVM arguments that appear in those properties.
+Ziggy nicknames were introduced in the article [Running the Pipeline](running-pipeline.md). Those nicknames are defined by properties in `ziggy.properties` with `ziggy.nickname.` prefixes. There is another property called `ziggy.default.jvm.args` that is added to any JVM arguments that appear in those properties.
 
 You can add your own nicknames to your own property file that is referred to by `PIPELINE_CONFIG_PATH`. You can find examples of the format in `ziggy.properties`, which is this:
 

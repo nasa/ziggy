@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -30,13 +31,15 @@ import gov.nasa.ziggy.util.os.OperatingSystemType;
  * @author Todd Klaus
  */
 public class MatlabJavaInitialization {
+
     private static final Logger log = LoggerFactory.getLogger(MatlabJavaInitialization.class);
 
-    public static final String LOG4J_LOGFILE_PREFIX = "log4j.logfile.prefix";
     public static final String MATLAB_PIDS_FILENAME = ".matlab.pids";
-
-    private static final String DEFAULT_LOG4J_LOGFILE_PREFIX = "${ziggy.config.dir}/../logs/matlab";
     public static final String PID_FILE_CHARSET = "ISO-8859-1";
+
+    private static final String MATLAB_LOG_FILE = DirectoryProperties.cliLogDir()
+        .resolve("matlab.log")
+        .toString();
 
     private static boolean initialized = false;
 
@@ -70,9 +73,9 @@ public class MatlabJavaInitialization {
 
         if (config.getBoolean(PropertyName.MATLAB_LOG4J_CONFIG_INITIALIZE.property(), false)) {
             String log4jConfigFile = config
-                .getString(PropertyName.MATLAB_LOG4J_CONFIG_FILE.property());
+                .getString(PropertyName.LOG4J2_CONFIGURATION_FILE.property());
 
-            log.info(PropertyName.MATLAB_LOG4J_CONFIG_FILE + " = " + log4jConfigFile);
+            log.info(PropertyName.LOG4J2_CONFIGURATION_FILE + " = " + log4jConfigFile);
 
             if (log4jConfigFile != null) {
                 log.info("Log4j initialized with DOMConfigurator from: " + log4jConfigFile);
@@ -81,7 +84,7 @@ public class MatlabJavaInitialization {
                 // statement will have no effect. Consider rearchitecting so that this property
                 // is already set before the MATLAB binary is started, presuming this property
                 // is even used.
-                System.setProperty(LOG4J_LOGFILE_PREFIX, DEFAULT_LOG4J_LOGFILE_PREFIX);
+                System.setProperty(PropertyName.ZIGGY_LOG_FILE.property(), MATLAB_LOG_FILE);
                 ConfigurationFactory.setConfigurationFactory(new XmlConfigurationFactory());
                 try {
                     Configurator.reconfigure(new URI(log4jConfigFile));

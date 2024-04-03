@@ -16,11 +16,14 @@ import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import gov.nasa.ziggy.RunByNameTestCategory;
 import gov.nasa.ziggy.TestEventDetector;
+import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messaging.MessagingTestUtils.Message1;
@@ -39,6 +42,10 @@ public class RmiIntraProcessCommunicationTest {
 
     private int port = 4788;
     private Registry registry;
+
+    @Rule
+    public ZiggyPropertyRule portRule = new ZiggyPropertyRule(PropertyName.SUPERVISOR_PORT,
+        Integer.toString(port));
 
     @Before
     public void setup() {
@@ -64,10 +71,10 @@ public class RmiIntraProcessCommunicationTest {
     @Test
     public void testInitialize() {
 
-        ZiggyRmiServer.initializeInstance(port);
+        ZiggyRmiServer.start();
         Set<RmiClientThread> clientStubs = ZiggyRmiServer.getClientServiceStubs();
         assertTrue(clientStubs.isEmpty());
-        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.start("test client");
         ZiggyRmiClient.setUseMessenger(false);
 
         clientStubs = ZiggyRmiServer.getClientServiceStubs();
@@ -81,13 +88,13 @@ public class RmiIntraProcessCommunicationTest {
     @Test
     public void testReinitializeServer() {
 
-        ZiggyRmiServer.initializeInstance(port);
+        ZiggyRmiServer.start();
 
         // Note that for this test we need to preserve a reference to the registry from
         // the ZiggyRmiServer instance that started it; this will be used to shut down
         // the registry when the test completes.
         registry = ZiggyRmiServer.getRegistry();
-        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.start("test client");
         ZiggyRmiClient.setUseMessenger(false);
         ZiggyRmiServer.addToBroadcastQueue(new Message1("first message"));
         Map<Class<? extends PipelineMessage>, List<PipelineMessage>> messagesDetected = ZiggyRmiClient
@@ -98,7 +105,7 @@ public class RmiIntraProcessCommunicationTest {
         // Emulate a server crashing and coming back by resetting it and running the
         // initializer again
         ZiggyRmiServer.reset();
-        ZiggyRmiServer.initializeInstance(port);
+        ZiggyRmiServer.start();
         ZiggyRmiClient.setUseMessenger(false);
 
         // This instance should have no MessageHandler service references from clients
@@ -145,8 +152,8 @@ public class RmiIntraProcessCommunicationTest {
      */
     @Test
     public void testReinitializeClient() {
-        ZiggyRmiServer.initializeInstance(port);
-        ZiggyRmiClient.initializeInstance(port, "test client 1");
+        ZiggyRmiServer.start();
+        ZiggyRmiClient.start("test client 1");
         ZiggyRmiClient.setUseMessenger(false);
         Map<Class<? extends PipelineMessage>, List<PipelineMessage>> messagesDetected = ZiggyRmiClient
             .messagesDetected();
@@ -162,7 +169,7 @@ public class RmiIntraProcessCommunicationTest {
         ZiggyRmiClient.reset();
 
         // Emulate the start of a new client
-        ZiggyRmiClient.initializeInstance(port, "test client 2");
+        ZiggyRmiClient.start("test client 2");
         ZiggyRmiClient.setUseMessenger(false);
 
         // There should now be 2 client stubs -- one from the original client, one from the
@@ -202,13 +209,13 @@ public class RmiIntraProcessCommunicationTest {
     public void testIntraProcessCommunication() throws IOException {
 
         RmiServerInstantiator serverTest = new RmiServerInstantiator();
-        serverTest.startServer(port, 2, null);
+        serverTest.startServer(2, null);
 
         // broadcast a message before the client has been initialized
         Message1 m1 = new Message1("telecaster");
         broadcastAndWait(m1);
 
-        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.start("test client");
         ZiggyRmiClient.setUseMessenger(false);
         Map<Class<? extends PipelineMessage>, List<PipelineMessage>> messagesDetected = ZiggyRmiClient
             .messagesDetected();
@@ -248,8 +255,8 @@ public class RmiIntraProcessCommunicationTest {
     @Test
     public void testSendWithCountdownLatch() throws IOException {
         RmiServerInstantiator serverTest = new RmiServerInstantiator();
-        serverTest.startServer(port, 2, null);
-        ZiggyRmiClient.initializeInstance(port, "test client");
+        serverTest.startServer(2, null);
+        ZiggyRmiClient.start("test client");
         ZiggyRmiClient.setUseMessenger(false);
 
         CountDownLatch countdownLatch = new CountDownLatch(1);

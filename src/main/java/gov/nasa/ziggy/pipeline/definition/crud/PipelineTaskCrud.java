@@ -10,12 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
+import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.PipelineOperations.TaskStateSummary;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -153,21 +154,26 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
      * module name as the {@link PipelineDefinitionNode} argument, and also have the same pipeline
      * name. This ensures that if the node has been duplicated, both the original and the copy will
      * count as having processed the task in question.
+     * <p>
+     * If the taskIds argument is null or empty, the method will return all the task IDs in the
+     * database that correspond to the specified pipeline definition node.
      */
-    public List<Long> retrieveIdsForPipelineDefinitionNode(Collection<Long> taskIds,
-        PipelineDefinitionNode pipelineDefinitionNode) {
+    public List<Long> retrieveIdsForPipelineDefinitionNode(
+        PipelineDefinitionNode pipelineDefinitionNode, Collection<Long> taskIds) {
 
         String pipelineDefinitionNodeName = pipelineDefinitionNode.getModuleName();
         String pipelineDefinitionName = pipelineDefinitionNode.getPipelineName();
         ZiggyQuery<PipelineTask, Long> query = createZiggyQuery(PipelineTask.class, Long.class);
-        query.column(PipelineTask_.id).select();
+        query.column(PipelineTask_.id).select().distinct(true);
         query.where(query.in(query.get(PipelineTask_.pipelineInstanceNode)
             .get(PipelineInstanceNode_.pipelineDefinitionNode)
             .get(PipelineDefinitionNode_.moduleName), pipelineDefinitionNodeName));
         query.where(query.in(query.get(PipelineTask_.pipelineInstanceNode)
             .get(PipelineInstanceNode_.pipelineDefinitionNode)
             .get(PipelineDefinitionNode_.pipelineName), pipelineDefinitionName));
-        query.column(PipelineTask_.id).chunkedIn(taskIds);
+        if (!CollectionUtils.isEmpty(taskIds)) {
+            query.column(PipelineTask_.id).chunkedIn(taskIds);
+        }
         return list(query);
     }
 
@@ -274,8 +280,8 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
             // If the task was executing remotely, and it was queued or executing, we can try
             // to resume monitoring on it -- the jobs may have continued to run while the
             // supervisor was down.
-            RemoteParameters remoteParams = new ParameterSetCrud().retrieveRemoteParameters(task);
-            if (remoteParams != null && remoteParams.isEnabled()) {
+            if (task.getProcessingMode() != null
+                && task.getProcessingMode().equals(AlgorithmType.REMOTE)) {
                 ProcessingState state = new ProcessingSummaryOperations()
                     .processingSummary(task.getId())
                     .getProcessingState();
@@ -283,7 +289,7 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
                     || state == ProcessingState.ALGORITHM_EXECUTING) {
                     log.info("Resuming monitoring for task " + task.getId());
                     TaskRequest taskRequest = new TaskRequest(instanceId, instanceNodeId,
-                        task.getPipelineDefinitionNode().getId(), task.getId(), Priority.HIGHEST,
+                        task.pipelineDefinitionNode().getId(), task.getId(), Priority.HIGHEST,
                         false, PipelineModule.RunMode.RESUME_MONITORING);
                     ZiggyMessenger.publish(taskRequest);
                     continue;

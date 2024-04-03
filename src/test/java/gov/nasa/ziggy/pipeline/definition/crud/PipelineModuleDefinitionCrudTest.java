@@ -5,7 +5,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 
 import java.lang.reflect.Field;
-import java.util.Date;
 import java.util.List;
 
 import org.junit.Before;
@@ -17,13 +16,10 @@ import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.TestModuleParameters;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.security.User;
-import gov.nasa.ziggy.services.security.UserCrud;
 
 /**
  * Tests for {@link PipelineModuleDefinitionCrud} Tests that objects can be stored, retrieved, and
@@ -39,10 +35,6 @@ public class PipelineModuleDefinitionCrudTest {
 
     private static final String MISSING_MODULE = "I DONT EXIST";
 
-    private UserCrud userCrud;
-
-    private User adminUser;
-    private User operatorUser;
     private ReflectionEquals comparer;
 
     private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud;
@@ -53,7 +45,6 @@ public class PipelineModuleDefinitionCrudTest {
 
     @Before
     public void setUp() {
-        userCrud = new UserCrud();
         pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
         parameterSetCrud = new ParameterSetCrud();
         comparer = new ReflectionEquals();
@@ -66,13 +57,6 @@ public class PipelineModuleDefinitionCrudTest {
     private PipelineModuleDefinition populateObjects() {
         return (PipelineModuleDefinition) DatabaseTransactionFactory.performTransaction(() -> {
 
-            // create users
-            adminUser = new User("admin", "Administrator", "admin@example.com", "x111");
-            userCrud.createUser(adminUser);
-
-            operatorUser = new User("ops", "Operator", "ops@example.com", "x112");
-            userCrud.createUser(operatorUser);
-
             ParameterSet paramSet = createParameterSet(TEST_PARAM_SET_NAME_1);
             parameterSetCrud.persist(paramSet);
 
@@ -82,14 +66,13 @@ public class PipelineModuleDefinitionCrudTest {
     }
 
     private ParameterSet createParameterSet(String name) {
-        ParameterSet parameterSet = new ParameterSet(new AuditInfo(adminUser, new Date()), name);
+        ParameterSet parameterSet = new ParameterSet(name);
         parameterSet.populateFromParametersInstance(new TestModuleParameters(1));
         return parameterSet;
     }
 
     private PipelineModuleDefinition createPipelineModuleDefinition() {
-        return new PipelineModuleDefinition(new AuditInfo(adminUser, new Date()),
-            TEST_MODULE_NAME_1);
+        return new PipelineModuleDefinition(TEST_MODULE_NAME_1);
     }
 
     private int pipelineModuleDefinitionCount() {
@@ -120,12 +103,9 @@ public class PipelineModuleDefinitionCrudTest {
     PipelineModuleDefinition copy(PipelineModuleDefinition original) throws NoSuchFieldException,
         SecurityException, IllegalArgumentException, IllegalAccessException {
         PipelineModuleDefinition copy = new PipelineModuleDefinition(original.getName());
-        copy.setGroup(original.getGroup());
-        copy.setAuditInfo(original.getAuditInfo());
         copy.setDescription(original.getDescription());
         copy.setPipelineModuleClass(original.getPipelineModuleClass());
         copy.setExeTimeoutSecs(original.getExeTimeoutSecs());
-        copy.setMinMemoryMegaBytes(original.getMinMemoryMegaBytes());
         Field versionField = original.getClass().getSuperclass().getDeclaredField("version");
         versionField.setAccessible(true);
         versionField.set(copy, original.getVersion());
@@ -255,8 +235,7 @@ public class PipelineModuleDefinitionCrudTest {
     private void editModuleDef(PipelineModuleDefinition moduleDef) {
         // moduleDef.setName(TEST_MODULE_NAME_2);
         moduleDef.setDescription("new description");
-        moduleDef.getAuditInfo().setLastChangedTime(new Date());
-        moduleDef.getAuditInfo().setLastChangedUser(operatorUser);
+        moduleDef.updateAuditInfo();
     }
 
     @Test
@@ -283,8 +262,6 @@ public class PipelineModuleDefinitionCrudTest {
                 List<ParameterSet> actualParamSets = parameterSetCrud
                     .retrieveAllVersionsForName(TEST_PARAM_SET_NAME_1);
                 assertEquals("paramSets size", 1, actualParamSets.size());
-                ParameterSet parameterSet = actualParamSets.get(0);
-                ZiggyUnitTestUtils.initializeUser(parameterSet.getAuditInfo().getLastChangedUser());
                 return actualParamSets.get(0);
             });
 

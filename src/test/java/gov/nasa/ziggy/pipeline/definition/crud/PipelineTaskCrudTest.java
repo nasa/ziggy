@@ -26,7 +26,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 
 /**
  * Implements unit tests for {@link PipelineTaskCrud}.
@@ -180,7 +179,6 @@ public class PipelineTaskCrudTest {
         List<PipelineDefinitionNode> nodes = Stream.of(modules).map(module -> {
             PipelineDefinitionNode node = new PipelineDefinitionNode(module.getName(),
                 pipelineDef.getName());
-            node.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
             path.add(0);
             node.setPath(new PipelineDefinitionNodePath(path));
             new SimpleCrud<>().persist(node);

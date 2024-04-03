@@ -1,11 +1,11 @@
 package gov.nasa.ziggy.parameters;
 
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -17,7 +17,6 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
-import gov.nasa.ziggy.services.config.PropertyName;
 
 /**
  * Unit test class for {@link ParameterSetDescriptor}
@@ -27,9 +26,8 @@ import gov.nasa.ziggy.services.config.PropertyName;
 public class ParameterSetDescriptorTest {
 
     @Rule
-    public ZiggyPropertyRule schemaRule = new ZiggyPropertyRule(
-        PropertyName.ZIGGY_HOME_DIR.property(),
-        Paths.get(System.getProperty(PropertyName.WORKING_DIR.property()), "build").toString());
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        "build");
 
     @Test(expected = NumberFormatException.class)
     public void testValidationFailureDataTypes() {

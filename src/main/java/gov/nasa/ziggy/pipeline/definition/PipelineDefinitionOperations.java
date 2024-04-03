@@ -15,7 +15,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.data.management.DataFileType;
+import gov.nasa.ziggy.data.datastore.DataFileType;
+import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.parameters.ParametersOperations;
@@ -24,9 +25,11 @@ import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
+import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
 
 /**
  * Contains methods for importing and exporting pipeline configurations.
@@ -51,6 +54,7 @@ public class PipelineDefinitionOperations {
     private PipelineDefinitionCrud pipelineCrud;
     private ParameterSetCrud parameterSetCrud;
     private PipelineOperations pipelineOperations;
+    private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud;
     private DataFileTypeCrud dataFileTypeCrud;
     private ModelCrud modelCrud;
     private ValidatingXmlManager<PipelineDefinitionFile> xmlManager;
@@ -148,6 +152,29 @@ public class PipelineDefinitionOperations {
     private void importModules(List<PipelineModuleDefinition> newModules) {
         PipelineModuleDefinitionCrud moduleCrud = pipelineModuleDefinitionCrud();
         for (PipelineModuleDefinition newModule : newModules) {
+            PipelineModuleExecutionResources executionResources = moduleCrud
+                .retrieveExecutionResources(newModule);
+            executionResources.setExeTimeoutSeconds(newModule.getExeTimeoutSecs());
+            executionResources.setMinMemoryMegabytes(newModule.getMinMemoryMegabytes());
+
+            // Additional validation:
+            // ExternalProcessPipelineModule must not have a UOW generator in its XML.
+            // All other pipeline module classes must have a UOW generator in their XMLs.
+            if (newModule.getPipelineModuleClass()
+                .getClazz()
+                .equals(ExternalProcessPipelineModule.class)) {
+                if (newModule.getUnitOfWorkGenerator() != null) {
+                    throw new PipelineException("Module " + newModule.getName()
+                        + " uses ExternalProcessPipelineModule, specified UOW "
+                        + newModule.getUnitOfWorkGenerator().getClazz().toString() + " is invalid");
+                }
+                newModule.setUnitOfWorkGenerator(
+                    new ClassWrapper<>(DatastoreDirectoryUnitOfWorkGenerator.class));
+            } else if (newModule.getUnitOfWorkGenerator() == null) {
+                throw new PipelineException(
+                    "Module " + newModule.getName() + " must specify a unit of work generator");
+            }
+            moduleCrud.merge(executionResources);
             moduleCrud.merge(newModule);
         }
     }
@@ -158,7 +185,6 @@ public class PipelineDefinitionOperations {
         for (PipelineDefinition newPipelineDefinition : newPipelineDefinitions) {
 
             String pipelineName = newPipelineDefinition.getName();
-            newPipelineDefinition.setAuditInfo(new AuditInfo());
 
             Set<PipelineDefinitionNode> nodes = newPipelineDefinition.getNodesFromXml();
             Map<String, PipelineDefinitionNode> nodesByName = new HashMap<>();
@@ -191,7 +217,6 @@ public class PipelineDefinitionOperations {
                 newPipelineDefinition.getRootNodeNames());
             addNodes(newPipelineDefinition.getName(), rootNodeNames,
                 newPipelineDefinition.getRootNodes(), nodesByName);
-
             pipelineCrud.merge(newPipelineDefinition);
         }
     }
@@ -274,6 +299,18 @@ public class PipelineDefinitionOperations {
             xmlNode.addAllModelTypes(modelTypes);
             pipelineRootNodes.add(xmlNode);
 
+            // Execution Resources: Store in an instance of
+            // PipelineDefinitionNodeExecutionResources.
+            PipelineDefinitionNodeExecutionResources executionResources = pipelineDefinitionNodeCrud()
+                .retrieveExecutionResources(xmlNode);
+            if (xmlNode.getHeapSizeMb() != null) {
+                executionResources.setHeapSizeMb(xmlNode.getHeapSizeMb());
+            }
+            if (xmlNode.getMaxWorkerCount() != null) {
+                executionResources.setMaxWorkerCount(xmlNode.getMaxWorkerCount());
+            }
+            pipelineDefinitionNodeCrud.merge(executionResources);
+
             // Child nodes
             String childNodeIds = xmlNode.getChildNodeNames();
 
@@ -350,5 +387,12 @@ public class PipelineDefinitionOperations {
             modelCrud = new ModelCrud();
         }
         return modelCrud;
+    }
+
+    PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
+        if (pipelineDefinitionNodeCrud == null) {
+            pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
+        }
+        return pipelineDefinitionNodeCrud;
     }
 }

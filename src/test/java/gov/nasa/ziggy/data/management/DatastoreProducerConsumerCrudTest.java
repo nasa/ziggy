@@ -60,8 +60,7 @@ public class DatastoreProducerConsumerCrudTest {
          * First test the version that takes a single ResultsOriginator object
          */
         DatabaseTransactionFactory.performTransaction(() -> {
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1);
             return null;
         });
         List<DatastoreProducerConsumer> r0 = (List<DatastoreProducerConsumer>) DatabaseTransactionFactory
@@ -80,8 +79,7 @@ public class DatastoreProducerConsumerCrudTest {
         Mockito.when(pipelineTask.getId()).thenReturn(TASK_ID + 1);
         DatabaseTransactionFactory.performTransaction(() -> {
             resultsOriginatorCrud.createOrUpdateProducer(pipelineTask,
-                Sets.newHashSet(PATH_1, PATH_2, PATH_3),
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
+                Sets.newHashSet(PATH_1, PATH_2, PATH_3));
             return null;
         });
 
@@ -107,12 +105,9 @@ public class DatastoreProducerConsumerCrudTest {
     @Test
     public void retrieveOriginatorsAllSame() {
         DatabaseTransactionFactory.performTransaction(() -> {
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_2,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_3,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_2);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_3);
             return null;
         });
         @SuppressWarnings("unchecked")
@@ -128,14 +123,11 @@ public class DatastoreProducerConsumerCrudTest {
     @Test
     public void retrieveOriginatorsAllDifferent() {
         DatabaseTransactionFactory.performTransaction(() -> {
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1);
             Mockito.when(pipelineTask.getId()).thenReturn(TASK_ID + 1);
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_2,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_2);
             Mockito.when(pipelineTask.getId()).thenReturn(TASK_ID + 2);
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_3,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_3);
             return null;
         });
         @SuppressWarnings("unchecked")
@@ -155,12 +147,9 @@ public class DatastoreProducerConsumerCrudTest {
         // Create some files in the producer-consumer database table, and add consumers to them.
         DatabaseTransactionFactory.performTransaction(() -> {
 
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_2,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
-            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_3,
-                DatastoreProducerConsumer.DataReceiptFileType.DATA);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_1);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_2);
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask, PATH_3);
 
             PipelineTask consumer1 = Mockito.mock(PipelineTask.class);
             Mockito.when(consumer1.getId()).thenReturn(31L);
@@ -187,5 +176,53 @@ public class DatastoreProducerConsumerCrudTest {
             assertTrue(files.contains(PATH_3.toString()));
             return null;
         });
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testRetrieveFilesConsumedByTasks() {
+
+        // Put the files into the database.
+        DatabaseTransactionFactory.performTransaction(() -> {
+            resultsOriginatorCrud.createOrUpdateProducer(pipelineTask,
+                Sets.newHashSet(PATH_1, PATH_2, PATH_3));
+            return null;
+        });
+
+        // Add comsumers.
+        Mockito.when(pipelineTask.getId()).thenReturn(100L);
+        DatabaseTransactionFactory.performTransaction(() -> {
+            resultsOriginatorCrud.addConsumer(pipelineTask,
+                new HashSet<>(Set.of(PATH_1.toString())));
+            return null;
+        });
+        Mockito.when(pipelineTask.getId()).thenReturn(110L);
+        DatabaseTransactionFactory.performTransaction(() -> {
+            resultsOriginatorCrud.addConsumer(pipelineTask,
+                new HashSet<>(Set.of(PATH_3.toString())));
+            return null;
+        });
+        Mockito.when(pipelineTask.getId()).thenReturn(120L);
+        DatabaseTransactionFactory.performTransaction(() -> {
+            resultsOriginatorCrud.addConsumer(pipelineTask,
+                new HashSet<>(Set.of(PATH_2.toString())));
+            return null;
+        });
+
+        Set<String> filenames = (Set<String>) DatabaseTransactionFactory.performTransaction(
+            () -> resultsOriginatorCrud.retrieveFilesConsumedByTasks(Set.of(100L, 105L), null));
+        assertTrue(filenames.contains(PATH_1.toString()));
+        assertEquals(1, filenames.size());
+        filenames = (Set<String>) DatabaseTransactionFactory
+            .performTransaction(() -> resultsOriginatorCrud
+                .retrieveFilesConsumedByTasks(Set.of(100L, 105L, 110L), null));
+        assertTrue(filenames.contains(PATH_1.toString()));
+        assertTrue(filenames.contains(PATH_3.toString()));
+        assertEquals(2, filenames.size());
+        filenames = (Set<String>) DatabaseTransactionFactory.performTransaction(
+            () -> resultsOriginatorCrud.retrieveFilesConsumedByTasks(Set.of(100L, 105L, 110L),
+                Set.of(PATH_2.toString(), PATH_3.toString())));
+        assertTrue(filenames.contains(PATH_3.toString()));
+        assertEquals(1, filenames.size());
     }
 }

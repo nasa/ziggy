@@ -190,7 +190,6 @@ public class TaskRequestHandler implements Runnable, Requestor {
         });
 
         transitionToNextInstanceNode(taskRequest.getInstanceNodeId());
-
     }
 
     /**

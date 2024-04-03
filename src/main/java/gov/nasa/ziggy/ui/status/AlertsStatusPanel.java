@@ -17,8 +17,8 @@ import gov.nasa.ziggy.services.messages.AlertMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * Displays a table of recent alerts.
@@ -67,7 +67,7 @@ public class AlertsStatusPanel extends JPanel {
     }
 
     private static class AlertsTableModel extends AbstractTableModel
-        implements TableModelContentClass<AlertMessage> {
+        implements ModelContentClass<AlertMessage> {
 
         private static final long serialVersionUID = 20230822L;
 

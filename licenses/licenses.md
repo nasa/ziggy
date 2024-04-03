@@ -7,7 +7,7 @@ This file lists the third-party software that is used by Ziggy. Links to the sof
 ## Tools
 
 |Name|Requirement|Alternative|
-|---|---|---|---|---|
+|---|---|---|
 |[Git](https://git-scm.com/) [(docs)](https://git-scm.com/doc) [(license)](git-2.x)|SWE-42|Subversion|
 |[Gradle](https://gradle.org/) [(docs)](https://docs.gradle.org/current/userguide/userguide.html) [(license)](gradle-4.1.x)||ant|
 

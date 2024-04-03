@@ -25,12 +25,12 @@ public class SubtaskServer implements Runnable {
 
     private SubtaskAllocator subtaskAllocator;
     private final CountDownLatch serverThreadReady = new CountDownLatch(1);
-    private TaskConfigurationManager inputsHandler;
+    private TaskConfiguration inputsHandler;
     private Thread listenerThread;
 
-    public SubtaskServer(int subtaskMasterCount, TaskConfigurationManager inputsHandler) {
+    public SubtaskServer(int subtaskMasterCount, TaskConfiguration taskConfiguration) {
         initializeRequestQueue(subtaskMasterCount);
-        this.inputsHandler = inputsHandler;
+        inputsHandler = taskConfiguration;
     }
 
     public static void initializeRequestQueue(int subtaskMasterCount) {
@@ -39,7 +39,7 @@ public class SubtaskServer implements Runnable {
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void start() {
-        log.info("Starting SubtaskServer for inputs: " + inputsHandler);
+        log.info("Starting SubtaskServer");
 
         try {
             // NB: if the listener thread constructor and setDaemon() calls are moved

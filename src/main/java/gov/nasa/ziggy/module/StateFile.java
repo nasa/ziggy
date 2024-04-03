@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.remote.PbsParameters;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -74,7 +73,7 @@ import gov.nasa.ziggy.util.io.LockManager;
  * <dt>reRunnable</dt>
  * <dd>Whether this task is re-runnable.</dd>
  * <dt>localBinToMatEnabled</dt>
- * <dd>If true, don't generate .mat files on the remote node. See {@link RemoteParameters}.</dd>
+ * <dd>If true, don't generate .mat files on the remote node.</dd>
  * <dt>requestedWallTime</dt>
  * <dd>Requested wall time for the PBS qsub command.</dd>
  * <dt>symlinksEnabled</dt>
@@ -663,13 +662,13 @@ public class StateFile implements Comparable<StateFile>, Serializable {
      * Returns the value of the {@value #MIN_GIGS_PER_NODE_PROP_NAME} property, or 0 if not present
      * or set.
      */
-    public int getMinGigsPerNode() {
+    public double getMinGigsPerNode() {
         return props.getProperty(MIN_GIGS_PER_NODE_PROP_NAME) != null
-            ? props.getInt(MIN_GIGS_PER_NODE_PROP_NAME)
+            ? props.getDouble(MIN_GIGS_PER_NODE_PROP_NAME)
             : INVALID_VALUE;
     }
 
-    public void setMinGigsPerNode(int minGigsPerNode) {
+    public void setMinGigsPerNode(double minGigsPerNode) {
         props.setProperty(MIN_GIGS_PER_NODE_PROP_NAME, minGigsPerNode);
     }
 

@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import java.lang.reflect.Field;
-import java.util.Date;
 import java.util.List;
 
 import org.junit.Before;
@@ -17,8 +16,6 @@ import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.crud.SimpleCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.AuditInfo;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -26,9 +23,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.TestModuleParameters;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.security.User;
-import gov.nasa.ziggy.services.security.UserCrud;
-import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 
 /**
  * Tests for {@link PipelineDefinitionCrud} Tests that objects can be stored, retrieved, and edited
@@ -39,11 +33,6 @@ import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
  */
 public class PipelineDefinitionCrudTest {
     private static final String TEST_PIPELINE_NAME_1 = "Test Pipeline 1";
-
-    private UserCrud userCrud;
-
-    private User adminUser;
-    private User operatorUser;
 
     private PipelineDefinitionCrud pipelineDefinitionCrud;
 
@@ -61,7 +50,6 @@ public class PipelineDefinitionCrudTest {
 
     @Before
     public void setUp() {
-        userCrud = new UserCrud();
         pipelineDefinitionCrud = new PipelineDefinitionCrud();
         pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
         parameterSetCrud = new ParameterSetCrud();
@@ -78,15 +66,8 @@ public class PipelineDefinitionCrudTest {
 
         return (PipelineDefinition) DatabaseTransactionFactory.performTransaction(() -> {
 
-            // create users
-            adminUser = new User("admin", "Administrator", "admin@example.com", "x111");
-            userCrud.createUser(adminUser);
-
-            operatorUser = new User("ops", "Operator", "ops@example.com", "x112");
-            userCrud.createUser(operatorUser);
-
             // create a module param set def
-            expectedParamSet = new ParameterSet(new AuditInfo(adminUser, new Date()), "test mps1");
+            expectedParamSet = new ParameterSet("test mps1");
             expectedParamSet.setTypedParameters(new TestModuleParameters().getParameters());
             expectedParamSet = parameterSetCrud.merge(expectedParamSet);
 
@@ -107,17 +88,12 @@ public class PipelineDefinitionCrudTest {
     }
 
     private PipelineDefinition createPipelineDefinition() {
-        PipelineDefinition pipelineDef = new PipelineDefinition(
-            new AuditInfo(adminUser, new Date()), TEST_PIPELINE_NAME_1);
+        PipelineDefinition pipelineDef = new PipelineDefinition(TEST_PIPELINE_NAME_1);
         PipelineDefinitionNode pipelineNode1 = new PipelineDefinitionNode(
             expectedModuleDef1.getName(), pipelineDef.getName());
         PipelineDefinitionNode pipelineNode2 = new PipelineDefinitionNode(
             expectedModuleDef2.getName(), pipelineDef.getName());
         pipelineNode1.getNextNodes().add(pipelineNode2);
-
-        pipelineNode1.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
-
-        pipelineNode2.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
 
         pipelineDef.addRootNode(pipelineNode1);
 
@@ -191,8 +167,6 @@ public class PipelineDefinitionCrudTest {
         PipelineDefinition copy = new PipelineDefinition();
         copy.setName(original.getName());
         copy.setDescription(original.getDescription());
-        copy.setAuditInfo(original.getAuditInfo());
-        copy.setGroup(original.group());
         setOptimisticLockValue(copy, original.getOptimisticLockValue());
         setVersion(copy, original.getId(), original.getVersion(), original.isLocked());
         List<PipelineDefinitionNode> rootNodes = copy.getRootNodes();
@@ -318,8 +292,7 @@ public class PipelineDefinitionCrudTest {
      */
     private void editPipelineDef(PipelineDefinition pipelineDef) {
         pipelineDef.setDescription("new description");
-        pipelineDef.getAuditInfo().setLastChangedTime(new Date());
-        pipelineDef.getAuditInfo().setLastChangedUser(operatorUser);
+        pipelineDef.updateAuditInfo();
     }
 
     @Test
@@ -402,7 +375,6 @@ public class PipelineDefinitionCrudTest {
         PipelineDefinitionNode newPipelineNode = new PipelineDefinitionNode(
             expectedModuleDef3.getName(), pipelineDef.getName());
         pipelineDef.getRootNodes().get(0).getNextNodes().get(0).getNextNodes().add(newPipelineNode);
-        newPipelineNode.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
         return newPipelineNode;
     }
 
@@ -454,7 +426,6 @@ public class PipelineDefinitionCrudTest {
         PipelineDefinitionNode newPipelineNode = new PipelineDefinitionNode(
             expectedModuleDef3.getName(), pipelineDef.getName());
         pipelineDef.getRootNodes().get(0).getNextNodes().add(newPipelineNode);
-        newPipelineNode.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
         return newPipelineNode;
     }
 
@@ -636,9 +607,7 @@ public class PipelineDefinitionCrudTest {
         assertEquals(null, pipelineDefinitionCopy.getId());
 
         assertEquals(null, pipelineDefinitionCopy.getId());
-        assertEquals(pipelineDefinition.getAuditInfo(), pipelineDefinitionCopy.getAuditInfo());
         assertEquals(pipelineDefinition.getDescription(), pipelineDefinitionCopy.getDescription());
-        assertEquals(pipelineDefinition.group(), pipelineDefinitionCopy.group());
         assertEquals(pipelineDefinition.getInstancePriority(),
             pipelineDefinitionCopy.getInstancePriority());
         assertEquals(pipelineDefinition.getPipelineParameterSetNames(),

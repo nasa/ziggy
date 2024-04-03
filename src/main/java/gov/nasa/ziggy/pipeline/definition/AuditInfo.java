@@ -5,34 +5,33 @@ import java.util.Objects;
 
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
-import gov.nasa.ziggy.services.security.User;
-import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 
 /**
  * This {@link Embeddable} class is used by {@link Entity} classes that can be modified through the
  * UI. It tracks who made the last modification to the object and and when those changes were made,
  * for audit trail purposes.
+ * <p>
+ * Instances of {@link AuditInfo} are immutable. When an instance is created, it is created with the
+ * current date and current user. When a class that uses {@link AuditInfo} is updated, the existing
+ * instance is replaced with a new one that contains the user and date.
  *
  * @author Todd Klaus
+ * @author PT
  */
 @Embeddable
 public class AuditInfo {
-    @ManyToOne
-    @JoinColumn(name = "lastChangedUser")
-    private User lastChangedUser = null;
-    @Column(name = "lastChangedTime")
-    private Date lastChangedTime = null;
+    private final String lastChangedUser;
+    private final Date lastChangedTime;
 
     public AuditInfo() {
         lastChangedTime = new Date();
+        lastChangedUser = ProcessHandle.current().info().user().get();
     }
 
-    public AuditInfo(User lastChangedUser, Date lastChangedTime) {
-        this.lastChangedUser = lastChangedUser;
+    public AuditInfo(Date lastChangedTime) {
+        lastChangedUser = ProcessHandle.current().info().user().get();
         this.lastChangedTime = lastChangedTime;
     }
 
@@ -44,24 +43,10 @@ public class AuditInfo {
     }
 
     /**
-     * @param lastChangedTime the lastChangedTime to set
-     */
-    public void setLastChangedTime(Date lastChangedTime) {
-        this.lastChangedTime = lastChangedTime;
-    }
-
-    /**
      * @return the lastChangedUser
      */
-    public User getLastChangedUser() {
+    public String getLastChangedUser() {
         return lastChangedUser;
-    }
-
-    /**
-     * @param lastChangedUser the lastChangedUser to set
-     */
-    public void setLastChangedUser(User lastChangedUser) {
-        this.lastChangedUser = lastChangedUser;
     }
 
     @Override

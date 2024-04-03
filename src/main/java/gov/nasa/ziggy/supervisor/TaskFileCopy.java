@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.metrics.ValueMetric;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.PipelineMetrics;
-import gov.nasa.ziggy.module.WorkingDirManager;
+import gov.nasa.ziggy.module.TaskDirectoryManager;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -42,7 +42,7 @@ public class TaskFileCopy {
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void copyTaskFiles() {
-        File srcTaskDir = WorkingDirManager.workingDir(pipelineTask);
+        File srcTaskDir = new TaskDirectoryManager(pipelineTask).taskDir().toFile();
         try {
             if (copyParams.isDeleteWithoutCopy()) {
                 log.warn("*** TEST USE ONLY ***: deleting source directory without copying");

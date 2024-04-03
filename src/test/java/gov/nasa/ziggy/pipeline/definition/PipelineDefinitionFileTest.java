@@ -79,7 +79,7 @@ public class PipelineDefinitionFileTest {
         assertContains(complexTypeContent,
             "<xs:attribute name=\"exeTimeoutSecs\" type=\"xs:int\"/>");
         assertContains(complexTypeContent,
-            "<xs:attribute name=\"minMemoryMegaBytes\" type=\"xs:int\"/>");
+            "<xs:attribute name=\"minMemoryMegabytes\" type=\"xs:int\"/>");
 
         complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineDefinition\">");
@@ -106,8 +106,6 @@ public class PipelineDefinitionFileTest {
             "<xs:element name=\"outputDataFileType\" type=\"outputTypeReference\"/>");
         assertContains(complexTypeContent,
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"uowGenerator\" type=\"xs:string\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"moduleName\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,

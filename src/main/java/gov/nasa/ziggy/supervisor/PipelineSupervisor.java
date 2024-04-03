@@ -22,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -49,7 +48,6 @@ import gov.nasa.ziggy.services.events.ZiggyEventCrud;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler.ZiggyEventHandlerInfoForDisplay;
 import gov.nasa.ziggy.services.logging.TaskLog;
-import gov.nasa.ziggy.services.messages.DefaultWorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.EventHandlerRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
@@ -60,7 +58,8 @@ import gov.nasa.ziggy.services.messages.SingleTaskLogRequest;
 import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
 import gov.nasa.ziggy.services.messages.TaskLogInformationMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationRequest;
-import gov.nasa.ziggy.services.messages.WorkerResources;
+import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
+import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.ZiggyEventHandlerInfoMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
@@ -71,6 +70,7 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.worker.WorkerResources;
 import hdf.hdf5lib.H5;
 
 /**
@@ -87,6 +87,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     public static final String NAME = "Supervisor";
     private static final String SUPERVISOR_BIN_NAME = "supervisor";
+    private static final String SUPERVISOR_LOG_FILE_NAME = "supervisor.log";
     public static final int WORKER_STATUS_REPORT_INTERVAL_MILLIS_DEFAULT = 15000;
 
     private static final Set<ZiggyEventHandler> ziggyEventHandlers = ConcurrentHashMap.newKeySet();
@@ -95,6 +96,8 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     // a PipelineWorker, or the delete command of a remote system's batch scheduler.
     private static final Set<Long> killedTaskIds = ConcurrentHashMap.newKeySet();
 
+    private static WorkerResources defaultResources;
+
     private ScheduledExecutorService heartbeatExecutor;
     private QueueCommandManager queueCommandManager;
 
@@ -102,7 +105,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         super(NAME);
         checkArgument(workerCount > 0, "Worker count must be positive");
         checkArgument(workerHeapSize > 0, "Worker heap size must be positive");
-        WorkerResources.setDefaultResources(new WorkerResources(workerCount, workerHeapSize));
+        defaultResources = new WorkerResources(workerCount, workerHeapSize);
         log.debug("Starting pipeline supervisor with " + workerCount + " workers and "
             + workerHeapSize + " MB max heap");
     }
@@ -116,9 +119,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     public void initialize() {
         try {
             super.initialize();
-
-            ImmutableConfiguration config = ZiggyConfiguration.getInstance();
-
             clearStaleTaskStates();
 
             // if HDF5 is to be used as the default binfile format (or indeed at all),
@@ -137,19 +137,14 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             TriggerRequestManager.start();
             log.info("Subscribing to messages...done");
 
-            int rmiPort = config.getInt(PropertyName.SUPERVISOR_PORT.property(),
-                ZiggyRmiServer.RMI_PORT_DEFAULT);
-            log.info("Starting RMI communications server with registry on port " + rmiPort);
-            ZiggyRmiServer.initializeInstance(rmiPort);
+            ZiggyRmiServer.start();
 
-            log.info("Starting ZiggyRmiClient instance with registry on port " + rmiPort + "...");
-            ZiggyRmiClient.initializeInstance(rmiPort, NAME);
+            ZiggyRmiClient.start(NAME);
             ZiggyShutdownHook.addShutdownHook(() -> {
                 log.info("Sending shutdown notification");
                 ZiggyRmiServer.shutdown();
                 ZiggyRmiClient.reset();
             });
-            log.info("Starting ZiggyRmiClient instance ... done");
 
             // Start the heartbeat messages
             log.info("Starting supervisor-client heartbeat generator");
@@ -249,8 +244,8 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         ZiggyMessenger.subscribe(SingleTaskLogRequest.class, message -> {
             ZiggyMessenger.publish(new SingleTaskLogMessage(message, taskLogContents(message)));
         });
-        ZiggyMessenger.subscribe(DefaultWorkerResourcesRequest.class, message -> {
-            ZiggyMessenger.publish(WorkerResources.getDefaultResources());
+        ZiggyMessenger.subscribe(WorkerResourcesRequest.class, message -> {
+            ZiggyMessenger.publish(new WorkerResourcesMessage(defaultResources, null));
         });
         ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
             killRemoteTasks(message);
@@ -341,16 +336,18 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         if (cmd == WrapperCommand.START) {
             // Refer to supervisor.wrapper.conf for appropriate indices for the parameters specified
             // here.
-            String ziggyLibDir = DirectoryProperties.ziggyLibDir().toString();
             commandLine
-                .addArgument(wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME,
-                    ExternalProcessUtils.supervisorLogFilename()))
+                .addArgument(wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME, supervisorLogFilename()))
                 .addArgument(wrapperParameter(WRAPPER_CLASSPATH_PROP_NAME_PREFIX, 1,
                     DirectoryProperties.ziggyHomeDir().resolve("libs").resolve("*.jar").toString()))
-                .addArgument(
-                    wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1, ziggyLibDir))
+                .addArgument(wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1,
+                    DirectoryProperties.ziggyLibDir().toString()))
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
+                    ExternalProcessUtils.log4jConfigString()))
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
+                    ExternalProcessUtils.ziggyLog(supervisorLogFilename())))
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 5,
-                    "-Djna.library.path=" + ziggyLibDir))
+                    ExternalProcessUtils.jnaLibraryPath()))
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 2,
                     Integer.toString(workerCount)))
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 3,
@@ -373,6 +370,13 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         return commandLine;
     }
 
+    /**
+     * The log file name used by the supervisor.
+     */
+    public static String supervisorLogFilename() {
+        return DirectoryProperties.supervisorLogDir().resolve(SUPERVISOR_LOG_FILE_NAME).toString();
+    }
+
     public static Set<ZiggyEventHandler> ziggyEventHandlers() {
         return ziggyEventHandlers;
     }
@@ -389,6 +393,10 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     public static void removeTaskFromKilledTaskList(long taskId) {
         killedTaskIds.remove(taskId);
+    }
+
+    public static WorkerResources defaultResources() {
+        return defaultResources;
     }
 
     // Package scoped for testing purposes.

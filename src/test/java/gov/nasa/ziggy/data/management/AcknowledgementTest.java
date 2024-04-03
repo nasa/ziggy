@@ -250,7 +250,7 @@ public class AcknowledgementTest {
     @Test
     public void testSchema() throws IOException {
 
-        Path schemaPath = Paths.get(ziggyHomeDirPropertyRule.getProperty(), "schema", "xml",
+        Path schemaPath = Paths.get(ziggyHomeDirPropertyRule.getValue(), "schema", "xml",
             new Acknowledgement().getXmlSchemaFilename());
         List<String> schemaContent = Files.readAllLines(schemaPath, FileUtil.ZIGGY_CHARSET);
 

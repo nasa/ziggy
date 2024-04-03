@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <datastoreConfiguration>
 
-        <dataFileType name="TCE"
-            fileNameRegexForTaskDir="sector-([0-9]{4})-ccd-([1234]:[1234])-tic-([0-9]{16})-tce.h5"
-            fileNameWithSubstitutionsForDatastore="sector-$1/ccd-$2/tps/tic-$3-tce.h5"/>
+  <dataFileType name="TCE"
+                location="sector/mda/dr/cal/pixels/cadenceType/channel" fileNameRegexp="tce.h5"/>
 
 </datastoreConfiguration>

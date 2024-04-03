@@ -8,10 +8,8 @@ import javax.swing.SwingUtilities;
 
 import gov.nasa.ziggy.services.config.KeyValuePair;
 import gov.nasa.ziggy.services.config.KeyValuePairCrud;
-import gov.nasa.ziggy.services.security.Privilege;
 import gov.nasa.ziggy.ui.ConsoleSecurityException;
 import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.CrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.KeyValuePairCrudProxy;
 import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
 
@@ -28,25 +26,11 @@ public class ViewEditKeyValuePairPanel extends AbstractViewEditPanel<KeyValuePai
 
     @Override
     protected void create() {
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
-
         showEditDialog(new KeyValuePair());
     }
 
     @Override
     protected void edit(int row) {
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
-
         showEditDialog(ziggyTable.getContentAtViewRow(row));
     }
 
@@ -65,13 +49,6 @@ public class ViewEditKeyValuePairPanel extends AbstractViewEditPanel<KeyValuePai
 
     @Override
     protected void delete(int row) {
-
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
 
         KeyValuePair keyValuePair = ziggyTable.getContentAtViewRow(row);
 

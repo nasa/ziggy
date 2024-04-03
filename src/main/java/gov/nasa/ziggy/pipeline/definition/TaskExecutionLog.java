@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -117,7 +117,7 @@ public class TaskExecutionLog {
 
         return "TaskExecutionLog [wh=" + workerHost + ", wt=" + workerThread + ", start=" + start
             + ", end=" + end + ", elapsed="
-            + StringUtils.elapsedTime(startProcessingTime, endProcessingTime) + ", Si="
+            + ZiggyStringUtils.elapsedTime(startProcessingTime, endProcessingTime) + ", Si="
             + initialState + ", Sf=" + finalState + ", PSi=" + initialProcessingState + ", PSf="
             + finalProcessingState + "]";
     }

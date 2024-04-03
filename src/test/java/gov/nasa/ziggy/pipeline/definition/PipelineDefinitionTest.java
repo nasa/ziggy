@@ -31,7 +31,6 @@ import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
-import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
@@ -69,10 +68,10 @@ public class PipelineDefinitionTest {
 
         // Create some nodes
         PipelineDefinitionNode node1 = new PipelineDefinitionNode("module 1", null);
-        node1.setUnitOfWorkGenerator(new ClassWrapper<>(SingleUnitOfWorkGenerator.class));
         node1.addXmlReference(new ParameterSetReference("Remote execution"));
         node1.addXmlReference(new ParameterSetReference("Convergence criteria"));
         node1.addXmlReference(new InputTypeReference("flight L0 data"));
+        node1.addXmlReference(new InputTypeReference("target pixel table"));
         node1.addXmlReference(new OutputTypeReference("flight L1 data"));
         node1.addXmlReference(new ModelTypeReference("calibration constants"));
 
@@ -121,29 +120,28 @@ public class PipelineDefinitionTest {
             "<pipeline name=\"pipeline 1\" description=\"first pipeline\" "
                 + "instancePriority=\"LOW\" rootNodeNames=\"module 1\">");
         assertContains(pipelineContents, "<pipelineParameter name=\"Pipeline parameters\"/>");
-        List<String> nodeContents = nodeContent(pipelineContents,
-            "<node maxWorkers=\"0\" " + "heapSizeMb=\"0\" "
-                + "uowGenerator=\"gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator\" "
-                + "moduleName=\"module 1\" childNodeNames=\"module 2, module 3\">");
+        List<String> nodeContents = nodeContent(pipelineContents, "<node "
+            + "moduleName=\"module 1\" childNodeNames=\"module 2, module 3\" singleSubtask=\"false\">");
         assertContains(nodeContents, "<moduleParameter name=\"Convergence criteria\"/>");
         assertContains(nodeContents, "<moduleParameter name=\"Remote execution\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L0 data\"/>");
+        assertContains(nodeContents, "<inputDataFileType name=\"target pixel table\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L1 data\"/>");
-        nodeContents = nodeContent(pipelineContents, "<node maxWorkers=\"0\" " + "heapSizeMb=\"0\" "
-            + "moduleName=\"module 2\" childNodeNames=\"module 4\">");
+        nodeContents = nodeContent(pipelineContents, "<node "
+            + "moduleName=\"module 2\" childNodeNames=\"module 4\" singleSubtask=\"false\">");
         assertContains(nodeContents, "<moduleParameter name=\"Convergence criteria\"/>");
         assertContains(nodeContents, "<moduleParameter name=\"Remote execution\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L1 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<modelType name=\"georeferencing constants\"/>");
         nodeContents = nodeContent(pipelineContents,
-            "<node maxWorkers=\"0\" " + "heapSizeMb=\"0\" " + "moduleName=\"module 3\">");
+            "<node moduleName=\"module 3\" singleSubtask=\"false\">");
         assertContains(nodeContents, "<moduleParameter name=\"Excluded bands\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L1 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<modelType name=\"Temperature references\"/>");
         nodeContents = nodeContent(pipelineContents,
-            "<node maxWorkers=\"0\" " + "heapSizeMb=\"0\" " + "moduleName=\"module 4\">");
+            "<node moduleName=\"module 4\" singleSubtask=\"false\">");
         assertContains(nodeContents, "<moduleParameter name=\"Export format\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"exports\"/>");
@@ -183,7 +181,6 @@ public class PipelineDefinitionTest {
             }
         }
         assertFalse(groundTruthNode == null);
-        assertEquals(groundTruthNode.getUnitOfWorkGenerator(), node.getUnitOfWorkGenerator());
         assertEquals(groundTruthNode.getChildNodeNames(), node.getChildNodeNames());
         compareXmlReferences(groundTruthNode.getModelTypeReferences(),
             node.getModelTypeReferences());
@@ -228,8 +225,6 @@ public class PipelineDefinitionTest {
             "<xs:element name=\"outputDataFileType\" type=\"outputTypeReference\"/>");
         assertContains(complexTypeContent,
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"uowGenerator\" type=\"xs:string\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"moduleName\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,

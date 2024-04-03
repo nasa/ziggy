@@ -2,7 +2,7 @@
 
 [[Previous]](configuring-pipeline.md)
 [[Up]](configuring-pipeline.md)
-[[Next]](data-file-types.md)
+[[Next]](datastore.md)
 
 ## Module Parameters
 
@@ -14,19 +14,7 @@ Module parameters are organized into groups known as "parameter sets." When Zigg
 
 Ziggy expects its parameter set XML files to start with "pl-" (for "Parameter Library"). In the case of the sample pipeline, take a look at [config/pl-sample.xml](../sample-pipeline/config/pl-sample.xml). Note that you also don't need to confine yourself to a single parameter library file; you can have as many as you like.
 
-### Execution Control Parameters
-
-Ziggy provides two flavors of pre-defined parameter sets that are used by Ziggy itself to control parts of its execution: the remote parameters, that control execution on a high-performance computing system; and the task configuration parameters, which define how Ziggy subdivides data for execution in chunks.
-
-For now, we're not going to talk further about these kinds of parameters. They'll be discussed at greater length in sections on running the pipeline. However, if you can't bear the suspense, see the following articles:
-
-[Remote Parameters](remote-parameters.md)
-
-[Task Configuration Parameters](task-configuration.md)
-
-### Parameters Used by Algorithm Modules
-
-This is more what you need to worry about as you're designing your algorithms. In `pl-sample.xml`, swim down to the last parameter set:
+Because the sample pipeline is extremely simple, we have only one parameter library file and it, in turn, has only one parameter set:
 
 ```xml
 <parameter-set name="Algorithm Parameters">
@@ -45,4 +33,4 @@ Note that both the parameter set name and the parameter name can have whitespace
 
 [[Previous]](configuring-pipeline.md)
 [[Up]](configuring-pipeline.md)
-[[Next]](data-file-types.md)
+[[Next]](datastore.md)

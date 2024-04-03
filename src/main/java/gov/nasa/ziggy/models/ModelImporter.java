@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.models;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -21,14 +20,15 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.data.management.DataFileManager;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
  * Imports models of all types from a specified directory.
@@ -54,10 +54,10 @@ public class ModelImporter {
 
     private static final Logger log = LoggerFactory.getLogger(ModelImporter.class);
 
-    private String directory;
     private Path datastoreRoot;
-    private ModelCrud modelCrud;
-    private Path modelsRoot;
+    private ModelCrud modelCrud = new ModelCrud();
+    private Path datastoreModelsRoot;
+    private Path dataImportPath;
     String modelDescription;
     private Set<ModelType> modelTypesToImport = new HashSet<>();
     private long dataReceiptTaskId;
@@ -66,83 +66,71 @@ public class ModelImporter {
 
     public static final String DATASTORE_MODELS_SUBDIR_NAME = "models";
 
-    public ModelImporter(String directory, String modelDescription) {
-        this.directory = directory;
-        File directoryFile = new File(directory);
-        if (!directoryFile.exists() || !directoryFile.isDirectory()) {
-            throw new IllegalArgumentException(
-                "Argument " + directory + " is not a directory or does not exist");
-        }
+    public ModelImporter(Path dataImportPath, String modelDescription) {
         this.modelDescription = modelDescription;
-        datastoreRoot = DirectoryProperties.datastoreRootDir();
-        modelsRoot = datastoreRoot.resolve(Paths.get(ModelImporter.DATASTORE_MODELS_SUBDIR_NAME));
+        this.dataImportPath = dataImportPath;
+        datastoreRoot = DirectoryProperties.datastoreRootDir().toAbsolutePath();
+        datastoreModelsRoot = datastoreRoot
+            .resolve(Paths.get(ModelImporter.DATASTORE_MODELS_SUBDIR_NAME));
     }
 
     /**
      * Performs the top level work of the model import process:
      * <ol>
-     * <li>Identify the files in the directory that are of each model type.
+     * <li>Identify the files that are of each model type.
      * <li>Add the models to the datastore and the model registry.
      * </ol>
-     *
-     * @param filenames list of all validated files in the import directory.
-     * @return true if models were found that required import, false if no models were found to
      * import.
      */
-    public boolean importModels(List<String> filenames) {
+    public void importModels(List<Path> files) {
 
-        log.info("Starting model imports from directory " + directory);
-        final ModelCrud modelMetadataCrud = modelCrud();
+        log.info("Importing models...");
         if (modelTypesToImport.isEmpty()) {
-            modelTypesToImport.addAll(modelMetadataCrud.retrieveAllModelTypes());
+            modelTypesToImport.addAll(modelTypes());
             log.info("Retrieved " + modelTypesToImport.size() + " model types from database");
         }
 
-        Map<ModelType, Map<String, String>> modelTypeFileNamesMap = new HashMap<>();
+        Map<ModelType, Map<String, Path>> modelFilesByModelType = new HashMap<>();
 
         // build the set of file names for each model type
         int importFileCount = 0;
         for (ModelType modelType : modelTypesToImport) {
-            Map<String, String> filenamesForModelType = findFilenamesForModelType(filenames,
-                modelType);
+            Map<String, Path> filenamesForModelType = findFilenamesForModelType(files, modelType);
             importFileCount += filenamesForModelType.size();
-            modelTypeFileNamesMap.put(modelType, filenamesForModelType);
+            modelFilesByModelType.put(modelType, filenamesForModelType);
         }
 
         if (importFileCount == 0) {
             log.info("No models to be imported, exiting");
-            return false;
+            return;
         }
 
         // perform the database portion of the process
-        ModelRegistry modelRegistry = modelCrud().retrieveUnlockedRegistry();
-        for (ModelType modelType : modelTypeFileNamesMap.keySet()) {
-            addModels(modelRegistry, modelType, modelTypeFileNamesMap.get(modelType));
+        ModelRegistry modelRegistry = unlockedRegistry();
+        for (ModelType modelType : modelFilesByModelType.keySet()) {
+            addModels(modelRegistry, modelType, modelFilesByModelType.get(modelType));
         }
-        modelCrud().merge(modelRegistry);
+        long unlockedModelRegistryId = mergeRegistryAndReturnUnlockedId(modelRegistry);
         log.info("Update of model registry complete");
-        long unlockedModelRegistryId = modelCrud().retrieveUnlockedRegistryId();
+        log.info("Importing models...done");
         log.info("Current unlocked model registry ID == " + unlockedModelRegistryId);
-        return true;
     }
 
     /**
      * Uses the regular expression for a given model type to identify the files that are of that
      * type.
      *
-     * @param filenames List of files in the import directory.
-     * @param modelType ModelType instance to be used in the search.
      * @return A Map from the version number of the new files to their names. If the model type in
      * question does not include a version number in its name, there can be only one file in the
      * Map.
      */
-    public Map<String, String> findFilenamesForModelType(List<String> filenames,
-        ModelType modelType) {
+    public Map<String, Path> findFilenamesForModelType(List<Path> files, ModelType modelType) {
 
         // Get all the file names for this model type
-        Map<String, String> versionNumberFileNamesMap = new TreeMap<>();
+        Map<String, Path> versionNumberFileNamesMap = new TreeMap<>();
         Pattern pattern = modelType.pattern();
-        for (String filename : filenames) {
+        for (Path file : files) {
+            String filename = file.getFileName().toString();
             Matcher matcher = pattern.matcher(filename);
             if (matcher.matches()) {
                 String versionNumber;
@@ -151,7 +139,7 @@ public class ModelImporter {
                 } else {
                     versionNumber = filename;
                 }
-                versionNumberFileNamesMap.put(versionNumber, filename);
+                versionNumberFileNamesMap.put(versionNumber, file);
             }
         }
 
@@ -173,14 +161,14 @@ public class ModelImporter {
      *
      * @param modelRegistry Current model registry.
      * @param modelType Type of model to be imported.
-     * @param versionNumberFileNamesMap Map from version numbers to file names.
+     * @param modelFilesByVersionId Map from version numbers to file names.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void addModels(ModelRegistry modelRegistry, ModelType modelType,
-        Map<String, String> versionNumberFileNamesMap) {
+        Map<String, Path> modelFilesByVersionId) {
 
         // find or make the directory for this type of model
-        Path modelDir = modelsRoot.resolve(modelType.getType());
+        Path modelDir = datastoreModelsRoot.resolve(modelType.getType()).toAbsolutePath();
         if (!Files.isDirectory(modelDir)) {
             try {
                 Files.createDirectories(modelDir);
@@ -190,10 +178,10 @@ public class ModelImporter {
             }
         }
 
-        Set<String> modelVersions = new TreeSet<>(versionNumberFileNamesMap.keySet());
+        Set<String> modelVersions = new TreeSet<>(modelFilesByVersionId.keySet());
         for (String version : modelVersions) {
-            createModel(modelRegistry, modelType, modelDir, versionNumberFileNamesMap.get(version));
-            log.info(versionNumberFileNamesMap.size() + " models of type " + modelType.getType()
+            createModel(modelRegistry, modelType, modelDir, modelFilesByVersionId.get(version));
+            log.info(modelFilesByVersionId.size() + " models of type " + modelType.getType()
                 + " added to datastore");
         }
     }
@@ -204,56 +192,51 @@ public class ModelImporter {
      * model file name does not include a timestamp, one will be added. The model, with these
      * potential additions to the file name, will then be copied to the correct directory in the
      * datastore and added to the current model registry.
-     *
-     * @param modelRegistry Current version of the registy.
-     * @param modelType Type of model to add.
-     * @param modelDir Directory for models of this type in the datastore.
-     * @param modelName File name for the model in the import directory.
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void createModel(ModelRegistry modelRegistry, ModelType modelType, Path modelDir,
-        String modelName) {
+        Path modelFile) {
 
         // The update of the model registry and the move of the file must be done atomically,
         // and can only be done if the model metadata was successfully created. Thus we do this
         // in steps. First, create the model metadata, if we can't do so record the failure and
         // return.
         ModelMetadata modelMetadata = null;
+        String modelFilename = modelFile.getFileName().toString();
         try {
             ModelMetadata currentModelRegistryMetadata = modelRegistry
                 .getMetadataForType(modelType);
-            modelMetadata = modelMetadata(modelType, modelName, modelDescription,
+            modelMetadata = modelMetadata(modelType, modelFilename, modelDescription,
                 currentModelRegistryMetadata);
             modelMetadata.setDataReceiptTaskId(dataReceiptTaskId);
         } catch (Exception e) {
-            log.error("Unable to create model metadata for file " + modelName);
-            failedImports.add(Paths.get(modelName));
+            log.error("Unable to create model metadata for file " + modelFile);
+            failedImports.add(dataImportPath.relativize(modelFile));
             return;
         }
 
         // Next we move the file, if we can't do so record the failure and return.
-        Path sourceFile = Paths.get(directory, modelName);
         Path destinationFile = modelDir.resolve(modelMetadata.getDatastoreFileName());
         try {
-            moveOrSymlink(sourceFile, destinationFile);
+            move(modelFile, destinationFile);
         } catch (Exception e) {
-            log.error("Unable to import file " + modelName + " into datastore");
-            failedImports.add(Paths.get(modelName));
+            log.error("Unable to import file " + modelFile + " into datastore");
+            failedImports.add(dataImportPath.relativize(modelFile));
             return;
         }
 
         // If all that worked, then we can update the model registry
-        modelCrud().persist(modelMetadata);
+        persistModelMetadata(modelMetadata);
         modelRegistry.updateModelMetadata(modelMetadata);
-        log.info("Imported file " + modelName + " to models directory as "
+        log.info("Imported file " + modelFile + " to models directory as "
             + modelMetadata.getDatastoreFileName() + " of type " + modelType.getType());
         successfulImports.add(datastoreRoot.relativize(destinationFile));
     }
 
     // The DataFileManager method is broken out in this fashion to facilitate testing.
-    public void moveOrSymlink(Path src, Path dest) throws IOException {
-        DataFileManager.moveOrSymlink(src, dest);
+    public void move(Path src, Path dest) throws IOException {
+        FileUtil.CopyType.MOVE.copy(src, dest);
     }
 
     // The ModelMetadata constructor is broken out in this fashion to facilitate testing.
@@ -287,10 +270,29 @@ public class ModelImporter {
         return successfulImports;
     }
 
-    protected ModelCrud modelCrud() {
-        if (modelCrud == null) {
-            modelCrud = new ModelCrud();
-        }
-        return modelCrud;
+    public ModelRegistry unlockedRegistry() {
+        return (ModelRegistry) DatabaseTransactionFactory
+            .performTransaction(() -> modelCrud.retrieveUnlockedRegistry());
     }
+
+    public void persistModelMetadata(ModelMetadata modelMetadata) {
+        DatabaseTransactionFactory.performTransaction(() -> {
+            modelCrud.persist(modelMetadata);
+            return null;
+        });
+    }
+
+    public long mergeRegistryAndReturnUnlockedId(ModelRegistry modelRegistry) {
+        return (long) DatabaseTransactionFactory.performTransaction(() -> {
+            modelCrud.merge(modelRegistry);
+            return modelCrud.retrieveUnlockedRegistryId();
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<ModelType> modelTypes() {
+        return (List<ModelType>) DatabaseTransactionFactory
+            .performTransaction(() -> modelCrud.retrieveAllModelTypes());
+    }
+
 }

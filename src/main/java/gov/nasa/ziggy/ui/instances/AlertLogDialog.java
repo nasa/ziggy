@@ -17,10 +17,10 @@ import javax.swing.table.AbstractTableModel;
 import gov.nasa.ziggy.services.alert.AlertLog;
 import gov.nasa.ziggy.ui.ConsoleSecurityException;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.proxy.AlertLogCrudProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.AlertLogDisplayModel;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * @author Bill Wohler
@@ -70,7 +70,7 @@ public class AlertLogDialog extends javax.swing.JDialog {
     }
 
     private static class AlertLogTableModel extends AbstractTableModel
-        implements TableModelContentClass<AlertLog> {
+        implements ModelContentClass<AlertLog> {
         private final AlertLogCrudProxy alertLogCrud;
         private List<AlertLog> alerts = new ArrayList<>();
         private final long pipelineInstanceId;

@@ -2,7 +2,7 @@
 
 [[Previous]](event-handler-examples.md)
 [[Up]](event-handler.md)
-[[Next]](dusty-corners.md)
+[[Next]](console-cli.md)
 
 ## Sending Event Information to Algorithms
 
@@ -22,4 +22,4 @@ When a task is created by a pipeline that started in response to an event, the `
 
 [[Previous]](event-handler-examples.md)
 [[Up]](event-handler.md)
-[[Next]](dusty-corners.md)
+[[Next]](console-cli.md)

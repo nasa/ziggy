@@ -16,7 +16,6 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.process.ExternalProcess;
-import gov.nasa.ziggy.ui.ClusterController;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.FileUtil;
@@ -222,7 +221,7 @@ public class PostgresqlController extends DatabaseController {
             .execute();
 
         // Postgres will shut down and exit if it is pinged too soon.
-        ClusterController.waitForProcessToSettle(DATABASE_SETTLE_MILLIS);
+        waitForProcessToSettle(DATABASE_SETTLE_MILLIS);
 
         return status;
     }
@@ -300,5 +299,17 @@ public class PostgresqlController extends DatabaseController {
     private String commandStringWithPath(String command) {
         Path databaseBinDir = DirectoryProperties.databaseBinDir();
         return databaseBinDir != null ? databaseBinDir.resolve(command).toString() : command;
+    }
+
+    /**
+     * Waits the given number of milliseconds for a process to settle.
+     */
+    public static void waitForProcessToSettle(long millis) {
+        try {
+            log.debug("Waiting for process to settle");
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

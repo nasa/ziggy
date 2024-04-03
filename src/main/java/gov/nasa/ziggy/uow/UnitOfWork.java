@@ -2,6 +2,7 @@ package gov.nasa.ziggy.uow;
 
 import java.io.Serializable;
 
+import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.TypedParameterCollection;
 
@@ -20,7 +21,8 @@ import gov.nasa.ziggy.pipeline.definition.TypedParameterCollection;
  * <p>
  * All instances of {@link UnitOfWork} must have a {@link String} property, "briefState," which is
  * used to identify the UOW of each pipeline task when displayed on the pipeline console. The UOW
- * generators must populate this property.
+ * generators must populate this property. The {@link #setBriefState(String)} method allows the
+ * brief state value to be set for the unit of work.
  *
  * @author PT
  */
@@ -33,6 +35,11 @@ public class UnitOfWork extends TypedParameterCollection
 
     public String briefState() {
         return getParameter(BRIEF_STATE_PARAMETER_NAME).getString();
+    }
+
+    public void setBriefState(String briefState) {
+        addParameter(
+            new TypedParameter(BRIEF_STATE_PARAMETER_NAME, briefState, ZiggyDataType.ZIGGY_STRING));
     }
 
     /**

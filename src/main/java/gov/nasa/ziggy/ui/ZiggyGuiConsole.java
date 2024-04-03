@@ -29,29 +29,26 @@ import javax.swing.JPanel;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.SwingConstants;
 
-import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.messages.DefaultWorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
-import gov.nasa.ziggy.services.messages.WorkerResources;
-import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager;
+import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
+import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
+import gov.nasa.ziggy.services.messaging.HeartbeatManager;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
-import gov.nasa.ziggy.services.security.User;
-import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.ui.status.StatusSummaryPanel;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.DatabaseModelRegistry;
-import gov.nasa.ziggy.ui.util.proxy.UserCrudProxy;
 import gov.nasa.ziggy.util.Requestor;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
  * The console GUI.
@@ -70,10 +67,10 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
     private static final String ZIGGY_LOGO_FILE_NAME = "ziggy-small-clear.png";
     private static final String ZIGGY_LOGO_DIR = "/images/";
 
-    public static User currentUser;
-
     private static Image pipelineImage;
     private static Image ziggyImage;
+
+    private static WorkerResources defaultResources;
 
     private final UUID uuid = UUID.randomUUID();
 
@@ -84,8 +81,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
     private ZiggyGuiConsole() {
         // Initialize the ProcessHeartbeatManager for this process.
         log.info("Initializing ProcessHeartbeatManager");
-        ProcessHeartbeatManager
-            .initializeInstance(new ProcessHeartbeatManager.ConsoleHeartbeatManagerAssistant());
+        HeartbeatManager.startInstance();
         log.info("Initializing ProcessHeartbeatManager...done");
 
         ZiggyMessenger.subscribe(ShutdownMessage.class, message -> {
@@ -93,8 +89,10 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
             shutdown();
         });
 
-        ZiggyMessenger.subscribe(WorkerResources.class, message -> {
-            WorkerResources.setDefaultResources(message);
+        ZiggyMessenger.subscribe(WorkerResourcesMessage.class, message -> {
+            if (message.getDefaultResources() != null && defaultResources == null) {
+                defaultResources = message.getDefaultResources();
+            }
         });
 
         ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, message -> {
@@ -104,7 +102,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         int rmiPort = ZiggyConfiguration.getInstance()
             .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
         log.info("Starting ZiggyRmiClient instance with registry on port {}", rmiPort);
-        ZiggyRmiClient.initializeInstance(rmiPort, NAME);
+        ZiggyRmiClient.start(NAME);
         ZiggyShutdownHook.addShutdownHook(() -> {
             ZiggyRmiClient.reset();
         });
@@ -112,7 +110,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
 
         buildComponent();
 
-        ZiggyMessenger.publish(new DefaultWorkerResourcesRequest());
+        ZiggyMessenger.publish(new WorkerResourcesRequest());
     }
 
     public static void launch() {
@@ -121,8 +119,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
                 ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
 
             ZiggyConfiguration.logJvmProperties();
-
-            login();
 
             ZiggyGuiConsole instance = new ZiggyGuiConsole();
             instance.setLocationByPlatform(true);
@@ -133,36 +129,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         }
 
         log.debug("Ziggy Console initialization complete");
-    }
-
-    private static void login() {
-        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
-        boolean devModeRequireLogin = config
-            .getBoolean(PropertyName.REQUIRE_LOGIN_OVERRIDE.property(), false);
-
-        // TODO Resurrect ZiggyVersion.isRelease() or delete commented-out code
-        // In the unlikely event this is needed, I'd suggest resurrecting ZiggyVersion.version() as
-        // well and replace code that current says
-        // ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION) with
-        // ZiggyVersion.version().
-        boolean requireLogin = devModeRequireLogin /* || ZiggyVersion.isRelease() */;
-
-        // Don't require login if there are no configured users.
-        if (new UserCrud().retrieveAllUsers().isEmpty()) {
-            requireLogin = false;
-        }
-
-        UserCrudProxy userCrud = new UserCrudProxy();
-        if (requireLogin) {
-
-            currentUser = userCrud
-                .retrieveUser(config.getString(PropertyName.USER_NAME.property()));
-
-            if (currentUser == null) {
-                log.error("Exceeded max login attempts");
-                System.exit(-1);
-            }
-        }
     }
 
     private void buildComponent() {
@@ -324,6 +290,10 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
             log.warn("Unable to load image from file " + url.toString(), e);
         }
         return image;
+    }
+
+    public static WorkerResources defaultResources() {
+        return defaultResources;
     }
 
     @Override

@@ -68,8 +68,8 @@ public class InstancesTasksPanelAutoRefresh implements Runnable {
     public void updatePanel() {
         instancesTable.loadFromDatabase();
         tasksTableModel.loadFromDatabase();
+        setInstancesStatusLight(instancesTable.getStateOfInstanceWithMaxid());
         SwingUtilities.invokeLater(() -> {
-            setInstancesStatusLight(instancesTable.getStateOfInstanceWithMaxid());
             taskStatusSummaryPanel.update(tasksTableModel);
         });
     }

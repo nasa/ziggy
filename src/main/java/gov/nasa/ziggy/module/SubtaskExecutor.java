@@ -79,7 +79,7 @@ public class SubtaskExecutor {
     // Constructor is private, use the builder instead.
     private SubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs) {
         this.taskDir = taskDir;
-        workingDir = TaskConfigurationManager.subtaskDirectory(taskDir, subtaskIndex);
+        workingDir = SubtaskUtils.subtaskDirectory(taskDir.toPath(), subtaskIndex).toFile();
         this.timeoutSecs = timeoutSecs;
         this.binaryName = binaryName;
     }
@@ -301,8 +301,8 @@ public class SubtaskExecutor {
         IntervalMetricKey key = IntervalMetric.start();
         try {
             key = IntervalMetric.start();
-            TaskConfigurationManager taskConfigurationManager = taskConfigurationManager();
-            Class<? extends PipelineInputs> inputsClass = taskConfigurationManager.getInputsClass();
+            TaskConfiguration taskConfiguration = taskConfiguration();
+            Class<? extends PipelineInputs> inputsClass = taskConfiguration.getInputsClass();
             retCode = runInputsOutputsCommand(inputsClass);
             if (retCode == 0) {
                 inputsProcessingSucceeded = true;
@@ -310,8 +310,7 @@ public class SubtaskExecutor {
             }
             if (retCode == 0) {
                 algorithmProcessingSucceeded = true;
-                Class<? extends PipelineOutputs> outputsClass = taskConfigurationManager
-                    .getOutputsClass();
+                Class<? extends PipelineOutputs> outputsClass = taskConfiguration.getOutputsClass();
                 retCode = runInputsOutputsCommand(outputsClass);
             }
         } finally {
@@ -356,17 +355,19 @@ public class SubtaskExecutor {
     }
 
     /**
-     * Executes the {@link TaskFileManager#main()} method with appropriate arguments for either
-     * invoking the inputs class process that generates sub-task inputs, or the outputs class
-     * process that generates results files in the task directory.
+     * Executes the {@link BeforeAndAfterAlgorithmExecutor#main()} method with appropriate arguments
+     * such that {@link PipelineInputs#beforeAlgorithmExecution()} executes immediately prior to
+     * algorithm execution, and {@link PipelineOutputs#afterAlgorithmExecution()} executes
+     * immediately subsequent to algorithm execution.
      * <p>
-     * Given that {@link TaskFileManager} is a Java class, and this is a Java class, why is the
-     * {@link TaskFileManager} invoked using the ziggy program and an external process? By using an
-     * external process, the inputs and outputs classes can use software libraries that do not
-     * support concurrency (for example, HDF5). By running each subtask in a separate process, the
-     * subtask input and output processing can execute in parallel even in cases in which the
-     * processing uses non-concurrent libraries. Running a bunch of instances of
-     * {@link TaskFileManager} in separate threads within a common JVM would not permit this.
+     * Given that {@link BeforeAndAfterAlgorithmExecutor} is a Java class, and this is a Java class,
+     * why is the {@link BeforeAndAfterAlgorithmExecutor} invoked using the ziggy program and an
+     * external process? By using an external process, the inputs and outputs classes can use
+     * software libraries that do not support concurrency (for example, HDF5). By running each
+     * subtask in a separate process, the subtask input and output processing can execute in
+     * parallel even in cases in which the processing uses non-concurrent libraries. Running a bunch
+     * of instances of {@link BeforeAndAfterAlgorithmExecutor} in separate threads within a common
+     * JVM would not permit this.
      *
      * @param inputsOutputsClass Class to be used as argument to TaskFileManager.
      * @return exit code from the ziggy program
@@ -381,7 +382,7 @@ public class SubtaskExecutor {
         String log4jConfig = ExternalProcessUtils.log4jConfigString();
 
         // Construct the class arguments for the ziggy program.
-        String taskFileManagerClassName = TaskFileManager.class.getCanonicalName();
+        String taskFileManagerClassName = BeforeAndAfterAlgorithmExecutor.class.getCanonicalName();
         String inputsOutputsClassName = inputsOutputsClass.getCanonicalName();
 
         // Put it all together.
@@ -537,8 +538,8 @@ public class SubtaskExecutor {
         return commandLine;
     }
 
-    TaskConfigurationManager taskConfigurationManager() {
-        return TaskConfigurationManager.restore(workingDir.getParentFile());
+    TaskConfiguration taskConfiguration() {
+        return TaskConfiguration.deserialize(workingDir.getParentFile());
     }
 
     public static class Builder {

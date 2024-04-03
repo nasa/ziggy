@@ -13,7 +13,7 @@ At the highest level, the purpose of data receipt is to take files delivered fro
   - No files showed up that are not expected.
   - The files that showed up were not somehow corrupted in transit.
 - Whoever it was that delivered the files may require a notification that there were no problems with the delivery, so data receipt needs to produce something that can function as the notification.
-- The data receipt process needs to clean up after itself. In a nutshell, this means that there is no chance that a future data receipt operation fails because of some debris left from a prior data receipt operation, and that there is no chance that a future data receipt operation will inadvertently re-import files that were already imported.
+- The data receipt process needs to clean up after itself. This means that there is no chance that a future data receipt operation fails because of some debris left from a prior data receipt operation, and that there is no chance that a future data receipt operation will inadvertently re-import files that were already imported.
 
 The integrity of the delivery is supported by an XML file, the *manifest*, that lists all of the delivered files and contains size and checksum information for each one. After a successful import, Ziggy produces an XML file, the *acknowledgement*, that can be used as a notification to the source of the files that the files were delivered and imported without incident. The cleanup is managed algorithmically by Ziggy.
 
@@ -25,33 +25,51 @@ The sample pipeline's data receipt directory uses a copy of the files from the `
 
 ```console
 sample-pipeline$ ls data
-nasa_logo-set-1-file-0.png
-nasa_logo-set-1-file-3.png
-nasa_logo-set-2-file-2.png
+models
 sample-pipeline-manifest.xml
-nasa_logo-set-1-file-1.png
-nasa_logo-set-2-file-0.png
-nasa_logo-set-2-file-3.png
-nasa_logo-set-1-file-2.png
-nasa_logo-set-2-file-1.png
+set-1
+set-2
+sample-pipeline$
+```
+
+Look more closesly and you'll see that only sample-pipeline-manifest.xml is a regular file. The other files are all directories. Let's look into them and see what's what:
+
+```bash
+sample-pipeline$ ls data/set-1/L0
+nasa-logo-file-0.png
+nasa-logo-file-1.png
+nasa-logo-file-2.png
+nasa-logo-file-3.png
+sample-pipeline$
+```
+
+If we look at the `set-2` directory, we'll see something analogous. Meanwhile, the `models` directory looks like this:
+
+```bash
+sample-pipeline$ ls data/models
 sample-model.txt
 sample-pipeline$
 ```
 
-Most of these files are obviously the files that get imported. But what about the manifest? Here's the contents of the manifest:
+From looking at this, you've probably already deduced the two rules of data receipt layout:
+
+1. The mission data must be in a directory tree that matches the datastore, such that each file's location in the data receipt directory tree matches its destination in the datastore.
+2. All model files must be in a `models` directory within the data receipt directory.
+
+Now let's look at the manifest file:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <manifest datasetId="0" checksumType="SHA1" fileCount="9">
-  <file name="nasa_logo-set-2-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="nasa_logo-set-1-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="nasa_logo-set-1-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="nasa_logo-set-1-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="nasa_logo-set-1-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="nasa_logo-set-2-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="nasa_logo-set-2-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="nasa_logo-set-2-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
-  <file name="sample-model.txt" size="2271" checksum="c99ad366e36c84edeacf72769dc7ad6dc0465ac0"/>
+    <file name="set-1/L0/nasa-logo-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="set-2/L0/nasa-logo-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="set-1/L0/nasa-logo-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="set-2/L0/nasa-logo-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="set-1/L0/nasa-logo-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="set-2/L0/nasa-logo-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="set-1/L0/nasa-logo-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="set-2/L0/nasa-logo-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed"/>
+    <file name="models/sample-model.txt" size="2477" checksum="694cd3668fd1ec7e0e826bb1b211f4d2a5459628"/>
 </manifest>
 ```
 
@@ -107,62 +125,19 @@ In the interest of completeness, here's the content of the acknowledgement file 
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <acknowledgement datasetId="0" checksumType="SHA1" fileCount="9" transferStatus="valid">
-  <file name="nasa_logo-set-2-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="nasa_logo-set-1-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="nasa_logo-set-1-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="nasa_logo-set-1-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="nasa_logo-set-1-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="nasa_logo-set-2-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="nasa_logo-set-2-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="nasa_logo-set-2-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
-  <file name="sample-model.txt" size="2271" checksum="c99ad366e36c84edeacf72769dc7ad6dc0465ac0" transferStatus="present" validationStatus="valid"/>
+    <file name="set-1/L0/nasa-logo-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="set-2/L0/nasa-logo-file-0.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="set-1/L0/nasa-logo-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="set-2/L0/nasa-logo-file-1.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="set-1/L0/nasa-logo-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="set-2/L0/nasa-logo-file-3.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="set-1/L0/nasa-logo-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="set-2/L0/nasa-logo-file-2.png" size="72407" checksum="0b30f7f0028f2cee5686d3169fff11e76a96fbed" transferStatus="present" validationStatus="valid"/>
+    <file name="models/sample-model.txt" size="2477" checksum="694cd3668fd1ec7e0e826bb1b211f4d2a5459628" transferStatus="present" validationStatus="valid"/>
 </acknowledgement>
 ```
 
 Note that the manifest file must end with "`-manifest.xml`", and the acknowledgement file will end in "`-manifest-ack.xml`", with the filename prior to these suffixes being the same for the two files.
-
-### Systems that Treat Directories as Data Files
-
-There may be circumstances in which it's convenient to put several files into a directory, and then to use a collection of directories of that form as "data files" for the purposes of data processing. For example, consider a system where there's a data file with an image, and then several files that are used to background-subtract the data file. Rather than storing each of those files separately, you might put the image file and its background files into a directory; import that directory, as a whole, into the datastore; then supply that directory, as a whole, as an input for a subtask.
-
-In that case, the manifest still needs to have an entry for each regular file, but in this case the name of the file includes the directory it sits in. Here's what that looks like in this example:
-
-```xml
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<manifest datasetId="0" checksumType="SHA1" fileCount="10">
-  <file name="data-00001/image.png" size="100" checksum="..."/>
-  <file name="data-00001/background-0.png" size="100" checksum="..."/>
-  <file name="data-00001/background-1.png" size="100" checksum="..."/>
-  <file name="data-00002/image.png" size="100" checksum="..."/>
-  <file name="data-00002/background-0.png" size="100" checksum="..."/>
-  <file name="data-00002/background-1.png" size="100" checksum="..."/>
-  <file name="data-00002/background-2.png" size="100" checksum="..."/>
-  <file name="data-00003/image.png" size="100" checksum="..."/>
-  <file name="data-00003/background-0.png" size="100" checksum="..."/>
-  <file name="data-00003/background-1.png" size="100" checksum="..."/>
-</manifest>
-```
-
-Now the only remaining issue is how to tell Ziggy to import the files in such a way that each of the `data-#####` directories is imported and stored as a unit. To understand how that's accomplished, let's look back at the data receipt node in `pd-sample.xml`:
-
-```xml
-<node moduleName="data-receipt" childNodeNames="permuter">
-  <inputDataFileType name="raw data"/>
-  <moduleParameter name="Data receipt configuration"/>
-</node>
-```
-
-Meanwhile, the definition of the raw data type is in `pt-sample.xml`:
-
-```xml
-<dataFileType name="raw data"
-              fileNameRegexForTaskDir="(\\S+)-(set-[0-9])-(file-[0-9]).png"
-              fileNameWithSubstitutionsForDatastore="$2/L0/$1-$3.png"/>
-```
-
-Taken together, these two XML snippets tell us that data receipt's import is going to import files that match the file name convention for the `raw data` file type. We can do the same thing when the "file" to import is actually a directory. If you define a data file type that has `fileNameRegexForTaskDir` set to `data-[0-9]{5}`, Ziggy will import directory `data-00001` and all of its contents as a unit and store that unit in the datastore, and so on.
-
-Note that the manifest ignores the fact that import of data is going to treat the `data-#####` directories as the "files" it imports, and the importer ignores that the manifest validates the individual files even if they are in these subdirectories.
 
 ### Generating Manifests
 

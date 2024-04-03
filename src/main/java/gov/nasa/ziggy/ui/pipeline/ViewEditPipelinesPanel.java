@@ -12,9 +12,12 @@ import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.event.ActionEvent;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
+import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -24,14 +27,13 @@ import org.netbeans.swing.outline.RowModel;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
 import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionCrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
-import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
+import gov.nasa.ziggy.ui.util.table.AbstractViewEditGroupPanel;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * Panel for viewing and editing pipelines.
@@ -39,9 +41,9 @@ import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
  * @author PT
  * @author Bill Wohler
  */
-public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefinition> {
+public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineDefinition> {
 
-    private static final long serialVersionUID = 20230810L;
+    private static final long serialVersionUID = 20231112L;
 
     private PipelineDefinitionCrudProxy crudProxy = new PipelineDefinitionCrudProxy();
     private ZiggyTreeModel<PipelineDefinition> treeModel;
@@ -59,22 +61,27 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
      */
     public static ViewEditPipelinesPanel newInstance() {
         ZiggyTreeModel<PipelineDefinition> treeModel = new ZiggyTreeModel<>(
-            new PipelineDefinitionCrudProxy());
+            new PipelineDefinitionCrudProxy(), PipelineDefinition.class);
         PipelineRowModel rowModel = new PipelineRowModel(treeModel);
         return new ViewEditPipelinesPanel(rowModel, treeModel);
     }
 
     @Override
-    protected void buildComponent() {
-        super.buildComponent();
-        ZiggySwingUtils.addButtonsToPanel(getButtonPanel(), createButton(START, this::start));
-        getPopupMenu().add(
-            createMenuItem("New version of selected pipeline (unlock)" + DIALOG, this::newVersion),
-            0);
+    protected List<JButton> buttons() {
+        List<JButton> buttons = super.buttons();
+        buttons.add(createButton(START, this::start));
+        return buttons;
+    }
+
+    @Override
+    protected List<JMenuItem> menuItems() {
+        List<JMenuItem> menuItems = super.menuItems();
+        menuItems.add(
+            createMenuItem("New version of selected pipeline (unlock)" + DIALOG, this::newVersion));
+        return menuItems;
     }
 
     private void start(ActionEvent evt) {
-        checkPrivileges();
 
         int tableRow = ziggyTable.getSelectedRow();
         selectedModelRow = ziggyTable.convertRowIndexToModel(tableRow);
@@ -90,7 +97,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
     }
 
     private void newVersion(ActionEvent evt) {
-        checkPrivileges();
 
         PipelineDefinition selectedPipeline = ziggyTable.getContentAtViewRow(selectedModelRow);
 
@@ -112,11 +118,11 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
     }
 
     @Override
-    protected Set<OptionalViewEditFunctions> optionalViewEditFunctions() {
+    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
         return Set.of(
-            /* TODO Implement OptionalViewEditFunctions.NEW, per ZIGGY-284 */ OptionalViewEditFunctions.VIEW,
-            OptionalViewEditFunctions.GROUP, OptionalViewEditFunctions.COPY,
-            OptionalViewEditFunctions.RENAME, OptionalViewEditFunctions.DELETE);
+            /* TODO Implement OptionalViewEditFunctions.NEW, per ZIGGY-284 */ OptionalViewEditFunction.VIEW,
+            OptionalViewEditFunction.COPY, OptionalViewEditFunction.RENAME,
+            OptionalViewEditFunction.DELETE);
     }
 
     @Override
@@ -130,7 +136,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
 
     @Override
     protected void create() {
-        checkPrivileges();
 
         NewPipelineDialog newPipelineDialog = new NewPipelineDialog(
             SwingUtilities.getWindowAncestor(this));
@@ -153,7 +158,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
 
     @Override
     protected void view(int row) {
-        checkPrivileges();
 
         PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), pipeline.getName(),
@@ -175,7 +179,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
 
     @Override
     protected void edit(int row) {
-        checkPrivileges();
 
         PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
         if (pipeline == null) {
@@ -194,7 +197,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
 
     @Override
     protected void copy(int row) {
-        checkPrivileges();
 
         PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
         if (pipeline == null) {
@@ -212,7 +214,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
 
     @Override
     protected void rename(int row) {
-        checkPrivileges();
 
         PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
         if (pipeline == null) {
@@ -242,7 +243,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
 
     @Override
     protected void delete(int row) {
-        checkPrivileges();
 
         PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
         if (pipeline == null) {
@@ -271,7 +271,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
     }
 
     private static class PipelineRowModel
-        implements RowModel, TableModelContentClass<PipelineDefinition> {
+        implements RowModel, ModelContentClass<PipelineDefinition> {
 
         private static final String[] COLUMN_NAMES = { "Version", "Locked", "User", "Modified",
             "Node count" };
@@ -317,7 +317,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
 
             AuditInfo auditInfo = pipeline.getAuditInfo();
 
-            User lastChangedUser = null;
+            String lastChangedUser = null;
             Date lastChangedTime = null;
 
             if (auditInfo != null) {
@@ -328,7 +328,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditPanel<PipelineDefini
             return switch (columnIndex) {
                 case 0 -> pipeline.getVersion();
                 case 1 -> pipeline.isLocked();
-                case 2 -> lastChangedUser != null ? lastChangedUser.getLoginName() : "---";
+                case 2 -> lastChangedUser != null ? lastChangedUser : "---";
                 case 3 -> lastChangedTime != null ? lastChangedTime : "---";
                 case 4 -> pipeline.getNodes().size();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);

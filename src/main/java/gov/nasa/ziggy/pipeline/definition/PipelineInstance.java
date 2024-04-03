@@ -45,8 +45,6 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 @Entity
 @Table(name = "ziggy_PipelineInstance")
 public class PipelineInstance implements PipelineExecutionTime {
-    private static final long serialVersionUID = 20230712L;
-
     private static final Logger log = LoggerFactory.getLogger(PipelineInstance.class);
 
     public enum State {
@@ -115,12 +113,9 @@ public class PipelineInstance implements PipelineExecutionTime {
 
     /**
      * Descriptive name specified by the user at launch-time. Used when displaying the instance in
-     * the console. Does not have to be unique
+     * the console. Does not have to be unique.
      */
     private String name;
-
-    @ManyToOne
-    private Group group = null;
 
     /** Timestamp that processing started on this pipeline instance */
     private Date startProcessingTime = new Date(0);
@@ -318,66 +313,34 @@ public class PipelineInstance implements PipelineExecutionTime {
         return pipelineParameterSets.put(key, value);
     }
 
-    /**
-     * @return the name
-     */
     public String getName() {
         return name;
     }
 
-    /**
-     * @param name the name to set
-     */
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * @return the startNode
-     */
     public PipelineInstanceNode getStartNode() {
         return startNode;
     }
 
-    /**
-     * @param startNode the startNode to set
-     */
     public void setStartNode(PipelineInstanceNode startNode) {
         this.startNode = startNode;
     }
 
-    /**
-     * @return the endNode
-     */
     public PipelineInstanceNode getEndNode() {
         return endNode;
     }
 
-    /**
-     * @param endNode the endNode to set
-     */
     public void setEndNode(PipelineInstanceNode endNode) {
         this.endNode = endNode;
     }
 
-    public Group getGroup() {
-        return group;
-    }
-
-    public void setGroup(Group group) {
-        this.group = group;
-    }
-
-    /**
-     * @return the modelRegistry
-     */
     public ModelRegistry getModelRegistry() {
         return modelRegistry;
     }
 
-    /**
-     * @param modelRegistry the modelRegistry to set
-     */
     public void setModelRegistry(ModelRegistry modelRegistry) {
         this.modelRegistry = modelRegistry;
     }

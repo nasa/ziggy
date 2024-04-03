@@ -1,20 +1,23 @@
 package gov.nasa.ziggy.data.management;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
+
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
-import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import jakarta.persistence.criteria.Predicate;
 
 /**
  * CRUD class for {@link DatastoreProducerConsumer}.
@@ -41,80 +44,82 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         super(dbService);
     }
 
-    /**
-     * Create or update a producer record for a single file.
-     *
-     * @param pipelineTask
-     * @param datastoreFile
-     */
-    public void createOrUpdateProducer(PipelineTask pipelineTask, Path datastoreFile,
-        DataReceiptFileType type) {
+    /** Create or update a producer record for a single file. */
+    public void createOrUpdateProducer(PipelineTask pipelineTask, Path datastoreFile) {
         Set<Path> datastoreFileSet = new HashSet<>();
         datastoreFileSet.add(datastoreFile);
-        createOrUpdateProducer(pipelineTask, datastoreFileSet, type);
+        createOrUpdateProducer(pipelineTask, datastoreFileSet);
     }
 
-    /**
-     * Create or update a set of files with the their PipelineTask ID as producer.
-     *
-     * @param datastoreFiles
-     * @param pipelineTask
-     */
-    public void createOrUpdateProducer(PipelineTask pipelineTask, Collection<Path> datastoreFiles,
-        DataReceiptFileType type) {
+    /** Create or update a set of files with the their PipelineTask ID as producer. */
+    public void createOrUpdateProducer(PipelineTask pipelineTask, Collection<Path> datastoreFiles) {
         if (datastoreFiles == null || datastoreFiles.isEmpty()) {
             return;
         }
         List<DatastoreProducerConsumer> datastoreProducerConsumers = retrieveOrCreate(pipelineTask,
-            datastoreNames(datastoreFiles), type);
+            datastoreNames(datastoreFiles));
         for (DatastoreProducerConsumer datastoreProducerConsumer : datastoreProducerConsumers) {
             datastoreProducerConsumer.setProducer(pipelineTask.getId());
             merge(datastoreProducerConsumer);
         }
     }
 
+    /** Retrieves / creates {@link DatastoreProducerConsumer}s for a collection of files. */
     public List<DatastoreProducerConsumer> retrieveByFilename(Set<Path> datastoreFiles) {
-        return retrieveOrCreate(null, datastoreNames(datastoreFiles), DataReceiptFileType.DATA);
+        return retrieveOrCreate(null, datastoreNames(datastoreFiles));
+    }
+
+    /** Retrieves the set of names of datastore files consumed by a specified pipeline task. */
+    public Set<String> retrieveFilesConsumedByTask(long taskId) {
+        return retrieveFilesConsumedByTasks(Set.of(taskId), null);
     }
 
     /**
-     * Retrieves the set of names of datastore files consumed by a specified pipeline task.
+     * Retrieves the set of filenames of datastore files that were consumed by one or more of the
+     * specified consumer task IDs. If the filenames argument is populated, only files from the
+     * filenames collection will be included in the return; otherwise, all filenames that have a
+     * consumer from the collection of consumer IDs will be included.
      */
-    public Set<String> retrieveFilesConsumedByTask(long taskId) {
-
+    public Set<String> retrieveFilesConsumedByTasks(Collection<Long> consumerIds,
+        Collection<String> filenames) {
         ZiggyQuery<DatastoreProducerConsumer, String> query = createZiggyQuery(
             DatastoreProducerConsumer.class, String.class);
-        query.select(DatastoreProducerConsumer_.filename);
-        query.where(query.getBuilder()
-            .isMember(taskId, query.getRoot().get(DatastoreProducerConsumer_.consumers)));
-
+        query.select(DatastoreProducerConsumer_.filename).distinct(true);
+        if (!CollectionUtils.isEmpty(filenames)) {
+            query.column(DatastoreProducerConsumer_.filename).chunkedIn(filenames);
+        }
+        List<Predicate> predicates = new ArrayList<>();
+        for (long consumerId : consumerIds) {
+            predicates.add(query.getBuilder()
+                .isMember(consumerId, query.getRoot().get(DatastoreProducerConsumer_.consumers)));
+        }
+        Predicate[] predicateArray = new Predicate[predicates.size()];
+        for (int predicateIndex = 0; predicateIndex < predicates.size(); predicateIndex++) {
+            predicateArray[predicateIndex] = predicates.get(predicateIndex);
+        }
+        Predicate completePredicate = query.getBuilder().or(predicateArray);
+        query.where(completePredicate);
         return new HashSet<>(list(query));
     }
 
-    /**
-     * Retrieve producers for a set of files.
-     */
+    /** Retrieve producers for a set of files. */
     public Set<Long> retrieveProducers(Set<Path> datastoreFiles) {
         if (datastoreFiles == null || datastoreFiles.isEmpty()) {
             return new HashSet<>();
         }
         Set<String> datastoreNames = datastoreNames(datastoreFiles);
-        List<DatastoreProducerConsumer> dpcs = retrieveOrCreate(null, datastoreNames,
-            DataReceiptFileType.DATA);
+        List<DatastoreProducerConsumer> dpcs = retrieveOrCreate(null, datastoreNames);
         return dpcs.stream()
             .map(DatastoreProducerConsumer::getProducer)
             .collect(Collectors.toSet());
     }
 
-    /**
-     * Adds a consumer to each of a set of datastore files.
-     */
+    /** Adds a consumer to each of a set of datastore files. */
     public void addConsumer(PipelineTask pipelineTask, Set<String> datastoreNames) {
         if (datastoreNames == null || datastoreNames.isEmpty()) {
             return;
         }
-        List<DatastoreProducerConsumer> dpcs = retrieveOrCreate(null, datastoreNames,
-            DataReceiptFileType.DATA);
+        List<DatastoreProducerConsumer> dpcs = retrieveOrCreate(null, datastoreNames);
         dpcs.stream().forEach(s -> addConsumer(s, pipelineTask.getId()));
     }
 
@@ -128,7 +133,7 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
             return;
         }
         List<DatastoreProducerConsumer> datastoreProducerConsumers = retrieveOrCreate(null,
-            datastoreNames, DataReceiptFileType.DATA);
+            datastoreNames);
         datastoreProducerConsumers.stream().forEach(dpc -> addConsumer(dpc, -pipelineTask.getId()));
     }
 
@@ -159,7 +164,7 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
      * versions for files that have database entries and new instances for those that do not.
      */
     protected List<DatastoreProducerConsumer> retrieveOrCreate(PipelineTask pipelineTask,
-        Set<String> filenames, DataReceiptFileType type) {
+        Set<String> filenames) {
 
         // Start by finding all the files that already have entries.
         ZiggyQuery<DatastoreProducerConsumer, DatastoreProducerConsumer> query = createZiggyQuery(
@@ -175,8 +180,8 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         long producerId = pipelineTask != null ? pipelineTask.getId() : 0;
         filenames.removeAll(locatedFilenames);
         for (String filename : filenames) {
-            DatastoreProducerConsumer instance = new DatastoreProducerConsumer(producerId, filename,
-                type);
+            DatastoreProducerConsumer instance = new DatastoreProducerConsumer(producerId,
+                filename);
             persist(instance);
             datastoreProducerConsumers.add(instance);
         }
@@ -188,9 +193,7 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         return datastoreProducerConsumers;
     }
 
-    /**
-     * Retrieves all successful imports for a given pipeline instance.
-     */
+    /** Retrieves all successful imports for a given pipeline instance. */
     public List<DatastoreProducerConsumer> retrieveForInstance(long pipelineInstanceId) {
 
         // Start with task IDs
@@ -205,18 +208,12 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         return list(query);
     }
 
-    /**
-     * Retrieves a count of successful imports for a given pipeline instance.
-     */
+    /** Retrieves a count of successful imports for a given pipeline instance. */
     public int retrieveCountForInstance(long pipelineInstanceId) {
         return retrieveForInstance(pipelineInstanceId).size();
     }
 
-    /**
-     * Retrieve all the objects in the database.
-     *
-     * @return
-     */
+    /** Retrieve all the objects in the database. */
     public List<DatastoreProducerConsumer> retrieveAll() {
         return list(createZiggyQuery(DatastoreProducerConsumer.class));
     }

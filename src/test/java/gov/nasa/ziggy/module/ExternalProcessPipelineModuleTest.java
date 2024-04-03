@@ -22,20 +22,21 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Mockito;
+import org.mockito.ArgumentMatchers;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.data.datastore.DatastoreFileManager;
+import gov.nasa.ziggy.data.datastore.DatastoreFileManager.InputFiles;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
-import gov.nasa.ziggy.module.remote.TimestampFile;
 import gov.nasa.ziggy.module.remote.TimestampFile.Event;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -56,26 +57,30 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  */
 public class ExternalProcessPipelineModuleTest {
 
-    private PipelineTask p;
-    private PipelineInstance i;
-    private ProcessingSummaryOperations a;
-    private PipelineTaskCrud c;
-    private TaskConfigurationManager ih;
-    private TestAlgorithmLifecycle tal;
+    private PipelineTask pipelineTask;
+    private PipelineInstance pipelineInstance;
+    private ProcessingSummaryOperations processingSummaryOperations;
+    private PipelineTaskCrud pipelineTaskCrud;
+    private TaskConfiguration taskConfiguration;
+    private AlgorithmLifecycleManager taskAlgorithmLifecycle;
     private File taskDir;
-    private RemoteParameters r;
-    private PipelineInstanceNode pin;
-    private PipelineModuleDefinition pmd;
-    private DatabaseService ds;
-    private AlgorithmExecutor ae;
-    private TestPipelineModule t;
-    private DatastoreProducerConsumerCrud dpcc;
+    private PipelineInstanceNode pipelineInstanceNode;
+    private PipelineModuleDefinition pipelineModuleDefinition;
+    private DatabaseService databaseService;
+    private AlgorithmExecutor algorithmExecutor;
+    private DatastoreProducerConsumerCrud datastoreProducerConsumerCrud;
+    private ExternalProcessPipelineModule pipelineModule;
+    private TaskDirectoryManager taskDirManager;
+    private DatastoreFileManager datastoreFileManager;
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
     @Rule
     public ZiggyPropertyRule datastoreRootDirPropertyRule = new ZiggyPropertyRule(
         DATASTORE_ROOT_DIR, "/dev/null");
+    @Rule
+    public ZiggyPropertyRule pipelineResultsRule = new ZiggyPropertyRule(PropertyName.RESULTS_DIR,
+        "/dev/null");
 
     @Rule
     public ZiggyPropertyRule piProcessingHaltStepPropertyRule = new ZiggyPropertyRule(PIPELINE_HALT,
@@ -87,35 +92,68 @@ public class ExternalProcessPipelineModuleTest {
 
     @Before
     public void setup() {
-        r = new RemoteParameters();
-        p = mock(PipelineTask.class);
-        i = mock(PipelineInstance.class);
-        pin = mock(PipelineInstanceNode.class);
-        pmd = mock(PipelineModuleDefinition.class);
-        ae = mock(AlgorithmExecutor.class);
-        when(p.getId()).thenReturn(100L);
-        when(p.getPipelineInstance()).thenReturn(i);
-        when(p.getParameters(RemoteParameters.class, false)).thenReturn(r);
-        when(p.getPipelineInstanceNode()).thenReturn(pin);
-        when(pin.getPipelineModuleDefinition()).thenReturn(pmd);
-        when(pmd.getInputsClass()).thenReturn(new ClassWrapper<>(PipelineInputsSample.class));
-        when(pmd.getOutputsClass()).thenReturn(new ClassWrapper<>(PipelineOutputsSample1.class));
-        when(i.getId()).thenReturn(50L);
-        a = mock(ProcessingSummaryOperations.class);
-        c = mock(PipelineTaskCrud.class);
-        when(c.retrieve(100L)).thenReturn(p);
-        ih = mock(TaskConfigurationManager.class);
+        pipelineTask = mock(PipelineTask.class);
+        pipelineInstance = mock(PipelineInstance.class);
+        pipelineInstanceNode = mock(PipelineInstanceNode.class);
+        pipelineModuleDefinition = mock(PipelineModuleDefinition.class);
+        algorithmExecutor = mock(AlgorithmExecutor.class);
+        when(pipelineTask.getId()).thenReturn(100L);
+        when(pipelineTask.getPipelineInstance()).thenReturn(pipelineInstance);
+        when(pipelineTask.getPipelineInstanceNode()).thenReturn(pipelineInstanceNode);
+        when(pipelineTask.taskBaseName()).thenReturn("50-100-test");
+        when(pipelineInstanceNode.getPipelineModuleDefinition())
+            .thenReturn(pipelineModuleDefinition);
+        when(pipelineModuleDefinition.getInputsClass())
+            .thenReturn(new ClassWrapper<>(PipelineInputsSample.class));
+        when(pipelineModuleDefinition.getOutputsClass())
+            .thenReturn(new ClassWrapper<>(PipelineOutputsSample1.class));
+        when(pipelineInstance.getId()).thenReturn(50L);
+        processingSummaryOperations = mock(ProcessingSummaryOperations.class);
+        pipelineTaskCrud = mock(PipelineTaskCrud.class);
+        when(pipelineTaskCrud.retrieve(100L)).thenReturn(pipelineTask);
+        taskConfiguration = mock(TaskConfiguration.class);
         taskDir = directoryRule.directory().toFile();
         taskDir.mkdirs();
-        tal = mock(TestAlgorithmLifecycle.class);
-        when(tal.getTaskDir(true)).thenReturn(taskDir);
-        when(tal.getTaskDir(false)).thenReturn(taskDir);
-        when(tal.getExecutor()).thenReturn(ae);
-        ds = mock(DatabaseService.class);
-        DatabaseService.setInstance(ds);
-        dpcc = mock(DatastoreProducerConsumerCrud.class);
-        when(dpcc.retrieveFilesConsumedByTask(100L)).thenReturn(Collections.emptySet());
-        t = new TestPipelineModule(p, RunMode.STANDARD);
+        taskAlgorithmLifecycle = mock(AlgorithmLifecycleManager.class);
+        when(taskAlgorithmLifecycle.getTaskDir(true)).thenReturn(taskDir);
+        when(taskAlgorithmLifecycle.getTaskDir(false)).thenReturn(taskDir);
+        when(taskAlgorithmLifecycle.getExecutor()).thenReturn(algorithmExecutor);
+        taskDirManager = mock(TaskDirectoryManager.class);
+        when(taskDirManager.taskDir()).thenReturn(directoryRule.directory());
+        databaseService = mock(DatabaseService.class);
+        DatabaseService.setInstance(databaseService);
+        datastoreProducerConsumerCrud = mock(DatastoreProducerConsumerCrud.class);
+        when(datastoreProducerConsumerCrud.retrieveFilesConsumedByTask(100L))
+            .thenReturn(Collections.emptySet());
+
+        datastoreFileManager = mock(DatastoreFileManager.class);
+        when(datastoreFileManager.inputFilesByOutputStatus())
+            .thenReturn(new InputFiles(new HashSet<>(), new HashSet<>()));
+
+        configurePipelineModule(RunMode.STANDARD);
+
+        // By default, mock 5 subtasks.
+        when(taskConfiguration.getSubtaskCount()).thenReturn(5);
+    }
+
+    /** Sets up a pipeline module with a specified run mode. */
+    private void configurePipelineModule(RunMode runMode) {
+        pipelineModule = spy(new ExternalProcessPipelineModule(pipelineTask, runMode));
+        doReturn(taskConfiguration).when(pipelineModule).taskConfiguration();
+        doReturn(datastoreFileManager).when(pipelineModule).datastoreFileManager();
+        doReturn(new HashSet<>()).when(pipelineModule)
+            .datastorePathsToRelative(ArgumentMatchers.anySet());
+        doReturn(new HashSet<>()).when(pipelineModule)
+            .datastorePathsToNames(ArgumentMatchers.anySet());
+        doReturn(datastoreProducerConsumerCrud).when(pipelineModule)
+            .datastoreProducerConsumerCrud();
+        doReturn(taskAlgorithmLifecycle).when(pipelineModule).algorithmManager();
+        doReturn(processingSummaryOperations).when(pipelineModule).processingSummaryOperations();
+        doReturn(pipelineTaskCrud).when(pipelineModule).pipelineTaskCrud();
+        doReturn(taskDirManager).when(pipelineModule).taskDirManager();
+
+        // Return the database processing states in the correct order.
+        configureDatabaseProcessingStates();
     }
 
     @After
@@ -129,20 +167,21 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testNextProcessingState() {
 
-        ProcessingState s = t.nextProcessingState(ProcessingState.INITIALIZING);
-        assertEquals(ProcessingState.MARSHALING, s);
-        s = t.nextProcessingState(s);
-        assertEquals(ProcessingState.ALGORITHM_SUBMITTING, s);
-        s = t.nextProcessingState(s);
-        assertEquals(ProcessingState.ALGORITHM_QUEUED, s);
-        s = t.nextProcessingState(s);
-        assertEquals(ProcessingState.ALGORITHM_EXECUTING, s);
-        s = t.nextProcessingState(s);
-        assertEquals(ProcessingState.ALGORITHM_COMPLETE, s);
-        s = t.nextProcessingState(s);
-        assertEquals(ProcessingState.STORING, s);
-        s = t.nextProcessingState(s);
-        assertEquals(ProcessingState.COMPLETE, s);
+        ProcessingState processingState = pipelineModule
+            .nextProcessingState(ProcessingState.INITIALIZING);
+        assertEquals(ProcessingState.MARSHALING, processingState);
+        processingState = pipelineModule.nextProcessingState(processingState);
+        assertEquals(ProcessingState.ALGORITHM_SUBMITTING, processingState);
+        processingState = pipelineModule.nextProcessingState(processingState);
+        assertEquals(ProcessingState.ALGORITHM_QUEUED, processingState);
+        processingState = pipelineModule.nextProcessingState(processingState);
+        assertEquals(ProcessingState.ALGORITHM_EXECUTING, processingState);
+        processingState = pipelineModule.nextProcessingState(processingState);
+        assertEquals(ProcessingState.ALGORITHM_COMPLETE, processingState);
+        processingState = pipelineModule.nextProcessingState(processingState);
+        assertEquals(ProcessingState.STORING, processingState);
+        processingState = pipelineModule.nextProcessingState(processingState);
+        assertEquals(ProcessingState.COMPLETE, processingState);
     }
 
     /**
@@ -151,21 +190,19 @@ public class ExternalProcessPipelineModuleTest {
      */
     @Test(expected = PipelineException.class)
     public void testExceptionFinalState() {
-
-        t.nextProcessingState(ProcessingState.COMPLETE);
+        pipelineModule.nextProcessingState(ProcessingState.COMPLETE);
     }
 
     /**
-     * Tests the initialize() method of ExternalProcessPipelineModule.
+     * Tests the ExternalProcessPipelineModule constructor.
      */
     @Test
-    public void testInitialize() {
-        assertEquals(p, t.pipelineTask());
-        assertEquals(100L, t.taskId());
-        assertEquals(50L, t.instanceId());
-        assertNotNull(t.algorithmManager());
-        assertTrue(t.pipelineInputs() instanceof PipelineInputsSample);
-        assertTrue(t.pipelineOutputs() instanceof PipelineOutputsSample1);
+    public void testConstructor() {
+        assertEquals(100L, pipelineModule.taskId());
+        assertEquals(50L, pipelineModule.instanceId());
+        assertNotNull(pipelineModule.algorithmManager());
+        assertTrue(pipelineModule.pipelineInputs() instanceof PipelineInputsSample);
+        assertTrue(pipelineModule.pipelineOutputs() instanceof PipelineOutputsSample1);
     }
 
     /**
@@ -174,9 +211,11 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessInitialize() {
 
-        t = Mockito.spy(t);
-        t.initializingTaskAction();
-        verify(t).incrementProcessingState();
+        doReturn(ProcessingState.INITIALIZING).when(pipelineModule).databaseProcessingState();
+        pipelineModule.initializingTaskAction();
+        verify(pipelineModule).incrementDatabaseProcessingState();
+        assertFalse(pipelineModule.getDoneLooping());
+        assertFalse(pipelineModule.isProcessingSuccessful());
     }
 
     /**
@@ -188,37 +227,16 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessMarshalingLocal() throws Exception {
 
-        t = spy(t);
-        boolean b = t.processMarshaling();
-        assertFalse(b);
+        doReturn(ProcessingState.MARSHALING).when(pipelineModule).databaseProcessingState();
+        pipelineModule.marshalingTaskAction();
 
-        verify(p).clearProducerTaskIds();
-        verify(t).copyDatastoreFilesToTaskDirectory(eq(ih), eq(p), eq(taskDir));
-        verify(ih).validate();
-        verify(ih).persist(eq(taskDir));
-        verify(t).incrementProcessingState();
-    }
-
-    /**
-     * Tests that the method that processes a task in MARSHALING state performs correctly for remote
-     * processing tasks.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testProcessMarshalingRemote() throws Exception {
-
-        t = spy(t);
-        r.setEnabled(true);
-        when(tal.isRemote()).thenReturn(true);
-        boolean b = t.processMarshaling();
-        assertFalse(b);
-
-        verify(p).clearProducerTaskIds();
-        verify(t).copyDatastoreFilesToTaskDirectory(eq(ih), eq(p), eq(taskDir));
-        verify(ih).validate();
-        verify(ih).persist(eq(taskDir));
-        verify(t).incrementProcessingState();
+        verify(pipelineTask).clearProducerTaskIds();
+        verify(pipelineModule).copyDatastoreFilesToTaskDirectory(eq(taskConfiguration),
+            eq(taskDir));
+        verify(taskConfiguration).serialize(eq(taskDir));
+        verify(pipelineModule).incrementDatabaseProcessingState();
+        assertFalse(pipelineModule.getDoneLooping());
+        assertFalse(pipelineModule.isProcessingSuccessful());
     }
 
     /**
@@ -230,16 +248,17 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessMarshalingNoInputs() throws Exception {
 
-        t = spy(t);
-        when(ih.isEmpty()).thenReturn(true);
-        boolean b = t.processMarshaling();
-        assertTrue(b);
+        doReturn(ProcessingState.MARSHALING).when(pipelineModule).databaseProcessingState();
+        when(taskConfiguration.getSubtaskCount()).thenReturn(0);
+        pipelineModule.marshalingTaskAction();
 
-        verify(p).clearProducerTaskIds();
-        verify(t).copyDatastoreFilesToTaskDirectory(eq(ih), eq(p), eq(taskDir));
-        verify(ih).validate();
-        verify(ih, never()).persist(eq(taskDir));
-        verify(t, never()).incrementProcessingState();
+        verify(pipelineTask).clearProducerTaskIds();
+        verify(pipelineModule).copyDatastoreFilesToTaskDirectory(eq(taskConfiguration),
+            eq(taskDir));
+        verify(taskConfiguration, never()).serialize(eq(taskDir));
+        verify(pipelineModule, never()).incrementDatabaseProcessingState();
+        assertTrue(pipelineModule.getDoneLooping());
+        assertTrue(pipelineModule.isProcessingSuccessful());
     }
 
     /**
@@ -248,24 +267,11 @@ public class ExternalProcessPipelineModuleTest {
     @Test(expected = PipelineException.class)
     public void testProcessMarshalingError1() {
 
-        t = spy(t);
-        doThrow(IllegalStateException.class).when(t)
-            .copyDatastoreFilesToTaskDirectory(eq(ih), eq(p), eq(taskDir));
-        t.processMarshaling();
-    }
-
-    /**
-     * Tests that the correct exception is thrown when a problem arises while trying to commit the
-     * database transaction.
-     *
-     * @throws Exception
-     */
-    @Test(expected = PipelineException.class)
-    public void testProcessMarshalingError2() throws Exception {
-
-        t = spy(t);
-        doThrow(IllegalStateException.class).when(ds).commitTransaction();
-        t.processMarshaling();
+        doReturn(ProcessingState.MARSHALING).when(pipelineModule).databaseProcessingState();
+        pipelineModule.marshalingTaskAction();
+        doThrow(IllegalStateException.class).when(pipelineModule)
+            .copyDatastoreFilesToTaskDirectory(eq(taskConfiguration), eq(taskDir));
+        pipelineModule.marshalingTaskAction();
     }
 
     /**
@@ -276,21 +282,25 @@ public class ExternalProcessPipelineModuleTest {
     public void testProcessAlgorithmExecuting() {
 
         // remote processing
-        t = spy(t);
-        when(tal.isRemote()).thenReturn(true);
-        t.executingTaskAction();
+        doReturn(ProcessingState.ALGORITHM_EXECUTING).when(pipelineModule)
+            .databaseProcessingState();
+        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        pipelineModule.executingTaskAction();
 
-        verify(tal).executeAlgorithm(null);
-        verify(t, never()).incrementProcessingState();
+        verify(taskAlgorithmLifecycle).executeAlgorithm(null);
+        verify(pipelineModule, never()).incrementDatabaseProcessingState();
+        assertTrue(pipelineModule.getDoneLooping());
+        assertFalse(pipelineModule.isProcessingSuccessful());
 
         // local execution
-        when(tal.isRemote()).thenReturn(false);
-        t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        t.executingTaskAction();
+        configurePipelineModule(RunMode.STANDARD);
+        when(taskAlgorithmLifecycle.isRemote()).thenReturn(false);
+        pipelineModule.executingTaskAction();
 
-        verify(tal, times(2)).executeAlgorithm(null);
-        verify(t, never()).incrementProcessingState();
+        verify(taskAlgorithmLifecycle, times(2)).executeAlgorithm(null);
+        verify(pipelineModule, never()).incrementDatabaseProcessingState();
+        assertTrue(pipelineModule.getDoneLooping());
+        assertFalse(pipelineModule.isProcessingSuccessful());
     }
 
     /**
@@ -300,13 +310,13 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessAlgorithmCompleted() {
 
-        t = spy(t);
-        t.algorithmCompleteTaskAction();
-        verify(t).incrementProcessingState();
+        doReturn(ProcessingState.ALGORITHM_COMPLETE).when(pipelineModule).databaseProcessingState();
+        pipelineModule.algorithmCompleteTaskAction();
+        verify(pipelineModule).incrementDatabaseProcessingState();
 
-        when(tal.isRemote()).thenReturn(true);
-        t.algorithmCompleteTaskAction();
-        verify(t, times(2)).incrementProcessingState();
+        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        pipelineModule.algorithmCompleteTaskAction();
+        verify(pipelineModule, times(2)).incrementDatabaseProcessingState();
     }
 
     /**
@@ -315,32 +325,35 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessStoring() {
 
-        t = spy(t);
-        ProcessingFailureSummary f = mock(ProcessingFailureSummary.class);
-        when(f.isAllTasksSucceeded()).thenReturn(true);
-        when(f.isAllTasksFailed()).thenReturn(false);
-        doReturn(0L).when(t).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        doReturn(0L).when(t).timestampFileTimestamp(any(Event.class));
-        doReturn(f).when(t).processingFailureSummary();
+        doReturn(ProcessingState.STORING).when(pipelineModule).databaseProcessingState();
+        ProcessingFailureSummary failureSummary = mock(ProcessingFailureSummary.class);
+        when(failureSummary.isAllTasksSucceeded()).thenReturn(true);
+        when(failureSummary.isAllTasksFailed()).thenReturn(false);
+        doReturn(0L).when(pipelineModule)
+            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        doReturn(0L).when(pipelineModule).timestampFileTimestamp(any(Event.class));
+        doReturn(failureSummary).when(pipelineModule).processingFailureSummary();
 
         // the local version performs relatively limited activities
-        t.storingTaskAction();
-        verify(t, never()).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        verify(t, never()).timestampFileTimestamp(any(Event.class));
-        verify(t, never()).valueMetricAddValue(any(String.class), any(long.class));
-        verify(t).processingFailureSummary();
-        verify(t).persistResultsAndDeleteTempFiles(eq(p), eq(f));
-        verify(t).incrementProcessingState();
+        pipelineModule.storingTaskAction();
+        verify(pipelineModule, never()).timestampFileElapsedTimeMillis(any(Event.class),
+            any(Event.class));
+        verify(pipelineModule, never()).timestampFileTimestamp(any(Event.class));
+        verify(pipelineModule, never()).valueMetricAddValue(any(String.class), any(long.class));
+        verify(pipelineModule).processingFailureSummary();
+        verify(pipelineModule).persistResultsAndUpdateConsumers();
+        verify(pipelineModule).incrementDatabaseProcessingState();
 
         // the remote version does somewhat more
-        when(tal.isRemote()).thenReturn(true);
-        t.storingTaskAction();
-        verify(t, times(3)).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        verify(t).timestampFileTimestamp(any(Event.class));
-        verify(t, times(4)).valueMetricAddValue(any(String.class), any(long.class));
-        verify(t, times(2)).processingFailureSummary();
-        verify(t, times(2)).persistResultsAndDeleteTempFiles(eq(p), eq(f));
-        verify(t, times(2)).incrementProcessingState();
+        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        pipelineModule.storingTaskAction();
+        verify(pipelineModule, times(3)).timestampFileElapsedTimeMillis(any(Event.class),
+            any(Event.class));
+        verify(pipelineModule).timestampFileTimestamp(any(Event.class));
+        verify(pipelineModule, times(4)).valueMetricAddValue(any(String.class), any(long.class));
+        verify(pipelineModule, times(2)).processingFailureSummary();
+        verify(pipelineModule, times(2)).persistResultsAndUpdateConsumers();
+        verify(pipelineModule, times(2)).incrementDatabaseProcessingState();
     }
 
     /**
@@ -350,15 +363,17 @@ public class ExternalProcessPipelineModuleTest {
     @Test(expected = PipelineException.class)
     public void testProcessStoringError() {
 
-        t = spy(t);
-        ProcessingFailureSummary f = mock(ProcessingFailureSummary.class);
-        when(f.isAllTasksSucceeded()).thenReturn(true);
-        when(f.isAllTasksFailed()).thenReturn(false);
-        doReturn(0L).when(t).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        doReturn(0L).when(t).timestampFileTimestamp(any(Event.class));
-        doReturn(f).when(t).processingFailureSummary();
-        doThrow(IllegalStateException.class).when(t).persistResultsAndDeleteTempFiles(eq(p), eq(f));
-        t.storingTaskAction();
+        doReturn(ProcessingState.STORING).when(pipelineModule).databaseProcessingState();
+        ProcessingFailureSummary failureSummary = mock(ProcessingFailureSummary.class);
+        when(failureSummary.isAllTasksSucceeded()).thenReturn(true);
+        when(failureSummary.isAllTasksFailed()).thenReturn(false);
+        doReturn(0L).when(pipelineModule)
+            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        doReturn(0L).when(pipelineModule).timestampFileTimestamp(any(Event.class));
+        doReturn(failureSummary).when(pipelineModule).processingFailureSummary();
+        doThrow(IllegalStateException.class).when(pipelineModule)
+            .persistResultsAndUpdateConsumers();
+        pipelineModule.storingTaskAction();
     }
 
     /**
@@ -367,15 +382,16 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testPartialFailureStoreResults() {
 
-        t = spy(t);
-        ProcessingFailureSummary f = mock(ProcessingFailureSummary.class);
-        when(f.isAllTasksSucceeded()).thenReturn(false);
-        when(f.isAllTasksFailed()).thenReturn(false);
-        doReturn(0L).when(t).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        doReturn(0L).when(t).timestampFileTimestamp(any(Event.class));
-        doReturn(f).when(t).processingFailureSummary();
-        t.storingTaskAction();
-        verify(t).persistResultsAndDeleteTempFiles(eq(p), eq(f));
+        doReturn(ProcessingState.STORING).when(pipelineModule).databaseProcessingState();
+        ProcessingFailureSummary failureSummary = mock(ProcessingFailureSummary.class);
+        when(failureSummary.isAllTasksSucceeded()).thenReturn(false);
+        when(failureSummary.isAllTasksFailed()).thenReturn(false);
+        doReturn(0L).when(pipelineModule)
+            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        doReturn(0L).when(pipelineModule).timestampFileTimestamp(any(Event.class));
+        doReturn(failureSummary).when(pipelineModule).processingFailureSummary();
+        pipelineModule.storingTaskAction();
+        verify(pipelineModule).persistResultsAndUpdateConsumers();
     }
 
     /**
@@ -385,15 +401,16 @@ public class ExternalProcessPipelineModuleTest {
     @Test(expected = PipelineException.class)
     public void testPartialFailureThrowException() {
 
-        System.setProperty(PropertyName.ALLOW_PARTIAL_TASKS.property(), "false");
-        t = spy(t);
-        ProcessingFailureSummary f = mock(ProcessingFailureSummary.class);
-        when(f.isAllTasksSucceeded()).thenReturn(false);
-        when(f.isAllTasksFailed()).thenReturn(false);
-        doReturn(0L).when(t).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        doReturn(0L).when(t).timestampFileTimestamp(any(Event.class));
-        doReturn(f).when(t).processingFailureSummary();
-        t.storingTaskAction();
+        piWorkerAllowPartialTasksPropertyRule.setValue("false");
+        doReturn(ProcessingState.STORING).when(pipelineModule).databaseProcessingState();
+        ProcessingFailureSummary failureSummary = mock(ProcessingFailureSummary.class);
+        when(failureSummary.isAllTasksSucceeded()).thenReturn(false);
+        when(failureSummary.isAllTasksFailed()).thenReturn(false);
+        doReturn(0L).when(pipelineModule)
+            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        doReturn(0L).when(pipelineModule).timestampFileTimestamp(any(Event.class));
+        doReturn(failureSummary).when(pipelineModule).processingFailureSummary();
+        pipelineModule.storingTaskAction();
     }
 
     /**
@@ -402,14 +419,15 @@ public class ExternalProcessPipelineModuleTest {
     @Test(expected = PipelineException.class)
     public void testTotalFailureThrowsException() {
 
-        t = spy(t);
-        ProcessingFailureSummary f = mock(ProcessingFailureSummary.class);
-        when(f.isAllTasksSucceeded()).thenReturn(false);
-        when(f.isAllTasksFailed()).thenReturn(true);
-        doReturn(0L).when(t).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        doReturn(0L).when(t).timestampFileTimestamp(any(Event.class));
-        doReturn(f).when(t).processingFailureSummary();
-        t.storingTaskAction();
+        doReturn(ProcessingState.STORING).when(pipelineModule).databaseProcessingState();
+        ProcessingFailureSummary failureSummary = mock(ProcessingFailureSummary.class);
+        when(failureSummary.isAllTasksSucceeded()).thenReturn(false);
+        when(failureSummary.isAllTasksFailed()).thenReturn(true);
+        doReturn(0L).when(pipelineModule)
+            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        doReturn(0L).when(pipelineModule).timestampFileTimestamp(any(Event.class));
+        doReturn(failureSummary).when(pipelineModule).processingFailureSummary();
+        pipelineModule.storingTaskAction();
     }
 
     /**
@@ -419,27 +437,38 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessingMainLoopLocalTask1() {
 
-        // create the pipeline module and its database
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
+        when(taskConfiguration.getSubtaskCount()).thenReturn(5);
 
         // setup mocking
-
-        mockForLoopTest(t, tal, true, false);
+        mockForLoopTest(true, false);
 
         // do the loop method
-        t.processingMainLoop();
+        pipelineModule.processingMainLoop();
 
         // check that everything we wanted to happen, happened
-        assertFalse(t.isProcessingSuccessful());
-        verify(t).initializingTaskAction();
-        verify(t).marshalingTaskAction();
-        verify(t).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.ALGORITHM_SUBMITTING, t.getProcessingState());
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).initializingTaskAction();
+        verify(pipelineModule).marshalingTaskAction();
+        verify(pipelineModule).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.ALGORITHM_SUBMITTING,
+            pipelineModule.databaseProcessingState());
+    }
+
+    private void configureDatabaseProcessingStates() {
+        // Note that getProcessingState() is called twice during normal operations:
+        // once in ExternalProcessPipelineModule, once in ProcessingStatePipelineModule.
+        doReturn(ProcessingState.INITIALIZING, ProcessingState.INITIALIZING,
+            ProcessingState.MARSHALING, ProcessingState.MARSHALING,
+            ProcessingState.ALGORITHM_SUBMITTING, ProcessingState.ALGORITHM_SUBMITTING,
+            ProcessingState.ALGORITHM_QUEUED, ProcessingState.ALGORITHM_QUEUED,
+            ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
     }
 
     /**
@@ -449,29 +478,26 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessingMainLoopLocalTask2() {
 
-        // create the pipeline module and its database
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        t.setInitialProcessingState(ProcessingState.ALGORITHM_COMPLETE);
+        doReturn(ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
 
         // setup mocking
-
-        mockForLoopTest(t, tal, true, false);
+        mockForLoopTest(true, false);
 
         // do the loop method
-        t.processingMainLoop();
+        pipelineModule.processingMainLoop();
 
         // check that everything we wanted to happen, happened
-        assertTrue(t.isProcessingSuccessful());
-        // verify(t, times(5)).getProcessingState();
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t).algorithmCompleteTaskAction();
-        verify(t).storingTaskAction();
-        assertEquals(ProcessingState.COMPLETE, t.getProcessingState());
+        assertTrue(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule).algorithmCompleteTaskAction();
+        verify(pipelineModule).storingTaskAction();
+        assertEquals(ProcessingState.COMPLETE, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -481,29 +507,25 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessingMainLoopRemote1() {
 
-        // create the pipeline module and its database
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-
         // setup mocking
-
-        mockForLoopTest(t, tal, true, true);
+        mockForLoopTest(true, true);
 
         // do the loop method
-        t.processingMainLoop();
+        pipelineModule.processingMainLoop();
 
         // check that everything we wanted to happen, happened
-        assertFalse(t.isProcessingSuccessful());
-        verify(t, times(5)).getProcessingState();
-        verify(t, times(2)).incrementProcessingState();
-        verify(t).initializingTaskAction();
-        verify(t).marshalingTaskAction();
-        verify(t).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.ALGORITHM_SUBMITTING, t.getProcessingState());
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule, times(5)).databaseProcessingState();
+        verify(pipelineModule, times(2)).incrementDatabaseProcessingState();
+        verify(pipelineModule).initializingTaskAction();
+        verify(pipelineModule).marshalingTaskAction();
+        verify(pipelineModule).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.ALGORITHM_SUBMITTING,
+            pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -513,33 +535,28 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessingMainLoopRemote2() {
 
-        // create the pipeline module and its database
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
+        doReturn(ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
 
         // setup mocking
-
-        mockForLoopTest(t, tal, true, true);
-
-        // set up the state so it's at ALGORITHM_COMPLETE, the point at which the remote
-        // system hands execution back to the local one
-        t.setInitialProcessingState(ProcessingState.ALGORITHM_COMPLETE);
+        mockForLoopTest(true, true);
 
         // do the loop method
-        t.processingMainLoop();
+        pipelineModule.processingMainLoop();
 
         // check that everything we wanted to happen, happened
-        assertTrue(t.isProcessingSuccessful());
-        verify(t, times(4)).getProcessingState();
-        verify(t, times(2)).incrementProcessingState();
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t).algorithmCompleteTaskAction();
-        verify(t).storingTaskAction();
-        assertEquals(ProcessingState.COMPLETE, t.getProcessingState());
+        assertTrue(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule, times(4)).databaseProcessingState();
+        verify(pipelineModule, times(2)).incrementDatabaseProcessingState();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule).algorithmCompleteTaskAction();
+        verify(pipelineModule).storingTaskAction();
+        assertEquals(ProcessingState.COMPLETE, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -549,32 +566,30 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessingMainLoopRestart1() {
 
-        // create the pipeline module and its database
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
+        // Note that getProcessingState() is called twice during normal operations:
+        // once in ExternalProcessPipelineModule, once in ProcessingStatePipelineModule.
+        doReturn(ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
 
         // setup mocking
-
-        mockForLoopTest(t, tal, true, false);
-
-        // put the state to ALGORITHM_EXECUTING (emulates a restart after
-        // the task failed in the middle of running)
-        t.setInitialProcessingState(ProcessingState.ALGORITHM_EXECUTING);
+        mockForLoopTest(true, false);
 
         // do the loop method
-        t.processingMainLoop();
+        pipelineModule.processingMainLoop();
 
         // check that everything we wanted to happen, happened
-        assertFalse(t.isProcessingSuccessful());
-        verify(t, times(1)).getProcessingState();
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.ALGORITHM_EXECUTING, t.getProcessingState());
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule, times(1)).databaseProcessingState();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.ALGORITHM_EXECUTING, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -584,32 +599,31 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessingMainLoopRestart2() {
 
-        // create the pipeline module and its database
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
+        // Note that getProcessingState() is called twice during normal operations:
+        // once in ExternalProcessPipelineModule, once in ProcessingStatePipelineModule.
+        doReturn(ProcessingState.ALGORITHM_QUEUED, ProcessingState.ALGORITHM_QUEUED,
+            ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
 
         // setup mocking
-
-        mockForLoopTest(t, tal, true, true);
-
-        // put the state to ALGORITHM_EXECUTING (emulates a restart after
-        // the task failed in the middle of running)
-        t.setInitialProcessingState(ProcessingState.ALGORITHM_QUEUED);
+        mockForLoopTest(true, true);
 
         // do the loop method
-        t.processingMainLoop();
+        pipelineModule.processingMainLoop();
 
         // check that everything we wanted to happen, happened
-        assertFalse(t.isProcessingSuccessful());
-        verify(t, times(1)).getProcessingState();
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.ALGORITHM_QUEUED, t.getProcessingState());
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule, times(1)).databaseProcessingState();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.ALGORITHM_QUEUED, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -618,29 +632,25 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testProcessingMainLoopNoTaskDirs() {
 
-        // create the pipeline module and its database
-        TestPipelineModule t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
+        when(taskConfiguration.getSubtaskCount()).thenReturn(0);
 
         // setup mocking
-
-        mockForLoopTest(t, tal, false, false);
+        mockForLoopTest(false, false);
 
         // do the loop method
-        t.processingMainLoop();
+        pipelineModule.processingMainLoop();
 
         // check that everything we wanted to happen, happened
-        assertFalse(t.isProcessingSuccessful());
-        verify(t, times(4)).getProcessingState();
-        verify(t, times(2)).incrementProcessingState();
-        verify(t).initializingTaskAction();
-        verify(t).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
+        assertTrue(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).initializingTaskAction();
+        verify(pipelineModule).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        verify(pipelineModule, times(3)).databaseProcessingState();
+        verify(pipelineModule, times(1)).incrementDatabaseProcessingState();
     }
 
     /**
@@ -650,24 +660,20 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltInitialize() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT.property(), "I");
-        // Set up mockery and states as though to run the main loop for local processing
-        t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
+        doReturn("I").when(pipelineModule).haltStep();
         PipelineException exception = assertThrows(PipelineException.class,
-            () -> t.processingMainLoop());
+            () -> pipelineModule.processingMainLoop());
         assertEquals(
             "Halting processing at end of step INITIALIZING due to configuration request for halt after step I",
             exception.getMessage());
-        verify(t).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.INITIALIZING, t.getProcessingState());
+        verify(pipelineModule).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.INITIALIZING, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -677,24 +683,20 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltMarshaling() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT.property(), "M");
-        // Set up mockery and states as though to run the main loop for local processing
-        t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
+        doReturn("M").when(pipelineModule).haltStep();
         PipelineException exception = assertThrows(PipelineException.class,
-            () -> t.processingMainLoop());
+            () -> pipelineModule.processingMainLoop());
         assertEquals(
             "Halting processing at end of step MARSHALING due to configuration request for halt after step M",
             exception.getMessage());
-        verify(t).initializingTaskAction();
-        verify(t).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.MARSHALING, t.getProcessingState());
+        verify(pipelineModule).initializingTaskAction();
+        verify(pipelineModule).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.MARSHALING, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -703,26 +705,26 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testHaltAlgorithmComplete() {
 
+        doReturn(ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
+
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT.property(), "Ac");
-        // Set up mockery and states as though to run the main loop for local processing
-        t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        t.tdb.setPState(ProcessingState.ALGORITHM_COMPLETE);
-        when(t.algorithmManager()).thenReturn(tal);
+        doReturn("Ac").when(pipelineModule).haltStep();
+
         PipelineException exception = assertThrows(PipelineException.class,
-            () -> t.processingMainLoop());
+            () -> pipelineModule.processingMainLoop());
         assertEquals(
             "Halting processing at end of step ALGORITHM_COMPLETE due to configuration request for halt after step Ac",
             exception.getMessage());
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.ALGORITHM_COMPLETE, t.getProcessingState());
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.ALGORITHM_COMPLETE, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -731,24 +733,24 @@ public class ExternalProcessPipelineModuleTest {
     @Test
     public void testHaltStoring() {
 
+        doReturn(ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
+
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT.property(), "S");
-        // Set up mockery and states as though to run the main loop for local processing
-        t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        t.tdb.setPState(ProcessingState.ALGORITHM_COMPLETE);
-        when(t.algorithmManager()).thenReturn(tal);
+        doReturn("S").when(pipelineModule).haltStep();
+
         PipelineException exception = assertThrows(PipelineException.class,
-            () -> t.processingMainLoop());
+            () -> pipelineModule.processingMainLoop());
         assertEquals("Unable to persist due to sub-task failures", exception.getMessage());
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t).algorithmCompleteTaskAction();
-        verify(t).storingTaskAction();
-        assertEquals(ProcessingState.STORING, t.getProcessingState());
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule).algorithmCompleteTaskAction();
+        verify(pipelineModule).storingTaskAction();
+        assertEquals(ProcessingState.STORING, pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -758,55 +760,22 @@ public class ExternalProcessPipelineModuleTest {
     public void testHaltAlgorithmSubmitting() {
 
         // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT.property(), "As");
-        // Set up mockery and states as though to run the main loop for local processing
-        t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        mockForLoopTest(t, tal, true, true);
-        t.setInitialProcessingState(ProcessingState.ALGORITHM_SUBMITTING);
+        doReturn("As").when(pipelineModule).haltStep();
+        mockForLoopTest(true, true);
         PipelineException exception = assertThrows(PipelineException.class,
-            () -> t.processingMainLoop());
+            () -> pipelineModule.processingMainLoop());
         assertEquals(
             "Halting processing at end of step ALGORITHM_SUBMITTING due to configuration request for halt after step As",
             exception.getMessage());
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t).submittingTaskAction();
-        verify(t, never()).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.ALGORITHM_SUBMITTING, t.getProcessingState());
-    }
-
-    /**
-     * Tests that processing halts at the end of ALGORITHM_QUEUED when required.
-     */
-    @Test
-    public void testHaltAlgorithmQueued() {
-
-        // Set the desired stopping point
-        System.setProperty(PIPELINE_HALT.property(), "Aq");
-        // Set up mockery and states as though to run the main loop for local processing
-        t = new TestPipelineModule(p, RunMode.STANDARD);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        mockForLoopTest(t, tal, true, true);
-        t.setInitialProcessingState(ProcessingState.ALGORITHM_QUEUED);
-        PipelineException exception = assertThrows(PipelineException.class,
-            () -> t.processingMainLoop());
-        assertEquals(
-            "Halting processing at end of step ALGORITHM_QUEUED due to configuration request for halt after step Aq",
-            exception.getMessage());
-        verify(t, never()).initializingTaskAction();
-        verify(t, never()).marshalingTaskAction();
-        verify(t, never()).submittingTaskAction();
-        verify(t).queuedTaskAction();
-        verify(t, never()).executingTaskAction();
-        verify(t, never()).algorithmCompleteTaskAction();
-        verify(t, never()).storingTaskAction();
-        assertEquals(ProcessingState.ALGORITHM_QUEUED, t.getProcessingState());
+        verify(pipelineModule).initializingTaskAction();
+        verify(pipelineModule).marshalingTaskAction();
+        verify(pipelineModule).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        assertEquals(ProcessingState.ALGORITHM_SUBMITTING,
+            pipelineModule.databaseProcessingState());
     }
 
     /**
@@ -817,269 +786,186 @@ public class ExternalProcessPipelineModuleTest {
      * @param successfulMarshaling
      * @param remote
      */
-    private void mockForLoopTest(TestPipelineModule t, TestAlgorithmLifecycle tal,
-        boolean successfulMarshaling, boolean remote) {
+    private void mockForLoopTest(boolean successfulMarshaling, boolean remote) {
 
-        t.setDoneLoopingValue(!successfulMarshaling);
-        ProcessingFailureSummary f = mock(ProcessingFailureSummary.class);
-        when(f.isAllTasksSucceeded()).thenReturn(true);
-        when(f.isAllTasksFailed()).thenReturn(false);
-        doReturn(0L).when(t).timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        doReturn(0L).when(t).timestampFileTimestamp(any(Event.class));
-        doReturn(f).when(t).processingFailureSummary();
+        ProcessingFailureSummary failureSummary = mock(ProcessingFailureSummary.class);
+        when(failureSummary.isAllTasksSucceeded()).thenReturn(true);
+        when(failureSummary.isAllTasksFailed()).thenReturn(false);
+        doReturn(0L).when(pipelineModule)
+            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        doReturn(0L).when(pipelineModule).timestampFileTimestamp(any(Event.class));
+        doReturn(failureSummary).when(pipelineModule).processingFailureSummary();
 
         // mock the algorithm lifecycle manager's isRemote() call
-        when(tal.isRemote()).thenReturn(remote);
+        when(taskAlgorithmLifecycle.isRemote()).thenReturn(remote);
     }
 
-    /**
-     * Tests that the processRestart() method performs the correct actions.
-     */
+    /** Tests restart from beginning. */
     @Test
-    public void testProcessRestart() {
+    public void testRestartFromBeginning() {
+        configurePipelineModule(RunMode.RESTART_FROM_BEGINNING);
+        pipelineModule.processTask();
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).processingMainLoop();
+        verify(pipelineModule).initializingTaskAction();
+        verify(pipelineModule).marshalingTaskAction();
+        verify(pipelineModule).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        verify(pipelineModule, never()).processingCompleteTaskAction();
+        verify(processingSummaryOperations).updateProcessingState(eq(100L),
+            eq(ProcessingState.ALGORITHM_SUBMITTING));
+    }
 
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        when(t.processingSummaryOperations()).thenReturn(a);
-        doNothing().when(a).updateProcessingState(eq(100L), any(ProcessingState.class));
+    /** Tests a resubmit for a local-execution task. */
+    @Test
+    public void testResubmitLocalTask() {
+        configurePipelineModule(RunMode.RESUBMIT);
+        doReturn(ProcessingState.ALGORITHM_SUBMITTING, ProcessingState.ALGORITHM_SUBMITTING,
+            ProcessingState.ALGORITHM_QUEUED, ProcessingState.ALGORITHM_QUEUED,
+            ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
+        pipelineModule.processTask();
+        verify(processingSummaryOperations).updateProcessingState(eq(100L),
+            eq(ProcessingState.ALGORITHM_SUBMITTING));
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).processingMainLoop();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        verify(pipelineModule, never()).processingCompleteTaskAction();
+        verify(processingSummaryOperations).updateProcessingState(eq(100L),
+            any(ProcessingState.class));
+    }
 
-        // restart from beginning
-        t = new TestPipelineModule(p, RunMode.RESTART_FROM_BEGINNING, true);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        when(t.processingSummaryOperations()).thenReturn(a);
-        t.processTask();
-        assertTrue(t.isProcessingSuccessful());
-        verify(t).processingMainLoop();
-        verify(a).updateProcessingState(eq(100L), eq(ProcessingState.INITIALIZING));
+    /** Tests a resubmit for a remote execution task. */
+    @Test
+    public void testResubmitRemoteTask() {
+        configurePipelineModule(RunMode.RESUBMIT);
+        doReturn(ProcessingState.ALGORITHM_SUBMITTING, ProcessingState.ALGORITHM_SUBMITTING,
+            ProcessingState.ALGORITHM_QUEUED, ProcessingState.ALGORITHM_QUEUED,
+            ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
+        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        pipelineModule.processTask();
+        verify(processingSummaryOperations).updateProcessingState(eq(100L),
+            eq(ProcessingState.ALGORITHM_SUBMITTING));
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).processingMainLoop();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        verify(pipelineModule, never()).processingCompleteTaskAction();
+    }
+
+    @Test
+    public void testResumeMonitoring() {
+        configurePipelineModule(RunMode.RESUME_MONITORING);
+        doReturn(ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
+        pipelineModule.processTask();
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(algorithmExecutor).resumeMonitoring();
+        verify(pipelineModule, never()).processingMainLoop();
+        verify(pipelineModule, never()).incrementDatabaseProcessingState();
+        verify(pipelineModule, never()).databaseProcessingState();
+    }
+
+    /** Test resumption of the marshaling step. */
+    @Test
+    public void testResumeMarshaling() {
 
         // resume current step
-        t = new TestPipelineModule(p, RunMode.RESUME_CURRENT_STEP, true);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        when(t.processingSummaryOperations()).thenReturn(a);
-        t.processTask();
-        assertTrue(t.isProcessingSuccessful());
-        verify(a).updateProcessingState(eq(100L), any(ProcessingState.class));
-        verify(t).processingMainLoop();
-
-        // resubmit to PBS -- this is a local task, so nothing at all should happen
-        t = new TestPipelineModule(p, RunMode.RESUBMIT, true);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        when(t.processingSummaryOperations()).thenReturn(a);
-        t.processTask();
-        assertTrue(t.isProcessingSuccessful());
-        verify(a, times(2)).updateProcessingState(eq(100L), any(ProcessingState.class));
-        verify(t).processingMainLoop();
-
-        // resubmit to PBS for a remote task
-        when(tal.isRemote()).thenReturn(true);
-        t.processTask();
-        assertTrue(t.isProcessingSuccessful());
-        verify(a, times(3)).updateProcessingState(eq(100L), any(ProcessingState.class));
-        verify(a, times(2)).updateProcessingState(eq(100L),
+        configurePipelineModule(RunMode.RESUME_CURRENT_STEP);
+        doReturn(ProcessingState.MARSHALING, ProcessingState.MARSHALING,
+            ProcessingState.ALGORITHM_SUBMITTING, ProcessingState.ALGORITHM_SUBMITTING,
+            ProcessingState.ALGORITHM_QUEUED, ProcessingState.ALGORITHM_QUEUED,
+            ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
+        pipelineModule.processTask();
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).processingMainLoop();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule).marshalingTaskAction();
+        verify(pipelineModule).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        verify(pipelineModule, never()).processingCompleteTaskAction();
+        verify(processingSummaryOperations).updateProcessingState(eq(100L),
             eq(ProcessingState.ALGORITHM_SUBMITTING));
-        verify(t, times(2)).processingMainLoop();
+    }
 
-        // restart PBS monitoring
-        t = new TestPipelineModule(p, RunMode.RESUME_MONITORING, true);
-        t = spy(t);
-        when(t.algorithmManager()).thenReturn(tal);
-        when(t.processingSummaryOperations()).thenReturn(a);
-        when(tal.isRemote()).thenReturn(true);
-        t.processTask();
-        assertFalse(t.isProcessingSuccessful());
-        verify(a, times(3)).updateProcessingState(eq(100L), any(ProcessingState.class));
-        verify(a, times(2)).updateProcessingState(eq(100L),
-            eq(ProcessingState.ALGORITHM_SUBMITTING));
-        verify(t, never()).processingMainLoop();
-        verify(ae).resumeMonitoring();
+    /** Test resumption of algorithm execution. */
+    @Test
+    public void testResumeAlgorithmExecuting() {
+        configurePipelineModule(RunMode.RESUME_CURRENT_STEP);
+        doReturn(ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_EXECUTING,
+            ProcessingState.ALGORITHM_COMPLETE, ProcessingState.ALGORITHM_COMPLETE,
+            ProcessingState.STORING, ProcessingState.STORING, ProcessingState.COMPLETE,
+            ProcessingState.COMPLETE).when(pipelineModule).databaseProcessingState();
+        pipelineModule.processTask();
+        assertFalse(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).processingMainLoop();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule).executingTaskAction();
+        verify(pipelineModule, never()).algorithmCompleteTaskAction();
+        verify(pipelineModule, never()).storingTaskAction();
+        verify(pipelineModule, never()).processingCompleteTaskAction();
+        verify(processingSummaryOperations, never()).updateProcessingState(eq(100L),
+            eq(ProcessingState.ALGORITHM_EXECUTING));
+    }
+
+    @Test
+    public void testResumeAlgorithmComplete() {
+        mockForLoopTest(false, true);
+        configurePipelineModule(RunMode.RESUME_CURRENT_STEP);
+        doReturn(ProcessingState.ALGORITHM_COMPLETE, ProcessingState.STORING,
+            ProcessingState.STORING, ProcessingState.COMPLETE, ProcessingState.COMPLETE)
+                .when(pipelineModule)
+                .databaseProcessingState();
+        doNothing().when(pipelineModule).storingTaskAction();
+        pipelineModule.processTask();
+        assertTrue(pipelineModule.isProcessingSuccessful());
+        verify(pipelineModule).processingMainLoop();
+        verify(pipelineModule, never()).initializingTaskAction();
+        verify(pipelineModule, never()).marshalingTaskAction();
+        verify(pipelineModule, never()).submittingTaskAction();
+        verify(pipelineModule, never()).queuedTaskAction();
+        verify(pipelineModule, never()).executingTaskAction();
+        verify(pipelineModule).algorithmCompleteTaskAction();
+        verify(pipelineModule).storingTaskAction();
+        verify(pipelineModule).processingCompleteTaskAction();
+        verify(processingSummaryOperations).updateProcessingState(eq(100L),
+            eq(ProcessingState.COMPLETE));
     }
 
     @Test
     public void testProcessTask() {
-
-        t = new TestPipelineModule(p, RunMode.STANDARD, true);
-        t = spy(t);
-
-        boolean b = t.processTask();
-        assertTrue(b);
-        verify(t).processingMainLoop();
-
-        t = new TestPipelineModule(p, RunMode.RESUBMIT, true);
-        t = spy(t);
-        when(tal.isRemote()).thenReturn(true);
-        b = t.processTask();
-        assertTrue(b);
-        verify(t).processingMainLoop();
-        verify(t).resubmit();
-    }
-
-    /**
-     * Stubbed implementation of the ExternalProcessPipelineModule abstract class for test purposes.
-     * In addition to stubbing the methods that are actually used in normal processing (specifically
-     * generateInputs(), outputsClass(), processOutputs(), getModuleName(), unitOfWorkTaskType()),
-     * several additional methods are overridden: in some cases they are set up to return mocked
-     * objects, in other cases they support use of the TestAttributesDatabase in place of a real
-     * database.
-     *
-     * @author PT
-     */
-    public class TestPipelineModule extends ExternalProcessPipelineModule {
-
-        public TestAttributesDatabase tdb = new TestAttributesDatabase();
-        public Boolean marshalingReturn = null;
-        public Boolean processingLoopSuccessState = null;
-
-        public TestPipelineModule(PipelineTask p, RunMode r) {
-            super(p, r);
-        }
-
-        public TestPipelineModule(PipelineTask p, RunMode r, boolean processingLoopSuccessState) {
-            this(p, r);
-            this.processingLoopSuccessState = processingLoopSuccessState;
-        }
-
-        @Override
-        public ProcessingSummaryOperations processingSummaryOperations() {
-            return a;
-        }
-
-        @Override
-        PipelineTaskCrud pipelineTaskCrud() {
-            return c;
-        }
-
-        @Override
-        TaskConfigurationManager taskConfigurationManager() {
-            return ih;
-        }
-
-        @Override
-        public AlgorithmLifecycle algorithmManager() {
-            return tal;
-        }
-
-        @Override
-        StateFile generateStateFile() {
-            return new StateFile();
-        }
-
-        @Override
-        public ProcessingState getProcessingState() {
-            return tdb.getPState();
-        }
-
-        @Override
-        public void incrementProcessingState() {
-            tdb.setPState(nextProcessingState(getProcessingState()));
-        }
-
-        void setInitialProcessingState(ProcessingState pState) {
-            tdb.setPState(pState);
-        }
-
-        @Override
-        long timestampFileElapsedTimeMillis(TimestampFile.Event startEvent,
-            TimestampFile.Event finishEvent) {
-            return 0L;
-        }
-
-        @Override
-        long timestampFileTimestamp(TimestampFile.Event event) {
-            return 0L;
-        }
-
-        @Override
-        public void marshalingTaskAction() {
-            super.marshalingTaskAction();
-            boolean doneLooping = marshalingReturn == null ? getDoneLooping() : marshalingReturn;
-            setDoneLooping(doneLooping);
-        }
-
-        // For some reason attempting to use Mockito to return the value required for the
-        // test is not working, so we'll handle it this way:
-        boolean processMarshaling() {
-            super.marshalingTaskAction();
-            return getDoneLooping();
-        }
-
-        void setDoneLoopingValue(boolean v) {
-            marshalingReturn = v;
-        }
-
-        // Allows the processing main loop to either run normally or else skip execution
-        // and simply set its return value, depending on context
-        @Override
-        public void processingMainLoop() {
-            if (processingLoopSuccessState != null) {
-                processingSuccessful = processingLoopSuccessState;
-                return;
-            }
-            super.processingMainLoop();
-        }
-
-        public PipelineTask pipelineTask() {
-            return pipelineTask;
-        }
-
-        @Override
-        DatastoreProducerConsumerCrud datastoreProducerConsumerCrud() {
-            return dpcc;
-        }
-    }
-
-    /**
-     * Stubbed implementation of AlgorithmLifecycle interface for use in testing.
-     *
-     * @author PT
-     */
-    class TestAlgorithmLifecycle implements AlgorithmLifecycle {
-
-        @Override
-        public File getTaskDir(boolean cleanExisting) {
-            return null;
-        }
-
-        @Override
-        public void executeAlgorithm(TaskConfigurationManager inputs) {
-        }
-
-        @Override
-        public void doPostProcessing() {
-        }
-
-        @Override
-        public boolean isRemote() {
-            return false;
-        }
-
-        @Override
-        public AlgorithmExecutor getExecutor() {
-            return ae;
-        }
-    }
-
-    /**
-     * Emulates the database that contains the processing state for pipeline tasks.
-     *
-     * @author PT
-     */
-    class TestAttributesDatabase {
-
-        private ProcessingState pState = null;
-
-        public TestAttributesDatabase() {
-            pState = ProcessingState.INITIALIZING;
-        }
-
-        public ProcessingState getPState() {
-            return pState;
-        }
-
-        public void setPState(ProcessingState pState) {
-            this.pState = pState;
-        }
+        boolean b = pipelineModule.processTask();
+        assertFalse(b);
+        verify(pipelineModule).processingMainLoop();
     }
 }

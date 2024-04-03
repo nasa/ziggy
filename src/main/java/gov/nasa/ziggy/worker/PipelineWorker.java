@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -45,18 +45,15 @@ import gov.nasa.ziggy.module.ModuleFatalProcessingException;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.config.PropertyName;
-import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
 import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
-import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager;
+import gov.nasa.ziggy.services.messaging.HeartbeatManager;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
-import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
 import gov.nasa.ziggy.services.process.AbstractPipelineProcess;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.supervisor.TaskRequestHandler;
@@ -145,15 +142,11 @@ public class PipelineWorker extends AbstractPipelineProcess {
 
         // Initialize the ProcessHeartbeatManager for this process.
         log.info("Initializing ProcessHeartbeatManager...");
-        ProcessHeartbeatManager
-            .initializeInstance(new ProcessHeartbeatManager.WorkerHeartbeatManagerAssistant());
+        HeartbeatManager.startInstance();
         log.info("Initializing ProcessHeartbeatManager...done");
 
         // Initialize the UiCommunicator for this process.
-        int rmiPort = ZiggyConfiguration.getInstance()
-            .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
-        log.info("Starting ZiggyRmiClient instance with registry on port " + rmiPort + "...");
-        ZiggyRmiClient.initializeInstance(rmiPort, NAME);
+        ZiggyRmiClient.start(NAME);
         ZiggyShutdownHook.addShutdownHook(() -> {
 
             // Note that we need to wait for the final status message to get sent
@@ -167,7 +160,6 @@ public class PipelineWorker extends AbstractPipelineProcess {
             }
             ZiggyRmiClient.reset();
         });
-        log.info("Starting ZiggyRmiClient instance ... done");
 
         // Subscribe to messages as needed.
         subscribe();

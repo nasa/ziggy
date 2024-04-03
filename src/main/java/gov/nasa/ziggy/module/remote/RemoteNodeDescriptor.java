@@ -4,60 +4,76 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
  * Defines the architectures of remote nodes that can be used for Ziggy batch jobs.
  */
 public enum RemoteNodeDescriptor {
 
-    // Cost factors for the NAS systems are the SBU2 factors
+    // Cost factors for the NAS systems are the SBU2 factors.
+    // Costs effective 2018-10-01 are listed at:
+    // https://www.nas.nasa.gov/hecc/support/kb/news/new-standard-billing-unit-(sbu)-rates-effective-october-1_443.html
+    // Check for updates in the news at:
+    // https://www.nas.nasa.gov/hecc/support/kb/search/?s=1&sb=&q=+Standard+Billing+Unit++Rates&in=news&by=all&period=all&pv=u&date_from=20240111&is_from=1&date_to=20240111&is_to=1
+
     /** Specifies that any architecture may be used. */
     ANY,
 
     /**
      * The Sandy Bridge architecture. See <a href=
-     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-sandy-bridge-nodes_322.html"
-     * >Preparing to Run on Pleiades Sandy Bridge Nodes</a>.
+     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-sandy-bridge-nodes_322.html">
+     * Preparing to Run on Pleiades Sandy Bridge Nodes</a>.
      */
     SANDY_BRIDGE("san", 16, 16, 2, 0.47, SupportedRemoteClusters.NAS),
 
     /**
      * The Ivy Bridge architecture. See <a href=
-     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-ivy-bridge-nodes_446.html"
-     * >Preparing to Run on Pleiades Ivy Bridge Nodes</a>.
+     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-ivy-bridge-nodes_446.html">
+     * Preparing to Run on Pleiades Ivy Bridge Nodes</a>.
      */
     IVY_BRIDGE("ivy", 20, 20, 3.2, 0.66, SupportedRemoteClusters.NAS),
 
     /**
      * The Broadwell architecture. See <a href=
-     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-broadwell-nodes_530.html"
-     * >Preparing to Run on Pleiades Broadwell nodes</a>.
+     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-broadwell-nodes_530.html">
+     * Preparing to Run on Pleiades Broadwell nodes</a>.
      */
     BROADWELL("bro", 28, 28, 4.57, 1.00, SupportedRemoteClusters.NAS),
 
     /**
      * The Haswell architecture. See <a href=
-     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-haswell-nodes_491.html"
-     * >Preparing to Run on Pleiades Haswell Nodes</a>.
+     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-pleiades-haswell-nodes_491.html">
+     * Preparing to Run on Pleiades Haswell Nodes</a>.
      */
     HASWELL("has", 24, 24, 5.33, 0.80, SupportedRemoteClusters.NAS),
 
     /**
      * The Skylake architecture. See <a href=
-     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-electra-skylake-nodes_551.html"
-     * >Preparing to Run on Electra Skylake nodes</a>.
+     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-electra-skylake-nodes_551.html">
+     * Preparing to Run on Electra Skylake nodes</a>.
      */
     SKYLAKE("sky_ele", 40, 40, 4.8, 1.59, SupportedRemoteClusters.NAS),
 
-    CASCADE_LAKE("cas_ait", 40, 40, 4.0, 1.64, SupportedRemoteClusters.NAS),
+    /**
+     * The Cascade architecture. See <a href=
+     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-aitken-cascade-lake-nodes_597.html">
+     * Preparing to Run on Aitken Cascade Lake Nodes</a>.
+     */
+    CASCADE_LAKE("cas_ait", 40, 40, 4.8, 1.64, SupportedRemoteClusters.NAS),
 
+    /**
+     * The Rome architecture. See <a href=
+     * "https://www.nas.nasa.gov/hecc/support/kb/preparing-to-run-on-aitken-rome-nodes_657.html">
+     * Preparing to Run on Aitken Rome Nodes</a>.
+     */
     ROME("rom_ait", 128, 128, 4.0, 4.06, SupportedRemoteClusters.NAS),
 
     // Cost factors for AWS architectures is based on the actual cost in $/hour for the
     // least expensive node in each family (i.e., the one with the number of cores shown
     // in the min cores for that architecture), EBS only storage, and up to 10 gigabit
     // network bandwidth
+
     /**
      * AWS C5 architecture. This is the one with the smallest ratio of RAM per core.
      */
@@ -304,6 +320,6 @@ public enum RemoteNodeDescriptor {
 
     @Override
     public String toString() {
-        return StringUtils.constantToCamelWithSpaces(super.toString());
+        return ZiggyStringUtils.constantToCamelWithSpaces(super.toString());
     }
 }

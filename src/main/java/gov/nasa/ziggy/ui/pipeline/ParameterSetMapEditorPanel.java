@@ -34,10 +34,10 @@ import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.proxy.ParameterSetCrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * Edit/view all of the {@link ParameterSet}s for a pipeline or node. This panel is the one that
@@ -56,7 +56,6 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
     private int selectedModelIndex = -1;
 
     private Map<ClassWrapper<ParametersInterface>, String> currentParameters;
-    private Set<ClassWrapper<ParametersInterface>> requiredParameters;
     private Map<ClassWrapper<ParametersInterface>, String> currentPipelineParameters;
     private Map<String, ParametersInterface> editedParameterSets;
 
@@ -64,11 +63,9 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
 
     public ParameterSetMapEditorPanel(
         Map<ClassWrapper<ParametersInterface>, String> currentParameters,
-        Set<ClassWrapper<ParametersInterface>> requiredParameters,
         Map<ClassWrapper<ParametersInterface>, String> currentPipelineParameters,
         Map<String, ParametersInterface> editedParameterSets) {
         this.currentParameters = currentParameters;
-        this.requiredParameters = requiredParameters;
         this.currentPipelineParameters = currentPipelineParameters;
         this.editedParameterSets = editedParameterSets;
 
@@ -88,7 +85,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
                 this::autoAssign));
 
         paramSetMapTableModel = new ParameterSetNamesTableModel(currentParameters,
-            requiredParameters, currentPipelineParameters);
+            currentPipelineParameters);
         ziggyTable = new ZiggyTable<>(paramSetMapTableModel);
         JScrollPane parameterSets = new JScrollPane(ziggyTable.getTable());
         parameterSets.setPreferredSize(new Dimension(0, 100));
@@ -133,8 +130,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
                     mapListener.notifyMapChanged(this);
                 }
 
-                paramSetMapTableModel.update(currentParameters, requiredParameters,
-                    currentPipelineParameters);
+                paramSetMapTableModel.update(currentParameters, currentPipelineParameters);
             }
         }
     }
@@ -185,8 +181,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
                         mapListener.notifyMapChanged(this);
                     }
 
-                    paramSetMapTableModel.update(currentParameters, requiredParameters,
-                        currentPipelineParameters);
+                    paramSetMapTableModel.update(currentParameters, currentPipelineParameters);
                 }
             }
         } else {
@@ -277,8 +272,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
                 mapListener.notifyMapChanged(this);
             }
 
-            paramSetMapTableModel.update(currentParameters, requiredParameters,
-                currentPipelineParameters);
+            paramSetMapTableModel.update(currentParameters, currentPipelineParameters);
         }
     }
 
@@ -339,8 +333,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
             mapListener.notifyMapChanged(this);
         }
 
-        paramSetMapTableModel.update(currentParameters, requiredParameters,
-            currentPipelineParameters);
+        paramSetMapTableModel.update(currentParameters, currentPipelineParameters);
     }
 
     public ParameterSetMapEditorListener getMapListener() {
@@ -357,7 +350,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
 
     private class ParameterSetNamesTableModel
         extends AbstractZiggyTableModel<ParameterSetAssignment>
-        implements TableModelContentClass<ParameterSetAssignment> {
+        implements ModelContentClass<ParameterSetAssignment> {
 
         private static final String[] COLUMN_NAMES = { "Type", "Name" };
 
@@ -365,9 +358,8 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
 
         public ParameterSetNamesTableModel(
             Map<ClassWrapper<ParametersInterface>, String> currentParameters,
-            Set<ClassWrapper<ParametersInterface>> requiredParameters,
             Map<ClassWrapper<ParametersInterface>, String> currentPipelineParameters) {
-            update(currentParameters, requiredParameters, currentPipelineParameters);
+            update(currentParameters, currentPipelineParameters);
         }
 
         /**
@@ -376,42 +368,10 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
          * '(pipeline)' if there are any left in current params (not reqd), add those
          */
         public void update(Map<ClassWrapper<ParametersInterface>, String> currentParameters,
-            Set<ClassWrapper<ParametersInterface>> requiredParameters,
             Map<ClassWrapper<ParametersInterface>, String> currentPipelineParameters) {
 
             paramSetAssignments.clear();
             Set<ClassWrapper<ParametersInterface>> types = new HashSet<>();
-
-            // for each required param type, create a ParameterSetAssignment
-            for (ClassWrapper<ParametersInterface> requiredType : requiredParameters) {
-                ParameterSetAssignment param = new ParameterSetAssignment(requiredType);
-
-                // if required param type exists in current params, use that
-                // ParameterSetName
-                String currentAssignment = currentParameters.get(requiredType);
-                if (currentAssignment != null) {
-                    param.setAssignedName(currentAssignment);
-                }
-
-                // if required param type exists in current *pipeline* params,
-                // display that (read-only)
-                if (currentPipelineParameters.containsKey(requiredType)) {
-                    param.setAssignedName(currentPipelineParameters.get(requiredType));
-                    param.setAssignedAtPipelineLevel(true);
-
-                    if (currentAssignment != null) {
-                        param.setAssignedAtBothLevels(true);
-                    }
-                }
-
-                if (param.isAssignedAtPipelineLevel() || param.isAssignedAtBothLevels()) {
-                    paramSetAssignments.addFirst(param);
-                } else {
-                    paramSetAssignments.add(param);
-                }
-
-                types.add(requiredType);
-            }
 
             // If there are any param types left over in current params (not required), add those.
             // This also covers the case where empty lists are passed in for required params and

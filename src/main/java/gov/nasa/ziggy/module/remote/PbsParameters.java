@@ -15,12 +15,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.util.TimeFormatter;
 
 /**
  * Parameters needed to submit a job via the PBS batch system. Parameters are derived from an
- * appropriate {@link RemoteParameters} instance. Any optional parameters will be determined by the
- * needs of the job as determined from the required parameters.
+ * appropriate {@link PipelineDefinitionNodeExecutionResources} instance. Any optional parameters
+ * will be determined by the needs of the job as determined from the required parameters.
  *
  * @author PT
  */
@@ -30,7 +31,7 @@ public class PbsParameters {
     private String requestedWallTime;
     private int requestedNodeCount;
     private String queueName;
-    private int minGigsPerNode;
+    private double minGigsPerNode;
     private int minCoresPerNode;
     private double gigsPerSubtask;
     private String remoteGroup;
@@ -43,27 +44,27 @@ public class PbsParameters {
     /**
      * Populates the architecture property of the {@link PbsParameters} instance. If the
      * architecture is not specified already, it is selected by use of the architecture optimization
-     * option in {@link RemoteParameters}. If it is specified, the architecture is nonetheless
-     * checked to ensure that there is sufficient RAM on the selected architecture to run at least 1
-     * subtask per node.
+     * option in {@link PipelineDefinitionNodeExecutionResources}. If it is specified, the
+     * architecture is nonetheless checked to ensure that there is sufficient RAM on the selected
+     * architecture to run at least 1 subtask per node.
      */
-    public void populateArchitecture(RemoteParameters remoteParameters, int totalSubtasks,
-        SupportedRemoteClusters remoteCluster) {
+    public void populateArchitecture(PipelineDefinitionNodeExecutionResources executionResources,
+        int totalSubtasks, SupportedRemoteClusters remoteCluster) {
 
         // If the architecture isn't specified, determine it via optimization.
         if (getArchitecture() == null) {
             log.info("Selecting infrastructure for " + totalSubtasks + " subtasks using optimizer "
-                + remoteParameters.getOptimizer());
-            selectArchitecture(remoteParameters, totalSubtasks, remoteCluster);
+                + executionResources.getOptimizer());
+            selectArchitecture(executionResources, totalSubtasks, remoteCluster);
         }
 
         // Note that if the architecture IS specified, it may still not be compatible
         // with the RAM requirements; check that possibility now.
-        if (remoteParameters.isNodeSharing()
-            && !nodeHasSufficientRam(getArchitecture(), remoteParameters.getGigsPerSubtask())) {
-            throw new IllegalStateException("selected node architecture "
+        if (executionResources.isNodeSharing()
+            && !nodeHasSufficientRam(getArchitecture(), executionResources.getGigsPerSubtask())) {
+            throw new IllegalStateException("Selected node architecture "
                 + getArchitecture().toString() + " has insufficient RAM for subtasks that require "
-                + remoteParameters.getGigsPerSubtask() + " GB");
+                + executionResources.getGigsPerSubtask() + " GB");
         }
     }
 
@@ -72,14 +73,13 @@ public class PbsParameters {
      * that corresponds to the {@link SupportedRemoteCluster}, and will be selected from the ones
      * with sufficient RAM to perform the processing.
      */
-    private void selectArchitecture(RemoteParameters remoteParameters, int totalSubtasks,
-        SupportedRemoteClusters remoteCluster) {
+    private void selectArchitecture(PipelineDefinitionNodeExecutionResources executionResources,
+        int totalSubtasks, SupportedRemoteClusters remoteCluster) {
 
-        double gigsPerSubtask = remoteParameters.getGigsPerSubtask();
-        RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer
-            .fromName(remoteParameters.getOptimizer());
+        double gigsPerSubtask = executionResources.getGigsPerSubtask();
+        RemoteArchitectureOptimizer optimizer = executionResources.getOptimizer();
         List<RemoteNodeDescriptor> acceptableNodes = null;
-        if (!remoteParameters.isNodeSharing()) {
+        if (!executionResources.isNodeSharing()) {
             acceptableNodes = descriptorsSortedByCores(remoteCluster);
         } else {
             if (optimizer.equals(RemoteArchitectureOptimizer.COST)) {
@@ -91,12 +91,12 @@ public class PbsParameters {
             }
             if (acceptableNodes.isEmpty()) {
                 throw new PipelineException(
-                    "All remote architectures have insufficient RAM to support " + gigsPerSubtask
-                        + " GB per subtask requirement");
+                    "All remote architectures have insufficient RAM for subtasks that require "
+                        + gigsPerSubtask + " GB");
             }
         }
 
-        architecture = optimizer.optimalArchitecture(remoteParameters, totalSubtasks,
+        architecture = optimizer.optimalArchitecture(executionResources, totalSubtasks,
             acceptableNodes);
     }
 
@@ -105,17 +105,17 @@ public class PbsParameters {
      * subtasks per node, the wall time request, the queue, and the remote group to be billed for
      * the PBS jobs. An estimate of the cost (in SBUs or dollars) is also performed.
      */
-    public void populateResourceParameters(RemoteParameters remoteParameters,
-        int totalSubtaskCount) {
+    public void populateResourceParameters(
+        PipelineDefinitionNodeExecutionResources executionResources, int totalSubtaskCount) {
 
-        computeActiveCoresPerNode(remoteParameters, totalSubtaskCount);
-        double subtasksPerCore = subtasksPerCore(remoteParameters, totalSubtaskCount);
+        computeActiveCoresPerNode(executionResources, totalSubtaskCount);
+        double subtasksPerCore = subtasksPerCore(executionResources, totalSubtaskCount);
 
         // Set the number of nodes and the number of subtasks per node
-        computeNodeRequest(remoteParameters, totalSubtaskCount, subtasksPerCore);
+        computeNodeRequest(executionResources, totalSubtaskCount, subtasksPerCore);
 
         // Set the wall time and the queue
-        computeWallTimeAndQueue(remoteParameters, subtasksPerCore);
+        computeWallTimeAndQueue(executionResources, subtasksPerCore);
 
         // Estimate the costs
         computeEstimatedCost();
@@ -132,8 +132,8 @@ public class PbsParameters {
      * smaller than the maximum number of nodes to request (that's what makes it a maximum number
      * rather than just a number).
      */
-    private void computeNodeRequest(RemoteParameters remoteParameters, int totalSubtaskCount,
-        double subtasksPerCore) {
+    private void computeNodeRequest(PipelineDefinitionNodeExecutionResources executionResources,
+        int totalSubtaskCount, double subtasksPerCore) {
 
         // Start by computing the "optimal" number of nodes -- the number of nodes
         // needed
@@ -144,9 +144,8 @@ public class PbsParameters {
         // If this number is LARGER than what the user wants, defer to the user;
         // if it's SMALLER than what the user wants, take the smaller value, since
         // the larger value would simply result in idle nodes.
-        if (!StringUtils.isEmpty(remoteParameters.getMaxNodes())) {
-            requestedNodeCount = Math.min(Integer.parseInt(remoteParameters.getMaxNodes()),
-                requestedNodeCount);
+        if (executionResources.getMaxNodes() > 0) {
+            requestedNodeCount = Math.min(executionResources.getMaxNodes(), requestedNodeCount);
         }
     }
 
@@ -156,24 +155,24 @@ public class PbsParameters {
      * override will only be used if it will not result in some subtasks not getting processed
      * during the job.
      */
-    private double subtasksPerCore(RemoteParameters remoteParameters, int totalSubtaskCount) {
+    private double subtasksPerCore(PipelineDefinitionNodeExecutionResources executionResources,
+        int totalSubtaskCount) {
 
-        double wallTimeRatio = remoteParameters.getSubtaskMaxWallTimeHours()
-            / remoteParameters.getSubtaskTypicalWallTimeHours();
+        double wallTimeRatio = executionResources.getSubtaskMaxWallTimeHours()
+            / executionResources.getSubtaskTypicalWallTimeHours();
         double subtasksPerCore = wallTimeRatio;
 
         // If the number of nodes is limited, compute how many subtasks per active core
         // are needed; if this number is larger, keep it
-        if (!StringUtils.isEmpty(remoteParameters.getMaxNodes())) {
+        if (executionResources.getMaxNodes() > 0) {
             subtasksPerCore = Math.max(subtasksPerCore, (double) totalSubtaskCount
-                / (activeCoresPerNode * Integer.parseInt(remoteParameters.getMaxNodes())));
+                / (activeCoresPerNode * executionResources.getMaxNodes()));
         }
 
         // Finally, if the user has supplied an override for subtasks per core, apply it
         // unless it conflicts with the value needed to make the job complete
-        if (!StringUtils.isEmpty(remoteParameters.getSubtasksPerCore())) {
-            double overrideSubtasksPerCore = Double
-                .parseDouble(remoteParameters.getSubtasksPerCore());
+        if (executionResources.getSubtasksPerCore() > 0) {
+            double overrideSubtasksPerCore = executionResources.getSubtasksPerCore();
             if (overrideSubtasksPerCore >= subtasksPerCore) {
                 subtasksPerCore = overrideSubtasksPerCore;
             } else {
@@ -202,15 +201,15 @@ public class PbsParameters {
      * RAM in the node divided by the number of GB needed per subtask; the number of subtasks in the
      * task.
      */
-    public void computeActiveCoresPerNode(RemoteParameters remoteParameters,
-        int totalSubtaskCount) {
-        if (!remoteParameters.isNodeSharing()) {
+    public void computeActiveCoresPerNode(
+        PipelineDefinitionNodeExecutionResources executionResources, int totalSubtaskCount) {
+        if (!executionResources.isNodeSharing()) {
             activeCoresPerNode = 1;
             return;
         }
         double gigsPerNode = architecture.getGigsPerCore() * minCoresPerNode;
         activeCoresPerNode = (int) Math
-            .min(Math.floor(gigsPerNode / remoteParameters.getGigsPerSubtask()), minCoresPerNode);
+            .min(Math.floor(gigsPerNode / executionResources.getGigsPerSubtask()), minCoresPerNode);
         activeCoresPerNode = Math.min(activeCoresPerNode, totalSubtaskCount);
     }
 
@@ -223,19 +222,19 @@ public class PbsParameters {
      * times are scaled inversely to cores per node, this scaling will be applied to estimate the
      * wall time needed.
      */
-    private void computeWallTimeAndQueue(RemoteParameters remoteParameters,
-        double subtasksPerCore) {
+    private void computeWallTimeAndQueue(
+        PipelineDefinitionNodeExecutionResources executionResources, double subtasksPerCore) {
 
-        double typicalWallTimeHours = remoteParameters.getSubtaskTypicalWallTimeHours();
-        double bareWallTimeHours = Math.max(remoteParameters.getSubtaskMaxWallTimeHours(),
+        double typicalWallTimeHours = executionResources.getSubtaskTypicalWallTimeHours();
+        double bareWallTimeHours = Math.max(executionResources.getSubtaskMaxWallTimeHours(),
             subtasksPerCore * typicalWallTimeHours);
-        if (!remoteParameters.isNodeSharing() && remoteParameters.isWallTimeScaling()) {
+        if (!executionResources.isNodeSharing() && executionResources.isWallTimeScaling()) {
             bareWallTimeHours /= minCoresPerNode;
         }
         double requestedWallTimeHours = 0.25 * Math.ceil(4 * bareWallTimeHours);
         requestedWallTime = TimeFormatter.timeInHoursToStringHhMmSs(requestedWallTimeHours);
 
-        if (StringUtils.isEmpty(remoteParameters.getQueueName())) {
+        if (StringUtils.isEmpty(executionResources.getQueueName())) {
             List<RemoteQueueDescriptor> queues = descriptorsSortedByMaxTime(
                 architecture.getRemoteCluster());
             for (RemoteQueueDescriptor queue : queues) {
@@ -245,22 +244,23 @@ public class PbsParameters {
                 }
             }
             if (queueName == null) {
-                throw new IllegalStateException(
-                    "No queues can support requested wall time of " + requestedWallTime);
+                throw new IllegalStateException("No queues can support requested wall time of "
+                    + TimeFormatter.stripSeconds(requestedWallTime));
             }
         } else {
             RemoteQueueDescriptor descriptor = RemoteQueueDescriptor
-                .fromQueueName(remoteParameters.getQueueName());
+                .fromQueueName(executionResources.getQueueName());
             if (descriptor.equals(RemoteQueueDescriptor.UNKNOWN)) {
                 log.warn("Unable to determine max wall time for queue "
-                    + remoteParameters.getQueueName());
-                queueName = remoteParameters.getQueueName();
+                    + executionResources.getQueueName());
+                queueName = executionResources.getQueueName();
             } else if (descriptor.equals(RemoteQueueDescriptor.RESERVED)) {
-                queueName = remoteParameters.getQueueName();
+                queueName = executionResources.getQueueName();
             } else {
                 if (descriptor.getMaxWallTimeHours() < requestedWallTimeHours) {
                     throw new IllegalStateException("Queue " + descriptor.getQueueName()
-                        + " cannot support job with wall time of " + requestedWallTime);
+                        + " cannot support job with wall time of "
+                        + TimeFormatter.stripSeconds(requestedWallTime));
                 }
                 queueName = descriptor.getQueueName();
             }
@@ -376,11 +376,11 @@ public class PbsParameters {
         this.queueName = queueName;
     }
 
-    public int getMinGigsPerNode() {
+    public double getMinGigsPerNode() {
         return minGigsPerNode;
     }
 
-    public void setMinGigsPerNode(int minGigsPerNode) {
+    public void setMinGigsPerNode(double minGigsPerNode) {
         this.minGigsPerNode = minGigsPerNode;
     }
 

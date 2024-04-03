@@ -21,7 +21,7 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils;
-import gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest;
+import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
@@ -57,35 +57,32 @@ public class PipelineModuleDefinitionTest {
         xmlUnmarshalingFile1 = xmlUnmarshalingPath.resolve("module1.xml").toFile();
         xmlUnmarshalingFile2 = xmlUnmarshalingPath.resolve("module2.xml").toFile();
         xmlFile = directoryRule.directory().resolve("modules.xml").toFile();
-        schemaFile = directoryRule.directory().resolve("modules.xml").toFile();
+        schemaFile = directoryRule.directory().resolve("modules.xsd").toFile();
 
         // Module 1 uses defaults for everything possible
         module1 = new PipelineMod("module 1");
         module1.setDescription("first module");
         module1.setExeTimeoutSecs(100);
-        module1.setMinMemoryMegaBytes(200);
         module1XmlString = """
             <module name="module 1" description="first module" \
             pipelineModuleClass="gov.nasa.ziggy.module.ExternalProcessPipelineModule" \
-            inputsClass="gov.nasa.ziggy.module.DefaultPipelineInputs" \
-            outputsClass="gov.nasa.ziggy.module.DefaultPipelineOutputs" \
-            exeTimeoutSecs="100" minMemoryMegaBytes="200"/>""";
+            inputsClass="gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs" \
+            outputsClass="gov.nasa.ziggy.module.DatastoreDirectoryPipelineOutputs" \
+            exeTimeoutSecs="100" minMemoryMegabytes="0"/>""";
 
         // Module 2 uses no defaults
         module2 = new PipelineMod("module 2");
         module2.setDescription("second module");
         module2.setExeTimeoutSecs(300);
-        module2.setMinMemoryMegaBytes(400);
         module2.setInputsClass(new ClassWrapper<>(DataFileTestUtils.PipelineInputsSample.class));
         module2.setOutputsClass(new ClassWrapper<>(DataFileTestUtils.PipelineOutputsSample1.class));
-        module2.setPipelineModuleClass(
-            new ClassWrapper<>(ExternalProcessPipelineModuleTest.TestPipelineModule.class));
+        module2.setPipelineModuleClass(new ClassWrapper<>(ExternalProcessPipelineModule.class));
         module2XmlString = """
             <module name="module 2" description="second module" \
-            pipelineModuleClass="gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest$TestPipelineModule" \
+            pipelineModuleClass="gov.nasa.ziggy.module.ExternalProcessPipelineModule" \
             inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample" \
             outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1" \
-            exeTimeoutSecs="300" minMemoryMegaBytes="400"/>""";
+            exeTimeoutSecs="300" minMemoryMegabytes="0"/>""";
     }
 
     @Test
@@ -134,7 +131,7 @@ public class PipelineModuleDefinitionTest {
             "<xs:attribute name=\"inputsClass\" type=\"xs:string\"/>",
             "<xs:attribute name=\"outputsClass\" type=\"xs:string\"/>",
             "<xs:attribute name=\"exeTimeoutSecs\" type=\"xs:int\"/>",
-            "<xs:attribute name=\"minMemoryMegaBytes\" type=\"xs:int\"/>" };
+            "<xs:attribute name=\"minMemoryMegabytes\" type=\"xs:int\"/>" };
         for (String moduleAttribute : moduleDefAttributes) {
             assertContains(moduleDefContent, moduleAttribute);
         }

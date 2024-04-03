@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.module.remote.nas.NasQueueTimeMetrics;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 
 /**
  * Unit test class for {@link RemoteArchitectureOptimizer} class.
@@ -48,26 +49,27 @@ public class RemoteArchitectureOptimizerTest {
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.CORES;
         List<RemoteNodeDescriptor> descriptors = RemoteNodeDescriptor
             .descriptorsSortedByRamThenCost(SupportedRemoteClusters.NAS);
-        RemoteParameters remoteParameters = new RemoteParameters();
-        remoteParameters.setGigsPerSubtask(0.5);
-        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(remoteParameters, 0,
+        PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
+            "dummy", "dummy");
+        executionResources.setGigsPerSubtask(0.5);
+        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(executionResources, 0,
             RemoteNodeDescriptor.nodesWithSufficientRam(descriptors,
-                remoteParameters.getGigsPerSubtask()));
+                executionResources.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.SANDY_BRIDGE, descriptor);
 
-        remoteParameters.setGigsPerSubtask(3.0);
-        descriptor = optimizer.optimalArchitecture(remoteParameters, 0, RemoteNodeDescriptor
-            .nodesWithSufficientRam(descriptors, remoteParameters.getGigsPerSubtask()));
+        executionResources.setGigsPerSubtask(3.0);
+        descriptor = optimizer.optimalArchitecture(executionResources, 0, RemoteNodeDescriptor
+            .nodesWithSufficientRam(descriptors, executionResources.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.IVY_BRIDGE, descriptor);
 
-        remoteParameters.setGigsPerSubtask(4.2);
-        descriptor = optimizer.optimalArchitecture(remoteParameters, 0, RemoteNodeDescriptor
-            .nodesWithSufficientRam(descriptors, remoteParameters.getGigsPerSubtask()));
+        executionResources.setGigsPerSubtask(4.2);
+        descriptor = optimizer.optimalArchitecture(executionResources, 0, RemoteNodeDescriptor
+            .nodesWithSufficientRam(descriptors, executionResources.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.BROADWELL, descriptor);
 
-        remoteParameters.setGigsPerSubtask(10);
-        descriptor = optimizer.optimalArchitecture(remoteParameters, 0, RemoteNodeDescriptor
-            .nodesWithSufficientRam(descriptors, remoteParameters.getGigsPerSubtask()));
+        executionResources.setGigsPerSubtask(10);
+        descriptor = optimizer.optimalArchitecture(executionResources, 0, RemoteNodeDescriptor
+            .nodesWithSufficientRam(descriptors, executionResources.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.HASWELL, descriptor);
     }
 
@@ -76,13 +78,14 @@ public class RemoteArchitectureOptimizerTest {
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.COST;
         List<RemoteNodeDescriptor> descriptors = RemoteNodeDescriptor
             .descriptorsSortedByCost(SupportedRemoteClusters.NAS);
-        RemoteParameters remoteParameters = new RemoteParameters();
-        remoteParameters.setGigsPerSubtask(6.0);
-        remoteParameters.setSubtaskMaxWallTimeHours(4.5);
-        remoteParameters.setSubtaskTypicalWallTimeHours(0.5);
-        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(remoteParameters, 500,
+        PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
+            "dummy", "dummy");
+        executionResources.setGigsPerSubtask(6.0);
+        executionResources.setSubtaskMaxWallTimeHours(4.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.5);
+        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(executionResources, 500,
             RemoteNodeDescriptor.nodesWithSufficientRam(descriptors,
-                remoteParameters.getGigsPerSubtask()));
+                executionResources.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.HASWELL, descriptor);
     }
 
@@ -91,13 +94,14 @@ public class RemoteArchitectureOptimizerTest {
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.QUEUE_DEPTH;
         List<RemoteNodeDescriptor> descriptors = RemoteNodeDescriptor
             .descriptorsSortedByCost(SupportedRemoteClusters.NAS);
-        RemoteParameters remoteParameters = new RemoteParameters();
-        remoteParameters.setGigsPerSubtask(6.0);
-        remoteParameters.setSubtaskMaxWallTimeHours(4.5);
-        remoteParameters.setSubtaskTypicalWallTimeHours(0.5);
-        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(remoteParameters, 500,
+        PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
+            "dummy", "dummy");
+        executionResources.setGigsPerSubtask(6.0);
+        executionResources.setSubtaskMaxWallTimeHours(4.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.5);
+        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(executionResources, 500,
             RemoteNodeDescriptor.nodesWithSufficientRam(descriptors,
-                remoteParameters.getGigsPerSubtask()));
+                executionResources.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.ROME, descriptor);
     }
 
@@ -106,13 +110,14 @@ public class RemoteArchitectureOptimizerTest {
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.QUEUE_TIME;
         List<RemoteNodeDescriptor> descriptors = RemoteNodeDescriptor
             .descriptorsSortedByCost(SupportedRemoteClusters.NAS);
-        RemoteParameters remoteParameters = new RemoteParameters();
-        remoteParameters.setGigsPerSubtask(6.0);
-        remoteParameters.setSubtaskMaxWallTimeHours(4.5);
-        remoteParameters.setSubtaskTypicalWallTimeHours(0.5);
-        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(remoteParameters, 500,
+        PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
+            "dummy", "dummy");
+        executionResources.setGigsPerSubtask(6.0);
+        executionResources.setSubtaskMaxWallTimeHours(4.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.5);
+        RemoteNodeDescriptor descriptor = optimizer.optimalArchitecture(executionResources, 500,
             RemoteNodeDescriptor.nodesWithSufficientRam(descriptors,
-                remoteParameters.getGigsPerSubtask()));
+                executionResources.getGigsPerSubtask()));
         assertEquals(RemoteNodeDescriptor.IVY_BRIDGE, descriptor);
     }
 }

@@ -30,7 +30,7 @@ public class SubtaskServerTest {
     @Before
     public void setUp() {
         subtaskAllocator = mock(SubtaskAllocator.class);
-        subtaskServer = spy(new SubtaskServer(50, new TaskConfigurationManager()));
+        subtaskServer = spy(new SubtaskServer(50, new TaskConfiguration()));
         doReturn(subtaskAllocator).when(subtaskServer).subtaskAllocator();
         subtaskClient = new SubtaskClient();
     }

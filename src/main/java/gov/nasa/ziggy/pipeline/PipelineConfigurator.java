@@ -268,7 +268,7 @@ public class PipelineConfigurator {
         moduleParameterSetNamesMap.put(node, paramSetNamesMap);
 
         if (taskGenerator != null) {
-            node.setUnitOfWorkGenerator(new ClassWrapper<>(taskGenerator));
+            moduleDef.setUnitOfWorkGenerator(new ClassWrapper<>(taskGenerator));
         }
 
         if (currentNode != null) {

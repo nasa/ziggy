@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
-import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager.NoHeartbeatException;
+import gov.nasa.ziggy.services.messaging.HeartbeatManager.NoHeartbeatException;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.ui.ZiggyConsole;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -31,11 +31,11 @@ import gov.nasa.ziggy.worker.PipelineWorker;
  * messages to be sent to the server and arranges for the server to have broadcast access to the
  * clients.
  * <p>
- * A {@link ZiggyRmiClient} singleton is created is created via the {@link initializeInstance}
- * method. The {@link PipelineSupervisor} has a client, as does every {@link PipelineWorker} and
- * {@link ZiggyConsole}. The singleton will be destroyed and re-created via {@link restart} if
+ * A {@link ZiggyRmiClient} singleton is created via the {@link #start(String)} method. The
+ * {@link PipelineSupervisor} has a client, as does every {@link PipelineWorker} and
+ * {@link ZiggyConsole}. The singleton will be destroyed and re-created via {@link #restart()} if
  * contact is lost with the server. When the creating instance exits, the {@link ZiggyRmiClient}
- * singleton will be destroyed via the {@link reset} method.
+ * singleton will be destroyed via the {@link #reset()} method.
  * <p>
  * The {@link ZiggyRmiClient} is used by Ziggy console, supervisor, and worker processes. Each
  * instance is created with an appropriate collection of {@link MessageAction} instances that can
@@ -48,6 +48,9 @@ import gov.nasa.ziggy.worker.PipelineWorker;
 public class ZiggyRmiClient implements ZiggyRmiClientService {
 
     private static final String RMI_REGISTRY_HOST = "localhost";
+
+    private static final int REGISTRY_LOOKUP_EFFORTS = 25;
+    private static final int REGISTRY_LOOKUP_PAUSE_MILLIS = 200;
 
     /**
      * Singleton instance of {@link ZiggyRmiClient} class. All threads in the UI process can access
@@ -66,22 +69,37 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
 
     private final ZiggyRmiServerService ziggyRmiServerService;
     private final Registry registry;
-    private final int rmiPort;
 
     // Stores the type of client (worker, supervisor, console).
     private final String clientType;
 
-    private ZiggyRmiClient(int rmiPort, String clientType)
-        throws RemoteException, NotBoundException {
+    private ZiggyRmiClient(String clientType) throws RemoteException, NotBoundException {
         this.clientType = clientType;
-        this.rmiPort = rmiPort;
         log.info("Retrieving registry on {}", RMI_REGISTRY_HOST);
-        registry = LocateRegistry.getRegistry(RMI_REGISTRY_HOST, rmiPort);
+        registry = LocateRegistry.getRegistry(RMI_REGISTRY_HOST, ZiggyRmiServer.rmiPort());
 
-        // get the stub that the server provided.
-        log.info("Looking up services in registry");
-        ziggyRmiServerService = (ZiggyRmiServerService) registry
-            .lookup(ZiggyRmiServerService.SERVICE_NAME);
+        // Get the stub that the server provided. In case the server just started, try every 200 ms
+        // for five seconds.
+        ZiggyRmiServerService service = null;
+        for (int i = 0; i < REGISTRY_LOOKUP_EFFORTS; i++) {
+            log.info("Looking up services in registry (take {}/{})", i + 1,
+                REGISTRY_LOOKUP_EFFORTS);
+            try {
+                service = (ZiggyRmiServerService) registry
+                    .lookup(ZiggyRmiServerService.SERVICE_NAME);
+                break;
+            } catch (RemoteException | NotBoundException e) {
+                if (i == REGISTRY_LOOKUP_EFFORTS - 1) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(REGISTRY_LOOKUP_PAUSE_MILLIS);
+                } catch (InterruptedException interrupt) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+        ziggyRmiServerService = service;
     }
 
     /**
@@ -94,16 +112,18 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    public static synchronized void initializeInstance(int rmiPort, String clientType) {
+    public static synchronized void start(String clientType) {
 
         if (isInitialized()) {
             log.info("ZiggyRmiClient instance already available, skipping instantiation");
             return;
         }
 
+        log.info("Starting ZiggyRmiClient instance with registry on port {}...",
+            ZiggyRmiServer.rmiPort());
         try {
             log.info("Starting new ZiggyRmiClient instance");
-            instance = new ZiggyRmiClient(rmiPort, clientType);
+            instance = new ZiggyRmiClient(clientType);
 
             // Construct a stub of this instance and add that to the server's
             // list of same. Note that we first need to unexport it if it was previously
@@ -119,10 +139,10 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
                 .exportObject(instance, 0);
             log.info("Adding client service stub to server instance");
             instance.ziggyRmiServerService.addClientStub(exportedClient);
-            log.info("ZiggyRmiClient construction complete");
+            log.info("Starting ZiggyRmiClient instance with registry on port {}...done",
+                ZiggyRmiServer.rmiPort());
         } catch (RemoteException | NotBoundException | NoHeartbeatException e) {
-            throw new PipelineException(
-                "Exception occurred when attempting to initialize UiCommunicator", e);
+            throw new PipelineException("Could not start RMI client", e);
         }
     }
 
@@ -139,6 +159,10 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     static synchronized void send(PipelineMessage message, CountDownLatch latch) {
+        if (!isInitialized()) {
+            throw new IllegalStateException("ZiggyRmiClient isn't running");
+        }
+
         log.debug("Sending {}", message.getClass().getName());
         try {
             instance.ziggyRmiServerService.transmitToServer(message);
@@ -182,14 +206,18 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
     }
 
     public static Registry getRegistry() {
+        if (!isInitialized()) {
+            throw new IllegalStateException("ZiggyRmiClient isn't running");
+        }
+
         return instance.registry;
     }
 
-    public static int getRmiPort() {
-        return instance.rmiPort;
-    }
-
     public static String getClientType() {
+        if (!isInitialized()) {
+            throw new IllegalStateException("ZiggyRmiClient isn't running");
+        }
+
         return instance.clientType;
     }
 
@@ -201,19 +229,23 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
      */
     public static synchronized void restart() {
         log.info("Attempting restart of ZiggyRmiClient instance");
-        ProcessHeartbeatManager.resetHeartbeatTime();
-        int rmiPort = ZiggyRmiClient.getRmiPort();
+        HeartbeatManager.resetHeartbeatTime();
         String clientType = ZiggyRmiClient.getClientType();
         instance = null;
-        initializeInstance(rmiPort, clientType);
+        start(clientType);
     }
 
     public static synchronized void reset() {
+        log.debug("Resetting");
         instance = null;
     }
 
     /** For testing only. */
     static ZiggyRmiServerService ziggyRmiServerService() {
+        if (!isInitialized()) {
+            throw new IllegalStateException("ZiggyRmiClient isn't running");
+        }
+
         return instance.ziggyRmiServerService;
     }
 
@@ -229,6 +261,10 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
 
     /** For testing only. */
     static void setUseMessenger(boolean useMessenger) {
+        if (!isInitialized()) {
+            throw new IllegalStateException("ZiggyRmiClient isn't running");
+        }
+
         instance.useMessenger = useMessenger;
     }
 }

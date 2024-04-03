@@ -50,9 +50,9 @@ public interface ProcessingStatePipelineModule {
      * Increments the processing state of a {@link PipelineTask} in the database from its current
      * state in the database.
      */
-    default void incrementProcessingState() {
-        processingSummaryOperations().updateProcessingState(pipelineTaskId(),
-            nextProcessingState(getProcessingState()));
+    default void incrementDatabaseProcessingState() {
+        ProcessingState nextState = nextProcessingState(databaseProcessingState());
+        processingSummaryOperations().updateProcessingState(pipelineTaskId(), nextState);
     }
 
     default ProcessingSummaryOperations processingSummaryOperations() {
@@ -64,8 +64,8 @@ public interface ProcessingStatePipelineModule {
      *
      * @return current processing state.
      */
-    default ProcessingState getProcessingState() {
-        return new ProcessingSummaryOperations().processingSummary(pipelineTaskId())
+    default ProcessingState databaseProcessingState() {
+        return processingSummaryOperations().processingSummary(pipelineTaskId())
             .getProcessingState();
     }
 

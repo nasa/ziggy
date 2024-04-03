@@ -48,7 +48,7 @@ public class SubtaskExecutorTest {
     private File subTaskDir;
     private SubtaskExecutor externalProcessExecutor;
     private ExternalProcess externalProcess;
-    private TaskConfigurationManager taskConfigurationManager = new TaskConfigurationManager();
+    private TaskConfiguration taskConfigurationManager = new TaskConfiguration();
     private File buildDir;
     private File binDir;
 
@@ -89,13 +89,13 @@ public class SubtaskExecutorTest {
         taskDir = new File(rootDir, "10-20-pa");
         subTaskDir = new File(taskDir, "st-0");
         subTaskDir.mkdirs();
-        buildDir = new File(pipelineHomeDirPropertyRule.getProperty());
+        buildDir = new File(pipelineHomeDirPropertyRule.getValue());
         binDir = new File(buildDir, "bin");
         binDir.mkdirs();
         File paFile = new File(binDir, "pa");
         paFile.createNewFile();
 
-        new File(resultsDirPropertyRule.getProperty()).mkdirs();
+        new File(resultsDirPropertyRule.getValue()).mkdirs();
 
         // Create the state file directory
         Files.createDirectories(DirectoryProperties.stateFilesDir());
@@ -122,7 +122,7 @@ public class SubtaskExecutorTest {
         assertEquals("path1" + File.pathSeparator + "path2", e.libPath());
 
         // with MATLAB paths defined
-        System.setProperty(MCRROOT.property(), "/path/to/mcr/v22");
+        moduleExeMcrrootPropertyRule.setValue("/path/to/mcr/v22");
         e = new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
@@ -175,7 +175,7 @@ public class SubtaskExecutorTest {
         new File(binDir3, "pa").createNewFile();
         String binPath = phonyBinDir1 + File.pathSeparator + phonyBinDir2 + File.pathSeparator
             + binDir3;
-        System.setProperty(BINPATH.property(), binPath);
+        moduleExeBinpathPropertyRule.setValue(binPath);
         SubtaskExecutor e = new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
@@ -199,7 +199,7 @@ public class SubtaskExecutorTest {
             [/path/to/ziggy/build/bin/ziggy, --verbose,\s\
             -Djava.library.path=path1:path2:/path/to/ziggy/build/lib,\s\
             -Dlog4j2.configurationFile=/path/to/ziggy/build/etc/log4j2.xml,\s\
-            --class=gov.nasa.ziggy.module.TaskFileManager,\s\
+            --class=gov.nasa.ziggy.module.BeforeAndAfterAlgorithmExecutor,\s\
             gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample]""";
         assertEquals(expectedCommandString, cmdString);
         assertEquals(0, retCode);
@@ -227,7 +227,7 @@ public class SubtaskExecutorTest {
         setUpMockedObjects();
         Mockito.doReturn(taskConfigurationManager)
             .when(externalProcessExecutor)
-            .taskConfigurationManager();
+            .taskConfiguration();
         taskConfigurationManager.setInputsClass(PipelineInputsSample.class);
         Mockito.doReturn(1)
             .when(externalProcessExecutor)

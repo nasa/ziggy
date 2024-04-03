@@ -6,8 +6,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.remote.nas.NasQueueTimeMetrics;
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.util.TimeFormatter;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
  * Provides data and code in support of selecting an optimal {@link RemoteNodeDescriptor}.
@@ -23,19 +24,20 @@ public enum RemoteArchitectureOptimizer {
      */
     CORES {
         @Override
-        public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
-            int totalSubtasks, List<RemoteNodeDescriptor> acceptableDescriptors) {
-            if (!remoteParameters.isNodeSharing()) {
+        public RemoteNodeDescriptor optimalArchitecture(
+            PipelineDefinitionNodeExecutionResources executionResources, int totalSubtasks,
+            List<RemoteNodeDescriptor> acceptableDescriptors) {
+            if (!executionResources.isNodeSharing()) {
                 log.info(
                     "COST optimization not supported for one subtask per node, using COST instead");
-                return COST.optimalArchitecture(remoteParameters, totalSubtasks,
+                return COST.optimalArchitecture(executionResources, totalSubtasks,
                     acceptableDescriptors);
             }
             double coreRatio = 0;
             RemoteNodeDescriptor optimalDescriptor = null;
             for (RemoteNodeDescriptor descriptor : acceptableDescriptors) {
                 double newCoreRatio = Math.min(1,
-                    descriptor.getGigsPerCore() / remoteParameters.getGigsPerSubtask());
+                    descriptor.getGigsPerCore() / executionResources.getGigsPerSubtask());
                 if (newCoreRatio > coreRatio) {
                     coreRatio = newCoreRatio;
                     optimalDescriptor = descriptor;
@@ -51,13 +53,14 @@ public enum RemoteArchitectureOptimizer {
      */
     QUEUE_DEPTH {
         @Override
-        public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
-            int totalSubtasks, List<RemoteNodeDescriptor> acceptableDescriptors) {
+        public RemoteNodeDescriptor optimalArchitecture(
+            PipelineDefinitionNodeExecutionResources executionResources, int totalSubtasks,
+            List<RemoteNodeDescriptor> acceptableDescriptors) {
             if (acceptableDescriptors.get(0)
                 .getRemoteCluster()
                 .equals(SupportedRemoteClusters.AWS)) {
                 log.info("QUEUE_DEPTH optimization not supported for AWS, using COST instead");
-                return COST.optimalArchitecture(remoteParameters, totalSubtasks,
+                return COST.optimalArchitecture(executionResources, totalSubtasks,
                     acceptableDescriptors);
             }
             RemoteNodeDescriptor optimalDescriptor = null;
@@ -79,25 +82,27 @@ public enum RemoteArchitectureOptimizer {
      */
     QUEUE_TIME {
         @Override
-        public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
-            int totalSubtasks, List<RemoteNodeDescriptor> acceptableDescriptors) {
+        public RemoteNodeDescriptor optimalArchitecture(
+            PipelineDefinitionNodeExecutionResources executionResources, int totalSubtasks,
+            List<RemoteNodeDescriptor> acceptableDescriptors) {
             if (acceptableDescriptors.get(0)
                 .getRemoteCluster()
                 .equals(SupportedRemoteClusters.AWS)) {
                 log.info("QUEUE_DEPTH optimization not supported for AWS, using COST instead");
-                return COST.optimalArchitecture(remoteParameters, totalSubtasks,
+                return COST.optimalArchitecture(executionResources, totalSubtasks,
                     acceptableDescriptors);
             }
-            RemoteParameters duplicateParameters = new RemoteParameters(remoteParameters);
+            PipelineDefinitionNodeExecutionResources duplicateParameters = new PipelineDefinitionNodeExecutionResources(
+                executionResources);
             RemoteNodeDescriptor optimalDescriptor = null;
             double minQueueTime = Double.MAX_VALUE;
             for (RemoteNodeDescriptor descriptor : acceptableDescriptors) {
                 double queueTimeFactor = NasQueueTimeMetrics.queueTime(descriptor);
                 duplicateParameters.setRemoteNodeArchitecture(descriptor.getNodeName());
-                duplicateParameters.setMinCoresPerNode(Integer.toString(descriptor.getMaxCores()));
-                duplicateParameters.setMinGigsPerNode(Integer.toString(descriptor.getMaxGigs()));
+                duplicateParameters.setMinCoresPerNode(descriptor.getMaxCores());
+                duplicateParameters.setMinGigsPerNode(descriptor.getMaxGigs());
                 PbsParameters pbsParameters = duplicateParameters.pbsParametersInstance();
-                pbsParameters.populateResourceParameters(remoteParameters, totalSubtasks);
+                pbsParameters.populateResourceParameters(executionResources, totalSubtasks);
                 double totalTime = queueTimeFactor * TimeFormatter
                     .timeStringHhMmSsToTimeInHours(pbsParameters.getRequestedWallTime());
                 if (totalTime < minQueueTime) {
@@ -112,18 +117,20 @@ public enum RemoteArchitectureOptimizer {
     /** Selects the architecture that minimizes job cost. */
     COST {
         @Override
-        public RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
-            int totalSubtasks, List<RemoteNodeDescriptor> acceptableDescriptors) {
+        public RemoteNodeDescriptor optimalArchitecture(
+            PipelineDefinitionNodeExecutionResources executionResources, int totalSubtasks,
+            List<RemoteNodeDescriptor> acceptableDescriptors) {
 
-            RemoteParameters duplicateParameters = new RemoteParameters(remoteParameters);
+            PipelineDefinitionNodeExecutionResources duplicateParameters = new PipelineDefinitionNodeExecutionResources(
+                executionResources);
             RemoteNodeDescriptor optimalArchitecture = null;
             double minimumCost = Double.MAX_VALUE;
             for (RemoteNodeDescriptor descriptor : acceptableDescriptors) {
                 duplicateParameters.setRemoteNodeArchitecture(descriptor.getNodeName());
-                duplicateParameters.setMinCoresPerNode(Integer.toString(descriptor.getMaxCores()));
-                duplicateParameters.setMinGigsPerNode(Integer.toString(descriptor.getMaxGigs()));
+                duplicateParameters.setMinCoresPerNode(descriptor.getMaxCores());
+                duplicateParameters.setMinGigsPerNode(descriptor.getMaxGigs());
                 PbsParameters pbsParameters = duplicateParameters.pbsParametersInstance();
-                pbsParameters.populateResourceParameters(remoteParameters, totalSubtasks);
+                pbsParameters.populateResourceParameters(executionResources, totalSubtasks);
                 if (pbsParameters.getEstimatedCost() < minimumCost) {
                     minimumCost = pbsParameters.getEstimatedCost();
                     optimalArchitecture = descriptor;
@@ -135,8 +142,9 @@ public enum RemoteArchitectureOptimizer {
 
     private static final Logger log = LoggerFactory.getLogger(RemoteArchitectureOptimizer.class);
 
-    public abstract RemoteNodeDescriptor optimalArchitecture(RemoteParameters remoteParameters,
-        int totalSubtasks, List<RemoteNodeDescriptor> acceptableDescriptors);
+    public abstract RemoteNodeDescriptor optimalArchitecture(
+        PipelineDefinitionNodeExecutionResources executionResources, int totalSubtasks,
+        List<RemoteNodeDescriptor> acceptableDescriptors);
 
     /**
      * Finds an optimizer option for a given String. The matching between the String and the
@@ -166,6 +174,6 @@ public enum RemoteArchitectureOptimizer {
 
     @Override
     public String toString() {
-        return StringUtils.constantToSentenceWithSpaces(super.toString());
+        return ZiggyStringUtils.constantToSentenceWithSpaces(super.toString());
     }
 }

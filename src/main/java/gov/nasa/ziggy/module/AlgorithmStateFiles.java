@@ -20,7 +20,7 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 public class AlgorithmStateFiles {
     private static final Logger log = LoggerFactory.getLogger(AlgorithmStateFiles.class);
 
-    private static final String HAS_RESULTS = "HAS_RESULTS";
+    private static final String HAS_OUTPUTS = "HAS_OUTPUTS";
 
     public enum SubtaskState {
         // State in which no AlgorithmStateFile is present. Rather than return an actual
@@ -56,21 +56,21 @@ public class AlgorithmStateFiles {
     private final File processingFlag;
     private final File completeFlag;
     private final File failedFlag;
-    private final File resultsFlag;
+    private final File outputsFlag;
 
     public AlgorithmStateFiles(File workingDir) {
         processingFlag = new File(workingDir, "." + SubtaskState.PROCESSING.toString());
         completeFlag = new File(workingDir, "." + SubtaskState.COMPLETE.toString());
         failedFlag = new File(workingDir, "." + SubtaskState.FAILED.toString());
-        resultsFlag = new File(workingDir, "." + HAS_RESULTS);
+        outputsFlag = new File(workingDir, "." + HAS_OUTPUTS);
     }
 
     public static boolean isComplete(File workingDir) {
         return new AlgorithmStateFiles(workingDir).isComplete();
     }
 
-    public static boolean hasResults(File workingDir) {
-        return new AlgorithmStateFiles(workingDir).resultsFlag.exists();
+    public static boolean hasOutputs(File workingDir) {
+        return new AlgorithmStateFiles(workingDir).outputsFlag.exists();
     }
 
     public void clearState() {
@@ -92,7 +92,7 @@ public class AlgorithmStateFiles {
      */
     public void clearStaleState() {
         if (!currentSubtaskState().equals(SubtaskState.COMPLETE)) {
-            resultsFlag.delete();
+            outputsFlag.delete();
         }
         processingFlag.delete();
         failedFlag.delete();
@@ -126,11 +126,11 @@ public class AlgorithmStateFiles {
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    public void setResultsFlag() {
+    public void setOutputsFlag() {
         try {
-            resultsFlag.createNewFile();
+            outputsFlag.createNewFile();
         } catch (IOException e) {
-            throw new UncheckedIOException("Unable to create new file " + resultsFlag.toString(),
+            throw new UncheckedIOException("Unable to create new file " + outputsFlag.toString(),
                 e);
         }
     }

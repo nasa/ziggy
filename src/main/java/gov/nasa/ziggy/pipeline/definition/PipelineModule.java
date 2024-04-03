@@ -22,18 +22,10 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
  * It defines the entry point called by the pipeline infrastructure when a task arrives for this
  * module (processTask()).
  * <p>
- * Important note related to task deletion:
- * <p>
- * Ziggy provides the capability to halt task execution, both prior to the start of execution (when
- * a task is submitted but not yet processing) and during execution. However: because Java's model
- * of thread interruption is "cooperative," {@link PipelineModule} subclasses need to provide
- * support for task deletion if they are expected to allow a task to be deleted once
- * {@link #processTask()} has been called. In particular, the module must check for thread
- * interruption using {@link Thread#isInterrupted()} on the current thread and returning from
- * {@link #processTask()} if an interruption is detected.
  *
  * @author Todd Klaus
  * @author Sean McCauliff
+ * @author PT
  */
 public abstract class PipelineModule {
 
@@ -62,14 +54,6 @@ public abstract class PipelineModule {
 
     public final long taskId() {
         return pipelineTask.getId();
-    }
-
-    /**
-     * Indicates whether the {@link processTask} method of a given subclass must be executed within
-     * a database transaction. Override to set to false if this is not the case.
-     */
-    public boolean processTaskRequiresDatabaseTransaction() {
-        return true;
     }
 
     /**

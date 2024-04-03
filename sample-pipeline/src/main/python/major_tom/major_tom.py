@@ -47,8 +47,8 @@ def permute_color(filename, throw_exception, generate_output):
     png_array[:,:,indices[1]] = green_image
     png_array[:,:,indices[2]] = blue_image
     
-    bare_filename = os.path.splitext(filename)[0];
-    save_filename = bare_filename + "-perm.png"
+    bare_filename = filename.split(os.extsep)[0]
+    save_filename = bare_filename + ".perm.png"
     print("Saving color-permuted image to file {} in directory {}".format(save_filename, os.getcwd()))
     
     new_png_file = Image.fromarray(png_array, 'RGBA')
@@ -73,8 +73,8 @@ def left_right_flip(filename):
     png_array[:,:,2] = np.fliplr(blue_image)
     png_array[:,:,3] = np.fliplr(alpha_image)
     
-    bare_filename = os.path.splitext(filename)[0];
-    save_filename = bare_filename + "-lrflip.png"
+    bare_filename = filename.split(os.extsep)[0]
+    save_filename = bare_filename + ".fliplr.png"
     print("Saving LR-flipped image to file {} in directory {}".format(save_filename, os.getcwd()))
     
     new_png_file = Image.fromarray(png_array)
@@ -99,8 +99,8 @@ def up_down_flip(filename):
     png_array[:,:,2] = np.flipud(blue_image)
     png_array[:,:,3] = np.flipud(alpha_image)
     
-    bare_filename = os.path.splitext(filename)[0];
-    save_filename = bare_filename + "-udflip.png"
+    bare_filename = filename.split(os.extsep)[0]
+    save_filename = bare_filename + ".flipud.png"
     print("Saving UD-flipped image to file {} in directory {}".format(save_filename, os.getcwd()))
     
     new_png_file = Image.fromarray(png_array)
@@ -115,7 +115,7 @@ def average_images(filenames):
     i_image = 0
     
     # Extract the dataset string.
-    pattern="(\\S+?)-(set-[0-9])-(file-[0-9])-perm-(\\S+?).png"
+    pattern="nasa-logo-(file-[0-9])\\.(flipud|fliplr)\\.png"
     match = re.search(pattern, filenames[0])
     setString = match.group(2);
     for filename in filenames:
@@ -132,7 +132,7 @@ def average_images(filenames):
         i_image += 1
         
     mean_array = sum_array // n_images
-    save_filename = 'averaged-image-' + setString + '.png'   
+    save_filename = 'nasa-logo-averaged.png'   
        
     print("Saving averaged image to file {} in directory {}".format(save_filename, os.getcwd()))
     

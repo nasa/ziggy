@@ -65,10 +65,10 @@ public class RemoteNodeDescriptorTest {
         assertEquals(7, descriptors.size());
         assertEquals(RemoteNodeDescriptor.SANDY_BRIDGE, descriptors.get(0));
         assertEquals(RemoteNodeDescriptor.IVY_BRIDGE, descriptors.get(1));
-        assertEquals(RemoteNodeDescriptor.CASCADE_LAKE, descriptors.get(2));
-        assertEquals(RemoteNodeDescriptor.ROME, descriptors.get(3));
-        assertEquals(RemoteNodeDescriptor.BROADWELL, descriptors.get(4));
-        assertEquals(RemoteNodeDescriptor.SKYLAKE, descriptors.get(5));
+        assertEquals(RemoteNodeDescriptor.ROME, descriptors.get(2));
+        assertEquals(RemoteNodeDescriptor.BROADWELL, descriptors.get(3));
+        assertEquals(RemoteNodeDescriptor.SKYLAKE, descriptors.get(4));
+        assertEquals(RemoteNodeDescriptor.CASCADE_LAKE, descriptors.get(5));
         assertEquals(RemoteNodeDescriptor.HASWELL, descriptors.get(6));
 
         descriptors = RemoteNodeDescriptor
@@ -86,10 +86,10 @@ public class RemoteNodeDescriptorTest {
         List<RemoteNodeDescriptor> acceptableDescriptors = RemoteNodeDescriptor
             .nodesWithSufficientRam(descriptors, 70.0);
         assertEquals(5, acceptableDescriptors.size());
-        assertEquals(RemoteNodeDescriptor.CASCADE_LAKE, acceptableDescriptors.get(0));
-        assertEquals(RemoteNodeDescriptor.ROME, acceptableDescriptors.get(1));
-        assertEquals(RemoteNodeDescriptor.BROADWELL, acceptableDescriptors.get(2));
-        assertEquals(RemoteNodeDescriptor.SKYLAKE, acceptableDescriptors.get(3));
+        assertEquals(RemoteNodeDescriptor.ROME, acceptableDescriptors.get(0));
+        assertEquals(RemoteNodeDescriptor.BROADWELL, acceptableDescriptors.get(1));
+        assertEquals(RemoteNodeDescriptor.SKYLAKE, acceptableDescriptors.get(2));
+        assertEquals(RemoteNodeDescriptor.CASCADE_LAKE, acceptableDescriptors.get(3));
         assertEquals(RemoteNodeDescriptor.HASWELL, acceptableDescriptors.get(4));
     }
 
@@ -107,7 +107,7 @@ public class RemoteNodeDescriptorTest {
         assertEquals(32, RemoteNodeDescriptor.SANDY_BRIDGE.getMaxGigs());
         assertEquals(64, RemoteNodeDescriptor.IVY_BRIDGE.getMaxGigs());
         assertEquals(192, RemoteNodeDescriptor.SKYLAKE.getMaxGigs());
-        assertEquals(160, RemoteNodeDescriptor.CASCADE_LAKE.getMaxGigs());
+        assertEquals(192, RemoteNodeDescriptor.CASCADE_LAKE.getMaxGigs());
         assertEquals(512, RemoteNodeDescriptor.ROME.getMaxGigs());
         assertEquals(192, RemoteNodeDescriptor.C5.getMaxGigs());
         assertEquals(384, RemoteNodeDescriptor.M5.getMaxGigs());

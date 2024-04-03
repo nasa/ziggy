@@ -18,9 +18,8 @@ public class RmiServerInstantiator {
     public static final String SHUT_DOWN_FILE_NAME = "shutdown";
     public static final String SHUT_DOWN_DETECT_FILE_NAME = "shutdown-detected";
 
-    public void startServer(int port, int nMessagesExpected, String serverReadyDir)
-        throws IOException {
-        ZiggyRmiServer.initializeInstance(port);
+    public void startServer(int nMessagesExpected, String serverReadyDir) throws IOException {
+        ZiggyRmiServer.start();
 
         if (serverReadyDir == null) {
             return;
@@ -38,12 +37,11 @@ public class RmiServerInstantiator {
 
     public static void main(String[] args) throws IOException {
 
-        int port = Integer.parseInt(args[0]);
-        int expectedMessageCount = Integer.parseInt(args[1]);
+        int expectedMessageCount = Integer.parseInt(args[0]);
         String serverReadyDir = null;
-        if (args.length > 2) {
-            serverReadyDir = args[2];
+        if (args.length > 1) {
+            serverReadyDir = args[1];
         }
-        new RmiServerInstantiator().startServer(port, expectedMessageCount, serverReadyDir);
+        new RmiServerInstantiator().startServer(expectedMessageCount, serverReadyDir);
     }
 }

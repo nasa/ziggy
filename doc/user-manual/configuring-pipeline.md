@@ -32,7 +32,7 @@ The issues described above are collectively the "pipeline configuration." This i
 
 [Module Parameters](module-parameters.md)
 
-[Data File Types](data-file-types.md)
+[The Datastore](datastore.md)
 
 [Pipeline Definition](pipeline-definition.md)
 
@@ -125,8 +125,6 @@ The main thing that's interesting here is that it shows how to access the indivi
 Here the actual algorithm code is called. Thus we see that the Python-side "glue" has taken the information from Ziggy and reorganized it for use by the algorithm code.
 
 In this case the algorithm code doesn't return anything because it writes its outputs directly to the working directory. This is a choice, but not the only one: it would also be allowed for the algorithm code to return results, and for the "glue" code to perform some additional operations on them and write them to the working directory.
-
-Anyway, moving on to the last chunk of the Python-side "glue" code, we see this:
 
 Anyway, moving on to the last chunk of the Python-side "glue" code, we see this:
 

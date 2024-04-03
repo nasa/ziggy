@@ -19,9 +19,9 @@ public class RmiClientInstantiator {
     public static final String SERIALIZE_MESSAGE_MAP_COMMAND_FILE_NAME = "serialize";
     public static final String SERIALIZED_MESSAGE_MAP_FILE_NAME = "message-map.ser";
 
-    public void startClient(int port, String clientReadyDir) throws IOException {
+    public void startClient(String clientReadyDir) throws IOException {
 
-        ZiggyRmiClient.initializeInstance(port, "external process client");
+        ZiggyRmiClient.start("external process client");
         ZiggyRmiClient.setUseMessenger(false);
         if (clientReadyDir == null) {
             return;
@@ -51,9 +51,8 @@ public class RmiClientInstantiator {
 
     public static void main(String[] args) throws IOException {
 
-        int port = Integer.parseInt(args[0]);
-        String clientReadyDir = args[1];
+        String clientReadyDir = args[0];
 
-        new RmiClientInstantiator().startClient(port, clientReadyDir);
+        new RmiClientInstantiator().startClient(clientReadyDir);
     }
 }

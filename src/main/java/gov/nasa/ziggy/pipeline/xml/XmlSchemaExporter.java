@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -48,8 +48,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
 
+import gov.nasa.ziggy.data.datastore.DatastoreConfigurationFile;
 import gov.nasa.ziggy.data.management.Acknowledgement;
-import gov.nasa.ziggy.data.management.DatastoreConfigurationFile;
 import gov.nasa.ziggy.data.management.Manifest;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.parameters.ParameterLibrary;

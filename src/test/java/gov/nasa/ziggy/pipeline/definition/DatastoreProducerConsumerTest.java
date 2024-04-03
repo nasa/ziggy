@@ -25,8 +25,7 @@ public class DatastoreProducerConsumerTest {
 
         PipelineTask p = Mockito.mock(PipelineTask.class);
         Mockito.when(p.getId()).thenReturn(TASK_ID);
-        DatastoreProducerConsumer r = new DatastoreProducerConsumer(p, Paths.get(FILE_SPEC),
-            DatastoreProducerConsumer.DataReceiptFileType.DATA);
+        DatastoreProducerConsumer r = new DatastoreProducerConsumer(p, Paths.get(FILE_SPEC));
         assertEquals(FILE_SPEC, r.getFilename());
         assertEquals(TASK_ID, r.getProducer());
     }

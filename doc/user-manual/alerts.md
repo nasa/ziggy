@@ -12,7 +12,7 @@ Ziggy uses alerts to tell the pipeline operator that something has happened that
 
 There are two flavors of alert that you're likely to see: warnings and errors. Warnings will turn the alerts stoplight yellow, errors turn it red. The alerts panel shows which task generated the alert, when it happened, and a hopefully-useful message. If there are no alerts, the stoplight will be green.
 
-Sadly, in this case it tells you pretty much what you already knew: task 12 blew up.
+Sadly, in this case it tells you pretty much what you already knew: tasks 8 and 9 blew up.
 
 ### Acknowledging Alerts
 

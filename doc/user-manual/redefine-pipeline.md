@@ -2,7 +2,7 @@
 
 [[Previous]](parameter-overrides.md)
 [[Up]](dusty-corners.md)
-[[Next]](edit-pipeline.md)
+[[Next]](nicknames.md)
 
 ## Redefining a Pipeline
 
@@ -40,4 +40,4 @@ And that's all there is to it!
 
 [[Previous]](parameter-overrides.md)
 [[Up]](dusty-corners.md)
-[[Next]](edit-pipeline.md)
+[[Next]](nicknames.md)

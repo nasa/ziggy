@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Allocates subtasks to clients that execute them in the order specified by an
- * {@link TaskConfigurationManager} instance.
+ * {@link TaskConfiguration} instance.
  * <p>
  * This class is typically accessed over a socket using {@link SubtaskServer} and
  * {@link SubtaskClient}
@@ -28,9 +28,9 @@ public class SubtaskAllocator {
             + currentPoolProcessing + "]";
     }
 
-    public SubtaskAllocator(TaskConfigurationManager inputsHandler) {
-        if (inputsHandler.numSubTasks() > 0) {
-            subtaskCompleted = new boolean[inputsHandler.numSubTasks()];
+    public SubtaskAllocator(TaskConfiguration taskConfiguration) {
+        if (taskConfiguration.getSubtaskCount() > 0) {
+            subtaskCompleted = new boolean[taskConfiguration.getSubtaskCount()];
             populateWaitingPool();
         }
     }

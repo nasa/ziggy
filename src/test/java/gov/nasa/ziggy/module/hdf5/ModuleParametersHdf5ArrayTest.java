@@ -18,7 +18,6 @@ import org.junit.Test;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.io.Persistable;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.parameters.ModuleParameters;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.parameters.ParametersInterface;
@@ -78,13 +77,9 @@ public class ModuleParametersHdf5ArrayTest {
         hdf5ModuleInterface.readFile(testFile, loadArticle, true);
         ModuleParameters m = loadArticle.getModuleParameters();
         List<ParametersInterface> p = m.getModuleParameters();
-        assertEquals(2, p.size());
+        assertEquals(1, p.size());
         Parameters d;
-        if (p.get(0) instanceof RemoteParameters) {
-            d = (Parameters) p.get(1);
-        } else {
-            d = (Parameters) p.get(0);
-        }
+        d = (Parameters) p.get(0);
         assertEquals(d.getName(), "test default parameters");
         Set<TypedParameter> t = d.getParameters();
         assertEquals(4, t.size());
@@ -113,7 +108,6 @@ public class ModuleParametersHdf5ArrayTest {
     private ModuleParameters populateModuleParameters() {
         ModuleParameters m = new ModuleParameters();
         List<ParametersInterface> p = m.getModuleParameters();
-        p.add(new RemoteParameters());
         p.add(parameters());
 
         return m;

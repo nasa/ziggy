@@ -84,7 +84,7 @@ public class PersistableSample3 implements Persistable {
             || !Objects.equals(boxedIntVar, other.boxedIntVar) || enumScalar != other.enumScalar) {
             return false;
         }
-        if ((intVar != other.intVar) || !Objects.equals(stringVar, other.stringVar)) {
+        if (intVar != other.intVar || !Objects.equals(stringVar, other.stringVar)) {
             return false;
         }
         return true;

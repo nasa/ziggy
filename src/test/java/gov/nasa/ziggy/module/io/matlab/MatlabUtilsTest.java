@@ -1,16 +1,24 @@
 package gov.nasa.ziggy.module.io.matlab;
 
+import static gov.nasa.ziggy.services.config.PropertyName.ARCHITECTURE;
+import static gov.nasa.ziggy.services.config.PropertyName.OPERATING_SYSTEM;
 import static org.junit.Assert.assertEquals;
 
+import org.junit.Rule;
 import org.junit.Test;
 
-import gov.nasa.ziggy.util.os.OperatingSystemType;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 
 public class MatlabUtilsTest {
 
+    @Rule
+    public ZiggyPropertyRule osName = new ZiggyPropertyRule(OPERATING_SYSTEM, "Linux");
+
+    @Rule
+    public ZiggyPropertyRule architecture = new ZiggyPropertyRule(ARCHITECTURE, (String) null);
+
     @Test
     public void testLinuxMcrPath() {
-        MatlabUtils.setOsType(OperatingSystemType.LINUX);
         String mPath = MatlabUtils.mcrPaths("/path/to/mcr/v93");
         String mPathExpect = """
             /path/to/mcr/v93/runtime/glnxa64:\
@@ -22,8 +30,8 @@ public class MatlabUtilsTest {
 
     @Test
     public void testOsXIntelMcrPath() {
-        MatlabUtils.setOsType(OperatingSystemType.MAC_OS_X);
-        MatlabUtils.setArchitecture("x86_64");
+        osName.setValue("Mac OS X");
+        architecture.setValue("x86_64");
         String mPath = MatlabUtils.mcrPaths("/path/to/mcr/v93");
         String mPathExpect = """
             /path/to/mcr/v93/runtime/maci64:\
@@ -34,8 +42,8 @@ public class MatlabUtilsTest {
 
     @Test
     public void testOsXM1McrPath() {
-        MatlabUtils.setOsType(OperatingSystemType.MAC_OS_X);
-        MatlabUtils.setArchitecture("aarch");
+        osName.setValue("Mac OS X");
+        architecture.setValue("aarch");
         String mPath = MatlabUtils.mcrPaths("/path/to/mcr/v93");
         String mPathExpect = """
             /path/to/mcr/v93/runtime/maca64:\

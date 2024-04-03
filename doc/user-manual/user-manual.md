@@ -24,7 +24,7 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
     5.1. [Module Parameters](module-parameters.md)
 
-    5.2​. [Data File Types](data-file-types.md)
+    5.2​. [The Datastore](datastore.md)
 
     5.3​. [Pipeline Definition](pipeline-definition.md)
 
@@ -44,13 +44,15 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
     8.5.​ [Organizing Pipelines and Parameter Sets](organizing-tables.md)
 
+    8.6. [The Edit Pipeline Dialog Box](edit-pipeline.md)
+
+    8.7. [The Datastore Control Panel](datastore-regexp.md)
+
 9. [Intermediate Topics](intermediate-topics.md)
 
     9.1. [The Datastore and the Task Directory](datastore-task-dir.md)
 
-    9.2​. [The Task Configuration Parameter Sets](task-configuration.md)
-
-    9.3. [Setting up a Relational Database Management System (RDBMS)](rdbms.md)
+    9.2. [Setting up a Relational Database Management System (RDBMS)](rdbms.md)
 
 10. [Troubleshooting Pipeline Execution](troubleshooting.md)
 
@@ -70,11 +72,9 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
 12. [High Performance Computing](select-hpc.md)
 
-      12.1​. [Remote Parameters](remote-parameters.md)
+      12.1. [The Remote Execution Dialog Box](remote-dialog.md)
 
-      12.2​. [The Remote Execution Dialog Box](remote-dialog.md)
-
-      12.23. [HPC Cost Estimation](hpc-cost.md)
+      12.2. [HPC Cost Estimation](hpc-cost.md)
 
 13. Cloud Computing (TBD)
 
@@ -82,7 +82,7 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
       14.1​. [Execution Flow](data-receipt-execution.md)
 
-      14.2.​ [Console Display](data-receipt-display.md)
+      14.2.​ [Data Receipt Display](data-receipt-display.md)
 
 15. [Event Handler](event-handler.md)
 
@@ -108,17 +108,17 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
      -->
 
-17. Alternative User Interface Options (TBD)
+17. Alternative User Interface Options
 
-     <!--
+      17.1​. [Command-Line Interface](console-cli.md)
 
-      17.1​. [Assistive Technologies](assistive-technologies.md)
+      <!--
 
-      17.2​. [Mouse-Overs](mouse-overs.md)
+      17.2​. [Assistive Technologies](assistive-technologies.md)
 
-      17.3​. [Console Appearance Control](appearance-control.md)
+      17.3​. [Mouse-Overs](mouse-overs.md)
 
-      17.1​. [Command Line Interface](console-cli.md)
+      17.4​. [Console Appearance Control](appearance-control.md)
 
      -->
 
@@ -134,11 +134,9 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
       19.4​. [Redefining a Pipeline](redefine-pipeline.md)
 
-      19.5​. [The Edit Pipeline Dialog Box](edit-pipeline.md)
+      19.5. [Creating Ziggy Nicknames](nicknames.md)
 
-      19.6. [Creating Ziggy Nicknames](nicknames.md)
-
-      <!-- 19.7. [Customizing Ziggy](customizing-ziggy.md) -->
+      <!-- 19.6. [Customizing Ziggy](customizing-ziggy.md) -->
 
 20. [Contact Us](contact-us.md)
 

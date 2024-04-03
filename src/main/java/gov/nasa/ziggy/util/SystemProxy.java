@@ -73,7 +73,7 @@ public class SystemProxy {
      * Note that {@link #disableExit()} is a one-time use method, in that the first use of
      * {@link #exit(int)} after the call to {@link #disableExit()} will re-enable calls to the
      * system exit method. Hence the recommended use of this method is to call it from a unit test's
-     * {@link Before} method.
+     * {@code Before} method.
      */
     public static void disableExit() {
         exitEnabled = false;

@@ -34,7 +34,7 @@ public class AlertService {
     }
 
     private static final Logger log = LoggerFactory.getLogger(AlertService.class);
-
+    public static final int DEFAULT_TASK_ID = -1;
     public static final boolean BROADCAST_ALERTS_ENABLED_DEFAULT = false;
 
     public boolean broadcastEnabled = false;
@@ -59,12 +59,12 @@ public class AlertService {
     }
 
     public void generateAlert(String sourceComponent, String message) {
-        generateAlert(sourceComponent, -1, message);
+        generateAlert(sourceComponent, DEFAULT_TASK_ID, message);
     }
 
     public void generateAlert(String sourceComponent, AlertService.Severity severity,
         String message) {
-        generateAlert(sourceComponent, -1, severity, message);
+        generateAlert(sourceComponent, DEFAULT_TASK_ID, severity, message);
     }
 
     /**

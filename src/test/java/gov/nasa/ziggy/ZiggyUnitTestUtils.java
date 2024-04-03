@@ -12,7 +12,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.services.security.User;
 
 /**
  * General utilities for unit and integration tests.
@@ -62,7 +61,6 @@ public class ZiggyUnitTestUtils {
     // Initialization for database items that define the pipelines: pipeline definitions,
     // pipeline module definitions, pipeline definition nodes
     public static void initializePipelineDefinition(PipelineDefinition pipelineDefinition) {
-        initializeUser(pipelineDefinition.getAuditInfo().getLastChangedUser());
         Hibernate.initialize(pipelineDefinition.getRootNodes());
         Hibernate.initialize(pipelineDefinition.getPipelineParameterSetNames());
         initializePipelineDefinitionNodes(pipelineDefinition.getRootNodes());
@@ -87,12 +85,5 @@ public class ZiggyUnitTestUtils {
 
     public static void initializePipelineModuleDefinition(
         PipelineModuleDefinition moduleDefinition) {
-        initializeUser(moduleDefinition.getAuditInfo().getLastChangedUser());
-    }
-
-    // Utility initialization of a User instance
-    public static void initializeUser(User user) {
-        Hibernate.initialize(user.getRoles());
-        Hibernate.initialize(user.getPrivileges());
     }
 }

@@ -8,10 +8,12 @@ import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REPORT;
 import java.awt.Cursor;
 import java.awt.event.ActionEvent;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
+import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -24,20 +26,16 @@ import gov.nasa.ziggy.parameters.ParameterSetDescriptor;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.services.security.Privilege;
-import gov.nasa.ziggy.services.security.User;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.TextualReportDialog;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
-import gov.nasa.ziggy.ui.util.proxy.CrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.ParameterSetCrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.ParametersOperationsProxy;
 import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
 import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
-import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
+import gov.nasa.ziggy.ui.util.table.AbstractViewEditGroupPanel;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * View / Edit panel for {@link ParameterSet} instances. The user can also use this panel to move
@@ -46,45 +44,44 @@ import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
  * @author PT
  * @author Bill Wohler
  */
-public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterSet> {
+public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<ParameterSet> {
 
     private static final long serialVersionUID = 20230810L;
 
     private ParameterSetCrudProxy parameterSetCrud = new ParameterSetCrudProxy();
     private String defaultParamLibImportExportPath;
 
-    /**
-     * Convenience method that can be used instead of the constructor. Helpful because the row model
-     * for parameter sets needs the tree model in its constructor.
-     */
-    public static ViewEditParameterSetsPanel newInstance() {
-        ZiggyTreeModel<ParameterSet> treeModel = new ZiggyTreeModel<>(new ParameterSetCrudProxy());
-        ParameterSetsRowModel rowModel = new ParameterSetsRowModel(treeModel);
-        return new ViewEditParameterSetsPanel(rowModel, treeModel);
-    }
-
     public ViewEditParameterSetsPanel(RowModel rowModel, ZiggyTreeModel<ParameterSet> treeModel) {
         super(rowModel, treeModel, "Name");
         buildComponent();
-
-        ZiggySwingUtils.addButtonsToPanel(getButtonPanel(),
-            ZiggySwingUtils.createButton(REPORT, this::report),
-            ZiggySwingUtils.createButton(IMPORT, this::importParameterLibrary),
-            ZiggySwingUtils.createButton(EXPORT, this::exportParameterLibrary));
 
         for (int column = 0; column < ParameterSetsRowModel.COLUMN_WIDTHS.length; column++) {
             ziggyTable.setPreferredColumnWidth(column, ParameterSetsRowModel.COLUMN_WIDTHS[column]);
         }
     }
 
-    private void report(ActionEvent evt) {
+    /**
+     * Convenience method that can be used instead of the constructor. Helpful because the row model
+     * for parameter sets needs the tree model in its constructor.
+     */
+    public static ViewEditParameterSetsPanel newInstance() {
+        ZiggyTreeModel<ParameterSet> treeModel = new ZiggyTreeModel<>(new ParameterSetCrudProxy(),
+            ParameterSet.class);
+        ParameterSetsRowModel rowModel = new ParameterSetsRowModel(treeModel);
+        return new ViewEditParameterSetsPanel(rowModel, treeModel);
+    }
 
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
+    @Override
+    protected List<JButton> buttons() {
+        List<JButton> buttons = new ArrayList<>(
+            List.of(ZiggySwingUtils.createButton(REPORT, this::report),
+                ZiggySwingUtils.createButton(IMPORT, this::importParameterLibrary),
+                ZiggySwingUtils.createButton(EXPORT, this::exportParameterLibrary)));
+        buttons.addAll(super.buttons());
+        return buttons;
+    }
+
+    private void report(ActionEvent evt) {
 
         Object[] options = { "Formatted", "Colon-delimited" };
         int n = JOptionPane.showOptionDialog(SwingUtilities.getWindowAncestor(this),
@@ -152,10 +149,9 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
     }
 
     @Override
-    protected Set<OptionalViewEditFunctions> optionalViewEditFunctions() {
-        return Set.of(OptionalViewEditFunctions.DELETE, OptionalViewEditFunctions.NEW,
-            OptionalViewEditFunctions.COPY, OptionalViewEditFunctions.RENAME,
-            OptionalViewEditFunctions.GROUP);
+    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
+        return Set.of(OptionalViewEditFunction.DELETE, OptionalViewEditFunction.NEW,
+            OptionalViewEditFunction.COPY, OptionalViewEditFunction.RENAME);
     }
 
     @Override
@@ -165,7 +161,6 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
 
     @Override
     protected void copy(int row) {
-        checkPrivileges();
 
         ParameterSet selectedParameterSet = ziggyTable.getContentAtViewRow(row);
 
@@ -205,7 +200,6 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
 
     @Override
     protected void rename(int row) {
-        checkPrivileges();
 
         ParameterSet selectedParameterSet = ziggyTable.getContentAtViewRow(row);
 
@@ -229,7 +223,6 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
 
     @Override
     protected void edit(int row) {
-        checkPrivileges();
 
         ParameterSet selectedParameterSet = ziggyTable.getContentAtViewRow(row);
         if (selectedParameterSet != null) {
@@ -239,7 +232,6 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
 
     @Override
     protected void delete(int row) {
-        checkPrivileges();
 
         ParameterSet selectedParameterSet = ziggyTable.getContentAtViewRow(row);
         if (selectedParameterSet.isLocked()) {
@@ -264,7 +256,6 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
 
     @Override
     protected void create() {
-        checkPrivileges();
 
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         ParameterSet newParameterSet = NewParameterSetDialog.createParameterSet(this);
@@ -293,7 +284,7 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
      * @author PT
      */
     private static class ParameterSetsRowModel
-        implements RowModel, TableModelContentClass<ParameterSet> {
+        implements RowModel, ModelContentClass<ParameterSet> {
 
         private ZiggyTreeModel<ParameterSet> treeModel;
 
@@ -325,7 +316,7 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
         }
 
         private void checkColumnArgument(int columnIndex) {
-            checkArgument(columnIndex >= 0 && columnIndex < COLUMN_NAMES.length, "column value of "
+            checkArgument(columnIndex >= 0 && columnIndex < COLUMN_NAMES.length, "Column value of "
                 + columnIndex + " outside of expected range from 0 to " + COLUMN_NAMES.length);
         }
 
@@ -343,7 +334,7 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditPanel<ParameterS
 
             AuditInfo auditInfo = parameterSet.getAuditInfo();
 
-            User lastChangedUser = null;
+            String lastChangedUser = null;
             Date lastChangedTime = null;
 
             if (auditInfo != null) {

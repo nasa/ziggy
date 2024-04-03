@@ -91,7 +91,7 @@ Before we do that, though, let's reconfigure the pipeline a bit. First, we need 
 
 Second, let's tell the pipeline that we only want it to process new data that's never been processed, and it should leave alone any data that's been successfully processed before this. To do so, select the `Multiple subtask configuration` and the `Single subtask configuration` parameter sets, and uncheck the reprocess box:
 
-<img src="images/disable-reprocess.png" style="width:11cm;" />
+<img src="images/disable-reprocess.png" style="width:13cm;" />
 
 Now return to the instances panel, and finally create the ready files. Remember that you need two ready files because we are simulating a complete delivery from the first source, and it's delivering to the `sample-1` and `sample-2` directories.
 

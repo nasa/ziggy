@@ -58,7 +58,7 @@ public class ComputeNodeMasterTest {
         + "-" + MODULE_NAME;
 
     private PipelineTask pipelineTask;
-    private TaskConfigurationManager inputsHandler;
+    private TaskConfiguration inputsHandler;
     private SubtaskServer subtaskServer;
     private ExecutorService subtaskMasterThreadPool;
     private TaskLog taskLog;
@@ -101,15 +101,14 @@ public class ComputeNodeMasterTest {
             DirectoryProperties.algorithmLogsDir().resolve(TASK_DIR_NAME + ".log").toString());
 
         // Create mocked instances
-        inputsHandler = mock(TaskConfigurationManager.class);
-        when(inputsHandler.allSubTaskDirectories()).thenReturn(subtaskDirFiles);
+        inputsHandler = mock(TaskConfiguration.class);
         subtaskServer = mock(SubtaskServer.class);
         subtaskMasterThreadPool = mock(ExecutorService.class);
 
         // Create the ComputeNodeMaster. To be precise, create an instance of the
         // class that is a Mockito spy.
         computeNodeMaster = Mockito.spy(new ComputeNodeMaster(taskDir.toString(), taskLog));
-        doReturn(inputsHandler).when(computeNodeMaster).getInputsHandler();
+        doReturn(inputsHandler).when(computeNodeMaster).getTaskConfiguration();
         doReturn(subtaskServer).when(computeNodeMaster).subtaskServer();
         doReturn(subtaskMasterThreadPool).when(computeNodeMaster).subtaskMasterThreadPool();
         doReturn(true).when(computeNodeMaster)
@@ -274,7 +273,6 @@ public class ComputeNodeMasterTest {
 
         // All of the semaphore permits should still be in use.
         assertEquals(0, computeNodeMaster.getSemaphorePermits());
-
     }
 
     /**
@@ -367,7 +365,6 @@ public class ComputeNodeMasterTest {
         assertEquals(5, computeNodeMaster.getStateFileNumTotal());
         assertEquals(3, computeNodeMaster.getStateFileNumComplete());
         assertEquals(2, computeNodeMaster.getStateFileNumFailed());
-
     }
 
     /**
@@ -393,7 +390,6 @@ public class ComputeNodeMasterTest {
 
         // The countdown latch should no longer be waiting.
         assertEquals(0, computeNodeMaster.getCountDownLatchCount());
-
     }
 
     @Test

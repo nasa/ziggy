@@ -3,6 +3,8 @@ package gov.nasa.ziggy.util.dispmod;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 
 /**
@@ -50,7 +52,8 @@ public class InstancesDisplayModel extends DisplayModel {
 
         return switch (columnIndex) {
             case 0 -> instance.getId();
-            case 1 -> instance.getPipelineDefinition().getName() + ": " + instance.getName();
+            case 1 -> instance.getPipelineDefinition().getName()
+                + (StringUtils.isEmpty(instance.getName()) ? "" : ": " + instance.getName());
             case 2 -> getStateString(instance.getState());
             case 3 -> instance.elapsedTime();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);

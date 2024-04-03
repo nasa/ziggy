@@ -2,11 +2,11 @@
 
 [[Previous]](change-param-values)
 [[Up]](ziggy-gui.md)
-[[Next]](intermediate-topics.md)
+[[Next]](edit-pipeline.md)
 
 ## Organizing Pipelines and Parameter Sets
 
-The sample pipeline, as discussed earlier, is a pretty trivial example of what you can do with Ziggy. There's only one pipeline defined (`sample`), and only 5 parameter sets.
+The sample pipeline, as discussed earlier, is a pretty trivial example of what you can do with Ziggy. There's only one pipeline defined (`sample`), and only 1 parameter set.
 
 In real life, you may well wind up with a configuration that is, shall we say, somewhat richer. For example, the current TESS science data processing system has over a dozen pipelines and over 100 parameter sets! There are pipelines and parameter sets that are only used in system testing; pipelines and parameter sets that are targeted to one of the three types of flight data acquired by the instruments; pipelines and parameter sets that were used earlier in the mission but are now obsolete; and so on.
 
@@ -18,7 +18,7 @@ Let's take another look at the parameter library display:
 
 <img src="images/parameter-library.png" style="width:32cm;"/>
 
-The display shows all of the parameter sets under an icon labeled `<Default Group>`. If you right-click on a parameter set, you get the following context menu:
+The display shows the single parameter set under an icon labeled `<Default Group>`. If you right-click on a parameter set, you get the following context menu:
 
 <img src="images/param-lib-context-menu.png" style="width:32cm;"/>
 
@@ -36,7 +36,7 @@ If you now press the `OK` button, you'll see the following change to the paramet
 
 <img src="images/param-lib-group-assigned.png" style="width:32cm;"/>
 
-The `Single subtask configuration` parameter set is no longer visible, but there's a spot in the table for the `Test` group defined previously. If you click the `+` button next to `Test` to expand the group, you see this:
+The `Algorithm Parameters` parameter set is no longer visible, but there's a spot in the table for the `Test` group defined previously. If you click the `+` button next to `Test` to expand the group, you see this:
 
 <img src="images/param-lib-all-groups-expanded.png" style="width:32cm;"/>
 
@@ -51,8 +51,8 @@ With this wisdom in hand, let's look again at the `Pipelines` panel:
 
 <img src="images/pipelines-panel.png" style="width:32cm;"/>
 
-Based on our experience with parameter sets, it's now clear that we can group pipelines in the same way that we can group parameter sets. Given that there's only one pipeline in the sample, it would be really ludicrous to do so, but someday when you've got a couple of dozen actual pipelines you'll thank us for this.
+Based on our experience with parameter sets, it's now clear that we can group pipelines in the same way that we can group parameter sets. Given that there's only one pipeline in the sample, it would be as ludicrous as our example above, but someday when you've got a couple of dozen actual pipelines you'll thank us for this.
 
 [[Previous]](change-param-values)
 [[Up]](ziggy-gui.md)
-[[Next]](intermediate-topics.md)
+[[Next]](edit-pipeline.md)

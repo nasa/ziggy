@@ -198,6 +198,8 @@ class Hdf5ModuleInterface:
         elif len(k) == 1:
             if isinstance(group[k[0]], h5py.Dataset):
                 return_value = self._read_dataset(group)
+            else:
+                return_value = self._read_groups(group)
         else:
             return_value = ""
         return return_value

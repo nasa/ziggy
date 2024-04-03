@@ -11,12 +11,9 @@ import javax.swing.SwingUtilities;
 
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.services.security.Privilege;
-import gov.nasa.ziggy.services.security.User;
 import gov.nasa.ziggy.ui.ConsoleSecurityException;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.CrudProxy;
 import gov.nasa.ziggy.ui.util.proxy.PipelineModuleDefinitionCrudProxy;
 import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
 
@@ -35,19 +32,13 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
     }
 
     @Override
-    protected Set<OptionalViewEditFunctions> optionalViewEditFunctions() {
-        return Set.of(OptionalViewEditFunctions.DELETE, OptionalViewEditFunctions.NEW,
-            OptionalViewEditFunctions.RENAME);
+    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
+        return Set.of(OptionalViewEditFunction.DELETE, OptionalViewEditFunction.NEW,
+            OptionalViewEditFunction.RENAME);
     }
 
     @Override
     protected void create() {
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
 
         String newModuleName = JOptionPane.showInputDialog(SwingUtilities.getWindowAncestor(this),
             "Enter the name for the new Module Definition", "New Pipeline Module Definition",
@@ -69,12 +60,6 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
     @Override
     protected void rename(int row) {
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
 
         PipelineModuleDefinition selectedModule = ziggyTable.getContentAtViewRow(row);
 
@@ -101,12 +86,6 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
     @Override
     protected void edit(int row) {
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
 
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         showEditDialog(ziggyTable.getContentAtViewRow(row));
@@ -115,13 +94,6 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
     @Override
     protected void delete(int row) {
-
-        try {
-            CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
-        } catch (ConsoleSecurityException e) {
-            MessageUtil.showError(this, e);
-            return;
-        }
 
         PipelineModuleDefinition module = ziggyTable.getContentAtViewRow(row);
 
@@ -207,7 +179,7 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
             AuditInfo auditInfo = module.getAuditInfo();
 
-            User lastChangedUser = null;
+            String lastChangedUser = null;
             Date lastChangedTime = null;
 
             if (auditInfo != null) {
@@ -220,7 +192,7 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
                 case 1 -> module.getName();
                 case 2 -> module.getVersion();
                 case 3 -> module.isLocked();
-                case 4 -> lastChangedUser != null ? lastChangedUser.getLoginName() : "---";
+                case 4 -> lastChangedUser != null ? lastChangedUser : "---";
                 case 5 -> lastChangedTime != null ? lastChangedTime : "---";
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
             };

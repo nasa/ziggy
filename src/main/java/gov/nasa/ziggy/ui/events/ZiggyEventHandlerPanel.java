@@ -36,9 +36,9 @@ import gov.nasa.ziggy.services.messaging.MessageAction;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.Requestor;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * Panel to display the collection of {@link ZiggyEventHandler} instances and their states.
@@ -119,7 +119,7 @@ public class ZiggyEventHandlerPanel extends JPanel {
     }
 
     private static class EventHandlerTableModel extends AbstractTableModel
-        implements TableModelContentClass<ZiggyEventHandlerInfoForDisplay>, Requestor {
+        implements ModelContentClass<ZiggyEventHandlerInfoForDisplay>, Requestor {
 
         private static final long serialVersionUID = 20230824L;
 

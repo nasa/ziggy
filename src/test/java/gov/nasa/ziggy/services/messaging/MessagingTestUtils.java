@@ -7,9 +7,7 @@ import java.util.UUID;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messages.SpecifiedRequestorMessage;
-import gov.nasa.ziggy.services.messaging.ProcessHeartbeatManager.HeartbeatManagerAssistant;
 import gov.nasa.ziggy.ui.ClusterController;
-import gov.nasa.ziggy.ui.status.Indicator;
 import gov.nasa.ziggy.util.SystemProxy;
 
 /**
@@ -43,13 +41,13 @@ public class MessagingTestUtils {
     }
 
     /**
-     * A {@link ProcessHeartbeatManager} that provides additional information about the inner
-     * workings of the class. This should only be used in test, as the means by which the additional
-     * information is provided will degrade the long-term performance of the manager.
+     * A {@link HeartbeatManager} that provides additional information about the inner workings of
+     * the class. This should only be used in test, as the means by which the additional information
+     * is provided will degrade the long-term performance of the manager.
      *
      * @author PT
      */
-    public static class InstrumentedWorkerHeartbeatManager extends ProcessHeartbeatManager {
+    public static class InstrumentedWorkerHeartbeatManager extends HeartbeatManager {
 
         private static final long SYS_TIME_SCALING = 100_000L;
 
@@ -72,12 +70,11 @@ public class MessagingTestUtils {
         private long systemTimeOffset = systemTimeOffset();
 
         public InstrumentedWorkerHeartbeatManager() {
-            super(new MockedHeartbeatManagerAssistant(), new ClusterControllerStub(100, 1));
         }
 
         @Override
-        public void initializeHeartbeatManager() throws NoHeartbeatException {
-            super.initializeHeartbeatManager();
+        public void start() throws NoHeartbeatException {
+            super.start();
             messageHandlerStartTimes.add(getHeartbeatTime() - systemTimeOffset);
             localStartTimes.add(getPriorHeartbeatTime() - systemTimeOffset);
         }
@@ -126,26 +123,6 @@ public class MessagingTestUtils {
 
         public void setHeartbeatTime(long heartbeatTime) {
             heartbeatTimeMillis = heartbeatTime;
-        }
-    }
-
-    /**
-     * Subclass of {@link HeartbeatManagerAssistant} that does nothing.
-     *
-     * @author PT
-     */
-    public static class MockedHeartbeatManagerAssistant implements HeartbeatManagerAssistant {
-
-        @Override
-        public void setRmiIndicator(Indicator.State state) {
-        }
-
-        @Override
-        public void setSupervisorIndicator(Indicator.State state) {
-        }
-
-        @Override
-        public void setDatabaseIndicator(Indicator.State state) {
         }
     }
 

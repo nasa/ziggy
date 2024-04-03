@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](remote-parameters.md)
+[[Previous]](select-hpc.md)
 [[Up]](select-hpc.md)
 [[Next]](hpc-cost.md)
 
@@ -16,15 +16,61 @@ Go to the `Pipelines` panel and double-click on the sample pipeline row in the t
 
 <img src="images/edit-pipeline.png" style="width:13cm;"/>
 
-A whole new dialog box we've never seen before! But actually we're just going to use it to get to yet another one. Select `permuter` from the modules list and press `Remote execution`. You'll see this:
+Now select `permuter` from the modules list and press `Remote execution`. You'll see this:
 
-<img src="images/remote-dialog-1.png" style="width:12cm;"/>
+<img src="images/remote-dialog-1.png" style="width:14cm;"/>
 
-### Using the Remote Parameters Dialog Box
+### Using the Remote Execution Dialog Box
 
-Notice that the values you've set in the `RemoteParameters` instance for permuter have been populated, as has the total number of subtasks that Ziggy found for this node, based on the contents of the datastore. In the interest of making this more realistic, change the number in `Total subtasks` to 1000, then hit the `Calculate` button. You'll see this:
+The first thing to notice is that there are some parameters that are in a group labeled Required parameters, and other in a group labeled Optional parameters. Let's talk first about the ...
 
-<img src="images/remote-dialog-2.png" style="width:12cm;"/>
+#### Required Parameters
+
+##### Enable remote execution
+
+This is the one that tells Ziggy that you want to run this pipeline module on a high performance computing system of some sort. Obviously when the check box is checked, Ziggy will farm out the module execution to the appropriate batch system; when it's unchecked, Ziggy will run all the tasks on the local system (i.e., the system where the Ziggy process is running). Ziggy will not let you save the configuration via the `Close` button until all of the required parameters have been entered.
+
+##### Run one subtask per node
+
+This one's a bit tricky to explain, so bear with me.
+
+The usual way that Ziggy performs parallel execution on a remote system is that it starts a bunch of compute nodes and then, on each compute node, as many subtasks as possible run in parallel, depending on the number of cores and amount of RAM on the compute node. The advantage of this is that the folks who write the algorithm code don't need to do anything special to their software to take advantage of parallel execution: just plug your algorithm in and let Ziggy do the rest.
+
+In some cases, though, there are algorithm packages that have their own parallelization that was implemented by the subject matter experts. Typically these algorithms make use of one of many third-party concurrency libraries available for most computer languages. In these cases, you probably don't want multiple subtasks all vying for the CPUs and RAM on a compute node; you want one subtask to run on the compute node, and that subtask should farm out work using its own parallel processing capabilities.
+
+In this latter case, you should check the `Run one subtask per node` check box. This tells Ziggy to defer to the algorithm's parallelism and not to try to use Ziggy's subtask parallelism.
+
+##### Total tasks and subtasks
+
+The total number of tasks and subtasks.
+
+If the datastore already has the input files for the module you're working on, then Ziggy can figure out how many tasks will be needed, and how many subtasks each task will need (it does this by running the code that's used by Ziggy to determine the task and subtask populations). In this example, because Data Receipt has been run, Ziggy knows how to set the task and subtask count parameters for Permuter (which gets all its inputs from the files that got read in by Data Receipt). Consequently, it will do so automatically.
+
+On the other hand, consider the case in which the inputs to a module do not yet exist. For example, imagine that we've just run data receipt but none of the other pipeline modules. If you ask for remote execution parameters for Permuter, it can figure out the task and subtask counts. On the other hand, if you try to generate remote execution parameters for Flip, it will show 0 tasks and 0 subtasks. This is because Flip's inputs are Permuter's outputs. If Permuter hasn't yet generated its outputs, there's nothing there to let Ziggy do the task/subtask calculation for Flip. In this case, if you want to generate remote parameter estimates, you'll need to fill in estimates for the task count and subtask count yourself.
+
+Note that, even in the case in which Ziggy can fill in task and subtask counts, you can delete the values it comes up with and put in your own! This is helpful when you've just used a small run to determine things like the gigs per subtask, and now you want to see how performance will scale to a much larger run.
+
+##### Gigs per subtask
+
+This is the maximum amount of RAM you expect a single subtask to consume at any given time in its execution, in gigabytes.
+
+##### Max subtask wall time and Typical subtask wall time
+
+These are estimates of how much time a subtask will need in order to finish. In general, subtask wall times will have a distribution, with most tasks executing in a time X while a few stragglers will require a time Y > X. Enter the "most tasks time," X, for `Typical subtask wall time` and the "stragglers time," Y, for `Max subtask wall time`.
+
+##### Scale wall time by number of cores
+
+This option is only used when `Run one subtask per node` is enabled.
+
+The issue here is that the wall time needed for each subtask depends on the number of cores in a given node. If a subtask runs on a node with 32 cores, it will probably need only half as much wall time as if it runs on one with 16 cores.
+
+To ensure that the wall time is set correctly on any compute node, no matter how many cores it has, the user can enter in the `Max subtask wall time` and `Typical subtask wall time` the time that subtasks will take if they're given only 1 core. When the compute node architecture is selected, Ziggy will scale down the wall time by the number of cores in that architecture, assuming a simple linear scaling.
+
+#### Calculate the PBS Parameters
+
+Once the required parameters have been entered, Ziggy will convert the remote execution parameters on the left hand side of the dialog box into the parameters that will be used in the PBS submission if and when you run this module on the HPC system. In this example, the PBS parameters have not been generated because the gigs per subtask and wall time per subtask are set to zero. Note that Ziggy highlights those incomplete fields. The total tasks and total subtasks fields have been auto-filled with a value of 2 and 8 respectively, which is correct but not very interesting. For the purposes of the example, let's set `Total subtasks` to 1000, `Gigs per subtask` to 10, and both wall time parameters to 0.15 hours. You'll see this:
+
+<img src="images/remote-dialog-2.png" style="width:14cm;"/>
 
 The parameters that will be used in the request to PBS are shown in the `PBS parameters` section. Ziggy will ask for 84 nodes of the Haswell type, for 15 minutes each; the total cost in Standard Billing Units (SBUs) will be 16.8.
 
@@ -32,11 +78,17 @@ A Haswell node at the NAS has 24 cores and 128 GB of RAM. Since we've asserted t
 
 What did Ziggy actually do here? Given the parameters we supplied, Ziggy looked for the architecture that would minimize the cost in SBUs, which turns out to be Haswell, and it asked for enough nodes that all of the subtasks could execute in parallel. This latter minimizes the estimated wall time, but at the expense of asking for a lot of nodes.
 
-#### Setting the Maximum Number of Nodes
+We can now tune the PBS request that Ziggy makes on our behalf by making use of ...
 
-Given the above, it might be smarter to ask for fewer nodes. If we change the `Max nodes` value to 10 and press `Calculate`, this is what we see:
+#### Optional Parameters
 
-<img src="images/remote-dialog-3.png" style="width:12cm;"/>
+The optional parameters are there in case Ziggy produces a ludicrous PBS request, and you want to apply some additional limits to get the request to be less insane.
+
+##### Maximum nodes per task
+
+Given the above, it might be smarter to ask for fewer nodes. If we change the `Max nodes` value to 10, this is what we see:
+
+<img src="images/remote-dialog-3.png" style="width:14cm;"/>
 
 As expected, the number of remote nodes went down and the wall time went up. What's unexpected is that the total cost also went down! What happened?
 
@@ -48,48 +100,44 @@ In the second example, given the parameters requested, the actual wall time need
 
 That said: Once the HPC has processed all the subtasks, the jobs all exit and the nodes are returned to the HPC pool. The user is only charged for the actual usage. In the first case, what would have happened is that all the jobs would finish early, and we'd only get billed for what we actually used, which would be more like 10 SBUs than 17 SBUs.
 
-#### Selecting a Different Optimizer
+##### Optimizer
 
-Right now the `Optimizer` is set to `COST`, meaning that Ziggy will attempt, within the limits of its smarts, to find the compute node architecture that minimizes the cost in SBUs. There are 3 other settings available for the optimizer: `CORES`, `QUEUE_DEPTH`, and `QUEUE_TIME`. These are described in detail in the article on [Remote Parameters](remote-parameters.md).
+When Ziggy does its calculations, its default behavior is to select an architecture that minimizes the total cost (in SBUs for NASA's supercomputer, dollars or other currency for other systems). This is reflected in the `Cost` setting of the `Optimizer`. This is the default, but there are three other options:
 
-#### Manually Selecting an Architecture
+- `Cores`: As mentioned above, depending on the amount of RAM required for each subtask, you may find that, on some or even all architectures, it's not possible to run subtasks in parallel on all the cores; in order to free up enough RAM for the subtasks, some cores must be idled. The `Cores` option minimizes the number of idled cores.
+- `Queue depth`: This is one of the optimizers that tries to minimize the time spent waiting in the queue. The issue here is that some architectures are in greater demand than others. The `Queue depth` optimization looks at each architecture's queued jobs and calculates the time it would take to run all of them. The architecture that has the shortest time based on this metric wins.
+- `Queue time`: This is a different optimization related to queues, but in this case it attempts to minimize the total time you spend waiting for results (the time in queue plus the time spent running the jobs). This looks at each architecture and computes the amount of queue time "overhead" that typical jobs are seeing. The architecture that produces the shortest total time (queue time plus execution time) wins.
 
-The `Architecture` pull-down menu allows you to manually select an architecture for the compute nodes. This in turn allows you to run the wall time and SBU calculation and see the results for each architecture.
+##### Architecture
 
-#### Enabling or Disabling Node Sharing
+The `Architecture` pull-down menu allows you to manually select an architecture for the compute nodes rather than allowing Ziggy to try to pick one for you. The console will show you the capacity and cost of the selected architecture to the right of the combo box as well as the estimated wall time and SBU calculation for that architecture in the `PBS parameters` section.
 
-So far we've implicitly assumed that each compute node can run subtasks in parallel up to the limit of the number of active cores per node. That is to say, in this example a Haswell node will always have 12 permuter subtasks running simultaneously. This is the situation we call "Node Sharing."
+##### Subtasks per core
 
-There are cases when this won't be true -- when it won't be safe to try to force a node to run many subtasks in parallel. In those cases, you can uncheck the Node Sharing check box and run the PBS parameter calculation. You get this:
-
-<img src="images/remote-dialog-4.png" style="width:12cm;"/>
-
-Ziggy no longer asks about GB per subtask, because only 1 subtask will run at a time on each node, so there's an assumption that the available RAM on any architecture will be sufficient. The cost has ballooned, which is expected since now each node can only process 1 subtask at a time. Somewhat unexpectedly, the optimal architecture has changed. This is because, with each node processing 1 subtask at a time, the benefits to having a lot of cores in a compute node go away and architectures with fewer cores are potentially favored.
-
-Now: hopefully, the reason you're disabling node sharing is because your algorithm program has its own, internal concurrency support, and that support spreads the work of the subtask onto all the available cores on the compute node. When this is the case, check the `Wall Time Scaling` box. When this box is checked, Ziggy assumes that the wall times provided by the user are wall times for processing on 1 core, and that the actual time will go inversely with the number of cores (i.e., the parallelization benefit is perfect). When you do this and calculate the parameters, you see this:
-
-<img src="images/remote-dialog-5.png" style="width:12cm;"/>
-
-This results in a cost even lower than what we saw before! This is because, in this configuration, Ziggy assumes that every core can be utilized regardless of how much RAM per core the architecture has.
+The `Subtasks per core` option does something similar to the `Max nodes per task` option. Both of these options tell Ziggy to reduce its node request in exchange for asking for a longer wall time. The difference is that the `Max nodes per task` option does this explicitly, by setting a limit on how many nodes Ziggy can ask for. `Subtasks per core`, by contrast, applies an implicit limit. In the default request, Ziggy will ask for enough nodes that every core processes one and only one subtask, so that all the subtasks get done in one "wave," as it were. The `Subtasks per core` option tells Ziggy to tune its request so that each active core processes multiple subtasks, resulting in a number of "waves" of processing equal to the `Subtasks per core` value.
 
 #### Selecting A Batch Queue
 
 Under ordinary circumstances, it's best to leave the Queue selection blank so that it can be selected based on the required execution time resources. There are two non-ordinary circumstances in which it makes sense to select a queue manually.
 
-The first circumstance is when you want to use either the `DEVEL` or the `DEBUG` queue on the NASA Advanced Supercomputer (NAS). These are special purpose queues that allow users to execute jobs at higher priority but which set a low limit on the number of nodes and amount of wall time that can be requested. Ziggy will never select these queues for you, but if you think you should use them you can select them yourself. 
+The first circumstance is when you are using a reserved queue. In this case, when you select Reserved in the Queue selection box, the Reserved queue name text field will be enabled and can enter your reservation queue, which is named with the letter R followed by a number.
 
-The second circumstance is when you are using a reserved queue. In this case, when you select RESERVED in the Queue selection box, you'll be prompted for a queue name (and you won't be able to get rid of the prompt until you enter a valid queue name). When you save the results from the remote parameters dialog box to the database, the queue name you entered will be put into the remote parameters instance for the pipeline module. 
+The second circumstance is when you want to use either the `Devel` or the `Debug` queue on the NASA Advanced Supercomputer (NAS). These are special purpose queues that allow users to execute jobs at higher priority but which set a low limit on the number of nodes (2 and 1 respectively) and amount of wall time that can be requested. Ziggy will never select these queues for you, but if you think you should use them you can select them yourself.
+
+If you select either of these two queues, the maximum number of nodes field is filled in for you. In addition, you also have to ensure that you only have 1 or 2 tasks respectively. In the case of the sample pipeline, you can change the unit of work so that a single task is generated. To do this, close the Remote execution dialog, select the `permuter` module, for example, and press the `Parameters` button. In the Edit parameter sets dialog, double-click on the `Single subtask configuration` parameter. Then change the `taskDirectoryRegex` parameter to `set-1`. When you save these settings, you'll find that when you start the Permuter module, only one task--the one associated with the set-1 directory--will start.
+
+In any case, it may be instructive to select the various queues to see the maximum wall times for each queue displayed to the right of the combo box.
 
 ### Keeping or Discarding Changes
 
-After some amount of fiddling around, you may reach a configuration that you like, and you'd like to ensure that Ziggy uses that configuration when it actually submits your jobs. Alternately, you might realize that you've made a total mess and you want to discard all the changes you've made and start over (or just go home). 
+After some amount of fiddling around, you may reach a configuration that you like, and you'd like to ensure that Ziggy uses that configuration when it actually submits your jobs. Alternately, you might realize that you've made a total mess and you want to discard all the changes you've made and start over (or just go home).
 
-Let's start with the total mess case. If you press the `Reset` button, the remote parameters will be set back to their values from when the remote execution dialog opened. At this point you can try again. Alternately, if you've decided to give up on this activity completely, press the `Cancel` button: this will discard all your changes and close the remote execution dialog box. 
+Let's start with the total mess case. If you press the `Reset` button, the remote parameters will be set back to their values from when the Remote execution dialog opened. At this point you can try again. Alternately, if you've decided to give up on this activity completely, press the `Cancel` button: this will discard all your changes and close the Remote execution dialog box.
 
-Alternately, you might think that your changes are pretty good and you want to hold onto them. If this is the case, press the `Close` button. This button saves your changes to the remote parameters, but **it only saves them to the Edit pipeline dialog box!** What this means is that if you hit `Close` and then press the `Remote execution` button on the Edit pipeline dialog box again, the values you see in the remote execution dialog box will be the ones you saved earlier with the `Close` button. Relatedly, if you make a bunch of changes now and decide to use the `Reset` button, the values are reset to the ones you saved via the `Close` button in your prior session with the remote execution dialog. 
+Alternately, you might think that your changes are pretty good and you want to hold onto them. If this is the case, press the `Close` button. This button saves your changes to the remote parameters, but **it only saves them to the Edit pipeline dialog box!** What this means is that if you hit `Close` and then press the `Remote execution` button on the Edit pipeline dialog box again, the values you see in the Remote execution dialog box will be the ones you saved earlier with the `Close` button. Relatedly, if you make a bunch of changes now and decide to use the `Reset` button, the values are reset to the ones you saved via the `Close` button in your prior session with the Remote execution dialog.
 
-If you decide that you're so happy with your edits to remote execution that you want Ziggy to actually store them and use them when running the pipeline, you need to press the `Save` button on the Edit pipeline dialog. This will save all the changes you've made since you started the Edit pipeline dialog box. Alternately, if you realize that you've messed something up and want Ziggy to forget all about this session, you can use the `Cancel` button. 
+If you decide that you're so happy with your edits to remote execution that you want Ziggy to actually store them and use them when running the pipeline, you need to press the `Save` button on the Edit pipeline dialog. This will save all the changes you've made since you started the Edit pipeline dialog box. Alternately, if you realize that you've messed something up and want Ziggy to forget all about this session, you can use the `Cancel` button.
 
-[[Previous]](remote-parameters.md)
+[[Previous]](select-hpc.md)
 [[Up]](select-hpc.md)
 [[Next]](hpc-cost.md)

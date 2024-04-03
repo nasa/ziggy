@@ -1,10 +1,23 @@
 package gov.nasa.ziggy.module;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+
+import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * @author PT
@@ -12,6 +25,18 @@ import org.slf4j.MDC;
  */
 public class SubtaskUtils {
     private static final Logger log = LoggerFactory.getLogger(SubtaskUtils.class);
+
+    public static final String SUBTASK_DIR_PREFIX = "st-";
+    public static final String SUBTASK_DIR_REGEXP = SUBTASK_DIR_PREFIX + "(\\d+)";
+    public static final Pattern SUBTASK_DIR_PATTERN = Pattern.compile(SUBTASK_DIR_REGEXP);
+
+    public static Path subtaskDirectory(Path taskWorkingDir, int subtaskIndex) {
+        return taskWorkingDir.resolve(subtaskDirName(subtaskIndex));
+    }
+
+    public static String subtaskDirName(int subtaskIndex) {
+        return SUBTASK_DIR_PREFIX + subtaskIndex;
+    }
 
     /**
      * Sets a thread-specific string that will be included in log messages. Specifically, the
@@ -47,6 +72,42 @@ public class SubtaskUtils {
         while (it.hasNext()) {
             File subtaskDir = it.next().getSubtaskDir();
             new AlgorithmStateFiles(subtaskDir).clearStaleState();
+        }
+    }
+
+    /**
+     * Returns the subtask index for the current subtask. Assumes that the working directory is the
+     * subtask directory.
+     */
+    public static int subtaskIndex() {
+        Matcher m = SUBTASK_DIR_PATTERN
+            .matcher(DirectoryProperties.workingDir().getFileName().toString());
+        if (m.matches()) {
+            return Integer.parseInt(m.group(1));
+        }
+        throw new PipelineException("Directory " + DirectoryProperties.workingDir().toString()
+            + " not a subtask directory");
+    }
+
+    /** Returns a list of subtask directories in a task dir. */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static List<Path> subtaskDirectories(Path taskDir) {
+        try (Stream<Path> dirStream = Files.list(taskDir)) {
+            return dirStream.filter(Files::isDirectory)
+                .filter(s -> SUBTASK_DIR_PATTERN.matcher(s.getFileName().toString()).matches())
+                .collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Creates a subtask for a given task directory and subtask index. */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Path createSubtaskDirectory(Path taskWorkingDir, int subtaskIndex) {
+        try {
+            return Files.createDirectories(subtaskDirectory(taskWorkingDir, subtaskIndex));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 }

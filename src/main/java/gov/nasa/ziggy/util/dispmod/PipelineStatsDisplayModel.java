@@ -9,7 +9,6 @@ import java.util.Objects;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.util.TaskProcessingTimeStats;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel.ProcessingStatistics;
 
@@ -22,7 +21,7 @@ import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel.ProcessingStatistic
  * @author Todd Klaus
  */
 public class PipelineStatsDisplayModel extends DisplayModel
-    implements TableModelContentClass<ProcessingStatistics> {
+    implements ModelContentClass<ProcessingStatistics> {
 
     private static final String[] COLUMN_NAMES = { "Module", "State", "Count", "Sum (hrs)",
         "Min (hrs)", "Max (hrs)", "Mean (hrs)", "Std (hrs)", "Start", "End", "Elapsed (hrs)" };

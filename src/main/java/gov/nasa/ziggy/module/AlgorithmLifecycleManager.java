@@ -3,6 +3,7 @@ package gov.nasa.ziggy.module;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 
 import org.hibernate.Hibernate;
 import org.slf4j.Logger;
@@ -26,21 +27,22 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
     private static final Logger log = LoggerFactory.getLogger(AlgorithmLifecycleManager.class);
 
-    private static WorkingDirManager workingDirManager = null;
-    private File defaultWorkingDir = null;
+    private TaskDirectoryManager taskDirManager;
+    private Path taskDir;
 
     private PipelineTask pipelineTask;
     private AlgorithmExecutor executor;
 
     public AlgorithmLifecycleManager(PipelineTask pipelineTask) {
         this.pipelineTask = pipelineTask;
+        taskDirManager = new TaskDirectoryManager(pipelineTask);
 
         // We need an executor at construction time, though it may get replaced later.
         executor = AlgorithmExecutor.newInstance(pipelineTask);
     }
 
     @Override
-    public void executeAlgorithm(TaskConfigurationManager inputs) {
+    public void executeAlgorithm(TaskConfiguration inputs) {
 
         // Replace the pipeline task and the executor now, since we have new information
         // about the task's subtask counts.
@@ -63,7 +65,7 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
     @Override
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public File getTaskDir(boolean cleanExisting) {
-        File taskDir = allocateWorkingDir(cleanExisting);
+        File taskDir = allocateTaskDir(cleanExisting);
         if (isRemote()) {
             File stateFileLockFile = new File(taskDir, StateFile.LOCK_FILE_NAME);
             try {
@@ -111,33 +113,22 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
     }
 
     /**
-     * Allocate the working directory using the default naming convention:
-     * INSTANCEID-TASKID-MODULENAME
-     *
-     * @return
-     */
-    private File allocateWorkingDir(boolean cleanExisting) {
-        return allocateWorkingDir(pipelineTask, cleanExisting);
-    }
-
-    /**
      * Allocate the working directory using the specified prefix.
      *
      * @param workingDirNamePrefix
      * @param pipelineTask
      * @return
      */
-    private File allocateWorkingDir(PipelineTask pipelineTask, boolean cleanExisting) {
-        synchronized (ExternalProcessPipelineModule.class) {
-            if (workingDirManager == null) {
-                workingDirManager = new WorkingDirManager();
-            }
+    private File allocateTaskDir(boolean cleanExisting) {
+
+        if (taskDirManager == null) {
+            taskDirManager = new TaskDirectoryManager(pipelineTask);
         }
 
-        if (defaultWorkingDir == null) {
-            defaultWorkingDir = workingDirManager.allocateWorkingDir(pipelineTask, cleanExisting);
-            log.info("defaultWorkingDir = " + defaultWorkingDir);
+        if (taskDir == null) {
+            taskDir = taskDirManager.allocateTaskDir(cleanExisting);
+            log.info("defaultWorkingDir = " + taskDir);
         }
-        return defaultWorkingDir;
+        return taskDir.toFile();
     }
 }

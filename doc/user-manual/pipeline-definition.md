@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](data-file-types.md)
+[[Previous]](datastore.md)
 [[Up]](configuring-pipeline.md)
 [[Next]](building-pipeline.md)
 
@@ -40,23 +40,21 @@ Note that data receipt is the only pre-defined module in Ziggy. There's more inf
 
 #### Back to the Pipeline Definition
 
-The next chunk of the pipeline definition is thus:
+The next chunk of the pipeline definition is thus (minus comments, which I removed in the interest of brevity):
 
 ```xml
 <pipelineParameter name="Algorithm Parameters"/>
 
-<node moduleName="data-receipt" childNodeNames="permuter">
-  <inputDataFileType name="raw data"/>
-  <moduleParameter name="Data receipt configuration"/>
-</node>
+  <node moduleName="data-receipt" childNodeNames="permuter">
+    <inputDataFileType name="raw data"/>
+    <moduleParameter name="Data receipt configuration"/>
+  </node>
 
-<node moduleName="permuter" childNodeNames="flip">
-  <inputDataFileType name="raw data"/>
-  <outputDataFileType name="permuted colors"/>
-  <modelType name="dummy model"/>
-  <moduleParameter name="Remote Parameters (permute color)"/>
-  <moduleParameter name="Multiple subtask configuration"/>
-</node>
+  <node moduleName="permuter" childNodeNames="flip">
+    <inputDataFileType name="raw data"/>
+    <outputDataFileType name="permuted colors"/>
+    <modelType name="dummy model"/>
+  </node>
 ```
 
 Each step in the pipeline is a node. The `node` specifies the name of the module for that node and the name of any nodes that execute next, as `childNodeNames`. Here we see the `data-receipt` node is followed by `permuter`, and `permuter` is followed by `flip`.
@@ -65,9 +63,18 @@ Each step in the pipeline is a node. The `node` specifies the name of the module
 
 Parameter sets can be supplied for either the entire pipeline as a whole, or else for individual nodes.
 
-In the text above we see a `pipelineParameter` named `Algorithm Parameters`. This means that the `Algorithm Parameters` set from `pl-sample.xml` will be provided to each and every module when it starts to execute. By contrast, the `Data receipt configuration` parameter set is provided as a `moduleParameter` to the `data-receipt` node. This means that the data receipt module will get the `Data receipt configuration` parameter set provided, but the permuter module will not.
+In the text above we see a `pipelineParameter` named `Algorithm Parameters`. This means that the `Algorithm Parameters` set from `pl-sample.xml` will be provided to each and every module when it starts to execute. On the other hand, it's possible to imagine that the permuter module would have some parameters that it needs but which aren't used by the other modules. To do this, we would put a `moduleParameter` element into the `permuter` dode definition. Here's what that would look like:
 
-A given parameter set can be provided as a `moduleParameter` to any number of nodes. For example, the `Multiple subtask configuration` parameter set is provided as a `moduleParameter` to `permuter` and also to `flip` (not shown above, but it's in the XML file, check it out). This provides fairly fine-grained control in terms of which parameter sets go to which nodes.
+```xml
+  <node moduleName="permuter" childNodeNames="flip">
+    <inputDataFileType name="raw data"/>
+    <outputDataFileType name="permuted colors"/>
+    <moduleParameter name="Some other parameter set"/>
+    <modelType name="dummy model"/>
+  </node>
+```
+
+A given parameter set can be provided as a `moduleParameter` to any number of nodes. For example, if we wanted to provide `Some other parameter set` to both `permuter` and `flip`, but not to `data-receipt` or `average`, we could simply copy the `moduleParameter` element from the `permuter` node definition into the `flip` node definition. 
 
 ##### Data File and Model Types
 
@@ -75,6 +82,6 @@ Each node can have `inputDataFileType`, `outputDataFileType`, and `modelType` el
 
 A node can have multiple output types (see for example the `flip` node in `pd-sample.xml`) or multiple input types (as in the `averaging` node). Each node can use any combination of model types it requires, and each model type can be provided to as many nodes as need it.
 
-[[Previous]](data-file-types.md)
+[[Previous]](datastore.md)
 [[Up]](configuring-pipeline.md)
 [[Next]](building-pipeline.md)

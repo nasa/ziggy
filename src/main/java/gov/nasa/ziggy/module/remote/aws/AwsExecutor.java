@@ -3,8 +3,8 @@ package gov.nasa.ziggy.module.remote.aws;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteExecutor;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**
@@ -26,19 +26,19 @@ public class AwsExecutor extends RemoteExecutor {
      * parameters can be determined.
      */
     @Override
-    public PbsParameters generatePbsParameters(RemoteParameters remoteParameters,
-        int totalSubtasks) {
+    public PbsParameters generatePbsParameters(
+        PipelineDefinitionNodeExecutionResources executionResources, int totalSubtasks) {
 
-        PbsParameters pbsParameters = remoteParameters.pbsParametersInstance();
-        pbsParameters.populateArchitecture(remoteParameters, totalSubtasks,
+        PbsParameters pbsParameters = executionResources.pbsParametersInstance();
+        pbsParameters.populateArchitecture(executionResources, totalSubtasks,
             SupportedRemoteClusters.AWS);
 
         // We need to make sure that we request a minimum of cores and gigs that is sufficient
         // to run at least 1 subtask per node
-        double gigsPerSubtask = remoteParameters.getGigsPerSubtask();
+        double gigsPerSubtask = executionResources.getGigsPerSubtask();
         int minCoresPerNode = (int) Math
             .ceil(gigsPerSubtask / pbsParameters.getArchitecture().getGigsPerCore());
-        int minGigsPerNode = (int) Math.ceil(remoteParameters.getGigsPerSubtask());
+        int minGigsPerNode = (int) Math.ceil(executionResources.getGigsPerSubtask());
 
         // We also need to make sure we don't ask for less than the minimum available for
         // the specified architecture
@@ -67,7 +67,7 @@ public class AwsExecutor extends RemoteExecutor {
             pbsParameters.setMinGigsPerNode(requestedMinGigsPerNode);
         }
 
-        pbsParameters.populateResourceParameters(remoteParameters, totalSubtasks);
+        pbsParameters.populateResourceParameters(executionResources, totalSubtasks);
 
         return pbsParameters;
     }

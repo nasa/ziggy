@@ -6,7 +6,7 @@ import javax.swing.table.AbstractTableModel;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.ui.ConsoleSecurityException;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
 
@@ -15,7 +15,7 @@ import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
  */
 @SuppressWarnings("serial")
 public class TaskMetricsTableModel extends AbstractTableModel
-    implements TableModelContentClass<ModuleTaskMetrics> {
+    implements ModelContentClass<ModuleTaskMetrics> {
 
     private TaskMetricsDisplayModel taskMetricsDisplayModel;
     private boolean completedTasksOnly;

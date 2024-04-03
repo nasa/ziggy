@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software in your research, please cite it using these metadata."
 title: Ziggy
-version: v0.4.1
-date-released: "2023-11-21"
+version: v0.5.0
+date-released: "2024-03-26"
 abstract: "Ziggy, a portable, scalable infrastructure for science data processing pipelines, is the child of the Transiting Exoplanet Survey Satellite (TESS) pipeline and the grandchild of the Kepler Pipeline."
 authors:
 - family-names: Tenenbaum

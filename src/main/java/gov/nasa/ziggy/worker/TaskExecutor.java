@@ -239,9 +239,9 @@ public class TaskExecutor implements StatusReporter {
             PipelineTask task = new PipelineTaskCrud().retrieve(taskId);
             Hibernate.initialize(task.getPipelineInstance().getPipelineParameterSets());
             Hibernate.initialize(task.getPipelineInstanceNode().getModuleParameterSets());
-            Hibernate.initialize(task.getPipelineDefinitionNode().getInputDataFileTypes());
-            Hibernate.initialize(task.getPipelineDefinitionNode().getOutputDataFileTypes());
-            Hibernate.initialize(task.getPipelineDefinitionNode().getModelTypes());
+            Hibernate.initialize(task.pipelineDefinitionNode().getInputDataFileTypes());
+            Hibernate.initialize(task.pipelineDefinitionNode().getOutputDataFileTypes());
+            Hibernate.initialize(task.pipelineDefinitionNode().getModelTypes());
             return task;
         });
 
@@ -277,14 +277,7 @@ public class TaskExecutor implements StatusReporter {
 
         try {
             // Hand off control to the PipelineModule implementation
-            if (currentPipelineModule.processTaskRequiresDatabaseTransaction()) {
-                performTransaction(() -> {
-                    setTaskDone(currentPipelineModule.processTask());
-                    return null;
-                });
-            } else {
-                setTaskDone(currentPipelineModule.processTask());
-            }
+            setTaskDone(currentPipelineModule.processTask());
         } finally {
             IntervalMetric.stop(moduleExecMetricPrefix + ".processTask", key);
             taskContext.setModuleExecTime(System.currentTimeMillis() - startTime);

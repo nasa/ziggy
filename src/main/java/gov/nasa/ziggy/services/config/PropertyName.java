@@ -70,17 +70,16 @@ public enum PropertyName {
      * The log4j2 configuration property. As it is not user-modifiable, this property should not be
      * documented in the manual.
      */
-
     LOG4J2_CONFIGURATION_FILE("log4j2.configurationFile"),
-
-    /**
-     * Property in the config service that points to the log4j.xml file used by Java code called
-     * from MATLAB
-     */
-    MATLAB_LOG4J_CONFIG_FILE("matlab.log4j.config"),
 
     /** Set to true to initialize log4j when starting MATLAB. */
     MATLAB_LOG4J_CONFIG_INITIALIZE("matlab.log4j.initialize"),
+
+    /**
+     * Architecture of the operating system. As it is not user-modifiable, this property should not
+     * be documented in the manual.
+     */
+    ARCHITECTURE("os.arch"),
 
     /**
      * Name for the operating system. As it is not user-modifiable, this property should not be
@@ -145,8 +144,17 @@ public enum PropertyName {
     /** Name of relational database software package. */
     DATABASE_SOFTWARE("ziggy.database.software.name"),
 
+    /**
+     * Environment definition used by Ziggy. This property should not be documented in the manual to
+     * prevent the user from breaking Ziggy. The user should use ziggy.pipeline.environment instead.
+     */
+    ZIGGY_RUNTIME_ENVIRONMENT("ziggy.environment"),
+
     /** Ziggy home directory (the build directory in the top-level Ziggy directory). */
     ZIGGY_HOME_DIR("ziggy.home.dir"),
+
+    /** Location of the current log file. */
+    ZIGGY_LOG_FILE("ziggy.logFile"),
 
     /** Location and name of the logo file for the pipeline (not the Ziggy logo). */
     PIPELINE_LOGO_FILE("ziggy.logoFile"),
@@ -256,15 +264,6 @@ public enum PropertyName {
     SUPERVISOR_PORT("ziggy.supervisor.port"),
 
     /**
-     * Allows Ziggy unit test classes to inform the configuration system that it is, in fact, a test
-     * environment, hence to not load the pipeline properties. Usually this is accomplished
-     * automatically, but there are some corner cases where it's necessary to manually inform the
-     * configuration system. In this case, it's necessary to set this as a system property so that
-     * it survives resets of the configuration.
-     */
-    TEST_ENVIRONMENT("ziggy.test.environment"),
-
-    /**
      * Property used by tests to ensure that ziggy.properties can be read. Its value is expected to
      * be {@code from.default.location}. This property should not be documented in the manual.
      */
@@ -299,7 +298,7 @@ public enum PropertyName {
     }
 
     @Override
-    /** The {@link #property} method is favored. */
+    /** The {@link #property} method is favored unless this method is used implicitly. */
     public String toString() {
         return property();
     }

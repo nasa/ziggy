@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -21,15 +22,20 @@ import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
+import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
@@ -58,6 +64,8 @@ public class AlgorithmMonitorTest {
     private AlertService alertService;
     private ProcessingSummaryOperations attrOps;
     private PipelineInstanceNodeCrud nodeCrud;
+    private PipelineDefinitionNodeExecutionResources resources = new PipelineDefinitionNodeExecutionResources(
+        "dummy", "dummy");
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
     public TaskRequestHandlerLifecycleManager lifecycleManager = new InstrumentedTaskRequestHandlerLifecycleManager();
@@ -80,14 +88,20 @@ public class AlgorithmMonitorTest {
         Mockito.when(monitor.jobMonitor()).thenReturn(jobMonitor);
         Mockito.when(monitor.pollingIntervalMillis()).thenReturn(50L);
         Mockito.doReturn(false).when(monitor).taskIsKilled(ArgumentMatchers.isA(long.class));
-        pipelineTask = Mockito.mock(PipelineTask.class);
-        Mockito.when(pipelineTask.pipelineInstanceId()).thenReturn(50L);
-        Mockito.when(pipelineTask.getId()).thenReturn(100L);
-        Mockito.when(pipelineTask.getModuleName()).thenReturn("dummy");
-        Mockito.when(pipelineTask.getPipelineInstance())
-            .thenReturn(Mockito.mock(PipelineInstance.class));
-        Mockito.when(pipelineTask.getPipelineDefinitionNode())
-            .thenReturn(Mockito.mock(PipelineDefinitionNode.class));
+        pipelineTask = Mockito.spy(PipelineTask.class);
+        Mockito.doReturn(50L).when(pipelineTask).pipelineInstanceId();
+        Mockito.doReturn(100L).when(pipelineTask).getId();
+        Mockito.doReturn("dummy").when(pipelineTask).getModuleName();
+        Mockito.doReturn(Mockito.mock(PipelineInstance.class))
+            .when(pipelineTask)
+            .getPipelineInstance();
+        Mockito.doReturn(100).when(pipelineTask).exeTimeoutSeconds();
+        Mockito.doReturn(new HashMap<>())
+            .when(pipelineTask)
+            .getPipelineParameterSets();
+        Mockito.doReturn(new HashMap<>())
+            .when(pipelineTask)
+            .getModuleParameterSets();
         pipelineTaskCrud = Mockito.mock(PipelineTaskCrud.class);
         Mockito.when(pipelineTaskCrud.retrieve(100L)).thenReturn(pipelineTask);
         Mockito.when(pipelineTaskCrud.merge(ArgumentMatchers.isA(PipelineTask.class)))
@@ -100,9 +114,9 @@ public class AlgorithmMonitorTest {
             .thenReturn(new TaskCounts(50, 50, 10, 1));
         Mockito.when(monitor.pipelineOperations()).thenReturn(pipelineOperations);
         pipelineExecutor = Mockito.spy(PipelineExecutor.class);
-        pipelineExecutor.setPipelineTaskCrud(pipelineTaskCrud);
-        pipelineExecutor.setPipelineInstanceNodeCrud(nodeCrud);
-        pipelineExecutor.setPipelineOperations(pipelineOperations);
+        Mockito.doReturn(pipelineTaskCrud).when(pipelineExecutor).pipelineTaskCrud();
+        Mockito.doReturn(nodeCrud).when(pipelineExecutor).pipelineInstanceNodeCrud();
+        Mockito.doReturn(pipelineOperations).when(pipelineExecutor).pipelineOperations();
         Mockito.doNothing()
             .when(pipelineExecutor)
             .removeTaskFromKilledTaskList(ArgumentMatchers.isA(long.class));
@@ -112,7 +126,16 @@ public class AlgorithmMonitorTest {
             .thenReturn(Mockito.mock(PipelineInstanceNode.class));
         Mockito.when(pipelineExecutor.taskRequestEnabled()).thenReturn(false);
         attrOps = Mockito.mock(ProcessingSummaryOperations.class);
-        pipelineExecutor.setPipelineInstanceCrud(Mockito.mock(PipelineInstanceCrud.class));
+        Mockito.doReturn(Mockito.mock(PipelineInstanceCrud.class))
+            .when(pipelineExecutor)
+            .pipelineInstanceCrud();
+        PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = Mockito
+            .mock(PipelineDefinitionNodeCrud.class);
+        PipelineDefinitionNode pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
+        Mockito.when(monitor.pipelineDefinitionNodeCrud()).thenReturn(pipelineDefinitionNodeCrud);
+        Mockito.doReturn(pipelineDefinitionNode).when(pipelineTask).pipelineDefinitionNode();
+        Mockito.when(pipelineDefinitionNodeCrud.retrieveExecutionResources(pipelineDefinitionNode))
+            .thenReturn(resources);
         Mockito.when(monitor.pipelineExecutor()).thenReturn(pipelineExecutor);
         Mockito.when(monitor.processingSummaryOperations()).thenReturn(attrOps);
         Mockito.when(monitor.pipelineTaskOperations())
@@ -184,7 +207,7 @@ public class AlgorithmMonitorTest {
     @Test
     public void testExecutionFailed()
         throws ConfigurationException, IOException, InterruptedException {
-        Mockito.when(pipelineTask.maxFailedSubtasks()).thenReturn(4);
+        resources.setMaxFailedSubtaskCount(4);
         stateFile.setState(StateFile.State.PROCESSING);
         stateFile.setNumComplete(90);
         stateFile.setNumFailed(5);
@@ -214,7 +237,7 @@ public class AlgorithmMonitorTest {
     public void testExecutionCompleteTooManyErrors()
         throws ConfigurationException, IOException, InterruptedException {
 
-        Mockito.when(pipelineTask.maxFailedSubtasks()).thenReturn(4);
+        resources.setMaxFailedSubtaskCount(4);
         stateFile.setState(StateFile.State.COMPLETE);
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
@@ -240,7 +263,7 @@ public class AlgorithmMonitorTest {
     public void testExecutionCompleteTooManyMissed()
         throws ConfigurationException, IOException, InterruptedException {
 
-        Mockito.when(pipelineTask.maxFailedSubtasks()).thenReturn(4);
+        resources.setMaxFailedSubtaskCount(4);
         stateFile.setState(StateFile.State.COMPLETE);
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(0);
@@ -266,7 +289,7 @@ public class AlgorithmMonitorTest {
     public void testExecutionComplete()
         throws ConfigurationException, IOException, InterruptedException {
 
-        Mockito.when(pipelineTask.maxFailedSubtasks()).thenReturn(6);
+        resources.setMaxFailedSubtaskCount(6);
         stateFile.setState(StateFile.State.COMPLETE);
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
@@ -291,8 +314,8 @@ public class AlgorithmMonitorTest {
 
         int taskCount = lifecycleManager.taskRequestSize();
         assertEquals(0, taskCount);
-        Mockito.when(pipelineTask.maxFailedSubtasks()).thenReturn(4);
-        Mockito.when(pipelineTask.maxAutoResubmits()).thenReturn(3);
+        resources.setMaxFailedSubtaskCount(4);
+        resources.setMaxAutoResubmits(3);
         Mockito.when(pipelineTask.getAutoResubmitCount()).thenReturn(1);
         Mockito.when(pipelineTask.getState()).thenReturn(PipelineTask.State.ERROR);
         Mockito.doNothing()
@@ -328,8 +351,8 @@ public class AlgorithmMonitorTest {
     public void testOutOfAutoResubmits()
         throws ConfigurationException, IOException, InterruptedException {
 
-        Mockito.when(pipelineTask.maxFailedSubtasks()).thenReturn(4);
-        Mockito.when(pipelineTask.maxAutoResubmits()).thenReturn(3);
+        Mockito.when(pipelineTask.getMaxFailedSubtaskCount()).thenReturn(4);
+        Mockito.when(pipelineTask.getMaxAutoResubmits()).thenReturn(3);
         Mockito.when(pipelineTask.getAutoResubmitCount()).thenReturn(3);
         Mockito.when(pipelineTask.getState()).thenReturn(PipelineTask.State.ERROR);
         stateFile.setState(StateFile.State.COMPLETE);

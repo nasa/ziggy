@@ -29,6 +29,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -50,7 +51,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 public class Acknowledgement implements HasXmlSchemaFilename {
 
     private static final String SCHEMA_FILENAME = "manifest-ack.xsd";
-    static final String FILENAME_SUFFIX = "-ack";
+    static final String FILENAME_SUFFIX = "-ack.xml";
 
     private static final double DEFAULT_MAX_FAILURE_PERCENTAGE = 100;
 
@@ -124,7 +125,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
         String manifestFileType = FilenameUtils.getExtension(manifestName);
         int manifestTypeLength = manifestFileType.length() + 1;
         String baseName = manifestName.substring(0, manifestName.length() - manifestTypeLength);
-        return baseName + FILENAME_SUFFIX + "." + manifestFileType;
+        return baseName + FILENAME_SUFFIX;
     }
 
     /**
@@ -335,7 +336,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
 
                 // Start by making sure the file exists and is a regular file (or symlink to same)
                 if (Files.exists(file) || Files.isSymbolicLink(file)) {
-                    realFile = DataFileManager.realSourceFile(file);
+                    realFile = FileUtil.realSourceFile(file);
                     ackEntry.setTransferStatus(DataReceiptStatus.PRESENT);
                 }
                 if (ackEntry.getTransferStatus() == DataReceiptStatus.ABSENT) {

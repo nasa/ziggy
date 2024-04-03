@@ -3,8 +3,6 @@ package gov.nasa.ziggy.module;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
@@ -68,10 +66,7 @@ public class TaskMonitorTest {
         stateFile.setNumTotal(subtaskDirectories.size());
         stateFile.persist();
 
-        TaskConfigurationManager inputsHandler = mock(TaskConfigurationManager.class);
-        when(inputsHandler.allSubTaskDirectories()).thenReturn(subtaskDirectories);
-
-        taskMonitor = new TaskMonitor(inputsHandler, stateFile, taskDir.toFile());
+        taskMonitor = new TaskMonitor(stateFile, taskDir.toFile());
     }
 
     @Test

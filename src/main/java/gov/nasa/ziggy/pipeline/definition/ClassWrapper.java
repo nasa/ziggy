@@ -186,7 +186,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
 
         @SuppressWarnings("unchecked")
         @Override
-        @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
         public ClassWrapper<T> unmarshal(String v) {
             if (v == null) {
                 return null;
@@ -196,9 +196,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
                 clazz = (Class<? extends T>) Class.forName(v);
                 return new ClassWrapper<>(clazz);
             } catch (ClassNotFoundException e) {
-                // This can never occur. The caller provides the string from the name
-                // of a known existing class.
-                throw new AssertionError(e);
+                throw new PipelineException("Class " + v + " is not on classpath", e);
             }
         }
 

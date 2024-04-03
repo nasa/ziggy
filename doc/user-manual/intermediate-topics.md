@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](organize-tables.md)
+[[Previous]](datastore-regexp.md)
 [[Up]](user-manual.md)
 [[Next]](datastore-task-dir.md)
 
@@ -12,10 +12,10 @@ Now that you've [successfully run a pipeline](start-pipeline.md), there are some
 
 The permanent, and temporary, storage areas for data and other files.
 
-### [The Task Configuration Parameter Sets](task-configuration.md)
+### [Setting up a Relational Database Management System (RDBMS)](rdbms.md)
 
-How Ziggy knows how to divide work up into tasks, and much, much more.
+How to give Ziggy the database it needs for managing its information.
 
-[[Previous]](organize-tables.md)
+[[Previous]](datastore-regexp.md)
 [[Up]](user-manual.md)
 [[Next]](datastore-task-dir.md)

@@ -23,6 +23,8 @@ import org.junit.experimental.categories.Category;
 import gov.nasa.ziggy.RunByNameTestCategory;
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messaging.MessagingTestUtils.Message1;
@@ -49,6 +51,10 @@ public class RmiInterProcessCommunicationTest {
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
+    public ZiggyPropertyRule portRule = new ZiggyPropertyRule(PropertyName.SUPERVISOR_PORT,
+        Integer.toString(port));
 
     @Before
     public void setup() {
@@ -95,7 +101,7 @@ public class RmiInterProcessCommunicationTest {
             directoryRule.directory().resolve(RmiServerInstantiator.SERVER_READY_FILE_NAME))));
 
         // now start the client.
-        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.start("test client");
         ZiggyRmiClient.setUseMessenger(false);
 
         Registry registry = ZiggyRmiClient.getRegistry();
@@ -144,7 +150,7 @@ public class RmiInterProcessCommunicationTest {
         assertTrue(TestEventDetector.detectTestEvent(1000L, () -> Files.exists(
             directoryRule.directory().resolve(RmiClientInstantiator.CLIENT_READY_FILE_NAME))));
 
-        ZiggyRmiClient.initializeInstance(port, "test client");
+        ZiggyRmiClient.start("test client");
         ZiggyRmiClient.setUseMessenger(false);
 
         // Send an instance of Message1

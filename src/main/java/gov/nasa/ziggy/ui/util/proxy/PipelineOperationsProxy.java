@@ -1,7 +1,6 @@
 package gov.nasa.ziggy.ui.util.proxy;
 
 import java.io.File;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,10 +9,8 @@ import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.TriggerValidationResults;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
@@ -21,7 +18,6 @@ import gov.nasa.ziggy.services.messages.FireTriggerRequest;
 import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
 import gov.nasa.ziggy.services.messages.RunningPipelinesCheckRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.services.security.Privilege;
 
 /**
  * @author Todd Klaus
@@ -33,27 +29,9 @@ public class PipelineOperationsProxy {
     }
 
     public ParameterSet retrieveLatestParameterSet(final String parameterSetName) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineOperations pipelineOps = new PipelineOperations();
             return pipelineOps.retrieveLatestParameterSet(parameterSetName);
-        });
-    }
-
-    /**
-     * Returns a {@link Set} containing all {@link Parameters} classes required by the specified
-     * node. This is a union of the Parameters classes required by the PipelineModule itself and the
-     * Parameters classes required by the UnitOfWorkTaskGenerator associated with the node.
-     *
-     * @param pipelineNode
-     * @return
-     */
-    public Set<ClassWrapper<ParametersInterface>> retrieveRequiredParameterClassesForNode(
-        final PipelineDefinitionNode pipelineNode) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
-        return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
-            PipelineOperations pipelineOps = new PipelineOperations();
-            return pipelineOps.retrieveRequiredParameterClassesForNode(pipelineNode);
         });
     }
 
@@ -62,7 +40,6 @@ public class PipelineOperationsProxy {
      * @return
      */
     public String generatePedigreeReport(final PipelineInstance instance) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineOperations pipelineOps = new PipelineOperations();
             return pipelineOps.generatePedigreeReport(instance);
@@ -75,7 +52,6 @@ public class PipelineOperationsProxy {
      */
     public void exportPipelineParams(final PipelineDefinition pipelineDefinition,
         final File destinationDirectory) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineOperations pipelineOps = new PipelineOperations();
             pipelineOps.exportPipelineParams(pipelineDefinition, destinationDirectory);
@@ -89,7 +65,6 @@ public class PipelineOperationsProxy {
      * @return
      */
     public String generatePipelineReport(final PipelineDefinition pipelineDefinition) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineOperations pipelineOps = new PipelineOperations();
             return pipelineOps.generatePipelineReport(pipelineDefinition);
@@ -104,7 +79,6 @@ public class PipelineOperationsProxy {
      * @return
      */
     public String generateParameterLibraryReport(final boolean csvMode) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineOperations pipelineOps = new PipelineOperations();
             return pipelineOps.generateParameterLibraryReport(csvMode);
@@ -113,7 +87,6 @@ public class PipelineOperationsProxy {
 
     public ParameterSet updateParameterSet(final ParameterSet parameterSet,
         final Parameters newParameters, final String newDescription, final boolean forceSave) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineOperations pipelineOps = new PipelineOperations();
             return pipelineOps.updateParameterSet(parameterSet, newParameters, newDescription,
@@ -131,7 +104,6 @@ public class PipelineOperationsProxy {
     // Hence, retrieve the parameter set in one transaction and merge in another.
     public ParameterSet updateParameterSet(String parameterSetName,
         ParametersInterface newParameters) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_CONFIG);
         ParameterSet databaseParameterSet = CrudProxyExecutor.executeSynchronousDatabaseTransaction(
             () -> new PipelineOperations().retrieveLatestParameterSet(parameterSetName));
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
@@ -144,7 +116,6 @@ public class PipelineOperationsProxy {
      * Sends a start pipeline request message to the supervisor.
      */
     public void sendPipelineMessage(FireTriggerRequest pipelineRequest) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         ZiggyMessenger.publish(pipelineRequest);
         // invalidate the models since starting a pipeline can change the locked state of versioned
         // database objects
@@ -156,7 +127,6 @@ public class PipelineOperationsProxy {
      * or queued.
      */
     public void sendRunningPipelinesCheckRequestMessage() {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         log.info("Sending message to request status of running instances");
         ZiggyMessenger.publish(new RunningPipelinesCheckRequest());
     }
@@ -167,13 +137,11 @@ public class PipelineOperationsProxy {
      * {@link ParameterSet}s are set.
      */
     public TriggerValidationResults validatePipeline(final PipelineDefinition pipelineDefinition) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor
             .executeSynchronous(() -> new PipelineOperations().validateTrigger(pipelineDefinition));
     }
 
     public TaskCounts taskCounts(PipelineInstanceNode node) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor
             .executeSynchronousDatabaseTransaction(() -> new PipelineOperations().taskCounts(node));
     }

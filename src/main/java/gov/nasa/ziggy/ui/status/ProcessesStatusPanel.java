@@ -2,6 +2,7 @@ package gov.nasa.ziggy.ui.status;
 
 import javax.swing.GroupLayout;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
@@ -9,9 +10,12 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.messages.WorkerResources;
+import gov.nasa.ziggy.services.messages.HeartbeatCheckMessage;
+import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
+import gov.nasa.ziggy.ui.ClusterController;
+import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
  * Displays the status of the Ziggy processes.
@@ -21,19 +25,29 @@ import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
  */
 public class ProcessesStatusPanel extends JPanel {
 
-    private static final long serialVersionUID = 20230822L;
+    private static final long serialVersionUID = 20231126L;
     private static Logger log = LoggerFactory.getLogger(ProcessesStatusPanel.class);
+
+    public static final String RMI_ERROR_MESSAGE = "Unable to establish communication with supervisor";
+    public static final String RMI_WARNING_MESSAGE = "Attempting to establish communication with supervisor";
+    public static final String SUPERVISOR_ERROR_MESSAGE = "Supervisor process has failed";
+    public static final String DATABASE_ERROR_MESSAGE = "Database process has failed";
 
     private static ProcessesStatusPanel instance;
 
     private Indicator supervisorIndicator;
     private Indicator databaseIndicator;
     private Indicator messagingIndicator;
+    private ClusterController clusterController = new ClusterController(100, 1);
+
+    private LabelValue workerLabel;
+    private LabelValue heapSizeLabel;
 
     public ProcessesStatusPanel() {
         buildComponent();
 
-        ZiggyMessenger.subscribe(WorkerResources.class, this::addWorkerDataComponents);
+        ZiggyMessenger.subscribe(WorkerResourcesMessage.class, this::addWorkerDataComponents);
+        ZiggyMessenger.subscribe(HeartbeatCheckMessage.class, this::performHeartbeatChecks);
     }
 
     private void buildComponent() {
@@ -92,18 +106,57 @@ public class ProcessesStatusPanel extends JPanel {
         return indicator;
     }
 
+    private void performHeartbeatChecks(HeartbeatCheckMessage message) {
+
+        if (clusterController.isDatabaseAvailable()) {
+            databaseIndicator.setState(Indicator.State.NORMAL);
+        } else {
+            databaseIndicator.setState(Indicator.State.ERROR, DATABASE_ERROR_MESSAGE);
+        }
+        if (clusterController.isSupervisorRunning()) {
+            supervisorIndicator.setState(Indicator.State.NORMAL);
+        } else {
+            supervisorIndicator.setState(Indicator.State.ERROR, SUPERVISOR_ERROR_MESSAGE);
+        }
+
+        if (message.getHeartbeatTime() > 0) {
+            log.debug("Setting RMI state to normal");
+            messagingIndicator.setState(Indicator.State.NORMAL);
+        } else if (message.getHeartbeatTime() == 0) {
+            log.warn("Missed supervisor heartbeat message, setting RMI state to warning");
+            messagingIndicator.setState(Indicator.State.WARNING, RMI_WARNING_MESSAGE);
+        } else {
+            log.error("Unable to detect supervisor heartbeat messages");
+            messagingIndicator.setState(Indicator.State.ERROR, RMI_ERROR_MESSAGE);
+        }
+    }
+
     private static boolean monitoringDatabase() {
         return ZiggyConfiguration.getInstance()
             .getString(PropertyName.DATABASE_SOFTWARE.property(), null) != null;
     }
 
-    public void addWorkerDataComponents(WorkerResources workerResources) {
-        log.info("Resource values returned: threads {}, heap size {} MB",
+    public void addWorkerDataComponents(WorkerResourcesMessage workerResourcesMessage) {
+        if (workerResourcesMessage.getResources() == null) {
+            return;
+        }
+        WorkerResources workerResources = workerResourcesMessage.getResources();
+        log.debug("Resource values returned: threads {}, heap size {} MB",
             workerResources.getMaxWorkerCount(), workerResources.getHeapSizeMb());
-        supervisorIndicator().addDataComponent(
-            new LabelValue("Workers", Integer.toString(workerResources.getMaxWorkerCount())));
-        supervisorIndicator().addDataComponent(
-            new LabelValue("Worker Heap Size", workerResources.humanReadableHeapSize().toString()));
+        SwingUtilities.invokeLater(() -> {
+            if (workerLabel != null) {
+                supervisorIndicator.removeDataComponent(workerLabel);
+            }
+            if (heapSizeLabel != null) {
+                supervisorIndicator.removeDataComponent(heapSizeLabel);
+            }
+            workerLabel = new LabelValue("Workers",
+                Integer.toString(workerResources.getMaxWorkerCount()));
+            heapSizeLabel = new LabelValue("Worker Heap Size",
+                workerResources.humanReadableHeapSize().toString());
+            supervisorIndicator().addDataComponent(workerLabel);
+            supervisorIndicator().addDataComponent(heapSizeLabel);
+        });
     }
 
     public static Indicator supervisorIndicator() {

@@ -29,6 +29,8 @@ The properties manager can also reach out to the environment and pull in the val
 hibernate.connection.username = ${env:USER}
 ```
 
+See also the `ziggy.pipeline.environment` property.
+
 ### Pipeline Properties vs Ziggy Properties
 
 Ziggy actually uses two properties files.
@@ -76,7 +78,7 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | ziggy.pipeline.data.receipt.validation.maxFailurePercentage | Maximum percentage of files that can fail validation before DR throws an exception | 100 |
 | ziggy.pipeline.datastore.dir | Root directory for datastore | None |
 | ziggy.pipeline.definition.dir | Location for XML files that define the pipeline | None |
-| ziggy.pipeline.environment | Comma-separated list of name-value pairs of environment variables that should be provided to the algorithm at runtime. | "" |
+| ziggy.pipeline.environment | Comma-separated list of name-value pairs of environment variables that should be provided to the algorithm at runtime. Note that whitespace around the commands is not allowed. | "" |
 | ziggy.pipeline.home.dir | Top-level directory for the pipeline code. | None |
 | ziggy.pipeline.libPath | Colon-separated list of directories to search for shared libraries such as files with .so or .dylib suffix (LD_LIBRARY_PATH is ignored by Ziggy) | "" |
 | ziggy.pipeline.mcrRoot | Location of the MATLAB Compiler Runtime (MCR), including the version, if MATLAB algorithm executables are used | "" |

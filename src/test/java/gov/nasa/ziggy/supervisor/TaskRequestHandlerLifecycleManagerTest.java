@@ -32,8 +32,8 @@ import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
 import gov.nasa.ziggy.services.messages.TaskRequest;
-import gov.nasa.ziggy.services.messages.WorkerResources;
 import gov.nasa.ziggy.util.Requestor;
+import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
  * Unit tests for {@link TaskRequestHandlerLifecycleManager} class.

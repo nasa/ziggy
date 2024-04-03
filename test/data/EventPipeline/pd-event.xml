@@ -1,31 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <pipelineDefinition>
 
-<!-- Pipeline definition file for Ziggy sample pipeline. This is where it all comes
-     together. Here we define the pipeline modules (the actual things that get
-     executed), then the pipeline or pipelines. Each pipeline contains a sequence of
-     nodes, where a node is a combination of a pipeline module, information about inputs
-     and outputs, information about models, and parameter sets. Enjoy!
--->
+  <!-- Pipeline definition file for Ziggy sample pipeline. This is where it all comes
+       together. Here we define the pipeline modules (the actual things that get
+       executed), then the pipeline or pipelines. Each pipeline contains a sequence of
+       nodes, where a node is a combination of a pipeline module, information about inputs
+       and outputs, information about models, and parameter sets. Enjoy!
+  -->
 
-    <!-- Pipeline modules. The name of each module must correspond to the name of
-         a program that can execute from the command line, and that program must be
-         on the search path defined for the pipeline in the properties file. 
-    -->
-    <module name="permuter" description="Color Permuter"/>
-    <module name="flip" description="Flip Up-Down and Left-Right"/>
-    <module name="averaging" description="Average Images Together"/>
-    
-    <!-- Here's the pipeline definition. Note that we could have defined multiple
-         pipelines in this file, but this is just the simplest sample pipeline 
-         imaginable, hence only one pipeline definition.
-    -->
-    <pipeline name="sample" description="Sample Pipeline" rootNodeNames="data-receipt">
-        <node moduleName="data-receipt" >
-            <inputDataFileType name="raw data"/>
-            <moduleParameter name="Data receipt configuration"/>
-        </node>
-                
-    </pipeline>
+  <!-- Pipeline modules. The name of each module must correspond to the name of
+       a program that can execute from the command line, and that program must be
+       on the search path defined for the pipeline in the properties file.
+  -->
+  <module name="permuter" description="Color Permuter"/>
+  <module name="flip" description="Flip Up-Down and Left-Right"/>
+  <module name="averaging" description="Average Images Together"/>
+
+  <!-- Here's the pipeline definition. Note that we could have defined multiple
+       pipelines in this file, but this is just the simplest sample pipeline
+       imaginable, hence only one pipeline definition.
+  -->
+  <pipeline name="sample" description="Sample Pipeline" rootNodeNames="data-receipt">
+    <node moduleName="data-receipt" >
+      <inputDataFileType name="raw data"/>
+    </node>
+
+  </pipeline>
 </pipelineDefinition>
 

@@ -8,8 +8,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.PipelineInputs;
+import gov.nasa.ziggy.module.PipelineInputsOutputsUtils;
 import gov.nasa.ziggy.module.SubtaskInformation;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.parameters.ParametersInterface;
@@ -101,30 +101,12 @@ public class PipelineTaskInformation {
     private static Map<PipelineDefinitionNode, List<SubtaskInformation>> subtaskInformationMap = new HashMap<>();
 
     /**
-     * Cache of {@link ParameterSetName}s for {@link RemoteParameters} instances, organized by
-     * {@link PipelineDefinitionNode}.
-     */
-    private static Map<PipelineDefinitionNode, String> remoteParametersMap = new HashMap<>();
-
-    /**
-     * Cache that stores information on whether a given module has limits on the number of subtasks
-     * that can be processed in parallel.
-     */
-    private static Map<PipelineDefinitionNode, Boolean> modulesWithParallelLimitsMap = new HashMap<>();
-
-    /**
      * Deletes the cached information for a given {@link PipelineDefinitionNode}. Used when the user
      * is aware of changes that should force recalculation.
      */
     public synchronized static void reset(PipelineDefinitionNode triggerDefinitionNode) {
         if (subtaskInformationMap.containsKey(triggerDefinitionNode)) {
             subtaskInformationMap.put(triggerDefinitionNode, null);
-        }
-        if (remoteParametersMap.containsKey(triggerDefinitionNode)) {
-            remoteParametersMap.remove(triggerDefinitionNode);
-        }
-        if (modulesWithParallelLimitsMap.containsKey(triggerDefinitionNode)) {
-            remoteParametersMap.remove(triggerDefinitionNode);
         }
     }
 
@@ -144,30 +126,6 @@ public class PipelineTaskInformation {
             generateSubtaskInformation(node);
         }
         return subtaskInformationMap.get(node);
-    }
-
-    /**
-     * Returns the name of the {@link ParameterSet} for a specified node's {@link RemoteParameters}
-     * instance. If the module has no such parameter set, null is returned.
-     */
-    public static synchronized String remoteParameters(PipelineDefinitionNode node) {
-        if (!hasPipelineDefinitionNode(node)) {
-            generateSubtaskInformation(node);
-        }
-        return remoteParametersMap.get(node);
-    }
-
-    /**
-     * Determines whether a given {@link PipelineDefinitionNode} corresponds to a module that limits
-     * the maximum number of subtasks that can be processed in parallel (this is usually the case
-     * for a module that is forced to perform its processing in multiple steps, where each step
-     * processes a unique set of subtasks).
-     */
-    public static synchronized boolean parallelLimits(PipelineDefinitionNode node) {
-        if (!hasPipelineDefinitionNode(node)) {
-            generateSubtaskInformation(node);
-        }
-        return modulesWithParallelLimitsMap.get(node);
     }
 
     /**
@@ -211,42 +169,9 @@ public class PipelineTaskInformation {
 
         ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = instance.unitOfWorkGenerator(node);
 
-        // Produce a combined map from Parameter classes to Parameter instances
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> compositeParameterSets = new HashMap<>(
-            pipelineInstance.getPipelineParameterSets());
-
-        for (ClassWrapper<ParametersInterface> moduleParameterClass : instanceNode
-            .getModuleParameterSets()
-            .keySet()) {
-            if (compositeParameterSets.containsKey(moduleParameterClass)) {
-                throw new PipelineException(
-                    "Configuration Error: Module parameter and pipeline parameter Maps both contain a value for parameter class: "
-                        + moduleParameterClass);
-            }
-            compositeParameterSets.put(moduleParameterClass,
-                instanceNode.getModuleParameterSets().get(moduleParameterClass));
-        }
-
-        // Set the flag that indicates whether this module limits the number of subtasks that
-        // can run in parallel
-
-        modulesWithParallelLimitsMap.put(node, instance.parallelLimits(moduleDefinition));
-        Map<Class<? extends ParametersInterface>, ParametersInterface> uowParams = new HashMap<>();
-
-        for (ClassWrapper<ParametersInterface> parametersClass : compositeParameterSets.keySet()) {
-            ParameterSet parameterSet = compositeParameterSets.get(parametersClass);
-            Class<? extends ParametersInterface> clazz = parametersClass.getClazz();
-            if (clazz.equals(RemoteParameters.class)) {
-                remoteParametersMap.put(node, parameterSet.getName());
-            }
-            uowParams.put(clazz, parameterSet.parametersInstance());
-        }
-        if (!remoteParametersMap.containsKey(node)) {
-            remoteParametersMap.put(node, null);
-        }
-
         // Generate the units of work.
-        List<UnitOfWork> tasks = instance.unitsOfWork(unitOfWorkGenerator, uowParams);
+        List<UnitOfWork> tasks = instance.unitsOfWork(unitOfWorkGenerator, instanceNode,
+            pipelineInstance);
 
         // Generate the subtask information for all tasks
         List<SubtaskInformation> subtaskInformationList = new LinkedList<>();
@@ -265,9 +190,10 @@ public class PipelineTaskInformation {
      * unit tests.
      */
     List<UnitOfWork> unitsOfWork(ClassWrapper<UnitOfWorkGenerator> wrappedUowGenerator,
-        Map<Class<? extends ParametersInterface>, ParametersInterface> uowParams) {
+        PipelineInstanceNode pipelineInstanceNode, PipelineInstance pipelineInstance) {
         UnitOfWorkGenerator taskGenerator = wrappedUowGenerator.newInstance();
-        return taskGenerator.generateUnitsOfWork(uowParams);
+        return PipelineExecutor.generateUnitsOfWork(taskGenerator, pipelineInstanceNode,
+            pipelineInstance);
     }
 
     /**
@@ -275,7 +201,7 @@ public class PipelineTaskInformation {
      * support of unit tests.
      */
     ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator(PipelineDefinitionNode node) {
-        return UnitOfWorkGenerator.unitOfWorkGenerator(node);
+        return pipelineModuleDefinitionCrud().retrieveUnitOfWorkGenerator(node.getModuleName());
     }
 
     /**
@@ -288,19 +214,15 @@ public class PipelineTaskInformation {
         return pipelineTask;
     }
 
-    boolean parallelLimits(PipelineModuleDefinition moduleDefinition) {
-        PipelineInputs pipelineInputs = moduleDefinition.getInputsClass().newInstance();
-        return pipelineInputs.parallelLimits();
-    }
-
     /**
      * Generates the {@link SubtaskInformation} instance for a single {@link PipelineTask}.
      * Implemented as an instance method in support of unit tests.
      */
     SubtaskInformation subtaskInformation(PipelineModuleDefinition moduleDefinition,
         PipelineTask pipelineTask) {
-        PipelineInputs pipelineInputs = moduleDefinition.getInputsClass().newInstance();
-        return pipelineInputs.subtaskInformation(pipelineTask);
+        PipelineInputs pipelineInputs = PipelineInputsOutputsUtils
+            .newPipelineInputs(moduleDefinition.getInputsClass(), pipelineTask, null);
+        return pipelineInputs.subtaskInformation();
     }
 
     private static void populateParameters(

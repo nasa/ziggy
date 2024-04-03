@@ -15,15 +15,18 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
 import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
-import gov.nasa.ziggy.services.messages.WorkerResources;
+import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
+import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
  * Manages instances of {@link TaskRequestHandler} throughout their lifecycle.
@@ -51,10 +54,14 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     private CountDownLatch taskRequestThreadCountdownLatch;
     private final PriorityBlockingQueue<TaskRequest> taskRequestQueue = new PriorityBlockingQueue<>();
 
-    // Use a boxed instance so it can be null.
+    // Use a wrapper class so it can be null.
     private Long pipelineDefinitionNodeId;
 
     private ExecutorService taskRequestThreadPool;
+
+    // The current actual resources available to the current node, including defaults if
+    // appropriate.
+    private WorkerResources workerResources = new WorkerResources(0, 0);
 
     // For testing purposes, the TaskRequestDispatcher can optionally store all of the
     // task request handlers it creates, organized by thread pool instance.
@@ -76,6 +83,13 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
         // Subscribe to kill tasks messages.
         ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
             killQueuedTasksAction(message);
+        });
+
+        // Subscribe to requests for the current worker resources. This allows the
+        // console to find out what's currently running in the event that the console
+        // starts up when a pipeline is already executing.
+        ZiggyMessenger.subscribe(WorkerResourcesRequest.class, message -> {
+            ZiggyMessenger.publish(new WorkerResourcesMessage(null, workerResources));
         });
     }
 
@@ -189,9 +203,11 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                     initialRequest.getPipelineDefinitionNodeId());
                 pipelineDefinitionNodeId = initialRequest.getPipelineDefinitionNodeId();
 
-                WorkerResources workerResources = workerResources(initialRequest);
+                workerResources = workerResources(initialRequest);
                 int workerCount = workerResources.getMaxWorkerCount();
                 int heapSizeMb = workerResources.getHeapSizeMb();
+
+                ZiggyMessenger.publish(new WorkerResourcesMessage(null, workerResources));
 
                 // Put the task back onto the queue.
                 taskRequestQueue.put(initialRequest);
@@ -201,7 +217,8 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                 if (workerCount < 1) {
                     throw new PipelineException("worker count < 1");
                 }
-                log.info("Starting {} workers", workerCount);
+                log.info("Starting {} workers with total heap size {}", workerCount,
+                    workerResources.humanReadableHeapSize().toString());
                 taskRequestThreadPool = Executors.newFixedThreadPool(workerCount);
                 List<TaskRequestHandler> handlers = new ArrayList<>();
                 for (int i = 0; i < workerCount; i++) {
@@ -238,11 +255,23 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
         taskRequestThreadPool = null;
     }
 
+    /**
+     * Gets the actual resources for the current pipeline definition node, including default values
+     * as appropriate.
+     */
     WorkerResources workerResources(TaskRequest taskRequest) {
-        return (WorkerResources) DatabaseTransactionFactory
-            .performTransaction(() -> new PipelineTaskCrud().retrieve(taskRequest.getTaskId())
-                .getPipelineDefinitionNode()
+        WorkerResources databaseResources = (WorkerResources) DatabaseTransactionFactory
+            .performTransaction(() -> new PipelineDefinitionNodeCrud()
+                .retrieveExecutionResources(new PipelineTaskCrud().retrieve(taskRequest.getTaskId())
+                    .pipelineDefinitionNode())
                 .workerResources());
+        Integer compositeWorkerCount = databaseResources.getMaxWorkerCount() != null
+            ? databaseResources.getMaxWorkerCount()
+            : PipelineSupervisor.defaultResources().getMaxWorkerCount();
+        Integer compositeHeapSizeMb = databaseResources.getHeapSizeMb() != null
+            ? databaseResources.getHeapSizeMb()
+            : PipelineSupervisor.defaultResources().getHeapSizeMb();
+        return new WorkerResources(compositeWorkerCount, compositeHeapSizeMb);
     }
 
     /** For testing only. */

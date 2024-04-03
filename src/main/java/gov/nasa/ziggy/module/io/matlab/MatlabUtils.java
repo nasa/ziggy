@@ -3,6 +3,8 @@ package gov.nasa.ziggy.module.io.matlab;
 import java.io.File;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
@@ -11,9 +13,6 @@ import gov.nasa.ziggy.util.os.OperatingSystemType;
  * @author PT
  */
 public class MatlabUtils {
-
-    private static OperatingSystemType osType;
-    private static String architecture;
 
     // Never try to instantiate this class.
     private MatlabUtils() {
@@ -47,7 +46,7 @@ public class MatlabUtils {
                 openGlString = "";
                 break;
             default:
-                throw new PipelineException("OS type " + osType.toString() + " not supported");
+                throw new PipelineException("OS type " + osType().toString() + " not supported");
         }
         StringBuilder pathBuilder = new StringBuilder();
         pathBuilder.append(
@@ -64,26 +63,12 @@ public class MatlabUtils {
     }
 
     private static OperatingSystemType osType() {
-        if (osType == null) {
-            osType = OperatingSystemType.getInstance();
-        }
-        return osType;
+        return OperatingSystemType.getInstance();
     }
 
     private static String architecture() {
-        if (architecture == null) {
-            architecture = System.getProperty("os.arch").toLowerCase();
-        }
-        return architecture;
-    }
-
-    // Use for unit test purposes only.
-    static void setOsType(OperatingSystemType osTypeArg) {
-        osType = osTypeArg;
-    }
-
-    /** For testing only. */
-    static void setArchitecture(String arch) {
-        architecture = arch;
+        return ZiggyConfiguration.getInstance()
+            .getString(PropertyName.ARCHITECTURE.property())
+            .toLowerCase();
     }
 }

@@ -12,29 +12,32 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * Describes the available remote queues and their properties.
  *
+ * @see https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
  * @author PT
  */
 public enum RemoteQueueDescriptor implements Comparator<RemoteQueueDescriptor> {
 
     ANY,
-    LOW("low", 4.0, SupportedRemoteClusters.NAS, true),
-    NORMAL("normal", 12.0, SupportedRemoteClusters.NAS, true),
-    LONG("long", 120.0, SupportedRemoteClusters.NAS, true),
-    DEVEL("devel", 2.0, SupportedRemoteClusters.NAS, false),
-    DEBUG("debug", 2.0, SupportedRemoteClusters.NAS, false),
-    RESERVED("reserved", Double.MAX_VALUE, SupportedRemoteClusters.NAS, false),
-    CLOUD("cloud", Double.MAX_VALUE, SupportedRemoteClusters.AWS, true),
-    UNKNOWN("", Double.MAX_VALUE, SupportedRemoteClusters.NAS, false);
+    LOW("low", 4.0, Integer.MAX_VALUE, SupportedRemoteClusters.NAS, true),
+    NORMAL("normal", 8.0, Integer.MAX_VALUE, SupportedRemoteClusters.NAS, true),
+    LONG("long", 120.0, Integer.MAX_VALUE, SupportedRemoteClusters.NAS, true),
+    DEVEL("devel", 2.0, 1, SupportedRemoteClusters.NAS, false),
+    DEBUG("debug", 2.0, 2, SupportedRemoteClusters.NAS, false),
+    RESERVED("reserved", Double.MAX_VALUE, Integer.MAX_VALUE, SupportedRemoteClusters.NAS, false),
+    CLOUD("cloud", Double.MAX_VALUE, Integer.MAX_VALUE, SupportedRemoteClusters.AWS, true),
+    UNKNOWN("", Double.MAX_VALUE, Integer.MAX_VALUE, SupportedRemoteClusters.NAS, false);
 
     private String queueName;
     private double maxWallTimeHours;
+    private int maxNodes;
     private SupportedRemoteClusters remoteCluster;
     private boolean autoSelectable;
 
-    RemoteQueueDescriptor(String queueName, double maxWallTimeHours,
+    RemoteQueueDescriptor(String queueName, double maxWallTimeHours, int maxNodes,
         SupportedRemoteClusters supportedCluster, boolean autoSelectable) {
         this.queueName = queueName;
         this.maxWallTimeHours = maxWallTimeHours;
+        this.maxNodes = maxNodes;
         remoteCluster = supportedCluster;
         this.autoSelectable = autoSelectable;
     }
@@ -48,6 +51,10 @@ public enum RemoteQueueDescriptor implements Comparator<RemoteQueueDescriptor> {
 
     public double getMaxWallTimeHours() {
         return maxWallTimeHours;
+    }
+
+    public int getMaxNodes() {
+        return maxNodes;
     }
 
     public SupportedRemoteClusters getRemoteCluster() {
@@ -130,6 +137,6 @@ public enum RemoteQueueDescriptor implements Comparator<RemoteQueueDescriptor> {
 
     @Override
     public String toString() {
-        return gov.nasa.ziggy.util.StringUtils.constantToSentenceWithSpaces(super.toString());
+        return gov.nasa.ziggy.util.ZiggyStringUtils.constantToSentenceWithSpaces(super.toString());
     }
 }

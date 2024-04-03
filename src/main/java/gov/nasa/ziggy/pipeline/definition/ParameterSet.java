@@ -7,20 +7,17 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.InternalParameters;
 import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
@@ -41,19 +38,12 @@ import jakarta.xml.bind.annotation.XmlElement;
 @Table(name = "ziggy_ParameterSet",
     uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "version" }) })
 public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSet>
-    implements HasGroup {
+    implements Groupable {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_ParameterSet_generator")
     @SequenceGenerator(name = "ziggy_ParameterSet_generator", initialValue = 1,
         sequenceName = "ziggy_ParameterSet_sequence", allocationSize = 1)
     private Long id;
-
-    @Embedded
-    // init with empty placeholder, to be filled in by console
-    private AuditInfo auditInfo = new AuditInfo();
-
-    @ManyToOne
-    private Group group = null;
 
     private String description = null;
 
@@ -74,11 +64,6 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
     }
 
     public ParameterSet(String name) {
-        setName(name);
-    }
-
-    public ParameterSet(AuditInfo auditInfo, String name) {
-        this.auditInfo = auditInfo;
         setName(name);
     }
 
@@ -147,14 +132,6 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
         }
     }
 
-    /**
-     * Determines whether the parameter set contains an instance of {@link Parameters}, or one of
-     * {@link InternalParameters}.
-     */
-    public boolean visibleParameterSet() {
-        return !(parametersInstance() instanceof InternalParameters);
-    }
-
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public boolean parametersClassDeleted() {
         boolean deleted = false;
@@ -207,24 +184,6 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
         populateXmlFields();
     }
 
-    public AuditInfo getAuditInfo() {
-        return auditInfo;
-    }
-
-    public void setAuditInfo(AuditInfo auditInfo) {
-        this.auditInfo = auditInfo;
-    }
-
-    @Override
-    public Group group() {
-        return group;
-    }
-
-    @Override
-    public void setGroup(Group group) {
-        this.group = group;
-    }
-
     public Long getId() {
         return id;
     }
@@ -256,10 +215,9 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
             return false;
         }
         ParameterSet other = (ParameterSet) obj;
-        return Objects.equals(auditInfo, other.auditInfo)
-            && Objects.equals(classname, other.classname)
-            && Objects.equals(description, other.description) && Objects.equals(group, other.group)
-            && Objects.equals(id, other.id) && new TypedParameterCollection(typedParameters)
+        return Objects.equals(classname, other.classname)
+            && Objects.equals(description, other.description) && Objects.equals(id, other.id)
+            && new TypedParameterCollection(typedParameters)
                 .totalEquals(new TypedParameterCollection(other.typedParameters));
     }
 

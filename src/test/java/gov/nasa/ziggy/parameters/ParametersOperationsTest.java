@@ -347,7 +347,7 @@ public class ParametersOperationsTest {
         ParametersOperations ops = new ParametersOperations();
         List<ParameterSetDescriptor> paramsDescriptors = ops.importParameterLibrary(
             TEST_DATA.resolve("paramlib").resolve("test.xml").toString(), null, ParamIoMode.NODB);
-        assertEquals(4, paramsDescriptors.size());
+        assertEquals(3, paramsDescriptors.size());
         for (ParameterSetDescriptor descriptor : paramsDescriptors) {
             assertEquals(ParameterSetDescriptor.State.CREATE, descriptor.getState());
         }
@@ -356,47 +356,13 @@ public class ParametersOperationsTest {
         Map<String, ParameterSetDescriptor> nameToParameterSetDescriptor = nameToParameterSetDescriptor(
             paramsDescriptors);
 
-        // Start with the RemoteParameters instance.
-        ParameterSetDescriptor descriptor = nameToParameterSetDescriptor.get("Remote Hyperion L1");
-        assertEquals("gov.nasa.ziggy.module.remote.RemoteParameters", descriptor.getClassName());
-        Set<TypedParameter> typedProperties = descriptor.getImportedProperties();
-        assertEquals(14, typedProperties.size());
-        Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "enabled", "false",
-            ZiggyDataType.ZIGGY_BOOLEAN, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "gigsPerSubtask", "0.1",
-            ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskMaxWallTimeHours", "2.1",
-            ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskTypicalWallTimeHours",
-            "2.1", ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "optimizer", "COST",
-            ZiggyDataType.ZIGGY_STRING, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "minSubtasksForRemoteExecution",
-            "0", ZiggyDataType.ZIGGY_INT, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "remoteNodeArchitecture", "",
-            ZiggyDataType.ZIGGY_STRING, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "queueName", "",
-            ZiggyDataType.ZIGGY_STRING, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtasksPerCore", "",
-            ZiggyDataType.ZIGGY_STRING, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "maxNodes", "",
-            ZiggyDataType.ZIGGY_STRING, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "minGigsPerNode", "",
-            ZiggyDataType.ZIGGY_STRING, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "minCoresPerNode", "",
-            ZiggyDataType.ZIGGY_STRING, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "nodeSharing", "true",
-            ZiggyDataType.ZIGGY_BOOLEAN, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "wallTimeScaling", "true",
-            ZiggyDataType.ZIGGY_BOOLEAN, true));
-
         // sample classless parameter set
-        descriptor = nameToParameterSetDescriptor.get("Sample classless parameter set");
+        ParameterSetDescriptor descriptor = nameToParameterSetDescriptor
+            .get("Sample classless parameter set");
         assertEquals("gov.nasa.ziggy.parameters.Parameters", descriptor.getClassName());
-        typedProperties = descriptor.getImportedProperties();
+        Set<TypedParameter> typedProperties = descriptor.getImportedProperties();
         assertEquals(3, typedProperties.size());
-        nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
+        Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z1", "100",
             ZiggyDataType.ZIGGY_INT, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z2", "28.56,57.12",
@@ -460,40 +426,25 @@ public class ParametersOperationsTest {
         // Check the descriptor states
         Map<String, ParameterSetDescriptor> nameToDescriptor = nameToParameterSetDescriptor(
             descriptors);
-        assertEquals(ParameterSetDescriptor.State.UPDATE,
-            nameToDescriptor.get("Remote Hyperion L1").getState());
         assertEquals(ParameterSetDescriptor.State.SAME,
             nameToDescriptor.get("Sample classless parameter set").getState());
-        assertEquals(ParameterSetDescriptor.State.LIBRARY_ONLY,
+        assertEquals(ParameterSetDescriptor.State.UPDATE,
             nameToDescriptor.get("ISOFIT module parameters").getState());
+        assertEquals(ParameterSetDescriptor.State.LIBRARY_ONLY,
+            nameToDescriptor.get("Multiple subtask configuration").getState());
 
         // Retrieve the parameter sets from the database and check their values
         ParameterSetCrud paramCrud = new ParameterSetCrud();
         List<ParameterSet> parameterSets = paramCrud.retrieveLatestVersions();
-        assertEquals(4, parameterSets.size());
+        assertEquals(3, parameterSets.size());
         Map<String, ParameterSet> nameToParameterSet = nameToParameterSet(parameterSets);
 
-        // The Hyperion L1 dataset has its gigs per subtask value changed
-        Set<TypedParameter> typedProperties = nameToParameterSet.get("Remote Hyperion L1")
-            .getTypedParameters();
-        assertEquals(14, typedProperties.size());
-        Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "enabled", "false",
-            ZiggyDataType.ZIGGY_BOOLEAN, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "gigsPerSubtask", "1.0",
-            ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskMaxWallTimeHours", "2.1",
-            ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskTypicalWallTimeHours",
-            "2.1", ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "optimizer", "COST",
-            ZiggyDataType.ZIGGY_STRING, true));
-
         // The sample classless parameter set no changed parameters
-        typedProperties = nameToParameterSet.get("Sample classless parameter set")
+        Set<TypedParameter> typedProperties = nameToParameterSet
+            .get("Sample classless parameter set")
             .getTypedParameters();
         assertEquals(3, typedProperties.size());
-        nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
+        Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z1", "100",
             ZiggyDataType.ZIGGY_INT, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z2", "28.56,57.12",
@@ -501,15 +452,31 @@ public class ParametersOperationsTest {
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z3", "some text",
             ZiggyDataType.ZIGGY_STRING, true));
 
-        // ISOFIT classless parameter set has no changes
+        // ISOFIT classless parameter set has one changed parameter
         typedProperties = nameToParameterSet.get("ISOFIT module parameters").getTypedParameters();
         assertEquals(3, typedProperties.size());
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "n_cores", "4",
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "n_cores", "8",
             ZiggyDataType.ZIGGY_INT, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "presolve", "true",
             ZiggyDataType.ZIGGY_BOOLEAN, true));
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "empirical_line", "true",
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
+
+        // The TaskConfigurationParameters set has no changes.
+        typedProperties = nameToParameterSet.get("Multiple subtask configuration")
+            .getTypedParameters();
+        assertEquals(5, typedProperties.size());
+        nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "taskDirectoryRegex",
+            "set-([0-9]{1})", ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "reprocessingTasksExclude", "0",
+            ZiggyDataType.ZIGGY_INT, false));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "singleSubtask", "false",
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "maxFailedSubtaskCount", "0",
+            ZiggyDataType.ZIGGY_INT, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "reprocess", "true",
             ZiggyDataType.ZIGGY_BOOLEAN, true));
     }
 
@@ -534,47 +501,32 @@ public class ParametersOperationsTest {
                     .toString(), null, ParamIoMode.STANDARD);
             });
 
-        assertEquals(5, descriptors.size());
+        assertEquals(4, descriptors.size());
 
         // Check the descriptor states
         Map<String, ParameterSetDescriptor> nameToDescriptor = nameToParameterSetDescriptor(
             descriptors);
-        assertEquals(ParameterSetDescriptor.State.UPDATE,
-            nameToDescriptor.get("Remote Hyperion L1").getState());
         assertEquals(ParameterSetDescriptor.State.UPDATE,
             nameToDescriptor.get("Sample classless parameter set").getState());
         assertEquals(ParameterSetDescriptor.State.SAME,
             nameToDescriptor.get("ISOFIT module parameters").getState());
         assertEquals(ParameterSetDescriptor.State.CREATE,
             nameToDescriptor.get("All-new parameters").getState());
+        assertEquals(ParameterSetDescriptor.State.LIBRARY_ONLY,
+            nameToDescriptor.get("Multiple subtask configuration").getState());
 
         // Retrieve the parameter sets from the database and check their values
         ParameterSetCrud paramCrud = new ParameterSetCrud();
         List<ParameterSet> parameterSets = paramCrud.retrieveLatestVersions();
-        assertEquals(5, parameterSets.size());
+        assertEquals(4, parameterSets.size());
         Map<String, ParameterSet> nameToParameterSet = nameToParameterSet(parameterSets);
 
-        // The Hyperion L1 dataset has only its gigsPerSubtask set to a non-default value
-        Set<TypedParameter> typedProperties = nameToParameterSet.get("Remote Hyperion L1")
-            .getTypedParameters();
-        assertEquals(14, typedProperties.size());
-        Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "enabled", "false",
-            ZiggyDataType.ZIGGY_BOOLEAN, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "gigsPerSubtask", "3.0",
-            ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskMaxWallTimeHours", "0.0",
-            ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "subtaskTypicalWallTimeHours",
-            "0.0", ZiggyDataType.ZIGGY_DOUBLE, true));
-        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "optimizer", "CORES",
-            ZiggyDataType.ZIGGY_STRING, true));
-
         // The sample classless parameter set now has only 1 parameter
-        typedProperties = nameToParameterSet.get("Sample classless parameter set")
+        Set<TypedParameter> typedProperties = nameToParameterSet
+            .get("Sample classless parameter set")
             .getTypedParameters();
         assertEquals(1, typedProperties.size());
-        nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
+        Map<String, TypedParameter> nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "z1", "100",
             ZiggyDataType.ZIGGY_STRING, true));
 
@@ -595,6 +547,23 @@ public class ParametersOperationsTest {
         nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
         assertTrue(checkTypedPropertyValues(nameToTypedProperty, "parameter", "4",
             ZiggyDataType.ZIGGY_INT, true));
+
+        // The TaskConfigurationParameters set has no changes.
+        // The TaskConfigurationParameters set has no changes.
+        typedProperties = nameToParameterSet.get("Multiple subtask configuration")
+            .getTypedParameters();
+        assertEquals(5, typedProperties.size());
+        nameToTypedProperty = nameToTypedPropertyMap(typedProperties);
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "taskDirectoryRegex",
+            "set-([0-9]{1})", ZiggyDataType.ZIGGY_STRING, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "reprocessingTasksExclude", "0",
+            ZiggyDataType.ZIGGY_INT, false));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "singleSubtask", "false",
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "maxFailedSubtaskCount", "0",
+            ZiggyDataType.ZIGGY_INT, true));
+        assertTrue(checkTypedPropertyValues(nameToTypedProperty, "reprocess", "true",
+            ZiggyDataType.ZIGGY_BOOLEAN, true));
     }
 
     // And now for a bunch of tests that exercise all the error cases

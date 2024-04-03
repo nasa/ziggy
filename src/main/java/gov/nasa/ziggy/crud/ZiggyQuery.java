@@ -11,6 +11,8 @@ import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 
 import com.google.common.collect.Lists;
 
+import gov.nasa.ziggy.module.PipelineException;
+import jakarta.persistence.criteria.AbstractQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
@@ -18,6 +20,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
+import jakarta.persistence.criteria.Subquery;
 import jakarta.persistence.metamodel.SetAttribute;
 import jakarta.persistence.metamodel.SingularAttribute;
 
@@ -27,14 +30,14 @@ import jakarta.persistence.metamodel.SingularAttribute;
  * query artifacts in a single class.
  * <p>
  * The JPA Criteria API is extremely verbose and typically requires 3 separate objects to construct
- * and perform queries: the {@link CriteriaQuery}, which is defined in terms of the class that the
- * query returns; the {@link Root}, which is defined in terms of the database table that is the
- * target of the query; and the {@link CriteriaBuilder}, which provides the options that configure
- * the query actions (sorting, filtering, projecting, etc.). Most of Ziggy's query requirements can
- * be satisfied using a small fraction of the JPA system's capabilities. Thus the JPA API is
- * abstracted into the {@link ZiggyQuery}, which automatically constructs those queries and the
- * necessary objects and hides all the underlying verbosity and complexity from the user, who
- * generally could care less.
+ * and perform queries: the {@link CriteriaQuery} or {@link Subquery}, which is defined in terms of
+ * the class that the query returns; the {@link Root}, which is defined in terms of the database
+ * table that is the target of the query; and the {@link CriteriaBuilder}, which provides the
+ * options that configure the query actions (sorting, filtering, projecting, etc.). Most of Ziggy's
+ * query requirements can be satisfied using a small fraction of the JPA system's capabilities. Thus
+ * the JPA API is abstracted into the {@link ZiggyQuery}, which automatically constructs those
+ * queries and the necessary objects and hides all the underlying verbosity and complexity from the
+ * user, who generally could care less.
  * <p>
  * The JPA API requires that queries include a component with a type parameter that corresponds to
  * the class of object returned by the query and a component that is parameterized based on the
@@ -53,13 +56,12 @@ import jakarta.persistence.metamodel.SingularAttribute;
  * @author PT
  * @author Bill Wohler
  */
+
 public class ZiggyQuery<T, R> {
 
-    protected HibernateCriteriaBuilder builder;
-    protected CriteriaQuery<R> criteriaQuery;
-    protected Root<T> root;
-    protected Class<T> databaseClass;
-    protected Class<R> returnClass;
+    private HibernateCriteriaBuilder builder;
+
+    private Root<T> root;
 
     private SingularAttribute<T, ?> attribute;
     private SetAttribute<T, ?> set;
@@ -68,15 +70,27 @@ public class ZiggyQuery<T, R> {
     private List<Predicate> predicates = new ArrayList<>();
     private List<Selection<?>> selections = new ArrayList<>();
 
+    private List<ZiggyQuery<?, ?>> subqueries = new ArrayList<>();
+
+    // AbstractQuery allows this to be either CriteriaQuery or Subquery, as needed.
+    private AbstractQuery<R> jpaQuery;
+
     /** For testing only. */
     private List<List<Object>> queryChunks = new ArrayList<>();
 
-    public ZiggyQuery(Class<T> databaseClass, Class<R> returnClass, AbstractCrud<?> crud) {
+    /** Constructor for {@link CriteriaQuery} instances. */
+    ZiggyQuery(Class<T> databaseClass, Class<R> returnClass, AbstractCrud<?> crud) {
         builder = crud.createCriteriaBuilder();
-        criteriaQuery = builder.createQuery(returnClass);
-        root = criteriaQuery.from(databaseClass);
-        this.databaseClass = databaseClass;
-        this.returnClass = returnClass;
+        jpaQuery = builder.createQuery(returnClass);
+        root = jpaQuery.from(databaseClass);
+    }
+
+    /** Constructor for {@link Subquery} classes. */
+    ZiggyQuery(Class<T> databaseClass, Class<R> returnClass, HibernateCriteriaBuilder builder,
+        AbstractQuery<?> parentQuery) {
+        this.builder = builder;
+        jpaQuery = parentQuery.subquery(returnClass);
+        root = jpaQuery.from(databaseClass);
     }
 
     /**
@@ -91,6 +105,20 @@ public class ZiggyQuery<T, R> {
         set = null;
         this.columnName = columnName;
         return this;
+    }
+
+    /**
+     * Use when a method can take either a scalar or collection attribute.
+     */
+    private boolean hasAttribute() {
+        return hasScalarAttribute() || set != null;
+    }
+
+    /**
+     * Use when a method can take either a scalar or collection attribute.
+     */
+    private boolean hasScalarAttribute() {
+        return attribute != null || columnName != null;
     }
 
     /**
@@ -122,25 +150,18 @@ public class ZiggyQuery<T, R> {
     }
 
     /**
-     * Use when a method can take either a scalar or collection attribute.
-     */
-    private boolean hasAttribute() {
-        return hasScalarAttribute() || set != null;
-    }
-
-    /**
-     * Use when a method can take either a scalar or collection attribute.
-     */
-    private boolean hasScalarAttribute() {
-        return attribute != null || columnName != null;
-    }
-
-    /**
      * Applies a query constraint that the value of a column must contain the specified value.
      */
     @SuppressWarnings("unchecked")
     public <Y> ZiggyQuery<T, R> in(Y value) {
         checkState(hasScalarAttribute(), "a column has not been defined");
+        if (value instanceof ZiggyQuery) {
+            Subquery<?> subquery = (Subquery<?>) ((ZiggyQuery<?, ?>) value).jpaQuery;
+            predicates.add(attribute != null
+                ? builder.in((Path<? extends Y>) root.get(attribute), Set.of(subquery))
+                : builder.in(root.get(columnName), Set.of(subquery)));
+            return this;
+        }
         predicates.add(
             attribute != null ? builder.in((Path<? extends Y>) root.get(attribute), Set.of(value))
                 : builder.in(root.get(columnName), Set.of(value)));
@@ -158,14 +179,6 @@ public class ZiggyQuery<T, R> {
             .add(attribute != null ? builder.in((Path<? extends Y>) root.get(attribute), values)
                 : builder.in(root.get(columnName), values));
         return this;
-    }
-
-    public <Y> CriteriaBuilder.In<Y> in(Expression<? extends Y> expression, Collection<Y> values) {
-        return builder.in(expression, values);
-    }
-
-    public <Y> CriteriaBuilder.In<Y> in(Expression<? extends Y> expression, Y value) {
-        return builder.in(expression, Set.of(value));
     }
 
     /**
@@ -189,6 +202,14 @@ public class ZiggyQuery<T, R> {
         return this;
     }
 
+    public <Y> CriteriaBuilder.In<Y> in(Expression<? extends Y> expression, Collection<Y> values) {
+        return builder.in(expression, values);
+    }
+
+    public <Y> CriteriaBuilder.In<Y> in(Expression<? extends Y> expression, Y value) {
+        return builder.in(expression, Set.of(value));
+    }
+
     /**
      * Applies a query constraint that the value of a column must be between a specified minimum
      * value and a specified maximum value, inclusive.
@@ -199,28 +220,6 @@ public class ZiggyQuery<T, R> {
         predicates.add(attribute != null
             ? builder.between((Expression<? extends Y>) root.get(attribute), minValue, maxValue)
             : builder.between(root.get(columnName), minValue, maxValue));
-        return this;
-    }
-
-    /**
-     * Applies a query constraint that the results of the query must be sorted in ascending order
-     * based on a column value.
-     */
-    public ZiggyQuery<T, R> ascendingOrder() {
-        checkState(hasScalarAttribute(), "a column has not been defined");
-        criteriaQuery.orderBy(attribute != null ? builder.asc(root.get(attribute))
-            : builder.asc(root.get(columnName)));
-        return this;
-    }
-
-    /**
-     * Applies a query constraint that the results of the query must be sorted in descending order
-     * based on a column value.
-     */
-    public ZiggyQuery<T, R> descendingOrder() {
-        checkState(hasScalarAttribute(), "a column has not been defined");
-        criteriaQuery.orderBy(attribute != null ? builder.desc(root.get(attribute))
-            : builder.desc(root.get(columnName)));
         return this;
     }
 
@@ -253,6 +252,9 @@ public class ZiggyQuery<T, R> {
     }
 
     public ZiggyQuery<T, R> select(Selection<? extends R> selection) {
+        if (selection instanceof ZiggyQuery) {
+            selections.add((Selection<?>) ((ZiggyQuery<?, ?>) selection).jpaQuery);
+        }
         selections.add(selection);
         return this;
     }
@@ -279,6 +281,10 @@ public class ZiggyQuery<T, R> {
 
     /**
      * Applies a query constraint that projects the minimum and maximum value of a column.
+     * <p>
+     * In order to use the {@link #minMax()} constraint, the user must specify a {@link ZiggyQuery}
+     * that returns Object[]. The minimum value will be the first element of the array, the maximum
+     * value will be the second value.
      */
     public ZiggyQuery<T, R> minMax() {
         min();
@@ -328,11 +334,14 @@ public class ZiggyQuery<T, R> {
      * The {@link #constructWhereClause()} must be called before the query is executed.
      */
     public ZiggyQuery<T, R> constructWhereClause() {
+        for (ZiggyQuery<?, ?> subquery : subqueries) {
+            subquery.constructSelectClause().constructWhereClause();
+        }
         if (predicates.isEmpty()) {
             return this;
         }
         Predicate[] predicatesArray = predicates.toArray(new Predicate[0]);
-        criteriaQuery = criteriaQuery.where(predicatesArray);
+        jpaQuery = jpaQuery.where(predicatesArray);
         return this;
     }
 
@@ -348,35 +357,93 @@ public class ZiggyQuery<T, R> {
      * The {@link #constructSelectClause()} must be called before the query is executed.
      */
     public ZiggyQuery<T, R> constructSelectClause() {
+        for (ZiggyQuery<?, ?> subquery : subqueries) {
+            subquery.constructSelectClause().constructWhereClause();
+        }
         if (selections.isEmpty()) {
             return this;
         }
-        if (selections.size() == 1) {
 
-            // A single select is a special case. In this case, the type of the Selection instance
-            // must match the return type for the query, which is R. We can achieve this via a cast,
-            // as long as we don't mind the resulting unchecked cast warning.
+        // Insane as this may sound, the one method that CriteriaQuery has, and Subquery has, but
+        // Abstract query DOES NOT have, is select. Also, the Subquery form of where requires an
+        // additional cast from Selection to Expression.
+        jpaQuery = querySelect(jpaQuery, selections);
+        return this;
+    }
+
+    private AbstractQuery<R> querySelect(AbstractQuery<R> query, List<Selection<?>> selections) {
+        if (query instanceof Subquery) {
+            return subquerySelect((Subquery<R>) query, selections);
+        }
+        return criteriaQuerySelect((CriteriaQuery<R>) query, selections);
+    }
+
+    private Subquery<R> subquerySelect(Subquery<R> query, List<Selection<?>> selections) {
+        if (selections.size() > 1) {
+            throw new PipelineException("Subquery does not support multiselect");
+        }
+        @SuppressWarnings("unchecked")
+        Expression<R> selection = (Expression<R>) selections.get(0);
+        return query.select(selection);
+    }
+
+    private CriteriaQuery<R> criteriaQuerySelect(CriteriaQuery<R> query,
+        List<Selection<?>> selections) {
+
+        // NB: multiselect produces an (undocumented) IllegalStateException
+        // if the size of its argument is 1, which is why there needs to be
+        // a block for the single Selection case that uses select and one for
+        // the multiple Selection case that uses multiselect.
+        if (selections.size() == 1) {
             Selection<?> selection = selections.get(0);
             @SuppressWarnings("unchecked")
             Selection<R> selectionR = (Selection<R>) selection;
-            criteriaQuery = criteriaQuery.select(selectionR);
-            return this;
+            return query.select(selectionR);
         }
-        criteriaQuery = criteriaQuery.multiselect(selections);
-        return this;
+        return query.multiselect(selections);
     }
 
     /**
      * Applies a query constraint that specifies whether all values are returned, or whether the
      * returned values are filtered to eliminate duplicates.
-     * <p>
-     * In order to use the {@link #minMax()} constraint, the user must specify a {@link ZiggyQuery}
-     * that returns Object[]. The minimum value will be the first element of the array, the maximum
-     * value will be the second value.
      */
     public ZiggyQuery<T, R> distinct(boolean distinct) {
-        criteriaQuery = criteriaQuery.distinct(distinct);
+        jpaQuery = jpaQuery.distinct(distinct);
         return this;
+    }
+
+    /** Instructs the query to return results in descending order. */
+    public ZiggyQuery<T, R> ascendingOrder() {
+        if (jpaQuery instanceof Subquery) {
+            return this;
+        }
+        checkState(hasScalarAttribute(), "a column has not been defined");
+        ((CriteriaQuery<R>) jpaQuery).orderBy(attribute != null ? builder.asc(root.get(attribute))
+            : builder.asc(root.get(columnName)));
+        return this;
+    }
+
+    /** Instructs the query to return results in descending order. */
+    public ZiggyQuery<T, R> descendingOrder() {
+        if (jpaQuery instanceof Subquery) {
+            return this;
+        }
+        checkState(hasScalarAttribute(), "a column has not been defined");
+        ((CriteriaQuery<R>) jpaQuery).orderBy(attribute != null ? builder.desc(root.get(attribute))
+            : builder.desc(root.get(columnName)));
+        return this;
+    }
+
+    /** Generates a subquery to the current query. */
+    public <U> ZiggyQuery<U, U> ziggySubquery(Class<U> subqueryClass) {
+        return ziggySubquery(subqueryClass, subqueryClass);
+    }
+
+    /** Generates a subquery to the current query. */
+    public <U, V> ZiggyQuery<U, V> ziggySubquery(Class<U> databaseClass, Class<V> returnClass) {
+        ZiggyQuery<U, V> subquery = new ZiggyQuery<>(databaseClass, returnClass, builder, jpaQuery);
+        subqueries.add(subquery);
+        return subquery;
     }
 
     /**
@@ -386,15 +453,6 @@ public class ZiggyQuery<T, R> {
      */
     public HibernateCriteriaBuilder getBuilder() {
         return builder;
-    }
-
-    /**
-     * Returns the {@link CriteriaQuery} instance in the {@link ZiggyQuery}. This allows users to
-     * build queries that aren't directly supported by {@link ZiggyQuery} and instead require more
-     * direct use of the JPA API.
-     */
-    public CriteriaQuery<R> getCriteriaQuery() {
-        return criteriaQuery;
     }
 
     /**
@@ -408,6 +466,14 @@ public class ZiggyQuery<T, R> {
 
     public <Y> Path<Y> get(SingularAttribute<? super T, Y> attribute) {
         return root.get(attribute);
+    }
+
+    /** Returns the {@link AbstractQuery} cast to {@link CriteriaQuery}. */
+    public CriteriaQuery<R> getCriteriaQuery() {
+        if (jpaQuery instanceof Subquery) {
+            throw new PipelineException("Subquery cannot be cast to CriteriaQuery");
+        }
+        return (CriteriaQuery<R>) jpaQuery;
     }
 
     /**

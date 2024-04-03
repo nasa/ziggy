@@ -27,7 +27,6 @@ import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
-import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.util.io.FileUtil;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
@@ -64,12 +63,14 @@ public class PipelineDefinitionNodeTest {
 
         // Construct a new node for the test
         node = new Node("module 1", null);
-        node.setUnitOfWorkGenerator(new ClassWrapper<>(SingleUnitOfWorkGenerator.class));
         node.setChildNodeNames("module 2, module 3");
+        node.setHeapSizeMb(2);
+        node.populateXmlFields();
         Set<XmlReference> xmlReferences = new HashSet<>();
         xmlReferences.add(new ParameterSetReference("Remote execution"));
         xmlReferences.add(new ParameterSetReference("Convergence criteria"));
         xmlReferences.add(new InputTypeReference("flight L0 data"));
+        xmlReferences.add(new InputTypeReference("target pixel data"));
         xmlReferences.add(new OutputTypeReference("flight L1 data"));
         xmlReferences.add(new ModelTypeReference("calibration constants"));
         node.setXmlReferences(xmlReferences);
@@ -83,15 +84,15 @@ public class PipelineDefinitionNodeTest {
         marshaller.marshal(node, xmlFile);
         assertTrue(xmlFile.exists());
         List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
-        assertEquals(8, xmlContent.size());
+        assertEquals(9, xmlContent.size());
         List<String> nodeContent = nodeContent(xmlContent,
-            "<node " + "maxWorkers=\"0\" " + "heapSizeMb=\"0\" "
-                + "uowGenerator=\"gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator\" "
-                + "moduleName=\"module 1\" childNodeNames=\"module 2, module 3\">");
+            "<node heapSizeMb=\"2\" moduleName=\"module 1\" "
+                + "childNodeNames=\"module 2, module 3\" singleSubtask=\"false\">");
         String[] xmlLines = { "<moduleParameter name=\"Convergence criteria\"/>",
             "<moduleParameter name=\"Remote execution\"/>",
             "<inputDataFileType name=\"flight L0 data\"/>",
             "<outputDataFileType name=\"flight L1 data\"/>",
+            "<inputDataFileType name=\"target pixel data\"/>",
             "<modelType name=\"calibration constants\"/>" };
         for (String xmlLine : xmlLines) {
             assertContains(nodeContent, xmlLine);
@@ -108,9 +109,11 @@ public class PipelineDefinitionNodeTest {
         assertEquals(2, node.getParameterSetNames().size());
         assertTrue(node.getParameterSetNames().contains("Remote execution"));
         assertTrue(node.getParameterSetNames().contains("Convergence criteria"));
-        assertEquals(1, node.getInputDataFileTypeReferences().size());
+        assertEquals(2, node.getInputDataFileTypeReferences().size());
         assertTrue(node.getInputDataFileTypeReferences()
             .contains(new InputTypeReference("flight L0 data")));
+        assertTrue(node.getInputDataFileTypeReferences()
+            .contains(new InputTypeReference("target pixel table")));
         assertEquals(1, node.getOutputDataFileTypeReferences().size());
         assertTrue(node.getOutputDataFileTypeReferences()
             .contains(new OutputTypeReference("flight L1 data")));
@@ -138,9 +141,10 @@ public class PipelineDefinitionNodeTest {
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>",
             "<xs:element name=\"outputDataFileType\" type=\"outputTypeReference\"/>",
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>",
-            "<xs:attribute name=\"uowGenerator\" type=\"xs:string\"/>",
             "<xs:attribute name=\"maxWorkers\" type=\"xs:int\"/>",
+            "<xs:attribute name=\"heapSizeMb\" type=\"xs:int\"/>",
             "<xs:attribute name=\"moduleName\" type=\"xs:string\" use=\"required\"/>",
+            "<xs:attribute name=\"singleSubtask\" type=\"xs:boolean\"/>",
             "<xs:attribute name=\"childNodeNames\" type=\"xs:string\"/>" };
         for (String nodeString : nodeStrings) {
             assertContains(nodeContent, nodeString);

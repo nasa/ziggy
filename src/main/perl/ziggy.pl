@@ -108,12 +108,22 @@ sub main {
     # If the user-specified name is one of the pre-defined entries in the
     # nicknames, use information that that nickname maps to. If not, the user
     # will need to specify everything.
+
+    # Convert program options to a string, preserving empty options ("").
+    my $programOptionsString = "";
+    foreach (@$programOptions) {
+        if ($programOptionsString ne "") {
+            $programOptionsString .= " ";
+        }
+        $programOptionsString .= /^$/ ? '""' : $_;
+    }
+
     if (defined($nickname)) {
         if (exists $nicknames{$nickname}) {
             my $substJvm = makeSubstitutions("$cmd $nicknames{$nickname}{jvmOptions} @$jvmOptions", %properties);
             $cmd = "$substJvm " .
                 "$nicknames{$nickname}{className} " .
-                "$nicknames{$nickname}{programOptions} @$programOptions";
+                "$nicknames{$nickname}{programOptions} $programOptionsString";
         } else {
             print "Nickname $nickname unknown\n\n";
             displayNicknames(%nicknames);
@@ -121,7 +131,7 @@ sub main {
         }
     } elsif (defined($className)) {
         my $substJvm = makeSubstitutions("$cmd @$jvmOptions", %properties);
-        $cmd = "$substJvm $className @$programOptions";
+        $cmd = "$substJvm $className $programOptionsString";
     } else {
         print "Neither nickname nor class name provided";
         return 1;
@@ -245,7 +255,8 @@ sub makeSubstitutions {
         # Substitute property references.
         if ($s =~ /\$\{([^}]+)}/) {
             my $key = $1;
-            die "Missing Ziggy property '$key'" if (!exists($properties{$key}));
+            exists($properties{$key})
+                or die "Missing Ziggy property '$key'";
             $s =~ s/\$\{$key}/$properties{$key}/;
             $substitutionMade = 1;
         }
@@ -278,7 +289,7 @@ sub makeSubstitutions {
 sub getNicknames {
     my (%properties) = @_;
     my %nicknames = ();
-    my $default_jvm_options = $properties{"ziggy.default.jvm.args"};
+    my $default_jvm_options = exists($properties{'ziggy.default.jvm.args'}) ? $properties{'ziggy.default.jvm.args'} . " " : "";
 
     foreach my $property (keys %properties) {
         next if ($property !~ /^ziggy\.nickname\./);
@@ -292,7 +303,7 @@ sub getNicknames {
         my $nickname = $property =~ s/^ziggy\.nickname\.//r;
         $nicknames{$nickname}{className} = $fields[0];
         $nicknames{$nickname}{logFile} = $fields[1];
-        $nicknames{$nickname}{jvmOptions} = $default_jvm_options . " " . logFileOption($fields[1]) . " " . $fields[2];
+        $nicknames{$nickname}{jvmOptions} = $default_jvm_options . logFileOption($fields[1]) . " " . $fields[2];
         $nicknames{$nickname}{programOptions} = $fields[3];
     }
 
@@ -303,9 +314,12 @@ sub logFileOption {
     my ($logFileBasename) = @_;
     my ($logFileName, $logFileOption);
 
+    exists($properties{'ziggy.pipeline.results.dir'})
+        or die "Missing Ziggy property ziggy.pipeline.results.dir";
+
     $logFileBasename = "ziggy" if $logFileBasename eq "";
     $logFileName = File::Spec->catfile($properties{'ziggy.pipeline.results.dir'}, 'logs', 'cli', $logFileBasename . '.log');
-    $logFileOption = "-Dziggy.logfile=" . $logFileName;
+    $logFileOption = "-Dziggy.logFile=" . $logFileName;
 
     return $logFileOption;
 }

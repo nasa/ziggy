@@ -5,7 +5,6 @@ import java.util.List;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceFilter;
-import gov.nasa.ziggy.services.security.Privilege;
 
 /**
  * @author Todd Klaus
@@ -16,7 +15,6 @@ public class PipelineInstanceCrudProxy {
     }
 
     public void save(final PipelineInstance instance) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineInstanceCrud crud = new PipelineInstanceCrud();
             crud.persist(instance);
@@ -33,7 +31,6 @@ public class PipelineInstanceCrudProxy {
      * @param newName
      */
     public void updateName(final long id, final String newName) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineInstanceCrud crud = new PipelineInstanceCrud();
             crud.updateName(id, newName);
@@ -42,7 +39,6 @@ public class PipelineInstanceCrudProxy {
     }
 
     public void delete(final PipelineInstance instance) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineInstanceCrud crud = new PipelineInstanceCrud();
             crud.remove(instance);
@@ -51,7 +47,6 @@ public class PipelineInstanceCrudProxy {
     }
 
     public PipelineInstance retrieve(final long id) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineInstanceCrud crud = new PipelineInstanceCrud();
             return crud.retrieve(id);
@@ -59,7 +54,6 @@ public class PipelineInstanceCrudProxy {
     }
 
     public List<PipelineInstance> retrieve() {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineInstanceCrud crud = new PipelineInstanceCrud();
             return crud.retrieveAll();
@@ -67,7 +61,6 @@ public class PipelineInstanceCrudProxy {
     }
 
     public List<PipelineInstance> retrieve(final PipelineInstanceFilter filter) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineInstanceCrud crud = new PipelineInstanceCrud();
             return crud.retrieve(filter);
@@ -75,7 +68,6 @@ public class PipelineInstanceCrudProxy {
     }
 
     public List<PipelineInstance> retrieveAllActive() {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineInstanceCrud crud = new PipelineInstanceCrud();
             return crud.retrieveAllActive();

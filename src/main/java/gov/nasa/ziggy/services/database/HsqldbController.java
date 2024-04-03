@@ -3,7 +3,9 @@ package gov.nasa.ziggy.services.database;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_URL;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_CLASSPATH_PROP_NAME_PREFIX;
+import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX;
+import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_LOG_FILE_PROP_NAME;
 import static gov.nasa.ziggy.util.WrapperUtils.wrapperParameter;
 
 import java.io.File;
@@ -27,6 +29,7 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.services.process.ExternalProcessUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
@@ -54,7 +57,6 @@ public class HsqldbController extends DatabaseController {
     private static final String SCHEMA_CREATE_FILE = "ddl.hsqldb-create.sql";
     private static final String SCHEMA_DROP_FILE = "ddl.hsqldb-drop.sql";
     private static final String DRIVER_CLASS_NAME = "org.hsqldb.jdbc.JDBCDriver";
-    private static final String LOG_SUFFIX = ".log";
 
     private static final String INIT_TABLE_NAME = "HSQLDB_CONTROLLER_CREATED";
     private static final String TABLE_COUNT = "select count(*) from INFORMATION_SCHEMA.tables where TABLE_SCHEMA = 'PUBLIC' and table_name != '%s'";
@@ -65,6 +67,7 @@ public class HsqldbController extends DatabaseController {
     private static final String INSERT_INIT_TABLE_SQL = "insert into %s values('This database schema was automatically created on %s.')";
 
     private static final String HSQLDB_BIN_NAME = "hsqldb";
+    private static final String LOG_FILE = "hsqldb.log";
     private static final int DATABASE_SETTLE_MILLIS = 1000;
 
     /**
@@ -82,18 +85,14 @@ public class HsqldbController extends DatabaseController {
         return databaseDir;
     }
 
-    /** Not used by Ziggy. */
     @Override
     public Path logDir() {
-        return dataDir();
+        return DirectoryProperties.databaseLogDir();
     }
 
-    /** Not used by Ziggy. */
     @Override
     public Path logFile() {
-        return logDir().resolve(
-            ZiggyConfiguration.getInstance().getString(PropertyName.DATABASE_NAME.property())
-                + LOG_SUFFIX);
+        return logDir().resolve(LOG_FILE);
     }
 
     @Override
@@ -372,10 +371,15 @@ public class HsqldbController extends DatabaseController {
             String ziggyLibDir = DirectoryProperties.ziggyLibDir().toString();
 
             commandLine
+                .addArgument(wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME, logFile().toString()))
                 .addArgument(wrapperParameter(WRAPPER_CLASSPATH_PROP_NAME_PREFIX, 1,
                     DirectoryProperties.ziggyHomeDir().resolve("libs").resolve("*.jar").toString()))
                 .addArgument(
-                    wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1, ziggyLibDir));
+                    wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1, ziggyLibDir))
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
+                    ExternalProcessUtils.log4jConfigString()))
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
+                    ExternalProcessUtils.ziggyLog(logFile().toString())));
         }
 
         return commandLine.addArgument(cmd.toString());

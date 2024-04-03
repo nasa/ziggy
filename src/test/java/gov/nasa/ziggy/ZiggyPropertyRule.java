@@ -4,7 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.nio.file.Path;
 
-import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.CompositeConfiguration;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
@@ -43,9 +43,10 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
  * public final RuleChain ruleChain = RuleChain.outerRule(directoryRule).around(fooPropertyRule);
  * </pre>
  *
- * For convenience, this rule provides a {@link #getProperty} method to access the current property
- * value and a {@link #getPreviousProperty} method to access the value of the property before the
- * test started.
+ * This rule provides a {@link #getValue} method to access the current property value and a
+ * {@link #setValue} method to set it. The latter can be used to override the rule's initial value
+ * or a system property. Ziggy code should not call either {@link System#getProperty()} or
+ * {@link System#setProperty()}.
  * <p>
  * This class is thread-safe as it uses thread-safe configuration objects.
  *
@@ -57,7 +58,6 @@ public class ZiggyPropertyRule extends ExternalResource {
     private String value;
     private ZiggyDirectoryRule directoryRule;
     private String subdirectory;
-    private String previousValue;
 
     /**
      * Creates a {@code ZiggyPropertyRule} with the given property and value. See class
@@ -158,42 +158,37 @@ public class ZiggyPropertyRule extends ExternalResource {
             value = directory.toString();
         }
 
-        // the TEST_ENVIRONMENT property requires special handling because it needs
-        // to keep its value across ZiggyConfiguration resets. To accomplish that,
-        // it is placed into the system properties.
-        if (property.equals(PropertyName.TEST_ENVIRONMENT.property())) {
-            System.setProperty(PropertyName.TEST_ENVIRONMENT.property(), "true");
-            return;
-        }
+        CompositeConfiguration seedConfig = ZiggyConfiguration.getMutableInstance();
 
-        Configuration configuration = ZiggyConfiguration.getMutableInstance();
-        previousValue = configuration.getString(property, null);
-        if (value != null) {
-            configuration.setProperty(property, value);
-        } else {
-            configuration.clearProperty(property);
+        if (seedConfig == null) {
+            seedConfig = new CompositeConfiguration();
+            ZiggyConfiguration.setMutableInstance(seedConfig);
         }
+        setValue(value);
     }
 
     @Override
     protected void after() {
         ZiggyConfiguration.reset();
-        if (property.equals(PropertyName.TEST_ENVIRONMENT.property())) {
-            System.clearProperty(PropertyName.TEST_ENVIRONMENT.property());
-        }
     }
 
     /**
      * Returns the value of the property set by this rule.
      */
-    public String getProperty() {
+    public String getValue() {
         return value;
     }
 
     /**
-     * Returns the previous value of the property before it was set by this rule.
+     * Updates the initial value of the property. This needs to be called at the beginning of the
+     * test method in order to affect future {@link ZiggyConfiguration#getInstance()} calls.
      */
-    public String getPreviousProperty() {
-        return previousValue;
+    public void setValue(String value) {
+        this.value = value;
+        if (value != null) {
+            ZiggyConfiguration.getMutableInstance().setProperty(property, value);
+        } else {
+            ZiggyConfiguration.getMutableInstance().clearProperty(property);
+        }
     }
 }

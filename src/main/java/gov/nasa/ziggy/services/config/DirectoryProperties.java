@@ -221,4 +221,9 @@ public class DirectoryProperties {
         return Paths.get(
             ZiggyConfiguration.getInstance().getString(PropertyName.DATASTORE_ROOT_DIR.property()));
     }
+
+    public static Path dataReceiptDir() {
+        return Paths.get(
+            ZiggyConfiguration.getInstance().getString(PropertyName.DATA_RECEIPT_DIR.property()));
+    }
 }

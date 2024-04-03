@@ -9,11 +9,11 @@ import org.junit.Test;
 
 public class SubtaskAllocatorTest {
 
-    private TaskConfigurationManager taskConfigurationManager;
+    private TaskConfiguration taskConfigurationManager;
 
     @Before
     public void setup() {
-        taskConfigurationManager = mock(TaskConfigurationManager.class);
+        taskConfigurationManager = mock(TaskConfiguration.class);
     }
 
     /**
@@ -22,7 +22,7 @@ public class SubtaskAllocatorTest {
      */
     @Test
     public void testAllocatorWithSingleSubtaskSet() {
-        when(taskConfigurationManager.numSubTasks()).thenReturn(6);
+        when(taskConfigurationManager.getSubtaskCount()).thenReturn(6);
         SubtaskAllocator allocator = new SubtaskAllocator(taskConfigurationManager);
 
         SubtaskAllocation allocation;
@@ -87,6 +87,5 @@ public class SubtaskAllocatorTest {
         allocation = allocator.nextSubtask();
         assertEquals(SubtaskServer.ResponseType.NO_MORE, allocation.getStatus());
         assertEquals(-1, allocation.getSubtaskIndex());
-
     }
 }

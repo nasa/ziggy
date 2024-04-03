@@ -10,7 +10,7 @@ import org.junit.Test;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**
@@ -27,19 +27,20 @@ public class NasExecutorTest {
     public void testGeneratePbsParameters() {
 
         NasExecutor executor = new NasExecutor(new PipelineTask());
-        RemoteParameters remoteParameters = new RemoteParameters();
-        remoteParameters.setGigsPerSubtask(6.0);
-        remoteParameters.setSubtaskMaxWallTimeHours(4.5);
-        remoteParameters.setSubtaskTypicalWallTimeHours(0.5);
-        remoteParameters.setEnabled(true);
-        remoteParameters.setRemoteNodeArchitecture("");
+        PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
+            "dummy", "dummy");
+        executionResources.setGigsPerSubtask(6.0);
+        executionResources.setSubtaskMaxWallTimeHours(4.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.5);
+        executionResources.setRemoteExecutionEnabled(true);
+        executionResources.setRemoteNodeArchitecture("");
 
-        PbsParameters pbsParameters = executor.generatePbsParameters(remoteParameters, 500);
+        PbsParameters pbsParameters = executor.generatePbsParameters(executionResources, 500);
         assertTrue(pbsParameters.isEnabled());
         assertEquals(RemoteNodeDescriptor.HASWELL, pbsParameters.getArchitecture());
         assertEquals(pbsParameters.getArchitecture().getMaxCores(),
             pbsParameters.getMinCoresPerNode());
-        assertEquals(128, pbsParameters.getMinGigsPerNode());
+        assertEquals(128, pbsParameters.getMinGigsPerNode(), 1e-3);
         assertEquals(21, pbsParameters.getActiveCoresPerNode());
         assertEquals("4:30:00", pbsParameters.getRequestedWallTime());
         assertEquals("normal", pbsParameters.getQueueName());

@@ -26,6 +26,18 @@ There's no law that says you have to run the pipeline straight through from its 
 
 How the user adjusts the user-adjustable parameters.
 
+### [Organizing Pipelines and Parameter Sets](organizing-tables.md)
+
+Bringing order to the chaos of some of the Ziggy display and edit tables. 
+
+### [The Edit Pipeline Dialog Box](edit-pipeline.md)
+
+How the user adjusts most parameters related to things like provisioning execution resources.
+
+### [The Datastore Control Panel](datastore-regexp.md)
+
+Adjust the regular expressions in your datastore definition.
+
 [[Previous]](running-pipeline.md)
 [[Up]](user-manual.md)
 [[Next]](start-pipeline.md)

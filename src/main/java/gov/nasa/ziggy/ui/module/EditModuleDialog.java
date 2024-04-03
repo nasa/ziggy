@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineModuleExecutionResources;
 import gov.nasa.ziggy.ui.util.ClasspathUtils;
 import gov.nasa.ziggy.ui.util.MessageUtil;
 import gov.nasa.ziggy.ui.util.proxy.PipelineModuleDefinitionCrudProxy;
@@ -43,7 +44,8 @@ public class EditModuleDialog extends javax.swing.JDialog {
     private static final Logger log = LoggerFactory.getLogger(EditModuleDialog.class);
     private static final long serialVersionUID = 20230824L;
 
-    private final PipelineModuleDefinition module;
+    private PipelineModuleDefinition module;
+    private PipelineModuleExecutionResources executionResources;
     private final PipelineModuleDefinitionCrudProxy pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrudProxy();
 
     private JTextArea descText;
@@ -56,7 +58,8 @@ public class EditModuleDialog extends javax.swing.JDialog {
     public EditModuleDialog(Window owner, PipelineModuleDefinition module) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.module = module;
-
+        executionResources = pipelineModuleDefinitionCrud
+            .retrievePipelineModuleExecutionResources(module);
         buildComponent();
         setLocationRelativeTo(owner);
     }
@@ -88,11 +91,13 @@ public class EditModuleDialog extends javax.swing.JDialog {
         implementingClassComboBox = createImplementingClassComboBox();
 
         JLabel exeTimeout = boldLabel("Executable timeout (seconds)");
-        exeTimeoutText = new JTextField(Integer.toString(module.getExeTimeoutSecs()));
+        exeTimeoutText = new JTextField(
+            Integer.toString(executionResources.getExeTimeoutSeconds()));
         exeTimeoutText.setColumns(15);
 
         JLabel minMemory = boldLabel("Minimum memory (MB)");
-        minMemoryText = new JTextField(Integer.toString(module.getMinMemoryMegaBytes()));
+        minMemoryText = new JTextField(
+            Integer.toString(executionResources.getMinMemoryMegabytes()));
         minMemoryText.setColumns(15);
 
         JPanel dataPanel = new JPanel();
@@ -196,10 +201,12 @@ public class EditModuleDialog extends javax.swing.JDialog {
                 .getSelectedItem();
 
             module.setPipelineModuleClass(selectedImplementingClass);
-            module.setExeTimeoutSecs(toInt(exeTimeoutText.getText(), 0));
-            module.setMinMemoryMegaBytes(toInt(minMemoryText.getText(), 0));
+            executionResources.setExeTimeoutSeconds(toInt(exeTimeoutText.getText(), 0));
+            executionResources.setMinMemoryMegabytes(toInt(minMemoryText.getText(), 0));
 
-            pipelineModuleDefinitionCrud.createOrUpdate(module);
+            module = pipelineModuleDefinitionCrud.merge(module);
+            executionResources = pipelineModuleDefinitionCrud
+                .mergeExecutionResources(executionResources);
 
             setVisible(false);
         } catch (Exception e) {

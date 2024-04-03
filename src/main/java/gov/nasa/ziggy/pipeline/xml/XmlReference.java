@@ -2,7 +2,7 @@ package gov.nasa.ziggy.pipeline.xml;
 
 import java.util.Objects;
 
-import gov.nasa.ziggy.data.management.DataFileType;
+import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;

@@ -6,8 +6,8 @@ import org.hibernate.Hibernate;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
-import gov.nasa.ziggy.services.security.Privilege;
 
 public class PipelineDefinitionCrudProxy
     extends RetrieveLatestVersionsCrudProxy<PipelineDefinition> {
@@ -16,16 +16,13 @@ public class PipelineDefinitionCrudProxy
     }
 
     public PipelineDefinition rename(final PipelineDefinition pipeline, final String newName) {
-        verifyPrivileges(Privilege.PIPELINE_CONFIG);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
-            updateAuditInfo(pipeline.getAuditInfo());
             return crud.rename(pipeline, newName);
         });
     }
 
     public void deletePipeline(final PipelineDefinition pipeline) {
-        verifyPrivileges(Privilege.PIPELINE_CONFIG);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
             crud.deletePipeline(pipeline);
@@ -34,7 +31,6 @@ public class PipelineDefinitionCrudProxy
     }
 
     public void deletePipelineNode(final PipelineDefinitionNode pipelineNode) {
-        verifyPrivileges(Privilege.PIPELINE_CONFIG);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
             crud.remove(pipelineNode);
@@ -43,7 +39,6 @@ public class PipelineDefinitionCrudProxy
     }
 
     public PipelineDefinition retrieveLatestVersionForName(final String name) {
-        verifyPrivileges(Privilege.PIPELINE_CONFIG);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
             PipelineDefinition result1 = crud.retrieveLatestVersionForName(name);
@@ -55,7 +50,6 @@ public class PipelineDefinitionCrudProxy
 
     @Override
     public List<PipelineDefinition> retrieveLatestVersions() {
-        verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
 
@@ -71,7 +65,6 @@ public class PipelineDefinitionCrudProxy
     }
 
     public List<PipelineDefinition> retrieveAll() {
-        verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
 
@@ -92,7 +85,6 @@ public class PipelineDefinitionCrudProxy
     }
 
     public PipelineDefinition createOrUpdate(PipelineDefinition entity) {
-        verifyPrivileges(Privilege.PIPELINE_CONFIG);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
             return crud.merge(entity);
@@ -106,5 +98,20 @@ public class PipelineDefinitionCrudProxy
             Hibernate.initialize(node.getOutputDataFileTypes());
             Hibernate.initialize(node.getModelTypes());
         }
+    }
+
+    public ProcessingMode retrieveProcessingMode(String pipelineName) {
+        return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
+            return crud.retrieveProcessingMode(pipelineName);
+        });
+    }
+
+    public void updateProcessingMode(String pipelineName, ProcessingMode processingMode) {
+        CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
+            PipelineDefinitionCrud crud = new PipelineDefinitionCrud();
+            crud.updateProcessingMode(pipelineName, processingMode);
+            return null;
+        });
     }
 }

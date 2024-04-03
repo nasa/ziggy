@@ -12,12 +12,17 @@ public class RegexGroupCounter {
 
     public static final Pattern GROUP_PATTERN = Pattern.compile("\\(([^)]+)\\)");
 
+    /**
+     * Provides a count of the number of groups in a regular expression.
+     * <p>
+     * Warning: Nested groups are not counted properly.
+     */
     public static int groupCount(String regex) {
         Matcher groupMatcher = GROUP_PATTERN.matcher(regex);
-        int iGroup = 0;
+        int groupCount = 0;
         while (groupMatcher.find()) {
-            iGroup++;
+            groupCount++;
         }
-        return iGroup;
+        return groupCount;
     }
 }

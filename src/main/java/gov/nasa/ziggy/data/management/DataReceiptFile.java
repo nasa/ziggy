@@ -10,21 +10,18 @@ public class DataReceiptFile {
 
     private long taskId;
     private String name;
-    private String fileType;
     private String status;
 
     public DataReceiptFile(DatastoreProducerConsumer record) {
         name = record.getFilename();
         taskId = record.getProducer();
         status = "Imported";
-        fileType = record.getDataReceiptFileType().toString();
     }
 
     public DataReceiptFile(FailedImport record) {
         name = record.getFilename();
         taskId = record.getDataReceiptTaskId();
         status = "Failed";
-        fileType = record.getDataReceiptFileType().toString();
     }
 
     public long getTaskId() {
@@ -41,14 +38,6 @@ public class DataReceiptFile {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getFileType() {
-        return fileType;
-    }
-
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
     }
 
     public String getStatus() {

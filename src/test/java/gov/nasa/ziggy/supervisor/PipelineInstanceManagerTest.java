@@ -191,13 +191,13 @@ public class PipelineInstanceManagerTest {
         assertEquals(4, pipelineInstanceManager.getRepeats());
         assertEquals(3, pipelineInstanceManager.getStatusChecks());
         Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-0", startNode, endNode, null);
+            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode, null);
         Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-1", startNode, endNode, null);
+            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode, null);
         Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-2", startNode, endNode, null);
+            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode, null);
         Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-3", startNode, endNode, null);
+            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode, null);
     }
 
     /**
@@ -236,20 +236,20 @@ public class PipelineInstanceManagerTest {
                 assertEquals(2, pipelineInstanceManager.getRepeats());
                 assertEquals(2, pipelineInstanceManager.getStatusChecks());
                 Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-0", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode,
                         null);
                 Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-1", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode,
                         null);
                 Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-2", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode,
                         null);
                 Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-3", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode,
                         null);
             });
-        assertEquals(exception.getMessage(),
-            "Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1");
+        assertEquals("Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1",
+            exception.getMessage());
     }
 
     /**
@@ -289,16 +289,16 @@ public class PipelineInstanceManagerTest {
                 assertEquals(2, pipelineInstanceManager.getRepeats());
                 assertEquals(2, pipelineInstanceManager.getStatusChecks());
                 Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-0", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode,
                         null);
                 Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-1", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode,
                         null);
                 Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-2", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode,
                         null);
                 Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + ":-3", startNode, endNode,
+                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode,
                         null);
             });
         assertEquals("Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1",

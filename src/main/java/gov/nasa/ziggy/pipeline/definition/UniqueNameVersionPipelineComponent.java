@@ -8,6 +8,7 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.crud.UniqueNameVersionPipelineComponentCrud;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Version;
 import jakarta.xml.bind.annotation.XmlAccessType;
@@ -44,6 +45,9 @@ public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVer
     @XmlAttribute(required = true)
     private String name;
     private boolean locked;
+
+    @Embedded
+    private AuditInfo auditInfo = new AuditInfo();
 
     /**
      * Used by Hibernate to implement optimistic locking. This ensures that if two users are
@@ -173,6 +177,14 @@ public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVer
             throw new PipelineException("Unable to construct copy of " + getClass().getName()
                 + " instance with name '" + getName(), e);
         }
+    }
+
+    public AuditInfo getAuditInfo() {
+        return auditInfo;
+    }
+
+    public void updateAuditInfo() {
+        auditInfo = new AuditInfo();
     }
 
     @Override

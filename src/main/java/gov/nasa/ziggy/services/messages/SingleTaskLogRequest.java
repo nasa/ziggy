@@ -2,8 +2,6 @@ package gov.nasa.ziggy.services.messages;
 
 import gov.nasa.ziggy.services.logging.TaskLogInformation;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.services.security.Privilege;
-import gov.nasa.ziggy.ui.util.proxy.CrudProxy;
 import gov.nasa.ziggy.util.Requestor;
 
 /**
@@ -24,7 +22,6 @@ public class SingleTaskLogRequest extends SpecifiedRequestorMessage {
 
     public static void requestSingleTaskLog(Requestor sender,
         TaskLogInformation taskLogInformation) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         ZiggyMessenger.publish(new SingleTaskLogRequest(sender, taskLogInformation));
     }
 

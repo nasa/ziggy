@@ -5,8 +5,6 @@ import java.util.Set;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.logging.TaskLogInformation;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.services.security.Privilege;
-import gov.nasa.ziggy.ui.util.proxy.CrudProxy;
 import gov.nasa.ziggy.util.Requestor;
 
 /**
@@ -36,7 +34,6 @@ public final class TaskLogInformationRequest extends SpecifiedRequestorMessage {
      * method.
      */
     public static void requestTaskLogInformation(Requestor sender, PipelineTask task) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         ZiggyMessenger.publish(new TaskLogInformationRequest(sender,
             task.getPipelineInstance().getId(), task.getId()));
     }

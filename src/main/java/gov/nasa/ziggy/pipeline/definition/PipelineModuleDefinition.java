@@ -1,16 +1,14 @@
 package gov.nasa.ziggy.pipeline.definition;
 
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
-import gov.nasa.ziggy.module.DefaultPipelineInputs;
-import gov.nasa.ziggy.module.DefaultPipelineOutputs;
+import gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs;
+import gov.nasa.ziggy.module.DatastoreDirectoryPipelineOutputs;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
 import gov.nasa.ziggy.module.PipelineInputs;
 import gov.nasa.ziggy.module.PipelineOutputs;
-import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
+import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
@@ -19,9 +17,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
@@ -31,6 +29,12 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 /**
  * This class models a pipeline module, which consists of an algorithm and the parameters that
  * control the behavior of that algorithm.
+ * <p>
+ * By default, pipeline module definitions will use{@link ExternalProcessPipelineModule} for their
+ * execution module, {@link DatastoreDirectoryUnitOfWorkGenerator} to generate units of work,
+ * {@link DatastoreDirectoryPipelineInputs} and {@link DatastoreDirectoryPipelineOutputs},
+ * respectively, for the inputs and outputs class. In the case where the user wishes to accept these
+ * defaults, there is no need to specify any of them in the module definition.
  *
  * @author Todd Klaus
  */
@@ -48,15 +52,15 @@ public class PipelineModuleDefinition
         sequenceName = "ziggy_PipelineModuleDefinition_sequence", allocationSize = 1)
     private Long id;
 
-    @ManyToOne
-    private Group group = null;
-
-    @Embedded
-    // init with empty placeholder, to be filled in by console
-    private AuditInfo auditInfo = new AuditInfo();
-
     @XmlAttribute
     private String description = "description";
+
+    @XmlAttribute(required = false, name = "uowGenerator")
+    @XmlJavaTypeAdapter(ClassWrapper.ClassWrapperAdapter.class)
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "clazz", column = @Column(name = "unitOfWorkGenerator")) })
+    private ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator;
 
     @XmlAttribute(required = false)
     @XmlJavaTypeAdapter(ClassWrapper.ClassWrapperAdapter.class)
@@ -72,7 +76,7 @@ public class PipelineModuleDefinition
     @AttributeOverrides({
         @AttributeOverride(name = "clazz", column = @Column(name = "inputsClass")) })
     private ClassWrapper<PipelineInputs> inputsClass = new ClassWrapper<>(
-        DefaultPipelineInputs.class);
+        DatastoreDirectoryPipelineInputs.class);
 
     @Embedded
     @XmlAttribute(required = false)
@@ -80,17 +84,21 @@ public class PipelineModuleDefinition
     @AttributeOverrides({
         @AttributeOverride(name = "clazz", column = @Column(name = "outputsClass")) })
     private ClassWrapper<PipelineOutputs> outputsClass = new ClassWrapper<>(
-        DefaultPipelineOutputs.class);
+        DatastoreDirectoryPipelineOutputs.class);
+
+    // Using the Integer class rather than int here because XML won't allow optional
+    // attributes that are primitive types. Transient so that modules can be imported
+    // with the value set, but the value can then get put into the database in an
+    // instance of PipelineModuleExecutionResources.
+    @Transient
+    @XmlAttribute(required = false)
+    private Integer exeTimeoutSecs = PipelineModuleExecutionResources.DEFAULT_TIMEOUT_SECONDS;
 
     // Using the Integer class rather than int here because XML won't allow optional
     // attributes that are primitive types
+    @Transient
     @XmlAttribute(required = false)
-    private Integer exeTimeoutSecs = 60 * 60 * 50; // 50 hours
-
-    // Using the Integer class rather than int here because XML won't allow optional
-    // attributes that are primitive types
-    @XmlAttribute(required = false)
-    private Integer minMemoryMegaBytes = 0; // zero means memory usage is not constrained
+    private Integer minMemoryMegabytes = PipelineModuleExecutionResources.DEFAULT_MEMORY_MEGABYTES;
 
     // for hibernate use only
     public PipelineModuleDefinition() {
@@ -100,24 +108,11 @@ public class PipelineModuleDefinition
         setName(name);
     }
 
-    public PipelineModuleDefinition(AuditInfo auditInfo, String name) {
-        this.auditInfo = auditInfo;
-        setName(name);
-    }
-
     /**
      * @return Returns the id.
      */
     public Long getId() {
         return id;
-    }
-
-    public AuditInfo getAuditInfo() {
-        return auditInfo;
-    }
-
-    public void setAuditInfo(AuditInfo auditInfo) {
-        this.auditInfo = auditInfo;
     }
 
     public String getDescription() {
@@ -160,47 +155,22 @@ public class PipelineModuleDefinition
         this.outputsClass = outputsClass;
     }
 
-    /**
-     * @return the minMemoryBytes
-     */
-    public int getMinMemoryMegaBytes() {
-        return minMemoryMegaBytes;
+    public int getMinMemoryMegabytes() {
+        return minMemoryMegabytes;
     }
 
-    /**
-     * @param minMemoryBytes the minMemoryBytes to set
-     */
-    public void setMinMemoryMegaBytes(int minMemoryBytes) {
-        minMemoryMegaBytes = minMemoryBytes;
+    public ClassWrapper<UnitOfWorkGenerator> getUnitOfWorkGenerator() {
+        return unitOfWorkGenerator;
     }
 
-    public Set<ClassWrapper<ParametersInterface>> getRequiredParameterClasses() {
-        PipelineInputs pipelineInputs = inputsClass.newInstance();
-
-        Set<ClassWrapper<ParametersInterface>> requiredParameters = new HashSet<>();
-        List<Class<? extends ParametersInterface>> moduleParameters = pipelineInputs
-            .requiredParameters();
-
-        for (Class<? extends ParametersInterface> clazz : moduleParameters) {
-            requiredParameters.add(new ClassWrapper<>(clazz));
-        }
-
-        return requiredParameters;
-    }
-
-    public Group getGroup() {
-        return group;
-    }
-
-    public void setGroup(Group group) {
-        this.group = group;
+    public void setUnitOfWorkGenerator(ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator) {
+        this.unitOfWorkGenerator = unitOfWorkGenerator;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(description, getOptimisticLockValue(), exeTimeoutSecs, group, id,
-            inputsClass, isLocked(), minMemoryMegaBytes, getName(), outputsClass,
-            pipelineModuleClass, getVersion());
+        return Objects.hash(description, getOptimisticLockValue(), id, inputsClass, isLocked(),
+            getName(), outputsClass, pipelineModuleClass, getVersion());
     }
 
     @Override
@@ -214,13 +184,9 @@ public class PipelineModuleDefinition
         PipelineModuleDefinition other = (PipelineModuleDefinition) obj;
         boolean equalModule = Objects.equals(description, other.description);
         equalModule = equalModule && getOptimisticLockValue() == other.getOptimisticLockValue();
-        equalModule = equalModule && exeTimeoutSecs.intValue() == other.exeTimeoutSecs.intValue();
-        equalModule = equalModule && Objects.equals(group, other.group);
         equalModule = equalModule && Objects.equals(id, other.id);
         equalModule = equalModule && Objects.equals(inputsClass, other.inputsClass);
         equalModule = equalModule && isLocked() == other.isLocked();
-        equalModule = equalModule
-            && minMemoryMegaBytes.intValue() == other.minMemoryMegaBytes.intValue();
         equalModule = equalModule && Objects.equals(getName(), other.getName());
         equalModule = equalModule && Objects.equals(outputsClass, other.outputsClass);
         equalModule = equalModule && Objects.equals(pipelineModuleClass, other.pipelineModuleClass);

@@ -21,9 +21,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.ui.ConsoleSecurityException;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.proxy.PipelineTaskCrudProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel.ProcessingStatistics;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
@@ -133,7 +133,7 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
     }
 
     private static class PipelineStatsTableModel extends AbstractTableModel
-        implements TableModelContentClass<ProcessingStatistics> {
+        implements ModelContentClass<ProcessingStatistics> {
 
         private PipelineStatsDisplayModel pipelineStatsDisplayModel;
 

@@ -56,7 +56,7 @@ public class ModelImporterTest {
     @Before
     public void setup() throws IOException {
 
-        datastoreRoot = new File(ziggyDatastorePropertyRule.getProperty());
+        datastoreRoot = new File(ziggyDatastorePropertyRule.getValue());
         // Set up the model type 1 to have a model ID in its name, which is a simple integer,
         // and a timestamp in its name
         modelType1 = new ModelType();
@@ -90,7 +90,10 @@ public class ModelImporterTest {
         ModelMetadata modelMetadata3 = new ModelMetadata(modelType3, filename3, "zinfandel", null);
 
         // Initialize the datastore
-        modelImportDirectory = directoryRule.directory().resolve("modelImportDirectory").toFile();
+        modelImportDirectory = directoryRule.directory()
+            .resolve(ModelImporter.DATASTORE_MODELS_SUBDIR_NAME)
+            .toAbsolutePath()
+            .toFile();
         modelImportDirectory.mkdirs();
 
         // Create the database objects
@@ -120,10 +123,10 @@ public class ModelImporterTest {
     public void testImportWithCurrentRegistryUnlocked() {
 
         // Import the models
-        ModelImporter modelImporter = new ModelImporter(modelImportDirectory.getAbsolutePath(),
-            "unit test");
+        ModelImporter modelImporter = new ModelImporter(
+            modelImportDirectory.toPath().toAbsolutePath().getParent(), "unit test");
         DatabaseTransactionFactory.performTransaction(() -> {
-            modelImporter.importModels(filenamesInDirectory());
+            modelImporter.importModels(filesInDirectory());
             return null;
         });
 
@@ -214,10 +217,10 @@ public class ModelImporterTest {
         });
 
         // Import the models
-        ModelImporter modelImporter = new ModelImporter(modelImportDirectory.getAbsolutePath(),
-            "unit test");
+        ModelImporter modelImporter = new ModelImporter(
+            modelImportDirectory.toPath().toAbsolutePath().getParent(), "unit test");
         DatabaseTransactionFactory.performTransaction(() -> {
-            modelImporter.importModels(filenamesInDirectory());
+            modelImporter.importModels(filesInDirectory());
             return null;
         });
 
@@ -301,8 +304,8 @@ public class ModelImporterTest {
     public void testImportWithFailures() throws IOException {
 
         // For this exercise we need a spy for the importer
-        ModelImporter importer = new ModelImporter(modelImportDirectory.getAbsolutePath(),
-            "unit test");
+        ModelImporter importer = new ModelImporter(
+            modelImportDirectory.toPath().toAbsolutePath().getParent(), "unit test");
         final ModelImporter modelImporter = Mockito.spy(importer);
         Path destFileToFlunk = Paths.get(datastoreRoot.toString(), "models", "geometry",
             "tess2020321141517-12345_025-geometry.xml");
@@ -310,11 +313,11 @@ public class ModelImporterTest {
             "tess2020321141517-12345_025-geometry.xml");
         Mockito.doThrow(IOException.class)
             .when(modelImporter)
-            .moveOrSymlink(srcFileToFlunk.toAbsolutePath(), destFileToFlunk);
+            .move(srcFileToFlunk.toAbsolutePath(), destFileToFlunk.toAbsolutePath());
 
         // Perform the import
         DatabaseTransactionFactory.performTransaction(() -> {
-            modelImporter.importModels(filenamesInDirectory());
+            modelImporter.importModels(filesInDirectory());
             return null;
         });
 
@@ -334,7 +337,8 @@ public class ModelImporterTest {
         // Check that there is one file logged with the importer as failed
         List<Path> failedImports = modelImporter.getFailedImports();
         assertEquals(1, failedImports.size());
-        assertEquals("tess2020321141517-12345_025-geometry.xml", failedImports.get(0).toString());
+        assertEquals("tess2020321141517-12345_025-geometry.xml",
+            failedImports.get(0).getFileName().toString());
 
         // Check that the failed import is still in the source directory
         File[] remainingFiles = modelImportDirectory.listFiles();
@@ -394,14 +398,14 @@ public class ModelImporterTest {
         assertEquals(modelFilename, ravenswoodModels[0].getName());
     }
 
-    private List<String> filenamesInDirectory() throws IOException {
-        List<String> filenamesInDirectory = new ArrayList<>();
+    private List<Path> filesInDirectory() throws IOException {
+        List<Path> filesInDirectory = new ArrayList<>();
         try (DirectoryStream<Path> stream = java.nio.file.Files
             .newDirectoryStream(modelImportDirectory.toPath())) {
             for (Path path : stream) {
-                filenamesInDirectory.add(path.getFileName().toString());
+                filesInDirectory.add(path.toAbsolutePath());
             }
         }
-        return filenamesInDirectory;
+        return filesInDirectory;
     }
 }

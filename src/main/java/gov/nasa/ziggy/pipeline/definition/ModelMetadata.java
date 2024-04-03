@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition;
 
+import java.nio.file.Path;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.regex.Matcher;
@@ -8,7 +9,9 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
+import gov.nasa.ziggy.models.ModelImporter;
 import gov.nasa.ziggy.models.SemanticVersionNumber;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.Iso8601Formatter;
@@ -278,6 +281,14 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
 
     Date currentDate() {
         return new Date();
+    }
+
+    public Path datastoreModelPath() {
+        return DirectoryProperties.datastoreRootDir()
+            .toAbsolutePath()
+            .resolve(ModelImporter.DATASTORE_MODELS_SUBDIR_NAME)
+            .resolve(getModelType().getType())
+            .resolve(getDatastoreFileName());
     }
 
     private static class DateAdapter extends XmlAdapter<XMLGregorianCalendar, Date> {

@@ -12,8 +12,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
-import gov.nasa.ziggy.data.management.DataFileType;
-import gov.nasa.ziggy.data.management.DataFileType_;
+import gov.nasa.ziggy.data.datastore.DataFileType;
+import gov.nasa.ziggy.data.datastore.DataFileType_;
 import gov.nasa.ziggy.module.PipelineException;
 
 /**

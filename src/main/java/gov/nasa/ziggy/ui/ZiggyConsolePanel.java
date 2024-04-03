@@ -25,6 +25,7 @@ import javax.swing.event.ListSelectionListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.ui.datastore.ViewEditDatastorePanel;
 import gov.nasa.ziggy.ui.dr.DataReceiptPanel;
 import gov.nasa.ziggy.ui.events.ZiggyEventHandlerPanel;
 import gov.nasa.ziggy.ui.instances.InstancesTasksPanel;
@@ -32,8 +33,6 @@ import gov.nasa.ziggy.ui.metrilyzer.MetrilyzerPanel;
 import gov.nasa.ziggy.ui.module.ViewEditModuleLibraryPanel;
 import gov.nasa.ziggy.ui.parameters.ViewEditParameterSetsPanel;
 import gov.nasa.ziggy.ui.pipeline.ViewEditPipelinesPanel;
-import gov.nasa.ziggy.ui.security.ViewEditRolesPanel;
-import gov.nasa.ziggy.ui.security.ViewEditUsersPanel;
 import gov.nasa.ziggy.ui.status.StatusPanel;
 import gov.nasa.ziggy.ui.util.ViewEditKeyValuePairPanel;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
@@ -59,6 +58,7 @@ public class ZiggyConsolePanel extends JSplitPane {
     private enum ContentItem {
         LOGO("Logo", false, true, ContentPanel::createLogoCard),
         PARAMETER_LIBRARY("Parameter Library", ViewEditParameterSetsPanel::newInstance),
+        DATASTORE("Datastore", ViewEditDatastorePanel::new),
         PIPELINES("Pipelines", ViewEditPipelinesPanel::newInstance),
         INSTANCES("Instances", InstancesTasksPanel::new),
         STATUS("Status", StatusPanel::new),
@@ -66,8 +66,6 @@ public class ZiggyConsolePanel extends JSplitPane {
         EVENT_HANDLERS("Event Definitions", ZiggyEventHandlerPanel::new),
         MODULE_LIBRARY("Module Library", ViewEditModuleLibraryPanel::new),
         METRILYZER("Metrilyzer", false, true, MetrilyzerPanel::new),
-        USERS("Users", false, true, ViewEditUsersPanel::new),
-        ROLES("Roles", false, true, ViewEditRolesPanel::new),
         GENERAL("General", false, true, ViewEditKeyValuePairPanel::new);
 
         private String label;

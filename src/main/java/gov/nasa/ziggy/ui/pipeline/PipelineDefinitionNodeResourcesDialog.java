@@ -28,11 +28,13 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.text.NumberFormatter;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.services.messages.WorkerResources;
-import gov.nasa.ziggy.ui.util.HumanReadableHeapSize;
-import gov.nasa.ziggy.ui.util.HumanReadableHeapSize.HeapSizeUnit;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
+import gov.nasa.ziggy.ui.ZiggyGuiConsole;
 import gov.nasa.ziggy.ui.util.ValidityTestingFormattedTextField;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
+import gov.nasa.ziggy.util.HumanReadableHeapSize;
+import gov.nasa.ziggy.util.HumanReadableHeapSize.HeapSizeUnit;
+import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
  * Dialog box for editing the worker count and heap size for a {@link PipelineDefinitionNode}.
@@ -58,9 +60,12 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
  */
 public class PipelineDefinitionNodeResourcesDialog extends JDialog {
 
-    private static final long serialVersionUID = 20230810L;
+    private static final long serialVersionUID = 20231212L;
+
+    private static final int COLUMNS = 10;
 
     private final PipelineDefinitionNode node;
+    private final PipelineDefinitionNodeExecutionResources executionResources;
     private final String pipelineDefinitionName;
     private final WorkerResources initialResources;
     private JCheckBox workerDefaultCheckBox;
@@ -70,9 +75,11 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
     private JRadioButton tbUnitsButton;
     private ValidityTestingFormattedTextField workerCountTextArea;
     private ValidityTestingFormattedTextField heapSizeTextArea;
+    private ValidityTestingFormattedTextField maxFailedSubtaskTextArea;
+    private ValidityTestingFormattedTextField maxAutoResubmitsTextArea;
     private ButtonGroup unitButtonGroup;
-    private int workerCountCurrentUserValue;
-    private int heapSizeMbCurrentUserValue;
+    private Integer workerCountCurrentUserValue;
+    private Integer heapSizeMbCurrentUserValue;
     private JButton closeButton;
     private JButton cancelButton;
 
@@ -82,12 +89,13 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
     private Consumer<Boolean> validityCheck = valid -> setCloseButtonState();
 
     public PipelineDefinitionNodeResourcesDialog(Window owner, String pipelineDefinitionName,
-        PipelineDefinitionNode node) {
+        PipelineDefinitionNode node, PipelineDefinitionNodeExecutionResources executionResources) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.pipelineDefinitionName = pipelineDefinitionName;
         this.node = node;
+        this.executionResources = executionResources;
 
-        initialResources = node.workerResources();
+        initialResources = executionResources.workerResources();
         workerCountCurrentUserValue = initialResources.getMaxWorkerCount();
         heapSizeMbCurrentUserValue = initialResources.getHeapSizeMb();
 
@@ -122,6 +130,12 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
         JLabel maxHeapSize = boldLabel("Maximum heap size");
         heapSizeTextArea = createHeapSizeTextArea();
         heapSizeDefaultCheckBox = createHeapSizeDefaultCheckBox();
+
+        JLabel maxFailedSubtasks = boldLabel("Maximum failed subtasks");
+        maxFailedSubtaskTextArea = createMaxFailedSubtaskTextArea();
+
+        JLabel maxAutoResubmits = boldLabel("Maximum automatic resubmits");
+        maxAutoResubmitsTextArea = createMaxAutoResubmitsTextArea();
 
         unitButtonGroup = new ButtonGroup();
         mbUnitsButton = new JRadioButton("MB");
@@ -158,20 +172,26 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
                 .addComponent(gbUnitsButton)
                 .addPreferredGap(ComponentPlacement.RELATED)
                 .addComponent(tbUnitsButton))
-            .addComponent(heapSizeDefaultCheckBox));
+            .addComponent(heapSizeDefaultCheckBox)
+            .addComponent(maxFailedSubtasks)
+            .addComponent(maxFailedSubtaskTextArea, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addComponent(maxAutoResubmits)
+            .addComponent(maxAutoResubmitsTextArea, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
             .addComponent(pipeline)
             .addComponent(pipelineText)
-            .addPreferredGap(ComponentPlacement.UNRELATED)
+            .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(module)
             .addComponent(moduleText)
-            .addPreferredGap(ComponentPlacement.UNRELATED)
+            .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(maxWorkers)
             .addComponent(workerCountTextArea, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
                 GroupLayout.PREFERRED_SIZE)
             .addComponent(workerDefaultCheckBox)
-            .addPreferredGap(ComponentPlacement.UNRELATED)
+            .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(maxHeapSize)
             .addGroup(dataPanelLayout.createParallelGroup(GroupLayout.Alignment.CENTER)
                 .addComponent(heapSizeTextArea, GroupLayout.PREFERRED_SIZE,
@@ -179,7 +199,13 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
                 .addComponent(mbUnitsButton)
                 .addComponent(gbUnitsButton)
                 .addComponent(tbUnitsButton))
-            .addComponent(heapSizeDefaultCheckBox));
+            .addComponent(heapSizeDefaultCheckBox)
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(maxFailedSubtasks)
+            .addComponent(maxFailedSubtaskTextArea)
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(maxAutoResubmits)
+            .addComponent(maxAutoResubmitsTextArea));
 
         return dataPanel;
     }
@@ -217,7 +243,9 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
 
     /**
      * Capture the current state of worker resource parameters in the relevant
-     * {@link PipelineDefinitionNode} instance and close the dialog box.
+     * {@link PipelineDefinitionNode} instance and close the dialog box. Resources are only captured
+     * in cases where the relevant "use default" dialog box is not checked (i.e., places where the
+     * user wants default values are set to null).
      */
     private void updateWorkerResources(AWTEvent evt) {
         Integer finalWorkerCount = null;
@@ -228,7 +256,10 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
         if (!heapSizeDefaultCheckBox.isSelected()) {
             finalHeapSizeMb = heapSizeMbFromTextField();
         }
-        node.applyWorkerResources(new WorkerResources(finalWorkerCount, finalHeapSizeMb));
+        executionResources
+            .applyWorkerResources(new WorkerResources(finalWorkerCount, finalHeapSizeMb));
+        executionResources.setMaxFailedSubtaskCount((Integer) maxFailedSubtaskTextArea.getValue());
+        executionResources.setMaxAutoResubmits((Integer) maxAutoResubmitsTextArea.getValue());
         dispose();
     }
 
@@ -276,7 +307,7 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
      * Reverts the worker resources to their initial values and exits.
      */
     private void revertWorkerResources(ActionEvent evt) {
-        node.applyWorkerResources(initialResources);
+        executionResources.applyWorkerResources(initialResources);
         dispose();
     }
 
@@ -293,7 +324,7 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
         ValidityTestingFormattedTextField workerCountTextArea = new ValidityTestingFormattedTextField(
             formatter);
         workerCountTextArea.setEmptyIsValid(false);
-        workerCountTextArea.setColumns(10);
+        workerCountTextArea.setColumns(COLUMNS);
         workerCountTextArea
             .setToolTipText(htmlBuilder("Set the maximum number of worker processes.").appendBreak()
                 .append("Must be between 1 and number of cores on your system (")
@@ -313,8 +344,8 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
      */
     private JCheckBox createWorkerDefaultCheckBox() {
         JCheckBox workerDefaultCheckBox = new JCheckBox(
-            "Default (" + WorkerResources.getDefaultResources().getMaxWorkerCount() + ")");
-        workerDefaultCheckBox.setSelected(initialResources.maxWorkerCountIsDefault());
+            "Default (" + ZiggyGuiConsole.defaultResources().getMaxWorkerCount() + ")");
+        workerDefaultCheckBox.setSelected(workerCountCurrentUserValue == null);
         workerDefaultCheckBox.setToolTipText("Use the pipeline default worker count.");
         workerDefaultCheckBox.addItemListener(this::workerCheckBoxChanged);
         return workerDefaultCheckBox;
@@ -334,9 +365,14 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
             workerCountTextArea.setValue(workerCountCurrentUserValue);
         } else {
 
-            // Switching from the user-set value to the default.
-            if (workerCountTextArea.isValidState()) {
-                workerCountCurrentUserValue = (int) workerCountTextArea.getValue();
+            // Switching from the user-set value to the default. Update the current
+            // user value from the text area so that if the user changes their mind and
+            // deselects the default, the dialog box will "remember" what was in the
+            // worker count text box and put it back there. Note that we need to check both
+            // the valid state of the text box and whether it's null because a null value in
+            // a disabled text area is a valid state.
+            if (workerCountTextArea.isValidState() && workerCountTextArea.getValue() != null) {
+                workerCountCurrentUserValue = (Integer) workerCountTextArea.getValue();
             } else {
                 // Force the text field into a valid state. This is a kind of kludgey way
                 // to do it, but I haven't been able to figure out any way for Java to
@@ -361,7 +397,7 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
         ValidityTestingFormattedTextField heapSizeTextArea = new ValidityTestingFormattedTextField(
             formatter);
         heapSizeTextArea.setEmptyIsValid(false);
-        heapSizeTextArea.setColumns(10);
+        heapSizeTextArea.setColumns(COLUMNS);
         heapSizeTextArea.setToolTipText(
             htmlBuilder("Set the maximum Java heap size shared by all workers.").appendBreak()
                 .append("Must be between 1 and 1000, inclusive.")
@@ -377,8 +413,8 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
      */
     private JCheckBox createHeapSizeDefaultCheckBox() {
         JCheckBox heapSizeDefaultCheckBox = new JCheckBox(
-            "Default (" + WorkerResources.getDefaultResources().humanReadableHeapSize() + ")");
-        heapSizeDefaultCheckBox.setSelected(initialResources.heapSizeIsDefault());
+            "Default (" + ZiggyGuiConsole.defaultResources().humanReadableHeapSize() + ")");
+        heapSizeDefaultCheckBox.setSelected(heapSizeMbCurrentUserValue == null);
         heapSizeDefaultCheckBox.setToolTipText("Use the pipeline default heap size.");
         heapSizeDefaultCheckBox.addItemListener(this::heapSizeCheckBoxChanged);
         return heapSizeDefaultCheckBox;
@@ -403,8 +439,10 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
             setHeapSizeTextFromCurrentUserValue();
         } else {
 
-            // Switching from the user-set heap size to the default value.
-            if (heapSizeTextArea.isValidState()) {
+            // Switching from the user-set heap size to the default value. Note that we
+            // have to check whether the text area is null because when the text area is
+            // both disabled and null, that constitutes a valid state.
+            if (heapSizeTextArea.isValidState() && heapSizeTextArea.getValue() != null) {
                 heapSizeMbCurrentUserValue = heapSizeMbFromTextField();
             } else {
                 // Force the text field into a valid state. This is a kind of kludgey way
@@ -426,7 +464,13 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
      */
     private void setHeapSizeTextFromCurrentUserValue() {
         HumanReadableHeapSize humanReadableHeapSize = new HumanReadableHeapSize(
-            heapSizeMbCurrentUserValue);
+            ZiggyGuiConsole.defaultResources().getHeapSizeMb());
+        if (heapSizeMbCurrentUserValue == null) {
+            heapSizeTextArea.setValue(null);
+        } else {
+            humanReadableHeapSize = new HumanReadableHeapSize(heapSizeMbCurrentUserValue);
+            heapSizeTextArea.setValue((double) humanReadableHeapSize.getHumanReadableHeapSize());
+        }
         switch (humanReadableHeapSize.getHeapSizeUnit()) {
             case MB:
                 mbUnitsButton.setSelected(true);
@@ -438,7 +482,45 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
                 tbUnitsButton.setSelected(true);
                 break;
         }
-        heapSizeTextArea.setValue((double) humanReadableHeapSize.getHumanReadableHeapSize());
+    }
+
+    private ValidityTestingFormattedTextField createMaxFailedSubtaskTextArea() {
+        NumberFormatter formatter = new NumberFormatter(NumberFormat.getInstance());
+        formatter.setValueClass(Integer.class);
+        formatter.setMinimum(0);
+        ValidityTestingFormattedTextField maxFailedSubtaskTextArea = new ValidityTestingFormattedTextField(
+            formatter);
+        maxFailedSubtaskTextArea.setEmptyIsValid(false);
+        maxFailedSubtaskTextArea.setColumns(COLUMNS);
+        maxFailedSubtaskTextArea
+            .setToolTipText(htmlBuilder("Set the maximum number of failed subtasks.").appendBreak()
+                .append(
+                    "This allows tasks to report successful completion if some subtasks failed.")
+                .toString());
+        maxFailedSubtaskTextArea
+            .setText(Integer.toString(executionResources.getMaxFailedSubtaskCount()));
+        maxFailedSubtaskTextArea.setExecuteOnValidityCheck(validityCheck);
+        return maxFailedSubtaskTextArea;
+    }
+
+    private ValidityTestingFormattedTextField createMaxAutoResubmitsTextArea() {
+        NumberFormatter formatter = new NumberFormatter(NumberFormat.getInstance());
+        formatter.setValueClass(Integer.class);
+        formatter.setMinimum(0);
+        ValidityTestingFormattedTextField maxFailedSubtaskTextArea = new ValidityTestingFormattedTextField(
+            formatter);
+        maxFailedSubtaskTextArea.setEmptyIsValid(false);
+        maxFailedSubtaskTextArea.setColumns(COLUMNS);
+        maxFailedSubtaskTextArea.setToolTipText(
+            htmlBuilder("Set the maximum number of automatic resubmits of failed tasks.")
+                .appendBreak()
+                .append(
+                    "This allows tasks that have failed to automatically resubmit execution of failed or missed subtasks.")
+                .toString());
+        maxFailedSubtaskTextArea
+            .setText(Integer.toString(executionResources.getMaxAutoResubmits()));
+        maxFailedSubtaskTextArea.setExecuteOnValidityCheck(validityCheck);
+        return maxFailedSubtaskTextArea;
     }
 
     /**

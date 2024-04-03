@@ -22,9 +22,11 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
@@ -75,6 +77,17 @@ public class AlgorithmMonitor implements Runnable {
         PERSIST {
             @Override
             public void performActions(AlgorithmMonitor monitor, PipelineTask pipelineTask) {
+                StateFile stateFile = new StateFile(pipelineTask.getModuleName(),
+                    pipelineTask.pipelineInstanceId(), pipelineTask.getId())
+                        .newStateFileFromDiskFile();
+                if (stateFile.getNumFailed() != 0) {
+                    log.warn("{} subtasks out of {} failed but task completed",
+                        stateFile.getNumFailed(), stateFile.getNumComplete());
+                    monitor.alertService()
+                        .generateAndBroadcastAlert("Algorithm Monitor", pipelineTask.getId(),
+                            Severity.WARNING, "Failed subtasks, see logs for details");
+                }
+
                 log.info("Sending task with id: " + pipelineTask.getId()
                     + " to worker to persist results");
 
@@ -104,9 +117,8 @@ public class AlgorithmMonitor implements Runnable {
                         PipelineTaskCrud pipelineTaskCrud = monitor.pipelineTaskCrud();
                         PipelineTask dbTask = pipelineTaskCrud.retrieve(pipelineTask.getId());
                         dbTask.incrementAutoResubmitCount();
-                        pipelineOperations.setTaskState(pipelineTask, PipelineTask.State.ERROR);
-                        pipelineTaskCrud.merge(dbTask);
-                        return dbTask;
+                        pipelineOperations.setTaskState(dbTask, PipelineTask.State.ERROR);
+                        return pipelineTaskCrud.merge(dbTask);
                     });
 
                 // Submit tasks for resubmission at highest priority.
@@ -203,7 +215,6 @@ public class AlgorithmMonitor implements Runnable {
 
         log.info("Starting new monitor for: " + DirectoryProperties.stateFilesDir().toString());
         initializeJobMonitor();
-
     }
 
     /**
@@ -397,6 +408,10 @@ public class AlgorithmMonitor implements Runnable {
             Hibernate.initialize(task.getPipelineParameterSets());
             Hibernate.initialize(task.getModuleParameterSets());
             Hibernate.initialize(task.getPipelineInstance().getId());
+            PipelineDefinitionNodeExecutionResources resources = pipelineDefinitionNodeCrud()
+                .retrieveExecutionResources(task.pipelineDefinitionNode());
+            task.setMaxAutoResubmits(resources.getMaxAutoResubmits());
+            task.setMaxFailedSubtaskCount(resources.getMaxFailedSubtaskCount());
 
             // Update remote job information
             pipelineTaskOperations().updateJobs(task);
@@ -508,13 +523,14 @@ public class AlgorithmMonitor implements Runnable {
         // The total number of bad subtasks includes both the ones that failed and the
         // ones that never ran / never finished. If there are few enough bad subtasks,
         // then we can persist results.
-        if (state.getNumTotal() - state.getNumComplete() <= pipelineTask.maxFailedSubtasks()) {
+        if (state.getNumTotal() - state.getNumComplete() <= pipelineTask
+            .getMaxFailedSubtaskCount()) {
             return Disposition.PERSIST;
         }
 
         // If the task has bad subtasks but the number of automatic resubmits hasn't
         // been exhausted, then resubmit.
-        if (pipelineTask.getAutoResubmitCount() < pipelineTask.maxAutoResubmits()) {
+        if (pipelineTask.getAutoResubmitCount() < pipelineTask.getMaxAutoResubmits()) {
             return Disposition.RESUBMIT;
         }
 
@@ -581,6 +597,10 @@ public class AlgorithmMonitor implements Runnable {
     /** Replace with mocked method for unit testing. */
     boolean taskIsKilled(long taskId) {
         return PipelineSupervisor.taskOnKilledTaskList(taskId);
+    }
+
+    PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
+        return new PipelineDefinitionNodeCrud();
     }
 
     /**

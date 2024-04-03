@@ -39,21 +39,16 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
      */
     public U retrieveLatestVersionForName(String name) {
 
-        // I can't figure out how to do this in 1 query, so I'm going to use 2.
-        // TODO: refactor to subquery.
-        ZiggyQuery<U, Integer> versionQuery = createZiggyQuery(componentClass(), Integer.class);
+        ZiggyQuery<U, U> query = createZiggyQuery(componentClass());
+        ZiggyQuery<U, Integer> versionQuery = query.ziggySubquery(componentClass(), Integer.class);
         versionQuery.column(UniqueNameVersionPipelineComponent_.NAME).in(name);
         versionQuery.column(UniqueNameVersionPipelineComponent_.VERSION).max();
-        Integer maxVersionForName = uniqueResult(versionQuery);
-
-        if (maxVersionForName == null) {
+        query.column(UniqueNameVersionPipelineComponent_.NAME).in(name);
+        query.column(UniqueNameVersionPipelineComponent_.VERSION).in(versionQuery);
+        U result = uniqueResult(query);
+        if (result == null) {
             return null;
         }
-
-        ZiggyQuery<U, U> query = createZiggyQuery(componentClass());
-        query.column(UniqueNameVersionPipelineComponent_.NAME).in(name);
-        query.column(UniqueNameVersionPipelineComponent_.VERSION).in(maxVersionForName);
-        U result = uniqueResult(query);
         populateXmlFields(List.of(result));
 
         return result;
@@ -123,9 +118,17 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
      *
      * @see #merge(Object)
      */
+    // TODO If this method calls merge, it must return the merged object!
+    // Note that this note was added in a commit where this call was made and the parameter o was
+    // later used in a merge() call. The merge() call created a second object and subsequently
+    // caused exceptions when uniqueResult() was called.
     @SuppressWarnings("unchecked")
     @Override
     public void persist(Object o) {
+        if (!(o instanceof UniqueNameVersionPipelineComponent)) {
+            super.merge(o);
+            return;
+        }
         persistOrMerge((U) o);
     }
 
@@ -151,6 +154,9 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
     @SuppressWarnings("unchecked")
     @Override
     public <T> T merge(T o) {
+        if (!(o instanceof UniqueNameVersionPipelineComponent)) {
+            return super.merge(o);
+        }
         return (T) persistOrMerge((U) o);
     }
 
@@ -160,6 +166,7 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
 
         // If there's nothing at all in the database, we persist.
         if (latestVersion == null) {
+            pipelineComponent.updateAuditInfo();
             super.persist(pipelineComponent);
             return pipelineComponent;
         }
@@ -173,7 +180,13 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
         // If there's an instance in the database, we take the one that needs to go
         // to the database and set its version as needed; then merge it.
         U unlockedVersion = pipelineComponent.unlockedVersion();
+        unlockedVersion.updateAuditInfo();
         return super.merge(unlockedVersion);
+    }
+
+    /** Uses the {@link AbstractCrud} method to persist an object. */
+    public <V> void persistPojo(V pojo) {
+        super.persist(pojo);
     }
 
     /**

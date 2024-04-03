@@ -41,7 +41,7 @@ public class PipelineInstanceNode {
     private Long id;
 
     /** Timestamp this was created (either by launcher or transition logic) */
-    private Date created = new Date(System.currentTimeMillis());
+    private Date created = new Date();
 
     @ManyToOne
     private PipelineInstance pipelineInstance;

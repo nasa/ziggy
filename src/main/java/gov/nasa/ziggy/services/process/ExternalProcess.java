@@ -28,8 +28,8 @@ import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.StringUtils;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.os.ProcessUtils;
 
 /**
@@ -333,7 +333,7 @@ public class ExternalProcess {
      */
     public List<String> stdout() {
         if (outputLog != null) {
-            return StringUtils.breakStringAtLineTerminations(outputLog.toString());
+            return ZiggyStringUtils.breakStringAtLineTerminations(outputLog.toString());
         }
         return null;
     }
@@ -345,8 +345,9 @@ public class ExternalProcess {
      */
     public List<String> stdout(String... targetStrings) {
         if (outputLog != null) {
-            return StringUtils.stringsContainingTargets(
-                StringUtils.breakStringAtLineTerminations(outputLog.toString()), targetStrings);
+            return ZiggyStringUtils.stringsContainingTargets(
+                ZiggyStringUtils.breakStringAtLineTerminations(outputLog.toString()),
+                targetStrings);
         }
         return null;
     }
@@ -356,7 +357,7 @@ public class ExternalProcess {
      */
     public List<String> stderr() {
         if (errorLog != null) {
-            return StringUtils.breakStringAtLineTerminations(errorLog.toString());
+            return ZiggyStringUtils.breakStringAtLineTerminations(errorLog.toString());
         }
         return null;
     }
@@ -368,8 +369,8 @@ public class ExternalProcess {
      */
     public List<String> stderr(String... targetStrings) {
         if (errorLog != null) {
-            return StringUtils.stringsContainingTargets(
-                StringUtils.breakStringAtLineTerminations(errorLog.toString()), targetStrings);
+            return ZiggyStringUtils.stringsContainingTargets(
+                ZiggyStringUtils.breakStringAtLineTerminations(errorLog.toString()), targetStrings);
         }
         return null;
     }

@@ -38,7 +38,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.io.FileUtil;
 
 /**
@@ -78,7 +78,7 @@ public class ZiggyQueryTest {
     public ZiggyPropertyRule log4jConfigProperty = new ZiggyPropertyRule(
         PropertyName.LOG4J2_CONFIGURATION_FILE, Paths.get("etc").resolve("log4j2.xml").toString());
 
-    public ZiggyPropertyRule log4jLogFileProperty = new ZiggyPropertyRule("ziggy.logfile",
+    public ZiggyPropertyRule log4jLogFileProperty = new ZiggyPropertyRule("ziggy.logFile",
         directoryRule, HIBERNATE_LOG_FILE_NAME);
 
     @Rule
@@ -146,9 +146,11 @@ public class ZiggyQueryTest {
         List<String> fieldNames = new ArrayList<>();
         Set<String> lazyFieldNames = Set.of("log", "uowTaskParameters", "summaryMetrics", "execLog",
             "producerTaskIds", "remoteJobs");
+        Set<String> transientFieldNames = Set.of("maxFailedSubtaskCount", "maxAutoResubmits");
 
         for (Field field : fields) {
-            if (!lazyFieldNames.contains(field.getName())) {
+            if (!lazyFieldNames.contains(field.getName())
+                && !transientFieldNames.contains(field.getName())) {
                 fieldNames.add(field.getName());
             }
         }
@@ -592,7 +594,7 @@ public class ZiggyQueryTest {
     }
 
     private List<String> logFileContents() throws IOException {
-        return StringUtils
+        return ZiggyStringUtils
             .breakStringAtLineTerminations(Files.readString(logPath, FileUtil.ZIGGY_CHARSET));
     }
 

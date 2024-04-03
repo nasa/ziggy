@@ -26,7 +26,7 @@ import gov.nasa.ziggy.pipeline.definition.TypedParameterCollection;
  * @author Bill Wohler
  */
 
-public class Parameters extends TypedParameterCollection implements ParametersInterface {
+public class Parameters extends TypedParameterCollection {
 
     public static final String NAME_FIELD = "name";
 
@@ -42,19 +42,8 @@ public class Parameters extends TypedParameterCollection implements ParametersIn
     }
 
     @Override
-    public void validate() {
-        // Do nothing, by default.
-    }
-
-    @Override
     public int hashCode() {
         return Objects.hash(name);
-    }
-
-    @Override
-    public void updateParameter(String name, String value) {
-        getParametersByName().get(name).setString(value);
-        populate(getParameters());
     }
 
     // Note: hashCode() and equals() use only the name so that there cannot be any duplicate copies

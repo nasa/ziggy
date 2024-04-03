@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](task-configuration.md)
+[[Previous]](datastore-task-dir.md)
 [[Up]](user-manual.md)
 [[Next]](troubleshooting.md)
 
@@ -119,6 +119,6 @@ As with a PostgreSQL system database, a database that uses some other RDBMS appl
 
 <sup>1</sup> HSQLDB can be configured to run from on-disk catalogs and can theoretically handle 64 TB of data but that is beyond the scope of this document.
 
-[[Previous]](task-configuration.md)
+[[Previous]](datastore-task-dir.md)
 [[Up]](user-manual.md)
 [[Next]](troubleshooting.md)

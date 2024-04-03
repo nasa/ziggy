@@ -58,7 +58,7 @@ public class ZiggyConfiguration {
     public static final String PIPELINE_CONFIG_DEFAULT_FILE = "ziggy.properties";
 
     private static ImmutableConfiguration instance;
-    private static Configuration mutableInstance;
+    private static CompositeConfiguration mutableInstance;
     private static ConfigurationInterpolator interpolator;
 
     /**
@@ -96,20 +96,12 @@ public class ZiggyConfiguration {
     private static Configuration getConfiguration() {
         CompositeConfiguration config = new CompositeConfiguration();
         config.setThrowExceptionOnMissing(true);
-
-        loadSystemConfiguration(config);
-
-        // We know that we are in a test environment if there's a mutable instance.
-        // However, in rare cases, the mutable instance is null even though we are
-        // in a test environment. In those cases, the test can define the
-        // TEST_ENVIRONMENT as a system property to accomplish the same thing.
-        boolean testConfiguration = mutableInstance != null
-            || config.getString(PropertyName.TEST_ENVIRONMENT.toString(), null) != null;
-
-        if (!testConfiguration) {
-            loadPipelineConfiguration(config);
-        } else if (mutableInstance != null) {
+        if (mutableInstance != null) {
             config.addConfiguration(mutableInstance);
+        }
+        loadSystemConfiguration(config);
+        if (mutableInstance == null) {
+            loadPipelineConfiguration(config);
         }
         loadZiggyConfiguration(config);
         loadBuildConfiguration(config);
@@ -249,18 +241,23 @@ public class ZiggyConfiguration {
     }
 
     /**
-     * Returns a mutable configuration object as described in {@link #getInstance()}. This method
-     * resets the immutable configuration in case a prior test forgot to call reset, so that
-     * subsequent calls to {@link #getInstance()} will use this immutable instance rather than the
-     * prior instance. For testing only. Production code should call {@link #getInstance()}.
+     * Returns a mutable configuration object as described in {@link #getInstance()}. For testing
+     * only. Production code should call {@link #getInstance()}.
      */
-    public static synchronized Configuration getMutableInstance() {
-        if (mutableInstance == null) {
-            mutableInstance = getConfiguration();
-            mutableInstance.setSynchronizer(new ReadWriteSynchronizer());
-            instance = null;
-        }
+    public static synchronized CompositeConfiguration getMutableInstance() {
         return mutableInstance;
+    }
+
+    /**
+     * Sets the mutable configuration object as described in {@link #getInstance()}. Resets the
+     * production instance in case a prior test neglected to call {@link #reset()} so that the next
+     * call to {@link #getInstance()} uses this mutable instance. For testing only. Production code
+     * should call {@link #getInstance()}.
+     */
+    public static synchronized void setMutableInstance(CompositeConfiguration mutableInstance) {
+        ZiggyConfiguration.mutableInstance = mutableInstance;
+        ZiggyConfiguration.mutableInstance.setSynchronizer(new ReadWriteSynchronizer());
+        instance = null;
     }
 
     /** Clear the immutable and mutable configuration instances. */

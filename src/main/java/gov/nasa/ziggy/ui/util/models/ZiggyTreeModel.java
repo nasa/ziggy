@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
@@ -18,8 +17,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.Group;
-import gov.nasa.ziggy.pipeline.definition.HasGroup;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
+import gov.nasa.ziggy.pipeline.definition.Groupable;
+import gov.nasa.ziggy.ui.util.GroupInformation;
 import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
 
 /**
@@ -34,7 +33,7 @@ import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
  * @author Todd Klaus
  * @author PT
  */
-public class ZiggyTreeModel<T extends HasGroup> extends DefaultTreeModel
+public class ZiggyTreeModel<T extends Groupable> extends DefaultTreeModel
     implements ConsoleDatabaseModel {
 
     private static final long serialVersionUID = 20230511L;
@@ -43,7 +42,7 @@ public class ZiggyTreeModel<T extends HasGroup> extends DefaultTreeModel
 
     private List<T> defaultGroup = new LinkedList<>();
     private Map<Group, List<T>> groups = new HashMap<>();
-    private Map<String, T> objectsByGroupName = new HashMap<>();
+    private Map<String, T> objectsByName = new HashMap<>();
 
     private final RetrieveLatestVersionsCrudProxy<T> crudProxy;
 
@@ -51,75 +50,53 @@ public class ZiggyTreeModel<T extends HasGroup> extends DefaultTreeModel
     private DefaultMutableTreeNode defaultGroupNode;
     private Map<String, DefaultMutableTreeNode> groupNodes;
 
+    private Class<T> modelClass;
+
     private boolean modelValid = false;
 
-    public ZiggyTreeModel(RetrieveLatestVersionsCrudProxy<T> crudProxy) {
+    public ZiggyTreeModel(RetrieveLatestVersionsCrudProxy<T> crudProxy, Class<T> modelClass) {
         super(new DefaultMutableTreeNode(""));
         rootNode = (DefaultMutableTreeNode) getRoot();
         this.crudProxy = crudProxy;
+        this.modelClass = modelClass;
         DatabaseModelRegistry.registerModel(this);
     }
 
     public void loadFromDatabase() throws PipelineException {
-        List<T> allObjects = null;
-
-        try {
-            if (groups != null) {
-                log.debug("Clearing the Hibernate cache of all loaded pipelines");
-                for (List<T> objects : groups.values()) {
-                    crudProxy.evictAll(objects); // clear the cache
-                }
-            }
-
-            if (defaultGroup != null) {
-                crudProxy.evictAll(defaultGroup); // clear the cache
-            }
-
-            defaultGroup = new LinkedList<>();
-            groups = new HashMap<>();
-            objectsByGroupName = new HashMap<>();
-            groupNodes = new HashMap<>();
-
-            allObjects = crudProxy.retrieveLatestVersions();
-        } catch (ConsoleSecurityException ignore) {
-            return;
-        }
-
-        for (T object : allObjects) {
-            objectsByGroupName.put(object.groupName(), object);
-
-            Group group = object.group();
-
-            if (group == null) {
-                // default group
-                defaultGroup.add(object);
-            } else {
-                List<T> groupList = groups.get(group);
-
-                if (groupList == null) {
-                    groupList = new LinkedList<>();
-                    groups.put(group, groupList);
-                }
-
-                groupList.add(object);
+        if (groups != null) {
+            log.debug("Clearing the Hibernate cache of all loaded pipelines");
+            for (List<T> objects : groups.values()) {
+                crudProxy.evictAll(objects); // clear the cache
             }
         }
 
-        // create the tree
+        if (defaultGroup != null) {
+            crudProxy.evictAll(defaultGroup); // clear the cache
+        }
+
+        // Obtain information on the groups for this component class.
+        GroupInformation<T> groupInformation = new GroupInformation<>(modelClass,
+            crudProxy.retrieveLatestVersions());
+        objectsByName = groupInformation.getObjectsByName();
+
+        // Add the default group.
         rootNode.removeAllChildren();
         defaultGroupNode = new DefaultMutableTreeNode("<Default Group>");
         insertNodeInto(defaultGroupNode, rootNode, rootNode.getChildCount());
+
+        defaultGroup = groupInformation.getDefaultGroup();
+        Collections.sort(defaultGroup, Comparator.comparing(Object::toString));
 
         for (T object : defaultGroup) {
             DefaultMutableTreeNode pipelineNode = new DefaultMutableTreeNode(object);
             insertNodeInto(pipelineNode, defaultGroupNode, defaultGroupNode.getChildCount());
         }
 
-        // sort groups alphabetically
-
-        Set<Group> groupsSet = groups.keySet();
-        List<Group> groupsList = new ArrayList<>(groupsSet);
+        // Add the rest of the groups alphabetically.
+        groups = groupInformation.getGroups();
+        List<Group> groupsList = new ArrayList<>(groups.keySet());
         Collections.sort(groupsList, Comparator.comparing(Group::getName));
+        groupNodes = new HashMap<>();
 
         for (Group group : groupsList) {
             DefaultMutableTreeNode groupNode = new DefaultMutableTreeNode(group.getName());
@@ -127,10 +104,11 @@ public class ZiggyTreeModel<T extends HasGroup> extends DefaultTreeModel
             groupNodes.put(group.getName(), groupNode);
 
             List<T> objects = groups.get(group);
+            Collections.sort(objects, Comparator.comparing(Object::toString));
 
             for (T object : objects) {
-                DefaultMutableTreeNode pipelineNode = new DefaultMutableTreeNode(object);
-                insertNodeInto(pipelineNode, groupNode, groupNode.getChildCount());
+                DefaultMutableTreeNode treeNode = new DefaultMutableTreeNode(object);
+                insertNodeInto(treeNode, groupNode, groupNode.getChildCount());
             }
         }
 
@@ -147,15 +125,9 @@ public class ZiggyTreeModel<T extends HasGroup> extends DefaultTreeModel
         return groupNodes;
     }
 
-    /**
-     * Returns true if an object already exists with the specified name. checked when the operator
-     * changes the pipeline name so we can warn them before we get a database constraint violation.
-     *
-     * @param name
-     * @return
-     */
-    public T pipelineByName(String name) {
-        return objectsByGroupName.get(name);
+    /** Returns an object based on its name, or null if no object exists with that name. */
+    public T objectByName(String name) {
+        return objectsByName.get(name);
     }
 
     @Override

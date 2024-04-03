@@ -35,7 +35,8 @@ public class PipelineInputsOutputsUtilsTest {
 
         taskDir = directoryRule.directory().resolve("1-2-pa");
         Path workingDir = taskDir.resolve("st-12");
-        System.setProperty(ZIGGY_TEST_WORKING_DIR.property(), workingDir.toString());
+        ziggyTestWorkingDirPropertyRule.setValue(workingDir.toString());
+
         // Create the task dir and the subtask dir
         Files.createDirectories(workingDir);
     }

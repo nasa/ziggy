@@ -10,10 +10,11 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import java.awt.event.HierarchyEvent;
 import java.awt.event.ItemEvent;
+import java.text.MessageFormat;
 import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,7 +28,10 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.SwingUtilities;
+import javax.swing.text.DefaultFormatter;
 import javax.swing.text.NumberFormatter;
 
 import org.apache.commons.lang3.StringUtils;
@@ -43,12 +47,15 @@ import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.module.remote.RemoteQueueDescriptor;
 import gov.nasa.ziggy.pipeline.PipelineTaskInformation;
-import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.ui.util.ValidityTestingFormattedTextField;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
+import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionCrudProxy;
+import gov.nasa.ziggy.util.TimeFormatter;
 
 /**
  * Dialog box that allows the user to set values in an instance of {@link RemoteParameters} and
@@ -59,13 +66,14 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
  */
 public class RemoteExecutionDialog extends JDialog {
 
-    @SuppressWarnings("unused")
-    private static Logger log = LoggerFactory.getLogger(RemoteExecutionDialog.class);
+    private static final Logger log = LoggerFactory.getLogger(RemoteExecutionDialog.class);
+
+    private static final long serialVersionUID = 20240111L;
+
+    private static final int COLUMNS = 6;
 
     /** Minimum width to ensure {@code pack()} allows for the initially empty fields. */
-    private static final int PBS_PARAMETERS_MINIMUM_WIDTH = 100;
-
-    private static final long serialVersionUID = 20230927L;
+    private static final int PBS_PARAMETERS_MINIMUM_WIDTH = 120;
 
     // Reserved queue name: this name is a static variable so that it's "sticky,"
     // i.e., once the user sets a reserved queue name it sticks around until the user
@@ -74,29 +82,37 @@ public class RemoteExecutionDialog extends JDialog {
     private static String reservedQueueName = "";
 
     // Data model
-    private RemoteParameters originalParameters;
-    private RemoteParameters currentParameters;
+    private PipelineDefinitionNodeExecutionResources originalConfiguration;
+    private PipelineDefinitionNodeExecutionResources currentConfiguration;
     private PipelineDefinitionNode node;
+    private int taskCount;
+    private int originalTaskCount;
     private int subtaskCount;
-    private int maxParallelSubtaskCount;
-    private ParameterSet parameterSet;
     private int originalSubtaskCount;
-    private int originalMaxParallelSubtaskCount;
     private List<SubtaskInformation> tasksInformation;
 
     // Dialog box elements
+    private ValidityTestingFormattedTextField tasksField;
     private ValidityTestingFormattedTextField subtasksField;
     private ValidityTestingFormattedTextField gigsPerSubtaskField;
     private ValidityTestingFormattedTextField maxWallTimeField;
-    private ValidityTestingFormattedTextField wallTimeRatioField;
+    private ValidityTestingFormattedTextField typicalWallTimeField;
     private JComboBox<RemoteArchitectureOptimizer> optimizerComboBox;
     private JComboBox<RemoteNodeDescriptor> architectureComboBox;
+    private RemoteNodeDescriptor lastArchitectureComboBoxSelection;
+    private JLabel architectureLimits;
     private JComboBox<RemoteQueueDescriptor> queueComboBox;
+    private RemoteQueueDescriptor lastQueueComboBoxSelection;
+    private JLabel queueName;
+    private ValidityTestingFormattedTextField queueNameField;
+    private JLabel queueLimits;
     private ValidityTestingFormattedTextField maxNodesField;
     private ValidityTestingFormattedTextField subtasksPerCoreField;
-    private JButton calculateButton;
-    private JCheckBox nodeSharingCheckBox;
+    private ValidityTestingFormattedTextField minSubtasksRemoteExecutionField;
+    private JCheckBox oneSubtaskCheckBox;
     private JCheckBox wallTimeScalingCheckBox;
+    private JCheckBox remoteExecutionEnabledCheckBox;
+    private JButton closeButton;
 
     private JLabel pbsArch;
     private JLabel pbsQueue;
@@ -104,41 +120,53 @@ public class RemoteExecutionDialog extends JDialog {
     private JLabel pbsNodeCount;
     private JLabel pbsActiveCoresPerNode;
     private JLabel pbsCost;
+    private JTextArea pbsLimits;
 
     private Set<ValidityTestingFormattedTextField> validityTestingFormattedTextFields = new HashSet<>();
-    private Consumer<Boolean> checkFieldsAndEnableButtons = valid -> setButtonState();
+    private Consumer<Boolean> checkFieldsAndRecalculate = this::checkFieldsAndRecalculate;
+    private boolean skipCheck;
+    private boolean pbsParametersValid = true;
 
-    public RemoteExecutionDialog(Window owner, ParameterSet originalParameterSet,
-        PipelineDefinitionNode node, List<SubtaskInformation> tasksInformation) {
+    public RemoteExecutionDialog(Window owner,
+        PipelineDefinitionNodeExecutionResources originalConfiguration, PipelineDefinitionNode node,
+        List<SubtaskInformation> tasksInformation) {
 
         super(owner, DEFAULT_MODALITY_TYPE);
-        parameterSet = originalParameterSet;
-        originalParameters = originalParameterSet.parametersInstance();
-        currentParameters = new RemoteParameters(originalParameters);
-        this.node = node;
+
+        // Note that the current configuration is a copy of the original. If the user elects
+        // to reset the configuration, the current configuration is repopulated from the
+        // original; if the user elects to close the dialog box, the original configuration is
+        // repopulated from the current one. This ensures that the configuration that is eventually
+        // saved from the Edit Pipeline dialog box is the one retrieved from the database, so it
+        // can be merged safely.
+        this.originalConfiguration = originalConfiguration;
+        currentConfiguration = new PipelineDefinitionNodeExecutionResources(originalConfiguration);
         this.tasksInformation = tasksInformation;
+        this.node = node;
+
+        taskCount = tasksInformation.size();
+        originalTaskCount = taskCount;
         for (SubtaskInformation taskInformation : tasksInformation) {
             subtaskCount += taskInformation.getSubtaskCount();
-            maxParallelSubtaskCount += taskInformation.getMaxParallelSubtasks();
         }
         originalSubtaskCount = subtaskCount;
-        originalMaxParallelSubtaskCount = maxParallelSubtaskCount;
 
         buildComponent();
         setLocationRelativeTo(owner);
+        addHierarchyListener(this::hierarchyChanged);
     }
 
     private void buildComponent() {
         setTitle("Edit remote execution parameters");
 
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
-        getContentPane().add(createButtonPanel(
-            createButton(CLOSE, htmlBuilder("Close this dialog box.").appendBreak()
-                .append(
-                    "Your remote parameter changes won't be saved until you hit Save on the edit pipeline dialog.")
-                .toString(), this::updateRemoteParameters),
-            createButton(CANCEL, "Clear all changes made in this dialog box and close it.",
-                this::cancel)),
+        closeButton = createButton(CLOSE, htmlBuilder("Close this dialog box.").appendBreak()
+            .append(
+                "Your remote parameter changes won't be saved until you hit Save on the edit pipeline dialog.")
+            .toString(), this::close);
+        getContentPane().add(
+            createButtonPanel(closeButton, createButton(CANCEL,
+                "Clear all changes made in this dialog box and close it.", this::cancel)),
             BorderLayout.SOUTH);
 
         populateTextFieldsAndComboBoxes();
@@ -146,46 +174,59 @@ public class RemoteExecutionDialog extends JDialog {
     }
 
     private JPanel createDataPanel() {
-        JPanel remoteParametersToolBar = createButtonPanel(ButtonPanelContext.TOOL_BAR,
+        JPanel executionResourcesToolBar = createButtonPanel(ButtonPanelContext.TOOL_BAR,
             createButton("Reset",
                 "Reset RemoteParameters values to the values at the start of this dialog box.",
                 this::resetAction),
             createButton("Display task info",
                 "Display task and subtask information for this pipeline node.",
                 this::displayTaskInformation));
-        remoteParametersToolBar
+        executionResourcesToolBar
             .setToolTipText("Controls user-settable parameters for remote execution");
 
         JLabel moduleGroup = boldLabel("Module", LabelType.HEADING1);
 
         JLabel pipeline = boldLabel("Pipeline");
-        JLabel pipelineText = new JLabel(node.getPipelineName());
+        ProcessingMode processingMode = new PipelineDefinitionCrudProxy()
+            .retrieveProcessingMode(originalConfiguration.getPipelineName());
+        JLabel pipelineText = new JLabel(MessageFormat.format("{0} (processing {1} data)",
+            originalConfiguration.getPipelineName(), processingMode.toString()));
 
         JLabel module = boldLabel("Module");
-        JLabel moduleText = new JLabel(node.getModuleName());
+        JLabel moduleText = new JLabel(originalConfiguration.getPipelineModuleName());
 
-        JLabel nodeSharingGroup = boldLabel("Node sharing", LabelType.HEADING1);
-        nodeSharingGroup.setToolTipText("Controls parallel processing of subtasks on each node.");
-        nodeSharingCheckBox = new JCheckBox("Node sharing");
-        nodeSharingCheckBox
-            .setToolTipText("Enables concurrent processing of multiple subtasks on each node.");
-        nodeSharingCheckBox.addItemListener(this::nodeSharingCheckBoxEvent);
-        wallTimeScalingCheckBox = new JCheckBox("Wall time scaling");
+        JLabel requiredRemoteParametersGroup = boldLabel("Required parameters", LabelType.HEADING1);
+        requiredRemoteParametersGroup
+            .setToolTipText("Parameters needed for PBS parameter calculation.");
+
+        remoteExecutionEnabledCheckBox = new JCheckBox("Enable remote execution");
+        remoteExecutionEnabledCheckBox.addItemListener(this::itemStateChanged);
+        remoteExecutionEnabledCheckBox.setToolTipText("Enables or disables remote execution.");
+
+        oneSubtaskCheckBox = new JCheckBox("Run one subtask per node");
+        oneSubtaskCheckBox
+            .setToolTipText("Disables concurrent processing of multiple subtasks on each node.");
+        oneSubtaskCheckBox.addItemListener(this::nodeSharingCheckBoxEvent);
+
+        wallTimeScalingCheckBox = new JCheckBox("Scale wall time by number of cores");
         wallTimeScalingCheckBox.setToolTipText(
             htmlBuilder("Scales subtask wall times inversely to the number of cores per node.")
                 .appendBreak()
-                .append("Only enabled when node sharing is disabled.")
+                .append("Only enabled when running one subtask per node.")
                 .toString());
 
-        JLabel requiredRemoteParametersGroup = boldLabel("Required", LabelType.HEADING1);
-        requiredRemoteParametersGroup.setToolTipText("Parameters that must be set.");
+        JLabel tasks = boldLabel("Total tasks");
+        tasksField = createIntegerField(
+            "Set the total number of tasks for the selected module (must be >= 1).");
+        validityTestingFormattedTextFields.add(tasksField);
 
         JLabel subtasks = boldLabel("Total subtasks");
-        subtasksField = createSubtasksField();
+        subtasksField = createIntegerField(
+            "Set the total number of subtasks for the selected module (must be >= 1).");
         validityTestingFormattedTextFields.add(subtasksField);
 
         JLabel gigsPerSubtask = boldLabel("Gigs per subtask");
-        gigsPerSubtaskField = createGigsPerSubtaskField();
+        gigsPerSubtaskField = createDoubleField("");
         validityTestingFormattedTextFields.add(gigsPerSubtaskField);
 
         JLabel maxWallTime = boldLabel("Max subtask wall time");
@@ -193,13 +234,15 @@ public class RemoteExecutionDialog extends JDialog {
         validityTestingFormattedTextFields.add(maxWallTimeField);
 
         JLabel typicalWallTime = boldLabel("Typical subtask wall time");
-        wallTimeRatioField = createTypicalWallTimeField();
-        validityTestingFormattedTextFields.add(wallTimeRatioField);
+        typicalWallTimeField = createDoubleField(Double.MIN_VALUE,
+            currentConfiguration.getSubtaskMaxWallTimeHours(),
+            "Enter the TYPICAL wall time needed by subtasks, in hours (>0, <= max wall time)");
+        validityTestingFormattedTextFields.add(typicalWallTimeField);
 
         JLabel optimizer = boldLabel("Optimizer");
         optimizerComboBox = createOptimizerComboBox();
 
-        JLabel optionalRemoteParametersGroup = boldLabel("Optional", LabelType.HEADING1);
+        JLabel optionalRemoteParametersGroup = boldLabel("Optional parameters", LabelType.HEADING1);
         optionalRemoteParametersGroup.setToolTipText(
             htmlBuilder("Parameters that can be calculated if not set.").appendBreak()
                 .append("Values set by users will be included when calculating PBS parameters.")
@@ -208,25 +251,44 @@ public class RemoteExecutionDialog extends JDialog {
         JLabel architecture = boldLabel("Architecture");
         architectureComboBox = createArchitectureComboBox();
 
+        architectureLimits = new JLabel();
+
         JLabel queue = boldLabel("Queue");
         queueComboBox = createQueueComboBox();
 
+        queueName = boldLabel("Reserved queue name");
+        queueNameField = createQueueNameField();
+        validityTestingFormattedTextFields.add(queueNameField);
+
+        queueLimits = new JLabel();
+
         JLabel maxNodesPerTask = boldLabel("Max nodes per task");
-        maxNodesField = createMaxNodesField();
+        maxNodesField = createIntegerField(true,
+            htmlBuilder("Enter the maximum number of nodes to request for each task (>=1)")
+                .appendBreak()
+                .append("or leave empty to let the algorithm determine the number.")
+                .toString());
         validityTestingFormattedTextFields.add(maxNodesField);
 
         JLabel subtasksPerCore = boldLabel("Subtasks per core");
-        subtasksPerCoreField = createSubtasksPerCoreField();
+        subtasksPerCoreField = createDoubleField(1.0, Double.MAX_VALUE, true,
+            htmlBuilder("Enter the number of subtasks per active core (>=1)").appendBreak()
+                .append("or leave empty to let the algorithm decide the number")
+                .toString());
         validityTestingFormattedTextFields.add(subtasksPerCoreField);
+
+        JLabel minSubtasksRemoteExecution = boldLabel("Minimum subtasks for remote execution");
+        minSubtasksRemoteExecutionField = createIntegerField(0, Integer.MAX_VALUE, true,
+            htmlBuilder(
+                "Enter the minimum number of subtasks that are required to use remote execution;")
+                    .appendBreak()
+                    .append(
+                        "otherwise, the subtasks will be processed locally, even if Enable remote execution is checked.")
+                    .toString());
+        validityTestingFormattedTextFields.add(minSubtasksRemoteExecutionField);
 
         JLabel pbsParametersGroup = boldLabel("PBS parameters", LabelType.HEADING1);
         pbsParametersGroup.setToolTipText("Displays parameters that will be sent to PBS.");
-
-        calculateButton = createButton("Calculate",
-            "Generate PBS parameters from the RemoteParameters values.",
-            this::calculatePbsParameters);
-        JPanel pbsParametersToolBar = createButtonPanel(ButtonPanelContext.TOOL_BAR,
-            calculateButton);
 
         JLabel pbsArchLabel = boldLabel("Architecture:");
         pbsArch = new JLabel();
@@ -246,13 +308,18 @@ public class RemoteExecutionDialog extends JDialog {
         JLabel pbsCostLabel = boldLabel("Cost (SBUs):");
         pbsCost = new JLabel();
 
+        pbsLimits = new JTextArea();
+        pbsLimits.setEditable(false);
+        pbsLimits.setLineWrap(true);
+        pbsLimits.setWrapStyleWord(true);
+
         JPanel dataPanel = new JPanel();
         GroupLayout dataPanelLayout = new GroupLayout(dataPanel);
         dataPanelLayout.setAutoCreateContainerGaps(true);
         dataPanel.setLayout(dataPanelLayout);
 
         dataPanelLayout.setHorizontalGroup(dataPanelLayout.createParallelGroup()
-            .addComponent(remoteParametersToolBar)
+            .addComponent(executionResourcesToolBar)
             .addGroup(dataPanelLayout.createSequentialGroup()
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(moduleGroup)
@@ -263,16 +330,16 @@ public class RemoteExecutionDialog extends JDialog {
                             .addComponent(pipelineText)
                             .addComponent(module)
                             .addComponent(moduleText)))
-                    .addComponent(nodeSharingGroup)
-                    .addGroup(dataPanelLayout.createSequentialGroup()
-                        .addGap(ZiggySwingUtils.INDENT)
-                        .addGroup(dataPanelLayout.createParallelGroup()
-                            .addComponent(nodeSharingCheckBox)
-                            .addComponent(wallTimeScalingCheckBox)))
                     .addComponent(requiredRemoteParametersGroup)
                     .addGroup(dataPanelLayout.createSequentialGroup()
                         .addGap(ZiggySwingUtils.INDENT)
                         .addGroup(dataPanelLayout.createParallelGroup()
+                            .addComponent(oneSubtaskCheckBox)
+                            .addComponent(wallTimeScalingCheckBox)
+                            .addComponent(remoteExecutionEnabledCheckBox)
+                            .addComponent(tasks)
+                            .addComponent(tasksField, GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                             .addComponent(subtasks)
                             .addComponent(subtasksField, GroupLayout.PREFERRED_SIZE,
                                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
@@ -283,57 +350,75 @@ public class RemoteExecutionDialog extends JDialog {
                             .addComponent(maxWallTimeField, GroupLayout.PREFERRED_SIZE,
                                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                             .addComponent(typicalWallTime)
-                            .addComponent(wallTimeRatioField, GroupLayout.PREFERRED_SIZE,
+                            .addComponent(typicalWallTimeField, GroupLayout.PREFERRED_SIZE,
                                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                             .addComponent(optimizer)
                             .addComponent(optimizerComboBox, GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)))
-                    .addComponent(optionalRemoteParametersGroup)
-                    .addGroup(dataPanelLayout.createSequentialGroup()
-                        .addGap(ZiggySwingUtils.INDENT)
-                        .addGroup(dataPanelLayout.createParallelGroup()
-                            .addComponent(architecture)
-                            .addComponent(architectureComboBox, GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                            .addComponent(queue)
-                            .addComponent(queueComboBox, GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                            .addComponent(maxNodesPerTask)
-                            .addComponent(maxNodesField, GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                            .addComponent(subtasksPerCore)
-                            .addComponent(subtasksPerCoreField, GroupLayout.PREFERRED_SIZE,
                                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))))
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(pbsParametersGroup)
                     .addGroup(dataPanelLayout.createSequentialGroup()
                         .addGap(ZiggySwingUtils.INDENT)
-                        .addGroup(dataPanelLayout.createSequentialGroup()
-                            .addGroup(dataPanelLayout.createParallelGroup()
-                                .addComponent(pbsParametersToolBar)
-                                .addComponent(pbsArchLabel)
-                                .addComponent(pbsQueueLabel)
-                                .addComponent(pbsWallTimeLabel)
-                                .addComponent(pbsNodeCountLabel)
-                                .addComponent(pbsActiveCoresPerNodeLabel)
-                                .addComponent(pbsCostLabel))
-                            .addPreferredGap(ComponentPlacement.RELATED)
-                            .addGroup(dataPanelLayout.createParallelGroup()
-                                .addComponent(pbsArch, PBS_PARAMETERS_MINIMUM_WIDTH,
-                                    GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
-                                .addComponent(pbsQueue, PBS_PARAMETERS_MINIMUM_WIDTH,
-                                    GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
-                                .addComponent(pbsWallTime, PBS_PARAMETERS_MINIMUM_WIDTH,
-                                    GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
-                                .addComponent(pbsNodeCount, PBS_PARAMETERS_MINIMUM_WIDTH,
-                                    GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
-                                .addComponent(pbsActiveCoresPerNode, PBS_PARAMETERS_MINIMUM_WIDTH,
-                                    GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
-                                .addComponent(pbsCost, PBS_PARAMETERS_MINIMUM_WIDTH,
-                                    GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)))))));
+                        .addGroup(dataPanelLayout.createParallelGroup()
+                            .addGroup(dataPanelLayout.createSequentialGroup()
+                                .addGroup(dataPanelLayout.createParallelGroup()
+                                    .addComponent(pbsArchLabel)
+                                    .addComponent(pbsQueueLabel)
+                                    .addComponent(pbsWallTimeLabel)
+                                    .addComponent(pbsNodeCountLabel)
+                                    .addComponent(pbsActiveCoresPerNodeLabel)
+                                    .addComponent(pbsCostLabel))
+                                .addPreferredGap(ComponentPlacement.RELATED)
+                                .addGroup(dataPanelLayout.createParallelGroup()
+                                    .addComponent(pbsArch, PBS_PARAMETERS_MINIMUM_WIDTH,
+                                        GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
+                                    .addComponent(pbsQueue, PBS_PARAMETERS_MINIMUM_WIDTH,
+                                        GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
+                                    .addComponent(pbsWallTime, PBS_PARAMETERS_MINIMUM_WIDTH,
+                                        GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
+                                    .addComponent(pbsNodeCount, PBS_PARAMETERS_MINIMUM_WIDTH,
+                                        GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)
+                                    .addComponent(pbsActiveCoresPerNode,
+                                        PBS_PARAMETERS_MINIMUM_WIDTH, GroupLayout.DEFAULT_SIZE,
+                                        GroupLayout.DEFAULT_SIZE)
+                                    .addComponent(pbsCost, PBS_PARAMETERS_MINIMUM_WIDTH,
+                                        GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE)))
+                            .addComponent(pbsLimits)))))
+            .addComponent(optionalRemoteParametersGroup)
+            .addGroup(dataPanelLayout.createSequentialGroup()
+                .addGap(ZiggySwingUtils.INDENT)
+                .addGroup(dataPanelLayout.createParallelGroup()
+                    .addGroup(dataPanelLayout.createSequentialGroup()
+                        .addGroup(dataPanelLayout.createParallelGroup()
+                            .addComponent(architecture)
+                            .addComponent(architectureComboBox, GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(ComponentPlacement.RELATED)
+                        .addComponent(architectureLimits))
+                    .addGroup(dataPanelLayout.createSequentialGroup()
+                        .addGroup(dataPanelLayout.createParallelGroup()
+                            .addComponent(queue)
+                            .addComponent(queueComboBox, GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(ComponentPlacement.RELATED)
+                        .addGroup(dataPanelLayout.createParallelGroup()
+                            .addComponent(queueName)
+                            .addComponent(queueNameField, GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(ComponentPlacement.RELATED)
+                        .addComponent(queueLimits))
+                    .addComponent(maxNodesPerTask)
+                    .addComponent(maxNodesField, GroupLayout.PREFERRED_SIZE,
+                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addComponent(subtasksPerCore)
+                    .addComponent(subtasksPerCoreField, GroupLayout.PREFERRED_SIZE,
+                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addComponent(minSubtasksRemoteExecution)
+                    .addComponent(minSubtasksRemoteExecutionField, GroupLayout.PREFERRED_SIZE,
+                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
-            .addComponent(remoteParametersToolBar, GroupLayout.PREFERRED_SIZE,
+            .addComponent(executionResourcesToolBar, GroupLayout.PREFERRED_SIZE,
                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addGroup(dataPanelLayout.createParallelGroup()
@@ -346,12 +431,15 @@ public class RemoteExecutionDialog extends JDialog {
                     .addComponent(module)
                     .addComponent(moduleText)
                     .addGap(ZiggySwingUtils.GROUP_GAP)
-                    .addComponent(nodeSharingGroup)
-                    .addPreferredGap(ComponentPlacement.RELATED)
-                    .addComponent(nodeSharingCheckBox)
-                    .addComponent(wallTimeScalingCheckBox)
-                    .addGap(ZiggySwingUtils.GROUP_GAP)
                     .addComponent(requiredRemoteParametersGroup)
+                    .addPreferredGap(ComponentPlacement.RELATED)
+                    .addComponent(remoteExecutionEnabledCheckBox)
+                    .addComponent(oneSubtaskCheckBox)
+                    .addComponent(wallTimeScalingCheckBox)
+                    .addPreferredGap(ComponentPlacement.UNRELATED)
+                    .addComponent(tasks)
+                    .addComponent(tasksField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.PREFERRED_SIZE)
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addComponent(subtasks)
                     .addComponent(subtasksField, GroupLayout.PREFERRED_SIZE,
@@ -366,35 +454,14 @@ public class RemoteExecutionDialog extends JDialog {
                         GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addComponent(typicalWallTime)
-                    .addComponent(wallTimeRatioField, GroupLayout.PREFERRED_SIZE,
+                    .addComponent(typicalWallTimeField, GroupLayout.PREFERRED_SIZE,
                         GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addComponent(optimizer)
                     .addComponent(optimizerComboBox, GroupLayout.PREFERRED_SIZE,
-                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                    .addGap(ZiggySwingUtils.GROUP_GAP)
-                    .addComponent(optionalRemoteParametersGroup)
-                    .addPreferredGap(ComponentPlacement.RELATED)
-                    .addComponent(architecture)
-                    .addComponent(architectureComboBox, GroupLayout.PREFERRED_SIZE,
-                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                    .addPreferredGap(ComponentPlacement.RELATED)
-                    .addComponent(queue)
-                    .addComponent(queueComboBox, GroupLayout.PREFERRED_SIZE,
-                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                    .addPreferredGap(ComponentPlacement.RELATED)
-                    .addComponent(maxNodesPerTask)
-                    .addComponent(maxNodesField, GroupLayout.PREFERRED_SIZE,
-                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                    .addPreferredGap(ComponentPlacement.RELATED)
-                    .addComponent(subtasksPerCore)
-                    .addComponent(subtasksPerCoreField, GroupLayout.PREFERRED_SIZE,
                         GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
                 .addGroup(dataPanelLayout.createSequentialGroup()
                     .addComponent(pbsParametersGroup)
-                    .addPreferredGap(ComponentPlacement.RELATED)
-                    .addComponent(pbsParametersToolBar, GroupLayout.PREFERRED_SIZE,
-                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addGroup(dataPanelLayout.createParallelGroup()
                         .addGroup(dataPanelLayout.createSequentialGroup()
@@ -420,107 +487,188 @@ public class RemoteExecutionDialog extends JDialog {
                             .addPreferredGap(ComponentPlacement.RELATED)
                             .addComponent(pbsActiveCoresPerNode)
                             .addPreferredGap(ComponentPlacement.RELATED)
-                            .addComponent(pbsCost))))));
+                            .addComponent(pbsCost)))
+                    .addPreferredGap(ComponentPlacement.UNRELATED)
+                    .addComponent(pbsLimits)))
+            .addGap(ZiggySwingUtils.GROUP_GAP)
+            .addComponent(optionalRemoteParametersGroup)
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addGroup(dataPanelLayout.createParallelGroup()
+                .addGroup(dataPanelLayout.createSequentialGroup()
+                    .addComponent(architecture)
+                    .addComponent(architectureComboBox, GroupLayout.PREFERRED_SIZE,
+                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                .addGroup(dataPanelLayout.createSequentialGroup()
+                    .addPreferredGap(ComponentPlacement.RELATED, GroupLayout.PREFERRED_SIZE,
+                        Short.MAX_VALUE)
+                    .addComponent(architectureLimits)))
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addGroup(dataPanelLayout.createParallelGroup()
+                .addGroup(dataPanelLayout.createSequentialGroup()
+                    .addComponent(queue)
+                    .addComponent(queueComboBox, GroupLayout.PREFERRED_SIZE,
+                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                .addGroup(dataPanelLayout.createSequentialGroup()
+                    .addComponent(queueName)
+                    .addComponent(queueNameField, GroupLayout.PREFERRED_SIZE,
+                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                .addGroup(dataPanelLayout.createSequentialGroup()
+                    .addPreferredGap(ComponentPlacement.RELATED, GroupLayout.PREFERRED_SIZE,
+                        Short.MAX_VALUE)
+                    .addComponent(queueLimits)))
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(maxNodesPerTask)
+            .addComponent(maxNodesField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
+                GroupLayout.PREFERRED_SIZE)
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(subtasksPerCore)
+            .addComponent(subtasksPerCoreField, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(minSubtasksRemoteExecution)
+            .addComponent(minSubtasksRemoteExecutionField, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE));
 
         return dataPanel;
     }
 
-    private void setButtonState() {
-        boolean allFieldsValid = true;
-        for (ValidityTestingFormattedTextField field : validityTestingFormattedTextFields) {
-            allFieldsValid = allFieldsValid && field.isValidState();
+    private void itemStateChanged(ItemEvent evt) {
+        if (evt.getStateChange() == ItemEvent.SELECTED
+            || evt.getSource() == remoteExecutionEnabledCheckBox) {
+            checkFieldsAndRecalculate(null);
         }
-        calculateButton.setEnabled(allFieldsValid);
     }
 
-    private ValidityTestingFormattedTextField createSubtasksField() {
-        NumberFormat numberFormat = NumberFormat.getInstance();
-        NumberFormatter formatter = new NumberFormatter(numberFormat);
-        formatter.setValueClass(Integer.class);
-        formatter.setMinimum(1);
-        formatter.setMaximum(Integer.MAX_VALUE);
-        ValidityTestingFormattedTextField subtasksField = new ValidityTestingFormattedTextField(
-            formatter);
-        subtasksField.setColumns(6);
-        subtasksField.setExecuteOnValidityCheck(checkFieldsAndEnableButtons);
-        subtasksField.setToolTipText(
-            "Set the total number of subtasks for the selected module (must be >= 1).");
+    // Validation is postponed until the dialog is visible.
+    private void hierarchyChanged(HierarchyEvent evt) {
+        if ((HierarchyEvent.SHOWING_CHANGED & evt.getChangeFlags()) != 0 && isVisible()) {
+            checkFieldsAndRecalculate(null);
+        }
+    }
 
-        return subtasksField;
+    private void checkFieldsAndRecalculate(Boolean valid) {
+        log.debug("valid={}, visible={}, skipCheck={}", valid, isVisible(), skipCheck);
+        if (!isVisible() || skipCheck) {
+            return;
+        }
+
+        if (allFieldsRequiredForCalculationValid()) {
+            pbsParametersValid = calculatePbsParameters();
+        } else {
+            pbsParametersValid = false;
+            displayPbsValues(null);
+        }
+        closeButton.setEnabled(!remoteExecutionEnabledCheckBox.isSelected()
+            || allFieldsRequiredForCloseValid() && pbsParametersValid);
+
+        log.debug(
+            "remoteExecutionEnabled={}, allFieldsRequiredForCalculationValid()={}, pbsParametersValid={}, allFieldsRequiredForCloseValid()={}",
+            remoteExecutionEnabledCheckBox.isSelected(), allFieldsRequiredForCloseValid(),
+            pbsParametersValid);
+    }
+
+    /**
+     * Determines whether all the validity-checking fields are valid. Used to determine whether to
+     * calculate the PBS parameters.
+     */
+    private boolean allFieldsRequiredForCalculationValid() {
+        return allFieldsRequiredForCloseValid() && tasksField.isValidState()
+            && subtasksField.isValidState();
+    }
+
+    /**
+     * Determines whether all the validity-checking fields are valid except for the subtask count.
+     * This is used to determine whether to enable the Close button, which is used to update the
+     * remote execution configuration when the dialog box closes.
+     */
+    private boolean allFieldsRequiredForCloseValid() {
+        boolean allFieldsValid = true;
+        for (ValidityTestingFormattedTextField field : validityTestingFormattedTextFields) {
+            if (!field.equals(tasksField) && !field.equals(subtasksField)) {
+                allFieldsValid = allFieldsValid && field.isValidState();
+            }
+        }
+        return allFieldsValid;
+    }
+
+    private ValidityTestingFormattedTextField createIntegerField(String toolTipText) {
+        return createIntegerField(false, toolTipText);
+    }
+
+    private ValidityTestingFormattedTextField createIntegerField(boolean emptyIsValid,
+        String toolTipText) {
+        return createIntegerField(1, Integer.MAX_VALUE, emptyIsValid, toolTipText);
+    }
+
+    private ValidityTestingFormattedTextField createIntegerField(int min, int max,
+        boolean emptyIsValid, String toolTipText) {
+        NumberFormatter formatter = new NumberFormatter(NumberFormat.getInstance());
+        formatter.setValueClass(Integer.class);
+        formatter.setMinimum(min);
+        formatter.setMaximum(max);
+        ValidityTestingFormattedTextField integerField = new ValidityTestingFormattedTextField(
+            formatter);
+        integerField.setColumns(COLUMNS);
+        integerField.setEmptyIsValid(emptyIsValid);
+        integerField.setToolTipText(toolTipText);
+        integerField.setExecuteOnValidityCheck(checkFieldsAndRecalculate);
+
+        return integerField;
+    }
+
+    private ValidityTestingFormattedTextField createDoubleField(String toolTipText) {
+        return createDoubleField(Double.MIN_VALUE, Double.MAX_VALUE, toolTipText);
+    }
+
+    private ValidityTestingFormattedTextField createDoubleField(double min, double max,
+        String toolTipText) {
+        return createDoubleField(min, max, false, toolTipText);
+    }
+
+    private ValidityTestingFormattedTextField createDoubleField(double min, double max,
+        boolean emptyIsValid, String toolTipText) {
+        NumberFormatter formatter = new NumberFormatter(NumberFormat.getInstance());
+        formatter.setValueClass(Double.class);
+        formatter.setMinimum(min);
+        formatter.setMaximum(max);
+        ValidityTestingFormattedTextField doubleField = new ValidityTestingFormattedTextField(
+            formatter);
+        doubleField.setColumns(COLUMNS);
+        doubleField.setEmptyIsValid(emptyIsValid);
+        doubleField.setToolTipText(toolTipText);
+        doubleField.setExecuteOnValidityCheck(checkFieldsAndRecalculate);
+
+        return doubleField;
     }
 
     private void nodeSharingCheckBoxEvent(ItemEvent evt) {
-        wallTimeScalingCheckBox.setEnabled(!nodeSharingCheckBox.isSelected());
-        gigsPerSubtaskField.setEnabled(nodeSharingCheckBox.isSelected());
-        updateGigsPerSubtaskToolTip();
+        wallTimeScalingCheckBox.setEnabled(oneSubtaskCheckBox.isSelected());
+        gigsPerSubtaskField.setEnabled(!oneSubtaskCheckBox.isSelected());
+        gigsPerSubtaskField.setToolTipText(gigsPerSubtaskToolTip());
     }
 
-    private ValidityTestingFormattedTextField createGigsPerSubtaskField() {
-        NumberFormat numberFormat = NumberFormat.getInstance();
-        NumberFormatter formatter = new NumberFormatter(numberFormat);
-        formatter.setValueClass(Double.class);
-        formatter.setMinimum(Double.MIN_VALUE);
-        formatter.setMaximum(Double.MAX_VALUE);
-        ValidityTestingFormattedTextField gigsPerSubtaskField = new ValidityTestingFormattedTextField(
-            formatter);
-        gigsPerSubtaskField.setColumns(6);
-        gigsPerSubtaskField.setExecuteOnValidityCheck(checkFieldsAndEnableButtons);
-        return gigsPerSubtaskField;
-    }
-
-    private void updateGigsPerSubtaskToolTip() {
+    private String gigsPerSubtaskToolTip() {
         String enabledTip = "Enter the number of GB needed for each subtask (>0).";
-        String disabledTip = "Gigs per subtask is disabled when node sharing is disabled.";
-        String tip = gigsPerSubtaskField.isEnabled() ? enabledTip : disabledTip;
-        gigsPerSubtaskField.setToolTipText(tip);
+        String disabledTip = "Gigs per subtask is disabled when running one subtask per node.";
+        return gigsPerSubtaskField.isEnabled() ? enabledTip : disabledTip;
     }
 
     private ValidityTestingFormattedTextField createMaxWallTimeField() {
-        NumberFormat numberFormat = NumberFormat.getInstance();
-        NumberFormatter formatter = new NumberFormatter(numberFormat);
-        formatter.setValueClass(Double.class);
-        formatter.setMinimum(Double.MIN_VALUE);
-        formatter.setMaximum(Double.MAX_VALUE);
-        ValidityTestingFormattedTextField maxWallTimeField = new ValidityTestingFormattedTextField(
-            formatter);
-        maxWallTimeField.setColumns(6);
-        maxWallTimeField
-            .setToolTipText("Enter the MAXIMUM wall time needed by any subtask, in hours (>0).");
-        maxWallTimeField.setExecuteOnValidityCheck(checkFieldsAndEnableButtons);
-        maxWallTimeField.addFocusListener(new FocusAdapter() {
+        maxWallTimeField = createDoubleField(Double.MIN_VALUE, Double.MAX_VALUE,
+            "Enter the MAXIMUM wall time needed by any subtask, in hours (>0).");
 
-            // Here is where we modify the typical field when the max field has been
-            // updated.
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (maxWallTimeField.isValidState()) {
-                    ValidityTestingFormattedTextField typicalField = wallTimeRatioField;
-                    double maxValue = (double) maxWallTimeField.getValue();
-                    double typicalValue = (double) typicalField.getValue();
-                    NumberFormatter formatter = (NumberFormatter) typicalField.getFormatter();
-                    formatter.setMaximum(maxValue);
-                    if (typicalValue > maxValue) {
-                        typicalField.setBorder(ValidityTestingFormattedTextField.INVALID_BORDER);
-                    }
-                }
+        // Update the typical field when the max field has been updated.
+        maxWallTimeField.addPropertyChangeListener(evt -> {
+            if (!maxWallTimeField.isValidState()) {
+                return;
             }
+            double maxValue = (double) maxWallTimeField.getValue();
+            double typicalValue = (double) typicalWallTimeField.getValue();
+            ((NumberFormatter) typicalWallTimeField.getFormatter()).setMaximum(maxValue);
+            typicalWallTimeField.updateBorder(typicalValue <= maxValue);
         });
-        return maxWallTimeField;
-    }
 
-    private ValidityTestingFormattedTextField createTypicalWallTimeField() {
-        NumberFormat numberFormat = NumberFormat.getInstance();
-        NumberFormatter formatter = new NumberFormatter(numberFormat);
-        formatter.setValueClass(Double.class);
-        formatter.setMinimum(Double.MIN_VALUE);
-        formatter.setMaximum(currentParameters.getSubtaskMaxWallTimeHours());
-        ValidityTestingFormattedTextField wallTimeRatioField = new ValidityTestingFormattedTextField(
-            formatter);
-        wallTimeRatioField.setColumns(6);
-        wallTimeRatioField.setToolTipText(
-            "Enter the TYPICAL wall time needed by subtasks, in hours (>0, <= max wall time)");
-        wallTimeRatioField.setExecuteOnValidityCheck(checkFieldsAndEnableButtons);
-        return wallTimeRatioField;
+        return maxWallTimeField;
     }
 
     private JComboBox<RemoteArchitectureOptimizer> createOptimizerComboBox() {
@@ -537,6 +685,7 @@ public class RemoteExecutionDialog extends JDialog {
                 .appendBreak()
                 .append("&ensp;Cost minimizes the number of SBUs.")
                 .toString());
+        optimizerComboBox.addItemListener(this::itemStateChanged);
         return optimizerComboBox;
     }
 
@@ -544,129 +693,193 @@ public class RemoteExecutionDialog extends JDialog {
         JComboBox<RemoteNodeDescriptor> architectureComboBox = new JComboBox<>(
             RemoteNodeDescriptor.allDescriptors());
         architectureComboBox.setToolTipText("Select remote node architecture.");
+        architectureComboBox.addItemListener(this::validateArchitectureComboBox);
         return architectureComboBox;
+    }
+
+    private void validateArchitectureComboBox(ItemEvent evt) {
+        if (evt.getStateChange() == ItemEvent.DESELECTED || !isVisible() || skipCheck) {
+            return;
+        }
+
+        pbsParametersValid = calculatePbsParameters();
+
+        // Reset combo box if the chosen value is invalid. Note that this method is also called when
+        // the dialog is first displayed, so if the configuration is invalid, simply set the last
+        // selection to the current one and let the warning dialog shown by
+        // handlePbsParametersException() guide the user.
+        if (pbsParametersValid || lastArchitectureComboBoxSelection == null) {
+            lastArchitectureComboBoxSelection = (RemoteNodeDescriptor) architectureComboBox
+                .getSelectedItem();
+        } else {
+            architectureComboBox.setSelectedItem(lastArchitectureComboBoxSelection);
+        }
+
+        if (lastArchitectureComboBoxSelection != RemoteNodeDescriptor.ANY) {
+            architectureLimits
+                .setText(MessageFormat.format("{0} cores, {1} GB/core, {2} fractional SBUs",
+                    lastArchitectureComboBoxSelection.getMaxCores(),
+                    lastArchitectureComboBoxSelection.getGigsPerCore(),
+                    lastArchitectureComboBoxSelection.getCostFactor()));
+        } else {
+            architectureLimits.setText("");
+        }
     }
 
     private JComboBox<RemoteQueueDescriptor> createQueueComboBox() {
         JComboBox<RemoteQueueDescriptor> queueComboBox = new JComboBox<>(
             RemoteQueueDescriptor.allDescriptors());
         queueComboBox.setToolTipText("Select batch queue for use with these jobs.");
-        queueComboBox.addActionListener(this::validateQueueComboBox);
+        queueComboBox.addItemListener(this::validateQueueComboBox);
         return queueComboBox;
     }
 
     /**
-     * Prompts the user to enter a reserved queue name when setting the queue combo box to
-     * "reserved". Note that the input dialog won't allow the user to return to messing around with
-     * the rest of the remote execution dialog until a valid value is entered.
+     * Enables the queue name fields if RESERVED is selected, shows the queue limits, and populates
+     * the max nodes fields if DEBUG or DEVEL are selected.
      */
-    private void validateQueueComboBox(ActionEvent evt) {
-        if (queueComboBox.getSelectedItem() == null
-            || queueComboBox.getSelectedItem() != RemoteQueueDescriptor.RESERVED) {
+    private void validateQueueComboBox(ItemEvent evt) {
+        if (evt.getStateChange() == ItemEvent.DESELECTED || !isVisible() || skipCheck) {
             return;
         }
-        String userReservedQueueName = "";
-        while (!userReservedQueueName.startsWith("R")) {
-            userReservedQueueName = JOptionPane.showInputDialog(
-                "Enter name of Reserved Queue (must start with R)", reservedQueueName);
+
+        boolean reservedQueue = queueComboBox.getSelectedItem() != null
+            && queueComboBox.getSelectedItem() == RemoteQueueDescriptor.RESERVED;
+        if (queueName.isEnabled() != reservedQueue) {
+            queueName.setEnabled(reservedQueue);
+            queueNameField.setEnabled(reservedQueue);
         }
-        reservedQueueName = userReservedQueueName;
+
+        pbsParametersValid = calculatePbsParameters();
+
+        // Reset combo box if the chosen value is invalid, but allow the user to enter a reserved
+        // queue name.
+        if (pbsParametersValid || reservedQueue) {
+            lastQueueComboBoxSelection = (RemoteQueueDescriptor) queueComboBox.getSelectedItem();
+        } else {
+            queueComboBox.setSelectedItem(lastQueueComboBoxSelection);
+        }
+
+        // Show queue limits.
+        if (lastQueueComboBoxSelection.getMaxWallTimeHours() > 0
+            && lastQueueComboBoxSelection.getMaxWallTimeHours() < Double.MAX_VALUE) {
+            queueLimits.setText(MessageFormat.format("{0} hrs max wall time",
+                lastQueueComboBoxSelection.getMaxWallTimeHours()));
+        } else {
+            queueLimits.setText("");
+        }
+
+        // Populate maxNodes field if applicable.
+        int maxNodes = ((RemoteQueueDescriptor) queueComboBox.getSelectedItem()).getMaxNodes();
+        if (maxNodes > 0 && maxNodes < Integer.MAX_VALUE) {
+            maxNodesField.setValue(maxNodes);
+        } else if (originalConfiguration.getMaxNodes() > 0) {
+            maxNodesField.setValue(originalConfiguration.getMaxNodes());
+        } else {
+            maxNodesField.setValue(null);
+        }
     }
 
-    private ValidityTestingFormattedTextField createMaxNodesField() {
-        NumberFormat numberFormat = NumberFormat.getInstance();
-        NumberFormatter formatter = new NumberFormatter(numberFormat);
-        formatter.setValueClass(Integer.class);
-        formatter.setMinimum(1);
-        formatter.setMaximum(Integer.MAX_VALUE);
-        ValidityTestingFormattedTextField maxNodesField = new ValidityTestingFormattedTextField(
-            formatter);
-        maxNodesField.setColumns(6);
-        maxNodesField.setToolTipText(
-            htmlBuilder("Enter the maximum number of nodes to request for each task (>=1)")
-                .appendBreak()
-                .append("or leave empty to let the algorithm determine the number.")
-                .toString());
-        maxNodesField.setEmptyIsValid(true);
-        maxNodesField.setExecuteOnValidityCheck(checkFieldsAndEnableButtons);
-        return maxNodesField;
-    }
+    private ValidityTestingFormattedTextField createQueueNameField() {
+        @SuppressWarnings("serial")
+        ValidityTestingFormattedTextField queueNameField = new ValidityTestingFormattedTextField(
+            new DefaultFormatter() {
+                @Override
+                public Object stringToValue(String s) throws ParseException {
+                    if (!s.matches("^\\s*R\\d+\\s*$")) {
+                        throw new ParseException(
+                            "Queue is named with the letter R followed by a number", 1);
+                    }
+                    return super.stringToValue(s);
+                }
+            });
+        queueNameField.setColumns(10);
+        queueNameField.setName("Queue name");
+        queueNameField.setToolTipText(
+            "The reservation queue is named with the letter R followed by a number.");
+        queueNameField.setExecuteOnValidityCheck(checkFieldsAndRecalculate);
 
-    private ValidityTestingFormattedTextField createSubtasksPerCoreField() {
-        NumberFormat numberFormat = NumberFormat.getInstance();
-        NumberFormatter formatter = new NumberFormatter(numberFormat);
-        formatter.setValueClass(Double.class);
-        formatter.setMinimum(1.0);
-        formatter.setMaximum(Double.MAX_VALUE);
-        ValidityTestingFormattedTextField subtasksPerCoreField = new ValidityTestingFormattedTextField(
-            formatter);
-        subtasksPerCoreField.setColumns(6);
-        subtasksPerCoreField.setToolTipText(
-            htmlBuilder("Enter the number of subtasks per active core (>=1)").appendBreak()
-                .append("or leave empty to let the algorithm decide the number")
-                .toString());
-        subtasksPerCoreField.setEmptyIsValid(true);
-        subtasksPerCoreField.setExecuteOnValidityCheck(checkFieldsAndEnableButtons);
-        return subtasksPerCoreField;
+        return queueNameField;
     }
 
     private void populateTextFieldsAndComboBoxes() {
 
         // Subtask counts.
+        tasksField.setValue(taskCount);
         subtasksField.setValue(subtaskCount);
 
         // Required parameters.
-        if (!StringUtils.isEmpty(currentParameters.getOptimizer())
-            && RemoteArchitectureOptimizer.fromName(currentParameters.getOptimizer()) != null) {
-            optimizerComboBox.setSelectedItem(
-                RemoteArchitectureOptimizer.fromName(currentParameters.getOptimizer()));
-        }
-        wallTimeRatioField.setValue(currentParameters.getSubtaskTypicalWallTimeHours());
-        maxWallTimeField.setValue(currentParameters.getSubtaskMaxWallTimeHours());
-        gigsPerSubtaskField.setValue(currentParameters.getGigsPerSubtask());
-        nodeSharingCheckBox.setSelected(currentParameters.isNodeSharing());
-        wallTimeScalingCheckBox.setSelected(currentParameters.isWallTimeScaling());
-        wallTimeScalingCheckBox.setEnabled(!currentParameters.isNodeSharing());
-        gigsPerSubtaskField.setEnabled(currentParameters.isNodeSharing());
-        updateGigsPerSubtaskToolTip();
+        optimizerComboBox.setSelectedItem(currentConfiguration.getOptimizer());
+
+        remoteExecutionEnabledCheckBox.setSelected(currentConfiguration.isRemoteExecutionEnabled());
+        typicalWallTimeField.setValue(currentConfiguration.getSubtaskTypicalWallTimeHours());
+        maxWallTimeField.setValue(currentConfiguration.getSubtaskMaxWallTimeHours());
+        gigsPerSubtaskField.setValue(currentConfiguration.getGigsPerSubtask());
+        oneSubtaskCheckBox.setSelected(!currentConfiguration.isNodeSharing());
+        wallTimeScalingCheckBox.setSelected(currentConfiguration.isWallTimeScaling());
+        wallTimeScalingCheckBox.setEnabled(!currentConfiguration.isNodeSharing());
+        gigsPerSubtaskField.setEnabled(currentConfiguration.isNodeSharing());
+        gigsPerSubtaskField.setToolTipText(gigsPerSubtaskToolTip());
 
         // Optional parameters.
-        if (!StringUtils.isEmpty(currentParameters.getRemoteNodeArchitecture())
-            && RemoteNodeDescriptor
-                .fromName(currentParameters.getRemoteNodeArchitecture()) != null) {
+        if (!StringUtils.isEmpty(currentConfiguration.getRemoteNodeArchitecture())) {
             architectureComboBox.setSelectedItem(
-                RemoteNodeDescriptor.fromName(currentParameters.getRemoteNodeArchitecture()));
+                RemoteNodeDescriptor.fromName(currentConfiguration.getRemoteNodeArchitecture()));
         } else {
             architectureComboBox.setSelectedItem(RemoteNodeDescriptor.ANY);
         }
+        lastArchitectureComboBoxSelection = (RemoteNodeDescriptor) architectureComboBox
+            .getSelectedItem();
 
-        if (!StringUtils.isEmpty(currentParameters.getQueueName())
-            && RemoteQueueDescriptor.fromQueueName(currentParameters.getQueueName()) != null) {
+        if (!StringUtils.isEmpty(currentConfiguration.getQueueName())) {
             queueComboBox.setSelectedItem(
-                RemoteQueueDescriptor.fromQueueName(currentParameters.getQueueName()));
+                RemoteQueueDescriptor.fromQueueName(currentConfiguration.getQueueName()));
             if (queueComboBox.getSelectedItem() == RemoteQueueDescriptor.RESERVED) {
-                reservedQueueName = currentParameters.getQueueName();
+                reservedQueueName = currentConfiguration.getQueueName();
             }
+            queueName.setEnabled(queueComboBox.getSelectedItem() == RemoteQueueDescriptor.RESERVED);
+            queueNameField
+                .setEnabled(queueComboBox.getSelectedItem() == RemoteQueueDescriptor.RESERVED);
         } else {
             queueComboBox.setSelectedItem(RemoteQueueDescriptor.ANY);
+            queueName.setEnabled(false);
+            queueNameField.setEnabled(false);
         }
+        lastQueueComboBoxSelection = (RemoteQueueDescriptor) queueComboBox.getSelectedItem();
+        queueNameField.setText(reservedQueueName);
 
-        if (!StringUtils.isEmpty(currentParameters.getMaxNodes())) {
-            maxNodesField.setValue(Integer.parseInt(currentParameters.getMaxNodes()));
-        }
-        if (!StringUtils.isEmpty(currentParameters.getSubtasksPerCore())) {
-            subtasksPerCoreField
-                .setValue(Double.parseDouble(currentParameters.getSubtasksPerCore()));
-        }
+        Integer maxNodes = currentConfiguration.getMaxNodes() > 0
+            ? currentConfiguration.getMaxNodes()
+            : null;
+        maxNodesField.setValue(maxNodes);
+
+        Double subtasksPerCore = currentConfiguration.getSubtasksPerCore() > 0
+            ? currentConfiguration.getSubtasksPerCore()
+            : null;
+        subtasksPerCoreField.setValue(subtasksPerCore);
+
+        Integer minSubtasksRemoteExecution = currentConfiguration
+            .getMinSubtasksForRemoteExecution() >= 0
+                ? currentConfiguration.getMinSubtasksForRemoteExecution()
+                : null;
+        minSubtasksRemoteExecutionField.setValue(minSubtasksRemoteExecution);
     }
 
     private void resetAction(ActionEvent evt) {
+        reset(true);
+    }
+
+    private void reset(boolean checkFields) {
+        skipCheck = true;
         PipelineTaskInformation.reset(node);
-        currentParameters = new RemoteParameters(originalParameters);
+        currentConfiguration = new PipelineDefinitionNodeExecutionResources(originalConfiguration);
+        taskCount = originalTaskCount;
         subtaskCount = originalSubtaskCount;
-        maxParallelSubtaskCount = originalMaxParallelSubtaskCount;
         populateTextFieldsAndComboBoxes();
-        displayPbsValues(null);
+        skipCheck = false;
+        if (checkFields) {
+            checkFieldsAndRecalculate(null);
+        }
     }
 
     private void displayTaskInformation(ActionEvent evt) {
@@ -674,160 +887,194 @@ public class RemoteExecutionDialog extends JDialog {
         infoTable.setVisible(true);
     }
 
-    private void calculatePbsParameters(ActionEvent evt) {
+    /**
+     * Calculates the PBS parameters from the user-defined parameters.
+     *
+     * @return Returns true if the parameters that contribute to the PBS parameters are valid;
+     * otherwise, false
+     */
+    private boolean calculatePbsParameters() {
 
         try {
             populateCurrentParameters();
 
-            String currentOptimizer = currentParameters.getOptimizer();
-            if (!currentParameters.isNodeSharing()
-                && currentOptimizer.equals(RemoteArchitectureOptimizer.CORES.toString())) {
+            RemoteArchitectureOptimizer currentOptimizer = currentConfiguration.getOptimizer();
+            if (!currentConfiguration.isNodeSharing()
+                && currentOptimizer == RemoteArchitectureOptimizer.CORES) {
                 JOptionPane.showMessageDialog(this,
-                    "Cores optimization disabled when node sharing disabled.\n"
+                    "Cores optimization disabled when running one subtask per node.\n"
                         + "Cost optimization will be used instead.");
-                currentParameters.setOptimizer(RemoteArchitectureOptimizer.COST.toString());
+                currentConfiguration.setOptimizer(RemoteArchitectureOptimizer.COST);
             }
 
-            // If the user has not changed the subtask counts parameter, use the original
-            // subtask counts that were generated for each task.
+            // If the user has changed the task count, use it in lieu of the calculated task count.
+            // Otherwise, if the user has not changed the subtask counts parameter, use the original
+            // subtask counts that were generated for each task. Otherwise, use the total subtasks
+            // given.
             AlgorithmExecutor executor = AlgorithmExecutor.newRemoteInstance(null);
             PbsParameters pbsParameters = null;
-            if (subtaskCount == originalSubtaskCount) {
+            if (taskCount != originalTaskCount) {
+                Set<PbsParameters> perTaskPbsParameters = new HashSet<>();
+                for (int i = 0; i < taskCount; i++) {
+                    perTaskPbsParameters.add(executor.generatePbsParameters(currentConfiguration,
+                        subtaskCount / taskCount));
+                }
+                pbsParameters = PbsParameters.aggregatePbsParameters(perTaskPbsParameters);
+            } else if (subtaskCount == originalSubtaskCount) {
                 Set<PbsParameters> perTaskPbsParameters = new HashSet<>();
                 for (SubtaskInformation taskInformation : tasksInformation) {
-                    perTaskPbsParameters.add(executor.generatePbsParameters(currentParameters,
+                    perTaskPbsParameters.add(executor.generatePbsParameters(currentConfiguration,
                         taskInformation.getSubtaskCount()));
                 }
                 pbsParameters = PbsParameters.aggregatePbsParameters(perTaskPbsParameters);
             } else {
-                pbsParameters = executor.generatePbsParameters(currentParameters, subtaskCount);
+                pbsParameters = executor.generatePbsParameters(currentConfiguration, subtaskCount);
             }
             displayPbsValues(pbsParameters);
-            currentParameters.setOptimizer(currentOptimizer);
-        } catch (Exception f) {
-            boolean handled = false;
-            if (f instanceof IllegalStateException || f instanceof PipelineException) {
-                handled = handlePbsParametersException(f.getStackTrace());
+            currentConfiguration.setOptimizer(currentOptimizer);
+        } catch (Exception e) {
+            if ((e instanceof IllegalArgumentException || e instanceof IllegalStateException
+                || e instanceof PipelineException) && handlePbsParametersException(e)) {
+                return false;
             }
-            if (!handled) {
-                throw f;
-            }
+            throw e;
         }
+        return true;
     }
 
     private void populateCurrentParameters() {
 
-        // Subtask counts.
-        subtaskCount = (int) subtasksField.getValue();
+        // Task counts.
+        taskCount = textToInt(tasksField);
+        subtaskCount = textToInt(subtasksField);
 
         // Required parameters.
+        currentConfiguration.setRemoteExecutionEnabled(remoteExecutionEnabledCheckBox.isSelected());
         RemoteArchitectureOptimizer optimizerSelection = (RemoteArchitectureOptimizer) optimizerComboBox
             .getSelectedItem();
-        currentParameters.setOptimizer(optimizerSelection.toString());
-        currentParameters.setSubtaskTypicalWallTimeHours((double) wallTimeRatioField.getValue());
-        currentParameters.setSubtaskMaxWallTimeHours((double) maxWallTimeField.getValue());
-        currentParameters.setGigsPerSubtask((double) gigsPerSubtaskField.getValue());
-        currentParameters.setNodeSharing(nodeSharingCheckBox.isSelected());
-        currentParameters.setWallTimeScaling(wallTimeScalingCheckBox.isSelected());
+        currentConfiguration.setOptimizer(optimizerSelection);
+        currentConfiguration.setSubtaskTypicalWallTimeHours(textToDouble(typicalWallTimeField));
+        currentConfiguration.setSubtaskMaxWallTimeHours(textToDouble(maxWallTimeField));
+        currentConfiguration.setGigsPerSubtask(textToDouble(gigsPerSubtaskField));
+        currentConfiguration.setNodeSharing(!oneSubtaskCheckBox.isSelected());
+        currentConfiguration.setWallTimeScaling(wallTimeScalingCheckBox.isSelected());
 
         // Optional parameters.
         if (architectureComboBox.getSelectedItem() == null
             || architectureComboBox.getSelectedItem() == RemoteNodeDescriptor.ANY) {
-            currentParameters.setRemoteNodeArchitecture("");
+            currentConfiguration.setRemoteNodeArchitecture("");
         } else {
-            currentParameters.setRemoteNodeArchitecture(
+            currentConfiguration.setRemoteNodeArchitecture(
                 ((RemoteNodeDescriptor) architectureComboBox.getSelectedItem()).getNodeName());
         }
 
         if (queueComboBox.getSelectedItem() == null
             || queueComboBox.getSelectedItem() == RemoteQueueDescriptor.ANY) {
-            currentParameters.setQueueName("");
+            currentConfiguration.setQueueName("");
         } else {
             RemoteQueueDescriptor queue = (RemoteQueueDescriptor) queueComboBox.getSelectedItem();
             if (queue == RemoteQueueDescriptor.RESERVED) {
-                currentParameters.setQueueName(reservedQueueName);
+                reservedQueueName = queueNameField.getText().trim();
+                currentConfiguration.setQueueName(reservedQueueName);
             } else {
-                currentParameters.setQueueName(queue.getQueueName());
+                currentConfiguration.setQueueName(queue.getQueueName());
             }
         }
 
-        Object maxNodesValue = maxNodesField.getValue();
-        if (maxNodesValue != null) {
-            currentParameters.setMaxNodes(Integer.toString((int) maxNodesValue));
-        } else {
-            currentParameters.setMaxNodes("");
-        }
+        currentConfiguration.setMaxNodes(textToInt(maxNodesField));
+        currentConfiguration.setSubtasksPerCore(textToDouble(subtasksPerCoreField));
+        currentConfiguration.setMinSubtasksForRemoteExecution(
+            minSubtasksRemoteExecutionField.getText().isBlank() ? -1
+                : textToInt(minSubtasksRemoteExecutionField));
 
-        Object subtasksPerCoreValue = subtasksPerCoreField.getValue();
-        if (subtasksPerCoreValue != null) {
-            currentParameters.setSubtasksPerCore(Double.toString((double) subtasksPerCoreValue));
-        } else {
-            currentParameters.setSubtasksPerCore("");
+        log.debug("Updated currentConfiguration");
+    }
+
+    private int textToInt(ValidityTestingFormattedTextField field) {
+        try {
+            return Integer.parseInt(field.getText());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private double textToDouble(ValidityTestingFormattedTextField field) {
+        try {
+            return Double.parseDouble(field.getText());
+        } catch (NumberFormatException e) {
+            return 0.0;
         }
     }
 
     private void displayPbsValues(PbsParameters pbsParameters) {
         if (pbsParameters == null) {
-            pbsArch.setText("  ");
-            pbsQueue.setText("  ");
-            pbsWallTime.setText("  ");
-            pbsNodeCount.setText("  ");
-            pbsActiveCoresPerNode.setText("  ");
-            pbsCost.setText("  ");
+            pbsArch.setText("");
+            pbsQueue.setText("");
+            pbsWallTime.setText("");
+            pbsNodeCount.setText("");
+            pbsActiveCoresPerNode.setText("");
+            pbsCost.setText("");
+            pbsLimits.setText("");
         } else {
             pbsArch.setText(pbsParameters.getArchitecture().toString());
             pbsQueue.setText(pbsParameters.getQueueName());
-            pbsWallTime.setText(pbsParameters.getRequestedWallTime());
+            pbsWallTime.setText(TimeFormatter.stripSeconds(pbsParameters.getRequestedWallTime()));
             pbsNodeCount.setText(Integer.toString(pbsParameters.getRequestedNodeCount()));
             pbsActiveCoresPerNode.setText(Integer.toString(pbsParameters.getActiveCoresPerNode()));
             pbsCost.setText(String.format("%.2f", pbsParameters.getEstimatedCost()));
+
+            double maxWallTimeHours = RemoteQueueDescriptor
+                .fromQueueName(pbsParameters.getQueueName())
+                .getMaxWallTimeHours();
+            pbsLimits.setText(MessageFormat.format(
+                "The {0} architecture has {1} cores, {2} GB/core, and a cost factor of {3} SBUs, "
+                    + "and for the {4} queue, the limit is {5} hrs max wall time.",
+                pbsParameters.getArchitecture(), pbsParameters.getArchitecture().getMaxCores(),
+                pbsParameters.getArchitecture().getGigsPerCore(),
+                pbsParameters.getArchitecture().getCostFactor(), pbsParameters.getQueueName(),
+                maxWallTimeHours == Double.MAX_VALUE ? "infinite" : maxWallTimeHours));
         }
     }
 
-    private boolean handlePbsParametersException(StackTraceElement[] stackTrace) {
-        boolean handled = false;
-        String message = null;
-        for (StackTraceElement element : stackTrace) {
-            if (element.getClassName().equals(PbsParameters.class.getName())) {
-                if (element.getMethodName().equals("populateArchitecture")) {
-                    message = "Selected architecture has insufficient RAM";
-                    break;
-                }
-                if (element.getMethodName().equals("selectArchitecture")) {
-                    message = "All architectures lack sufficient RAM";
-                    break;
-                }
-                if (element.getMethodName().equals("computeWallTimeAndQueue")) {
-                    message = "No queue exists with sufficiently high time limit";
-                    break;
-                }
+    private boolean handlePbsParametersException(Exception e) {
+        for (StackTraceElement element : e.getStackTrace()) {
+            if (element.getClassName().equals(PbsParameters.class.getName())
+                && (element.getMethodName().equals("populateArchitecture")
+                    || element.getMethodName().equals("selectArchitecture")
+                    || element.getMethodName().equals("computeWallTimeAndQueue"))) {
+                SwingUtilities
+                    .invokeLater(() -> JOptionPane.showMessageDialog(this, e.getMessage()));
+                return true;
             }
         }
-        if (message != null) {
-            handled = true;
-            JOptionPane.showMessageDialog(this, message);
-        }
-        return handled;
+        return false;
     }
 
     /**
-     * Updates remote parameters. This means that any parameter changes the user made in this dialog
-     * box are returned to the edit pipeline dialog box. When the Save action for that dialog box
-     * happens, the parameters will be saved to the database; conversely, if the user chooses Cancel
-     * at that point, any changes made here are discarded.
+     * Close the dialog. Any parameter changes the user made in this dialog box are returned to the
+     * edit pipeline dialog box via {@link #getCurrentConfiguration()}, which is updated as the user
+     * makes changes. When the Save action for that dialog box happens, the parameters will be saved
+     * to the database; conversely, if the user chooses Cancel at that point, any changes made here
+     * are discarded.
+     * <p>
+     * The user can generally make any changes they want. The exception is that if they want to set
+     * remote execution to enabled, then the other parameters have to be valid. For example, you
+     * can't turn on remote execution if things like the typical and max time per subtask are 0. If
+     * this is the case, the Close button should be disabled so that this method can't be called.
      */
-    private void updateRemoteParameters(ActionEvent evt) {
-
-        // If the user has made parameter changes that cause the remote parameters instance to be
-        // invalid, don't save them to the edit pipeline dialog box.
-        if (calculateButton.isEnabled()) {
-            parameterSet.setTypedParameters(currentParameters.getParameters());
-        }
+    private void close(ActionEvent evt) {
+        // Because currentConfiguration isn't updated if a field is invalid, explicitly update
+        // configuration so that the parameters are preserved upon re-entry.
+        populateCurrentParameters();
         dispose();
     }
 
     private void cancel(ActionEvent evt) {
-        resetAction(null);
+        reset(false);
         dispose();
+    }
+
+    public PipelineDefinitionNodeExecutionResources getCurrentConfiguration() {
+        return currentConfiguration;
     }
 }

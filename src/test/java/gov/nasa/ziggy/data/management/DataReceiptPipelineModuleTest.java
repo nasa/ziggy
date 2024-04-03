@@ -8,7 +8,6 @@ import static gov.nasa.ziggy.services.config.PropertyName.USE_SYMLINKS;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -20,10 +19,9 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -35,25 +33,26 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
+import gov.nasa.ziggy.data.datastore.DatastoreTestUtils;
+import gov.nasa.ziggy.data.datastore.DatastoreWalker;
 import gov.nasa.ziggy.models.ModelImporter;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
-import gov.nasa.ziggy.pipeline.definition.ModelMetadataTest.ModelMetadataFixedDate;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingState;
 import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
@@ -72,15 +71,17 @@ public class DataReceiptPipelineModuleTest {
     private PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
     private Path dataImporterPath;
     private Path dataImporterSubdirPath;
-    private Path modelImporterSubdirPath;
     private Path datastoreRootPath;
     private UnitOfWork singleUow = new UnitOfWork();
     private UnitOfWork dataSubdirUow = new UnitOfWork();
-    private UnitOfWork modelSubdirUow = new UnitOfWork();
     private PipelineDefinitionNode node = new PipelineDefinitionNode();
     private ModelType modelType1, modelType2, modelType3;
-
-    private ExecutorService execThread;
+    private DatastoreDirectoryDataReceiptDefinition dataReceiptDefinition;
+    private ModelImporter modelImporter, subdirModelImporter;
+    private ModelCrud modelCrud;
+    private PipelineInstanceCrud pipelineInstanceCrud;
+    private DatastoreWalker datastoreWalker;
+    ModelRegistry registry;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -117,63 +118,72 @@ public class DataReceiptPipelineModuleTest {
         // set up model types
         setUpModelTypes();
 
-        // Initialize the data type samples
-        DataFileTestUtils.initializeDataFileTypeSamples();
-
         // Construct the necessary directories.
-        dataImporterPath = Paths.get(dataReceiptDirPropertyRule.getProperty());
-        dataImporterPath.toFile().mkdirs();
-        datastoreRootPath = Paths.get(datastoreRootDirPropertyRule.getProperty());
-        datastoreRootPath.toFile().mkdirs();
+        dataImporterPath = Paths.get(dataReceiptDirPropertyRule.getValue()).toAbsolutePath();
+        datastoreRootPath = Paths.get(datastoreRootDirPropertyRule.getValue()).toAbsolutePath();
         dataImporterSubdirPath = dataImporterPath.resolve("sub-dir");
-        dataImporterSubdirPath.toFile().mkdirs();
         dataSubdirUow.addParameter(new TypedParameter(
-            UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
-            DataReceiptUnitOfWorkGenerator.class.getCanonicalName(), ZiggyDataType.ZIGGY_STRING));
-        modelSubdirUow.addParameter(new TypedParameter(
             UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
             DataReceiptUnitOfWorkGenerator.class.getCanonicalName(), ZiggyDataType.ZIGGY_STRING));
         singleUow.addParameter(new TypedParameter(
             UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
             DataReceiptUnitOfWorkGenerator.class.getCanonicalName(), ZiggyDataType.ZIGGY_STRING));
         dataSubdirUow
-            .addParameter(new TypedParameter(DirectoryUnitOfWorkGenerator.DIRECTORY_PROPERTY_NAME,
+            .addParameter(new TypedParameter(DirectoryUnitOfWorkGenerator.DIRECTORY_PARAMETER_NAME,
                 "sub-dir", ZiggyDataType.ZIGGY_STRING));
-        modelSubdirUow
-            .addParameter(new TypedParameter(DirectoryUnitOfWorkGenerator.DIRECTORY_PROPERTY_NAME,
-                "models-sub-dir", ZiggyDataType.ZIGGY_STRING));
         singleUow.addParameter(new TypedParameter(
-            DirectoryUnitOfWorkGenerator.DIRECTORY_PROPERTY_NAME, "", ZiggyDataType.ZIGGY_STRING));
-        modelImporterSubdirPath = dataImporterPath.resolve("models-sub-dir");
-        modelImporterSubdirPath.toFile().mkdirs();
-
-        // construct the files for import
-        constructFilesForImport();
-
-        // Construct the data file type information
-        node.setInputDataFileTypes(ImmutableSet.of(DataFileTestUtils.dataFileTypeSample1,
-            DataFileTestUtils.dataFileTypeSample2));
+            DirectoryUnitOfWorkGenerator.DIRECTORY_PARAMETER_NAME, "", ZiggyDataType.ZIGGY_STRING));
 
         // construct the model type information
         node.setModelTypes(ImmutableSet.of(modelType1, modelType2, modelType3));
 
         // Create the "database objects," these are actually an assortment of mocks
         // so we can test this without needing an actual database.
-        Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
+        Mockito.when(pipelineTask.pipelineDefinitionNode()).thenReturn(node);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
+        PipelineInstance pipelineInstance = new PipelineInstance();
+        pipelineInstance.setId(2L);
+        Mockito.when(pipelineTask.getPipelineInstance()).thenReturn(pipelineInstance);
+        pipelineInstanceCrud = Mockito.mock(PipelineInstanceCrud.class);
+        Mockito.when(pipelineInstanceCrud.retrieve(ArgumentMatchers.anyLong()))
+            .thenReturn(pipelineInstance);
 
         // Put in a mocked AlertService instance.
         AlertService.setInstance(Mockito.mock(AlertService.class));
 
-        // Set up the executor service
-        execThread = Executors.newFixedThreadPool(1);
+        // Set up the model importer and data receipt definition.
+        constructDataReceiptDefinition();
+        Mockito.doReturn(pipelineInstanceCrud).when(dataReceiptDefinition).pipelineInstanceCrud();
+        Mockito.doReturn(List.of(modelType1, modelType2, modelType3))
+            .when(dataReceiptDefinition)
+            .modelTypes();
+        modelCrud = Mockito.mock(ModelCrud.class);
+
+        registry = new ModelRegistry();
+        modelImporter = new ModelImporter(dataImporterPath, "unit test");
+        modelImporter = Mockito.spy(modelImporter);
+        Mockito.doReturn(registry).when(modelImporter).unlockedRegistry();
+        Mockito.doNothing()
+            .when(modelImporter)
+            .persistModelMetadata(ArgumentMatchers.any(ModelMetadata.class));
+        Mockito.doReturn(1L)
+            .when(modelImporter)
+            .mergeRegistryAndReturnUnlockedId(ArgumentMatchers.any(ModelRegistry.class));
+        Mockito.doReturn(modelImporter).when(dataReceiptDefinition).modelImporter();
+
+        subdirModelImporter = new ModelImporter(dataImporterSubdirPath, "unit test");
+        subdirModelImporter = Mockito.spy(subdirModelImporter);
+        Mockito.doReturn(registry).when(subdirModelImporter).unlockedRegistry();
+        Mockito.doNothing()
+            .when(subdirModelImporter)
+            .persistModelMetadata(ArgumentMatchers.any(ModelMetadata.class));
+        Mockito.doReturn(1L)
+            .when(subdirModelImporter)
+            .mergeRegistryAndReturnUnlockedId(ArgumentMatchers.any(ModelRegistry.class));
     }
 
     @After
     public void shutDown() throws InterruptedException, IOException {
-        Thread.interrupted();
-        execThread.shutdownNow();
-
         AlertService.setInstance(null);
     }
 
@@ -182,9 +192,8 @@ public class DataReceiptPipelineModuleTest {
         IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
-        // Populate the models
-        setUpModelsForImport(dataImporterPath);
-        constructManifests();
+        // Populate the importer files
+        constructFilesForImport(dataImporterPath);
 
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
 
@@ -199,39 +208,64 @@ public class DataReceiptPipelineModuleTest {
         assertEquals(0, module.getFailedImportsDataAccountability().size());
         Set<DatastoreProducerConsumer> producerConsumerRecords = module
             .getSuccessfulImportsDataAccountability();
-        assertEquals(6, producerConsumerRecords.size());
+        assertEquals(7, producerConsumerRecords.size());
         Map<String, Long> successfulImports = new HashMap<>();
         for (DatastoreProducerConsumer producerConsumer : producerConsumerRecords) {
             successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
         }
-        assertTrue(successfulImports.containsKey("pa/20/pa-001234567-20-results.h5"));
-        assertEquals(Long.valueOf(101L), successfulImports.get("pa/20/pa-001234567-20-results.h5"));
-        assertTrue(successfulImports.containsKey("cal/20/cal-1-1-A-20-results.h5"));
-        assertEquals(Long.valueOf(101L), successfulImports.get("cal/20/cal-1-1-A-20-results.h5"));
+        assertTrue(successfulImports
+            .containsKey("sector-0002/mda/dr/pixels/target/science/1:1:A/1:1:A.nc"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("sector-0002/mda/dr/pixels/target/science/1:1:A/1:1:A.nc"));
+
+        assertTrue(successfulImports
+            .containsKey("sector-0002/mda/cal/pixels/ffi/collateral/1:1:A/1:1:A.nc"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("sector-0002/mda/cal/pixels/ffi/collateral/1:1:A/1:1:A.nc"));
+
         assertTrue(successfulImports
             .containsKey("models/geometry/tess2020321141517-12345_024-geometry.xml"));
         assertEquals(Long.valueOf(101L),
             successfulImports.get("models/geometry/tess2020321141517-12345_024-geometry.xml"));
-        assertTrue(successfulImports
-            .containsKey("models/geometry/tess2020321141517-12345_025-geometry.xml"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/geometry/tess2020321141517-12345_025-geometry.xml"));
-        assertTrue(
-            successfulImports.containsKey("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertTrue(
-            successfulImports.containsKey("models/calibration/2020-12-29.calibration-4.12.19.h5"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/calibration/2020-12-29.calibration-4.12.19.h5"));
+
+        assertEquals(3, registry.getModels().size());
+        ModelMetadata metadata = registry.getModels().get(modelType1);
+        String datastoreName = Paths.get("models")
+            .resolve(modelType1.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
+
+        metadata = registry.getModels().get(modelType2);
+        datastoreName = Paths.get("models")
+            .resolve(modelType2.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
+
+        metadata = registry.getModels().get(modelType3);
+        datastoreName = Paths.get("models")
+            .resolve(modelType3.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
 
         // check that all the files made it to their destinations
-        assertTrue(datastoreRootPath.resolve(Paths.get("pa", "20", "pa-001234567-20-results.h5"))
-            .toFile()
-            .exists());
-        assertTrue(datastoreRootPath.resolve(Paths.get("cal", "20", "cal-1-1-A-20-results.h5"))
-            .toFile()
-            .exists());
+        assertTrue(
+            datastoreRootPath
+                .resolve(Paths.get("sector-0002", "mda", "dr", "pixels", "target", "science",
+                    "1:1:A", "1:1:A.nc"))
+                .toFile()
+                .exists());
+        assertTrue(
+            datastoreRootPath
+                .resolve(Paths.get("sector-0002", "mda", "cal", "pixels", "ffi", "collateral",
+                    "1:1:A", "1:1:A.nc"))
+                .toFile()
+                .exists());
         assertTrue(datastoreRootPath
             .resolve(Paths.get("models", "geometry", "tess2020321141517-12345_024-geometry.xml"))
             .toFile()
@@ -240,38 +274,22 @@ public class DataReceiptPipelineModuleTest {
             .resolve(Paths.get("models", "geometry", "tess2020321141517-12345_025-geometry.xml"))
             .toFile()
             .exists());
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "calibration", "2020-12-29.calibration-4.12.19.h5"))
+
+        assertTrue(datastoreRootPath.resolve("models")
+            .resolve(modelType1.getType())
+            .resolve(registry.getModels().get(modelType1).getDatastoreFileName())
             .toFile()
             .exists());
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "ravenswood", "2020-12-29.0001-simple-text.h5"))
+        assertTrue(datastoreRootPath.resolve("models")
+            .resolve(modelType2.getType())
+            .resolve(registry.getModels().get(modelType2).getDatastoreFileName())
             .toFile()
             .exists());
-
-        // Check that the files were removed from the import directories, or not, as
-        // appropriate
-        assertEquals(5, dataImporterPath.toFile().listFiles().length);
-        assertTrue(dataImporterPath.resolve("sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("models-sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
-        assertTrue(dataImporterPath.resolve("data-importer-manifest.xml").toFile().exists());
-        assertTrue(dataImporterPath.resolve("data-importer-manifest-ack.xml").toFile().exists());
-        assertEquals(3, dataImporterSubdirPath.toFile().listFiles().length);
-        assertTrue(dataImporterSubdirPath.resolve("pa-765432100-20-results.h5").toFile().exists());
-        assertTrue(dataImporterSubdirPath.resolve("cal-1-1-B-20-results.h5").toFile().exists());
-        assertTrue(
-            dataImporterSubdirPath.resolve("data-importer-subdir-manifest.xml").toFile().exists());
-        assertEquals(0, modelImporterSubdirPath.toFile().listFiles().length);
-
-        // Get the manifest out of the database
-        Manifest dbManifest = module.getManifest();
-        assertNotNull(dbManifest);
-        assertEquals(1L, dbManifest.getDatasetId());
-        assertTrue(dbManifest.isAcknowledged());
-        assertEquals(DataReceiptStatus.VALID, dbManifest.getStatus());
-        assertEquals("data-importer-manifest.xml", dbManifest.getName());
-        assertNotNull(dbManifest.getImportTime());
+        assertTrue(datastoreRootPath.resolve("models")
+            .resolve(modelType3.getType())
+            .resolve(registry.getModels().get(modelType3).getDatastoreFileName())
+            .toFile()
+            .exists());
     }
 
     @Test
@@ -279,9 +297,10 @@ public class DataReceiptPipelineModuleTest {
         IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
-        // Populate the models
-        setUpModelsForImport(modelImporterSubdirPath);
-        constructManifests();
+        // Populate the importer files
+        constructFilesForImport(dataImporterPath);
+        constructFilesForImport(dataImporterSubdirPath);
+        Mockito.doReturn(subdirModelImporter).when(dataReceiptDefinition).modelImporter();
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
@@ -296,55 +315,62 @@ public class DataReceiptPipelineModuleTest {
         assertEquals(0, module.getFailedImportsDataAccountability().size());
         Set<DatastoreProducerConsumer> producerConsumerRecords = module
             .getSuccessfulImportsDataAccountability();
-        assertEquals(2, producerConsumerRecords.size());
+        assertEquals(5, producerConsumerRecords.size());
         Map<String, Long> successfulImports = new HashMap<>();
         for (DatastoreProducerConsumer producerConsumer : producerConsumerRecords) {
             successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
         }
-        assertTrue(successfulImports.containsKey("pa/20/pa-765432100-20-results.h5"));
-        assertEquals(Long.valueOf(101L), successfulImports.get("pa/20/pa-765432100-20-results.h5"));
-        assertTrue(successfulImports.containsKey("cal/20/cal-1-1-B-20-results.h5"));
-        assertEquals(Long.valueOf(101L), successfulImports.get("cal/20/cal-1-1-B-20-results.h5"));
+        assertTrue(successfulImports
+            .containsKey("sector-0002/mda/dr/pixels/target/science/1:1:B/1:1:B.nc"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("sector-0002/mda/dr/pixels/target/science/1:1:B/1:1:B.nc"));
 
         // check that the data files made it to their destinations
-        assertTrue(datastoreRootPath.resolve(Paths.get("pa", "20", "pa-765432100-20-results.h5"))
-            .toFile()
-            .exists());
-        assertTrue(datastoreRootPath.resolve(Paths.get("cal", "20", "cal-1-1-B-20-results.h5"))
-            .toFile()
-            .exists());
+        assertTrue(
+            datastoreRootPath
+                .resolve(Paths.get("sector-0002", "mda", "dr", "pixels", "target", "science",
+                    "1:1:B", "1:1:B.nc"))
+                .toFile()
+                .exists());
+
+        assertTrue(successfulImports
+            .containsKey("models/geometry/tess2020321141517-12345_024-geometry.xml"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("models/geometry/tess2020321141517-12345_024-geometry.xml"));
+
+        assertEquals(3, registry.getModels().size());
+        ModelMetadata metadata = registry.getModels().get(modelType1);
+        String datastoreName = Paths.get("models")
+            .resolve(modelType1.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
+
+        metadata = registry.getModels().get(modelType2);
+        datastoreName = Paths.get("models")
+            .resolve(modelType2.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
+
+        metadata = registry.getModels().get(modelType3);
+        datastoreName = Paths.get("models")
+            .resolve(modelType3.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
 
         // Check that the files were removed from the import directories, or not, as
         // appropriate
-        assertEquals(5, dataImporterPath.toFile().listFiles().length);
-        assertTrue(dataImporterPath.resolve("models-sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pa-001234567-20-results.h5").toFile().exists());
-        assertTrue(dataImporterPath.resolve("cal-1-1-A-20-results.h5").toFile().exists());
+        assertEquals(3, dataImporterPath.toFile().listFiles().length);
+        assertTrue(dataImporterPath.resolve("models").toFile().exists());
+        assertTrue(dataImporterPath.resolve("sector-0002").toFile().exists());
         assertTrue(dataImporterPath.resolve("data-importer-manifest.xml").toFile().exists());
-        assertEquals(5, modelImporterSubdirPath.toFile().listFiles().length);
-        assertTrue(modelImporterSubdirPath.resolve("tess2020321141517-12345_024-geometry.xml")
-            .toFile()
-            .exists());
-        assertTrue(modelImporterSubdirPath.resolve("tess2020321141517-12345_025-geometry.xml")
-            .toFile()
-            .exists());
-        assertTrue(modelImporterSubdirPath.resolve("calibration-4.12.19.h5").toFile().exists());
-        assertTrue(modelImporterSubdirPath.resolve("simple-text.h5").toFile().exists());
-        assertTrue(modelImporterSubdirPath.resolve("model-importer-subdir-manifest.xml")
-            .toFile()
-            .exists());
 
-        // Get the manifest out of the database
-        Manifest dbManifest = module.getManifest();
-        assertNotNull(dbManifest);
-        assertEquals(2L, dbManifest.getDatasetId());
-        assertTrue(dbManifest.isAcknowledged());
-        assertEquals(DataReceiptStatus.VALID, dbManifest.getStatus());
-        assertEquals("data-importer-subdir-manifest.xml", dbManifest.getName());
-        assertNotNull(dbManifest.getImportTime());
-
-        // The manifest and the acknowledgement should be moved to the manifests hidden
+        // The manifest and the acknowledgement should be moved to the manifests
         // directory
         Path manifestDir = DirectoryProperties.manifestsDir();
         assertTrue(Files.exists(manifestDir));
@@ -353,103 +379,6 @@ public class DataReceiptPipelineModuleTest {
 
         // The data directory should be deleted
         assertFalse(Files.exists(dataImporterSubdirPath));
-
-        // The models directory should still be present with its same file content
-        assertTrue(Files.exists(modelImporterSubdirPath));
-        assertEquals(5, modelImporterSubdirPath.toFile().listFiles().length);
-
-        // The parent directory should still have its same file content,
-        // except for the data subdirectory (but with the manifests directory
-        // the number of files is 6 again anyway)
-        assertEquals(5, dataImporterPath.toFile().listFiles().length);
-    }
-
-    @Test
-    public void testImportFromModelsSubdir() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
-
-        // Populate the models
-        setUpModelsForImport(modelImporterSubdirPath);
-        constructManifests();
-
-        // Set up the pipeline module to return the single unit of work task and the appropriate
-        // families of model and data types
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(modelSubdirUow);
-        Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
-        Mockito.when(pipelineTask.getId()).thenReturn(101L);
-
-        // Perform the import
-        DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
-            RunMode.STANDARD);
-        module.processTask();
-
-        // Obtain the producer-consumer records and check that only the data files are listed
-        assertEquals(0, module.getFailedImportsDataAccountability().size());
-        Set<DatastoreProducerConsumer> producerConsumerRecords = module
-            .getSuccessfulImportsDataAccountability();
-        assertEquals(4, producerConsumerRecords.size());
-        Map<String, Long> successfulImports = new HashMap<>();
-        for (DatastoreProducerConsumer producerConsumer : producerConsumerRecords) {
-            successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
-        }
-        assertTrue(successfulImports
-            .containsKey("models/geometry/tess2020321141517-12345_024-geometry.xml"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/geometry/tess2020321141517-12345_024-geometry.xml"));
-        assertTrue(successfulImports
-            .containsKey("models/geometry/tess2020321141517-12345_025-geometry.xml"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/geometry/tess2020321141517-12345_025-geometry.xml"));
-        assertTrue(
-            successfulImports.containsKey("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertTrue(
-            successfulImports.containsKey("models/calibration/2020-12-29.calibration-4.12.19.h5"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/calibration/2020-12-29.calibration-4.12.19.h5"));
-
-        // check that the model files made it to their destinations
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "geometry", "tess2020321141517-12345_024-geometry.xml"))
-            .toFile()
-            .exists());
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "geometry", "tess2020321141517-12345_025-geometry.xml"))
-            .toFile()
-            .exists());
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "calibration", "2020-12-29.calibration-4.12.19.h5"))
-            .toFile()
-            .exists());
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "ravenswood", "2020-12-29.0001-simple-text.h5"))
-            .toFile()
-            .exists());
-
-        // Check that the files were removed from the import directories, or not, as
-        // appropriate
-        assertEquals(5, dataImporterPath.toFile().listFiles().length);
-        assertTrue(dataImporterPath.resolve("sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pa-001234567-20-results.h5").toFile().exists());
-        assertTrue(dataImporterPath.resolve("cal-1-1-A-20-results.h5").toFile().exists());
-        assertTrue(dataImporterPath.resolve("data-importer-manifest.xml").toFile().exists());
-        assertEquals(3, dataImporterSubdirPath.toFile().listFiles().length);
-        assertTrue(dataImporterSubdirPath.resolve("pa-765432100-20-results.h5").toFile().exists());
-        assertTrue(dataImporterSubdirPath.resolve("cal-1-1-B-20-results.h5").toFile().exists());
-        assertTrue(
-            dataImporterSubdirPath.resolve("data-importer-subdir-manifest.xml").toFile().exists());
-
-        // Get the manifest out of the database
-        Manifest dbManifest = module.getManifest();
-        assertNotNull(dbManifest);
-        assertEquals(3L, dbManifest.getDatasetId());
-        assertTrue(dbManifest.isAcknowledged());
-        assertEquals(DataReceiptStatus.VALID, dbManifest.getStatus());
-        assertEquals("model-importer-subdir-manifest.xml", dbManifest.getName());
-        assertNotNull(dbManifest.getImportTime());
     }
 
     @Test
@@ -458,45 +387,33 @@ public class DataReceiptPipelineModuleTest {
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
-        setUpModelsForImport(dataImporterPath);
-        constructManifests();
+        constructFilesForImport(dataImporterPath);
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
-        Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
-        Mockito.when(pipelineTask.getId()).thenReturn(101L);
 
         // Generate data and model importers that will throw IOExceptions at opportune moments
-        DefaultDataImporter dataImporter = new DefaultDataImporter(pipelineTask, dataImporterPath,
-            datastoreRootPath);
-        dataImporter = Mockito.spy(dataImporter);
+        Path dataReceiptExceptionPath = dataImporterPath.resolve(Paths.get("sector-0002", "mda",
+            "cal", "pixels", "ffi", "collateral", "1:1:A", "1:1:A.nc"));
+        Path datastoreExceptionPath = datastoreRootPath.resolve(Paths.get("sector-0002", "mda",
+            "cal", "pixels", "ffi", "collateral", "1:1:A", "1:1:A.nc"));
         Mockito.doThrow(IOException.class)
-            .when(dataImporter)
-            .moveOrSymlink(dataImporterPath.resolve(Paths.get("pa-001234567-20-results.h5")),
-                datastoreRootPath.resolve(Paths.get("pa", "20", "pa-001234567-20-results.h5")));
+            .when(dataReceiptDefinition)
+            .move(dataReceiptExceptionPath, datastoreExceptionPath);
 
-        ModelImporter modelImporter = new ModelImporterForTest(dataImporterPath.toString(),
-            "unit test");
-        modelImporter = Mockito.spy(modelImporter);
         Path destFileToFlunk = Paths.get(datastoreRootPath.toString(), "models", "geometry",
             "tess2020321141517-12345_025-geometry.xml");
-        Path srcFileToFlunk = Paths.get(dataImporterPath.toString(),
+        Path srcFileToFlunk = Paths.get(dataImporterPath.toString(), "models",
             "tess2020321141517-12345_025-geometry.xml");
         Mockito.doThrow(IOException.class)
             .when(modelImporter)
-            .moveOrSymlink(srcFileToFlunk, destFileToFlunk);
+            .move(srcFileToFlunk, destFileToFlunk);
 
         // Install the data and model importers in the pipeline module
         DataReceiptModuleForTest pipelineModule = new DataReceiptModuleForTest(pipelineTask,
             RunMode.STANDARD);
         final DataReceiptModuleForTest module = Mockito.spy(pipelineModule);
-        Mockito.doReturn(dataImporter)
-            .when(module)
-            .dataImporter(ArgumentMatchers.any(Path.class), ArgumentMatchers.any(Path.class));
-        Mockito.doReturn(modelImporter)
-            .when(module)
-            .modelImporter(ArgumentMatchers.any(Path.class), ArgumentMatchers.any(String.class));
 
         // install a dummy alert service in the module
         Mockito.doReturn(Mockito.mock(AlertService.class)).when(module).alertService();
@@ -514,69 +431,107 @@ public class DataReceiptPipelineModuleTest {
         // the correct producer
         Set<DatastoreProducerConsumer> producerConsumerRecords = module
             .getSuccessfulImportsDataAccountability();
-        assertEquals(4, producerConsumerRecords.size());
         Map<String, Long> successfulImports = new HashMap<>();
         for (DatastoreProducerConsumer producerConsumer : producerConsumerRecords) {
             successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
         }
-        assertTrue(successfulImports.containsKey("cal/20/cal-1-1-A-20-results.h5"));
-        assertEquals(Long.valueOf(101L), successfulImports.get("cal/20/cal-1-1-A-20-results.h5"));
+        assertTrue(successfulImports
+            .containsKey("sector-0002/mda/dr/pixels/target/science/1:1:A/1:1:A.nc"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("sector-0002/mda/dr/pixels/target/science/1:1:A/1:1:A.nc"));
+
+        assertTrue(successfulImports
+            .containsKey("sector-0002/mda/cal/pixels/ffi/collateral/1:1:B/1:1:B.nc"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("sector-0002/mda/cal/pixels/ffi/collateral/1:1:B/1:1:B.nc"));
+
         assertTrue(successfulImports
             .containsKey("models/geometry/tess2020321141517-12345_024-geometry.xml"));
         assertEquals(Long.valueOf(101L),
             successfulImports.get("models/geometry/tess2020321141517-12345_024-geometry.xml"));
-        assertTrue(
-            successfulImports.containsKey("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/ravenswood/2020-12-29.0001-simple-text.h5"));
-        assertTrue(
-            successfulImports.containsKey("models/calibration/2020-12-29.calibration-4.12.19.h5"));
-        assertEquals(Long.valueOf(101L),
-            successfulImports.get("models/calibration/2020-12-29.calibration-4.12.19.h5"));
+
+        assertEquals(3, registry.getModels().size());
+        ModelMetadata metadata = registry.getModels().get(modelType1);
+        String datastoreName = Paths.get("models")
+            .resolve(modelType1.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
+
+        metadata = registry.getModels().get(modelType2);
+        datastoreName = Paths.get("models")
+            .resolve(modelType2.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
+
+        metadata = registry.getModels().get(modelType3);
+        datastoreName = Paths.get("models")
+            .resolve(modelType3.getType())
+            .resolve(metadata.getDatastoreFileName())
+            .toString();
+        assertTrue(successfulImports.containsKey(datastoreName));
+        assertEquals(Long.valueOf(101L), successfulImports.get(datastoreName));
+
+        assertEquals(5, successfulImports.size());
 
         // check that the files made it to their destinations
-        assertTrue(datastoreRootPath.resolve(Paths.get("cal", "20", "cal-1-1-A-20-results.h5"))
-            .toFile()
-            .exists());
+        assertTrue(
+            datastoreRootPath
+                .resolve(Paths.get("sector-0002", "mda", "dr", "pixels", "target", "science",
+                    "1:1:A", "1:1:A.nc"))
+                .toFile()
+                .exists());
         assertTrue(datastoreRootPath
             .resolve(Paths.get("models", "geometry", "tess2020321141517-12345_024-geometry.xml"))
             .toFile()
             .exists());
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "calibration", "2020-12-29.calibration-4.12.19.h5"))
+
+        assertTrue(datastoreRootPath.resolve("models")
+            .resolve(modelType1.getType())
+            .resolve(registry.getModels().get(modelType1).getDatastoreFileName())
             .toFile()
             .exists());
-        assertTrue(datastoreRootPath
-            .resolve(Paths.get("models", "ravenswood", "2020-12-29.0001-simple-text.h5"))
+        assertTrue(datastoreRootPath.resolve("models")
+            .resolve(modelType2.getType())
+            .resolve(registry.getModels().get(modelType2).getDatastoreFileName())
             .toFile()
             .exists());
+        assertTrue(datastoreRootPath.resolve("models")
+            .resolve(modelType3.getType())
+            .resolve(registry.getModels().get(modelType3).getDatastoreFileName())
+            .toFile()
+            .exists());
+
+        assertFalse(datastoreRootPath
+            .resolve(Paths.get("models", "geometry", "tess2020321141517-12345_025-geometry.xml"))
+            .toFile()
+            .exists());
+        assertFalse(
+            datastoreRootPath
+                .resolve(Paths.get("sector-0002", "mda", "cal", "pixels", "ffi", "collateral",
+                    "1:1:A", "1:1:A.nc"))
+                .toFile()
+                .exists());
 
         // Check that the files were removed from the import directories, or not, as
         // appropriate
-        assertEquals(7, dataImporterPath.toFile().listFiles().length);
-        assertTrue(dataImporterPath.resolve("sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("models-sub-dir").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pdc-1-1-22-results.h5").toFile().exists());
-        assertTrue(dataImporterPath.resolve("pa-001234567-20-results.h5").toFile().exists());
-        assertTrue(
-            dataImporterPath.resolve("tess2020321141517-12345_025-geometry.xml").toFile().exists());
-        assertTrue(dataImporterPath.resolve("data-importer-manifest.xml").toFile().exists());
-        assertTrue(dataImporterPath.resolve("data-importer-manifest-ack.xml").toFile().exists());
-        assertEquals(3, dataImporterSubdirPath.toFile().listFiles().length);
-        assertTrue(dataImporterSubdirPath.resolve("pa-765432100-20-results.h5").toFile().exists());
-        assertTrue(dataImporterSubdirPath.resolve("cal-1-1-B-20-results.h5").toFile().exists());
-        assertTrue(
-            dataImporterSubdirPath.resolve("data-importer-subdir-manifest.xml").toFile().exists());
-        assertEquals(0, modelImporterSubdirPath.toFile().listFiles().length);
-
-        // Get the manifest out of the database
-        Manifest dbManifest = module.getManifest();
-        assertNotNull(dbManifest);
-        assertEquals(1L, dbManifest.getDatasetId());
-        assertTrue(dbManifest.isAcknowledged());
-        assertEquals(DataReceiptStatus.VALID, dbManifest.getStatus());
-        assertEquals("data-importer-manifest.xml", dbManifest.getName());
-        assertNotNull(dbManifest.getImportTime());
+        assertTrue(dataImporterPath.resolve("sector-0002")
+            .resolve("mda")
+            .resolve("cal")
+            .resolve("pixels")
+            .resolve("ffi")
+            .resolve("collateral")
+            .resolve("1:1:A")
+            .resolve("1:1:A.nc")
+            .toFile()
+            .exists());
+        assertTrue(dataImporterPath.resolve("models")
+            .resolve("tess2020321141517-12345_025-geometry.xml")
+            .toFile()
+            .exists());
 
         // Finally, check that the expected files are in the failed imports table.
         Set<FailedImport> failedImports = module.getFailedImportsDataAccountability();
@@ -585,11 +540,97 @@ public class DataReceiptPipelineModuleTest {
         for (FailedImport failedImport : failedImports) {
             failedImportMap.put(failedImport.getFilename(), failedImport.getDataReceiptTaskId());
         }
-        assertTrue(failedImportMap.containsKey("pa/20/pa-001234567-20-results.h5"));
-        assertEquals(Long.valueOf(101L), failedImportMap.get("pa/20/pa-001234567-20-results.h5"));
-        assertTrue(failedImportMap.containsKey("tess2020321141517-12345_025-geometry.xml"));
+        assertTrue(failedImportMap.containsKey(Paths.get("sector-0002")
+            .resolve("mda")
+            .resolve("cal")
+            .resolve("pixels")
+            .resolve("ffi")
+            .resolve("collateral")
+            .resolve("1:1:A")
+            .resolve("1:1:A.nc")
+            .toString()));
         assertEquals(Long.valueOf(101L),
-            failedImportMap.get("tess2020321141517-12345_025-geometry.xml"));
+            failedImportMap.get(Paths.get("sector-0002")
+                .resolve("mda")
+                .resolve("cal")
+                .resolve("pixels")
+                .resolve("ffi")
+                .resolve("collateral")
+                .resolve("1:1:A")
+                .resolve("1:1:A.nc")
+                .toString()));
+
+        assertTrue(failedImportMap.containsKey("models/tess2020321141517-12345_025-geometry.xml"));
+        assertEquals(Long.valueOf(101L),
+            failedImportMap.get("models/tess2020321141517-12345_025-geometry.xml"));
+    }
+
+    @Test
+    public void testReEntrantImportAfterError() throws InstantiationException,
+        IllegalAccessException, IllegalArgumentException, InvocationTargetException,
+        NoSuchMethodException, SecurityException, IOException, SAXException, JAXBException {
+        testImportWithErrors();
+
+        // Reconstruct the data receipt definition and model importer so that the extant versions
+        // don't throw IOExceptions.
+        constructDataReceiptDefinition();
+        Mockito.doReturn(pipelineInstanceCrud).when(dataReceiptDefinition).pipelineInstanceCrud();
+        Mockito.doReturn(List.of(modelType1, modelType2, modelType3))
+            .when(dataReceiptDefinition)
+            .modelTypes();
+        modelImporter = new ModelImporter(dataImporterPath, "unit test");
+        modelImporter = Mockito.spy(modelImporter);
+        Mockito.doReturn(modelImporter).when(dataReceiptDefinition).modelImporter();
+        Mockito.doReturn(registry).when(modelImporter).unlockedRegistry();
+        Mockito.doNothing()
+            .when(modelImporter)
+            .persistModelMetadata(ArgumentMatchers.any(ModelMetadata.class));
+        Mockito.doReturn(1L)
+            .when(modelImporter)
+            .mergeRegistryAndReturnUnlockedId(ArgumentMatchers.any(ModelRegistry.class));
+
+        assertFalse(Files.exists(dataImporterPath.resolve("data-importer-manifest.xml")));
+
+        DataReceiptModuleForTest pipelineModule = new DataReceiptModuleForTest(pipelineTask,
+            RunMode.STANDARD);
+        pipelineModule.storingTaskAction();
+
+        // Obtain the producer-consumer records and check that the expected files are listed with
+        // the correct producer
+        Set<DatastoreProducerConsumer> producerConsumerRecords = pipelineModule
+            .getSuccessfulImportsDataAccountability();
+        Map<String, Long> successfulImports = new HashMap<>();
+        for (DatastoreProducerConsumer producerConsumer : producerConsumerRecords) {
+            successfulImports.put(producerConsumer.getFilename(), producerConsumer.getProducer());
+        }
+
+        assertTrue(successfulImports
+            .containsKey("sector-0002/mda/cal/pixels/ffi/collateral/1:1:A/1:1:A.nc"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("sector-0002/mda/cal/pixels/ffi/collateral/1:1:A/1:1:A.nc"));
+
+        assertTrue(successfulImports
+            .containsKey("models/geometry/tess2020321141517-12345_025-geometry.xml"));
+        assertEquals(Long.valueOf(101L),
+            successfulImports.get("models/geometry/tess2020321141517-12345_025-geometry.xml"));
+
+        assertEquals(0, pipelineModule.getFailedImportsDataAccountability().size());
+
+        // check that the files made it to their destinations
+        assertTrue(
+            datastoreRootPath
+                .resolve(Paths.get("sector-0002", "mda", "cal", "pixels", "ffi", "collateral",
+                    "1:1:A", "1:1:A.nc"))
+                .toFile()
+                .exists());
+        assertTrue(datastoreRootPath
+            .resolve(Paths.get("models", "geometry", "tess2020321141517-12345_025-geometry.xml"))
+            .toFile()
+            .exists());
+
+        // Check that the data import directory is empty because cleanup ran successfully.
+        File[] files = dataImporterPath.toFile().listFiles();
+        assertEquals(0, files.length);
     }
 
     @Test(expected = PipelineException.class)
@@ -597,27 +638,30 @@ public class DataReceiptPipelineModuleTest {
         IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
-        // Populate the models
-        setUpModelsForImport(dataImporterPath);
-        constructManifests();
+        constructFilesForImport(dataImporterPath);
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
-        Mockito.when(pipelineTask.getPipelineDefinitionNode()).thenReturn(node);
+        Mockito.when(pipelineTask.pipelineDefinitionNode()).thenReturn(node);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
 
         // Perform the import
         DataReceiptPipelineModule module = new DataReceiptModuleForTest(pipelineTask,
             RunMode.STANDARD);
-        module.processTask();
+        module.performDirectoryCleanup();
     }
 
     @Test
     public void testImportOnEmptyDirectory() throws IOException {
 
-        FileUtils.cleanDirectory(dataImporterPath.toFile());
+        if (Files.exists(dataImporterPath)) {
+            FileUtils.cleanDirectory(dataImporterPath.toFile());
+            Files.delete(dataImporterPath);
+        }
+        Files.createDirectories(dataImporterPath);
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
+        constructDataReceiptDefinition();
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
             RunMode.STANDARD);
@@ -626,8 +670,15 @@ public class DataReceiptPipelineModuleTest {
     }
 
     @Test(expected = PipelineException.class)
-    public void testMissingManifest() {
+    public void testMissingManifest() throws InstantiationException, IllegalAccessException,
+        IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+        SecurityException, IOException, SAXException, JAXBException {
+
+        constructFilesForImport(dataImporterPath);
+        Files.delete(dataImporterPath.resolve("data-importer-manifest.xml"));
+
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
+        constructDataReceiptDefinition();
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
             RunMode.STANDARD);
@@ -660,47 +711,87 @@ public class DataReceiptPipelineModuleTest {
         modelType3.setTimestampGroup(-1);
     }
 
-    private Set<String> constructFilesForImport() throws IOException {
+    /**
+     * Constructs the data receipt directory. Specifically, files are placed in the main DR
+     * directory and in each of two subdirectories, and each of the 3 directories then gets a
+     * manifest generated.
+     */
+    private void constructFilesForImport(Path importerPath)
+        throws IOException, InstantiationException, IllegalAccessException,
+        IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
+        SecurityException, SAXException, JAXBException {
 
-        Set<String> filenames = new HashSet<>();
-        // create a couple of files in the DatastoreIdSample1 pattern
-        File sample1 = new File(dataImporterPath.toFile(), "pa-001234567-20-results.h5");
-        File sample2 = new File(dataImporterSubdirPath.toFile(), "pa-765432100-20-results.h5");
-        sample1.createNewFile();
-        sample2.createNewFile();
-        filenames.add(sample1.getName());
-        filenames.add(sample2.getName());
+        // Start with the dataImporterPath files.
+        if (importerPath.equals(dataImporterPath)) {
+            Path sample1 = dataImporterPath.resolve("sector-0002")
+                .resolve("mda")
+                .resolve("dr")
+                .resolve("pixels")
+                .resolve("target")
+                .resolve("science")
+                .resolve("1:1:A")
+                .resolve("1:1:A.nc");
+            Files.createDirectories(sample1.getParent());
+            Files.createFile(sample1);
 
-        // create a couple of files in the DatastoreIdSample2 pattern
-        sample1 = new File(dataImporterPath.toFile(), "cal-1-1-A-20-results.h5");
-        sample2 = new File(dataImporterSubdirPath.toFile(), "cal-1-1-B-20-results.h5");
-        sample1.createNewFile();
-        sample2.createNewFile();
-        filenames.add(sample1.getName());
-        filenames.add(sample2.getName());
+            sample1 = dataImporterPath.resolve("sector-0002")
+                .resolve("mda")
+                .resolve("cal")
+                .resolve("pixels")
+                .resolve("ffi")
+                .resolve("collateral")
+                .resolve("1:1:A")
+                .resolve("1:1:A.nc");
+            Files.createDirectories(sample1.getParent());
+            Files.createFile(sample1);
 
-        // create a file that matches neither pattern
-        sample1 = new File(dataImporterPath.toFile(), "pdc-1-1-22-results.h5");
-        sample1.createNewFile();
-        filenames.add(sample1.getName());
-        return filenames;
+            sample1 = dataImporterPath.resolve("sector-0002")
+                .resolve("mda")
+                .resolve("cal")
+                .resolve("pixels")
+                .resolve("ffi")
+                .resolve("collateral")
+                .resolve("1:1:B")
+                .resolve("1:1:B.nc");
+            Files.createDirectories(sample1.getParent());
+            Files.createFile(sample1);
+
+            setUpModelsForImport(dataImporterPath);
+            constructManifest(dataImporterPath, "data-importer-manifest.xml", -1L);
+            return;
+        }
+
+        // Now do the dataImporterSubdirPath.
+        Path sample2 = dataImporterSubdirPath.resolve("sector-0002")
+            .resolve("mda")
+            .resolve("dr")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("science")
+            .resolve("1:1:B")
+            .resolve("1:1:B.nc");
+        Files.createDirectories(sample2.getParent());
+        Files.createFile(sample2);
+
+        if (importerPath.equals(dataImporterSubdirPath)) {
+            setUpModelsForImport(dataImporterSubdirPath);
+            constructManifest(dataImporterSubdirPath, "data-importer-subdir-manifest.xml", -2L);
+        }
     }
 
-    private void setUpModelsForImport(Path modelDirPath) throws IOException {
-        String modelImportDir = modelDirPath.toString();
+    private void setUpModelsForImport(Path dataImportDir) throws IOException {
+        Path modelImportDir = dataImportDir.resolve("models");
         // create the new files to be imported
-        new File(modelImportDir, "tess2020321141517-12345_024-geometry.xml").createNewFile();
-        new File(modelImportDir, "tess2020321141517-12345_025-geometry.xml").createNewFile();
-        new File(modelImportDir, "calibration-4.12.19.h5").createNewFile();
-        new File(modelImportDir, "simple-text.h5").createNewFile();
-    }
-
-    private void constructManifests() throws IOException, InstantiationException,
-        IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
-        InvocationTargetException, NoSuchMethodException, SecurityException {
-        constructManifest(dataImporterSubdirPath, "data-importer-subdir-manifest.xml", 2L);
-        constructManifest(modelImporterSubdirPath, "model-importer-subdir-manifest.xml", 3L);
-        constructManifest(dataImporterPath, "data-importer-manifest.xml", 1L);
+        Files.createDirectories(modelImportDir);
+        // create the new files to be imported
+        Path modelFile1 = modelImportDir.resolve("tess2020321141517-12345_024-geometry.xml");
+        Files.createFile(modelFile1);
+        Path modelFile2 = modelImportDir.resolve("tess2020321141517-12345_025-geometry.xml");
+        Files.createFile(modelFile2);
+        Path modelFile3 = modelImportDir.resolve("calibration-4.12.19.h5");
+        Files.createFile(modelFile3);
+        Path modelFile4 = modelImportDir.resolve("simple-text.h5");
+        Files.createFile(modelFile4);
     }
 
     private void constructManifest(Path dir, String name, long datasetId)
@@ -714,41 +805,26 @@ public class DataReceiptPipelineModuleTest {
         }
     }
 
-    /**
-     * Specialized subclass of {@link ModelImporter} that produces {@link ModelMetadata} instances
-     * with a fixed timestamp.
-     *
-     * @author PT
-     */
-    private class ModelImporterForTest extends ModelImporter {
+    private void constructDataReceiptDefinition() {
+        dataReceiptDefinition = new DatastoreDirectoryDataReceiptDefinition();
+        dataReceiptDefinition.setDataImportDirectory(dataImporterPath);
+        dataReceiptDefinition.setPipelineTask(pipelineTask);
+        dataReceiptDefinition = Mockito.spy(dataReceiptDefinition);
+        Mockito.doReturn(List.of(modelType1, modelType2, modelType3))
+            .when(dataReceiptDefinition)
+            .modelTypes();
+        datastoreWalker = new DatastoreWalker(DatastoreTestUtils.regexpsByName(),
+            DatastoreTestUtils.datastoreNodesByFullPath());
+        Mockito.doReturn(datastoreWalker).when(dataReceiptDefinition).datastoreWalker();
+        Mockito.doReturn(modelImporter).when(dataReceiptDefinition).modelImporter();
+        Mockito.doReturn(modelCrud).when(dataReceiptDefinition).modelCrud();
+        Mockito.doNothing().when(dataReceiptDefinition).updateModelRegistryForPipelineInstance();
 
-        private ModelCrud crud = Mockito.mock(ModelCrud.class);
-
-        public ModelImporterForTest(String directory, String modelDescription) {
-            super(directory, modelDescription);
-            Mockito.when(crud.retrieveAllModelTypes())
-                .thenReturn(ImmutableList.of(modelType1, modelType2, modelType3));
-            Mockito.when(crud.retrieveUnlockedRegistry()).thenReturn(new ModelRegistry());
-            Mockito.when(crud.retrieveUnlockedRegistryId()).thenReturn(2L);
-        }
-
-        @Override
-        protected ModelMetadata modelMetadata(ModelType modelType, String modelName,
-            String modelDescription, ModelMetadata currentRegistryMetadata) {
-            return new ModelMetadataFixedDate(modelType, modelName, modelDescription,
-                currentRegistryMetadata).toSuper();
-        }
-
-        @Override
-        protected ModelCrud modelCrud() {
-            return crud;
-        }
     }
 
     /**
-     * Specialized subclass of {@link DataReceiptPipelineModule} that produces an instance of
-     * {@link ModelImporter} that, in turn, produces instances of {@link ModelMetadata} with fixed
-     * timestamps.
+     * Specialized subclass of {@link DataReceiptPipelineModule} that holds onto some of the data
+     * accountability results for later inspection.
      *
      * @author PT
      */
@@ -758,7 +834,6 @@ public class DataReceiptPipelineModuleTest {
         private ProcessingState processingState = ProcessingState.INITIALIZING;
         private Set<DatastoreProducerConsumer> successfulImportsDataAccountability = new HashSet<>();
         private Set<FailedImport> failedImportsDataAccountability = new HashSet<>();
-        private Manifest manifest;
 
         public DataReceiptModuleForTest(PipelineTask pipelineTask, RunMode runMode) {
             super(pipelineTask, runMode);
@@ -780,18 +855,6 @@ public class DataReceiptPipelineModuleTest {
         }
 
         @Override
-        ModelImporter modelImporter(Path importDirectory, String description) {
-            if (modelImporter == null) {
-                modelImporter = new ModelImporterForTest(importDirectory.toString(), description);
-            }
-            return modelImporter;
-        }
-
-        @Override
-        void updateModelRegistryForPipelineInstance() {
-        }
-
-        @Override
         public void performDirectoryCleanup() {
             if (performDirectoryCleanupEnabled) {
                 super.performDirectoryCleanup();
@@ -799,34 +862,35 @@ public class DataReceiptPipelineModuleTest {
         }
 
         @Override
+        DataReceiptDefinition dataReceiptDefinition() {
+            return dataReceiptDefinition;
+        }
+
+        @Override
         protected void persistProducerConsumerRecords(Collection<Path> successfulImports,
-            Collection<Path> failedImports, DataReceiptFileType fileType) {
+            Collection<Path> failedImports) {
             for (Path file : successfulImports) {
-                successfulImportsDataAccountability.add(
-                    new DatastoreProducerConsumer(pipelineTask.getId(), file.toString(), fileType));
+                successfulImportsDataAccountability
+                    .add(new DatastoreProducerConsumer(pipelineTask.getId(), file.toString()));
             }
             for (Path file : failedImports) {
-                failedImportsDataAccountability.add(new FailedImport(pipelineTask, file, fileType));
+                failedImportsDataAccountability.add(new FailedImport(pipelineTask, file));
             }
         }
 
         /**
          * Returns the sequence of {@link ProcessingState} instances that are produced by the
-         * production version of {@link #getProcessingState()} during pipeline execution. This
+         * production version of {@link #databaseProcessingState()} during pipeline execution. This
          * allows us to live without a database connection for these tests.
          */
         @Override
-        public ProcessingState getProcessingState() {
+        public ProcessingState databaseProcessingState() {
             return processingState;
         }
 
         @Override
-        public void incrementProcessingState() {
+        public void incrementDatabaseProcessingState() {
             processingState = nextProcessingState(processingState);
-        }
-
-        @Override
-        protected void flushDatabase() {
         }
 
         public void disableDirectoryCleanup() {
@@ -839,33 +903,6 @@ public class DataReceiptPipelineModuleTest {
 
         public Set<FailedImport> getFailedImportsDataAccountability() {
             return failedImportsDataAccountability;
-        }
-
-        @Override
-        ManifestCrud manifestCrud() {
-            return new ManifestCrudForTest();
-        }
-
-        public Manifest getManifest() {
-            return manifest;
-        }
-
-        /**
-         * Version of {@link ManifestCrud} that's safe to use in testing.
-         *
-         * @author PT
-         */
-        private class ManifestCrudForTest extends ManifestCrud {
-
-            @Override
-            public void persist(Object o) {
-                manifest = (Manifest) o;
-            }
-
-            @Override
-            public boolean datasetIdExists(long datasetId) {
-                return false;
-            }
         }
 
         @Override

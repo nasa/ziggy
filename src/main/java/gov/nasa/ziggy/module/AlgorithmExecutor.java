@@ -10,13 +10,15 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.module.remote.PbsParameters;
-import gov.nasa.ziggy.module.remote.RemoteParameters;
 import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
+import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;;
 
@@ -37,6 +39,7 @@ public abstract class AlgorithmExecutor {
 
     protected final PipelineTask pipelineTask;
     private ParameterSetCrud parameterSetCrud;
+    private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud;
     private ProcessingSummaryOperations processingSummaryOperations;
 
     private StateFile stateFile;
@@ -45,7 +48,8 @@ public abstract class AlgorithmExecutor {
      * Returns a new instance of the appropriate {@link AlgorithmExecutor} subclass.
      */
     public static final AlgorithmExecutor newInstance(PipelineTask pipelineTask) {
-        return newInstance(pipelineTask, new ParameterSetCrud(), new ProcessingSummaryOperations());
+        return newInstance(pipelineTask, new ParameterSetCrud(), new PipelineDefinitionNodeCrud(),
+            new ProcessingSummaryOperations());
     }
 
     /**
@@ -54,20 +58,21 @@ public abstract class AlgorithmExecutor {
      * classes to be mocked for testing.
      */
     static final AlgorithmExecutor newInstance(PipelineTask pipelineTask,
-        ParameterSetCrud parameterSetCrud,
+        ParameterSetCrud parameterSetCrud, PipelineDefinitionNodeCrud defNodeCrud,
         ProcessingSummaryOperations processingSummaryOperations) {
 
         if (pipelineTask == null) {
             log.debug("Pipeline task is null, returning LocalAlgorithmExecutor instance");
             return new LocalAlgorithmExecutor(pipelineTask);
         }
-        RemoteParameters remoteParams = parameterSetCrud.retrieveRemoteParameters(pipelineTask);
+        PipelineDefinitionNodeExecutionResources remoteParams = defNodeCrud
+            .retrieveExecutionResources(pipelineTask.pipelineDefinitionNode());
 
         if (remoteParams == null) {
             log.debug("Remote parameters null, returning LocalAlgorithmExecutor instance");
             return new LocalAlgorithmExecutor(pipelineTask);
         }
-        if (!remoteParams.isEnabled()) {
+        if (!remoteParams.isRemoteExecutionEnabled()) {
             log.debug("Remote execution not selected, returning LocalAlgorithmExecutor instance");
             return new LocalAlgorithmExecutor(pipelineTask);
         }
@@ -112,21 +117,12 @@ public abstract class AlgorithmExecutor {
     /**
      * Submits the {@link PipelineTask} for execution. This follows a somewhat different code path
      * depending on whether the submission is the original submission or a resubmission. In the
-     * event of a resubmission, there is no {@link TaskConfigurationManager} argument required
-     * because subtask counts can be obtained from the database.
-     * <p>
-     * In the initial submission, the {@link RemoteParameters} instance that is stored with the
-     * {@link PipelineTask} is used to generate the parameters for PBS, and the resources requested
-     * are sufficient to process all subtasks.
-     * <p>
-     * In a resubmission, the {@link RemoteParameters} instance is retrieved from the database to
-     * ensure that any changes to parameters made by the user are reflected. In this case, the
-     * resources requested are scaled back to only what is needed to process the number of remaining
-     * incomplete subtasks.
+     * event of a resubmission, there is no {@link TaskConfiguration} argument required because
+     * subtask counts can be obtained from the database.
      *
      * @param inputsHandler Will be null for resubmission.
      */
-    public void submitAlgorithm(TaskConfigurationManager inputsHandler) {
+    public void submitAlgorithm(TaskConfiguration inputsHandler) {
 
         prepareToSubmitAlgorithm(inputsHandler);
 
@@ -136,7 +132,8 @@ public abstract class AlgorithmExecutor {
             Files.createDirectories(algorithmLogDir());
             Files.createDirectories(DirectoryProperties.stateFilesDir());
             Files.createDirectories(taskDataDir());
-            SubtaskUtils.clearStaleAlgorithmStates(WorkingDirManager.workingDir(pipelineTask));
+            SubtaskUtils.clearStaleAlgorithmStates(
+                new TaskDirectoryManager(pipelineTask).taskDir().toFile());
 
             log.info("Start remote monitoring (taskId=" + pipelineTask.getId() + ")");
             submitForExecution(stateFile);
@@ -144,21 +141,21 @@ public abstract class AlgorithmExecutor {
         });
     }
 
-    private void prepareToSubmitAlgorithm(TaskConfigurationManager inputsHandler) {
+    private void prepareToSubmitAlgorithm(TaskConfiguration inputsHandler) {
         // execute the external process on a remote host
         int numSubtasks;
         PbsParameters pbsParameters = null;
 
+        PipelineDefinitionNodeExecutionResources executionResources = (PipelineDefinitionNodeExecutionResources) DatabaseTransactionFactory
+            .performTransaction(() -> pipelineDefinitionNodeCrud()
+                .retrieveExecutionResources(pipelineTask.pipelineDefinitionNode()));
+
         // Initial submission: this is indicated by a non-null task configuration manager
         if (inputsHandler != null) { // indicates initial submission
             log.info("Processing initial submission of task " + pipelineTask.getId());
-            numSubtasks = inputsHandler.numSubTasks();
+            numSubtasks = inputsHandler.getSubtaskCount();
 
-            // Generate the state file for the initial submission using the remote parameters
-            // that are packaged with the pipeline task
-            RemoteParameters remoteParameters = pipelineTask.getParameters(RemoteParameters.class,
-                false);
-            pbsParameters = generatePbsParameters(remoteParameters, numSubtasks);
+            pbsParameters = generatePbsParameters(executionResources, numSubtasks);
 
             // Resubmission: this is indicated by a null task configuration manager, which
             // means that subtask counts are available in the database
@@ -176,9 +173,7 @@ public abstract class AlgorithmExecutor {
                 / (double) numSubtasks;
 
             // Get the current remote parameters
-            RemoteParameters remoteParameters = parameterSetCrud()
-                .retrieveRemoteParameters(pipelineTask);
-            pbsParameters = generatePbsParameters(remoteParameters,
+            pbsParameters = generatePbsParameters(executionResources,
                 (int) (numSubtasks * subtaskCountScaleFactor));
         }
 
@@ -204,8 +199,8 @@ public abstract class AlgorithmExecutor {
      * implementation of {@link AlgorithmExecutor} has specific needs for its PBS command, hence
      * each needs its own implementation of this method.
      */
-    public abstract PbsParameters generatePbsParameters(RemoteParameters remoteParameters,
-        int totalSubtaskCount);
+    public abstract PbsParameters generatePbsParameters(
+        PipelineDefinitionNodeExecutionResources executionResources, int totalSubtaskCount);
 
     protected Path algorithmLogDir() {
         return DirectoryProperties.algorithmLogsDir();
@@ -233,6 +228,13 @@ public abstract class AlgorithmExecutor {
 
     protected void setParameterSetCrud(ParameterSetCrud parameterSetCrud) {
         this.parameterSetCrud = parameterSetCrud;
+    }
+
+    protected PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
+        if (pipelineDefinitionNodeCrud == null) {
+            pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
+        }
+        return pipelineDefinitionNodeCrud;
     }
 
     protected ProcessingSummaryOperations processingSummaryOperations() {

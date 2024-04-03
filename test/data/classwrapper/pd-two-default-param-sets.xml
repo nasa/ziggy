@@ -3,14 +3,14 @@
 <pipelineDefinition>
 
   <module name="importer" description="Hyperion importer"
-          exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+          pipelineModuleClass="gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrudTest$TestModule"
+          exeTimeoutSecs="2000000" minMemoryMegabytes="0"
+          uowGenerator="gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator"/>
 
-  <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer"
-            instancePriority="5">
+  <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer">
     <pipelineParameter name="Sample classless parameter set"/>
     <pipelineParameter name="ISOFIT module parameters"/>
-    <node moduleName="importer"
-          uowGenerator="gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator"/>
+    <node moduleName="importer"/>
   </pipeline>
 
 </pipelineDefinition>

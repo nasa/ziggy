@@ -102,38 +102,19 @@ public class TaskProcessingTimeStats {
         return count;
     }
 
-    /**
-     * @return the minStart
-     */
     public Date getMinStart() {
         return minStart;
     }
 
-    /**
-     * @return the maxEnd
-     */
     public Date getMaxEnd() {
         return maxEnd;
     }
 
-    /**
-     * @return the totalElapsed
-     */
     public double getTotalElapsed() {
         return totalElapsed;
     }
 
-    /**
-     * @return the sum
-     */
     public double getSum() {
         return sum;
-    }
-
-    /**
-     * @param sum the sum to set
-     */
-    public void setSum(double sum) {
-        this.sum = sum;
     }
 }

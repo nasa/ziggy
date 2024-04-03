@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.module;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -34,10 +35,10 @@ public class TaskMonitor {
     private final StateFile stateFile;
     private final File taskDir;
     private final File lockFile;
-    private final List<File> subtaskDirectories;
+    private final List<Path> subtaskDirectories;
 
-    public TaskMonitor(TaskConfigurationManager inputsHandler, StateFile stateFile, File taskDir) {
-        subtaskDirectories = inputsHandler.allSubTaskDirectories();
+    public TaskMonitor(StateFile stateFile, File taskDir) {
+        subtaskDirectories = SubtaskUtils.subtaskDirectories(taskDir.toPath());
         this.stateFile = stateFile;
         this.taskDir = taskDir;
         lockFile = new File(taskDir, StateFile.LOCK_FILE_NAME);
@@ -49,8 +50,9 @@ public class TaskMonitor {
             log.warn("No subtask directories found in: " + taskDir);
         }
 
-        for (File subtaskDir : subtaskDirectories) {
-            AlgorithmStateFiles currentSubtaskStateFile = new AlgorithmStateFiles(subtaskDir);
+        for (Path subtaskDir : subtaskDirectories) {
+            AlgorithmStateFiles currentSubtaskStateFile = new AlgorithmStateFiles(
+                subtaskDir.toFile());
             SubtaskState currentSubtaskState = currentSubtaskStateFile.currentSubtaskState();
 
             if (currentSubtaskState == null) {

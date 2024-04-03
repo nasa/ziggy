@@ -53,7 +53,7 @@ public class ZiggyMessenger {
      * Blocking queue for outgoing messages. Messages wait here until the singleton instance is free
      * to deal with them, at which time they get sent from the RMI client to the RMI server.
      */
-    private static LinkedBlockingQueue<PipelineMessage> outgoingMessageQueue = new LinkedBlockingQueue<>();
+    private static LinkedBlockingQueue<Message> outgoingMessageQueue = new LinkedBlockingQueue<>();
 
     /** For testing only. */
     static List<PipelineMessage> messagesFromOutgoingQueue = new ArrayList<>();
@@ -97,9 +97,9 @@ public class ZiggyMessenger {
         outgoingMessageThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    PipelineMessage message = outgoingMessageQueue.take();
+                    Message message = outgoingMessageQueue.take();
                     if (storeMessages) {
-                        messagesFromOutgoingQueue.add(message);
+                        messagesFromOutgoingQueue.add(message.getPipelineMessage());
                     }
                     publishMessage(message);
                 } catch (InterruptedException e) {
@@ -111,17 +111,17 @@ public class ZiggyMessenger {
         outgoingMessageThread.start();
     }
 
-    private void publishMessage(PipelineMessage message) {
-        CountDownLatch latch = messageCountdownLatches.get(message);
-        messageCountdownLatches.remove(message);
-        if (ZiggyRmiClient.isInitialized()) {
-            log.debug("Sending message of " + message.getClass().toString());
-            ZiggyRmiClient.send(message, latch);
+    private void publishMessage(Message message) {
+        CountDownLatch latch = messageCountdownLatches.get(message.getPipelineMessage());
+        messageCountdownLatches.remove(message.getPipelineMessage());
+        if (ZiggyRmiClient.isInitialized() && message.isBroadcastOverRmi()) {
+            log.debug("Sending message {}", message);
+            ZiggyRmiClient.send(message.getPipelineMessage(), latch);
         } else {
-            takeAction(message);
-            if (latch != null) {
-                latch.countDown();
-            }
+            takeAction(message.getPipelineMessage());
+        }
+        if (latch != null) {
+            latch.countDown();
         }
     }
 
@@ -132,12 +132,12 @@ public class ZiggyMessenger {
             return;
         }
         for (MessageAction<?> action : actions) {
-            log.debug("Applying action for message " + message.getClass().toString());
+            log.debug("Applying action for message {}", message);
             ((MessageAction<T>) action).action(message);
         }
     }
 
-    /** For testing only. */
+    /** For internal use and testing only. */
     static void initializeInstance() {
         if (!isInitialized()) {
             log.info("Initializing ZiggyMessenger singleton");
@@ -191,15 +191,25 @@ public class ZiggyMessenger {
      * Publishes a message via the {@link ZiggyMessenger} singleton.
      */
     public static void publish(PipelineMessage message) {
-        publish(message, null);
+        publish(message, true, null);
+    }
+
+    public static void publish(PipelineMessage message, boolean broadcastOverRmi) {
+        publish(message, broadcastOverRmi, null);
+    }
+
+    public static void publish(PipelineMessage message, CountDownLatch latch) {
+        publish(message, true, latch);
     }
 
     /**
      * Publishes a message via the {@link ZiggyMessenger} singleton, and holds onto a
-     * {@link CountDownLatch} for the message.
+     * {@link CountDownLatch} for the message. The latch is quietly ignored if null.
      */
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
-    public static void publish(PipelineMessage message, CountDownLatch latch) {
+    public static void publish(PipelineMessage message, boolean broadcastOverRmi,
+        CountDownLatch latch) {
+
         if (!isInitialized()) {
             initializeInstance();
         }
@@ -207,7 +217,7 @@ public class ZiggyMessenger {
             if (latch != null) {
                 instance.messageCountdownLatches.put(message, latch);
             }
-            outgoingMessageQueue.put(message);
+            outgoingMessageQueue.put(new Message(message, broadcastOverRmi));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -223,7 +233,7 @@ public class ZiggyMessenger {
             throw new PipelineException("Unable to act on message of "
                 + message.getClass().toString() + " due to absence of ZiggyMessenger instance");
         }
-        log.debug("Taking action on message of " + message.getClass().toString());
+        log.debug("Taking action on message of {}", message);
         instance.takeAction(message);
     }
 
@@ -240,12 +250,36 @@ public class ZiggyMessenger {
     }
 
     /** For testing only. */
-    static LinkedBlockingQueue<PipelineMessage> getOutgoingMessageQueue() {
+    static LinkedBlockingQueue<Message> getOutgoingMessageQueue() {
         return ZiggyMessenger.outgoingMessageQueue;
     }
 
     /** For testing only. */
     static void setStoreMessages(boolean storeMessages) {
         instance.storeMessages = storeMessages;
+    }
+
+    private static class Message {
+
+        private final PipelineMessage pipelineMessage;
+        private final boolean broadcastOverRmi;
+
+        public Message(PipelineMessage pipelineMessage, boolean broadcastOverRmi) {
+            this.pipelineMessage = pipelineMessage;
+            this.broadcastOverRmi = broadcastOverRmi;
+        }
+
+        public PipelineMessage getPipelineMessage() {
+            return pipelineMessage;
+        }
+
+        public boolean isBroadcastOverRmi() {
+            return broadcastOverRmi;
+        }
+
+        @Override
+        public String toString() {
+            return pipelineMessage.toString();
+        }
     }
 }

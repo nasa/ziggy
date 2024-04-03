@@ -8,10 +8,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.junit.Before;
@@ -21,8 +19,7 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.parameters.ParametersInterface;
-import gov.nasa.ziggy.services.events.ZiggyEventLabels;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 
 /**
  * Unit tests for the {@link DataReceiptUnitOfWorkGenerator} class.
@@ -32,8 +29,7 @@ import gov.nasa.ziggy.services.events.ZiggyEventLabels;
 public class DataReceiptUnitOfWorkGeneratorTest {
 
     private Path dataImporterPath;
-    Map<Class<? extends ParametersInterface>, ParametersInterface> parametersMap;
-    TaskConfigurationParameters taskConfig;
+    private PipelineInstanceNode pipelineInstanceNode;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -47,7 +43,7 @@ public class DataReceiptUnitOfWorkGeneratorTest {
     @Before
     public void setUp() throws IOException {
 
-        dataImporterPath = Paths.get(dataReceiptDirPropertyRule.getProperty());
+        dataImporterPath = Paths.get(dataReceiptDirPropertyRule.getValue()).toAbsolutePath();
         // Create the data receipt main directory.
         dataImporterPath.toFile().mkdirs();
 
@@ -55,56 +51,68 @@ public class DataReceiptUnitOfWorkGeneratorTest {
         Files.createDirectory(dataImporterPath.resolve("subdir-1"));
         Files.createDirectory(dataImporterPath.resolve("subdir-2"));
         Files.createDirectory(dataImporterPath.resolve("bad-name"));
-        Files.createDirectory(dataImporterPath.resolve(".manifests"));
 
-        // Create the parameters map
-        parametersMap = new HashMap<>();
-        taskConfig = new TaskConfigurationParameters();
-        taskConfig.setTaskDirectoryRegex("(subdir-[0-9]+)");
-        parametersMap.put(TaskConfigurationParameters.class, taskConfig);
+        // Create the pipeline instance
+        pipelineInstanceNode = new PipelineInstanceNode();
     }
 
     @Test
-    public void testMultipleUnitsOfWork() {
+    public void testMultipleUnitsOfWork() throws IOException {
+        Files.createFile(dataImporterPath.resolve("subdir-1").resolve("test-manifest.xml"));
+        Files.createFile(dataImporterPath.resolve("subdir-2").resolve("test-manifest.xml"));
         List<UnitOfWork> unitsOfWork = new DataReceiptUnitOfWorkGenerator()
-            .generateTasks(parametersMap);
+            .unitsOfWork(pipelineInstanceNode);
         assertEquals(2, unitsOfWork.size());
         Set<String> dirStrings = new HashSet<>();
         dirStrings.add(unitsOfWork.get(0).getParameter("directory").getString());
         dirStrings.add(unitsOfWork.get(1).getParameter("directory").getString());
-        assertTrue(dirStrings.contains("subdir-1"));
-        assertTrue(dirStrings.contains("subdir-2"));
+        assertTrue(dirStrings.contains(dataImporterPath.resolve("subdir-1").toString()));
+        assertTrue(dirStrings.contains(dataImporterPath.resolve("subdir-2").toString()));
+        Set<String> briefStates = new HashSet<>();
+        briefStates.add(unitsOfWork.get(0).briefState());
+        briefStates.add(unitsOfWork.get(1).briefState());
+        assertTrue(briefStates.contains("subdir-1"));
+        assertTrue(briefStates.contains("subdir-2"));
     }
 
     @Test
-    public void testSingleUnitOfWork() {
-        taskConfig.setTaskDirectoryRegex("");
+    public void testSingleUnitOfWork() throws IOException {
+        Files.createFile(dataImporterPath.resolve("test-manifest.xml"));
         List<UnitOfWork> unitsOfWork = new DataReceiptUnitOfWorkGenerator()
-            .generateTasks(parametersMap);
+            .unitsOfWork(pipelineInstanceNode);
         assertEquals(1, unitsOfWork.size());
-        assertEquals("", unitsOfWork.get(0).getParameter("directory").getString());
+        assertEquals(dataImporterPath.toString(),
+            unitsOfWork.get(0).getParameter("directory").getString());
+        assertEquals("data-import", unitsOfWork.get(0).briefState());
     }
 
     @Test
-    public void testEventHandlerLimitingUows() {
-        ZiggyEventLabels eventLabels = new ZiggyEventLabels();
-        eventLabels.setEventLabels(new String[] { "subdir-1" });
-        parametersMap.put(ZiggyEventLabels.class, eventLabels);
+    public void testSingleUnitOfWorkWithLabel() throws IOException {
+        Files.createFile(dataImporterPath.resolve("test-manifest.xml"));
         List<UnitOfWork> unitsOfWork = new DataReceiptUnitOfWorkGenerator()
-            .generateTasks(parametersMap);
+            .unitsOfWork(pipelineInstanceNode, new HashSet<>());
         assertEquals(1, unitsOfWork.size());
-        assertEquals("subdir-1", unitsOfWork.get(0).getParameter("directory").getString());
+        assertEquals(dataImporterPath.toString(),
+            unitsOfWork.get(0).getParameter("directory").getString());
+        assertEquals("data-import", unitsOfWork.get(0).briefState());
     }
 
     @Test
-    public void testEmptyEventLabels() {
-        ZiggyEventLabels eventLabels = new ZiggyEventLabels();
-        eventLabels.setEventLabels(new String[0]);
-        parametersMap.put(ZiggyEventLabels.class, eventLabels);
-        taskConfig.setTaskDirectoryRegex("");
+    public void testEventHandlerLimitingUows() throws IOException {
+        Files.createFile(dataImporterPath.resolve("subdir-1").resolve("test-manifest.xml"));
+        Files.createFile(dataImporterPath.resolve("subdir-2").resolve("test-manifest.xml"));
         List<UnitOfWork> unitsOfWork = new DataReceiptUnitOfWorkGenerator()
-            .generateTasks(parametersMap);
+            .unitsOfWork(pipelineInstanceNode, Set.of("subdir-1"));
         assertEquals(1, unitsOfWork.size());
-        assertEquals("", unitsOfWork.get(0).getParameter("directory").getString());
+        assertEquals(dataImporterPath.resolve("subdir-1").toString(),
+            unitsOfWork.get(0).getParameter("directory").getString());
+        assertEquals("subdir-1", unitsOfWork.get(0).briefState());
+    }
+
+    @Test
+    public void testNoDataReceiptDirectories() {
+        List<UnitOfWork> unitsOfWork = new DataReceiptUnitOfWorkGenerator()
+            .generateUnitsOfWork(pipelineInstanceNode, new HashSet<>());
+        assertEquals(0, unitsOfWork.size());
     }
 }

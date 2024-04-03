@@ -1,7 +1,5 @@
 package gov.nasa.ziggy.pipeline.definition;
 
-import java.util.Date;
-
 import gov.nasa.ziggy.crud.SimpleCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
@@ -10,8 +8,6 @@ import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.security.User;
-import gov.nasa.ziggy.services.security.UserCrud;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
@@ -27,7 +23,6 @@ public class FakePipelineTaskFactory {
     }
 
     public PipelineTask newTask(boolean inDb) {
-        UserCrud userCrud = new UserCrud();
 
         PipelineDefinitionCrud pipelineDefinitionCrud = new PipelineDefinitionCrud();
 
@@ -40,15 +35,8 @@ public class FakePipelineTaskFactory {
 
         return (PipelineTask) DatabaseTransactionFactory.performTransaction(() -> {
 
-            // create users
-            User testUser = new User("unit-test", "Unit-Test", "unit-test@example.com", "x111");
-            if (inDb) {
-                userCrud.createUser(testUser);
-            }
-
             // create a module param set def
-            ParameterSet parameterSet = new ParameterSet(new AuditInfo(testUser, new Date()),
-                "test mps1");
+            ParameterSet parameterSet = new ParameterSet("test mps1");
             parameterSet.setTypedParameters(new TestModuleParameters().getParameters());
             if (inDb) {
                 parameterSet = parameterSetCrud.merge(parameterSet);
@@ -56,8 +44,7 @@ public class FakePipelineTaskFactory {
 
             // create a module def
             PipelineModuleDefinition moduleDef = new PipelineModuleDefinition("Test-1");
-            PipelineDefinition pipelineDef = new PipelineDefinition(
-                new AuditInfo(testUser, new Date()), "test pipeline name");
+            PipelineDefinition pipelineDef = new PipelineDefinition("test pipeline name");
             if (inDb) {
                 moduleDef = pipelineModuleDefinitionCrud.merge(moduleDef);
                 pipelineDef = pipelineDefinitionCrud.merge(pipelineDef);
@@ -66,8 +53,7 @@ public class FakePipelineTaskFactory {
             // create some pipeline def nodes
             PipelineDefinitionNode pipelineDefNode1 = new PipelineDefinitionNode(
                 moduleDef.getName(), pipelineDef.getName());
-            pipelineDefNode1
-                .setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
+            moduleDef.setUnitOfWorkGenerator(new ClassWrapper<>(new SingleUnitOfWorkGenerator()));
             pipelineDefNode1 = new SimpleCrud<>().merge(pipelineDefNode1);
             pipelineDef.getRootNodes().add(pipelineDefNode1);
             if (inDb) {

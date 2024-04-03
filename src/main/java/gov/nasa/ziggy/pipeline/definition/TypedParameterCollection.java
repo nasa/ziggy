@@ -8,6 +8,7 @@ import java.util.TreeSet;
 
 import gov.nasa.ziggy.module.io.ProxyIgnore;
 import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
 /**
@@ -16,7 +17,7 @@ import gov.nasa.ziggy.uow.UnitOfWork;
  *
  * @author PT
  */
-public class TypedParameterCollection {
+public class TypedParameterCollection implements ParametersInterface {
 
     @ProxyIgnore
     private Map<String, TypedParameter> parametersByName = new HashMap<>();
@@ -29,6 +30,7 @@ public class TypedParameterCollection {
     }
 
     /** Returns the parameters in this collection as a sorted set. */
+    @Override
     public Set<TypedParameter> getParameters() {
         return new TreeSet<>(parametersByName.values());
     }
@@ -42,6 +44,7 @@ public class TypedParameterCollection {
         return parameters;
     }
 
+    @Override
     public void setParameters(Collection<TypedParameter> parameters) {
         parametersByName = new HashMap<>();
         for (TypedParameter parameter : parameters) {
@@ -53,12 +56,19 @@ public class TypedParameterCollection {
         parametersByName.put(parameter.getName(), parameter);
     }
 
+    @Override
+    public void updateParameter(String name, String value) {
+        parametersByName.get(name).setString(value);
+        populate(parametersByName.values());
+    }
+
     /** Returns the given parameter. */
     public TypedParameter getParameter(String name) {
         return parametersByName.get(name);
     }
 
     /** Returns the original map. */
+    @Override
     public Map<String, TypedParameter> getParametersByName() {
         return parametersByName;
     }
@@ -78,5 +88,10 @@ public class TypedParameterCollection {
             }
         }
         return true;
+    }
+
+    @Override
+    public void validate() {
+        // Do nothing, by default.
     }
 }

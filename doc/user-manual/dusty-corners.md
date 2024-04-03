@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](event-handler-labels.md)
+[[Previous]](console-cli.md)
 [[Up]](user-manual.md)
 [[Next]](more-rdbms.md)
 
@@ -24,20 +24,16 @@ How to conveniently package a collection of parameter changes.
 
 What to do if you realize that you need to change the configuration of a pipeline.
 
-### [The Edit Pipeline Dialog Box](edit-pipeline.md)
-
-Additional features on a dialog box we've already used.
-
 ### [Creating Ziggy Nicknames](nicknames.md)
 
 Make it easier to run those Java programs you've written.
+
+[[Previous]](console-cli.md)
+[[Up]](user-manual.md)
+[[Next]](more-rdbms.md)
 
 <!--
 ### [Customizing Ziggy](customizing-ziggy.md)
 
 Add your own parameter set types and more.
 -->
-
-[[Previous]](event-handler-labels.md)
-[[Up]](user-manual.md)
-[[Next]](more-rdbms.md)

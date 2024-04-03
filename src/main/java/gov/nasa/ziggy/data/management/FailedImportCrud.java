@@ -21,11 +21,10 @@ public class FailedImportCrud extends AbstractCrud<FailedImport> {
     /**
      * Creates a collection of new {@link FailedImport} rows in the database.
      */
-    public void create(PipelineTask pipelineTask, Collection<Path> filenames,
-        DatastoreProducerConsumer.DataReceiptFileType type) {
+    public void create(PipelineTask pipelineTask, Collection<Path> filenames) {
 
         for (Path filename : filenames) {
-            persist(new FailedImport(pipelineTask, filename, type));
+            persist(new FailedImport(pipelineTask, filename));
         }
     }
 

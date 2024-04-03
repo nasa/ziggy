@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <node startNewUow="true" moduleName="module 1" childNodeNames="module 2, module 3">
-    <moduleParameter name="Convergence criteria"/>
-    <moduleParameter name="Remote execution"/>
-    <inputDataFileType name="flight L0 data"/>
-    <outputDataFileType name="flight L1 data"/>
-    <modelType name="calibration constants"/>
+  <moduleParameter name="Convergence criteria"/>
+  <moduleParameter name="Remote execution"/>
+  <inputDataFileType name="flight L0 data"/>
+  <inputDataFileType name="target pixel table" filePerSubtask="false"/>
+  <outputDataFileType name="flight L1 data"/>
+  <modelType name="calibration constants"/>
 </node>

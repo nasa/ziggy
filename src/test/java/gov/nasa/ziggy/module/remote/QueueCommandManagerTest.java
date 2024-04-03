@@ -171,13 +171,13 @@ public class QueueCommandManagerTest {
         // set up the returns for the qstat commands that are looking for the tasks in
         // the queue -- NB, there is no job in the queue for task 3.
         String jobName = task1.taskBaseName();
-        String[] grepArgs = { new String(jobName) };
+        String[] grepArgs = { jobName };
         mockQstatCall("-u user", grepArgs, qstatOutputLine(task1, 1234567L));
         jobName = task2.taskBaseName();
-        grepArgs = new String[] { new String(jobName) };
+        grepArgs = new String[] { jobName };
         mockQstatCall("-u user", grepArgs, qstatOutputLine(task1, 7654321L));
         jobName = task3.taskBaseName();
-        grepArgs = new String[] { new String(jobName) };
+        grepArgs = new String[] { jobName };
         mockQstatCall("-u user", grepArgs, (String[]) null);
 
         grepArgs = new String[] { "Job:", "Job_Owner" };

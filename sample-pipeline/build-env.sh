@@ -21,7 +21,7 @@ mkdir -p $python_env
 # Create and populate the data receipt directory from the sample data
 data_receipt_dir=$sample_home/pipeline-results/data-receipt
 mkdir -p $data_receipt_dir
-cp $sample_root/data/* $data_receipt_dir
+cp -r $sample_root/data/* $data_receipt_dir
 
 # Build the bin directory in build.
 bin_dir=$sample_home/bin

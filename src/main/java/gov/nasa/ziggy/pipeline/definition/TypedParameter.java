@@ -9,7 +9,7 @@ import com.l2fprod.common.propertysheet.PropertySheet;
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
@@ -132,7 +132,7 @@ public class TypedParameter extends AbstractProperty implements Comparable<Typed
      * all values.
      */
     private String trimWhitespace(String value) {
-        return StringUtils.trimListWhitespace(value);
+        return ZiggyStringUtils.trimListWhitespace(value);
     }
 
     /**

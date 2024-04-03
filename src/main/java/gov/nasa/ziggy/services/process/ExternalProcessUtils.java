@@ -13,14 +13,21 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
  */
 public class ExternalProcessUtils {
 
-    private static final String SUPERVISOR_LOG_FILE_NAME = "supervisor.log";
-
     /**
      * The Log4j configuration file as a JVM argument.
      */
     public static String log4jConfigString() {
         return "-D" + PropertyName.LOG4J2_CONFIGURATION_FILE + "="
             + DirectoryProperties.ziggyHomeDir() + "/etc/log4j2.xml";
+    }
+
+    /**
+     * The log file as a JVM argument.
+     *
+     * @see "etc/log4j2.xml"
+     */
+    public static String ziggyLog(String logFile) {
+        return "-D" + PropertyName.ZIGGY_LOG_FILE + "=" + logFile;
     }
 
     /**
@@ -44,21 +51,5 @@ public class ExternalProcessUtils {
             .getString(PropertyName.LIBPATH.property(), null);
         return StringUtils.isEmpty(pipelineLibPath) ? DirectoryProperties.ziggyLibDir().toString()
             : pipelineLibPath + ":" + DirectoryProperties.ziggyLibDir().toString();
-    }
-
-    /**
-     * The prefix to be used for the supervisor log file (i.e., it goes into logs/supervisor).
-     */
-    public static String supervisorLogPrefix() {
-        return "-Dlog4j.logfile.prefix=" + DirectoryProperties.supervisorLogDir().toString();
-    }
-
-    /**
-     * The log file name used by the supervisor (hence also by the workers).
-     *
-     * @return
-     */
-    public static String supervisorLogFilename() {
-        return DirectoryProperties.supervisorLogDir().resolve(SUPERVISOR_LOG_FILE_NAME).toString();
     }
 }

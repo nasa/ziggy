@@ -4,7 +4,7 @@ import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
  * Superclass for all DisplayModel classes. Contains abstract methods and print logic
@@ -48,7 +48,7 @@ public abstract class DisplayModel {
 
         // print column headers
         for (int column = 0; column < getColumnCount(); column++) {
-            ps.print(StringUtils.pad(getColumnName(column), columnWidths[column]));
+            ps.print(ZiggyStringUtils.pad(getColumnName(column), columnWidths[column]));
         }
         ps.println();
 
@@ -62,7 +62,8 @@ public abstract class DisplayModel {
         // print table data
         for (int row = 0; row < getRowCount(); row++) {
             for (int column = 0; column < getColumnCount(); column++) {
-                ps.print(StringUtils.pad(getValueAt(row, column).toString(), columnWidths[column]));
+                ps.print(
+                    ZiggyStringUtils.pad(getValueAt(row, column).toString(), columnWidths[column]));
             }
             ps.println();
         }
@@ -95,7 +96,7 @@ public abstract class DisplayModel {
         return String.format("%.3f", d);
     }
 
-    public static String formatDate(Date d) {
+    public synchronized static String formatDate(Date d) {
         if (d.getTime() == 0) {
             return "-";
         }

@@ -15,13 +15,13 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
  */
 public class TasksStates {
     public class Summary {
-        private int submittedCount = 0;
-        private int processingCount = 0;
-        private int errorCount = 0;
-        private int completedCount = 0;
-        private int subTaskTotalCount = 0;
-        private int subTaskCompleteCount = 0;
-        private int subTaskFailedCount = 0;
+        private int submittedCount;
+        private int processingCount;
+        private int errorCount;
+        private int completedCount;
+        private int subTaskTotalCount;
+        private int subTaskCompleteCount;
+        private int subTaskFailedCount;
 
         public int getSubmittedCount() {
             return submittedCount;
@@ -52,13 +52,13 @@ public class TasksStates {
         }
     }
 
-    private int totalSubmittedCount = 0;
-    private int totalProcessingCount = 0;
-    private int totalErrorCount = 0;
-    private int totalCompletedCount = 0;
-    private int totalSubTaskTotalCount = 0;
-    private int totalSubTaskCompleteCount = 0;
-    private int totalSubTaskFailedCount = 0;
+    private int totalSubmittedCount;
+    private int totalProcessingCount;
+    private int totalErrorCount;
+    private int totalCompletedCount;
+    private int totalSubTaskTotalCount;
+    private int totalSubTaskCompleteCount;
+    private int totalSubTaskFailedCount;
 
     private final List<String> moduleNames = new LinkedList<>();
     private final Map<String, Summary> moduleStates = new HashMap<>();

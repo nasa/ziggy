@@ -8,7 +8,6 @@ import org.hibernate.Hibernate;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.security.Privilege;
 
 /**
  * @author Todd Klaus
@@ -19,7 +18,6 @@ public class PipelineTaskCrudProxy {
     }
 
     public void save(final PipelineTask task) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineTaskCrud crud = new PipelineTaskCrud();
             crud.persist(task);
@@ -28,7 +26,6 @@ public class PipelineTaskCrudProxy {
     }
 
     public PipelineTask retrieve(final long id) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineTaskCrud crud = new PipelineTaskCrud();
             return crud.retrieve(id);
@@ -36,7 +33,6 @@ public class PipelineTaskCrudProxy {
     }
 
     public List<PipelineTask> retrieveAll(final PipelineInstance instance) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineTaskCrud crud = new PipelineTaskCrud();
             List<PipelineTask> r = crud.retrieveTasksForInstance(instance);
@@ -51,7 +47,6 @@ public class PipelineTaskCrudProxy {
 
     public List<PipelineTask> retrieveAll(final PipelineInstance instance,
         final PipelineTask.State state) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineTaskCrud crud = new PipelineTaskCrud();
             return crud.retrieveAll(instance, state);
@@ -59,7 +54,6 @@ public class PipelineTaskCrudProxy {
     }
 
     public List<PipelineTask> retrieveAll(final Collection<Long> taskIds) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_MONITOR);
         return CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
             PipelineTaskCrud crud = new PipelineTaskCrud();
             return crud.retrieveAll(taskIds);

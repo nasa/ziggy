@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <parameterLibrary override-only="true">
 
-    <parameter-set name="Data receipt configuration">
-        <parameter name="taskDirectoryRegex" value=""/>
-    </parameter-set>
-    
+  <parameter-set name="Data receipt configuration">
+    <parameter name="taskDirectoryRegex" value=""/>
+  </parameter-set>
+
 </parameterLibrary>

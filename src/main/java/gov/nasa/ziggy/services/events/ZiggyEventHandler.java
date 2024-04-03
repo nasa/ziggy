@@ -8,7 +8,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -25,10 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
 import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
@@ -39,7 +36,6 @@ import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -232,43 +228,16 @@ public class ZiggyEventHandler implements Runnable {
         log.debug("Event handler labels: " + readyFile.labels());
         log.info("Event handler " + name + " starting pipeline " + pipelineName + "...");
 
-        // Start by saving the event labels as a parameter set.
-        String paramSetName = (String) DatabaseTransactionFactory.performTransaction(() -> {
-
-            String parameterSetName = name + " " + readyFile.getName();
-            String parameterSetDescription = "Created by event handler " + name + " @ "
-                + new Date();
-            ZiggyEventLabels eventLabels = null;
-            ParameterSet paramSet = new ParameterSetCrud()
-                .retrieveLatestVersionForName(parameterSetName);
-            if (paramSet != null) {
-                eventLabels = (ZiggyEventLabels) paramSet.parametersInstance();
-                eventLabels.setEventName(readyFile.getName());
-                eventLabels.setEventLabels(readyFile.labelsArray());
-                pipelineOperations().updateParameterSet(paramSet, eventLabels,
-                    parameterSetDescription, true);
-            } else {
-                paramSet = new ParameterSet(parameterSetName);
-                paramSet.setDescription(parameterSetDescription);
-                eventLabels = new ZiggyEventLabels();
-                eventLabels.setEventHandlerName(name);
-                eventLabels.setEventName(readyFile.getName());
-                eventLabels.setEventLabels(readyFile.labelsArray());
-                paramSet.populateFromParametersInstance(eventLabels);
-                new ParameterSetCrud().persist(paramSet);
-            }
-            return parameterSetName;
-        });
-
-        // Create a new pipeline instance that includes the event handler labels parameter set.
+        // Create a new pipeline instance that includes the event handler labels.
         PipelineDefinition pipelineDefinition = (PipelineDefinition) DatabaseTransactionFactory
             .performTransaction(
                 () -> new PipelineDefinitionCrud().retrieveLatestVersionForName(pipelineName));
         PipelineInstance pipelineInstance = pipelineOperations().fireTrigger(pipelineDefinition,
-            instanceName(), null, null, paramSetName);
+            null, null, null, readyFile.getLabels());
         ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
         DatabaseTransactionFactory.performTransaction(() -> {
-            final ZiggyEvent event = new ZiggyEvent(name, pipelineName, pipelineInstance.getId());
+            final ZiggyEvent event = new ZiggyEvent(name, pipelineName, pipelineInstance.getId(),
+                readyFile.getLabels());
             new ZiggyEventCrud().persist(event);
             return null;
         });
@@ -344,15 +313,6 @@ public class ZiggyEventHandler implements Runnable {
      */
     long readyFileCheckIntervalMillis() {
         return READY_FILE_CHECK_INTERVAL_MILLIS;
-    }
-
-    /**
-     * Returns an instance name that combines the name of the {@link ZiggyEventHandler} with a
-     * timestamp. The instance name is provided by a method which allows a fixed name to be
-     * specified for test purposes. Package scope for tests.
-     */
-    String instanceName() {
-        return name + "-" + Iso8601Formatter.dateTimeLocalFormatter().format(new Date());
     }
 
     private Path interpolatedDirectory() {
@@ -492,8 +452,8 @@ public class ZiggyEventHandler implements Runnable {
             return labels.toString();
         }
 
-        public String[] labelsArray() {
-            return labels.toArray(new String[0]);
+        public Set<String> getLabels() {
+            return labels;
         }
 
         @Override

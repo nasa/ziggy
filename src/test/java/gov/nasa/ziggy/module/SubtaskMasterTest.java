@@ -99,7 +99,7 @@ public class SubtaskMasterTest {
         verify(subtaskMaster).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
-            .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+            .resolve(TaskConfiguration.LOCK_FILE_NAME)
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
@@ -126,7 +126,7 @@ public class SubtaskMasterTest {
         verify(subtaskMaster).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
-            .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+            .resolve(TaskConfiguration.LOCK_FILE_NAME)
             .toFile());
         verify(subtaskMaster).logException(ArgumentMatchers.eq(SUBTASK_INDEX),
             ArgumentMatchers.any(ModuleFatalProcessingException.class));
@@ -155,7 +155,7 @@ public class SubtaskMasterTest {
         verify(subtaskMaster).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
-            .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+            .resolve(TaskConfiguration.LOCK_FILE_NAME)
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
@@ -184,7 +184,7 @@ public class SubtaskMasterTest {
         verify(subtaskMaster).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
-            .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+            .resolve(TaskConfiguration.LOCK_FILE_NAME)
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
@@ -216,7 +216,7 @@ public class SubtaskMasterTest {
         verify(subtaskMaster).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
-            .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+            .resolve(TaskConfiguration.LOCK_FILE_NAME)
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
@@ -240,7 +240,7 @@ public class SubtaskMasterTest {
             .getWriteLockWithoutBlocking(DirectoryProperties.taskDataDir()
                 .resolve(TASK_DIR)
                 .resolve("st-" + SUBTASK_INDEX)
-                .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+                .resolve(TaskConfiguration.LOCK_FILE_NAME)
                 .toFile());
 
         // Execute the run() method.
@@ -253,7 +253,7 @@ public class SubtaskMasterTest {
         verify(subtaskMaster, times(1)).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
-            .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+            .resolve(TaskConfiguration.LOCK_FILE_NAME)
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
@@ -274,7 +274,7 @@ public class SubtaskMasterTest {
             .getWriteLockWithoutBlocking(DirectoryProperties.taskDataDir()
                 .resolve(TASK_DIR)
                 .resolve("st-" + SUBTASK_INDEX)
-                .resolve(TaskConfigurationManager.LOCK_FILE_NAME)
+                .resolve(TaskConfiguration.LOCK_FILE_NAME)
                 .toFile());
 
         // Execute the run() method.
@@ -285,8 +285,7 @@ public class SubtaskMasterTest {
         // released (since it was never obtained), and the IOException should be logged.
         verify(subtaskExecutor, times(0)).execAlgorithm();
         verify(subtaskMaster, times(0)).releaseWriteLock(
-            Paths.get(TASK_DIR, "st-" + SUBTASK_INDEX, TaskConfigurationManager.LOCK_FILE_NAME)
-                .toFile());
+            Paths.get(TASK_DIR, "st-" + SUBTASK_INDEX, TaskConfiguration.LOCK_FILE_NAME).toFile());
         verify(subtaskMaster).logException(ArgumentMatchers.eq(SUBTASK_INDEX),
             ArgumentMatchers.any(PipelineException.class));
         assertEquals(5, completionCounter.availablePermits());
@@ -311,7 +310,7 @@ public class SubtaskMasterTest {
         // Mock a successful lock of the subtask lock file.
         doReturn(true).when(subtaskMaster)
             .getWriteLockWithoutBlocking(
-                Paths.get(TASK_DIR, "st-" + SUBTASK_INDEX, TaskConfigurationManager.LOCK_FILE_NAME)
+                Paths.get(TASK_DIR, "st-" + SUBTASK_INDEX, TaskConfiguration.LOCK_FILE_NAME)
                     .toFile());
 
         // The subtask should have no prior algorithm state file.
@@ -322,6 +321,5 @@ public class SubtaskMasterTest {
 
         // The SubtaskExecutor should return zero.
         when(subtaskExecutor.execAlgorithm()).thenReturn(0);
-
     }
 }

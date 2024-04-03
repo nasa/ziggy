@@ -49,15 +49,15 @@ import org.netbeans.swing.outline.RowModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.HasGroup;
+import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.models.ConsoleDatabaseModel;
 import gov.nasa.ziggy.ui.util.models.DatabaseModelRegistry;
-import gov.nasa.ziggy.ui.util.models.TableModelContentClass;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
 import gov.nasa.ziggy.util.Iso8601Formatter;
+import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
  * The {@link ZiggyTable} provides a combination of a two-dimensional table of cells and the data
@@ -127,9 +127,9 @@ public class ZiggyTable<T> {
      */
     @SuppressWarnings("unchecked")
     public ZiggyTable(TableModel tableModel) {
-        checkArgument(tableModel instanceof TableModelContentClass,
+        checkArgument(tableModel instanceof ModelContentClass,
             "ZiggyTable model must implement TableModelContentClass");
-        modelContentsClass = ((TableModelContentClass<T>) tableModel).tableModelContentClass();
+        modelContentsClass = ((ModelContentClass<T>) tableModel).tableModelContentClass();
         this.tableModel = tableModel;
         table = new ZiggyETable();
         table.setModel(tableModel);
@@ -143,11 +143,11 @@ public class ZiggyTable<T> {
      */
     @SuppressWarnings("unchecked")
     public ZiggyTable(RowModel rowModel, ZiggyTreeModel<?> treeModel, String nodesColumnLabel) {
-        checkArgument(rowModel instanceof TableModelContentClass,
-            "ZiggyTable rowModel must implement TableModelContentClass");
-        modelContentsClass = ((TableModelContentClass<T>) rowModel).tableModelContentClass();
-        checkArgument(HasGroup.class.isAssignableFrom(modelContentsClass),
-            "ZiggyTable model content class must implement HasGroup");
+        checkArgument(rowModel instanceof ModelContentClass,
+            "ZiggyTable rowModel must implement ModelContentClass");
+        modelContentsClass = ((ModelContentClass<T>) rowModel).tableModelContentClass();
+        checkArgument(Groupable.class.isAssignableFrom(modelContentsClass),
+            "ZiggyTable model content class must extend Groupable");
         this.treeModel = treeModel;
         table = new ZiggyOutline();
         outlineModel = DefaultOutlineModel.createOutlineModel(treeModel, rowModel, false,

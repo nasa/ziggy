@@ -14,8 +14,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,10 +41,6 @@ import jakarta.persistence.Table;
 @Table(name = "ziggy_DatastoreProducerConsumer")
 public class DatastoreProducerConsumer {
 
-    public enum DataReceiptFileType {
-        DATA, MODEL;
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE,
         generator = "ziggy_DatastoreProducerConsumer_generator")
@@ -59,10 +53,6 @@ public class DatastoreProducerConsumer {
 
     private long producerId;
 
-    @Column
-    @Enumerated(EnumType.STRING)
-    private DataReceiptFileType dataReceiptFileType;
-
     @ElementCollection
     @JoinTable(name = "ziggy_DatastoreProducerConsumer_consumers")
     private Set<Long> consumers = new TreeSet<>();
@@ -71,18 +61,14 @@ public class DatastoreProducerConsumer {
     public DatastoreProducerConsumer() {
     }
 
-    public DatastoreProducerConsumer(long producerId, String filename,
-        DataReceiptFileType dataReceiptFileType) {
-        checkNotNull(dataReceiptFileType, "dataReceiptFileType");
+    public DatastoreProducerConsumer(long producerId, String filename) {
         checkNotNull(filename, "filename");
-        this.dataReceiptFileType = dataReceiptFileType;
         this.filename = filename;
         this.producerId = producerId;
     }
 
-    public DatastoreProducerConsumer(PipelineTask pipelineTask, Path datastoreFile,
-        DataReceiptFileType dataReceiptFileType) {
-        this(pipelineTask.getId(), datastoreFile.toString(), dataReceiptFileType);
+    public DatastoreProducerConsumer(PipelineTask pipelineTask, Path datastoreFile) {
+        this(pipelineTask.getId(), datastoreFile.toString());
     }
 
     public void setFilename(String filename) {
@@ -99,14 +85,6 @@ public class DatastoreProducerConsumer {
 
     public void setProducer(long producer) {
         producerId = producer;
-    }
-
-    public DataReceiptFileType getDataReceiptFileType() {
-        return dataReceiptFileType;
-    }
-
-    public void setDataReceiptFileType(DataReceiptFileType dataReceiptFileType) {
-        this.dataReceiptFileType = dataReceiptFileType;
     }
 
     public Set<Long> getConsumers() {

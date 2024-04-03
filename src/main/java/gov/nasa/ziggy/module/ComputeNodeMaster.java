@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -100,7 +100,7 @@ public class ComputeNodeMaster implements Runnable {
 
     private Set<SubtaskMaster> subtaskMasters = new HashSet<>();
 
-    private TaskConfigurationManager inputsHandler;
+    private TaskConfiguration inputsHandler;
 
     public ComputeNodeMaster(String workingDir, TaskLog algorithmLog) {
         this.workingDir = workingDir;
@@ -131,7 +131,7 @@ public class ComputeNodeMaster implements Runnable {
 
         // It's possible that this node isn't starting until all of the subtasks are
         // complete! In that case, it should just exit without doing anything else.
-        monitor = new TaskMonitor(getInputsHandler(), stateFile, taskDir);
+        monitor = new TaskMonitor(stateFile, taskDir);
         monitor.updateState();
         if (monitor.allSubtasksProcessed()) {
             log.info("All subtasks processed, ComputeNodeMaster exiting");
@@ -354,9 +354,9 @@ public class ComputeNodeMaster implements Runnable {
      * Restores the {@link TaskConfigurationHandler} from disk. Package scope so it can be replaced
      * with a mocked instance.
      */
-    TaskConfigurationManager getInputsHandler() {
+    TaskConfiguration getTaskConfiguration() {
         if (inputsHandler == null) {
-            inputsHandler = TaskConfigurationManager.restore(taskDir);
+            inputsHandler = TaskConfiguration.deserialize(taskDir);
         }
         return inputsHandler;
     }
@@ -392,7 +392,7 @@ public class ComputeNodeMaster implements Runnable {
      */
     SubtaskServer subtaskServer() {
         if (subtaskServer == null) {
-            subtaskServer = new SubtaskServer(coresPerNode, getInputsHandler());
+            subtaskServer = new SubtaskServer(coresPerNode, getTaskConfiguration());
         }
         return subtaskServer;
     }

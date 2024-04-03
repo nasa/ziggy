@@ -2,6 +2,8 @@ package gov.nasa.ziggy.services.config;
 
 import static gov.nasa.ziggy.services.config.PropertyName.ALLOW_PARTIAL_TASKS;
 import static gov.nasa.ziggy.services.config.PropertyName.DATABASE_PORT;
+import static gov.nasa.ziggy.services.config.PropertyName.OPERATING_SYSTEM;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -9,7 +11,6 @@ import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -43,6 +44,13 @@ public class ZiggyConfigurationTest {
     /** The number of threads accessing a property that does not exist. */
     private static final int NUM_NONEXISTENT_PROPERTY_READERS = 4;
 
+    @Rule
+    public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        "build");
+
+    @Rule
+    public ZiggyPropertyRule osName = new ZiggyPropertyRule(OPERATING_SYSTEM, (String) null);
+
     // DATABASE_PORT is a random property that normally takes numbers.
     @Rule
     public ZiggyPropertyRule fooPropertyRule = new ZiggyPropertyRule(DATABASE_PORT, "1");
@@ -53,11 +61,6 @@ public class ZiggyConfigurationTest {
     @Rule
     public ZiggyPropertyRule barPropertyRule = new ZiggyPropertyRule(ALLOW_PARTIAL_TASKS, "true");
 
-    @Rule
-    public ZiggyPropertyRule schemaRule = new ZiggyPropertyRule(
-        PropertyName.ZIGGY_HOME_DIR.property(),
-        Paths.get(System.getProperty(PropertyName.WORKING_DIR.property()), "build").toString());
-
     private static final String BOOLEAN_PROPERTY = ALLOW_PARTIAL_TASKS.property();
 
     @Test
@@ -66,6 +69,7 @@ public class ZiggyConfigurationTest {
         ImmutableConfiguration configuration2 = ZiggyConfiguration.getInstance();
         assertNotNull(configuration1);
         assertTrue(configuration1 == configuration2);
+
         assertEquals(BigDecimal.ONE, configuration1.getBigDecimal(NUMERIC_PROPERTY));
         assertEquals(BigInteger.ONE, configuration1.getBigInteger(NUMERIC_PROPERTY));
         assertEquals(Byte.parseByte("1"), configuration1.getByte(NUMERIC_PROPERTY));
@@ -121,15 +125,14 @@ public class ZiggyConfigurationTest {
 
     @Test
     public void testSystemProperty() {
+        // This test should be the only exception to the rule of not calling System.setProperty() as
+        // we are testing that getInstance() reads system properties.
         System.setProperty("my.string.property", "foo");
         System.setProperty("my.boolean.property", "true");
         System.setProperty("my.int.property", "42");
         System.setProperty("my.double.property", "42.42");
 
-        // Force getInstance() to read from system properties.
-        ZiggyConfiguration.reset();
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
-
         assertEquals("foo", config.getString("my.string.property"));
         assertEquals(true, config.getBoolean("my.boolean.property"));
         assertEquals(42, config.getInt("my.int.property"));
@@ -147,13 +150,13 @@ public class ZiggyConfigurationTest {
 
     @Test
     public void testSystemPropertyOverride() {
+        osName.setValue("foobar");
+        assertEquals("foobar",
+            ZiggyConfiguration.getInstance().getString(OPERATING_SYSTEM.property()));
     }
 
     @Test
     public void testDefaultFileProperty() {
-        // Force getInstance() to read from ziggy.properties.
-        ZiggyConfiguration.getMutableInstance();
-
         assertEquals(ZIGGY_PROPERTIES_VALUE,
             ZiggyConfiguration.getInstance().getString(PropertyName.TEST_FILE.property()));
     }

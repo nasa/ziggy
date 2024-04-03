@@ -1,5 +1,8 @@
 package gov.nasa.ziggy.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class WrapperUtils {
 
     public static final String WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX = "wrapper.java.library.path.";
@@ -25,6 +28,11 @@ public class WrapperUtils {
      * @param value the value of the parameter
      */
     public static String wrapperParameter(String wrapperPropName, String value) {
+        checkNotNull(wrapperPropName, "wrapperPropName");
+        checkArgument(!wrapperPropName.isEmpty(), "wrapperPropName can't be empty");
+        checkNotNull(value, "value");
+        checkArgument(!value.isEmpty(), "value can't be empty");
+
         StringBuilder s = new StringBuilder();
         s.append(wrapperPropName).append("=").append(value);
         return s.toString();
@@ -38,6 +46,12 @@ public class WrapperUtils {
      * @param value the value of the parameter
      */
     public static String wrapperParameter(String wrapperPropNamePrefix, int index, String value) {
+        checkNotNull(wrapperPropNamePrefix, "wrapperPropNamePrefix");
+        checkArgument(!wrapperPropNamePrefix.isEmpty(), "wrapperPropNamePrefix can't be empty");
+        checkNotNull(value, "value");
+        checkArgument(!value.isEmpty(), "value can't be empty");
+        checkArgument(index >= 0, "index must be non-negative");
+
         StringBuilder s = new StringBuilder();
         s.append(wrapperPropNamePrefix).append(index).append("=").append(value);
         return s.toString();

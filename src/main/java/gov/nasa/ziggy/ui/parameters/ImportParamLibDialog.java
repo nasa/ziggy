@@ -33,7 +33,7 @@ import gov.nasa.ziggy.ui.util.TextualReportDialog;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
-import gov.nasa.ziggy.util.StringUtils;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
  * This dialog is used to import a parameter library from disk into the parameter library in the
@@ -164,7 +164,7 @@ public class ImportParamLibDialog extends JDialog {
             }
 
             for (ParameterSetDescriptor desc : descs) {
-                report.append(StringUtils.pad(desc.getName(), maxNameLength + 5) + "["
+                report.append(ZiggyStringUtils.pad(desc.getName(), maxNameLength + 5) + "["
                     + desc.shortClassName() + "]\n");
             }
         }

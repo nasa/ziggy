@@ -18,6 +18,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
+import org.apache.commons.lang3.StringUtils;
 import org.netbeans.swing.etable.ETable;
 import org.netbeans.swing.etable.ETableColumnModel;
 import org.slf4j.Logger;
@@ -400,8 +401,9 @@ public class InstancesTable extends JPanel {
 
             return switch (columnIndex) {
                 case 0 -> pipelineInstance.getId();
-                case 1 -> pipelineInstance.getPipelineDefinition().getName() + ": "
-                    + pipelineInstance.getName();
+                case 1 -> pipelineInstance.getPipelineDefinition().getName()
+                    + (StringUtils.isEmpty(pipelineInstance.getName()) ? ""
+                        : ": " + pipelineInstance.getName());
                 case 2 -> ziggyEvent != null ? ziggyEvent.getEventHandlerName() : "-";
                 case 3 -> ziggyEvent != null ? ziggyEvent.getEventTime()
                     : pipelineInstance.getStartProcessingTime();

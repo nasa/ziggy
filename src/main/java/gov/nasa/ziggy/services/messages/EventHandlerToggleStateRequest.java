@@ -5,8 +5,6 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.services.security.Privilege;
-import gov.nasa.ziggy.ui.util.proxy.CrudProxy;
 
 /**
  * Sends a request to the supervisor process to toggle the state of a single
@@ -27,7 +25,6 @@ public class EventHandlerToggleStateRequest extends PipelineMessage {
      * private, which in turn forces the user to verify privileges before the request is sent.
      */
     public static void requestEventHandlerToggle(String handlerName) {
-        CrudProxy.verifyPrivileges(Privilege.PIPELINE_OPERATIONS);
         log.debug("Sending toggle request for event handler \"" + handlerName + "\"");
         ZiggyMessenger.publish(new EventHandlerToggleStateRequest(handlerName));
     }

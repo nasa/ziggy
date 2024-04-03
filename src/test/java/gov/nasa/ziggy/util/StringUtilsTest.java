@@ -10,7 +10,7 @@ import java.util.Date;
 import org.junit.Test;
 
 /**
- * Tests the {@link StringUtils} class.
+ * Tests the {@link ZiggyStringUtils} class.
  *
  * @author Bill Wohler
  * @author Forrest Girouard
@@ -18,7 +18,7 @@ import org.junit.Test;
 public class StringUtilsTest {
     @Test(expected = NullPointerException.class)
     public void testConstantToHyphenSeparatedLowercaseNull() {
-        StringUtils.constantToHyphenSeparatedLowercase(null);
+        ZiggyStringUtils.constantToHyphenSeparatedLowercase(null);
     }
 
     @Test
@@ -41,186 +41,186 @@ public class StringUtilsTest {
     }
 
     private void verifyTrimListWhitespace(String value, String expected) {
-        assertEquals(expected, StringUtils.trimListWhitespace(value));
+        assertEquals(expected, ZiggyStringUtils.trimListWhitespace(value));
     }
 
     @Test
     public void testConstantToHyphenSeparatedLowercase() {
-        assertEquals("", StringUtils.constantToHyphenSeparatedLowercase(""));
-        assertEquals("foo", StringUtils.constantToHyphenSeparatedLowercase("foo"));
-        assertEquals("foo-bar", StringUtils.constantToHyphenSeparatedLowercase("foo_bar"));
-        assertEquals("-foo-bar-", StringUtils.constantToHyphenSeparatedLowercase("_foo_bar_"));
-        assertEquals("foo", StringUtils.constantToHyphenSeparatedLowercase("FOO"));
-        assertEquals("foo-bar", StringUtils.constantToHyphenSeparatedLowercase("FOO_BAR"));
-        assertEquals("-foo-bar-", StringUtils.constantToHyphenSeparatedLowercase("_FOO_BAR_"));
+        assertEquals("", ZiggyStringUtils.constantToHyphenSeparatedLowercase(""));
+        assertEquals("foo", ZiggyStringUtils.constantToHyphenSeparatedLowercase("foo"));
+        assertEquals("foo-bar", ZiggyStringUtils.constantToHyphenSeparatedLowercase("foo_bar"));
+        assertEquals("-foo-bar-", ZiggyStringUtils.constantToHyphenSeparatedLowercase("_foo_bar_"));
+        assertEquals("foo", ZiggyStringUtils.constantToHyphenSeparatedLowercase("FOO"));
+        assertEquals("foo-bar", ZiggyStringUtils.constantToHyphenSeparatedLowercase("FOO_BAR"));
+        assertEquals("-foo-bar-", ZiggyStringUtils.constantToHyphenSeparatedLowercase("_FOO_BAR_"));
     }
 
     @Test
     public void testToHexString() {
-        String s = StringUtils.toHexString(new byte[0], 0, 0);
+        String s = ZiggyStringUtils.toHexString(new byte[0], 0, 0);
         assertEquals("", s);
 
         byte[] md5 = { (byte) 0xcd, (byte) 0xe1, (byte) 0xb9, (byte) 0x6c, (byte) 0x1b, (byte) 0x79,
             (byte) 0xfc, (byte) 0x62, (byte) 0x18, (byte) 0x55, (byte) 0x28, (byte) 0x3e,
             (byte) 0xae, (byte) 0x37, (byte) 0x0d, (byte) 0x0c };
         assertEquals(16, md5.length);
-        s = StringUtils.toHexString(md5, 0, md5.length);
+        s = ZiggyStringUtils.toHexString(md5, 0, md5.length);
         assertEquals("cde1b96c1b79fc621855283eae370d0c", s);
     }
 
     @Test(expected = java.lang.IllegalArgumentException.class)
     public void testToHexStringBadLen() {
-        StringUtils.toHexString(new byte[2], 0, 3);
+        ZiggyStringUtils.toHexString(new byte[2], 0, 3);
     }
 
     @Test(expected = java.lang.IllegalArgumentException.class)
     public void testToHexStringBadOff() {
-        StringUtils.toHexString(new byte[2], 10, 1);
+        ZiggyStringUtils.toHexString(new byte[2], 10, 1);
     }
 
     @Test
     public void testTruncate() {
-        assertEquals(null, StringUtils.truncate(null, 10));
-        assertSame("s", StringUtils.truncate("s", 10));
-        assertEquals("012345", StringUtils.truncate("0123456789", 6));
+        assertEquals(null, ZiggyStringUtils.truncate(null, 10));
+        assertSame("s", ZiggyStringUtils.truncate("s", 10));
+        assertEquals("012345", ZiggyStringUtils.truncate("0123456789", 6));
     }
 
     @Test
     public void testConvertStringArray() {
-        String[] array = StringUtils.convertStringArray("a, b, c");
+        String[] array = ZiggyStringUtils.convertStringArray("a, b, c");
         assertArrayEquals(new String[] { "a", "b", "c" }, array);
     }
 
     @Test(expected = NullPointerException.class)
     public void testConvertStringArrayWithNullString() {
-        StringUtils.convertStringArray(null);
+        ZiggyStringUtils.convertStringArray(null);
     }
 
     @Test
     public void testConstantToAcronym() {
-        String acronym = StringUtils.constantToAcronym("FOO_BAR");
+        String acronym = ZiggyStringUtils.constantToAcronym("FOO_BAR");
         assertEquals("fb", acronym);
     }
 
     @Test
     public void testConstantToAcronymWithLeadingUnderscore() {
-        String acronym = StringUtils.constantToAcronym("_FOO_BAR");
+        String acronym = ZiggyStringUtils.constantToAcronym("_FOO_BAR");
         assertEquals("fb", acronym);
     }
 
     @Test
     public void testConstantToAcronymWithEmptyString() {
-        String acronym = StringUtils.constantToAcronym("");
+        String acronym = ZiggyStringUtils.constantToAcronym("");
         assertEquals("", acronym);
     }
 
     @Test(expected = NullPointerException.class)
     public void testConstantToAcronymWithNullString() {
-        StringUtils.constantToAcronym(null);
+        ZiggyStringUtils.constantToAcronym(null);
     }
 
     @Test
     public void testConstantToCamel() {
-        String camel = StringUtils.constantToCamel("FOO_BAR");
+        String camel = ZiggyStringUtils.constantToCamel("FOO_BAR");
         assertEquals("fooBar", camel);
     }
 
     @Test
     public void testConstantToCamelWithLeadingUnderscore() {
-        String camel = StringUtils.constantToCamel("_FOO_BAR");
+        String camel = ZiggyStringUtils.constantToCamel("_FOO_BAR");
         assertEquals("fooBar", camel);
     }
 
     @Test
     public void testConstantToCamelWithUnderscoreDigit() {
-        String camel = StringUtils.constantToCamel("FOO_BAR_1_2");
+        String camel = ZiggyStringUtils.constantToCamel("FOO_BAR_1_2");
         assertEquals("fooBar-1-2", camel);
 
-        camel = StringUtils.constantToCamel("FOO_BAR_1ABC_2");
+        camel = ZiggyStringUtils.constantToCamel("FOO_BAR_1ABC_2");
         assertEquals("fooBar-1abc-2", camel);
 
-        camel = StringUtils.constantToCamel("COVARIANCE_MATRIX_1_2");
+        camel = ZiggyStringUtils.constantToCamel("COVARIANCE_MATRIX_1_2");
         assertEquals("covarianceMatrix-1-2", camel);
     }
 
     @Test
     public void testConstantToCamelWithEmptyString() {
-        String camel = StringUtils.constantToCamel("");
+        String camel = ZiggyStringUtils.constantToCamel("");
         assertEquals("", camel);
     }
 
     @Test(expected = NullPointerException.class)
     public void testConstantToCamelWithNullString() {
-        StringUtils.constantToCamel(null);
+        ZiggyStringUtils.constantToCamel(null);
     }
 
     @Test
     public void testConstantToCamelWithSpaces() {
-        String camel = StringUtils.constantToCamelWithSpaces("FOO_BAR");
+        String camel = ZiggyStringUtils.constantToCamelWithSpaces("FOO_BAR");
         assertEquals("Foo Bar", camel);
     }
 
     @Test
     public void testConstantToCamelWithSpacesWithLeadingUnderscore() {
-        String camel = StringUtils.constantToCamelWithSpaces("_FOO_BAR");
+        String camel = ZiggyStringUtils.constantToCamelWithSpaces("_FOO_BAR");
         assertEquals("Foo Bar", camel);
     }
 
     @Test
     public void testConstantToCamelWithSpacesWithUnderscoreDigit() {
-        String camel = StringUtils.constantToCamelWithSpaces("FOO_BAR_1_2");
+        String camel = ZiggyStringUtils.constantToCamelWithSpaces("FOO_BAR_1_2");
         assertEquals("Foo Bar 1 2", camel);
 
-        camel = StringUtils.constantToCamelWithSpaces("FOO_BAR_1ABC_2");
+        camel = ZiggyStringUtils.constantToCamelWithSpaces("FOO_BAR_1ABC_2");
         assertEquals("Foo Bar 1abc 2", camel);
     }
 
     @Test
     public void testConstantToCamelWithSpacesWithEmptyString() {
-        String camel = StringUtils.constantToCamelWithSpaces("");
+        String camel = ZiggyStringUtils.constantToCamelWithSpaces("");
         assertEquals("", camel);
     }
 
     @Test(expected = NullPointerException.class)
     public void testConstantToCamelWithSpacesWithNullString() {
-        StringUtils.constantToCamelWithSpaces(null);
+        ZiggyStringUtils.constantToCamelWithSpaces(null);
     }
 
     @Test
     public void testConstantToSentenceWithSpacesWithLeadingUnderscore() {
-        String sentence = StringUtils.constantToSentenceWithSpaces("_FOO_BAR");
+        String sentence = ZiggyStringUtils.constantToSentenceWithSpaces("_FOO_BAR");
         assertEquals("Foo bar", sentence);
     }
 
     @Test
     public void testConstantToSentenceWithSpacesWithUnderscoreDigit() {
-        String sentence = StringUtils.constantToSentenceWithSpaces("FOO_BAR_1_2");
+        String sentence = ZiggyStringUtils.constantToSentenceWithSpaces("FOO_BAR_1_2");
         assertEquals("Foo bar 1 2", sentence);
 
-        sentence = StringUtils.constantToSentenceWithSpaces("FOO_BAR_1ABC_2");
+        sentence = ZiggyStringUtils.constantToSentenceWithSpaces("FOO_BAR_1ABC_2");
         assertEquals("Foo bar 1abc 2", sentence);
     }
 
     @Test
     public void testConstantToSentenceWithSpacesWithEmptyString() {
-        String sentence = StringUtils.constantToSentenceWithSpaces("");
+        String sentence = ZiggyStringUtils.constantToSentenceWithSpaces("");
         assertEquals("", sentence);
     }
 
     @Test(expected = NullPointerException.class)
     public void testConstantToSentenceWithSpacesWithNullString() {
-        StringUtils.constantToSentenceWithSpaces(null);
+        ZiggyStringUtils.constantToSentenceWithSpaces(null);
     }
 
     @Test
     public void testElapsedTime() {
-        String elapsedTime = StringUtils.elapsedTime(1000, 2000);
+        String elapsedTime = ZiggyStringUtils.elapsedTime(1000, 2000);
         assertEquals("00:00:01", elapsedTime);
     }
 
     @Test
     public void testElapsedTimeFromStartToCurrent() {
-        String elapsedTime = StringUtils.elapsedTime(1000, 0);
+        String elapsedTime = ZiggyStringUtils.elapsedTime(1000, 0);
 
         // The exact string is unknown, so just check that it is something large.
         assertTrue(elapsedTime.length() > 11);
@@ -228,23 +228,23 @@ public class StringUtilsTest {
 
     @Test
     public void testElapsedTimeWithUninitializedStartTime() {
-        String elapsedTime = StringUtils.elapsedTime(0, 2000);
+        String elapsedTime = ZiggyStringUtils.elapsedTime(0, 2000);
         assertEquals("-", elapsedTime);
     }
 
     @Test
     public void testElapsedTimeWithDates() {
-        String elapsedTime = StringUtils.elapsedTime(new Date(1000), new Date(2000));
+        String elapsedTime = ZiggyStringUtils.elapsedTime(new Date(1000), new Date(2000));
         assertEquals("00:00:01", elapsedTime);
     }
 
     @Test(expected = NullPointerException.class)
     public void testElapsedTimeWithDatesWithNullStartTime() {
-        StringUtils.elapsedTime(null, new Date(2000));
+        ZiggyStringUtils.elapsedTime(null, new Date(2000));
     }
 
     @Test(expected = NullPointerException.class)
     public void testElapsedTimeWithDatesWithNullEndTime() {
-        StringUtils.elapsedTime(new Date(1000), null);
+        ZiggyStringUtils.elapsedTime(new Date(1000), null);
     }
 }

@@ -1,5 +1,8 @@
 package gov.nasa.ziggy.util.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,22 +14,29 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
 
-import gov.nasa.ziggy.data.management.DataFileManager;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -37,6 +47,7 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
  * @author PT
  */
 public class FileUtil {
+
     static final int BUFFER_SIZE = 1000;
 
     private static final Logger log = LoggerFactory.getLogger(FileUtil.class);
@@ -165,7 +176,7 @@ public class FileUtil {
 
                         // Add the file and its real source to the map.
                         try {
-                            Path realFile = DataFileManager.realSourceFile(file);
+                            Path realFile = FileUtil.realSourceFile(file);
                             if (Files.isDirectory(realFile) || Files.isHidden(file)) {
                                 return FileVisitResult.CONTINUE;
                             }
@@ -344,6 +355,192 @@ public class FileUtil {
             FileUtils.deleteDirectory(directory.toFile());
         } catch (IOException e) {
             throw new UncheckedIOException("Unable to delete directory " + directory.toString(), e);
+        }
+    }
+
+    /**
+     * Finds the actual source file for a given source file. If the source file is not a symbolic
+     * link, then that file is the actual source file. If not, the symbolic link is read to find the
+     * actual source file. The reading of symbolic links runs iteratively, so it produces the
+     * correct result even in the case of a link to a link to a link... etc. The process of
+     * following symbolic links stops at the first such link that is a child of the datastore root
+     * path. Thus the "actual source" is either a non-symlink file that the src file is a link to,
+     * or it's a file (symlink or regular file) that lies inside the datastore.
+     */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Path realSourceFile(Path src) {
+        Path datastoreRoot = DirectoryProperties.datastoreRootDir();
+        Path trueSrc = src;
+        if (Files.isSymbolicLink(src) && !src.startsWith(datastoreRoot)) {
+            try {
+                trueSrc = realSourceFile(Files.readSymbolicLink(src));
+            } catch (IOException e) {
+                throw new UncheckedIOException("Unable to resolve symbolic link " + src.toString(),
+                    e);
+            }
+        }
+        return trueSrc;
+    }
+
+    /** Abstraction of the {@link Files#list(Path)} API for a fast, simple directory listing. */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Set<Path> listFiles(Path directory) {
+        return listFiles(directory, null, null);
+    }
+
+    /**
+     * Abstraction of the {@link Files#list(Path)} API for a fast, simple directory listing that
+     * filters results according to a regular expression.
+     */
+    public static Set<Path> listFiles(Path directory, String regexp) {
+        return listFiles(directory, Set.of(Pattern.compile(regexp)), null);
+    }
+
+    /**
+     * Abstraction of the {@link Files#list(Path)} API for a fast, simple directory listing that
+     * filters results according to two collections of {@link Pattern}s. The first collection is of
+     * Patterns that must be matched (i.e., include patterns); the second collection is of Patterns
+     * that must not be matched (i.e., exclude patterns). Any file that matches both an include and
+     * an exclude pattern will be excluded. Either collection of Patterns can be empty, or null.
+     */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public static Set<Path> listFiles(Path directory, Collection<Pattern> includePatterns,
+        Collection<Pattern> excludePatterns) {
+        try (Stream<Path> stream = Files.list(directory)) {
+            Stream<Path> filteredStream = stream;
+            if (!CollectionUtils.isEmpty(includePatterns)) {
+                for (Pattern includePattern : includePatterns) {
+                    filteredStream = filteredStream
+                        .filter(s -> includePattern.matcher(s.getFileName().toString()).matches());
+                }
+            }
+            if (!CollectionUtils.isEmpty(excludePatterns)) {
+                for (Pattern excludePattern : excludePatterns) {
+                    filteredStream = filteredStream
+                        .filter(s -> !excludePattern.matcher(s.getFileName().toString()).matches());
+                }
+            }
+            return filteredStream.collect(Collectors.toSet());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Enum-with-behavior that supports multiple different copy mechanisms that are specialized for
+     * use with moving files between the datastore and a working directory. The following options
+     * are provided:
+     * <ol>
+     * <li>{@link CopyType#COPY} performs a traditional file copy operation. The copy is recursive,
+     * so directories are supported as well as individual files.
+     * <li>{@link CopyType#LINK} makes the destination a hard link to the true source file, as
+     * defined by the {@link realSourceFile} method. Linking can be faster than copying and can
+     * consume less disk space (assuming the datastore and working directories are on the same file
+     * system).
+     * <li>{@link CopyType#MOVE} will move the true source file to the destination; that is, it will
+     * follow symlinks via the {@link realSourceFile} method and move the file that is found in this
+     * way. In addition, if the source file is a symlink, it will be changed to a symlink to the
+     * moved file in its new location. In this way, the source file symlink remains valid and
+     * unchanged, but it now targets the moved file. to the moved file.
+     * </ol>
+     * In addition to all the foregoing, {@link CopyType} manages file permissions. After execution
+     * of any move / copy / symlink operation, the new file's permissions are set to make it
+     * write-protected and world-readable. If the copy / move / symlink operation is required to
+     * overwrite the destination file, that file's permissions will be set to allow the overwrite
+     * prior to execution.
+     * <p>
+     * For copying files from the datastore to a subtask directory, {@link CopyType#COPY}, and
+     * {@link CopyType#LINK} options are available. For copies from the subtask directory to the
+     * datastore, {@link CopyType#MOVE} and {@link CopyType#LINK} are available.
+     *
+     * @author PT
+     */
+    public enum CopyType {
+        COPY {
+            @Override
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            protected void copyInternal(Path src, Path dest) {
+                try {
+                    checkArguments(src, dest);
+                    if (Files.isRegularFile(src)) {
+                        Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
+                    } else {
+                        FileUtils.copyDirectory(src.toFile(), dest.toFile());
+                    }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to copy " + src.toString() + " to " + dest.toString(), e);
+                }
+            }
+        },
+        MOVE {
+            @Override
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            protected void copyInternal(Path src, Path dest) {
+                try {
+                    checkArguments(src, dest);
+                    Path trueSrc = realSourceFile(src);
+                    Files.move(trueSrc, dest, StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+                    if (src != trueSrc) {
+                        Files.createSymbolicLink(src, dest);
+                    }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to move " + src.toString() + " to " + dest.toString(), e);
+                }
+            }
+        },
+        LINK {
+            @Override
+            @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+            protected void copyInternal(Path src, Path dest) {
+                try {
+                    checkArguments(src, dest);
+                    Path trueSrc = realSourceFile(src);
+                    if (Files.exists(dest)) {
+                        Files.delete(dest);
+                    }
+                    createLink(trueSrc, dest);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(
+                        "Unable to link from " + src.toString() + " to " + dest.toString(), e);
+                }
+            }
+
+            /** Recursively copies directories and hard-links regular files. */
+            private void createLink(Path src, Path dest) throws IOException {
+                if (Files.isDirectory(src)) {
+                    Files.createDirectories(dest);
+                    for (Path file : Files.list(src).collect(Collectors.toList())) {
+                        createLink(file, dest.resolve(file.getFileName()));
+                    }
+                } else {
+                    Files.createLink(dest, src);
+                }
+            }
+        };
+
+        /**
+         * Copy operation that allows / forces the caller to manage any {@link IOException} that
+         * occurs.
+         */
+        protected abstract void copyInternal(Path src, Path dest);
+
+        /**
+         * Copy operation that manages any resulting {@link IOException}}. In this event, an
+         * {@link UncheckedIOException} is thrown, which terminates execution of the datastore
+         * operations.
+         */
+        public void copy(Path src, Path dest) {
+            copyInternal(src, dest);
+        }
+
+        private static void checkArguments(Path src, Path dest) {
+            checkNotNull(src, "src");
+            checkNotNull(dest, "dest");
+            checkArgument(Files.exists(src, LinkOption.NOFOLLOW_LINKS),
+                "Source file " + src + " does not exist");
         }
     }
 }

@@ -64,7 +64,7 @@ Ziggy is a collaboration between the Science Processing Group in NASA’s Advanc
 
 ## License
 
-Copyright © 2022-2023 United States Government as represented by the Administrator of the National Aeronautics and Space Administration. All Rights Reserved.
+Copyright © 2022-2024 United States Government as represented by the Administrator of the National Aeronautics and Space Administration. All Rights Reserved.
 
 NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline Management System for Data Analysis Pipelines, under Cooperative Agreement Nos. NNX14AH97A, 80NSSC18M0068 & 80NSSC21M0079.
 

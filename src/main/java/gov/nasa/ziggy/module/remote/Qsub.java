@@ -7,12 +7,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -45,7 +47,7 @@ public class Qsub {
     private String wallTime;
     private Integer numNodes;
     private Integer coresPerNode;
-    private Integer gigsPerNode;
+    private Double gigsPerNode;
     private String model;
     private String groupName;
     private String datestamp = Iso8601Formatter.dateTimeLocalFormatter().format(new Date());
@@ -72,9 +74,6 @@ public class Qsub {
 
     private int submit1Job(int jobIndex) {
 
-        String propertiesFileName = java.lang.System
-            .getenv(ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV);
-
         CommandLine commandLine = new CommandLine("/PBS/bin/qsub");
         commandLine.addArgument("-N");
         commandLine.addArgument(fullJobName(jobIndex));
@@ -85,11 +84,10 @@ public class Qsub {
         commandLine.addArgument(resourceOptions(jobIndex < 0));
         commandLine.addArgument("-W");
         commandLine.addArgument("group_list=" + groupName);
-        commandLine.addArgument("-v");
-        commandLine.addArgument(ZiggyConfiguration.ZIGGY_HOME_ENV);
-        if (propertiesFileName != null) {
+        String environment = environment();
+        if (!environment.isEmpty()) {
             commandLine.addArgument("-v");
-            commandLine.addArgument(ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV);
+            commandLine.addArgument(environment);
         }
         commandLine.addArgument("-o");
         commandLine.addArgument(pbsLogFile(jobIndex));
@@ -113,6 +111,21 @@ public class Qsub {
 
     private String fullJobName(int jobIndex) {
         return pipelineTask.taskBaseName() + "." + jobIndex;
+    }
+
+    /**
+     * Concatenates the internal ziggy.environment and user-defined ziggy.pipeline.environment
+     * variables for use by the qsub -v option.
+     */
+    private String environment() {
+        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
+        String environment = config.getString(PropertyName.ZIGGY_RUNTIME_ENVIRONMENT.property(),
+            "");
+        String userEnvironment = config.getString(PropertyName.RUNTIME_ENVIRONMENT.property(), "");
+        if (!userEnvironment.isEmpty()) {
+            environment = environment + (!environment.isEmpty() ? "," : "") + userEnvironment;
+        }
+        return environment;
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
@@ -230,7 +243,7 @@ public class Qsub {
         this.coresPerNode = coresPerNode;
     }
 
-    private void setGigsPerNode(int gigsPerNode) {
+    private void setGigsPerNode(double gigsPerNode) {
         this.gigsPerNode = gigsPerNode;
     }
 
@@ -304,7 +317,7 @@ public class Qsub {
             return this;
         }
 
-        public Builder gigsPerNode(int gigsPerNode) {
+        public Builder gigsPerNode(double gigsPerNode) {
             qsub.setGigsPerNode(gigsPerNode);
             return this;
         }

@@ -26,7 +26,7 @@ Why are there no workers?
 
 Workers are created as needed, and each worker is assigned to perform a particular pipeline task (or a portion of a particular task). Once the worker's job is done, the worker is closed down, and if the supervisor later needs a worker process, it will create one on-the-fly. Thus when you run a pipeline that has a total of 6 tasks, and has a worker count of 2, the supervisor will create a total of 6 workers over the course of execution, but only 2 will be running at any given time.
 
-Thus the blank workers display: when there are no tasks running, there are no workers running; and when a worker isn't running, it ceases to exist. If you were to start a new pipeline with 2 workers, after the delay mentioned in the first point you'd see something like this:
+Thus the blank workers display: when there are no tasks running, there are no workers running; and when a worker isn't running, it ceases to exist. If you were to start the sample pipeline with the default maximum number of workers set to 6, after the delay mentioned in the first point you'd see that only 2 workers would be started to process the two tasks.
 
 <img src="images/monitoring-worker-2.png" style="width:32cm;"/>
 

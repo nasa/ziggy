@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <def:pipelineDefinition xmlns:def="http://ziggy.nasa.gov/pipeline/definition"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://ziggy.nasa.gov/pipeline/definition file:../../../schema/xml/pipeline-definition.xsd">
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://ziggy.nasa.gov/pipeline/definition file:../../../schema/xml/pipeline-definition.xsd">
 
   <pipelines>
     <pipeline name="sampleipeline" description="A sample pipeline" rootNodeNames="samplemodule"
-        instancePriority="HIGH">
-        <node moduleName="samplemodule" uowClass="gov.nasa.ziggy.uow.SingleUowTask" 
+              instancePriority="HIGH">
+      <node moduleName="samplemodule" uowClass="gov.nasa.ziggy.uow.SingleUowTask"
             startNewUow="true" childNodeNames=""/>
     </pipeline>
   </pipelines>
 
   <modules>
-      <module name="samplemodule" description="A sample module" 
-          exeTimeoutSecs="600" minMemoryMegaBytes="0"
-          inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample"
-          outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1"/>
+    <module name="samplemodule" description="A sample module"
+            exeTimeoutSecs="600" minMemoryMegaBytes="0"
+            inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample"
+            outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1"/>
   </modules>
-    
+
 </def:pipelineDefinition>

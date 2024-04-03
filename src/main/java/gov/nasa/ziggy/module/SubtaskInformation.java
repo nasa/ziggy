@@ -10,14 +10,11 @@ public class SubtaskInformation {
     private final String moduleName;
     private final String uowBriefState;
     private final int subtaskCount;
-    private final int maxParallelSubtasks;
 
-    public SubtaskInformation(String moduleName, String uowBriefState, int subtaskCount,
-        int maxParallelSubtasks) {
+    public SubtaskInformation(String moduleName, String uowBriefState, int subtaskCount) {
         this.moduleName = moduleName;
         this.uowBriefState = uowBriefState;
         this.subtaskCount = subtaskCount;
-        this.maxParallelSubtasks = maxParallelSubtasks;
     }
 
     public String getModuleName() {
@@ -30,9 +27,5 @@ public class SubtaskInformation {
 
     public int getSubtaskCount() {
         return subtaskCount;
-    }
-
-    public int getMaxParallelSubtasks() {
-        return maxParallelSubtasks;
     }
 }

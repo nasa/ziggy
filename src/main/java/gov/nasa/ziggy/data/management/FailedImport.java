@@ -2,12 +2,9 @@ package gov.nasa.ziggy.data.management;
 
 import java.nio.file.Path;
 
-import gov.nasa.ziggy.data.management.DatastoreProducerConsumer.DataReceiptFileType;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,27 +40,15 @@ public class FailedImport {
     @Column(nullable = false, columnDefinition = "varchar(1000000)", unique = false)
     private String filename;
 
-    @Column
-    @Enumerated(EnumType.STRING)
-    private DataReceiptFileType dataReceiptFileType;
-
     // Needed by Hibernate.
     @SuppressWarnings("unused")
     private FailedImport() {
     }
 
-    /**
-     * Public constructor.
-     *
-     * @param task {@link PipelineTask} that attempted the import.
-     * @param filename {@link Path} for the file in datastore format. Note that this path must be
-     * relative to the datastore root.
-     * @param dataReceiptFileType Type of file (data or model).
-     */
-    public FailedImport(PipelineTask task, Path filename, DataReceiptFileType dataReceiptFileType) {
+    /** Public constructor. */
+    public FailedImport(PipelineTask task, Path filename) {
         dataReceiptTaskId = task.getId();
         this.filename = filename.toString();
-        this.dataReceiptFileType = dataReceiptFileType;
     }
 
     public Long getId() {
@@ -88,13 +73,5 @@ public class FailedImport {
 
     public void setFilename(String filename) {
         this.filename = filename;
-    }
-
-    public DataReceiptFileType getDataReceiptFileType() {
-        return dataReceiptFileType;
-    }
-
-    public void seDataReceiptFileType(DataReceiptFileType dataReceiptFileType) {
-        this.dataReceiptFileType = dataReceiptFileType;
     }
 }

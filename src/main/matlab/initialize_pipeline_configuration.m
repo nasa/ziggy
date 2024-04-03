@@ -38,7 +38,7 @@ function initialize_pipeline_configuration( csciNamesToSkip )
 %       "main", "src"
 
         nPathSteps = length(thisFile) - 4 ;
-        buildDir = fullfile(thisFile{1:nPathSteps});
+        buildDir = fullfile(thisFile{1:nPathSteps}, 'build');
         thisLocation = fullfile(thisFile{1:length(thisFile)-1}) ;
         
 %       add this location to the path
@@ -87,11 +87,9 @@ function initialize_pipeline_configuration( csciNamesToSkip )
             disp(['Setting log4j2 configuration file to ' log4jConfigFile]);
             java.lang.System.setProperty('log4j2.configurationFile', log4jConfigFile);
             log4jDestination = fullfile(pipelineProperties.get_property( ...
-                'ziggy.pipeline.home.dir'), 'logs') ;
-            disp(['Setting log4j destination to: ',log4jDestination]) ;
-            % trailing slash needed
-            java.lang.System.setProperty('log4j.logfile.prefix', ...
-                [log4jDestination,'/']) ;
+                'ziggy.pipeline.home.dir'), 'logs', 'matlab.log');
+            disp(['Setting log4j log file to: ', log4jDestination]);
+            java.lang.System.setProperty('ziggy.logFile', log4jDestination);
         else
             disp('No log4j config file found') ;
         end
