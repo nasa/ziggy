@@ -8,9 +8,11 @@ import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
 import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.module.SubtaskServer.ResponseType;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.AlgorithmErrorReturn;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
@@ -59,7 +61,7 @@ public class SubtaskMaster implements Runnable {
         this.timeoutSecs = timeoutSecs;
 
         String fullJobId = System.getenv("PBS_JOBID");
-        if (fullJobId != null && !fullJobId.isEmpty()) {
+        if (!StringUtils.isBlank(fullJobId)) {
             jobId = fullJobId.split("\\.")[0];
             jobName = System.getenv("PBS_JOBNAME");
             log.info(
@@ -71,11 +73,14 @@ public class SubtaskMaster implements Runnable {
     }
 
     @Override
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_IN_RUNNABLE)
     public void run() {
         try {
             processSubtasks();
             log.info("Node: " + node + "[" + threadNumber
                 + "]: No more subtasks to process, thread exiting");
+        } catch (Exception e) {
+            log.error("Exception thrown in SubtaskMaster", e);
         } finally {
             complete.release();
         }
@@ -97,7 +102,17 @@ public class SubtaskMaster implements Runnable {
 
             response = subtaskClient.nextSubtask();
 
-            if (response == null || !response.successful()) {
+            if (response == null) {
+                log.error("Null response from SubtaskClient, exiting.");
+                break;
+            }
+            if (response.status.equals(ResponseType.NO_MORE)) {
+                log.debug("Received no-more message from server");
+                break;
+            }
+            if (!response.successful()) {
+                log.error("Unsuccessful response from SubtaskClient, exiting.");
+                log.error("Response content: {}", response.toString());
                 break;
             }
             subtaskIndex = response.subtaskIndex;
@@ -107,9 +122,10 @@ public class SubtaskMaster implements Runnable {
             File subtaskDir = SubtaskUtils.subtaskDirectory(Paths.get(taskDir), subtaskIndex)
                 .toFile();
             File lockFile = new File(subtaskDir, TaskConfiguration.LOCK_FILE_NAME);
-
+            boolean lockFileObtained = false;
             try {
                 if (getWriteLockWithoutBlocking(lockFile)) {
+                    lockFileObtained = true;
                     SubtaskUtils.putLogStreamIdentifier(subtaskDir);
                     if (!checkSubtaskState(subtaskDir)) {
                         executeSubtask(subtaskDir, threadNumber, subtaskIndex);
@@ -127,7 +143,10 @@ public class SubtaskMaster implements Runnable {
                 logException(subtaskIndex, e);
             } finally {
                 SubtaskUtils.putLogStreamIdentifier((String) null);
-                releaseWriteLock(lockFile);
+                if (lockFileObtained) {
+                    releaseWriteLock(lockFile);
+                    lockFileObtained = false;
+                }
                 logAlgorithmStackTrace(subtaskDir, subtaskIndex);
             }
         }

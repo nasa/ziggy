@@ -64,6 +64,7 @@ public class Hdf5ModuleInterface {
     public static final String ORIG_DIMS_ATT_NAME = "ORIGINAL_DIMS";
     public static final String PARAMETER_CLASS_NAME_ATT_NAME = "PARAMETER_CLASS_NAME";
     public static final String PARAMETER_SET_ORIGINAL_NAME_ATT_NAME = "PARAMETER_SET_ORIGINAL_NAME";
+    public static final String PARAMETER_SET_MODULE_INTERFACE_NAME_ATT_NAME = "MODULE_INTERFACE_NAME";
     public static final String SCALAR_PARAMETER_ATT_NAME = "SCALAR_PARAMETER_ATT_NAME";
 
     /**
@@ -129,6 +130,7 @@ public class Hdf5ModuleInterface {
      * applied
      * @return ID for the resulting HDF5 property
      */
+    @SuppressWarnings("unused")
     static long chunkAndDeflateProperty(long elementCount, long[] chunkSize) {
         long deflateProperty;
         // TODO Eliminate dead code, or make COMPRESSION_LEVEL a variable

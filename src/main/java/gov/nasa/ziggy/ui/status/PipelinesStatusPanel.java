@@ -13,7 +13,7 @@ import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceFilter;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceFilter;
 import gov.nasa.ziggy.ui.instances.InstancesTable;
 
 /**

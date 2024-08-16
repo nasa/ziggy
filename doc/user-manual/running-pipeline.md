@@ -22,21 +22,22 @@ You can see the full set of nicknames by running the ziggy command with no argum
 
 ```console
 $ ziggy
-NICKNAME                CLASS NAME
-cluster                 gov.nasa.ziggy.ui.ClusterController
-compute-node-master     gov.nasa.ziggy.module.ComputeNodeMaster
-console                 gov.nasa.ziggy.ui.ZiggyConsole
-dump-system-properties  gov.nasa.ziggy.services.config.DumpSystemProperties
-execsql                 gov.nasa.ziggy.dbservice.SqlRunner
-export-parameters       gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli
-export-pipelines        gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
-generate-manifest       gov.nasa.ziggy.data.management.Manifest
-import-events           gov.nasa.ziggy.services.events.ZiggyEventHandlerDefinitionImporter
-import-parameters       gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli
-import-pipelines        gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
-import-types            gov.nasa.ziggy.data.management.DataFileTypeImporter
-metrics                 gov.nasa.ziggy.metrics.report.MetricsCli
-perf-report             gov.nasa.ziggy.metrics.report.PerformanceReport
+NICKNAME                 CLASS NAME
+cluster                  gov.nasa.ziggy.ui.ClusterController
+compute-node-master      gov.nasa.ziggy.module.ComputeNodeMaster
+console                  gov.nasa.ziggy.ui.ZiggyConsole
+dump-system-properties   gov.nasa.ziggy.services.config.DumpSystemProperties
+execsql                  gov.nasa.ziggy.services.database.SqlRunner
+export-parameters        gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli
+export-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
+generate-manifest        gov.nasa.ziggy.data.management.Manifest
+hsqlgui                  org.hsqldb.util.DatabaseManagerSwing
+import-datastore-config  gov.nasa.ziggy.data.management.DatastoreConfigurationImporter
+import-events            gov.nasa.ziggy.services.events.ZiggyEventHandlerDefinitionImporter
+import-parameters        gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli
+import-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
+metrics                  gov.nasa.ziggy.metrics.report.MetricsCli
+perf-report              gov.nasa.ziggy.metrics.report.PerformanceReport
 $
 ```
 
@@ -80,18 +81,19 @@ Cluster initialization is something you only do once per cluster. It populates t
 
 The command `ziggy cluster init` causes the initialization to occur. When you do this, after a few seconds you'll either have a nice spew of logging that ends with the message:
 
-`[ClusterController.initializeCluster] Database initialization and creation complete`
+`Cluster initialized`
 
 or else you'll see a Java stack trace that tells you that something went wrong. The most common problem that causes initialization to fail is a problem with the XML files that describe the pipeline, so that's the place to look first. Hopefully the exception provides informative messages that will help you track down the problem (they help me, but YMMV).
 
 Once you've initialized the cluster, Ziggy will prevent you from doing so again:
 
 ```
-system:sample-pipeline user$ ziggy cluster init
-[ZiggyConfiguration.getConfiguration] Loading configuration from: /xxx/yyy/zzz/ziggy/sample-pipeline/etc/sample.properties
-[ZiggyConfiguration.getConfiguration] Loading configuration from: /xxx/yyy/zzz/ziggy/sample-pipeline/etc/../../build/etc/ziggy.properties
-Cannot re-initialize an initialized cluster without --force option
-system:sample-pipeline user$
+$ ziggy cluster init
+[ClusterController.usageAndExit] Failed to initialize cluster
+gov.nasa.ziggy.module.PipelineException: Cannot re-initialize an initialized cluster without --force option
+        at gov.nasa.ziggy.ui.ClusterController.initializeCluster(ClusterController.java:317) [ziggy-0.5.0.jar:?]
+        at gov.nasa.ziggy.ui.ClusterController.main(ClusterController.java:277) [ziggy-0.5.0.jar:?]
+$
 ```
 
 Like it says: if you want to do this, you can do it; you need to use the `--force` (or `-f`) option.  Be aware, though: **if you reinitialize the cluster, you will delete all of the existing contents!** That's why Ziggy tries to keep you from doing it by accident. Reinitialize and all the database content, all the data files that have been generated as results -- all gone.
@@ -113,11 +115,10 @@ To start the cluster, you use -- wait for it -- `ziggy cluster start`. If you're
 Once you've done this, both the supervisor and the database software run as what Linux folks like to call "daemons". This means that they're running even though they gave you back the command prompt in the shell where you started them. To see this, use `ziggy cluster status`:
 
 ```console
-[ZiggyConfiguration.getConfiguration] Loading configuration from: /xxx/yyy/zzz/ziggy/sample-pipeline/etc/../../build/etc/ziggy.properties
-[ClusterController.status] Cluster is initialized
-[ClusterController.status] Supervisor is running
-[ClusterController.status] Database is available
-[ClusterController.status] Cluster is running
+Cluster is initialized
+Supervisor is running
+Database is available
+Cluster is running
 ```
 
 The status command shows that the cluster is running, which is great! But so far it's not obvious how you're supposed to do anything with it. To make use of the cluster, you'll need Ziggy's graphical user interface.

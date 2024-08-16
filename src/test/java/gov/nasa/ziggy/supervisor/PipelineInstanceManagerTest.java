@@ -14,15 +14,16 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.module.ModuleFatalProcessingException;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.services.database.DatabaseService;
-import gov.nasa.ziggy.services.messages.FireTriggerRequest;
+import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 
 /**
  * Unit test class for PipelineInstanceManager.
@@ -38,9 +39,10 @@ public class PipelineInstanceManagerTest {
 
     private PipelineDefinitionCrud pipelineDefinitionCrud = Mockito
         .mock(PipelineDefinitionCrud.class);
-    private PipelineInstanceCrud pipelineInstanceCrud = Mockito.mock(PipelineInstanceCrud.class);
-    private PipelineOperations pipelineOperations = Mockito.mock(PipelineOperations.class);
+    private PipelineInstanceOperations pipelineInstanceOperations;
+    private PipelineDefinitionOperations pipelineDefinitionOperations;
     private PipelineInstanceManager pipelineInstanceManager;
+    private PipelineExecutor pipelineExecutor = Mockito.mock(PipelineExecutor.class);
     private PipelineDefinition pipelineDefinition;
     private PipelineDefinitionNode startNode, endNode;
     private PipelineInstance instance0, instance1, instance2, instance3;
@@ -50,21 +52,21 @@ public class PipelineInstanceManagerTest {
     @Before
     public void setup() {
 
-        DatabaseService mockDatabaseService = Mockito.mock(DatabaseService.class);
-        DatabaseService.reset();
-        DatabaseService.setInstance(mockDatabaseService);
-
         // Provide a PipelineInstanceManager spy that returns the mocked instances when called upon
+        pipelineDefinitionOperations = Mockito.mock(PipelineDefinitionOperations.class);
         pipelineInstanceManager = Mockito.spy(PipelineInstanceManager.class);
-        Mockito.when(pipelineInstanceManager.pipelineDefinitionCrud())
-            .thenReturn(pipelineDefinitionCrud);
-        Mockito.when(pipelineInstanceManager.pipelineInstanceCrud())
-            .thenReturn(pipelineInstanceCrud);
-        Mockito.when(pipelineInstanceManager.pipelineOperations()).thenReturn(pipelineOperations);
+        pipelineInstanceOperations = Mockito.mock(PipelineInstanceOperations.class);
+        Mockito.when(pipelineInstanceManager.pipelineInstanceOperations())
+            .thenReturn(pipelineInstanceOperations);
+        Mockito.when(pipelineInstanceManager.pipelineExecutor()).thenReturn(pipelineExecutor);
+        Mockito.when(pipelineInstanceManager.pipelineDefinitionOperations())
+            .thenReturn(pipelineDefinitionOperations);
 
         // Mock some other stuff
         pipelineDefinition = Mockito.mock(PipelineDefinition.class);
-
+        Mockito.doReturn(pipelineDefinition)
+            .when(pipelineDefinitionOperations)
+            .lockAndReturnLatestPipelineDefinition(PIPELINE_NAME);
         startNode = Mockito.mock(PipelineDefinitionNode.class);
         Mockito.when(startNode.getModuleName()).thenReturn(START_NODE_NAME);
 
@@ -73,8 +75,10 @@ public class PipelineInstanceManagerTest {
 
         Mockito.when(pipelineDefinitionCrud.retrieveLatestVersionForName(PIPELINE_NAME))
             .thenReturn(pipelineDefinition);
-        Mockito.when(pipelineDefinition.getNodeByName(START_NODE_NAME)).thenReturn(startNode);
-        Mockito.when(pipelineDefinition.getNodeByName(END_NODE_NAME)).thenReturn(endNode);
+        Mockito.when(pipelineDefinitionOperations.pipelineDefinitionNodeByName(pipelineDefinition,
+            START_NODE_NAME)).thenReturn(startNode);
+        Mockito.when(pipelineDefinitionOperations.pipelineDefinitionNodeByName(pipelineDefinition,
+            END_NODE_NAME)).thenReturn(endNode);
 
         // Set up 4 pipeline instances and make sure they return the right things
         instance0 = Mockito.mock(PipelineInstance.class);
@@ -91,10 +95,10 @@ public class PipelineInstanceManagerTest {
         Mockito.when(instance3.getState()).thenReturn(PipelineInstance.State.COMPLETED);
 
         // Set up the PipelineInstanceCrud returns
-        Mockito.when(pipelineInstanceCrud.retrieve(22L)).thenReturn(instance0);
-        Mockito.when(pipelineInstanceCrud.retrieve(23L)).thenReturn(instance1);
-        Mockito.when(pipelineInstanceCrud.retrieve(24L)).thenReturn(instance2);
-        Mockito.when(pipelineInstanceCrud.retrieve(25L)).thenReturn(instance3);
+        Mockito.when(pipelineInstanceOperations.pipelineInstance(22L)).thenReturn(instance0);
+        Mockito.when(pipelineInstanceOperations.pipelineInstance(23L)).thenReturn(instance1);
+        Mockito.when(pipelineInstanceOperations.pipelineInstance(24L)).thenReturn(instance2);
+        Mockito.when(pipelineInstanceOperations.pipelineInstance(25L)).thenReturn(instance3);
 
         taskList.add(task0);
     }
@@ -112,8 +116,8 @@ public class PipelineInstanceManagerTest {
     public void testInitialize() {
 
         // Finite number of repeats
-        FireTriggerRequest wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode,
-            endNode, 50, 100);
+        StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
+            startNode, endNode, 50, 100);
         assertEquals(PIPELINE_NAME, wftr.getPipelineName());
         assertEquals(INSTANCE_NAME, wftr.getInstanceName());
         assertEquals(START_NODE_NAME, wftr.getStartNodeName());
@@ -129,7 +133,7 @@ public class PipelineInstanceManagerTest {
         assertEquals(100000L, pipelineInstanceManager.getRepeatIntervalMillis());
 
         // Effectively infinite number of repeats
-        wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode, endNode, -1, 100);
+        wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME, startNode, endNode, -1, 100);
         pipelineInstanceManager.initialize(wftr);
         assertEquals(Integer.MAX_VALUE, pipelineInstanceManager.getMaxRepeats());
     }
@@ -140,12 +144,12 @@ public class PipelineInstanceManagerTest {
     @Test
     public void testFireTriggerOnceAndSucceed() {
 
-        FireTriggerRequest wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode,
-            endNode, 1, 100);
+        StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
+            startNode, endNode, 1, 100);
         pipelineInstanceManager.initialize(wftr);
 
         Mockito
-            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+            .when(pipelineExecutor.launch(ArgumentMatchers.any(PipelineDefinition.class),
                 ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
                 ArgumentMatchers.any(PipelineDefinitionNode.class), ArgumentMatchers.isNull()))
             .thenReturn(instance0);
@@ -156,8 +160,8 @@ public class PipelineInstanceManagerTest {
         assertEquals(22L, pipelineInstanceManager.getCurrentInstanceId());
         assertEquals(1, pipelineInstanceManager.getRepeats());
         assertEquals(0, pipelineInstanceManager.getStatusChecks());
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME, startNode, endNode, null);
+        Mockito.verify(pipelineExecutor, Mockito.times(1))
+            .launch(pipelineDefinition, INSTANCE_NAME, startNode, endNode, null);
     }
 
     /**
@@ -167,13 +171,13 @@ public class PipelineInstanceManagerTest {
     @Test
     public void testFireTriggerMultipleTimesAndSucceed() {
 
-        FireTriggerRequest wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode,
-            endNode, 4, 0);
+        StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
+            startNode, endNode, 4, 0);
         pipelineInstanceManager.initialize(wftr);
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+            .when(pipelineExecutor.launch(ArgumentMatchers.any(PipelineDefinition.class),
                 ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
                 ArgumentMatchers.any(PipelineDefinitionNode.class), ArgumentMatchers.isNull()))
             .thenReturn(instance0)
@@ -190,14 +194,14 @@ public class PipelineInstanceManagerTest {
 
         assertEquals(4, pipelineInstanceManager.getRepeats());
         assertEquals(3, pipelineInstanceManager.getStatusChecks());
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode, null);
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode, null);
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode, null);
-        Mockito.verify(pipelineOperations, Mockito.times(1))
-            .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode, null);
+        Mockito.verify(pipelineExecutor, Mockito.times(1))
+            .launch(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode, null);
+        Mockito.verify(pipelineExecutor, Mockito.times(1))
+            .launch(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode, null);
+        Mockito.verify(pipelineExecutor, Mockito.times(1))
+            .launch(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode, null);
+        Mockito.verify(pipelineExecutor, Mockito.times(1))
+            .launch(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode, null);
     }
 
     /**
@@ -206,13 +210,13 @@ public class PipelineInstanceManagerTest {
     @Test
     public void testFireTriggerMultipleTimesWithErrorsRunning() {
 
-        FireTriggerRequest wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode,
-            endNode, 4, 0);
+        StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
+            startNode, endNode, 4, 0);
         pipelineInstanceManager.initialize(wftr);
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+            .when(pipelineExecutor.launch(ArgumentMatchers.any(PipelineDefinition.class),
                 ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
                 ArgumentMatchers.any(PipelineDefinitionNode.class), ArgumentMatchers.isNull()))
             .thenReturn(instance0)
@@ -235,18 +239,14 @@ public class PipelineInstanceManagerTest {
 
                 assertEquals(2, pipelineInstanceManager.getRepeats());
                 assertEquals(2, pipelineInstanceManager.getStatusChecks());
-                Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode,
-                        null);
-                Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode,
-                        null);
-                Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode,
-                        null);
-                Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode,
-                        null);
+                Mockito.verify(pipelineExecutor, Mockito.times(1))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode, null);
+                Mockito.verify(pipelineExecutor, Mockito.times(1))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode, null);
+                Mockito.verify(pipelineExecutor, Mockito.times(0))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode, null);
+                Mockito.verify(pipelineExecutor, Mockito.times(0))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode, null);
             });
         assertEquals("Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1",
             exception.getMessage());
@@ -258,13 +258,13 @@ public class PipelineInstanceManagerTest {
     @Test
     public void testFireTriggerMultipleTimesWithErrorsStalled() {
 
-        FireTriggerRequest wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode,
-            endNode, 4, 0);
+        StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
+            startNode, endNode, 4, 0);
         pipelineInstanceManager.initialize(wftr);
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+            .when(pipelineExecutor.launch(ArgumentMatchers.any(PipelineDefinition.class),
                 ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
                 ArgumentMatchers.any(PipelineDefinitionNode.class), ArgumentMatchers.isNull()))
             .thenReturn(instance0)
@@ -288,18 +288,14 @@ public class PipelineInstanceManagerTest {
 
                 assertEquals(2, pipelineInstanceManager.getRepeats());
                 assertEquals(2, pipelineInstanceManager.getStatusChecks());
-                Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode,
-                        null);
-                Mockito.verify(pipelineOperations, Mockito.times(1))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode,
-                        null);
-                Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode,
-                        null);
-                Mockito.verify(pipelineOperations, Mockito.times(0))
-                    .fireTrigger(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode,
-                        null);
+                Mockito.verify(pipelineExecutor, Mockito.times(1))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 1/4", startNode, endNode, null);
+                Mockito.verify(pipelineExecutor, Mockito.times(1))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 2/4", startNode, endNode, null);
+                Mockito.verify(pipelineExecutor, Mockito.times(0))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 3/4", startNode, endNode, null);
+                Mockito.verify(pipelineExecutor, Mockito.times(0))
+                    .launch(pipelineDefinition, INSTANCE_NAME + " 4/4", startNode, endNode, null);
             });
         assertEquals("Unable to start pipeline repeat 2 due to errored status of pipeline repeat 1",
             exception.getMessage());
@@ -313,22 +309,22 @@ public class PipelineInstanceManagerTest {
 
         // For a long requested interval, the check again and log message intervals should be 15
         // minutes
-        FireTriggerRequest wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode,
-            endNode, 4, 10000);
+        StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
+            startNode, endNode, 4, 10000);
         pipelineInstanceManager.initialize(wftr);
         assertEquals(15 * 60 * 1000, pipelineInstanceManager.checkAgainIntervalMillis());
         assertEquals(15 * 60 * 1000, pipelineInstanceManager.keepAliveLogMsgIntervalMillis());
 
         // For a short requested interval, the check again and log message intervals should be
         // equal to the requested interval
-        wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode, endNode, 4, 60);
+        wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME, startNode, endNode, 4, 60);
         pipelineInstanceManager.initialize(wftr);
         assertEquals(60 * 1000, pipelineInstanceManager.checkAgainIntervalMillis());
         assertEquals(60 * 1000, pipelineInstanceManager.keepAliveLogMsgIntervalMillis());
 
         // For a zero requested interval the check again and log message intervals should be
         // equal to 1 second
-        wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode, endNode, 4, 0);
+        wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME, startNode, endNode, 4, 0);
         pipelineInstanceManager.initialize(wftr);
         assertEquals(1000, pipelineInstanceManager.checkAgainIntervalMillis());
         assertEquals(1000, pipelineInstanceManager.keepAliveLogMsgIntervalMillis());
@@ -340,8 +336,8 @@ public class PipelineInstanceManagerTest {
      */
     @Test
     public void testWaiting() {
-        FireTriggerRequest wftr = new FireTriggerRequest(PIPELINE_NAME, INSTANCE_NAME, startNode,
-            endNode, 2, 0);
+        StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
+            startNode, endNode, 2, 0);
         pipelineInstanceManager.initialize(wftr);
 
         // We want to have a 75 millisecond interval between runs, plus a 10 millisecond interval
@@ -357,7 +353,7 @@ public class PipelineInstanceManagerTest {
 
         // Set up the returns from the PipelineOperations fireTrigger() calls
         Mockito
-            .when(pipelineOperations.fireTrigger(ArgumentMatchers.any(PipelineDefinition.class),
+            .when(pipelineExecutor.launch(ArgumentMatchers.any(PipelineDefinition.class),
                 ArgumentMatchers.anyString(), ArgumentMatchers.any(PipelineDefinitionNode.class),
                 ArgumentMatchers.any(PipelineDefinitionNode.class), ArgumentMatchers.isNull()))
             .thenReturn(instance0)

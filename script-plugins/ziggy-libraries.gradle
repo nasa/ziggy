@@ -5,7 +5,7 @@ import gov.nasa.ziggy.buildutil.ZiggyCppMex
 task buildLibZiggy(type: ZiggyCpp) {
     outputName = "ziggy"
     outputType = "static"
-    cppFilePaths = ["$projectDir/src/main/cpp/libziggy"]
+    sourceFilePaths = ["$projectDir/src/main/cpp/libziggy"]
     includeFilePaths = ["$projectDir/src/main/cpp/libziggy"]
 
     logging.captureStandardOutput LogLevel.INFO
@@ -18,7 +18,7 @@ assemble.dependsOn buildLibZiggy
 task buildLibZiggyMi(type: ZiggyCpp, dependsOn: copyHdf5Inc) {
     outputName = "ziggymi"
     outputType = "static"
-    cppFilePaths = ["$projectDir/src/main/cpp/libziggymi"]
+    sourceFilePaths = ["$projectDir/src/main/cpp/libziggymi"]
     includeFilePaths = ["$projectDir/src/main/cpp/libziggymi", "$projectDir/src/main/cpp/libziggy",
                         "$buildDir/include"]
     logging.captureStandardOutput LogLevel.INFO

@@ -32,7 +32,6 @@ import gov.nasa.ziggy.module.remote.TimestampFile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
-import gov.nasa.ziggy.services.logging.TaskLog;
 
 /**
  * Unit tests for the {@link ComputeNodeMaster} class.
@@ -61,7 +60,6 @@ public class ComputeNodeMasterTest {
     private TaskConfiguration inputsHandler;
     private SubtaskServer subtaskServer;
     private ExecutorService subtaskMasterThreadPool;
-    private TaskLog taskLog;
     private ComputeNodeMaster computeNodeMaster;
     private StateFile stateFile;
     private Path taskDir;
@@ -85,9 +83,8 @@ public class ComputeNodeMasterTest {
         Files.createDirectories(DirectoryProperties.stateFilesDir());
         pipelineTask = mock(PipelineTask.class);
         when(pipelineTask.getModuleName()).thenReturn(MODULE_NAME);
-        when(pipelineTask.exeTimeoutSeconds()).thenReturn(3_600_000);
         when(pipelineTask.getId()).thenReturn(TASK_ID);
-        when(pipelineTask.pipelineInstanceId()).thenReturn(INSTANCE_ID);
+        when(pipelineTask.getPipelineInstanceId()).thenReturn(INSTANCE_ID);
         stateFile = StateFile.generateStateFile(pipelineTask, null, SUBTASK_COUNT);
         stateFile.setActiveCoresPerNode(CORES_PER_NODE);
         stateFile.persist();
@@ -97,8 +94,6 @@ public class ComputeNodeMasterTest {
 
         // Create the algorithm log directory and the TaskLog instance
         Files.createDirectories(DirectoryProperties.algorithmLogsDir());
-        taskLog = new TaskLog(
-            DirectoryProperties.algorithmLogsDir().resolve(TASK_DIR_NAME + ".log").toString());
 
         // Create mocked instances
         inputsHandler = mock(TaskConfiguration.class);
@@ -107,7 +102,7 @@ public class ComputeNodeMasterTest {
 
         // Create the ComputeNodeMaster. To be precise, create an instance of the
         // class that is a Mockito spy.
-        computeNodeMaster = Mockito.spy(new ComputeNodeMaster(taskDir.toString(), taskLog));
+        computeNodeMaster = Mockito.spy(new ComputeNodeMaster(taskDir.toString()));
         doReturn(inputsHandler).when(computeNodeMaster).getTaskConfiguration();
         doReturn(subtaskServer).when(computeNodeMaster).subtaskServer();
         doReturn(subtaskMasterThreadPool).when(computeNodeMaster).subtaskMasterThreadPool();
@@ -167,8 +162,8 @@ public class ComputeNodeMasterTest {
         // Initialize the instance.
         computeNodeMaster.initialize();
 
-        // The state file on disk should still be QUEUED
-        assertEquals(StateFile.State.QUEUED, stateFile.newStateFileFromDiskFile().getState());
+        // The state file on disk should automatically increment to PROCESSING
+        assertEquals(StateFile.State.PROCESSING, stateFile.newStateFileFromDiskFile().getState());
 
         // The state file in the ComputeNodeMaster should have correct counts
         assertEquals(5, computeNodeMaster.getStateFileNumTotal());
@@ -212,8 +207,8 @@ public class ComputeNodeMasterTest {
         // Initialize the instance.
         computeNodeMaster.initialize();
 
-        // The state file on disk should still be QUEUED
-        assertEquals(StateFile.State.QUEUED, stateFile.newStateFileFromDiskFile().getState());
+        // The state file on disk should be COMPLETE
+        assertEquals(StateFile.State.COMPLETE, stateFile.newStateFileFromDiskFile().getState());
 
         // The SubtaskServer should not have started
         verify(subtaskServer, times(0)).start();

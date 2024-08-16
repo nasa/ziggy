@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -56,7 +57,6 @@ public class Qsub {
     private String taskDir;
     private String ziggyProgram;
     private String pbsLogDir;
-    private String nasLogDir;
     private SupportedRemoteClusters cluster;
 
     private PipelineTask pipelineTask;
@@ -85,7 +85,7 @@ public class Qsub {
         commandLine.addArgument("-W");
         commandLine.addArgument("group_list=" + groupName);
         String environment = environment();
-        if (!environment.isEmpty()) {
+        if (!environment.isBlank()) {
             commandLine.addArgument("-v");
             commandLine.addArgument(environment);
         }
@@ -95,11 +95,12 @@ public class Qsub {
         commandLine.addArgument("oe");
         commandLine.addArgument("--");
         commandLine.addArgument(scriptPath);
+        for (String systemProperty : systemProperties(jobIndex)) {
+            commandLine.addArgument(systemProperty);
+        }
+
         commandLine.addArgument(ziggyProgram);
-
         commandLine.addArgument(taskDir);
-        commandLine.addArgument(algorithmLogFile(jobIndex));
-
         log.info("commandLine: " + commandLine);
         for (String arg : commandLine.getArguments()) {
             log.info("arg: " + arg);
@@ -122,8 +123,8 @@ public class Qsub {
         String environment = config.getString(PropertyName.ZIGGY_RUNTIME_ENVIRONMENT.property(),
             "");
         String userEnvironment = config.getString(PropertyName.RUNTIME_ENVIRONMENT.property(), "");
-        if (!userEnvironment.isEmpty()) {
-            environment = environment + (!environment.isEmpty() ? "," : "") + userEnvironment;
+        if (!userEnvironment.isBlank()) {
+            environment = environment + (!environment.isBlank() ? "," : "") + userEnvironment;
         }
         return environment;
     }
@@ -139,16 +140,22 @@ public class Qsub {
         }
     }
 
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    private String algorithmLogFile(int jobIndex) {
-        File nasLogFile = new File(nasLogDir, pipelineTask.logFilename(jobIndex));
-        try {
-            return nasLogFile.getCanonicalPath();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unable to get path to file " + nasLogFile.toString(),
-                e);
-        }
+    private List<String> systemProperties(int jobIndex) {
+        List<String> systemProperties = new ArrayList<>();
+        systemProperties.add(TaskLog.algorithmLogFileSystemProperty(pipelineTask, jobIndex));
+        systemProperties.add(TaskLog.algorithmNameSystemProperty(pipelineTask));
+        return systemProperties;
     }
+//    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+//    private String algorithmLogFile(int jobIndex) {
+//        File nasLogFile = new File(nasLogDir, pipelineTask.logFilename(jobIndex));
+//        try {
+//            return nasLogFile.getCanonicalPath();
+//        } catch (IOException e) {
+//            throw new UncheckedIOException("Unable to get path to file " + nasLogFile.toString(),
+//                e);
+//        }
+//    }
 
     private String resourceOptions(boolean multiNodeJob) {
         int numNodesInCall = 1;
@@ -213,9 +220,6 @@ public class Qsub {
         if (pbsLogDir == null) {
             unsetParameters.add("pbsLogDir");
         }
-        if (nasLogDir == null) {
-            unsetParameters.add("nasLogDir");
-        }
         if (pipelineTask == null) {
             unsetParameters.add("pipelineTask");
         }
@@ -265,10 +269,6 @@ public class Qsub {
 
     private void setPbsLogDir(String logDir) {
         pbsLogDir = logDir;
-    }
-
-    private void setNasLogDir(String logDir) {
-        nasLogDir = logDir;
     }
 
     private void setPipelineTask(PipelineTask pipelineTask) {
@@ -349,11 +349,6 @@ public class Qsub {
 
         public Builder pbsLogDir(String logDir) {
             qsub.setPbsLogDir(logDir);
-            return this;
-        }
-
-        public Builder nasLogDir(String nasLogDir) {
-            qsub.setNasLogDir(nasLogDir);
             return this;
         }
 

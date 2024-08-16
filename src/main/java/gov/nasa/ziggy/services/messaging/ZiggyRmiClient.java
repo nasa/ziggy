@@ -119,10 +119,10 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
             return;
         }
 
-        log.info("Starting ZiggyRmiClient instance with registry on port {}...",
+        log.info("Starting ZiggyRmiClient instance with registry for {} on port {}", clientType,
             ZiggyRmiServer.rmiPort());
+
         try {
-            log.info("Starting new ZiggyRmiClient instance");
             instance = new ZiggyRmiClient(clientType);
 
             // Construct a stub of this instance and add that to the server's
@@ -139,11 +139,12 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
                 .exportObject(instance, 0);
             log.info("Adding client service stub to server instance");
             instance.ziggyRmiServerService.addClientStub(exportedClient);
-            log.info("Starting ZiggyRmiClient instance with registry on port {}...done",
-                ZiggyRmiServer.rmiPort());
         } catch (RemoteException | NotBoundException | NoHeartbeatException e) {
             throw new PipelineException("Could not start RMI client", e);
         }
+
+        log.info("Starting ZiggyRmiClient instance with registry for {} on port {}...done",
+            clientType, ZiggyRmiServer.rmiPort());
     }
 
     public static boolean isInitialized() {
@@ -181,6 +182,7 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
      */
     @Override
     public void takeMessageActionInClient(PipelineMessage message) throws RemoteException {
+        log.debug("message={}", message);
         if (useMessenger) {
             ZiggyMessenger.actOnMessage(message);
         } else {

@@ -14,11 +14,23 @@ Here's the pipeline module definitions for the sample pipeline:
 
 ```xml
 <module name="permuter" description="Color Permuter"/>
-<module name="flip" description="Flip Up-Down and Left-Right"/>
+<module name="flip" executableName="flipper" description="Flip Up-Down and Left-Right"/>
 <module name="averaging" description="Average Images Together"/>
 ```
 
 Pretty simple. The main thing is that the name of the module is the name that Ziggy will look for when it comes time to execute the module in question. Thus, **each module must be an executable file that can run without parameters.** Put differently, when the permuter module runs, Ziggy will look for an executable named `permuter` and start it. Done and done.
+
+#### Module names and Executable Names
+
+If you look at the pipeline modules above, you'll see that one of these things is not like the other. Specifically, the `flip` pipeline module has an extra attribute, `executableName`, which is set to `flipper`. What's the purpose of this? 
+
+The purpose is to tell Ziggy that the `flip` pipeline module doesn't run an executable named `flip`; it runs one named `flipper`. If a module's executable name is absent, Ziggy will use the module name, but if the executable name is set, it overrides the module name when Ziggy goes looking for the executable it's supposed to run. 
+
+Why would anyone want to do that? 
+
+The reason is that module names must all be unique. Usually this is super-easy, barely an inconvenience, but occasionally you may encounter a situation in which you want to use the same executable more than once in a given pipeline. In this case, you would encounter an issue, which is: each node in any pipeline has to have the name of its module; all module names must be unique; and each module can be used only once in any given pipeline.  Put this all together, and you'd find that you need multiple copies of the algorithm code, each of which has a unique name that matches the module name. Ugly!
+
+The `executableName` attribute gives you a way out of this. With `executableName` attributes, you can have two pipeline modules (with names, say, `flip` and `anti-flip`), each of which runs the same executable (say, `flipper`). You can now write a pipeline that calls `flip` at one point and `anti-flip` at some other point in execution, and each of them runs the `flipper` executable. 
 
 ### Pipelines
 
@@ -43,11 +55,10 @@ Note that data receipt is the only pre-defined module in Ziggy. There's more inf
 The next chunk of the pipeline definition is thus (minus comments, which I removed in the interest of brevity):
 
 ```xml
-<pipelineParameter name="Algorithm Parameters"/>
+  <parameterSet name="Algorithm Parameters"/>
 
   <node moduleName="data-receipt" childNodeNames="permuter">
     <inputDataFileType name="raw data"/>
-    <moduleParameter name="Data receipt configuration"/>
   </node>
 
   <node moduleName="permuter" childNodeNames="flip">
@@ -63,18 +74,18 @@ Each step in the pipeline is a node. The `node` specifies the name of the module
 
 Parameter sets can be supplied for either the entire pipeline as a whole, or else for individual nodes.
 
-In the text above we see a `pipelineParameter` named `Algorithm Parameters`. This means that the `Algorithm Parameters` set from `pl-sample.xml` will be provided to each and every module when it starts to execute. On the other hand, it's possible to imagine that the permuter module would have some parameters that it needs but which aren't used by the other modules. To do this, we would put a `moduleParameter` element into the `permuter` dode definition. Here's what that would look like:
+In the text above we see a `parameterSet` named `Algorithm Parameters` that is defined outside of the nodes. This means that the `Algorithm Parameters` set from `pl-sample.xml` will be provided to each and every module when it starts to execute. On the other hand, it's possible to imagine that the permuter module would have some parameters that it needs but which aren't used by the other modules. To do this, we would put a `parameterSet` element into the `permuter` node definition. Here's what that would look like:
 
 ```xml
   <node moduleName="permuter" childNodeNames="flip">
     <inputDataFileType name="raw data"/>
     <outputDataFileType name="permuted colors"/>
-    <moduleParameter name="Some other parameter set"/>
+    <parameterSet name="Some other parameter set"/>
     <modelType name="dummy model"/>
   </node>
 ```
 
-A given parameter set can be provided as a `moduleParameter` to any number of nodes. For example, if we wanted to provide `Some other parameter set` to both `permuter` and `flip`, but not to `data-receipt` or `average`, we could simply copy the `moduleParameter` element from the `permuter` node definition into the `flip` node definition. 
+A given parameter set can be provided as a `parameterSet` to any number of nodes. For example, if we wanted to provide `Some other parameter set` to both `permuter` and `flip`, but not to `data-receipt` or `average`, we could simply copy the `parameterSet` element from the `permuter` node definition into the `flip` node definition.
 
 ##### Data File and Model Types
 

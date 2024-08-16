@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * {@link Runnable} that periodically dumps metrics to a file.
@@ -86,7 +86,7 @@ public class MetricsDumper implements Runnable {
             FileOutputStream fout = new FileOutputStream(metricsFile, true /* append mode */);
             BufferedOutputStream bout = new BufferedOutputStream(fout, BUF_SIZE_BYTES);
             countOut = new CountingOutputStream(bout);
-            printWriter = new PrintWriter(new OutputStreamWriter(countOut, FileUtil.ZIGGY_CHARSET));
+            printWriter = new PrintWriter(new OutputStreamWriter(countOut, ZiggyFileUtils.ZIGGY_CHARSET));
         } catch (IOException e) {
             throw new UncheckedIOException("IOException occurred on file " + metricsFile.toString(),
                 e);

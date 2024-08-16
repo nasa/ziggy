@@ -2,10 +2,8 @@ package gov.nasa.ziggy.ui.pipeline;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CLOSE;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DIALOG;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.START;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
-import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createMenuItem;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -17,9 +15,9 @@ import java.util.Set;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
-import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.netbeans.swing.outline.RowModel;
@@ -27,11 +25,12 @@ import org.netbeans.swing.outline.RowModel;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
-import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionCrudProxy;
-import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
 import gov.nasa.ziggy.ui.util.table.AbstractViewEditGroupPanel;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
@@ -43,16 +42,16 @@ import gov.nasa.ziggy.util.dispmod.ModelContentClass;
  */
 public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineDefinition> {
 
-    private static final long serialVersionUID = 20231112L;
+    private static final long serialVersionUID = 20240614L;
 
-    private PipelineDefinitionCrudProxy crudProxy = new PipelineDefinitionCrudProxy();
-    private ZiggyTreeModel<PipelineDefinition> treeModel;
+    private final PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
 
     public ViewEditPipelinesPanel(PipelineRowModel rowModel,
         ZiggyTreeModel<PipelineDefinition> treeModel) {
         super(rowModel, treeModel, "Name");
-        this.treeModel = treeModel;
         buildComponent();
+
+        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
     }
 
     /**
@@ -61,9 +60,13 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
      */
     public static ViewEditPipelinesPanel newInstance() {
         ZiggyTreeModel<PipelineDefinition> treeModel = new ZiggyTreeModel<>(
-            new PipelineDefinitionCrudProxy(), PipelineDefinition.class);
-        PipelineRowModel rowModel = new PipelineRowModel(treeModel);
-        return new ViewEditPipelinesPanel(rowModel, treeModel);
+            PipelineDefinition.class,
+            () -> new PipelineDefinitionOperations().allPipelineDefinitions());
+        return new ViewEditPipelinesPanel(new PipelineRowModel(), treeModel);
+    }
+
+    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+        ziggyTable.loadFromDatabase();
     }
 
     @Override
@@ -73,48 +76,23 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
         return buttons;
     }
 
-    @Override
-    protected List<JMenuItem> menuItems() {
-        List<JMenuItem> menuItems = super.menuItems();
-        menuItems.add(
-            createMenuItem("New version of selected pipeline (unlock)" + DIALOG, this::newVersion));
-        return menuItems;
-    }
-
     private void start(ActionEvent evt) {
 
         int tableRow = ziggyTable.getSelectedRow();
         selectedModelRow = ziggyTable.convertRowIndexToModel(tableRow);
         PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(selectedModelRow);
-        if (pipeline != null) {
-            try {
-                new StartPipelineDialog(SwingUtilities.getWindowAncestor(this), pipeline)
-                    .setVisible(true);
-            } catch (Throwable e) {
-                MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
-            }
+
+        // TODO Delete once the Start button is disabled if a non-pipeline row is selected
+        if (pipeline == null) {
+            return;
         }
-    }
-
-    private void newVersion(ActionEvent evt) {
-
-        PipelineDefinition selectedPipeline = ziggyTable.getContentAtViewRow(selectedModelRow);
 
         try {
-            // Make sure that an unlocked version of the selected pipeline is present in the
-            // database
-            PipelineDefinitionCrudProxy pipelineDefCrud = new PipelineDefinitionCrudProxy();
-            pipelineDefCrud.createOrUpdate(selectedPipeline);
-
-            ziggyTable.loadFromDatabase();
-        } catch (Exception e) {
-            MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
+            new StartPipelineDialog(SwingUtilities.getWindowAncestor(this), pipeline)
+                .setVisible(true);
+        } catch (Throwable e) {
+            MessageUtils.showError(SwingUtilities.getWindowAncestor(this), e);
         }
-    }
-
-    @Override
-    protected RetrieveLatestVersionsCrudProxy<PipelineDefinition> getCrudProxy() {
-        return crudProxy;
     }
 
     @Override
@@ -130,7 +108,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
         try {
             ziggyTable.loadFromDatabase();
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -144,15 +122,13 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
             return;
         }
 
-        EditPipelineDialog editDialog = new EditPipelineDialog(
-            SwingUtilities.getWindowAncestor(this),
-            new PipelineDefinition(newPipelineDialog.getPipelineName()), treeModel);
-        editDialog.setVisible(true);
+        new EditPipelineDialog(SwingUtilities.getWindowAncestor(this),
+            new PipelineDefinition(newPipelineDialog.getPipelineName())).setVisible(true);
 
         try {
             ziggyTable.loadFromDatabase();
         } catch (PipelineException e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -180,94 +156,131 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
     @Override
     protected void edit(int row) {
 
-        PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
-        if (pipeline == null) {
+        EditPipelineDialog dialog = new EditPipelineDialog(SwingUtilities.getWindowAncestor(this),
+            ziggyTable.getContentAtViewRow(row));
+        dialog.setVisible(true);
+
+        if (dialog.isCancelled()) {
             return;
         }
-        EditPipelineDialog editDialog = new EditPipelineDialog(
-            SwingUtilities.getWindowAncestor(this), pipeline, treeModel);
-        editDialog.setVisible(true);
 
         try {
             ziggyTable.loadFromDatabase();
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
     @Override
     protected void copy(int row) {
 
-        PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
-        if (pipeline == null) {
+        String newPipelineName = readPipelineName("Enter the name for the new pipeline definition",
+            "New pipeline definition");
+        if (newPipelineName == null) {
             return;
         }
 
-        new PipelineDefinitionCrudProxy().createOrUpdate(pipeline.newInstance());
+        PipelineDefinition newPipeline = ziggyTable.getContentAtViewRow(row).newInstance();
+        newPipeline.setName(newPipelineName);
 
-        try {
-            ziggyTable.loadFromDatabase();
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                pipelineDefinitionOperations().merge(newPipeline);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    ziggyTable.loadFromDatabase();
+                } catch (Exception e) {
+                    MessageUtils.showError(ViewEditPipelinesPanel.this, e);
+                }
+            }
+        }.execute();
     }
 
     @Override
     protected void rename(int row) {
 
-        PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
-        if (pipeline == null) {
+        String newPipelineName = readPipelineName("Enter the new name for this pipeline definition",
+            "Rename pipeline definition");
+        if (newPipelineName == null) {
             return;
         }
 
-        try {
-            String newPipelineName = JOptionPane.showInputDialog(
-                SwingUtilities.getWindowAncestor(this),
-                "Enter the new name for this pipeline definition", "Rename pipeline definition",
-                JOptionPane.PLAIN_MESSAGE);
-
-            if (newPipelineName == null) {
-                return;
-            }
-            if (newPipelineName.isEmpty()) {
-                MessageUtil.showError(this, "Please enter a pipeline name");
-                return;
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                pipelineDefinitionOperations().rename(ziggyTable.getContentAtViewRow(row),
+                    newPipelineName);
+                return null;
             }
 
-            crudProxy.rename(pipeline, newPipelineName);
-            ziggyTable.loadFromDatabase();
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    ziggyTable.loadFromDatabase();
+                } catch (Exception e) {
+                    MessageUtils.showError(ViewEditPipelinesPanel.this, e);
+                }
+            }
+        }.execute();
     }
 
     @Override
     protected void delete(int row) {
 
         PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
-        if (pipeline == null) {
-            return;
-        }
 
-        if (pipeline.isLocked()) {
-            JOptionPane.showMessageDialog(this,
-                "Can not delete locked pipeline definitions. "
-                    + "Pipelines are locked when referenced by a pipeline instance",
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
         int choice = JOptionPane.showConfirmDialog(this,
             "Are you sure you want to delete pipeline " + pipeline.getName() + "?");
         if (choice != JOptionPane.YES_OPTION) {
             return;
         }
 
-        try {
-            crudProxy.deletePipeline(pipeline);
-            ziggyTable.loadFromDatabase();
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                pipelineDefinitionOperations().delete(pipeline);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    ziggyTable.loadFromDatabase();
+                } catch (Exception e) {
+                    MessageUtils.showError(ViewEditPipelinesPanel.this, e);
+                }
+            }
+        }.execute();
+    }
+
+    private String readPipelineName(String message, String title) {
+        while (true) {
+            String pipelineName = JOptionPane.showInputDialog(
+                SwingUtilities.getWindowAncestor(this), message, title, JOptionPane.PLAIN_MESSAGE);
+            if (pipelineName == null) {
+                return null;
+            }
+            if (pipelineName.isBlank()) {
+                MessageUtils.showError(this, "Please enter a pipeline name");
+            } else if (pipelineDefinitionOperations().pipelineDefinition(pipelineName) != null) {
+                MessageUtils.showError(this,
+                    pipelineName + " already exists; please enter a unique pipeline name");
+            } else {
+                return pipelineName;
+            }
         }
+    }
+
+    private PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
     }
 
     private static class PipelineRowModel
@@ -277,12 +290,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
             "Node count" };
         private static final Class<?>[] COLUMN_CLASSES = { Integer.class, Boolean.class,
             String.class, Object.class, Integer.class };
-
-        private ZiggyTreeModel<PipelineDefinition> treeModel;
-
-        public PipelineRowModel(ZiggyTreeModel<PipelineDefinition> treeModel) {
-            this.treeModel = treeModel;
-        }
 
         @Override
         public int getColumnCount() {
@@ -307,7 +314,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
         @Override
         public Object getValueFor(Object treeNode, int columnIndex) {
             checkColumnArgument(columnIndex);
-            treeModel.validityCheck();
             Object node = ((DefaultMutableTreeNode) treeNode).getUserObject();
 
             if (!(node instanceof PipelineDefinition)) {

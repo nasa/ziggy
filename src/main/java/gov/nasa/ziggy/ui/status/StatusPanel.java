@@ -21,9 +21,11 @@ import javax.swing.event.ListSelectionListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.status.Indicator.IdiotLight;
 import gov.nasa.ziggy.ui.status.Indicator.IndicatorListener;
 import gov.nasa.ziggy.ui.status.Indicator.State;
+import gov.nasa.ziggy.ui.util.InstanceUpdateMessage;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
@@ -35,9 +37,13 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
  */
 public class StatusPanel extends javax.swing.JPanel {
 
-    private static final long serialVersionUID = 20230822L;
+    private static final long serialVersionUID = 20240328L;
+
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(StatusPanel.class);
+
+    private static final String WARNING_MESSAGE = "One or more tasks failed but execution continues";
+    private static final String ERROR_MESSAGE = "One or more tasks failed, execution halted";
 
     // To add new panels:
     // 1. Add the item to this enum in the order that it should appear. The text is used in
@@ -79,6 +85,7 @@ public class StatusPanel extends javax.swing.JPanel {
 
     public StatusPanel() {
         buildComponent();
+        ZiggyMessenger.subscribe(InstanceUpdateMessage.class, this::updateInstancesStatusLight);
     }
 
     private void buildComponent() {
@@ -99,6 +106,36 @@ public class StatusPanel extends javax.swing.JPanel {
     }
 
     /**
+     * Sets the "idiot light" for pipelines based on a PipelineInstance state. A gray indicator
+     * indicates that the selected instance was completed; green indicates initialized, processing,
+     * or queued; yellow indicates errors running status; red indicates stopped or errors stalled
+     * state.
+     */
+    private void updateInstancesStatusLight(InstanceUpdateMessage message) {
+
+        Indicator instancesIndicator = StatusPanel.ContentItem.PIPELINES.menuItem();
+        switch (message.getInstanceState()) {
+            case COMPLETED:
+                instancesIndicator.setState(
+                    message.isInstancesRemaining() ? Indicator.State.NORMAL : Indicator.State.IDLE);
+                break;
+            case INITIALIZED:
+            case PROCESSING:
+                instancesIndicator.setState(Indicator.State.NORMAL);
+                break;
+            case ERRORS_RUNNING:
+                instancesIndicator.setState(Indicator.State.WARNING, WARNING_MESSAGE);
+                break;
+            case ERRORS_STALLED:
+                instancesIndicator.setState(Indicator.State.ERROR, ERROR_MESSAGE);
+                break;
+            default:
+                throw new IllegalStateException(
+                    "Unsupported pipeline instance state " + message.getInstanceState().toString());
+        }
+    }
+
+    /**
      * The navigation menu for the status display.
      *
      * @author Bill Wohler
@@ -106,7 +143,7 @@ public class StatusPanel extends javax.swing.JPanel {
     private static class ContentMenu extends JList<ContentItem>
         implements ListSelectionListener, ListCellRenderer<ContentItem>, IndicatorListener {
 
-        private static final long serialVersionUID = 20230821L;
+        private static final long serialVersionUID = 20240328L;
 
         @SuppressWarnings("unused")
         private static final Logger log = LoggerFactory.getLogger(ContentMenu.class);
@@ -116,7 +153,7 @@ public class StatusPanel extends javax.swing.JPanel {
         public ContentMenu(ContentPanel contentPanel) {
             super(createModel());
             this.contentPanel = contentPanel;
-            getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+            getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             setVisibleRowCount(-1);
             addListSelectionListener(this);
             setCellRenderer(this);
@@ -197,7 +234,7 @@ public class StatusPanel extends javax.swing.JPanel {
      * @author Bill Wohler
      */
     private static class ContentPanel extends javax.swing.JPanel {
-        private static final long serialVersionUID = 20230821L;
+        private static final long serialVersionUID = 20240328L;
         private static final Logger log = LoggerFactory.getLogger(ContentPanel.class);
 
         public ContentPanel() {

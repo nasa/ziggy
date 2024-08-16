@@ -58,27 +58,22 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
-import gov.nasa.ziggy.data.datastore.DatastoreConfigurationImporter;
-import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
-import gov.nasa.ziggy.parameters.ParametersOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineImportOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.xml.ParameterImportExportOperations;
+import gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli.ParamIoMode;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseController;
-import gov.nasa.ziggy.services.database.DatabaseTransaction;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.events.ZiggyEventHandlerDefinitionImporter;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Tool to manage the pipeline cluster (here "cluster" means the combination of a database instance,
@@ -182,6 +177,10 @@ public class ClusterController {
 
     private final int workerHeapSize;
     private final int workerCount;
+
+    private final PipelineImportOperations pipelineImportOperations = new PipelineImportOperations();
+    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+    private final ParameterImportExportOperations parameterImportExportOperations = new ParameterImportExportOperations();
 
     public ClusterController(int workerHeapSize, int workerCount) {
         databaseController = DatabaseController.newInstance();
@@ -327,13 +326,13 @@ public class ClusterController {
             } else {
                 log.info("Deleting existing database directory {}",
                     DirectoryProperties.databaseDir());
-                FileUtil.deleteDirectoryTree(DirectoryProperties.databaseDir(), true);
+                ZiggyFileUtils.deleteDirectoryTree(DirectoryProperties.databaseDir(), true);
                 log.info("Deleting existing database directory...done");
             }
         }
 
         log.info("Deleting existing datastore directory");
-        FileUtil.deleteDirectoryTree(DirectoryProperties.datastoreRootDir(), true);
+        ZiggyFileUtils.deleteDirectoryTree(DirectoryProperties.datastoreRootDir(), true);
         log.info("Deleting existing datastore directory...done");
 
         if (databaseController != null) {
@@ -361,78 +360,59 @@ public class ClusterController {
         createUtilityPipelineModules();
         log.info("Creating utility pipeline modules...done");
 
-        DatabaseTransactionFactory.performTransaction(new DatabaseTransaction<Void>() {
-            @Override
-            public Void transaction() throws Exception {
+        // Import the parameters, data types, and pipelines.
+        Path pipelineDefsDir = DirectoryProperties.pipelineDefinitionDir();
+        if (!Files.exists(pipelineDefsDir)) {
+            throw new PipelineException(
+                "Pipeline definitions directory " + pipelineDefsDir.toString() + " does not exist");
+        }
 
-                // Import the parameters, data types, and pipelines.
-                Path pipelineDefsDir = DirectoryProperties.pipelineDefinitionDir();
-                if (!Files.exists(pipelineDefsDir)) {
-                    throw new PipelineException("Pipeline definitions directory "
-                        + pipelineDefsDir.toString() + " does not exist");
-                }
+        log.info("Importing parameter libraries from directory {}", pipelineDefsDir.toString());
+        File[] parameterFiles = pipelineDefsDir.toFile()
+            .listFiles((FilenameFilter) (dir,
+                name) -> (name.startsWith(PARAM_LIBRARY_PREFIX) && name.endsWith(XML_SUFFIX)));
+        Arrays.sort(parameterFiles, Comparator.comparing(File::getName));
 
-                log.info("Importing parameter libraries from directory {}",
-                    pipelineDefsDir.toString());
-                File[] parameterFiles = pipelineDefsDir.toFile()
-                    .listFiles(
-                        (FilenameFilter) (dir, name) -> (name.startsWith(PARAM_LIBRARY_PREFIX)
-                            && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(parameterFiles, Comparator.comparing(File::getName));
-                ParametersOperations paramsOps = new ParametersOperations();
-                for (File parameterFile : parameterFiles) {
-                    log.info("Importing library {}", parameterFile.getName());
-                    paramsOps.importParameterLibrary(parameterFile, null, ParamIoMode.STANDARD);
-                }
+        log.info("Importing datastore configuration from directory " + pipelineDefsDir.toString());
+        File[] dataTypeFiles = pipelineDefsDir.toFile()
+            .listFiles((FilenameFilter) (dir,
+                name) -> (name.startsWith(TYPE_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));
+        Arrays.sort(dataTypeFiles, Comparator.comparing(File::getName));
+        List<String> dataTypeFileNames = new ArrayList<>(dataTypeFiles.length);
+        for (File dataTypeFile : dataTypeFiles) {
+            log.info("Adding {} to imports list", dataTypeFile.getName());
+            dataTypeFileNames.add(dataTypeFile.getAbsolutePath());
+        }
 
-                log.info("Importing datastore configuration from directory "
-                    + pipelineDefsDir.toString());
-                File[] dataTypeFiles = pipelineDefsDir.toFile()
-                    .listFiles((FilenameFilter) (dir,
-                        name) -> (name.startsWith(TYPE_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(dataTypeFiles, Comparator.comparing(File::getName));
-                List<String> dataTypeFileNames = new ArrayList<>(dataTypeFiles.length);
-                for (File dataTypeFile : dataTypeFiles) {
-                    log.info("Adding {} to imports list", dataTypeFile.getName());
-                    dataTypeFileNames.add(dataTypeFile.getAbsolutePath());
-                }
-                DatastoreConfigurationImporter importer = new DatastoreConfigurationImporter(
-                    dataTypeFileNames, false);
-                importer.importConfiguration();
+        log.info("Importing pipeline definitions from directory {}", pipelineDefsDir.toString());
+        File[] pipelineDefinitionFiles = pipelineDefsDir.toFile()
+            .listFiles((FilenameFilter) (dir,
+                name) -> (name.startsWith(PIPELINE_DEF_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));
+        Arrays.sort(pipelineDefinitionFiles, Comparator.comparing(File::getName));
+        List<File> pipelineDefFileList = new ArrayList<>();
+        for (File pipelineDefinitionFile : pipelineDefinitionFiles) {
+            log.info("Adding {} to imports list", pipelineDefinitionFile.getName());
+            pipelineDefFileList.add(pipelineDefinitionFile);
+        }
 
-                log.info("Importing pipeline definitions from directory {}",
-                    pipelineDefsDir.toString());
-                File[] pipelineDefinitionFiles = pipelineDefsDir.toFile()
-                    .listFiles(
-                        (FilenameFilter) (dir, name) -> (name.startsWith(PIPELINE_DEF_FILE_PREFIX)
-                            && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(pipelineDefinitionFiles, Comparator.comparing(File::getName));
-                List<File> pipelineDefFileList = new ArrayList<>();
-                for (File pipelineDefinitionFile : pipelineDefinitionFiles) {
-                    log.info("Adding {} to imports list", pipelineDefinitionFile.getName());
-                    pipelineDefFileList.add(pipelineDefinitionFile);
-                }
-                new PipelineDefinitionOperations().importPipelineConfiguration(pipelineDefFileList);
+        log.info("Importing event definitions from directory {}", pipelineDefsDir.toString());
+        File[] handlerDefinitionFiles = pipelineDefsDir.toFile()
+            .listFiles(
+                (FilenameFilter) (dir, name) -> (name.startsWith(EVENT_HANDLER_DEF_FILE_PREFIX)
+                    && name.endsWith(XML_SUFFIX)));
+        Arrays.sort(handlerDefinitionFiles, Comparator.comparing(File::getName));
 
-                log.info("Importing event definitions from directory {}",
-                    pipelineDefsDir.toString());
-                File[] handlerDefinitionFiles = pipelineDefsDir.toFile()
-                    .listFiles((FilenameFilter) (dir,
-                        name) -> (name.startsWith(EVENT_HANDLER_DEF_FILE_PREFIX)
-                            && name.endsWith(XML_SUFFIX)));
-                Arrays.sort(handlerDefinitionFiles, Comparator.comparing(File::getName));
-                new ZiggyEventHandlerDefinitionImporter(handlerDefinitionFiles).importFromFiles();
+        for (File parameterFile : parameterFiles) {
+            log.info("Importing library {}", parameterFile.getName());
+            parametersImportExportOperations().importParameterLibrary(parameterFile, null,
+                ParamIoMode.STANDARD);
+        }
 
-                return null;
-            }
+        log.info("Persisting cluster definitions to database...");
+        pipelineImportOperations().importClusterDefinitions(parameterFiles, dataTypeFileNames,
+            pipelineDefFileList, handlerDefinitionFiles, databaseController);
+        log.info("Persisting cluster definitions to database...done");
 
-            @Override
-            public void finallyBlock() {
-                if (databaseController != null) {
-                    databaseController.stop();
-                }
-            }
-        });
         log.info("Database initialization and creation complete");
         System.out.println("Cluster initialized");
     }
@@ -445,12 +425,7 @@ public class ClusterController {
      * datastore.
      */
     private void createUtilityPipelineModules() {
-
-        DatabaseTransactionFactory.performTransaction(() -> {
-            new PipelineModuleDefinitionCrud()
-                .merge(DataReceiptPipelineModule.createDataReceiptPipelineForDb());
-            return null;
-        });
+        pipelineModuleDefinitionOperations().createDataReceiptPipelineModule();
     }
 
     private boolean isInitialized() {
@@ -602,6 +577,18 @@ public class ClusterController {
             .toString();
         log.debug("Command line: {}", consoleCommand);
         ExternalProcess.simpleExternalProcess(consoleCommand).execute(false);
+    }
+
+    private PipelineImportOperations pipelineImportOperations() {
+        return pipelineImportOperations;
+    }
+
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+        return pipelineModuleDefinitionOperations;
+    }
+
+    private ParameterImportExportOperations parametersImportExportOperations() {
+        return parameterImportExportOperations;
     }
 
     private static void usageAndExit(Options options, String message) {

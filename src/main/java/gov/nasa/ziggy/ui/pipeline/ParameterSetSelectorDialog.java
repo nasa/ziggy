@@ -11,7 +11,6 @@ import java.awt.event.ActionEvent;
 
 import javax.swing.JDialog;
 
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 
 /**
@@ -23,18 +22,11 @@ import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 @SuppressWarnings("serial")
 public class ParameterSetSelectorDialog extends javax.swing.JDialog {
 
-    private final Class<? extends ParametersInterface> filterClass;
     private ParameterSetSelectorPanel parameterSetSelectorPanel;
     private boolean cancelled = false;
 
     private ParameterSetSelectorDialog(Window owner) {
-        this(owner, null);
-    }
-
-    private ParameterSetSelectorDialog(Window owner,
-        Class<? extends ParametersInterface> filterClass) {
         super(owner, DEFAULT_MODALITY_TYPE);
-        this.filterClass = filterClass;
         buildComponent();
         setLocationRelativeTo(owner);
     }
@@ -50,7 +42,7 @@ public class ParameterSetSelectorDialog extends javax.swing.JDialog {
     }
 
     private ParameterSetSelectorPanel createDataPanel() {
-        parameterSetSelectorPanel = new ParameterSetSelectorPanel(filterClass);
+        parameterSetSelectorPanel = new ParameterSetSelectorPanel();
 
         return parameterSetSelectorPanel;
     }
@@ -62,23 +54,6 @@ public class ParameterSetSelectorDialog extends javax.swing.JDialog {
     private void cancel(ActionEvent evt) {
         cancelled = true;
         setVisible(false);
-    }
-
-    /**
-     * Select a parameter set of the specified type from the parameter set library.
-     *
-     * @return null, if a parameter set was not selected
-     */
-    public static ParameterSet selectParameterSet(Window owner,
-        Class<? extends ParametersInterface> filterClass) {
-
-        ParameterSetSelectorDialog dialog = new ParameterSetSelectorDialog(owner, filterClass);
-        dialog.setVisible(true);
-
-        if (dialog.cancelled) {
-            return null;
-        }
-        return dialog.parameterSetSelectorPanel.getSelected();
     }
 
     /**

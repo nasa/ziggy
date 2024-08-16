@@ -7,6 +7,7 @@ import java.util.Objects;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.dispmod.DisplayModel;
 
 /**
@@ -16,22 +17,27 @@ import gov.nasa.ziggy.util.dispmod.DisplayModel;
  * @author Todd Klaus
  */
 public class TaskMetrics {
-    // Map<category,Pair<categoryTimeMillis,categoryPercent>>
     private final Map<String, TimeAndPercentile> categoryMetrics = new HashMap<>();
+    private final List<PipelineTask> pipelineTasks;
     private TimeAndPercentile unallocatedTime = null;
     private long totalProcessingTimeMillis;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     public TaskMetrics(List<PipelineTask> tasks) {
+        pipelineTasks = tasks;
+    }
+
+    public void calculate() {
         totalProcessingTimeMillis = 0;
-        // Map<category,categoryTimeMillis>
         Map<String, Long> allocatedTimeByCategory = new HashMap<>();
 
-        if (tasks != null) {
-            for (PipelineTask task : tasks) {
+        if (pipelineTasks != null) {
+            for (PipelineTask task : pipelineTasks) {
                 totalProcessingTimeMillis += DisplayModel.getProcessingMillis(
                     task.getStartProcessingTime(), task.getEndProcessingTime());
 
-                List<PipelineTaskMetrics> summaryMetrics = task.getSummaryMetrics();
+                List<PipelineTaskMetrics> summaryMetrics = pipelineTaskOperations()
+                    .summaryMetrics(task);
                 for (PipelineTaskMetrics metrics : summaryMetrics) {
                     String category = metrics.getCategory();
                     Long categoryTimeMillis = allocatedTimeByCategory.get(category);
@@ -92,5 +98,9 @@ public class TaskMetrics {
         return Objects.equals(categoryMetrics, other.categoryMetrics)
             && totalProcessingTimeMillis == other.totalProcessingTimeMillis
             && Objects.equals(unallocatedTime, other.unallocatedTime);
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

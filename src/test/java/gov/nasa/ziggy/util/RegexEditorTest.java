@@ -20,7 +20,7 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.RegexEditor.FindAction;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 public class RegexEditorTest {
     private static final String SIMPLE_REGEX = "^([0-9]*)(?:[^0-9]*)([0-9]*)(?:.*)$";
@@ -110,17 +110,17 @@ public class RegexEditorTest {
         BufferedReader input = null;
         try {
             tmpFile = File.createTempFile(RegexEditor.class.getSimpleName(), "txt");
-            output = new BufferedWriter(new FileWriter(tmpFile, FileUtil.ZIGGY_CHARSET));
+            output = new BufferedWriter(new FileWriter(tmpFile, ZiggyFileUtils.ZIGGY_CHARSET));
             output.write(SIMPLE_TEXT);
             output.close();
             output = null;
 
             File editedFile = RegexEditor.findAndReplace(tmpFile, Pattern.compile(SIMPLE_REGEX));
-            input = new BufferedReader(new FileReader(editedFile, FileUtil.ZIGGY_CHARSET));
+            input = new BufferedReader(new FileReader(editedFile, ZiggyFileUtils.ZIGGY_CHARSET));
             assertEquals("text file", "292008", input.readLine());
         } finally {
-            FileUtil.close(output);
-            FileUtil.close(input);
+            ZiggyFileUtils.close(output);
+            ZiggyFileUtils.close(input);
             if (tmpFile != null) {
                 tmpFile.delete();
             }
@@ -135,18 +135,18 @@ public class RegexEditorTest {
         BufferedReader input = null;
         try {
             tmpFile = File.createTempFile(RegexEditor.class.getSimpleName(), "txt", buildTmp);
-            output = new BufferedWriter(new FileWriter(tmpFile, FileUtil.ZIGGY_CHARSET));
+            output = new BufferedWriter(new FileWriter(tmpFile, ZiggyFileUtils.ZIGGY_CHARSET));
             output.write(SIMPLE_TEXT);
             output.close();
             output = null;
 
             File editedFile = RegexEditor.findAndReplace(tmpFile, Pattern.compile(SIMPLE_REGEX),
                 new ReverseGroups(), buildTmp);
-            input = new BufferedReader(new FileReader(editedFile, FileUtil.ZIGGY_CHARSET));
+            input = new BufferedReader(new FileReader(editedFile, ZiggyFileUtils.ZIGGY_CHARSET));
             assertEquals("text file", "200829", input.readLine());
         } finally {
-            FileUtil.close(output);
-            FileUtil.close(input);
+            ZiggyFileUtils.close(output);
+            ZiggyFileUtils.close(input);
             if (tmpFile != null) {
                 tmpFile.delete();
             }
@@ -161,19 +161,19 @@ public class RegexEditorTest {
         BufferedReader input = null;
         try {
             tmpFile = File.createTempFile(RegexEditor.class.getSimpleName(), "txt", buildTmp);
-            output = new BufferedWriter(new FileWriter(tmpFile, FileUtil.ZIGGY_CHARSET));
+            output = new BufferedWriter(new FileWriter(tmpFile, ZiggyFileUtils.ZIGGY_CHARSET));
             output.write(FC_TABLE_TEXT);
             output.close();
             output = null;
 
             File editedFile = RegexEditor.findAndReplace(tmpFile, Pattern.compile(FC_TABLE_REGEX),
                 new CaptureGroups("CREATE CACHED TABLE "), buildTmp);
-            input = new BufferedReader(new FileReader(editedFile, FileUtil.ZIGGY_CHARSET));
+            input = new BufferedReader(new FileReader(editedFile, ZiggyFileUtils.ZIGGY_CHARSET));
             assertTrue("create cached table",
                 input.readLine().startsWith("CREATE CACHED TABLE FC_"));
         } finally {
-            FileUtil.close(output);
-            FileUtil.close(input);
+            ZiggyFileUtils.close(output);
+            ZiggyFileUtils.close(input);
             if (tmpFile != null) {
                 tmpFile.delete();
             }

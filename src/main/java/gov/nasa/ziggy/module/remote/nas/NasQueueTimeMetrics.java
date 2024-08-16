@@ -61,7 +61,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Manages the queue time metrics ("runout time" and "expansion") that Pleiades produces, and
@@ -111,7 +111,7 @@ public class NasQueueTimeMetrics {
                 remoteNodeNameMap.put(descriptor.getNodeName().substring(0, 3), descriptor);
             }
         }
-        if (StringUtils.isEmpty(directorate)) {
+        if (StringUtils.isBlank(directorate)) {
             directorate = ZiggyConfiguration.getInstance()
                 .getString(PropertyName.REMOTE_NASA_DIRECTORATE.property(), DEFAULT_DIRECTORATE)
                 .toUpperCase();
@@ -166,7 +166,7 @@ public class NasQueueTimeMetrics {
             .setRecordSeparator("\n")
             .build();
         try (CSVParser parser = format.parse(
-            new InputStreamReader(new FileInputStream(new File(file)), FileUtil.ZIGGY_CHARSET))) {
+            new InputStreamReader(new FileInputStream(new File(file)), ZiggyFileUtils.ZIGGY_CHARSET))) {
             List<CSVRecord> csvRecords = parser.getRecords();
             CSVRecord divisionsRecord = csvRecords.get(0);
             List<String> divisions = new ArrayList<>();
@@ -174,7 +174,7 @@ public class NasQueueTimeMetrics {
 
             for (int i = 0; i < iMax; i++) {
                 String recordEntry = divisionsRecord.get(i);
-                if (!StringUtils.isEmpty(recordEntry)) {
+                if (!StringUtils.isBlank(recordEntry)) {
                     divisions.add(recordEntry);
                 }
             }

@@ -21,19 +21,15 @@ import gov.nasa.ziggy.data.datastore.DatastoreNode;
 import gov.nasa.ziggy.data.datastore.DatastoreRegexp;
 import gov.nasa.ziggy.data.datastore.DatastoreWalker;
 import gov.nasa.ziggy.models.ModelImporter;
-import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
+import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Reference implementation of {@link DataReceiptDefinition}.
@@ -66,9 +62,6 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
     private Path modelsImportDirectory;
     private PipelineTask pipelineTask;
     private Manifest manifest;
-    private ManifestCrud manifestCrud;
-    private ModelCrud modelCrud;
-    private PipelineInstanceCrud pipelineInstanceCrud;
     private Acknowledgement acknowledgement;
 
     private List<Path> filesForImport;
@@ -76,6 +69,8 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
     private List<Path> successfulImports = new ArrayList<>();
     private List<ModelType> modelTypes;
     private ModelImporter modelImporter;
+    private DataReceiptOperations dataReceiptOperations = new DataReceiptOperations();
+    private ModelOperations modelOperations = new ModelOperations();
 
     private Logger log = LoggerFactory.getLogger(DataReceiptDefinition.class);
 
@@ -132,7 +127,7 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
     /** Returns true if the dataset ID <= 0 or the dataset ID is not yet present in the database. */
     private boolean checkDatasetId() {
         return manifest.getDatasetId() <= 0
-            || !manifestCrud().datasetIdExists(manifest.getDatasetId());
+            || !dataReceiptOperations().datasetIdExists(manifest.getDatasetId());
     }
 
     /** Generates acknowledgement and returns true if transfer status is VALID. */
@@ -152,7 +147,7 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
     private void persistManifest() {
         manifest.setAcknowledged(true);
         if (manifest.getDatasetId() > 0) {
-            manifestCrud().persist(manifest);
+            dataReceiptOperations().persist(manifest);
         }
 
         // Create the manifests directory if it doesn't yet exist
@@ -180,7 +175,7 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
         // be the set of all names in the manifest)
         List<String> namesOfValidFiles = acknowledgement.namesOfValidFiles();
 
-        Map<Path, Path> regularFilesInDirTree = FileUtil.regularFilesInDirTree(dataImportPath);
+        Map<Path, Path> regularFilesInDirTree = ZiggyFileUtils.regularFilesInDirTree(dataImportPath);
         List<String> filenamesInDirTree = regularFilesInDirTree.keySet()
             .stream()
             .map(Path::toString)
@@ -203,7 +198,7 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
     public List<Path> filesForImport() {
         if (filesForImport == null) {
             filesForImport = new ArrayList<>(
-                FileUtil.regularFilesInDirTree(dataImportPath).values());
+                ZiggyFileUtils.regularFilesInDirTree(dataImportPath).values());
         }
         return filesForImport;
     }
@@ -303,7 +298,7 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
 
     /** Datastore file manager moveOrSymlink method broken out to facilitate unit testing. */
     void move(Path source, Path destination) throws IOException {
-        FileUtil.CopyType.MOVE.copy(source, destination);
+        ZiggyFileUtils.CopyType.MOVE.copy(source, destination);
     }
 
     /**
@@ -367,26 +362,8 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
     // Updates the model registry in the current pipeline instance. Package scope
     // for testing purposes.
     void updateModelRegistryForPipelineInstance() {
-        ModelRegistry modelRegistry = (ModelRegistry) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                ModelCrud modelCrud = modelCrud();
-                modelCrud.lockCurrentRegistry();
-                ModelRegistry currentRegistry = modelCrud.retrieveCurrentRegistry();
-                PipelineInstanceCrud pipelineInstanceCrud = pipelineInstanceCrud();
-                PipelineInstance dbInstance = pipelineInstanceCrud
-                    .retrieve(pipelineTask.getPipelineInstance().getId());
-                dbInstance.setModelRegistry(currentRegistry);
-                pipelineInstanceCrud.merge(dbInstance);
-                return currentRegistry;
-            });
-        pipelineTask.getPipelineInstance().setModelRegistry(modelRegistry);
-    }
-
-    ManifestCrud manifestCrud() {
-        if (manifestCrud == null) {
-            manifestCrud = new ManifestCrud();
-        }
-        return manifestCrud;
+        dataReceiptOperations()
+            .updateModelRegistryForPipelineInstance(pipelineTask.getPipelineInstanceId());
     }
 
     /**
@@ -413,27 +390,20 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
     }
 
     DatastoreWalker datastoreWalker() {
-        return (DatastoreWalker) DatabaseTransactionFactory
-            .performTransaction(DatastoreWalker::newInstance);
+        return DatastoreWalker.newInstance();
     }
 
-    ModelCrud modelCrud() {
-        if (modelCrud == null) {
-            modelCrud = new ModelCrud();
-        }
-        return modelCrud;
+    DataReceiptOperations dataReceiptOperations() {
+        return dataReceiptOperations;
     }
 
-    PipelineInstanceCrud pipelineInstanceCrud() {
-        if (pipelineInstanceCrud == null) {
-            pipelineInstanceCrud = new PipelineInstanceCrud();
-        }
-        return pipelineInstanceCrud;
+    ModelOperations modelOperations() {
+        return modelOperations;
     }
 
     List<ModelType> modelTypes() {
-        if (modelTypes == null) {
-            modelTypes = modelCrud().retrieveAllModelTypes();
+        if (CollectionUtils.isEmpty(modelTypes)) {
+            modelTypes = modelOperations().allModelTypes();
         }
         return modelTypes;
     }

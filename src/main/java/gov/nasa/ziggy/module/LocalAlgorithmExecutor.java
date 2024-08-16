@@ -12,9 +12,8 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.process.ExternalProcess;
@@ -30,8 +29,6 @@ import gov.nasa.ziggy.util.ZiggyShutdownHook;
 public class LocalAlgorithmExecutor extends AlgorithmExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(LocalAlgorithmExecutor.class);
-
-    private static final int JOB_INDEX_FOR_LOCAL_EXECUTION = 0;
 
     public LocalAlgorithmExecutor(PipelineTask pipelineTask) {
         super(pipelineTask);
@@ -67,15 +64,7 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
 
         CommandLine cmdLine = algorithmCommandLine();
 
-        // Increment the task log index.
-        DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-            PipelineTask task = pipelineTaskCrud.retrieve(pipelineTask.getId());
-            task.incrementTaskLogIndex();
-            task.setRemoteExecution(false);
-            pipelineTaskCrud.merge(task);
-            return null;
-        });
+        pipelineTaskOperations().setLocalExecution(pipelineTask.getId());
 
         // Start the external process -- note that it will cause execution to block until
         // the algorithm has completed or failed.
@@ -110,11 +99,10 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
             cmdLine = new CommandLine(
                 new File(DirectoryProperties.ziggyBinDir().toFile(), ZIGGY_PROGRAM)
                     .getCanonicalPath());
+            cmdLine.addArgument(TaskLog.algorithmLogFileSystemProperty(pipelineTask));
+            cmdLine.addArgument(TaskLog.algorithmNameSystemProperty(pipelineTask));
             cmdLine.addArgument(NODE_MASTER_NAME);
             cmdLine.addArgument(workingDir().toString());
-            cmdLine.addArgument(DirectoryProperties.algorithmLogsDir()
-                .resolve(pipelineTask.logFilename(JOB_INDEX_FOR_LOCAL_EXECUTION))
-                .toString());
             return cmdLine;
         } catch (IOException e) {
             throw new UncheckedIOException(

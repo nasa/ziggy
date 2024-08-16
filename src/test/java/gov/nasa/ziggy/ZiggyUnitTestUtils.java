@@ -37,32 +37,25 @@ public class ZiggyUnitTestUtils {
     // pipeline:
     // pipeline tasks, instances, instance nodes
     public static void initializePipelineTask(PipelineTask pt) {
-        initializePipelineInstance(pt.getPipelineInstance());
-        Hibernate.initialize(pt.getPipelineInstanceNode().getModuleParameterSets());
         Hibernate.initialize(pt.getExecLog());
         Hibernate.initialize(pt.getSummaryMetrics());
-        Hibernate.initialize(pt.getProducerTaskIds());
         Hibernate.initialize(pt.getRemoteJobs());
     }
 
     public static void initializePipelineInstance(PipelineInstance pipelineInstance) {
-        initializePipelineDefinition(pipelineInstance.getPipelineDefinition());
-        Hibernate.initialize(pipelineInstance.getPipelineParameterSets());
+        Hibernate.initialize(pipelineInstance.getRootNodes());
+        Hibernate.initialize(pipelineInstance.getPipelineInstanceNodes());
     }
 
     public static void initializePipelineInstanceNode(PipelineInstanceNode node) {
-        initializePipelineInstance(node.getPipelineInstance());
-        initializePipelineModuleDefinition(node.getPipelineModuleDefinition());
-        Hibernate.initialize(node.getModuleParameterSets());
-        ZiggyUnitTestUtils.initializePipelineDefinitionNodes(
-            node.getPipelineInstance().getPipelineDefinition().getRootNodes());
+        Hibernate.initialize(node.getNextNodes());
+        Hibernate.initialize(node.getPipelineTasks());
     }
 
     // Initialization for database items that define the pipelines: pipeline definitions,
     // pipeline module definitions, pipeline definition nodes
     public static void initializePipelineDefinition(PipelineDefinition pipelineDefinition) {
         Hibernate.initialize(pipelineDefinition.getRootNodes());
-        Hibernate.initialize(pipelineDefinition.getPipelineParameterSetNames());
         initializePipelineDefinitionNodes(pipelineDefinition.getRootNodes());
     }
 
@@ -79,7 +72,6 @@ public class ZiggyUnitTestUtils {
         Hibernate.initialize(node.getOutputDataFileTypes());
         Hibernate.initialize(node.getModelTypes());
         Hibernate.initialize(node.getNextNodes());
-        Hibernate.initialize(node.getModuleParameterSetNames());
         initializePipelineDefinitionNodes(node.getNextNodes());
     }
 

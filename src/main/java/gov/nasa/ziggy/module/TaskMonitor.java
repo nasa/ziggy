@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.AlgorithmStateFiles.SubtaskState;
 import gov.nasa.ziggy.module.AlgorithmStateFiles.SubtaskStateCounts;
+import gov.nasa.ziggy.module.StateFile.State;
 import gov.nasa.ziggy.util.io.LockManager;
 
 /**
@@ -98,6 +99,10 @@ public class TaskMonitor {
             stateFile.setNumComplete(stateCounts.getCompletedSubtasks());
             stateFile.setNumFailed(stateCounts.getFailedSubtasks());
             stateFile.setState(diskStateFile.getState());
+            // If for some reason this state hasn't been upgraded to PROCESSING,
+            // do that now.
+            stateFile
+                .setState(diskStateFile.isStarted() ? diskStateFile.getState() : State.PROCESSING);
             updateStateFile(diskStateFile);
         } finally {
             LockManager.releaseWriteLock(lockFile);

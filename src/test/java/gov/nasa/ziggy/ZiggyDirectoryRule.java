@@ -10,7 +10,7 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Implements a {@link TestRule} for creation of directories for use by unit tests.
@@ -54,7 +54,7 @@ public class ZiggyDirectoryRule implements TestRule {
             Files.createDirectories(directory);
 
             // Clean the new directory prior to use.
-            FileUtil.cleanDirectoryTree(directory, true);
+            ZiggyFileUtils.cleanDirectoryTree(directory, true);
 
             return new Statement() {
                 @Override

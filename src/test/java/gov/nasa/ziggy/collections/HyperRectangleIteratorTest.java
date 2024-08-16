@@ -30,12 +30,10 @@ public class HyperRectangleIteratorTest {
         assertEquals(17, hi.getMaxElementsPerHyperRectangle());
     }
 
-    /**
-     * Test that array size with a dimension of zero length throws an exception
-     */
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidArraySize() {
-        new HyperRectangleIterator(new int[] { 6, 5, 0 }, 17);
+    @Test
+    public void testEmptyArray() {
+        HyperRectangleIterator iterator = new HyperRectangleIterator(new int[] { 6, 5, 0 }, 17);
+        assertFalse(iterator.hasNext());
     }
 
     /**

@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.ui.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.PREFERRED_ROW_COUNT;
 
 import java.awt.Component;
 import java.awt.Container;
@@ -24,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.swing.GroupLayout;
+import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -39,9 +40,12 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.metal.MetalLookAndFeel;
 
+import org.netbeans.swing.etable.ETable;
+
 import com.jgoodies.looks.plastic.theme.SkyBluer;
 
 import gov.nasa.ziggy.ui.util.table.TableMouseListener;
+import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
  * A handful of Swing-related utilities.
@@ -94,20 +98,6 @@ public class ZiggySwingUtils {
     public static final JMenuItem MENU_SEPARATOR = new JMenuItem(
         JPopupMenu.Separator.class.toString());
 
-    /** The gap between dialog groups. Use in the {@link GroupLayout} {@code addGap()} method. */
-    public static final int GROUP_GAP = 20;
-
-    /**
-     * The indent of a group under its heading. Use in the {@link GroupLayout} {@code addGap()}
-     * method.
-     */
-    public static final int INDENT = 30;
-
-    /**
-     * Minimum size for all dialogs.
-     */
-    public static final Dimension MIN_DIALOG_SIZE = new Dimension(500, 375);
-
     static {
         setLookAndFeel();
     }
@@ -117,7 +107,7 @@ public class ZiggySwingUtils {
             MetalLookAndFeel.setCurrentTheme(new SkyBluer());
             UIManager.setLookAndFeel("com.jgoodies.looks.plastic.Plastic3DLookAndFeel");
         } catch (Exception e) {
-            MessageUtil.showError(null, e);
+            MessageUtils.showError(null, e);
         }
     }
 
@@ -154,6 +144,21 @@ public class ZiggySwingUtils {
     public static JMenuItem createMenuItem(String text, ActionListener listener) {
         JMenuItem menuItem = new JMenuItem(text);
         menuItem.addActionListener(listener);
+        return menuItem;
+    }
+
+    public static JMenuItem createMenuItem(Action action) {
+        return new JMenuItem(action);
+    }
+
+    /**
+     * Creates a menu item with the given action.
+     *
+     * @param text text to use instead of the action's text
+     */
+    public static JMenuItem createMenuItem(String text, Action action) {
+        JMenuItem menuItem = new JMenuItem(action);
+        menuItem.setText(text);
         return menuItem;
     }
 
@@ -235,10 +240,15 @@ public class ZiggySwingUtils {
                         tableMouseListener.rowDoubleClicked(table.rowAtPoint(evt.getPoint()));
                     }
                 } catch (Exception e) {
-                    MessageUtil.showError(SwingUtilities.getWindowAncestor(table), e);
+                    MessageUtils.showError(SwingUtilities.getWindowAncestor(table), e);
                 }
             }
         });
+    }
+
+    public static JButton createButton(Action action) {
+        checkNotNull(action, "action");
+        return new JButton(action);
     }
 
     public static JButton createButton(String text, ActionListener listener) {
@@ -399,6 +409,39 @@ public class ZiggySwingUtils {
         FontMetrics metrics = component.getFontMetrics(component.getFont());
 
         return metrics.getHeight();
+    }
+
+    /**
+     * If the scrollport height of the given table is less than one row, set the preferred height to
+     * {@literal ZiggyGuiConstants#PREFERRED_ROW_COUNT}. This is helpful to ensure the table has a
+     * minimum number of rows before the data has been loaded.
+     */
+    public static <T> void ensureMinimumTableSize(ZiggyTable<T> ziggyTable) {
+        ETable table = ziggyTable.getTable();
+        Dimension size = table.getPreferredScrollableViewportSize();
+        if (size.height < table.getRowHeight()) {
+            size.height = PREFERRED_ROW_COUNT * table.getRowHeight();
+            table.setPreferredScrollableViewportSize(size);
+        }
+    }
+
+    /**
+     * Adjust the selection. Useful for popup triggers; for some reason the right mouse button
+     * doesn't modify the selection by default.
+     * <p>
+     * If the mouse is over a row that is already selected, then do not adjust the selection since
+     * the leads to surprising behavior; otherwise, update the selection normally.
+     *
+     * @param e the mouse event
+     */
+    public static void adjustSelection(JTable table, MouseEvent e) {
+        int row = table.rowAtPoint(e.getPoint());
+        if (table.isRowSelected(row)) {
+            return;
+        }
+
+        int column = table.columnAtPoint(e.getPoint());
+        table.changeSelection(row, column, e.isControlDown(), e.isShiftDown());
     }
 
     /**

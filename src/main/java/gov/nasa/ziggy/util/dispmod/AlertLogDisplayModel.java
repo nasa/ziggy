@@ -13,7 +13,9 @@ import gov.nasa.ziggy.services.alert.AlertLog;
  * @author Todd Klaus
  */
 public class AlertLogDisplayModel extends DisplayModel {
-    List<AlertLog> alerts = new ArrayList<>();
+    private static final String[] COLUMN_NAMES = { "Source", "Task", "Severity", "Message" };
+
+    private List<AlertLog> alerts = new ArrayList<>();
 
     public AlertLogDisplayModel() {
     }
@@ -41,7 +43,7 @@ public class AlertLogDisplayModel extends DisplayModel {
 
     @Override
     public int getColumnCount() {
-        return 4;
+        return COLUMN_NAMES.length;
     }
 
     @Override
@@ -51,12 +53,6 @@ public class AlertLogDisplayModel extends DisplayModel {
 
     @Override
     public String getColumnName(int column) {
-        return switch (column) {
-            case 0 -> "Source";
-            case 1 -> "Task";
-            case 2 -> "Severity";
-            case 3 -> "Message";
-            default -> throw new IllegalArgumentException("Unexpected value: " + column);
-        };
+        return COLUMN_NAMES[column];
     }
 }

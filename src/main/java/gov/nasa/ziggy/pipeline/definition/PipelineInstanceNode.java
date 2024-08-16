@@ -1,15 +1,16 @@
 package gov.nasa.ziggy.pipeline.definition;
 
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,6 +18,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
@@ -43,8 +45,24 @@ public class PipelineInstanceNode {
     /** Timestamp this was created (either by launcher or transition logic) */
     private Date created = new Date();
 
-    @ManyToOne
-    private PipelineInstance pipelineInstance;
+    /** Shortcut to the module name, so we don't always have to do a database access for it. */
+    private String moduleName;
+    private String executableName;
+
+    @ManyToMany
+    @JoinTable(name = "ziggy_PipelineInstanceNode_parameterSets")
+    private Set<ParameterSet> parameterSets = new HashSet<>();
+
+    /** Indicates whether the node completed and kicked off the transition to the next node. */
+    private boolean transitionComplete;
+
+    @ElementCollection
+    @JoinTable(name = "ziggy_PipelineInstanceNode_nextNodes")
+    private List<PipelineInstanceNode> nextNodes = new ArrayList<>();
+
+    @OneToMany
+    @JoinTable(name = "ziggy_PipelineInstanceNode_pipelineTasks")
+    private List<PipelineTask> pipelineTasks = new ArrayList<>();
 
     @ManyToOne
     private PipelineDefinitionNode pipelineDefinitionNode;
@@ -53,37 +71,16 @@ public class PipelineInstanceNode {
     private PipelineModuleDefinition pipelineModuleDefinition;
 
     /**
-     * {@link ParameterSet}s used as {@link Parameters} for this instance. This is a hard-reference
-     * to a specific version of the {@link ParameterSet}, selected at launch time (typically the
-     * latest available version)
-     */
-    @ManyToMany
-    @JoinTable(name = "ziggy_PipelineInstanceNode_moduleParameterSets")
-    private Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParameterSets = new HashMap<>();
-
-    /** Indicates whether the node completed and kicked off the transition to the next node. */
-    private boolean transitionComplete;
-
-    /**
      * Required by Hibernate
      */
     public PipelineInstanceNode() {
     }
 
-    public PipelineInstanceNode(PipelineInstance pipelineInstance,
-        PipelineDefinitionNode pipelineDefinitionNode,
+    public PipelineInstanceNode(PipelineDefinitionNode pipelineDefinitionNode,
         PipelineModuleDefinition pipelineModuleDefinition) {
-        this.pipelineInstance = pipelineInstance;
         this.pipelineDefinitionNode = pipelineDefinitionNode;
-        this.pipelineModuleDefinition = pipelineModuleDefinition;
-    }
-
-    public PipelineDefinitionNode getPipelineDefinitionNode() {
-        return pipelineDefinitionNode;
-    }
-
-    public void setPipelineDefinitionNode(PipelineDefinitionNode configNode) {
-        pipelineDefinitionNode = configNode;
+        setPipelineModuleDefinition(pipelineModuleDefinition);
+        executableName = pipelineModuleDefinition.getExecutableName();
     }
 
     public Date getCreated() {
@@ -94,12 +91,12 @@ public class PipelineInstanceNode {
         this.created = created;
     }
 
-    public PipelineInstance getPipelineInstance() {
-        return pipelineInstance;
+    public String getModuleName() {
+        return moduleName;
     }
 
-    public void setPipelineInstance(PipelineInstance instance) {
-        pipelineInstance = instance;
+    public String getExecutableName() {
+        return executableName;
     }
 
     public Long getId() {
@@ -111,35 +108,12 @@ public class PipelineInstanceNode {
         return ReflectionToStringBuilder.toString(this);
     }
 
-    public PipelineModuleDefinition getPipelineModuleDefinition() {
-        return pipelineModuleDefinition;
+    public Set<ParameterSet> getParameterSets() {
+        return parameterSets;
     }
 
-    public void setPipelineModuleDefinition(PipelineModuleDefinition pipelineModuleDefinition) {
-        this.pipelineModuleDefinition = pipelineModuleDefinition;
-    }
-
-    /**
-     * Retrieve module {@link Parameters} for this {@link PipelineInstanceNode}. This method is not
-     * intended to be called directly, use the convenience method
-     * {@link PipelineTask}.getParameters().
-     *
-     * @param parametersClass
-     * @return
-     */
-    ParameterSet getModuleParameterSet(Class<? extends Parameters> parametersClass) {
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(parametersClass);
-        return moduleParameterSets.get(classWrapper);
-    }
-
-    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getModuleParameterSets() {
-        return moduleParameterSets;
-    }
-
-    public void setModuleParameterSets(
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParameterSets) {
-        this.moduleParameterSets = moduleParameterSets;
-        populateXmlFields();
+    public void setParameterSets(Set<ParameterSet> parameterSets) {
+        this.parameterSets = parameterSets;
     }
 
     public boolean isTransitionComplete() {
@@ -150,18 +124,41 @@ public class PipelineInstanceNode {
         this.transitionComplete = transitionComplete;
     }
 
-    public void populateXmlFields() {
-        for (ParameterSet parameterSet : moduleParameterSets.values()) {
-            parameterSet.populateXmlFields();
-        }
-        pipelineInstance.populateXmlFields();
+    public List<PipelineInstanceNode> getNextNodes() {
+        return nextNodes;
     }
 
-    public ParameterSet putModuleParameterSet(Class<ParametersInterface> clazz,
-        ParameterSet paramSet) {
-        paramSet.populateXmlFields();
-        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(clazz);
-        return moduleParameterSets.put(classWrapper, paramSet);
+    public void setNextNodes(List<PipelineInstanceNode> nextNodes) {
+        this.nextNodes = nextNodes;
+    }
+
+    public List<PipelineTask> getPipelineTasks() {
+        return pipelineTasks;
+    }
+
+    public void setPipelineTasks(List<PipelineTask> pipelineTasks) {
+        this.pipelineTasks = pipelineTasks;
+    }
+
+    public void addPipelineTask(PipelineTask pipelineTask) {
+        pipelineTasks.add(pipelineTask);
+    }
+
+    public PipelineDefinitionNode getPipelineDefinitionNode() {
+        return pipelineDefinitionNode;
+    }
+
+    public void setPipelineDefinitionNode(PipelineDefinitionNode pipelineDefinitionNode) {
+        this.pipelineDefinitionNode = pipelineDefinitionNode;
+    }
+
+    public PipelineModuleDefinition getPipelineModuleDefinition() {
+        return pipelineModuleDefinition;
+    }
+
+    public void setPipelineModuleDefinition(PipelineModuleDefinition pipelineModuleDefinition) {
+        this.pipelineModuleDefinition = pipelineModuleDefinition;
+        moduleName = pipelineModuleDefinition.getName();
     }
 
     @Override

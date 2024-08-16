@@ -18,7 +18,7 @@ Just in case you haven't looked yet, here's what the sample pipeline directory s
 
 ```console
 sample-pipeline$ ls
-build-env.sh    config    data    etc    multi-data    src
+build-env.sh  clean-env.sh  config  config-extra  data  etc  multi-data  src
 sample-pipeline$
 ```
 
@@ -29,7 +29,7 @@ At the top you can see `build-env.sh`, which is the "build system" for the sampl
 If you run the shell script from the command line (`./build-env.sh`), you should quickly see something that looks like this:
 
 ```console
-sample-pipeline$ /bin/bash ./build-env.sh
+sample-pipeline$ ./build-env.sh
 Collecting h5py
   Using cached h5py-3.7.0-cp38-cp38-macosx_10_9_x86_64.whl (3.2 MB)
 Collecting Pillow
@@ -41,91 +41,79 @@ Successfully installed Pillow-9.2.0 h5py-3.7.0 numpy-1.23.4
 sample-pipeline$
 ```
 
-
-
 Meanwhile, the directory now looks like this:
 
 ```console
 sample-pipeline$ ls
-build    build-env.sh    config    data    etc    multi-data    src
+build  build-env.sh  clean-env.sh  config  config-extra  data  etc  multi-data  src
 sample-pipeline$ ls build
 bin    env    pipeline-results
 sample-pipeline$
 ```
 
-There's now a `build` directory that contains additional directories: `bin, data-receipt`, and `env`.
+There's now a `build` directory that contains additional directories: `bin`, `env`, and `pipeline-results`.
 
 #### The build-env.sh Shell Script
 
 Let's go through the build-env.sh script in pieces. The first piece is the familiar code chunk that sets up some shell variables with paths:
 
 ```bash
-# Check for a SAMPLE_PIPELINE_PYTHON_ENV.
-if [ -n "$SAMPLE_PIPELINE_PYTHON_ENV" ]; then
-    if [ -z "$ZIGGY_HOME" ]; then
-        echo "SAMPLE_PIPELINE_PYTHON_ENV set but ZIGGY_HOME not set!"
-        exit 1
-    fi
-else
-    etc_dir="$(dirname "$PIPELINE_CONFIG_PATH")"
-    sample_home="$(dirname "$etc_dir")"
-    ZIGGY_HOME="$(dirname "$sample_home")"
-    SAMPLE_PIPELINE_PYTHON_ENV=$sample_home/build/env
-fi
+etc_dir="$(dirname "$PIPELINE_CONFIG_PATH")"
+sample_root="$(dirname "$etc_dir")"
+sample_home="$sample_root/build"
+python_env=$sample_home/env
+ziggy_root="$(dirname "$sample_root")"
 ```
 
 Next:
 
 ```bash
-# put the build directory next to the env directory in the directory tree
-BUILD_DIR="$(dirname "$SAMPLE_PIPELINE_PYTHON_ENV")"
-mkdir -p $SAMPLE_PIPELINE_PYTHON_ENV
+# Put the build directory next to the env directory in the directory tree.
+mkdir -p $python_env
 
 # Create and populate the data receipt directory from the sample data
-DATA_RECEIPT_DIR=$BUILD_DIR/data-receipt
-mkdir -p $DATA_RECEIPT_DIR
-cp $sample_home/data/* $DATA_RECEIPT_DIR
+data_receipt_dir=$sample_home/pipeline-results/data-receipt
+mkdir -p $data_receipt_dir
+cp -r $sample_root/data/* $data_receipt_dir
 ```
 
-Here we create the `build` directory and its `env` and `data-receipt` directories. The contents of the data directory from the sample directory gets copied to `data-receipt`.
+Here we create the `build` directory and its `env` and `pipeline-results` directories. The contents of the data directory from the sample directory gets copied to the `data-receipt` subdirectory.
 
 ```bash
-# build the bin directory in build
-BIN_DIR=$BUILD_DIR/bin
-mkdir -p $BIN_DIR
-BIN_SRC_DIR=$sample_home/src/main/sh
+# Build the bin directory in build.
+bin_dir=$sample_home/bin
+mkdir -p $bin_dir
+bin_src_dir=$sample_root/src/main/sh
 
-# Copy the shell scripts from src to build. There's probably some good shell script
-# way to do this, but I'm too lazy.
-cp $BIN_SRC_DIR/permuter.sh $BIN_DIR/permuter
-cp $BIN_SRC_DIR/flip.sh $BIN_DIR/flip
-cp $BIN_SRC_DIR/averaging.sh $BIN_DIR/averaging
-chmod -R a+x $BIN_DIR
+# Copy the shell scripts from src to build.
+install -m a+rx  $bin_src_dir/permuter.sh $bin_dir/permuter
+install -m a+rx  $bin_src_dir/flip.sh $bin_dir/flip
+install -m a+rx  $bin_src_dir/averaging.sh $bin_dir/averaging
 ```
 
 Here we construct `build/bin` and copy the shell scripts from `src/main/sh` to `build/bin`. In the process, we strip off the `.sh` suffixes. The shell script copies in `build/bin` now match what Ziggy expects to see.
 
 ```bash
-python3 -m venv $SAMPLE_PIPELINE_PYTHON_ENV
+python3 -m venv $python_env
 
 # We're about to activate the environment, so we should make sure that the environment
 # gets deactivated at the end of script execution.
 trap 'deactivate' EXIT
 
-source $SAMPLE_PIPELINE_PYTHON_ENV/bin/activate
+source $python_env/bin/activate
 
 # Build the environment with the needed packages.
 pip3 install h5py Pillow numpy
 
 # Get the location of the environment's site packages directory
-SITE_PKGS=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+site_pkgs=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 
 # Copy the pipeline major_tom package to the site-packages location.
-cp -r $ZIGGY_HOME/sample-pipeline/src/main/python/major_tom $SITE_PKGS
+cp -r $ziggy_root/sample-pipeline/src/main/python/major_tom $site_pkgs
 
 # Copy the Ziggy components to the site-packages location.
-cp -r $ZIGGY_HOME/src/main/python/hdf5mi $SITE_PKGS
-cp -r $ZIGGY_HOME/src/main/python/zigutils $SITE_PKGS
+cp -r $ziggy_root/src/main/python/hdf5mi $site_pkgs
+cp -r $ziggy_root/src/main/python/zigutils $site_pkgs
 
 exit 0
 ```

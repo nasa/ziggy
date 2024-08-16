@@ -9,7 +9,7 @@ import com.google.common.collect.Maps;
 
 import gov.nasa.ziggy.metrics.MetricType;
 import gov.nasa.ziggy.metrics.MetricValue;
-import gov.nasa.ziggy.ui.util.proxy.MetricsLogCrudProxy;
+import gov.nasa.ziggy.metrics.MetricsOperations;
 import gov.nasa.ziggy.util.TimeRange;
 
 /**
@@ -18,15 +18,15 @@ import gov.nasa.ziggy.util.TimeRange;
  * @author Sean McCauliff
  */
 public class DatabaseMetricsValueSource implements MetricsValueSource {
+    private final MetricsOperations metricsOperations = new MetricsOperations();
+
     @Override
     public Map<MetricType, Collection<MetricValue>> metricValues(
         List<MetricType> selectedMetricTypes, Date windowStart, Date windowEnd) {
-        MetricsLogCrudProxy metricsLogCrud = new MetricsLogCrudProxy();
         Map<MetricType, Collection<MetricValue>> rv = Maps
             .newHashMapWithExpectedSize(selectedMetricTypes.size());
         for (MetricType type : selectedMetricTypes) {
-            List<MetricValue> values = metricsLogCrud.retrieveAllMetricValuesForType(type,
-                windowStart, windowEnd);
+            List<MetricValue> values = metricsOperations().metricValues(type, windowStart, windowEnd);
             rv.put(type, values);
         }
         return rv;
@@ -34,12 +34,15 @@ public class DatabaseMetricsValueSource implements MetricsValueSource {
 
     @Override
     public Map<MetricType, TimeRange> metricStartEndDates(List<MetricType> selectedMetricTypes) {
-        MetricsLogCrudProxy metricsLogCrud = new MetricsLogCrudProxy();
         Map<MetricType, TimeRange> rv = Maps.newHashMapWithExpectedSize(selectedMetricTypes.size());
         for (MetricType type : selectedMetricTypes) {
-            TimeRange interval = metricsLogCrud.getTimestampRange(type);
+            TimeRange interval = metricsOperations().timestampRange(type);
             rv.put(type, interval);
         }
         return rv;
+    }
+
+    private MetricsOperations metricsOperations() {
+        return metricsOperations;
     }
 }

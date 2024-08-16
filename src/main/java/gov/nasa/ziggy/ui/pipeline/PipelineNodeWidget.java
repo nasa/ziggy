@@ -11,8 +11,8 @@ import javax.swing.border.BevelBorder;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.proxy.PipelineModuleDefinitionCrudProxy;
 
 /**
  * @author Todd Klaus
@@ -23,6 +23,8 @@ public class PipelineNodeWidget extends javax.swing.JPanel {
     private PipelineDefinition pipeline = null;
     private PipelineDefinitionNode pipelineNode = null;
     private PipelineDefinitionNode pipelineNodeParent = null;
+
+    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
 
     public PipelineNodeWidget() {
         buildComponent();
@@ -82,8 +84,8 @@ public class PipelineNodeWidget extends javax.swing.JPanel {
             } else {
                 String uowtgShortName = "-";
                 try {
-                    uowtgShortName = new PipelineModuleDefinitionCrudProxy()
-                        .retrieveUnitOfWorkGenerator(pipelineNode.getModuleName())
+                    uowtgShortName = pipelineModuleDefinitionOperations()
+                        .unitOfWorkGenerator(pipelineNode.getModuleName())
                         .newInstance()
                         .toString();
                 } catch (Exception e) {
@@ -92,6 +94,10 @@ public class PipelineNodeWidget extends javax.swing.JPanel {
             }
         }
         return label;
+    }
+
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+        return pipelineModuleDefinitionOperations;
     }
 
     public static void main(String[] args) {

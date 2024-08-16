@@ -24,7 +24,7 @@ import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Simple class that loads SQL from a file and executes it using JDBC
@@ -107,7 +107,7 @@ public class SqlRunner implements Closeable {
         """)
     private String[] loadSql(File path) throws FileNotFoundException, IOException {
         BufferedReader fileReader = new BufferedReader(
-            new InputStreamReader(new FileInputStream(path), FileUtil.ZIGGY_CHARSET));
+            new InputStreamReader(new FileInputStream(path), ZiggyFileUtils.ZIGGY_CHARSET));
         StringBuilder bld = new StringBuilder((int) path.length());
         try {
             for (String line = fileReader.readLine(); line != null; line = fileReader.readLine()) {
@@ -118,7 +118,7 @@ public class SqlRunner implements Closeable {
             // Delete the last space so it won't be interpreted as a command.
             bld.deleteCharAt(bld.length() - 1);
         } finally {
-            FileUtil.close(fileReader);
+            ZiggyFileUtils.close(fileReader);
         }
 
         return bld.toString().split(";");

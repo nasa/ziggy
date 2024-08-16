@@ -22,8 +22,9 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 
 import gov.nasa.ziggy.data.management.DataReceiptFile;
 import gov.nasa.ziggy.data.management.DataReceiptInstance;
-import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.DataReceiptOperationsProxy;
+import gov.nasa.ziggy.data.management.DataReceiptOperations;
+import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
+import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
@@ -34,7 +35,8 @@ import gov.nasa.ziggy.ui.util.table.ZiggyTable;
  */
 public class DataReceiptInstanceDialog extends JDialog {
 
-    private static final long serialVersionUID = 20230823L;
+    private static final long serialVersionUID = 20240614L;
+
     ZiggyTable<DataReceiptFile> ziggyTable;
 
     public DataReceiptInstanceDialog(Window owner, DataReceiptInstance dataReceiptInstance) {
@@ -122,15 +124,17 @@ public class DataReceiptInstanceDialog extends JDialog {
     }
 
     private static class DataReceiptInstanceTableModel
-        extends AbstractDatabaseModel<DataReceiptFile> {
+        extends AbstractZiggyTableModel<DataReceiptFile> implements DatabaseModel {
 
-        private static final long serialVersionUID = 20230823L;
+        private static final long serialVersionUID = 20240614L;
 
         private static final String[] COLUMN_NAMES = { "Task ID", "Name", "Status" };
         private static final int[] COLUMN_WIDTHS = { 100, 500, 100 };
 
         private List<DataReceiptFile> dataReceiptFiles = new ArrayList<>();
         private DataReceiptInstance dataReceiptInstance;
+
+        private final DataReceiptOperations dataReceiptOperations = new DataReceiptOperations();
 
         public DataReceiptInstanceTableModel(DataReceiptInstance dataReceiptInstance) {
             this.dataReceiptInstance = dataReceiptInstance;
@@ -166,7 +170,7 @@ public class DataReceiptInstanceDialog extends JDialog {
 
         @Override
         public void loadFromDatabase() {
-            dataReceiptFiles = new DataReceiptOperationsProxy()
+            dataReceiptFiles = dataReceiptOperations()
                 .dataReceiptFilesForInstance(dataReceiptInstance.getInstanceId());
             fireTableDataChanged();
         }
@@ -179,6 +183,10 @@ public class DataReceiptInstanceDialog extends JDialog {
         @Override
         public Class<DataReceiptFile> tableModelContentClass() {
             return DataReceiptFile.class;
+        }
+
+        private DataReceiptOperations dataReceiptOperations() {
+            return dataReceiptOperations;
         }
     }
 }

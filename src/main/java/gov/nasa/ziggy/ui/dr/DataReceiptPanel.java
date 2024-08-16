@@ -9,17 +9,23 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.GroupLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.data.management.DataReceiptInstance;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.data.management.DataReceiptOperations;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
-import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.DataReceiptOperationsProxy;
+import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
+import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
@@ -31,7 +37,8 @@ import gov.nasa.ziggy.ui.util.table.ZiggyTable;
  */
 public class DataReceiptPanel extends JPanel {
 
-    private static final long serialVersionUID = 20230823L;
+    private static final Logger log = LoggerFactory.getLogger(DataReceiptPanel.class);
+    private static final long serialVersionUID = 20240614L;
 
     private ZiggyTable<DataReceiptInstance> ziggyTable;
 
@@ -81,7 +88,7 @@ public class DataReceiptPanel extends JPanel {
                             SwingUtilities.getWindowAncestor(DataReceiptPanel.this),
                             ziggyTable.getContentAtViewRow(row)).setVisible(true);
                     } catch (Throwable e) {
-                        MessageUtil
+                        MessageUtils
                             .showError(SwingUtilities.getWindowAncestor(DataReceiptPanel.this), e);
                     }
                 }
@@ -94,17 +101,20 @@ public class DataReceiptPanel extends JPanel {
         try {
             ziggyTable.loadFromDatabase();
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
-    private static class DataReceiptTableModel extends AbstractDatabaseModel<DataReceiptInstance> {
+    private static class DataReceiptTableModel extends AbstractZiggyTableModel<DataReceiptInstance>
+        implements DatabaseModel {
 
-        private static final long serialVersionUID = 20230823L;
+        private static final long serialVersionUID = 20240614L;
 
         private static final String[] COLUMN_NAMES = { "Instance", "Date", "Successful", "Failed" };
 
         private List<DataReceiptInstance> dataReceiptInstances = new ArrayList<>();
+
+        private final DataReceiptOperations dataReceiptOperations = new DataReceiptOperations();
 
         @Override
         public int getRowCount() {
@@ -136,8 +146,22 @@ public class DataReceiptPanel extends JPanel {
 
         @Override
         public void loadFromDatabase() {
-            dataReceiptInstances = new DataReceiptOperationsProxy().dataReceiptInstances();
-            fireTableDataChanged();
+            new SwingWorker<List<DataReceiptInstance>, Void>() {
+                @Override
+                protected List<DataReceiptInstance> doInBackground() throws Exception {
+                    return dataReceiptOperations().dataReceiptInstances();
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        dataReceiptInstances = get();
+                        fireTableDataChanged();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Could not load data receipt objects", e);
+                    }
+                }
+            }.execute();
         }
 
         @Override
@@ -148,6 +172,10 @@ public class DataReceiptPanel extends JPanel {
         @Override
         public Class<DataReceiptInstance> tableModelContentClass() {
             return DataReceiptInstance.class;
+        }
+
+        private DataReceiptOperations dataReceiptOperations() {
+            return dataReceiptOperations;
         }
     }
 }

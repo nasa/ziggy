@@ -11,6 +11,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -20,12 +21,16 @@ import java.net.URL;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JMenuBar;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.SwingConstants;
 
@@ -43,9 +48,9 @@ import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
 import gov.nasa.ziggy.ui.status.StatusSummaryPanel;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.HtmlBuilder;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.models.DatabaseModelRegistry;
 import gov.nasa.ziggy.util.Requestor;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.worker.WorkerResources;
@@ -79,6 +84,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
     }
 
     private ZiggyGuiConsole() {
+
         // Initialize the ProcessHeartbeatManager for this process.
         log.info("Initializing ProcessHeartbeatManager");
         HeartbeatManager.startInstance();
@@ -95,10 +101,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
             }
         });
 
-        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, message -> {
-            DatabaseModelRegistry.invalidateModels();
-        });
-
         int rmiPort = ZiggyConfiguration.getInstance()
             .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
         log.info("Starting ZiggyRmiClient instance with registry on port {}", rmiPort);
@@ -111,6 +113,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         buildComponent();
 
         ZiggyMessenger.publish(new WorkerResourcesRequest());
+        ZiggyMessenger.publish(new InvalidateConsoleModelsMessage(), false);
     }
 
     public static void launch() {
@@ -124,7 +127,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
             instance.setLocationByPlatform(true);
             instance.setVisible(true);
         } catch (Throwable e) {
-            MessageUtil.showError(null, e);
+            MessageUtils.showError(null, e);
             System.exit(1);
         }
 
@@ -133,7 +136,8 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
 
     private void buildComponent() {
         setTitle(NAME);
-        setSize(ZiggyGuiConstants.MAIN_WINDOW_WIDTH, ZiggyGuiConstants.MAIN_WINDOW_HEIGHT);
+        setSize(ZiggyGuiConstants.MAIN_WINDOW_WIDTH, (int) (ZiggyGuiConstants.MAIN_WINDOW_WIDTH
+            / ZiggyGuiConstants.MAIN_WINDOW_ASPECT_RATIO));
         setIconImage(new ImageIcon(pipelineOrZiggyImage()).getImage());
 
         addWindowListener(new WindowAdapter() {
@@ -144,24 +148,54 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         });
 
         JMenuBar consoleMenuBar = new JMenuBar();
-        consoleMenuBar.add(createMenu(FILE, createMenuItem(EXIT, this::exit)));
-        consoleMenuBar.add(createMenu(HELP, createMenuItem(ABOUT, this::displayHelp)));
+        consoleMenuBar.add(createMenu(FILE, createMenuItem(exitAction())));
+        consoleMenuBar.add(createMenu(HELP, createMenuItem(aboutAction())));
         setJMenuBar(consoleMenuBar);
 
         getContentPane().add(getStatusPanel(), BorderLayout.NORTH);
         getContentPane().add(new ZiggyConsolePanel(), BorderLayout.CENTER);
     }
 
-    private void exit(ActionEvent evt) {
-        shutdown();
+    private Action exitAction() {
+        Action exitAction = new AbstractAction(EXIT, null) {
+            @Override
+            public void actionPerformed(ActionEvent evt) {
+                try {
+                    shutdown();
+                } catch (Exception e) {
+                    MessageUtils.showError(ZiggyGuiConsole.this, e);
+                }
+            }
+        };
+        exitAction.putValue(Action.ACCELERATOR_KEY,
+            KeyStroke.getKeyStroke(KeyEvent.VK_Q, ActionEvent.CTRL_MASK));
+        return exitAction;
     }
 
     private void shutdown() {
         System.exit(0);
     }
 
-    private void displayHelp(ActionEvent evt) {
-        new AboutDialog(this).setVisible(true);
+    private Action aboutAction() {
+        return new AbstractAction(ABOUT, null) {
+            @Override
+            public void actionPerformed(ActionEvent evt) {
+                JOptionPane.showMessageDialog(ZiggyGuiConsole.this, content(), "About Ziggy",
+                    JOptionPane.PLAIN_MESSAGE);
+            }
+
+            private String content() {
+                return HtmlBuilder.htmlBuilder()
+                    .append(
+                        "Ziggy, a portable, scalable infrastructure for science data processing pipelines")
+                    .append("<br/><br/>Software version: ")
+                    .append(ZiggyConfiguration.getInstance()
+                        .getString(PropertyName.ZIGGY_VERSION.property()))
+                    .append("<br/>URL: ")
+                    .append("https://github.com/nasa/ziggy")
+                    .toString();
+            }
+        };
     }
 
     private JPanel getStatusPanel() {

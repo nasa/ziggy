@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,6 +21,7 @@ import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.LogOutputStream;
 import org.apache.commons.exec.PumpStreamHandler;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +53,8 @@ import gov.nasa.ziggy.util.os.ProcessUtils;
 public class ExternalProcess {
     static final Logger log = LoggerFactory.getLogger(ExternalProcess.class);
 
+    private static final long REFRESH_INTERVAL_MILLIS = 2000L;
+
     // Determines whether the shutdown hook for external processes has been added yet.
     private static boolean externalProcessesShutdownHookSet = false;
 
@@ -69,8 +73,8 @@ public class ExternalProcess {
         return t;
     });
 
-    private static final long REFRESH_INTERVAL_MILLIS = 2000L;
-
+    private long timeoutMillis = Long.MAX_VALUE;
+    private File workingDirectory;
     private DefaultExecutor executor;
     private CommandLine commandLine;
     private Map<String, String> environment;
@@ -90,13 +94,37 @@ public class ExternalProcess {
     private Writer errorWriter;
 
     /**
+     * Recommended constructor.
+     *
+     * @param logStdOut whether standard out should be routed to the log files.
+     * @param stdOutWriter {@link Writer} instance for standard out.
+     * @param logStdErr whether standard err should be routed to the log files.
+     * @param stdErrWriter {@link Writer} instance for standard out.
+     */
+    public ExternalProcess(boolean logStdOut, Writer stdOutWriter, boolean logStdErr,
+        Writer stdErrWriter) {
+        setExternalProcessesShutdownHook();
+
+        this.logStdOut = logStdOut;
+        this.logStdErr = logStdErr;
+        outputWriter = stdOutWriter;
+        errorWriter = stdErrWriter;
+        if (outputWriter != null) {
+            writeStdOut = true;
+        }
+        if (errorWriter != null) {
+            writeStdErr = true;
+        }
+    }
+
+    /**
      * Shortcut to produce a "simple" {@link ExternalProcess}. This is an external process that
      * doesn't log and only writes its stdout, so it's useful for cases in which a simple shell
      * command is desired.
      */
     public static ExternalProcess simpleExternalProcess(String command) {
         CommandLine commandLine = null;
-        if (command != null && !command.isEmpty()) {
+        if (!StringUtils.isBlank(command)) {
             commandLine = CommandLine.parse(command);
         }
         return simpleExternalProcess(commandLine);
@@ -145,37 +173,12 @@ public class ExternalProcess {
         return process;
     }
 
-    /**
-     * Recommended constructor.
-     *
-     * @param logStdOut whether standard out should be routed to the log files.
-     * @param stdOutWriter {@link Writer} instance for standard out.
-     * @param logStdErr whether standard err should be routed to the log files.
-     * @param stdErrWriter {@link Writer} instance for standard out.
-     */
-    public ExternalProcess(boolean logStdOut, Writer stdOutWriter, boolean logStdErr,
-        Writer stdErrWriter) {
-        setExternalProcessesShutdownHook();
-        executor = new DefaultExecutor();
-        executor.setWatchdog(new ExecuteWatchdog(Long.MAX_VALUE));
-        this.logStdOut = logStdOut;
-        this.logStdErr = logStdErr;
-        outputWriter = stdOutWriter;
-        errorWriter = stdErrWriter;
-        if (outputWriter != null) {
-            writeStdOut = true;
-        }
-        if (errorWriter != null) {
-            writeStdErr = true;
-        }
-    }
-
     public File getWorkingDirectory() {
-        return executor.getWorkingDirectory();
+        return workingDirectory;
     }
 
-    public void setWorkingDirectory(File directory) {
-        executor.setWorkingDirectory(directory);
+    public void setWorkingDirectory(File workingDirectory) {
+        this.workingDirectory = workingDirectory;
     }
 
     public Map<String, String> getEnvironment() {
@@ -246,12 +249,12 @@ public class ExternalProcess {
     public int execute(boolean wait) {
         int retCode = 0;
 
-        // Construct the appropriate LogOutputStream instances
+        // Construct the appropriate LogOutputStream instances.
         initializeWriters();
         outputLog = logOutputStream(logStdOut, writeStdOut, outputWriter);
         errorLog = logOutputStream(logStdErr, writeStdErr, errorWriter);
 
-        // Construct the PumpStreamHandler
+        // Construct the PumpStreamHandler.
         PumpStreamHandler pumpStreamHandler = null;
         if (errorLog != null) {
             pumpStreamHandler = new PumpStreamHandler(outputLog, errorLog);
@@ -259,11 +262,13 @@ public class ExternalProcess {
             pumpStreamHandler = new PumpStreamHandler(outputLog);
         }
 
-        // Configure the DefaultExecutor
+        // Configure the DefaultExecutor.
+        executor = DefaultExecutor.builder().setWorkingDirectory(getWorkingDirectory()).get();
+        executor.setWatchdog(
+            ExecuteWatchdog.builder().setTimeout(Duration.ofMillis(timeoutMillis)).get());
         executor.setStreamHandler(pumpStreamHandler);
-        executor.setWorkingDirectory(getWorkingDirectory());
 
-        // Start the process and, if run synchronously, capture its exit code
+        // Start the process and, if run synchronously, capture its exit code.
         if (wait) {
             retCode = executeAndReturnStatus();
         } else {
@@ -333,7 +338,7 @@ public class ExternalProcess {
      */
     public List<String> stdout() {
         if (outputLog != null) {
-            return ZiggyStringUtils.breakStringAtLineTerminations(outputLog.toString());
+            return ZiggyStringUtils.splitStringAtLineTerminations(outputLog.toString());
         }
         return null;
     }
@@ -346,7 +351,7 @@ public class ExternalProcess {
     public List<String> stdout(String... targetStrings) {
         if (outputLog != null) {
             return ZiggyStringUtils.stringsContainingTargets(
-                ZiggyStringUtils.breakStringAtLineTerminations(outputLog.toString()),
+                ZiggyStringUtils.splitStringAtLineTerminations(outputLog.toString()),
                 targetStrings);
         }
         return null;
@@ -357,7 +362,7 @@ public class ExternalProcess {
      */
     public List<String> stderr() {
         if (errorLog != null) {
-            return ZiggyStringUtils.breakStringAtLineTerminations(errorLog.toString());
+            return ZiggyStringUtils.splitStringAtLineTerminations(errorLog.toString());
         }
         return null;
     }
@@ -370,7 +375,7 @@ public class ExternalProcess {
     public List<String> stderr(String... targetStrings) {
         if (errorLog != null) {
             return ZiggyStringUtils.stringsContainingTargets(
-                ZiggyStringUtils.breakStringAtLineTerminations(errorLog.toString()), targetStrings);
+                ZiggyStringUtils.splitStringAtLineTerminations(errorLog.toString()), targetStrings);
         }
         return null;
     }
@@ -452,11 +457,11 @@ public class ExternalProcess {
     }
 
     /**
-     * Sets the timeout for the external process, in milliseconds.
+     * Sets the timeout for the external process, in milliseconds, or indefinitely if the value is
+     * non-positive.
      */
     public ExternalProcess timeout(long timeoutMillis) {
-        timeoutMillis = timeoutMillis > 0 ? timeoutMillis : Long.MAX_VALUE;
-        executor.setWatchdog(new ExecuteWatchdog(timeoutMillis));
+        this.timeoutMillis = timeoutMillis > 0 ? timeoutMillis : Long.MAX_VALUE;
         return this;
     }
 
@@ -481,10 +486,11 @@ public class ExternalProcess {
     }
 
     /**
-     * Returns the {@link ExecuteWatchdog}, if any, for the external process.
+     * Returns the {@link ExecuteWatchdog} for the external process. Note that the watchdog isn't
+     * created until {@link #execute()} is called.
      */
     public ExecuteWatchdog getWatchdog() {
-        return executor.getWatchdog();
+        return executor != null ? executor.getWatchdog() : null;
     }
 
     /**
@@ -513,7 +519,7 @@ public class ExternalProcess {
      * already been killed, and the child process set generated without that process, it will be
      * available in the set of processes from the prior iteration.
      */
-    private static void setExternalProcessesShutdownHook() {
+    private synchronized static void setExternalProcessesShutdownHook() {
         if (!externalProcessesShutdownHookSet) {
             pool.scheduleWithFixedDelay(() -> {
                 childProcessIdsPreviousCall = childProcessIds;

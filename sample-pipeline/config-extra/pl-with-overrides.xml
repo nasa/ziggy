@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <parameterLibrary override-only="true">
     <parameter-set name="Algorithm Parameters">
-        <parameter name="throw exception subtask_0" value="true" type="boolean"/>
-    </parameter-set>
-    <parameter-set name="Multiple subtask configuration" 
-    classname="gov.nasa.ziggy.uow.TaskConfigurationParameters">
-        <parameter name="reprocess" value="true"/>
+        <parameter name="throw exception subtask 0" value="true" type="boolean"/>
     </parameter-set>
 </parameterLibrary>

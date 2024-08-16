@@ -5,25 +5,28 @@ import static gov.nasa.ziggy.ui.ZiggyGuiConstants.COLLAPSE_ALL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DIALOG;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.EXPAND_ALL;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
+import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createMenuItem;
 
 import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Set;
 
+import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.netbeans.swing.outline.RowModel;
 
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.Groupable;
+import gov.nasa.ziggy.pipeline.definition.database.GroupOperations;
 import gov.nasa.ziggy.ui.util.GroupInformation;
 import gov.nasa.ziggy.ui.util.GroupsDialog;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
-import gov.nasa.ziggy.ui.util.proxy.GroupCrudProxy;
 
 /**
  * Extension of {@link AbstractViewEditPanel} for classes of objects that extend {@link Groupable},
@@ -38,7 +41,9 @@ import gov.nasa.ziggy.ui.util.proxy.GroupCrudProxy;
 public abstract class AbstractViewEditGroupPanel<T extends Groupable>
     extends AbstractViewEditPanel<T> {
 
-    private static final long serialVersionUID = 20231112L;
+    private static final long serialVersionUID = 20240614L;
+
+    private final GroupOperations groupOperations = new GroupOperations();
 
     public AbstractViewEditGroupPanel(RowModel rowModel, ZiggyTreeModel<?> treeModel,
         String nodesColumnLabel) {
@@ -64,19 +69,20 @@ public abstract class AbstractViewEditGroupPanel<T extends Groupable>
     @Override
     protected List<JMenuItem> menuItems() {
         List<JMenuItem> menuItems = super.menuItems();
-        menuItems.addAll(List.of(getGroupMenuItem()));
+        menuItems.addAll(List.of(groupMenuItem()));
         return menuItems;
     }
 
     @SuppressWarnings("serial")
-    private JMenuItem getGroupMenuItem() {
-        return new JMenuItem(new ViewEditPanelAction(ASSIGN_GROUP + DIALOG, null) {
+    private JMenuItem groupMenuItem() {
+        return createMenuItem(ASSIGN_GROUP + DIALOG, new AbstractAction(ASSIGN_GROUP, null) {
             @Override
             public void actionPerformed(ActionEvent evt) {
                 try {
                     group();
                 } catch (Exception e) {
-                    MessageUtil.showError(SwingUtilities.getWindowAncestor(panel), e);
+                    MessageUtils.showError(
+                        SwingUtilities.getWindowAncestor(AbstractViewEditGroupPanel.this), e);
                 }
             }
         });
@@ -86,20 +92,35 @@ public abstract class AbstractViewEditGroupPanel<T extends Groupable>
      * Assign objects in the table to a selected {@link Group}.
      */
     protected void group() {
-        try {
-            Group group = GroupsDialog.selectGroup(this);
-            if (group == null) {
-                return;
-            }
-            List<T> selectedObjects = ziggyTable.getContentAtSelectedRows();
-            if (selectedObjects.isEmpty()) {
-                throw new UnsupportedOperationException("Grouping not permitted");
-            }
-            updateGroups(selectedObjects, group);
-            ziggyTable.loadFromDatabase();
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
+        Group group = GroupsDialog.selectGroup(this);
+        if (group == null) {
+            return;
         }
+        List<T> selectedObjects = ziggyTable.getContentAtSelectedRows();
+        if (selectedObjects.isEmpty()) {
+            throw new UnsupportedOperationException("Grouping not permitted");
+        }
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                updateGroups(selectedObjects, group);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+
+                    // Not to worry--this calls ZiggyTreeModel.loadFromDatabase(), which does its
+                    // work in a SwingWorker.
+                    ziggyTable.loadFromDatabase();
+                } catch (Exception e) {
+                    MessageUtils.showError(AbstractViewEditGroupPanel.this, e);
+                }
+            }
+        }.execute();
     }
 
     /**
@@ -111,13 +132,13 @@ public abstract class AbstractViewEditGroupPanel<T extends Groupable>
         if (CollectionUtils.isEmpty(objects)) {
             return;
         }
-        GroupCrudProxy crudProxy = new GroupCrudProxy();
-        Group databaseGroup = crudProxy.retrieveGroupByName(group.getName(),
+
+        Group databaseGroup = groupOperations().groupForName(group.getName(),
             objects.get(0).getClass());
         GroupInformation<T> groupInformation = new GroupInformation<>(
             (Class<T>) objects.get(0).getClass(), objects);
         for (T object : objects) {
-            Set<String> memberNames = groupInformation.getObjectGroups()
+            Set<String> memberNames = groupInformation.getGroupByObject()
                 .get(object)
                 .getMemberNames();
             if (!CollectionUtils.isEmpty(memberNames)) {
@@ -128,8 +149,12 @@ public abstract class AbstractViewEditGroupPanel<T extends Groupable>
             }
         }
         if (databaseGroup != Group.DEFAULT) {
-            crudProxy.merge(databaseGroup);
+            groupOperations().merge(databaseGroup);
         }
-        crudProxy.merge(groupInformation.getGroups().keySet());
+        groupOperations().merge(groupInformation.getObjectsByGroup().keySet());
+    }
+
+    private GroupOperations groupOperations() {
+        return groupOperations;
     }
 }

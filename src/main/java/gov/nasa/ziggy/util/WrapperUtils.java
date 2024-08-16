@@ -29,9 +29,9 @@ public class WrapperUtils {
      */
     public static String wrapperParameter(String wrapperPropName, String value) {
         checkNotNull(wrapperPropName, "wrapperPropName");
-        checkArgument(!wrapperPropName.isEmpty(), "wrapperPropName can't be empty");
+        checkArgument(!wrapperPropName.isBlank(), "wrapperPropName can't be empty");
         checkNotNull(value, "value");
-        checkArgument(!value.isEmpty(), "value can't be empty");
+        checkArgument(!value.isBlank(), "value can't be empty");
 
         StringBuilder s = new StringBuilder();
         s.append(wrapperPropName).append("=").append(value);
@@ -47,9 +47,9 @@ public class WrapperUtils {
      */
     public static String wrapperParameter(String wrapperPropNamePrefix, int index, String value) {
         checkNotNull(wrapperPropNamePrefix, "wrapperPropNamePrefix");
-        checkArgument(!wrapperPropNamePrefix.isEmpty(), "wrapperPropNamePrefix can't be empty");
+        checkArgument(!wrapperPropNamePrefix.isBlank(), "wrapperPropNamePrefix can't be empty");
         checkNotNull(value, "value");
-        checkArgument(!value.isEmpty(), "value can't be empty");
+        checkArgument(!value.isBlank(), "value can't be empty");
         checkArgument(index >= 0, "index must be non-negative");
 
         StringBuilder s = new StringBuilder();

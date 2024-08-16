@@ -40,6 +40,12 @@ import jakarta.xml.bind.annotation.XmlAttribute;
  * type will provide each subtask with all the files in that type (true). The field is a Boolean
  * rather than boolean because it corresponds to an optional XML attribute, which means that it
  * cannot be a primitive type.
+ * <p>
+ * The XML definition of a {@link DataFileType} allows the user to specify datastore nodes in the
+ * {@link #fileNameRegexp}, i.e., the user can specify a fileNameRegexp of
+ * "foo/bar/file-[0-9]{2}.txt" in the fileNameRegexp attribute. This allows the user to design a
+ * system in which the unit of work (determined by the location) can contain multiple directories
+ * that must be searched for input files or populated with output files.
  *
  * @author PT
  */
@@ -71,10 +77,7 @@ public class DataFileType implements Serializable {
     protected DataFileType() {
     }
 
-    public DataFileType(String name, String location) {
-        this(name, location, null);
-    }
-
+    /** For testing only. */
     public DataFileType(String name, String location, String fileNameRegexp) {
         this.name = name;
         this.location = location;
@@ -89,16 +92,8 @@ public class DataFileType implements Serializable {
         return location;
     }
 
-    public void setFileNameRegexp(String fileNameRegexp) {
-        this.fileNameRegexp = fileNameRegexp;
-    }
-
     public String getFileNameRegexp() {
         return fileNameRegexp;
-    }
-
-    public void setIncludeAllFilesInAllSubtasks(boolean includeAllFilesInAllSubtasks) {
-        this.includeAllFilesInAllSubtasks = includeAllFilesInAllSubtasks;
     }
 
     public boolean isIncludeAllFilesInAllSubtasks() {

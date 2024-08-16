@@ -1,15 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <datastoreConfiguration>
 
+  <datastoreRegexp name="year" value="[0-9]{4}"/>
+  <datastoreRegexp name="chunk" value="[0-9]{2}"/>
+  
+  <datastoreNode name="hyperion" nodes="year">
+  	<datastoreNode name="year" isRegexp="true" nodes="L0, L1R, L2"/>
+  	<datastoreNode name="L0" nodes="chunk"/>
+  	<datastoreNode name="chunk" isRegexp="true"/>
+  	<datastoreNode name="L1R"/>
+  	<datastoreNode name="L2"/>
+  </datastoreNode>
+  
   <dataFileType name="Hyperion L0"
-                fileNameRegexForTaskDir="EO1H([0-9]{6})([0-9]{4})([0-9]{2})([0-9]{1})([A-Za-z0-9]{5})_([A-Z0-9]{3})_([0-9]{2})"
-                fileNameWithSubstitutionsForDatastore="hyperion/$2/L0/$3/EO1H$1$2$3$4$5_$6_$7"/>
+                fileNameRegexp="EO1H([0-9]{6})([0-9]{4})([0-9]{2})([0-9]{1})([A-Za-z0-9]{5})_([A-Z0-9]{3})_([0-9]{2})"
+                location="hyperion/year/L0/chunk"/>
   <dataFileType name="Hyperion L1R"
-                fileNameRegexForTaskDir="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L1R"
-                fileNameWithSubstitutionsForDatastore="hyperion/$2/L1R/EO1H$1$2$3$4.L1R"/>
+                fileNameRegexp="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L1R"
+                location="hyperion/year/L1R"/>
   <dataFileType name="Hyperion L2"
-                fileNameRegexForTaskDir="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L2.tgz"
-                fileNameWithSubstitutionsForDatastore="hyperion/$2/L2/EO1H$1$2$3$4.L2.tgz"/>
+                fileNameRegexp="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L2.tgz"
+                location="hyperion/year/L2"/>
 
   <modelType type="metadata-updates" fileNameRegex="([0-9]{4}-[0-9]+)_eo1hyp_metadata_updates([0-9]+).xlsx"
              versionNumberGroup="2" timestampGroup="1"/>

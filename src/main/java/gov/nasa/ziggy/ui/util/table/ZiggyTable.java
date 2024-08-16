@@ -27,6 +27,8 @@ import javax.swing.JEditorPane;
 import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.event.TreeModelEvent;
+import javax.swing.event.TreeModelListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
@@ -51,10 +53,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
-import gov.nasa.ziggy.ui.util.models.ConsoleDatabaseModel;
-import gov.nasa.ziggy.ui.util.models.DatabaseModelRegistry;
+import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
 import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
@@ -87,8 +87,9 @@ import gov.nasa.ziggy.util.dispmod.ModelContentClass;
  * <li>Users can obtain the content of one or more rows from the underlying model.
  * </ol>
  *
+ * @param <T> class of objects stored in the table model
  * @author PT
- * @param <T> Class of objects stored in the table model. The table is a table of instances of T.
+ * @author Bill Wohler
  */
 public class ZiggyTable<T> {
 
@@ -114,7 +115,7 @@ public class ZiggyTable<T> {
     private boolean resizing;
     private WrappingCellRenderer wrappingCellRenderer = new WrappingCellRenderer();
     private DateCellRenderer dateCellRenderer = new DateCellRenderer();
-    private HashMap<String, Boolean> expansionState;
+    private Map<String, Boolean> expansionState;
     private boolean defaultGroupExpansionState;
     private TableModel tableModel;
     private ZiggyTreeModel<?> treeModel;
@@ -149,6 +150,7 @@ public class ZiggyTable<T> {
         checkArgument(Groupable.class.isAssignableFrom(modelContentsClass),
             "ZiggyTable model content class must extend Groupable");
         this.treeModel = treeModel;
+
         table = new ZiggyOutline();
         outlineModel = DefaultOutlineModel.createOutlineModel(treeModel, rowModel, false,
             nodesColumnLabel);
@@ -157,6 +159,39 @@ public class ZiggyTable<T> {
         if (defaultGroupNode != null) {
             ((Outline) table).expandPath(new TreePath(defaultGroupNode.getPath()));
         }
+
+        treeModel.addTreeModelListener(new TreeModelListener() {
+
+            @Override
+            public void treeStructureChanged(TreeModelEvent evt) {
+                log.debug("thread={}, event={}", Thread.currentThread().getName(), evt);
+                if (expansionState == null) {
+                    // This is the first load of the model.
+                    return;
+                }
+                applyExpansionState(treeModel.getGroupNodes(), expansionState);
+
+                Outline outline = (Outline) table;
+                if (defaultGroupExpansionState) {
+                    outline.expandPath(new TreePath(treeModel.getDefaultGroupNode().getPath()));
+                } else {
+                    outline.collapsePath(new TreePath(treeModel.getDefaultGroupNode().getPath()));
+                }
+            }
+
+            @Override
+            public void treeNodesRemoved(TreeModelEvent evt) {
+            }
+
+            @Override
+            public void treeNodesInserted(TreeModelEvent evt) {
+            }
+
+            @Override
+            public void treeNodesChanged(TreeModelEvent evt) {
+            }
+        });
+
         wrapText = false;
     }
 
@@ -190,36 +225,43 @@ public class ZiggyTable<T> {
         return table;
     }
 
-    public void registerModel() {
-        checkState(tableModel instanceof ConsoleDatabaseModel,
-            "table model must implement ConsoleDatabaseModel");
-        DatabaseModelRegistry.registerModel((ConsoleDatabaseModel) tableModel);
-    }
-
     /**
      * Loads the model contents from the database.
      */
-    @SuppressWarnings("unchecked")
     public void loadFromDatabase() {
         if (table instanceof Outline) {
-            recordExpansionState(treeModel.getGroupNodes(), treeModel.getDefaultGroupNode());
+            expansionState = currentExpansionState(treeModel);
+            if (treeModel.getDefaultGroupNode() != null) {
+                // Null until the model has been loaded yet.
+                defaultGroupExpansionState = ((Outline) table).getLayoutCache()
+                    .isExpanded(new TreePath(treeModel.getDefaultGroupNode()));
+            }
+
             treeModel.loadFromDatabase();
-            applyExpansionState(treeModel.getGroupNodes(), treeModel.getDefaultGroupNode());
+
+            // Previous expansion state is restored on the EDT in the treeStructureChanged method
+            // above.
         } else {
-            checkState(tableModel instanceof AbstractDatabaseModel,
+            checkState(tableModel instanceof DatabaseModel,
                 "table model must be AbstractDatabaseModel");
-            ((AbstractDatabaseModel<T>) tableModel).loadFromDatabase();
+            ((DatabaseModel) tableModel).loadFromDatabase();
         }
     }
 
     /**
-     * Captures the current expansion state of the node tree that supports an {@link Outline}
+     * Returns the current expansion state of the node tree that supports an {@link Outline}
      * instance in the table field.
      */
-    private void recordExpansionState(Map<String, DefaultMutableTreeNode> groupNodes,
-        DefaultMutableTreeNode defaultGroupNode) {
+    private Map<String, Boolean> currentExpansionState(ZiggyTreeModel<?> treeModel) {
         checkState(table instanceof Outline, "table must be an Outline");
-        expansionState = new HashMap<>();
+
+        Map<String, DefaultMutableTreeNode> groupNodes = treeModel.getGroupNodes();
+        if (groupNodes == null) {
+            // The model hasn't been loaded yet.
+            return null;
+        }
+
+        Map<String, Boolean> expansionState = new HashMap<>();
         Outline outline = (Outline) table;
         AbstractLayoutCache layoutCache = outline.getLayoutCache();
 
@@ -230,8 +272,7 @@ public class ZiggyTable<T> {
             expansionState.put(groupName, isExpanded);
         }
 
-        defaultGroupExpansionState = layoutCache
-            .isExpanded(new TreePath(defaultGroupNode.getPath()));
+        return expansionState;
     }
 
     /**
@@ -239,8 +280,9 @@ public class ZiggyTable<T> {
      * in the table field.
      */
     private void applyExpansionState(Map<String, DefaultMutableTreeNode> groupNodes,
-        DefaultMutableTreeNode defaultGroupNode) {
+        Map<String, Boolean> expansionState) {
         checkState(table instanceof Outline, "table must be an Outline");
+
         Outline outline = (Outline) table;
 
         for (String groupName : expansionState.keySet()) {
@@ -253,12 +295,6 @@ public class ZiggyTable<T> {
                     outline.collapsePath(new TreePath(node.getPath()));
                 }
             }
-        }
-
-        if (defaultGroupExpansionState) {
-            outline.expandPath(new TreePath(defaultGroupNode.getPath()));
-        } else {
-            outline.collapsePath(new TreePath(defaultGroupNode.getPath()));
         }
     }
 
@@ -347,9 +383,7 @@ public class ZiggyTable<T> {
     }
 
     /**
-     * Returns the contents of the {@link ZiggyTable}'s model for a given view row. This operation
-     * is valid for all {link ZiggyTable} instances with an {@link Outline}, and all {@link ETable}
-     * based instances for which the table model is a subclass of {@link AbstractDatabaseModel}.
+     * Returns the contents of the {@link ZiggyTable}'s model for a given view row.
      * <p>
      * Note that the argument is assumed to be the view index, i.e., the index into the table based
      * on its current sorting. This is converted to the index into the table model which is then
@@ -486,8 +520,7 @@ public class ZiggyTable<T> {
         FontRenderContext fontRendererContext = table.getFontMetrics(table.getFont())
             .getFontRenderContext();
         Object tableValue = table.getValueAt(row, column);
-        String text = tableValue != null && !StringUtils.isEmpty(tableValue.toString())
-            ? tableValue.toString()
+        String text = !StringUtils.isBlank(tableValue.toString()) ? tableValue.toString()
             : "Default"; // provide some reasonable string to operate upon
         text = Jsoup.parse(text).text(); // strip HTML as it doesn't contribute to length
 

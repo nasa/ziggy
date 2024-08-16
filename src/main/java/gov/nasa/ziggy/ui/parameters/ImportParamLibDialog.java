@@ -27,8 +27,9 @@ import org.netbeans.swing.etable.ETable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.parameters.ParameterSetDescriptor;
-import gov.nasa.ziggy.parameters.ParameterSetDescriptor.State;
+import gov.nasa.ziggy.pipeline.definition.ParameterSet;
+import gov.nasa.ziggy.pipeline.xml.ParameterSetDescriptor;
+import gov.nasa.ziggy.pipeline.xml.ParameterSetDescriptor.State;
 import gov.nasa.ziggy.ui.util.TextualReportDialog;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
@@ -164,8 +165,7 @@ public class ImportParamLibDialog extends JDialog {
             }
 
             for (ParameterSetDescriptor desc : descs) {
-                report.append(ZiggyStringUtils.pad(desc.getName(), maxNameLength + 5) + "["
-                    + desc.shortClassName() + "]\n");
+                report.append(ZiggyStringUtils.pad(desc.getName(), maxNameLength + 5) + "\n");
             }
         }
         report.append("\n\n");
@@ -184,15 +184,14 @@ public class ImportParamLibDialog extends JDialog {
     }
 
     public static void main(String[] args) {
-        ZiggySwingUtils.displayTestDialog(
-            new ImportParamLibDialog(null, List.of(new ParameterSetDescriptor("name", "class"))));
+        ZiggySwingUtils.displayTestDialog(new ImportParamLibDialog(null,
+            List.of(new ParameterSetDescriptor(new ParameterSet()))));
     }
 
     private static class ParamLibImportTableModel
         extends AbstractZiggyTableModel<ParameterSetDescriptor> {
 
-        private static final String[] COLUMN_NAMES = { "Include", "Parameter set name", "Class",
-            "Action" };
+        private static final String[] COLUMN_NAMES = { "Include", "Parameter set name", "Action" };
 
         private List<ParameterSetDescriptor> paramMap = new LinkedList<>();
         private List<Boolean> includeFlags = new ArrayList<>();
@@ -234,7 +233,6 @@ public class ImportParamLibDialog extends JDialog {
             // String name = names.get(rowIndex);
             boolean include = includeFlags.get(rowIndex);
             ParameterSetDescriptor param = paramMap.get(rowIndex);
-            String className = param.shortClassName();
 
             switch (columnIndex) {
                 case 0:
@@ -242,8 +240,6 @@ public class ImportParamLibDialog extends JDialog {
                 case 1:
                     return param.getName();
                 case 2:
-                    return className;
-                case 3:
                     State state = param.getState();
                     String color = "black";
 

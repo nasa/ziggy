@@ -9,7 +9,7 @@ import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceFilter;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceFilter;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 
 /**
@@ -41,7 +41,6 @@ public class InstancesPanel extends JPanel {
         JScrollPane instancesTableScrollPane = new JScrollPane(instancesTable.getTable());
 
         GroupLayout layout = new GroupLayout(this);
-        layout.setAutoCreateContainerGaps(true);
         setLayout(layout);
 
         layout.setHorizontalGroup(layout.createParallelGroup()

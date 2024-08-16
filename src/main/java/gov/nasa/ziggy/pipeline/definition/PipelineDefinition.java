@@ -1,13 +1,12 @@
 package gov.nasa.ziggy.pipeline.definition;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
-import java.util.Stack;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -17,14 +16,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
 import gov.nasa.ziggy.util.CollectionFilters;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -75,11 +75,14 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
     @XmlJavaTypeAdapter(PipelineInstance.Priority.PriorityXmlAdapter.class)
     private Priority instancePriority = Priority.NORMAL;
 
-    @ElementCollection
-    @JoinTable(name = "ziggy_PipelineDefinition_pipelineParameterSetNames")
-    private Map<ClassWrapper<ParametersInterface>, String> pipelineParameterSetNames = new HashMap<>();
+    @ElementCollection(fetch = FetchType.EAGER)
+    @JoinTable(name = "ziggy_PipelineDefinition_parameterSetNames")
+    private Set<String> parameterSetNames = new HashSet<>();
 
-    @ManyToMany
+    // This needs the cascade types as shown so that, when a new version of PipelineDefinition
+    // is created in the database, it points at all new versions of the nodes. That allows us
+    // to rearrange or change the nodes in the new version without perturbing the old one.
+    @ManyToMany(fetch = FetchType.EAGER)
     @Cascade({ CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH })
     @JoinTable(name = "ziggy_PipelineDefinition_rootNodes",
         joinColumns = { @JoinColumn(name = "id") },
@@ -97,7 +100,7 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
     // pipeline in any order in the XML, but it also complicates the bookkeeping required for those
     // objects.
     @XmlElements({ @XmlElement(name = "node", type = PipelineDefinitionNode.class),
-        @XmlElement(name = "pipelineParameter", type = ParameterSetReference.class) })
+        @XmlElement(name = "parameterSet", type = ParameterSetReference.class) })
     @Transient
     private Set<Object> nodesAndParamSets = new HashSet<>();
 
@@ -118,50 +121,15 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         PipelineDefinition pipelineDefinition = super.newInstance();
         pipelineDefinition.id = null;
 
-        pipelineDefinition.pipelineParameterSetNames = new HashMap<>();
-        for (Entry<ClassWrapper<ParametersInterface>, String> pipelineParameterSetName : pipelineParameterSetNames
-            .entrySet()) {
-            pipelineDefinition.pipelineParameterSetNames.put(pipelineParameterSetName.getKey(),
-                pipelineParameterSetName.getValue());
-        }
+        pipelineDefinition.getParameterSetNames().addAll(parameterSetNames);
 
         pipelineDefinition.rootNodes = new ArrayList<>();
         for (PipelineDefinitionNode rootNode : rootNodes) {
-            pipelineDefinition.rootNodes.add(new PipelineDefinitionNode(rootNode));
+            pipelineDefinition.rootNodes
+                .add(new PipelineDefinitionNodeOperations().deepCopy(rootNode));
         }
 
         return pipelineDefinition;
-    }
-
-    /**
-     * Walks the tree of {@link PipelineDefinitionNode}s for this pipeline definition and sets the
-     * parentNode and path fields for each one.
-     */
-    public void buildPaths() {
-        Stack<Integer> path = new Stack<>();
-        buildPaths(null, rootNodes, path);
-    }
-
-    /**
-     * Recursive method to set parent pointers
-     *
-     * @param parent
-     * @param kids
-     * @param path
-     */
-    private void buildPaths(PipelineDefinitionNode parent, List<PipelineDefinitionNode> kids,
-        Stack<Integer> path) {
-        for (int i = 0; i < kids.size(); i++) {
-            PipelineDefinitionNode kid = kids.get(i);
-            path.push(i);
-
-            kid.setParentNode(parent);
-            kid.setPath(new PipelineDefinitionNodePath(new ArrayList<>(path)));
-
-            buildPaths(kid, kid.getNextNodes(), path);
-
-            path.pop();
-        }
     }
 
     public List<PipelineDefinitionNode> getRootNodes() {
@@ -171,7 +139,6 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
     public void setRootNodes(List<PipelineDefinitionNode> rootNodes) {
         this.rootNodes = rootNodes;
         CollectionFilters.removeTypeFromCollection(nodesAndParamSets, PipelineDefinitionNode.class);
-        populateXmlFields();
     }
 
     // Set the root node names from the rootNodes field.
@@ -191,7 +158,6 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
 
     public void addRootNode(PipelineDefinitionNode rootNode) {
         rootNodes.add(rootNode);
-        populateXmlFields();
     }
 
     /**
@@ -222,10 +188,8 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         for (PipelineDefinitionNode node : allNodes) {
             node.populateXmlFields();
         }
-        nodesAndParamSets.addAll(pipelineParameterSetNames.values()
-            .stream()
-            .map(ParameterSetReference::new)
-            .collect(Collectors.toSet()));
+        nodesAndParamSets.addAll(
+            parameterSetNames.stream().map(ParameterSetReference::new).collect(Collectors.toSet()));
 
         // Don't touch the rootNodeNames String unless the rootNodes List is populated
         if (!rootNodes.isEmpty()) {
@@ -253,29 +217,16 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         this.instancePriority = instancePriority;
     }
 
-    public Map<ClassWrapper<ParametersInterface>, String> getPipelineParameterSetNames() {
-        return pipelineParameterSetNames;
+    public Set<String> getParameterSetNames() {
+        return parameterSetNames;
     }
 
-    // Populates the Map from Parameter class to ParameterSetName.
-    public void setPipelineParameterSetNames(
-        Map<ClassWrapper<ParametersInterface>, String> pipelineParameterSetNames) {
-        this.pipelineParameterSetNames = pipelineParameterSetNames;
-        CollectionFilters.removeTypeFromCollection(nodesAndParamSets, String.class);
-        populateXmlFields();
+    public void setParameterSetNames(Set<String> parameterSetNames) {
+        this.parameterSetNames = parameterSetNames;
     }
 
-    // Adds an element to the Map from Parameter class to ParameterSetName.
-    public void addPipelineParameterSetName(Class<? extends ParametersInterface> parameterClass,
-        ParameterSet parameterSet) {
-        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(parameterClass);
-        if (pipelineParameterSetNames.containsKey(classWrapper)) {
-            throw new PipelineException(
-                "This PipelineDefinition already contains a pipeline parameter set for class: "
-                    + parameterClass);
-        }
-        pipelineParameterSetNames.put(classWrapper, parameterSet.getName());
-        populateXmlFields();
+    public void addParameterSetName(String parameterSetName) {
+        parameterSetNames.add(parameterSetName);
     }
 
     // Obtains all the nodes by walking the tree from the root nodes.
@@ -298,30 +249,19 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         }
     }
 
-    public PipelineDefinitionNode getNodeByName(String name) {
-        if (name == null) {
-            return null;
-        }
-        List<PipelineDefinitionNode> nodes = getNodes();
-        List<PipelineDefinitionNode> nodeNameMatches = nodes.stream()
-            .filter(s -> name.equals(s.getModuleName()))
-            .collect(Collectors.toList());
-        PipelineDefinitionNode matchedNode = null;
-        if (!nodeNameMatches.isEmpty()) {
-            matchedNode = nodeNameMatches.get(0);
-        }
-        return matchedNode;
-    }
-
-    public Set<PipelineDefinitionNode> getNodesFromXml() {
+    public Set<PipelineDefinitionNode> nodesFromXml() {
         return CollectionFilters.filterToSet(nodesAndParamSets, PipelineDefinitionNode.class);
     }
 
-    public Set<String> getParameterSetNames() {
+    public Set<String> parameterSetNamesFromXml() {
         return CollectionFilters.filterToSet(nodesAndParamSets, ParameterSetReference.class)
             .stream()
             .map(ParameterSetReference::getName)
             .collect(Collectors.toSet());
+    }
+
+    public Set<Object> getNodesAndParamSets() {
+        return nodesAndParamSets;
     }
 
     public String getRootNodeNames() {
@@ -331,6 +271,10 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
     // Set the root nodes from a String.
     public void setRootNodeNames(String rootNodeNames) {
         this.rootNodeNames = rootNodeNames;
+    }
+
+    public void addPipelineInstances(Collection<PipelineInstance> pipelineInstances) {
+        pipelineInstances.addAll(pipelineInstances);
     }
 
     /**
@@ -358,10 +302,9 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
             || !java.util.Objects.equals(instancePriority, otherDef.instancePriority)) {
             return false;
         }
-        Map<ClassWrapper<ParametersInterface>, String> otherParameters = otherDef
-            .getPipelineParameterSetNames();
-        if (pipelineParameterSetNames.size() != otherParameters.size()
-            || !pipelineParameterSetNames.values().containsAll(otherParameters.values())
+        Set<String> otherParameterSetNames = otherDef.getParameterSetNames();
+        if (otherParameterSetNames.size() != parameterSetNames.size()
+            || !parameterSetNames.containsAll(otherParameterSetNames)
             || !nodeTreesIdentical(rootNodes, otherDef.rootNodes)) {
             return false;
         }

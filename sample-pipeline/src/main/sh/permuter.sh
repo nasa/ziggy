@@ -38,11 +38,11 @@ trap 'deactivate' EXIT
 
 source $SAMPLE_PIPELINE_PYTHON_ENV/bin/activate
 
-# Get the location of the environment's site packages directory
+# Get the location of the environment's site packages directory.
 SITE_PKGS=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 
-# Use the environment's Python to run the permuter Python script
+# Use the environment's Python to run the permuter Python script.
 python3 $SITE_PKGS/major_tom/permuter.py
 
-# capture the Python exit code and pass it to the caller as the script's exit code
+# Capture the Python exit code and pass it to the caller as the script's exit code.
 exit $?

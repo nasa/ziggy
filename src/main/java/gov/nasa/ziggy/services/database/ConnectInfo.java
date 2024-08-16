@@ -3,6 +3,7 @@ package gov.nasa.ziggy.services.database;
 import java.util.Properties;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
+import org.apache.commons.lang3.StringUtils;
 
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -85,7 +86,7 @@ public class ConnectInfo {
             .append(", username=")
             .append(username)
             .append(", password=")
-            .append(password == null || password.isEmpty() ? "not set" : "set")
+            .append(StringUtils.isBlank(password) ? "not set" : "set")
             .append("]");
         return builder.toString();
     }

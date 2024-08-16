@@ -7,21 +7,18 @@ import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
-import java.util.Map;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.TasksStates;
 import gov.nasa.ziggy.util.dispmod.InstancesDisplayModel;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskSummaryDisplayModel;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Creates a report for a {@link PipelineInstance}.
@@ -29,6 +26,8 @@ import gov.nasa.ziggy.util.io.FileUtil;
  * @author Miles Cote
  */
 public class InstanceReporter {
+
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public File report(PipelineInstance instance, File outputDir) {
@@ -40,25 +39,21 @@ public class InstanceReporter {
         File reportFile = new File(outputDir, "instance-" + instance.getId() + "-report.txt");
         reportFile.delete();
 
-        try (PrintStream printStream = new PrintStream(reportFile, FileUtil.ZIGGY_CHARSET_NAME)) {
+        try (PrintStream printStream = new PrintStream(reportFile, ZiggyFileUtils.ZIGGY_CHARSET_NAME)) {
             printStream.print("state: " + instance.getState() + "\n\n");
 
             InstancesDisplayModel instancesDisplayModel = new InstancesDisplayModel(instance);
             instancesDisplayModel.print(printStream, "Instance Summary");
             printStream.println();
 
-            PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-            List<PipelineTask> tasks = pipelineTaskCrud.retrieveTasksForInstance(instance);
-
-            Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
-                .processingSummaries(tasks);
+            List<PipelineTask> tasks = pipelineTaskOperations().pipelineTasks(instance);
 
             TaskSummaryDisplayModel taskSummaryDisplayModel = new TaskSummaryDisplayModel(
-                new TasksStates(tasks, taskAttrs));
+                new TaskCounts(tasks));
             taskSummaryDisplayModel.print(printStream, "Instance Task Summary");
 
-            TasksStates tasksStates = taskSummaryDisplayModel.getTaskStates();
-            List<String> orderedModuleNames = tasksStates.getModuleNames();
+            TaskCounts taskCounts = taskSummaryDisplayModel.getTaskCounts();
+            List<String> orderedModuleNames = taskCounts.getModuleNames();
 
             PipelineStatsDisplayModel pipelineStatsDisplayModel = new PipelineStatsDisplayModel(
                 tasks, orderedModuleNames);
@@ -75,5 +70,9 @@ public class InstanceReporter {
         }
 
         return reportFile;
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

@@ -16,13 +16,9 @@ What does all this stuff do? Let's go through it from the top to the bottom ("Hm
 
 ### Pipeline Section
 
-The main actions you can take from this section is to validate the pipeline and view or export parameters.                   
-
-The `Validate` button is a vestige of a bygone era. It looks for issues with the pipeline's parameter sets that are largely impossible today, but which were common in Ziggy's predecessor software packages.
+The actions you can take from this section include setting the priority and processing mode of the pipeline and viewing and exporting its parameters.
 
 The `Report` button brings up a new window that shows the modules and parameter sets for this pipeline. The report can also be saved to a text file. This dialog is mainly useful in the context of a fairly complex system, in which you want to isolate the bits and pieces of a specified pipeline from the general mass of bits and pieces in the system.
-
-The `Export parameters` button exports the parameters used by this pipeline, in a kind of hokey and non-standard format. The advantage this has over using the export function on the parameter library panel is that it only exports the parameter sets used by this pipeline. In a situation where you have a lot of pipelines, with a lot of parameters, it's potentially useful to be able to see just the parameters for a given pipeline.
 
 The `Priority` field takes a little more explanation. We've discussed in the past the fact that Ziggy sometimes faces a situation in which Ziggy has more tasks waiting for attention than it has worker processes ready to service the tasks. In this case, Ziggy has to prioritize the tasks to ensure that the most critical ones get attention first. The pipeline priority is one way this sorting occurs. Tasks with higher priority get to leap ahead of tasks with lower priority in the queue. The available priorities are LOWEST, LOW, NORMAL, HIGHEST, HIGH. 
 
@@ -34,8 +30,6 @@ All pipelines, in turn, are initially created with priority NORMAL, meaning that
 
 One case where this isn't true is missions that have occasional need for much faster turnaround of data processing. That is to say, most data can be processed through Pipeline X on a first-come, first-served basis; but occasionally there will be a need to process a small amount of just-acquired data through Pipeline Y immediately. To ensure that this happens, you can set Pipeline Y to have a priority of HIGH or HIGHEST.
 
-Finally, the read-only `Valid?` checkbox is ticked after the `Validate` button is pressed, presuming all went well.  
-
 #### Processing mode
 
 The `Processing mode` radio button section has two options: `Process all data` versus `Process new data`. This option is pretty much exactly what it sounds like. Specifically: the `Process all data` option tells Ziggy that each pipeline module should process all the data it finds, whether that data has already been processed or not; the `Process new data` only processes data files that have never before been processed. For a mission that's currently acquiring data, it's likely that most of the time you'll want to set the `Process new data` option, since it will save time by not processing data that's already been processed. At intervals, the mission may decide to do a uniform reprocessing of all data (to take advantage of algorithm improvements, etc.) For this activity, `Process all data` is the correct option.
@@ -46,7 +40,7 @@ Say that five times fast.
 
 Anyway.
 
-This section shows a list of the parameter sets that are assigned at the pipeline level (that is to say, parameter sets that are made available to every task regardless of which processing module it uses). The `Add` button allows you to select any parameter set in the parameter library and make it a pipeline parameter set for this pipeline. The `Edit` button allows you to change the values of the parameters in a given set. The `Select` and `Auto-assign` buttons do things that used to be useful, but in the current version of Ziggy are not.
+This section shows a list of the parameter sets that are assigned at the pipeline level (that is to say, parameter sets that are made available to every task regardless of which processing module it uses). The `New` button allows you to select any parameter set in the parameter library and make it a pipeline parameter set for this pipeline. The `Edit` button allows you to change the values of the parameters in a given set.
 
 Given that the parameter library panel already allows you to view and edit parameters, why is it useful to have this section on this dialog box? Again -- in the case where you have a lot of pipelines and a lot of parameters, it's useful to be able to view the parameters for a given pipeline in isolation. This allows you to avoid confusion about which parameters go to which pipelines.
 
@@ -58,7 +52,7 @@ The display shows the modules in the pipeline, sorted in execution order. You ca
 
 #### Task Information Button
 
-This button produces a table of the tasks that Ziggy will produce for the specified module if you start the pipeline. This takes into account whether the module is configured to process all data or to process only new data; the setting of the taskDirectoryRegex string (which allows the user to specify that only subsets of the datastore should be run through the pipeline). For each task, the task's unit of work description and number of subtasks are shown. If the table is empty, it means that the relevant files in the datastore are missing. The datastore is populated by [Data Receipt](data-receipt.md); that article will help you ingest your data into the datastore so that the task information table can calculate the number of tasks and subtasks the input data will generate.
+This button produces a table of the tasks that Ziggy will produce for the specified module if you start the pipeline. This takes into account whether the module is configured to process all data or to process only new data, plus the settings of the [datastore regexps](datastore-regexp.md). For each task, the task's unit of work description and number of subtasks are shown. If the table is empty, it means that the relevant files in the datastore are missing. The datastore is populated by [Data Receipt](data-receipt.md); that article will help you ingest your data into the datastore so that the task information table can calculate the number of tasks and subtasks the input data will generate.
 
 #### Resources Button
 

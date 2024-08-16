@@ -6,7 +6,6 @@ import java.util.Set;
 
 import gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs;
 import gov.nasa.ziggy.module.DatastoreDirectoryPipelineOutputs;
-import gov.nasa.ziggy.module.SubtaskInformation;
 import gov.nasa.ziggy.module.TaskConfiguration;
 
 /**
@@ -36,11 +35,6 @@ public class DataFileTestUtils {
         @Override
         public void copyDatastoreFilesToTaskDirectory(TaskConfiguration taskConfigurationManager,
             Path taskDirectory) {
-        }
-
-        @Override
-        public SubtaskInformation subtaskInformation() {
-            return null;
         }
     }
 

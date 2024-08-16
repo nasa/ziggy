@@ -2,12 +2,9 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import jakarta.persistence.Column;
@@ -54,27 +51,6 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     public <E extends T> ClassWrapper(E instance) {
         clazz = instance.getClass().getName();
         unmangledClassName = clazz;
-    }
-
-    /**
-     * Special purpose constructor for the case of a {@link ParameterSet}. this allows the
-     * {@link ClassWrapper} to mangle the class name for instances of {@link Parameters}, so that
-     * multiple instances of class-wrapped Parameters can coexist in a {@link Set} or {@link Map}.
-     */
-    @SuppressWarnings("unchecked")
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    public ClassWrapper(ParameterSet paramSet) {
-        Class<? extends Parameters> actualClass = (Class<? extends Parameters>) paramSet.clazz();
-        unmangledClassName = actualClass.getName();
-        if (actualClass != Parameters.class) {
-            clazz = unmangledClassName;
-        } else {
-
-            // In this case we append to the class name the parameter set name. The two are
-            // separated by whitespace so that there's no risk of confustion with an actual
-            // class name.
-            clazz = unmangledClassName + " " + paramSet.getName();
-        }
     }
 
     /**

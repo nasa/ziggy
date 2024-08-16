@@ -126,7 +126,7 @@ public class PipelineDefinitionNodeExecutionResources {
         pbsParameters.setEnabled(remoteExecutionEnabled);
         pbsParameters.setArchitecture(RemoteNodeDescriptor.fromName(remoteNodeArchitecture));
         pbsParameters.setGigsPerSubtask(gigsPerSubtask);
-        if (!StringUtils.isEmpty(queueName)) {
+        if (!StringUtils.isBlank(queueName)) {
             pbsParameters.setQueueName(queueName);
         }
         if (minCoresPerNode > 0) {

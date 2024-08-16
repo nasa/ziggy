@@ -4,9 +4,9 @@ import java.awt.BorderLayout;
 
 import javax.swing.JScrollPane;
 
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
-import gov.nasa.ziggy.util.TasksStates.Summary;
 import gov.nasa.ziggy.util.dispmod.TaskSummaryDisplayModel;
 
 /**
@@ -18,7 +18,7 @@ public class TaskStatusSummaryPanel extends javax.swing.JPanel {
 
     public TaskStatusSummaryPanel() {
         taskSummaryTableModel = new TaskSummaryTableModel();
-        ZiggyTable<Summary> ziggyTable = new ZiggyTable<>(taskSummaryTableModel);
+        ZiggyTable<Counts> ziggyTable = new ZiggyTable<>(taskSummaryTableModel);
         ziggyTable.setWrapText(false);
         setLayout(new BorderLayout());
         setPreferredSize(new java.awt.Dimension(400, 112));
@@ -33,7 +33,7 @@ public class TaskStatusSummaryPanel extends javax.swing.JPanel {
         taskSummaryTableModel.update(tasksTableModel);
     }
 
-    private static class TaskSummaryTableModel extends AbstractZiggyTableModel<Summary> {
+    private static class TaskSummaryTableModel extends AbstractZiggyTableModel<Counts> {
         private final TaskSummaryDisplayModel taskSummaryDisplayModel = new TaskSummaryDisplayModel();
 
         public TaskSummaryTableModel() {
@@ -66,12 +66,12 @@ public class TaskStatusSummaryPanel extends javax.swing.JPanel {
         }
 
         @Override
-        public Class<Summary> tableModelContentClass() {
-            return Summary.class;
+        public Class<Counts> tableModelContentClass() {
+            return Counts.class;
         }
 
         @Override
-        public Summary getContentAtRow(int row) {
+        public Counts getContentAtRow(int row) {
             return taskSummaryDisplayModel.getContentAtRow(row);
         }
     }

@@ -28,6 +28,10 @@ What to do if you realize that you need to change the configuration of a pipelin
 
 Make it easier to run those Java programs you've written.
 
+### [Advanced Unit of Work Configurations](advanced-uow.md)
+
+There's more flexibility to the unit of work infrastructure than we've let on.
+
 [[Previous]](console-cli.md)
 [[Up]](user-manual.md)
 [[Next]](more-rdbms.md)

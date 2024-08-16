@@ -731,7 +731,7 @@ public class ZiggyArrayUtils {
 
     public static Object stringToArray(String commaSeparatedValues, ZiggyDataType dataType) {
 
-        if (StringUtils.isEmpty(commaSeparatedValues)) {
+        if (StringUtils.isBlank(commaSeparatedValues)) {
             return constructFullPrimitiveArray(new long[] { 0 }, dataType);
         }
 

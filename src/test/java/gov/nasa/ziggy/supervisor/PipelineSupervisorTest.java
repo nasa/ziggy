@@ -21,8 +21,7 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests.QueueDeleteCommand;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
@@ -51,7 +50,8 @@ public class PipelineSupervisorTest implements Requestor {
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     private PipelineSupervisor supervisor;
-    private PipelineOperations operations = Mockito.mock(PipelineOperations.class);
+    private PipelineTaskOperations pipelineTaskOperations = Mockito
+        .mock(PipelineTaskOperations.class);
     private AlertService alertService = Mockito.mock(AlertService.class);
     private Set<StateFile> stateFiles = new HashSet<>();
 
@@ -59,7 +59,7 @@ public class PipelineSupervisorTest implements Requestor {
     public void setUp() {
         supervisor = Mockito.spy(new PipelineSupervisor(1, 12000));
         Mockito.doReturn(alertService).when(supervisor).alertService();
-        Mockito.doReturn(operations).when(supervisor).pipelineOperations();
+        Mockito.doReturn(pipelineTaskOperations).when(supervisor).pipelineTaskOperations();
         Mockito.doReturn(stateFiles).when(supervisor).remoteTaskStateFiles();
     }
 
@@ -165,7 +165,7 @@ public class PipelineSupervisorTest implements Requestor {
         assertTrue(PipelineSupervisor.taskOnKilledTaskList(1L));
         Mockito.verify(alertService)
             .generateAndBroadcastAlert("PI", 1L, AlertService.Severity.ERROR, "Task 1 halted");
-        Mockito.verify(operations).setTaskState(1L, PipelineTask.State.ERROR);
+        Mockito.verify(pipelineTaskOperations).taskErrored(1L);
     }
 
     public QueueCommandManagerForUnitTests queueCommandManager() {

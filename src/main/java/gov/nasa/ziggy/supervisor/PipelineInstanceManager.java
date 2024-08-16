@@ -1,19 +1,19 @@
 package gov.nasa.ziggy.supervisor;
 
-import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.performTransaction;
-
-import org.hibernate.Hibernate;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.ModuleFatalProcessingException;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
-import gov.nasa.ziggy.services.messages.FireTriggerRequest;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.StartPipelineRequest;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -53,25 +53,25 @@ public class PipelineInstanceManager {
 
     private long currentInstanceId;
 
-    private PipelineDefinitionCrud pipelineDefinitionCrud;
-    private PipelineInstanceCrud pipelineInstanceCrud;
-    private PipelineOperations pipelineOperations;
+    private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+    private PipelineExecutor pipelineExecutor = new PipelineExecutor();
+    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
 
     /**
-     * Provided with package scope to facilitate testing.
+     * Provided with package scope to facilitate testing. This is used when creating a Mockito spy
+     * object, so the explicit no-arg constructor is required.
      */
-    // TODO Unused? Delete?
     PipelineInstanceManager() {
     }
 
-    public PipelineInstanceManager(FireTriggerRequest triggerRequest) {
+    public PipelineInstanceManager(StartPipelineRequest triggerRequest) {
         initialize(triggerRequest);
     }
 
     /**
      * Provided with package scope to facilitate testing.
      */
-    void initialize(FireTriggerRequest triggerRequest) {
+    void initialize(StartPipelineRequest triggerRequest) {
         instanceName = triggerRequest.getInstanceName();
         maxRepeats = triggerRequest.getMaxRepeats();
         if (maxRepeats < 0) {
@@ -80,33 +80,24 @@ public class PipelineInstanceManager {
         String startNodeName = triggerRequest.getStartNodeName();
         String endNodeName = triggerRequest.getEndNodeName();
         String startString, endString;
-        if (startNodeName != null && !startNodeName.isEmpty()) {
+        if (!StringUtils.isBlank(startNodeName)) {
             startString = "start node: " + startNodeName;
         } else {
             startString = "start node not set";
         }
-        if (endNodeName != null && !endNodeName.isEmpty()) {
+        if (!StringUtils.isBlank(endNodeName)) {
             endString = "end node: " + endNodeName;
         } else {
             endString = "end node not set";
         }
         log.info("PipelineInstanceManager.initialize: " + startString + ", " + endString);
         repeatIntervalMillis = triggerRequest.getRepeatIntervalSeconds() * 1000;
-        performTransaction(() -> {
-            pipeline = pipelineDefinitionCrud()
-                .retrieveLatestVersionForName(triggerRequest.getPipelineName());
-            startNode = pipeline.getNodeByName(triggerRequest.getStartNodeName());
-            endNode = pipeline.getNodeByName(triggerRequest.getEndNodeName());
-            Hibernate.initialize(pipeline.getRootNodes());
-
-            /*
-             * Lock the definition so it can't be changed once it is referred to by a
-             * PipelineInstance This preserves the pipeline configuration and all parameter sets for
-             * the data accountability record
-             */
-            pipeline.lock();
-            return null;
-        });
+        pipeline = pipelineDefinitionOperations()
+            .lockAndReturnLatestPipelineDefinition(triggerRequest.getPipelineName());
+        startNode = pipelineDefinitionOperations().pipelineDefinitionNodeByName(pipeline,
+            triggerRequest.getStartNodeName());
+        endNode = pipelineDefinitionOperations().pipelineDefinitionNodeByName(pipeline,
+            triggerRequest.getEndNodeName());
     }
 
     /**
@@ -134,9 +125,11 @@ public class PipelineInstanceManager {
                 }
             }
 
-            PipelineInstance pipelineInstance = pipelineOperations().fireTrigger(pipeline,
+            PipelineInstance pipelineInstance = pipelineExecutor().launch(pipeline,
                 currentInstanceName.toString(), startNode, endNode, null);
             currentInstanceId = pipelineInstance.getId();
+
+            ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
 
             // If we're not on the last repeat, we need to wait.
             // While the counter is 0-based, messages to the user are 1-based.
@@ -194,26 +187,23 @@ public class PipelineInstanceManager {
 
         final long checkAgainIntervalMillis = checkAgainIntervalMillis();
         while (loopStatus.keepLooping()) {
-            performTransaction(() -> {
-                PipelineInstance instance = pipelineInstanceCrud().retrieve(currentInstanceId);
-                pipelineInstanceCrud().evict(instance);
-                PipelineInstance.State state = instance.getState();
-                switch (state) {
-                    case COMPLETED:
-                        loopStatus.setKeepLooping(false);
-                        loopStatus.setInstanceCompleted(true);
-                        break;
-                    case ERRORS_RUNNING:
-                    case ERRORS_STALLED:
-                        loopStatus.setKeepLooping(false);
-                        loopStatus.setInstanceCompleted(false);
-                        break;
-                    default:
-                        loopStatus.setKeepLooping(true);
-                        loopStatus.setInstanceCompleted(false);
-                }
-                return null;
-            });
+            PipelineInstance instance = pipelineInstanceOperations()
+                .pipelineInstance(currentInstanceId);
+            PipelineInstance.State state = instance.getState();
+            switch (state) {
+                case COMPLETED:
+                    loopStatus.setKeepLooping(false);
+                    loopStatus.setInstanceCompleted(true);
+                    break;
+                case ERRORS_RUNNING:
+                case ERRORS_STALLED:
+                    loopStatus.setKeepLooping(false);
+                    loopStatus.setInstanceCompleted(false);
+                    break;
+                default:
+                    loopStatus.setKeepLooping(true);
+                    loopStatus.setInstanceCompleted(false);
+            }
             if (loopStatus.keepLooping()) {
                 log.info("Current pipeline instance " + currentInstanceId
                     + " still running, next instance start delayed");
@@ -270,28 +260,16 @@ public class PipelineInstanceManager {
         return statusChecks;
     }
 
-    // The methods below are provided to support unit testing. Override them with methods
-    // to provide mocked CRUD instances or keep-alive / check-again intervals shorter than
-    // 15 minutes.
-    PipelineDefinitionCrud pipelineDefinitionCrud() {
-        if (pipelineDefinitionCrud == null) {
-            pipelineDefinitionCrud = new PipelineDefinitionCrud();
-        }
-        return pipelineDefinitionCrud;
+    PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
     }
 
-    PipelineInstanceCrud pipelineInstanceCrud() {
-        if (pipelineInstanceCrud == null) {
-            pipelineInstanceCrud = new PipelineInstanceCrud();
-        }
-        return pipelineInstanceCrud;
+    PipelineExecutor pipelineExecutor() {
+        return pipelineExecutor;
     }
 
-    PipelineOperations pipelineOperations() {
-        if (pipelineOperations == null) {
-            pipelineOperations = new PipelineOperations();
-        }
-        return pipelineOperations;
+    PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
     }
 
     long keepAliveLogMsgIntervalMillis() {

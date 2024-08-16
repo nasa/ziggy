@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Merges the contents of two .properties files into one. Typically one contains the defaults and
@@ -101,7 +101,7 @@ public class ConfigMerge {
             // Write out the merged config .properties file
             log.info("writing merged file: " + mergedFile);
             BufferedWriter outputWriter = new BufferedWriter(
-                new OutputStreamWriter(new FileOutputStream(mergedFile), FileUtil.ZIGGY_CHARSET));
+                new OutputStreamWriter(new FileOutputStream(mergedFile), ZiggyFileUtils.ZIGGY_CHARSET));
             baseConfig.write(outputWriter);
         } catch (IOException e) {
             throw new UncheckedIOException("Unable to write to file " + mergedFile.toString(), e);

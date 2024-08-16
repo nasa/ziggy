@@ -16,6 +16,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
@@ -40,8 +41,8 @@ public class NewPipelineDialog extends javax.swing.JDialog {
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
         getContentPane().add(createButtonPanel(createButton(CREATE, this::create),
             createButton(CANCEL, this::cancel)), BorderLayout.SOUTH);
+        setPreferredSize(ZiggyGuiConstants.MIN_DIALOG_SIZE);
 
-        setMinimumSize(ZiggySwingUtils.MIN_DIALOG_SIZE);
         pack();
     }
 

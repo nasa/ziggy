@@ -25,7 +25,7 @@ Well, you don't see all of those lines laid out as conveniently as the above, bu
 datastore$ tree
 ├── models
 │   └── dummy model
-│       └── 2022-10-31.0001-sample-model.txt
+│       └── 2024-06-27.0001-sample-model.txt
 ├── set-1
 │   ├── L0
 │   │   ├── nasa-logo-file-0.png

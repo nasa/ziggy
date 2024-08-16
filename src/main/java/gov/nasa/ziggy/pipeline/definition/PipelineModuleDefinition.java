@@ -2,6 +2,8 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.util.Objects;
 
+import org.apache.commons.lang3.StringUtils;
+
 import gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs;
 import gov.nasa.ziggy.module.DatastoreDirectoryPipelineOutputs;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
@@ -100,6 +102,10 @@ public class PipelineModuleDefinition
     @XmlAttribute(required = false)
     private Integer minMemoryMegabytes = PipelineModuleExecutionResources.DEFAULT_MEMORY_MEGABYTES;
 
+    // Executable name, if different from module name.
+    @XmlAttribute(required = false)
+    private String executableName;
+
     // for hibernate use only
     public PipelineModuleDefinition() {
     }
@@ -111,6 +117,7 @@ public class PipelineModuleDefinition
     /**
      * @return Returns the id.
      */
+    @Override
     public Long getId() {
         return id;
     }
@@ -167,6 +174,19 @@ public class PipelineModuleDefinition
         this.unitOfWorkGenerator = unitOfWorkGenerator;
     }
 
+    /**
+     * Returns the executable that must be run for this module. If the executable name is not
+     * specified, the module name is returned. This allows the executable name to be optional, hence
+     * used only in cases where the user wants the two names to be distinct from one another.
+     */
+    public String getExecutableName() {
+        return StringUtils.isBlank(executableName) ? getName() : executableName;
+    }
+
+    public void setExecutableName(String executableName) {
+        this.executableName = executableName;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(description, getOptimisticLockValue(), id, inputsClass, isLocked(),
@@ -174,7 +194,7 @@ public class PipelineModuleDefinition
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean totalEquals(Object obj) {
         if (this == obj) {
             return true;
         }
@@ -186,7 +206,6 @@ public class PipelineModuleDefinition
         equalModule = equalModule && getOptimisticLockValue() == other.getOptimisticLockValue();
         equalModule = equalModule && Objects.equals(id, other.id);
         equalModule = equalModule && Objects.equals(inputsClass, other.inputsClass);
-        equalModule = equalModule && isLocked() == other.isLocked();
         equalModule = equalModule && Objects.equals(getName(), other.getName());
         equalModule = equalModule && Objects.equals(outputsClass, other.outputsClass);
         equalModule = equalModule && Objects.equals(pipelineModuleClass, other.pipelineModuleClass);
@@ -199,7 +218,7 @@ public class PipelineModuleDefinition
     }
 
     @Override
-    public boolean totalEquals(Object obj) {
-        return equals(obj);
+    public boolean equals(Object obj) {
+        return totalEquals(obj) && ((PipelineModuleDefinition) obj).isLocked() == isLocked();
     }
 }

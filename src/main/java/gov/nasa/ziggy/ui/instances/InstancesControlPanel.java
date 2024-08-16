@@ -24,8 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceFilter;
-import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceFilter;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 
@@ -121,7 +121,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             .addComponent(clearFiltersButton)
             .addComponent(showInstancesGroup)
             .addGroup(filtersPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addComponent(startLabel)
                 .addGap(5) // PREFERRED is too big, no gap is too small
                 .addComponent(ageTextField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
@@ -132,7 +132,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
                 .addComponent(dayButtonPanel))
             .addComponent(limitStatesGroup)
             .addGroup(filtersPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addGroup(filtersPanelLayout.createParallelGroup()
                     .addComponent(initializedCheckBox)
                     .addComponent(processingCheckBox)
@@ -143,7 +143,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
                     .addComponent(errorsStalledCheckBox)))
             .addComponent(instanceNameGroup)
             .addGroup(filtersPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addGroup(filtersPanelLayout.createSequentialGroup()
                     .addComponent(instanceNameTextField, GroupLayout.PREFERRED_SIZE,
                         GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)

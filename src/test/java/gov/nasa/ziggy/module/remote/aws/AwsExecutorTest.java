@@ -3,9 +3,7 @@ package gov.nasa.ziggy.module.remote.aws;
 import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_GROUP;
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Ignore;
 import org.junit.Rule;
-import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.remote.PbsParameters;
@@ -18,18 +16,17 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  *
  * @author PT
  */
-
 public class AwsExecutorTest {
 
     @Rule
     public ZiggyPropertyRule groupPropertyRule = new ZiggyPropertyRule(REMOTE_GROUP, "12345");
 
+    // TODO Fix or delete AWS test
     // We ignore this test because the AwsExecutor is (probably) obsolete, since it was originally
     // written for a proof-of-concept activity and represents an approach to AWS remote execution
     // that we actually don't want to use anymore. When we write the new AwsExecutor, or revive the
     // current one, we'll either delete and replace this test, or un-ignore it and fix it.
-    @Ignore
-    @Test
+    // @Test
     public void testGeneratePbsParameters() {
         AwsExecutor executor = new AwsExecutor(new PipelineTask());
 

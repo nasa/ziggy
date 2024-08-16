@@ -3,7 +3,6 @@ package gov.nasa.ziggy.pipeline.definition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
@@ -23,19 +22,13 @@ public class TaskExecutionLog {
     /** Timestamp that processing ended (success or failure) on this step */
     private Date endProcessingTime = new Date(0);
 
-    /** PipelineTask.State at the time this execution iteration started */
-    private State initialState = PipelineTask.State.INITIALIZED;
-
-    /** PipelineTask.State at the time this execution iteration ended */
-    private State finalState = PipelineTask.State.INITIALIZED;
-
-    /** PipelineTask.ProcessingState at the time this execution iteration started */
+    /** ProcessingStep at the time this execution iteration started */
     @Enumerated(EnumType.STRING)
-    private ProcessingState initialProcessingState = ProcessingState.INITIALIZING;
+    private ProcessingStep initialProcessingStep = ProcessingStep.INITIALIZING;
 
-    /** PipelineTask.ProcessingState at the time this execution iteration ended */
+    /** ProcessingStep at the time this execution iteration ended */
     @Enumerated(EnumType.STRING)
-    private ProcessingState finalProcessingState = ProcessingState.INITIALIZING;
+    private ProcessingStep finalProcessingStep = ProcessingStep.INITIALIZING;
 
     public TaskExecutionLog() {
     }
@@ -77,36 +70,20 @@ public class TaskExecutionLog {
         this.endProcessingTime = endProcessingTime;
     }
 
-    public State getInitialState() {
-        return initialState;
+    public ProcessingStep getInitialProcessingStep() {
+        return initialProcessingStep;
     }
 
-    public void setInitialState(State initialState) {
-        this.initialState = initialState;
+    public void setInitialProcessingStep(ProcessingStep initialProcessingStep) {
+        this.initialProcessingStep = initialProcessingStep;
     }
 
-    public State getFinalState() {
-        return finalState;
+    public ProcessingStep getFinalProcessingStep() {
+        return finalProcessingStep;
     }
 
-    public void setFinalState(State finalState) {
-        this.finalState = finalState;
-    }
-
-    public ProcessingState getInitialProcessingState() {
-        return initialProcessingState;
-    }
-
-    public void setInitialProcessingState(ProcessingState initialProcessingState) {
-        this.initialProcessingState = initialProcessingState;
-    }
-
-    public ProcessingState getFinalProcessingState() {
-        return finalProcessingState;
-    }
-
-    public void setFinalProcessingState(ProcessingState finalProcessingState) {
-        this.finalProcessingState = finalProcessingState;
+    public void setFinalProcessingStep(ProcessingStep finalProcessingStep) {
+        this.finalProcessingStep = finalProcessingStep;
     }
 
     @Override
@@ -117,8 +94,7 @@ public class TaskExecutionLog {
 
         return "TaskExecutionLog [wh=" + workerHost + ", wt=" + workerThread + ", start=" + start
             + ", end=" + end + ", elapsed="
-            + ZiggyStringUtils.elapsedTime(startProcessingTime, endProcessingTime) + ", Si="
-            + initialState + ", Sf=" + finalState + ", PSi=" + initialProcessingState + ", PSf="
-            + finalProcessingState + "]";
+            + ZiggyStringUtils.elapsedTime(startProcessingTime, endProcessingTime) + ", PSi="
+            + initialProcessingStep + ", PSf=" + finalProcessingStep + "]";
     }
 }

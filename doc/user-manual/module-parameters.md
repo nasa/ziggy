@@ -18,7 +18,7 @@ Because the sample pipeline is extremely simple, we have only one parameter libr
 
 ```xml
 <parameter-set name="Algorithm Parameters">
-  <parameter name="throw exception subtask_0" value="false" type="boolean"/>
+  <parameter name="throw exception subtask 0" value="false" type="boolean"/>
   <parameter name="produce output subtask 1" value="true" type="boolean"/>
   <parameter name="dummy array parameter" value="1, 2, 3" type="intarray"/>
   <parameter name="execution pause seconds" value="5" type="int"/>

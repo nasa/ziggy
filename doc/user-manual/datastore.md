@@ -40,7 +40,7 @@ To make this more concrete (it could hardly be less concrete so far), let's cons
   </datastoreNode>
 ```
 
-The first thing you see is an example of a `DatastoreRegexp`. It has a `name` (`"dataset"`) and a `value` (`"set-[0-9]"`). The value is a *Java regular expression* (`"regexp"`). In this case, the regular expression will match "`set-0"`, `"set-1"`, etc. -- anything that's a combination of `"set-"` and a digit.
+The first thing you see is an example of a `DatastoreRegexp`. It has a `name` (`"dataset"`) and a `value` (`"set-[0-9]"`). The value is a *Java [regular expression](https://xkcd.com/208/)* (`"regexp"`), which is [defined by the Pattern class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Pattern.html). In this case, the regular expression will match "`set-0"`, `"set-1"`, etc. -- anything that's a combination of `"set-"` and a digit.
 
 The next thing you see is a `DatastoreNode`, also named `"dataset".` It has an attribute, `isRegexp`, which is true. What does this mean? It means that there's a top-level directory under the datastore root directory which can have as its name anything that matches the value of the `"dataset"` `DatastoreRegexp`. More generally, it means that any directory under the datastore root that matches that value is a valid directory in the datastore! Thus, the "`dataset"` `DatastoreNode` means, "put as many directories as you like here, as long as they match the `dataset` regular expression, and I'll know how to access them when the time comes."
 

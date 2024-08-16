@@ -10,9 +10,8 @@ Module parameters can be changed to affect how the algorithm behaves. To see how
 
 <img src="images/parameter-library.png" style="width:32cm;"/>
 
-As you can see, all of the parameter sets defined in `pl-sample.xml` are represented here. What else does the table tell us?
+As you can see, the parameter set defined in `pl-sample.xml` is represented here. What else does the table tell us?
 
-- The `Type` column is the name of the Java class that supports the module parameter set. For now you can ignore this.
 - The `Version` column shows the current version of the parameter set. They all show zero because none of the parameter sets has been modified since they were imported from `pl-sample.xml`.
 - The `Locked` column shows whether the current version of each parameter set is locked. What that means is this: before a version of a parameter set is used in the pipeline, it's unlocked, and the user can make changes to it; once the version has been used in processing, that version becomes locked, and any changes the user makes will create a new version (that is unused, hence unlocked). The versioning and locking features allow Ziggy to preserve a permanent record of the parameters used in each instance of each pipeline.
 
@@ -30,7 +29,7 @@ If you click the "X", all the values will be deleted, which is rarely what you w
 
 This allows you to edit the array elements, remove them, add elements, etc., in a more GUI-natural way. Go ahead and change the second element (`Element` 1 reflecting the zero-based nature of Java arrays) to 4 from 2. Press the `OK` button and then press the `Save` button on the Edit parameter set dialog. The `Version` for Algorithm Parameters will now be set to 1, and the `Locked` checkbox is unchecked.
 
-If you were to now run the sample pipeline, when you returned to the parameter library window, version 1 of `Algorithm Parameters` will show as locked.
+If you were to now run the sample pipeline, when you returned to the parameter library window, version 1 of `Algorithm Parameters` will show as locked. Also, the `Rename` and `Delete` commands in the context menu for any parameter set that is locked or has a version that is greater than zero will be disabled in the interest of data accountability (see [Data Accountability](data-accountability.md)).
 
 [[Previous]](start-end-nodes.md)
 [[Up]](ziggy-gui.md)

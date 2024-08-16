@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,7 +155,7 @@ public class QstatMonitor implements JobMonitor {
 
         // get all the qstat entries, if any, for the specified task name
         List<String> qstatLines = cmdManager.getQstatInfoByTaskName(owner, taskName);
-        if (qstatLines.isEmpty() || qstatLines.size() == 1 && qstatLines.get(0).isEmpty()) {
+        if (qstatLines.isEmpty() || qstatLines.size() == 1 && qstatLines.get(0).isBlank()) {
             return Collections.emptySet();
         }
 
@@ -231,7 +232,7 @@ public class QstatMonitor implements JobMonitor {
         // apply the updates
         for (QstatEntry entry : allQstatEntries) {
             String qstatLine = jobNameQstatStringMap.get(entry.getName());
-            if (qstatLine != null && !qstatLine.isEmpty()) {
+            if (!StringUtils.isBlank(qstatLine)) {
                 entry.updateFromQstatString(qstatLine);
             }
         }
@@ -288,7 +289,7 @@ public class QstatMonitor implements JobMonitor {
         Collection<Long> jobIds = idFromStateFile(stateFile);
         for (long jobId : jobIds) {
             String exitComment = cmdManager.exitComment(jobId);
-            if (exitComment != null && !exitComment.isEmpty()) {
+            if (!StringUtils.isBlank(exitComment)) {
                 jobIdExitCommentMap.put(jobId, exitComment);
             }
         }

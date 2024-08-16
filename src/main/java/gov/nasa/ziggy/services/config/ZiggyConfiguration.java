@@ -23,6 +23,7 @@ import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.interpol.ConfigurationInterpolator;
 import org.apache.commons.configuration2.sync.ReadWriteSynchronizer;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,7 +143,7 @@ public class ZiggyConfiguration {
         String ziggyConfigFilename = config.getString(ZIGGY_CONFIG_PATH.property(), null);
 
         Path ziggyConfigPath = null;
-        if (ziggyConfigFilename != null && !ziggyConfigFilename.isEmpty()) {
+        if (!StringUtils.isBlank(ziggyConfigFilename)) {
             ziggyConfigPath = Paths.get(ziggyConfigFilename);
         }
         if (ziggyConfigPath == null) {
@@ -151,7 +152,7 @@ public class ZiggyConfiguration {
             String ziggyHomePath = config.getString(PropertyName.ZIGGY_HOME_DIR.property(),
                 System.getenv(ZIGGY_HOME_ENV));
             Path ziggyHomeDir = ziggyHomePath != null ? Paths.get(ziggyHomePath) : null;
-            if (ziggyHomeDir != null && !ziggyHomeDir.toString().isEmpty()) {
+            if (ziggyHomeDir != null && !ziggyHomeDir.toString().isBlank()) {
                 ziggyConfigPath = ziggyHomeDir.resolve(PIPELINE_CONFIG_DEFAULT_DIR)
                     .resolve(PIPELINE_CONFIG_DEFAULT_FILE);
                 log.warn("{} not defined in {}, trying {}", ZIGGY_CONFIG_PATH,

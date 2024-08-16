@@ -1,19 +1,17 @@
 package gov.nasa.ziggy.pipeline.definition;
 
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
-import gov.nasa.ziggy.pipeline.definition.crud.HasExternalIdCrud;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -24,6 +22,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
@@ -45,6 +44,7 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 @Entity
 @Table(name = "ziggy_PipelineInstance")
 public class PipelineInstance implements PipelineExecutionTime {
+    @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineInstance.class);
 
     public enum State {
@@ -59,9 +59,6 @@ public class PipelineInstance implements PipelineExecutionTime {
 
         /** at least one failed task, no tasks can run (pipeline stalled) */
         ERRORS_STALLED(PipelineInstance::stopExecutionClock),
-
-        /** pipeline stopped/paused by operator */
-        STOPPED(PipelineInstance::stopExecutionClock),
 
         /** all tasks completed successfully */
         COMPLETED(PipelineInstance::stopExecutionClock);
@@ -128,7 +125,7 @@ public class PipelineInstance implements PipelineExecutionTime {
     private long priorProcessingExecutionTimeMillis;
 
     @ManyToOne
-    private PipelineDefinition pipelineDefinition = null;
+    private PipelineDefinition pipelineDefinition;
 
     @Enumerated(EnumType.STRING)
     private State state = State.INITIALIZED;
@@ -137,14 +134,12 @@ public class PipelineInstance implements PipelineExecutionTime {
     private Priority priority = Priority.NORMAL;
 
     /**
-     * {@link ParameterSet}s used as {@link Parameters} for this instance. This is a hard-reference
-     * to a specific version of the {@link ParameterSet}, selected at launch time (typically the
-     * latest available version)
+     * {@link ParameterSet}s used by this instance. This is a hard-reference to a specific version
+     * of the {@link ParameterSet}, selected at launch time (typically the latest available version)
      */
     @ManyToMany
-    @JoinTable(name = "ziggy_PipelineInstance_pipelineParameterSets")
-    private Map<ClassWrapper<ParametersInterface>, ParameterSet> pipelineParameterSets = new HashMap<>();
-
+    @JoinTable(name = "Ziggy_PipelineInstance_parameterSets")
+    private Set<ParameterSet> parameterSets = new HashSet<>();
     /**
      * {@link ModelRegistry} in force at the time this pipeline instance was launched. For data
      * accountability
@@ -165,6 +160,14 @@ public class PipelineInstance implements PipelineExecutionTime {
     @OneToOne
     @JoinColumn(name = "endNode")
     private PipelineInstanceNode endNode;
+
+    @OneToMany
+    @JoinTable(name = "ziggy_PipelineInstance_rootNodes")
+    private List<PipelineInstanceNode> rootNodes = new ArrayList<>();
+
+    @OneToMany
+    @JoinTable(name = "ziggy_PipelineInstance_pipelineInstanceNodes")
+    private List<PipelineInstanceNode> pipelineInstanceNodes = new ArrayList<>();
 
     /**
      * Required by Hibernate
@@ -233,6 +236,30 @@ public class PipelineInstance implements PipelineExecutionTime {
         this.startProcessingTime = startProcessingTime;
     }
 
+    public List<PipelineInstanceNode> getRootNodes() {
+        return rootNodes;
+    }
+
+    public void setRootNodes(List<PipelineInstanceNode> rootNodes) {
+        this.rootNodes = rootNodes;
+    }
+
+    public void addRootNode(PipelineInstanceNode rootNode) {
+        rootNodes.add(rootNode);
+    }
+
+    public List<PipelineInstanceNode> getPipelineInstanceNodes() {
+        return pipelineInstanceNodes;
+    }
+
+    public void setPipelineInstanceNodes(List<PipelineInstanceNode> pipelineInstanceNodes) {
+        this.pipelineInstanceNodes = pipelineInstanceNodes;
+    }
+
+    public void addPipelineInstanceNode(PipelineInstanceNode pipelineInstanceNode) {
+        pipelineInstanceNodes.add(pipelineInstanceNode);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(id);
@@ -250,67 +277,16 @@ public class PipelineInstance implements PipelineExecutionTime {
         return Objects.equals(id, other.id);
     }
 
-    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getPipelineParameterSets() {
-        return pipelineParameterSets;
+    public Set<ParameterSet> getParameterSets() {
+        return parameterSets;
     }
 
-    public void setPipelineParameterSets(
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> pipelineParameterSets) {
-        this.pipelineParameterSets = pipelineParameterSets;
-        populateXmlFields();
+    public void setParameterSets(Set<ParameterSet> parameterSets) {
+        this.parameterSets = parameterSets;
     }
 
-    public void populateXmlFields() {
-        for (ParameterSet parameterSet : pipelineParameterSets.values()) {
-            parameterSet.populateXmlFields();
-        }
-    }
-
-    public boolean hasPipelineParameters(Class<? extends Parameters> parametersClass) {
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(parametersClass);
-
-        return pipelineParameterSets.get(classWrapper) != null;
-    }
-
-    /**
-     * Convenience method for getting the pipeline parameters for the specified {@link Parameters}
-     * class for this {@link PipelineInstance}
-     *
-     * @param parametersClass
-     * @return
-     */
-    public <T extends Parameters> T getPipelineParameters(Class<T> parametersClass) {
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(parametersClass);
-        ParameterSet pipelineParamSet = pipelineParameterSets.get(classWrapper);
-
-        if (pipelineParamSet != null) {
-            log.debug("Pipeline parameters for class: " + parametersClass + " found");
-            return pipelineParamSet.parametersInstance();
-        }
-        throw new PipelineException(
-            "Pipeline parameters for class: " + parametersClass + " not found in PipelineInstance");
-    }
-
-    /**
-     * Retrieve module {@link Parameters} for this {@link PipelineInstance}. This method is not
-     * intended to be called directly, use the convenience method
-     * {@link PipelineTask}.getParameters().
-     *
-     * @param parametersClass
-     * @return
-     */
-    ParameterSet getPipelineParameterSet(Class<? extends Parameters> parametersClass) {
-        ClassWrapper<Parameters> classWrapper = new ClassWrapper<>(parametersClass);
-        return pipelineParameterSets.get(classWrapper);
-    }
-
-    public void clearParameterSets() {
-        pipelineParameterSets.clear();
-    }
-
-    public ParameterSet putParameterSet(ClassWrapper<ParametersInterface> key, ParameterSet value) {
-        value.populateXmlFields();
-        return pipelineParameterSets.put(key, value);
+    public void addParameterSet(ParameterSet parameterSet) {
+        parameterSets.add(parameterSet);
     }
 
     public String getName() {
@@ -343,18 +319,6 @@ public class PipelineInstance implements PipelineExecutionTime {
 
     public void setModelRegistry(ModelRegistry modelRegistry) {
         this.modelRegistry = modelRegistry;
-    }
-
-    public <T extends HasExternalId> T retrieveModel(HasExternalIdCrud<T> modelCrud,
-        String modelType) {
-        if (modelCrud == null) {
-            throw new IllegalArgumentException("modelCrud cannot be null.");
-        }
-
-        ModelRegistry modelRegistry = getModelRegistry();
-        ModelMetadata modelMetadata = modelRegistry.getMetadataForType(modelType);
-        int dataSetId = Integer.parseInt(modelMetadata.getModelRevision());
-        return modelCrud.retrieveByExternalId(dataSetId);
     }
 
     public String getModelDescription(String modelType) {

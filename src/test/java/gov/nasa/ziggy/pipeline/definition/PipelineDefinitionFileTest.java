@@ -18,7 +18,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -52,7 +52,7 @@ public class PipelineDefinitionFileTest {
         JAXBContext context = JAXBContext.newInstance(PipelineDefinitionFile.class);
         context.generateSchema(new PipelineFileSchemaResolver());
         List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
-            FileUtil.ZIGGY_CHARSET);
+            ZiggyFileUtils.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"pipelineDefinition\" type=\"pipelineDefinitionFile\"/>");
@@ -94,12 +94,12 @@ public class PipelineDefinitionFileTest {
         assertContains(complexTypeContent,
             "<xs:attribute name=\"rootNodeNames\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,
-            "<xs:element name=\"pipelineParameter\" type=\"parameterSetReference\"/>");
+            "<xs:element name=\"parameterSet\" type=\"parameterSetReference\"/>");
 
         complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineDefinitionNode\">");
         assertContains(complexTypeContent,
-            "<xs:element name=\"moduleParameter\" type=\"parameterSetReference\"/>");
+            "<xs:element name=\"parameterSet\" type=\"parameterSetReference\"/>");
         assertContains(complexTypeContent,
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>");
         assertContains(complexTypeContent,

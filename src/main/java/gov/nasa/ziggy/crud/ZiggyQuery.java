@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 
 import com.google.common.collect.Lists;
@@ -16,11 +17,13 @@ import jakarta.persistence.criteria.AbstractQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
 import jakarta.persistence.criteria.Subquery;
+import jakarta.persistence.metamodel.ListAttribute;
 import jakarta.persistence.metamodel.SetAttribute;
 import jakarta.persistence.metamodel.SingularAttribute;
 
@@ -65,6 +68,7 @@ public class ZiggyQuery<T, R> {
 
     private SingularAttribute<T, ?> attribute;
     private SetAttribute<T, ?> set;
+    private ListAttribute<T, ?> list;
     private String columnName;
 
     private List<Predicate> predicates = new ArrayList<>();
@@ -111,7 +115,7 @@ public class ZiggyQuery<T, R> {
      * Use when a method can take either a scalar or collection attribute.
      */
     private boolean hasAttribute() {
-        return hasScalarAttribute() || set != null;
+        return hasScalarAttribute() || set != null || list != null;
     }
 
     /**
@@ -146,6 +150,65 @@ public class ZiggyQuery<T, R> {
         attribute = null;
         this.set = set;
         columnName = null;
+        return this;
+    }
+
+    public <Y> ZiggyQuery<T, R> column(ListAttribute<T, Y> list) {
+        attribute = null;
+        set = null;
+        columnName = null;
+        this.list = list;
+        return this;
+    }
+
+    /**
+     * Looks for a given value in a column that is a set or a list.
+     * <p>
+     * {@link #contains(Object)} allows the user to retrieve objects for which a list or set field
+     * contains a specified value. For example, imagine that class Foo has a List<Bar> field, bars.
+     * The user wants to find the instances of Foo for which one of the values of the bars field is
+     * baz. This can be accomplished thusly:
+     *
+     * <pre>
+     * ZiggyQuery&lt;Foo, Foo&gt; query = createQuery(Foo.class);
+     * query.column(Foo_.bars).contains(baz);
+     * return list(query);
+     * </pre>
+     * <p>
+     * Note that, at present, this method cannot take a {@link ZiggyQuery} (or more specifically a
+     * subquery) as argument.
+     */
+    public <Y> ZiggyQuery<T, R> contains(Y value) {
+
+        // TODO extend to allow value to be a subquery.
+        if (value instanceof ZiggyQuery) {
+            throw new IllegalArgumentException("Argument to contains cannot be a ZiggyQuery");
+        }
+        Join<T, ?> joinInstance = join();
+        predicates.add(getBuilder().in(joinInstance, value));
+        return this;
+    }
+
+    /**
+     * Returns the collection of objects that contain, in a list or set field, any of the values
+     * provided in the argument.
+     */
+    public <Y> ZiggyQuery<T, R> containsAny(Collection<Y> values) {
+
+        // If the values argument is empty or null, we need the query to return null/empty.
+        // To do this, we need to create a predicate that is always false. So:
+        if (CollectionUtils.isEmpty(values)) {
+            predicates.add(getBuilder().or());
+            return this;
+        }
+        // TODO extend to allow value to be a subquery.
+        Join<T, ?> joinInstance = join();
+        Predicate predicate = null;
+        for (Y value : values) {
+            Predicate newPredicate = getBuilder().in(joinInstance, value);
+            predicate = predicate == null ? newPredicate : getBuilder().or(predicate, newPredicate);
+        }
+        predicates.add(predicate);
         return this;
     }
 
@@ -232,6 +295,8 @@ public class ZiggyQuery<T, R> {
             select(attribute);
         } else if (set != null) {
             select(set);
+        } else if (list != null) {
+            select(list);
         } else {
             select(columnName);
         }
@@ -246,11 +311,35 @@ public class ZiggyQuery<T, R> {
         return this;
     }
 
+    /**
+     * Performs projection on a specified field of the query target class.
+     */
     public <Y> ZiggyQuery<T, R> select(SetAttribute<T, Y> set) {
         selections.add(root.get(set));
         return this;
     }
 
+    /**
+     * Performs projection on a specified field of the query target class.
+     */
+    public <Y> ZiggyQuery<T, R> select(ListAttribute<T, Y> set) {
+        selections.add(root.get(set));
+        return this;
+    }
+
+    /**
+     * Performs projection on a specified field of the query target class.
+     * <p>
+     * The {@link #select(Selection)} method supports queries that return values that are fields of
+     * fields. Example: assume you have a class, Foo, that has a field, bar, of class Bar; Bar, in
+     * turn, has a field, baz, of class Baz. You can select the baz field in a given instance of Foo
+     * as follows:
+     *
+     * <pre>
+     * ZiggyQuery&lt;Foo, Baz&gt; query = createZiggyQuery(Foo.class, Baz.class);
+     * query.select(query.getRoot().get(Foo_.bar).get(Bar_.baz));
+     * </pre>
+     */
     public ZiggyQuery<T, R> select(Selection<? extends R> selection) {
         if (selection instanceof ZiggyQuery) {
             selections.add((Selection<?>) ((ZiggyQuery<?, ?>) selection).jpaQuery);
@@ -444,6 +533,21 @@ public class ZiggyQuery<T, R> {
         ZiggyQuery<U, V> subquery = new ZiggyQuery<>(databaseClass, returnClass, builder, jpaQuery);
         subqueries.add(subquery);
         return subquery;
+    }
+
+    /**
+     * Creates a Join between the table and a field selected by the column() method. The selected
+     * column must be either a list field or a set field.
+     */
+    @SuppressWarnings("unchecked")
+    public <Y> Join<T, Y> join() {
+        if (list == null && set == null) {
+            throw new IllegalArgumentException("Column selected for a join must be a set or list");
+        }
+        if (list != null) {
+            return getRoot().join((ListAttribute<T, Y>) list);
+        }
+        return getRoot().join((SetAttribute<T, Y>) set);
     }
 
     /**

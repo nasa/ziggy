@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 import org.apache.commons.exec.CommandLine;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +19,7 @@ import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Implementation of {@link DatabaseController} for PostgreSQL use. If the
@@ -179,7 +180,7 @@ public class PostgresqlController extends DatabaseController {
                 confFileContents
                     .append("include '" + DirectoryProperties.databaseConfFile() + "'" + newline);
             }
-            Files.write(configPath, confFileContents.toString().getBytes(FileUtil.ZIGGY_CHARSET),
+            Files.write(configPath, confFileContents.toString().getBytes(ZiggyFileUtils.ZIGGY_CHARSET),
                 StandardOpenOption.APPEND);
             log.info("Creating configuration file in " + dataDir().toString() + "...done");
         } catch (IOException e) {
@@ -208,7 +209,7 @@ public class PostgresqlController extends DatabaseController {
         startCommand.addArgument("-w");
         startCommand.addArgument("-t");
         startCommand.addArgument(TIMEOUT_SECONDS);
-        if (maxConnections != null && !maxConnections.isEmpty()) {
+        if (!StringUtils.isBlank(maxConnections)) {
             startCommand.addArgument("-o");
             startCommand.addArgument("\"-N " + maxConnections + "\"");
         }

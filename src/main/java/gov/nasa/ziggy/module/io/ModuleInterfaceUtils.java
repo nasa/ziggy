@@ -16,7 +16,7 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -60,7 +60,7 @@ public class ModuleInterfaceUtils {
 
             try (
                 Writer fileWriter = new OutputStreamWriter(new FileOutputStream(companionXmlFile),
-                    FileUtil.ZIGGY_CHARSET);
+                    ZiggyFileUtils.ZIGGY_CHARSET);
                 BufferedWriter bufWriter = new BufferedWriter(fileWriter)) {
                 marshaller.marshal(inputs, bufWriter);
             } catch (IOException e) {

@@ -1,6 +1,8 @@
 package gov.nasa.ziggy.module;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -22,24 +24,28 @@ import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.data.datastore.DatastoreFileManager;
+import gov.nasa.ziggy.data.datastore.DatastoreFileManager.SubtaskDefinition;
 import gov.nasa.ziggy.data.datastore.DatastoreRegexp;
 import gov.nasa.ziggy.data.datastore.DatastoreTestUtils;
 import gov.nasa.ziggy.data.datastore.DatastoreWalker;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -65,9 +71,18 @@ public class DatastoreDirectoryPipelineInputsTest {
     private DatastoreFileManager datastoreFileManager;
     private Map<String, String> regexpValueByName = new HashMap<>();
     private ModelMetadata modelMetadata;
-    private Map<String, Set<Path>> filesForSubtasks;
+    private Set<SubtaskDefinition> subtaskDefinitions;
+    private Map<String, SubtaskDefinition> subtaskDefinitionsByBaseName = new HashMap<>();
     private TaskConfiguration taskConfiguration;
     private DataFileType calibratedCollateralPixelDataFileType;
+    private PipelineTaskOperations pipelineTaskOperations = Mockito
+        .mock(PipelineTaskOperations.class);
+    private PipelineInstanceOperations pipelineInstanceOperations = Mockito
+        .mock(PipelineInstanceOperations.class);
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = Mockito
+        .mock(PipelineInstanceNodeOperations.class);
+    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = Mockito
+        .mock(PipelineDefinitionNodeOperations.class);
 
     public ZiggyDirectoryRule ziggyDirectoryRule = new ZiggyDirectoryRule();
 
@@ -99,19 +114,12 @@ public class DatastoreDirectoryPipelineInputsTest {
         Map<String, DataFileType> dataFileTypes = DatastoreTestUtils.dataFileTypesByName();
         DataFileType uncalibratedSciencePixelDataFileType = dataFileTypes
             .get("uncalibrated science pixel values");
-        uncalibratedSciencePixelDataFileType
-            .setFileNameRegexp("uncalibrated-pixels-[0-9]+\\.science\\.nc");
         DataFileType uncalibratedCollateralPixelDataFileType = dataFileTypes
             .get("uncalibrated collateral pixel values");
-        uncalibratedCollateralPixelDataFileType
-            .setFileNameRegexp("uncalibrated-pixels-[0-9]+\\.collateral\\.nc");
         DataFileType allFilesAllSubtasksDataFileType = dataFileTypes
             .get("calibrated science pixel values");
-        allFilesAllSubtasksDataFileType.setFileNameRegexp("everyone-needs-me-[0-9.nc");
         calibratedCollateralPixelDataFileType = dataFileTypes
             .get("calibrated collateral pixel values");
-        calibratedCollateralPixelDataFileType
-            .setFileNameRegexp("calibrated-pixels-[0-9]+\\.collateral\\.nc");
 
         // Construct the Map from regexp name to value.
         regexpValueByName.put("sector", "sector-0002");
@@ -144,28 +152,52 @@ public class DatastoreDirectoryPipelineInputsTest {
         pipelineInstanceNode = Mockito.mock(PipelineInstanceNode.class);
         pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
         Mockito.when(pipelineTask.getModuleName()).thenReturn("testmod");
-        Mockito.when(pipelineTask.getPipelineInstance()).thenReturn(pipelineInstance);
-        Mockito.when(pipelineTask.getPipelineInstanceNode()).thenReturn(pipelineInstanceNode);
-        Mockito.when(pipelineTask.pipelineDefinitionNode()).thenReturn(pipelineDefinitionNode);
-        Mockito.when(pipelineInstanceNode.getPipelineDefinitionNode())
-            .thenReturn(pipelineDefinitionNode);
-        Mockito.when(pipelineDefinitionNode.getInputDataFileTypes())
+        Mockito
+            .when(
+                pipelineTaskOperations.inputDataFileTypes(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(Set.of(uncalibratedSciencePixelDataFileType,
                 uncalibratedCollateralPixelDataFileType, allFilesAllSubtasksDataFileType));
-        Mockito.when(pipelineDefinitionNode.getOutputDataFileTypes())
+        Mockito
+            .when(pipelineTaskOperations
+                .outputDataFileTypes(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(Set.of(calibratedCollateralPixelDataFileType));
-        Mockito.when(pipelineDefinitionNode.getModelTypes()).thenReturn(Set.of(modelType));
+        Mockito.when(pipelineTaskOperations.modelTypes(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(Set.of(modelType));
+        Mockito
+            .when(pipelineTaskOperations.pipelineInstance(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineInstance);
+        Mockito
+            .when(pipelineTaskOperations
+                .pipelineInstanceNode(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineInstanceNode);
+        Mockito.when(pipelineInstanceNode.getPipelineDefinitionNode())
+            .thenReturn(pipelineDefinitionNode);
+        Mockito
+            .when(pipelineTaskOperations
+                .pipelineDefinitionNode(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineDefinitionNode);
+        Mockito.when(pipelineDefinitionNode.getSingleSubtask()).thenReturn(false);
 
         // Create the parameter sets.
-        Mockito.when(pipelineInstance.getPipelineParameterSets())
+        Mockito.when(pipelineInstanceOperations.parameterSets(pipelineInstance))
             .thenReturn(pipelineParameterSets());
-        Mockito.when(pipelineInstanceNode.getModuleParameterSets())
+        Mockito
+            .when(pipelineInstanceNodeOperations
+                .parameterSets(ArgumentMatchers.any(PipelineInstanceNode.class)))
             .thenReturn(moduleParameterSets());
 
         // Construct the UOW.
         DatastoreDirectoryUnitOfWorkGenerator uowGenerator = Mockito
             .spy(DatastoreDirectoryUnitOfWorkGenerator.class);
         Mockito.doReturn(datastoreWalker).when(uowGenerator).datastoreWalker();
+        Mockito
+            .when(pipelineDefinitionNodeOperations
+                .inputDataFileTypes(ArgumentMatchers.any(PipelineDefinitionNode.class)))
+            .thenReturn(Set.of(uncalibratedSciencePixelDataFileType,
+                uncalibratedCollateralPixelDataFileType, allFilesAllSubtasksDataFileType));
+        Mockito.doReturn(pipelineDefinitionNodeOperations)
+            .when(uowGenerator)
+            .pipelineDefinitionNodeOperations();
         List<UnitOfWork> uows = PipelineExecutor.generateUnitsOfWork(uowGenerator,
             pipelineInstanceNode);
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(uows.get(0));
@@ -173,15 +205,16 @@ public class DatastoreDirectoryPipelineInputsTest {
         // Construct mocked DatastoreFileManager.
         datastoreFileManager = Mockito.mock(DatastoreFileManager.class);
         Mockito.when(datastoreFileManager.taskDirectory()).thenReturn(taskDirectory);
-        filesForSubtasks = new HashMap<>();
+        subtaskDefinitions = new HashSet<>();
         populateFilesForSubtasks(EXPECTED_SUBTASK_COUNT);
-        Mockito.when(datastoreFileManager.filesForSubtasks()).thenReturn(filesForSubtasks);
+        Mockito.when(datastoreFileManager.subtaskDefinitions()).thenReturn(subtaskDefinitions);
         Map<Path, String> modelFilesForTask = new HashMap<>();
         modelFilesForTask.put(modelMetadata.datastoreModelPath(), "foo");
-        Mockito.when(datastoreFileManager.modelFilesForTask()).thenReturn(modelFilesForTask);
+        Mockito.when(datastoreFileManager.modelTaskFilesByDatastorePath())
+            .thenReturn(modelFilesForTask);
         Mockito
-            .when(datastoreFileManager.copyDatastoreFilesToTaskDirectory(
-                ArgumentMatchers.anyCollection(), ArgumentMatchers.anyMap()))
+            .when(datastoreFileManager.copyDatastoreFilesToTaskDirectory(ArgumentMatchers.anySet(),
+                ArgumentMatchers.anyMap()))
             .thenReturn(pathsBySubtaskDirectory(EXPECTED_SUBTASK_COUNT));
 
         // Construct the pipeline inputs. We can't use the standard method of a Mockito spy
@@ -189,7 +222,8 @@ public class DatastoreDirectoryPipelineInputsTest {
         // work together. Hence we need to have a subclass of DatastoreDirectoryPipelineInputs
         // that takes all the necessary arguments and makes correct use of them.
         pipelineInputs = new PipelineInputsForTest(datastoreFileManager,
-            Mockito.mock(AlertService.class), pipelineTask);
+            Mockito.mock(AlertService.class), pipelineTask, pipelineTaskOperations,
+            pipelineInstanceOperations, pipelineInstanceNodeOperations);
 
         taskConfiguration = new TaskConfiguration();
     }
@@ -250,7 +284,10 @@ public class DatastoreDirectoryPipelineInputsTest {
                 .resolve("collateral")
                 .resolve("1:1:A")
                 .resolve(baseName + ".collateral.nc"));
-            filesForSubtasks.put(baseName, subtaskFiles);
+            SubtaskDefinition subtaskDefinition = new SubtaskDefinition(baseName, null);
+            subtaskDefinition.addAll(subtaskFiles);
+            subtaskDefinitions.add(subtaskDefinition);
+            subtaskDefinitionsByBaseName.put(baseName, subtaskDefinition);
         }
     }
 
@@ -260,7 +297,8 @@ public class DatastoreDirectoryPipelineInputsTest {
             Path subtaskPath = taskDirectory.resolve("st-" + subtaskIndex);
             Files.createDirectories(subtaskPath);
             String baseName = "uncalibrated-pixels-" + subtaskIndex;
-            pathsBySubtaskDirectory.put(subtaskPath, filesForSubtasks.get(baseName));
+            pathsBySubtaskDirectory.put(subtaskPath,
+                subtaskDefinitionsByBaseName.get(baseName).getSubtaskFiles());
         }
         return pathsBySubtaskDirectory;
     }
@@ -281,7 +319,8 @@ public class DatastoreDirectoryPipelineInputsTest {
             assertTrue(Files
                 .exists(taskDirectory.resolve("st-" + subtaskIndex).resolve("testmod-inputs.h5")));
             PipelineInputsForTest storedInputs = new PipelineInputsForTest(datastoreFileManager,
-                Mockito.mock(AlertService.class), pipelineTask);
+                Mockito.mock(AlertService.class), pipelineTask, pipelineTaskOperations,
+                pipelineInstanceOperations, pipelineInstanceNodeOperations);
             hdf5ModuleInterface.readFile(
                 taskDirectory.resolve("st-" + subtaskIndex).resolve("testmod-inputs.h5").toFile(),
                 storedInputs, false);
@@ -297,15 +336,40 @@ public class DatastoreDirectoryPipelineInputsTest {
             assertTrue(storedInputs.getDataFilenames().contains("everyone-needs-me-1.nc"));
             assertEquals(4, storedInputs.getDataFilenames().size());
 
-            List<ParametersInterface> pars = storedInputs.getModuleParameters()
-                .getModuleParameters();
-            if (pars.get(0) instanceof Params1) {
-                assertTrue(pars.get(1) instanceof Params2);
-            } else {
-                assertTrue(pars.get(0) instanceof Params2);
-                assertTrue(pars.get(1) instanceof Params1);
-            }
-            assertEquals(2, pars.size());
+            Map<String, ParameterSet> parameterSetsByName = storedInputs.getModuleParameters()
+                .getParameterSetsByName();
+
+            ParameterSet paramSet1 = parameterSetsByName.get("params1");
+            assertNotNull(paramSet1);
+            Map<String, Parameter> parametersByName = paramSet1.parameterByName();
+            Parameter parameter = parametersByName.get("dmy1");
+            assertNotNull(parameter);
+            assertEquals("500", parameter.getString());
+            assertEquals(ZiggyDataType.ZIGGY_INT, parameter.getDataType());
+            assertTrue(parameter.isScalar());
+            parameter = parametersByName.get("dmy2");
+            assertNotNull(parameter);
+            assertEquals("2856.3", parameter.getString());
+            assertEquals(ZiggyDataType.ZIGGY_DOUBLE, parameter.getDataType());
+            assertTrue(parameter.isScalar());
+            assertEquals(2, parameterSetsByName.size());
+
+            ParameterSet paramSet2 = parameterSetsByName.get("params2");
+            assertNotNull(paramSet2);
+            parametersByName = paramSet2.parameterByName();
+            parameter = parametersByName.get("dmy3");
+            assertNotNull(parameter);
+            assertEquals("dummy string", parameter.getString());
+            assertEquals(ZiggyDataType.ZIGGY_STRING, parameter.getDataType());
+            assertTrue(parameter.isScalar());
+            parameter = parametersByName.get("dmy4");
+            assertNotNull(parameter);
+            assertEquals("true,false", parameter.getString());
+            assertEquals(ZiggyDataType.ZIGGY_BOOLEAN, parameter.getDataType());
+            assertFalse(parameter.isScalar());
+            assertEquals(2, parameterSetsByName.size());
+
+            assertEquals(2, parameterSetsByName.size());
 
             Collection<DataFileType> outputDataFileTypes = PipelineInputsOutputsUtils
                 .deserializedOutputFileTypesFromTaskDirectory(taskDirectory);
@@ -315,80 +379,44 @@ public class DatastoreDirectoryPipelineInputsTest {
     }
 
     /** Tests the subtaskInformation() method. */
-    @Test
-    public void testSubtaskInformation() {
 
-        Mockito.when(datastoreFileManager.subtaskCount()).thenReturn(7);
-        SubtaskInformation subtaskInformation = pipelineInputs.subtaskInformation();
+    @Test
+    public void testSubtaskInformationFromPipelineDefinitionNode() {
+
+        Mockito.when(datastoreFileManager.subtaskCount(pipelineDefinitionNode)).thenReturn(7);
+        SubtaskInformation subtaskInformation = pipelineInputs
+            .subtaskInformation(pipelineDefinitionNode);
         assertEquals("testmod", subtaskInformation.getModuleName());
         assertEquals("[sector-0002;target;1:1:A]", subtaskInformation.getUowBriefState());
         assertEquals(7, subtaskInformation.getSubtaskCount());
 
-        pipelineInputs.setSingleSubtask(true);
-        subtaskInformation = pipelineInputs.subtaskInformation();
+        Mockito.when(pipelineDefinitionNode.getSingleSubtask()).thenReturn(true);
+        subtaskInformation = pipelineInputs.subtaskInformation(pipelineDefinitionNode);
         assertEquals("testmod", subtaskInformation.getModuleName());
         assertEquals("[sector-0002;target;1:1:A]", subtaskInformation.getUowBriefState());
         assertEquals(1, subtaskInformation.getSubtaskCount());
     }
 
-    private Map<ClassWrapper<ParametersInterface>, ParameterSet> pipelineParameterSets() {
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> parMap = new HashMap<>();
-        ClassWrapper<ParametersInterface> c1 = new ClassWrapper<>(Params1.class);
+    private Set<ParameterSet> pipelineParameterSets() {
         ParameterSet s1 = new ParameterSet("params1");
-        s1.populateFromParametersInstance(new Params1());
-        parMap.put(c1, s1);
-        return parMap;
+        Set<Parameter> parameters = new HashSet<>();
+        Parameter parameter = new Parameter("dmy1", "500", ZiggyDataType.ZIGGY_INT);
+        parameters.add(parameter);
+        parameter = new Parameter("dmy2", "2856.3", ZiggyDataType.ZIGGY_DOUBLE);
+        parameters.add(parameter);
+        s1.setParameters(parameters);
+        return new HashSet<>(Set.of(s1));
     }
 
-    private Map<ClassWrapper<ParametersInterface>, ParameterSet> moduleParameterSets() {
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> parMap = new HashMap<>();
-        ClassWrapper<ParametersInterface> c2 = new ClassWrapper<>(Params2.class);
+    private Set<ParameterSet> moduleParameterSets() {
         ParameterSet s2 = new ParameterSet("params2");
-        s2.populateFromParametersInstance(new Params2());
-        parMap.put(c2, s2);
-        return parMap;
-    }
-
-    public static class Params1 extends Parameters {
-        private int dmy1 = 500;
-        private double dmy2 = 2856.3;
-
-        public int getDmy1() {
-            return dmy1;
-        }
-
-        public void setDmy1(int dmy1) {
-            this.dmy1 = dmy1;
-        }
-
-        public double getDmy2() {
-            return dmy2;
-        }
-
-        public void setDmy2(double dmy2) {
-            this.dmy2 = dmy2;
-        }
-    }
-
-    public static class Params2 extends Parameters {
-        private String dmy3 = "dummy string";
-        private boolean[] dmy4 = { true, false };
-
-        public String getDmy3() {
-            return dmy3;
-        }
-
-        public void setDmy3(String dmy3) {
-            this.dmy3 = dmy3;
-        }
-
-        public boolean[] getDmy4() {
-            return dmy4;
-        }
-
-        public void setDmy4(boolean[] dmy4) {
-            this.dmy4 = dmy4;
-        }
+        Set<Parameter> parameters = new HashSet<>();
+        Parameter parameter = new Parameter("dmy3", "dummy string", ZiggyDataType.ZIGGY_STRING);
+        parameters.add(parameter);
+        parameter = new Parameter("dmy4", "true, false", ZiggyDataType.ZIGGY_BOOLEAN, false);
+        parameters.add(parameter);
+        s2.setParameters(parameters);
+        return new HashSet<>(Set.of(s2));
     }
 
     /**
@@ -405,15 +433,27 @@ public class DatastoreDirectoryPipelineInputsTest {
         private final AlertService mockedAlertService;
 
         @ProxyIgnore
+        private final PipelineTaskOperations mockedOperations;
+        @ProxyIgnore
         private final DatastoreFileManager mockedDatastoreFileManager;
+        @ProxyIgnore
+        private final PipelineInstanceOperations mockedInstanceOperations;
+        @ProxyIgnore
+        private final PipelineInstanceNodeOperations mockedInstanceNodeOperations;
 
         @ProxyIgnore
         private boolean singleSubtask;
 
         public PipelineInputsForTest(DatastoreFileManager datastoreFileManager,
-            AlertService alertService, PipelineTask pipelineTask) {
+            AlertService alertService, PipelineTask pipelineTask,
+            PipelineTaskOperations mockedOperations,
+            PipelineInstanceOperations mockedInstanceOperations,
+            PipelineInstanceNodeOperations mockedInstanceNodeOperations) {
             mockedAlertService = alertService;
             mockedDatastoreFileManager = datastoreFileManager;
+            this.mockedOperations = mockedOperations;
+            this.mockedInstanceOperations = mockedInstanceOperations;
+            this.mockedInstanceNodeOperations = mockedInstanceNodeOperations;
             setPipelineTask(pipelineTask);
         }
 
@@ -434,6 +474,21 @@ public class DatastoreDirectoryPipelineInputsTest {
 
         public void setSingleSubtask(boolean singleSubtask) {
             this.singleSubtask = singleSubtask;
+        }
+
+        @Override
+        public PipelineTaskOperations pipelineTaskOperations() {
+            return mockedOperations;
+        }
+
+        @Override
+        public PipelineInstanceOperations pipelineInstanceOperations() {
+            return mockedInstanceOperations;
+        }
+
+        @Override
+        public PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
+            return mockedInstanceNodeOperations;
         }
     }
 }

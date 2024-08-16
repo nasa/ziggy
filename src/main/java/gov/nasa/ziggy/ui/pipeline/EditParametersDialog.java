@@ -15,11 +15,10 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 
 /**
- * Dialog for viewing/editing a {@link Parameters} object.
+ * Dialog for viewing/editing a {@link ParameterSet} object.
  * <p>
  * This dialog box is generated from the Edit pipeline popup that is launched from the Pipelines
  * panel.
@@ -40,11 +39,10 @@ import gov.nasa.ziggy.parameters.ParametersInterface;
 public class EditParametersDialog extends javax.swing.JDialog {
     private EditParametersPanel parametersPanel;
     private final String parameterSetName;
-    private final ParametersInterface parameters;
+    private final ParameterSet parameters;
     private boolean cancelled = false;
 
-    public EditParametersDialog(Window owner, String parameterSetName,
-        ParametersInterface parameters) {
+    public EditParametersDialog(Window owner, String parameterSetName, ParameterSet parameters) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.parameterSetName = parameterSetName;
         this.parameters = parameters;
@@ -104,8 +102,8 @@ public class EditParametersDialog extends javax.swing.JDialog {
         setVisible(false);
     }
 
-    public static ParametersInterface editParameters(Window owner, String parameterSetName,
-        ParametersInterface parameters) {
+    public static ParameterSet editParameters(Window owner, String parameterSetName,
+        ParameterSet parameters) {
         EditParametersDialog dialog = new EditParametersDialog(owner, parameterSetName, parameters);
         dialog.setVisible(true);
 

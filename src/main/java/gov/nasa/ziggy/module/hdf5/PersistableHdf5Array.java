@@ -23,7 +23,6 @@ import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.module.io.ProxyIgnore;
-import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ReflectionUtils;
@@ -33,14 +32,6 @@ import hdf.hdf5lib.HDF5Constants;
 public class PersistableHdf5Array extends AbstractHdf5Array {
 
     private static final Logger log = LoggerFactory.getLogger(PersistableHdf5Array.class);
-
-    static final PersistableHdf5Array forReadingModuleParameterSet() {
-        PersistableHdf5Array p = new PersistableHdf5Array();
-        p.returnAs = ReturnAs.SCALAR;
-        p.auxiliaryClass = Parameters.class;
-        p.allFieldsPrimitiveScalar = false;
-        return p;
-    }
 
     ArrayIterator arrayIterator = null;
     boolean allFieldsPrimitiveScalar = false;
@@ -59,14 +50,6 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
         // capture the actual class of the Persistable field
         auxiliaryClass = getClassForEnumOrPersistable(field);
         detectPrimitiveScalarFields();
-    }
-
-    /**
-     * Instantiate an instance for use in reading a module parameter set. Scope is private so that
-     * only the {@link forReadingModuleParameterSet} static method can use it.
-     */
-    private PersistableHdf5Array() {
-        super(new Parameters());
     }
 
     /**
@@ -91,12 +74,8 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
      * Persistable, but rather a primitive, String, or Enum object, or a boxed primitive."
      */
     void detectPrimitiveScalarFields() {
-        List<Field> fields = ReflectionUtils.getAllFields(auxiliaryClass, false);
-        if (!Parameters.class.isAssignableFrom(auxiliaryClass)) {
-            allFieldsPrimitiveScalar = Hdf5ModuleInterface.allFieldsParallelizable(fields);
-        } else {
-            allFieldsPrimitiveScalar = false;
-        }
+        allFieldsPrimitiveScalar = Hdf5ModuleInterface
+            .allFieldsParallelizable(ReflectionUtils.getAllFields(auxiliaryClass, false));
     }
 
     /**
@@ -130,9 +109,6 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
             // Special case: instances of the Parameters interface
             Object object0 = listObject.get(0);
             Class<?> arrayClass = object0.getClass();
-            if (object0 instanceof Parameters) {
-                arrayClass = Parameters.class;
-            }
             Object[] arrayFromList = (Object[]) Array.newInstance(arrayClass, listObject.size());
             for (int i = 0; i < listObject.size(); i++) {
                 arrayFromList[i] = listObject.get(i);
@@ -337,9 +313,6 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
         Persistable dataObject = dataObjectAsPersistableArray[0];
         List<Long> groupIds = new ArrayList<>();
         Class<?> clazz = dataObject.getClass();
-        if (dataObject instanceof Parameters) {
-            setParameterClassNameAttribute(fileId, clazz);
-        }
         List<Field> fields = ReflectionUtils.getAllFields(clazz, false);
 
         // loop over fields

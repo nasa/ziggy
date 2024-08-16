@@ -23,7 +23,7 @@ import gov.nasa.ziggy.metrics.ValueMetric;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.TimeRange;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Parses a file containing metrics that have been written with Metric.getLogString(). One per line.
@@ -140,7 +140,7 @@ public class MetricsFileParser {
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     protected Reader openReader() {
         try {
-            return new FileReader(metricsFile, FileUtil.ZIGGY_CHARSET);
+            return new FileReader(metricsFile, ZiggyFileUtils.ZIGGY_CHARSET);
         } catch (IOException e) {
             throw new UncheckedIOException("Unable to read from " + metricsFile.toString(), e);
         }
@@ -178,7 +178,7 @@ public class MetricsFileParser {
                 throw new UncheckedIOException("Unable to read from file ", e);
             }
             if (nextLine == null) {
-                FileUtil.close(breader);
+                ZiggyFileUtils.close(breader);
             }
             return rv;
         }

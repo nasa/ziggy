@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.Manifest;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -58,7 +58,7 @@ public class DataReceiptUnitOfWorkGenerator extends DirectoryUnitOfWorkGenerator
         // will be the only unit of work.
         if (directoryContainsManifest(rootDirectory())) {
             UnitOfWork uow = new UnitOfWork();
-            uow.addParameter(new TypedParameter(DIRECTORY_PARAMETER_NAME,
+            uow.addParameter(new Parameter(DIRECTORY_PARAMETER_NAME,
                 rootDirectory().toString(), ZiggyDataType.ZIGGY_STRING));
             unitsOfWork.add(uow);
         } else {
@@ -67,7 +67,7 @@ public class DataReceiptUnitOfWorkGenerator extends DirectoryUnitOfWorkGenerator
             Set<Path> subdirs = subdirsWithManifests();
             for (Path subdir : subdirs) {
                 UnitOfWork uow = new UnitOfWork();
-                uow.addParameter(new TypedParameter(DIRECTORY_PARAMETER_NAME, subdir.toString(),
+                uow.addParameter(new Parameter(DIRECTORY_PARAMETER_NAME, subdir.toString(),
                     ZiggyDataType.ZIGGY_STRING));
                 unitsOfWork.add(uow);
             }

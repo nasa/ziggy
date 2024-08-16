@@ -12,7 +12,7 @@
        no output. This uses Ziggy's DefaultParameters class. Parameter sets of this
        type need to specify the name, default value, and data type of each parameter. -->
   <parameter-set name="Algorithm Parameters">
-    <parameter name="throw exception subtask_0" value="false" type="boolean"/>
+    <parameter name="throw exception subtask 0" value="false" type="boolean"/>
     <parameter name="produce output subtask 1" value="true" type="boolean"/>
     <parameter name="dummy array parameter" value="1, 2, 3" type="intarray"/>
     <parameter name="execution pause seconds" value="0" type="int"/>

@@ -23,14 +23,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.EventHandlerToggleStateRequest;
 import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -85,6 +84,9 @@ public class ZiggyEventHandler implements Runnable {
     static final String XML_SCHEMA_FILE_NAME = "pipeline-events.xsd";
     private static final long READY_FILE_CHECK_INTERVAL_MILLIS = 10_000;
 
+    @Transient
+    private PipelineExecutor pipelineExecutor = new PipelineExecutor();
+
     @Id
     @XmlAttribute(required = true)
     private String name = "";
@@ -113,8 +115,10 @@ public class ZiggyEventHandler implements Runnable {
     private String pipelineName;
 
     @Transient
-    private PipelineOperations pipelineOperations;
+    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
 
+    @Transient
+    private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
     /**
      * {@link ScheduledExecutorService} that provides a thread for the ready-indicator check.
      */
@@ -229,18 +233,13 @@ public class ZiggyEventHandler implements Runnable {
         log.info("Event handler " + name + " starting pipeline " + pipelineName + "...");
 
         // Create a new pipeline instance that includes the event handler labels.
-        PipelineDefinition pipelineDefinition = (PipelineDefinition) DatabaseTransactionFactory
-            .performTransaction(
-                () -> new PipelineDefinitionCrud().retrieveLatestVersionForName(pipelineName));
-        PipelineInstance pipelineInstance = pipelineOperations().fireTrigger(pipelineDefinition,
-            null, null, null, readyFile.getLabels());
+        PipelineDefinition pipelineDefinition = pipelineDefinitionOperations()
+            .pipelineDefinition(pipelineName);
+        PipelineInstance pipelineInstance = pipelineExecutor().launch(pipelineDefinition, null,
+            null, null, readyFile.getLabels());
         ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
-        DatabaseTransactionFactory.performTransaction(() -> {
-            final ZiggyEvent event = new ZiggyEvent(name, pipelineName, pipelineInstance.getId(),
-                readyFile.getLabels());
-            new ZiggyEventCrud().persist(event);
-            return null;
-        });
+        ziggyEventOperations().newZiggyEvent(name, pipelineName, pipelineInstance.getId(),
+            readyFile.getLabels());
         log.info("Event handler " + name + " starting pipeline " + pipelineName + "...done");
     }
 
@@ -288,15 +287,16 @@ public class ZiggyEventHandler implements Runnable {
         this.pipelineName = pipelineName;
     }
 
-    /**
-     * Returns an instance of {@link PipelineOperations}, which allows a mocked instance to be
-     * substituted for test purposes. Package scope for tests.
-     */
-    PipelineOperations pipelineOperations() {
-        if (pipelineOperations == null) {
-            pipelineOperations = new PipelineOperations();
-        }
-        return pipelineOperations;
+    PipelineExecutor pipelineExecutor() {
+        return pipelineExecutor;
+    }
+
+    PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
+    }
+
+    ZiggyEventOperations ziggyEventOperations() {
+        return ziggyEventOperations;
     }
 
     /**

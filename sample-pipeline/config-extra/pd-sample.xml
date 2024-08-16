@@ -22,7 +22,7 @@ and outputs, information about models, and parameter sets. Enjoy! -->
 
     <!-- Pipeline parameter sets are applied to every node in the
 	 pipeline. -->
-    <pipelineParameter name="Algorithm Parameters"/>
+    <parameterSet name="Algorithm Parameters"/>
 
     <!-- Data receipt is the exception to the requirement that the node has to
 	 be a user-defined module. Ziggy provides data receipt "for free" as a
@@ -33,15 +33,12 @@ and outputs, information about models, and parameter sets. Enjoy! -->
 	 user can define which data receipt tasks are to be performed. -->
     <node moduleName="data-receipt" childNodeNames="permuter">
       <inputDataFileType name="raw data"/>
-      <moduleParameter name="Data receipt configuration"/>
     </node>
 
     <node moduleName="permuter" childNodeNames="flip">
       <inputDataFileType name="raw data"/>
       <outputDataFileType name="permuted colors"/>
       <modelType name="dummy model"/>
-      <moduleParameter name="Remote Parameters (permute color)"/>
-      <moduleParameter name="Multiple subtask configuration"/>
     </node>
 
     <!-- Here's an example of a node with one input, two outputs. -->
@@ -49,7 +46,6 @@ and outputs, information about models, and parameter sets. Enjoy! -->
       <inputDataFileType name="permuted colors"/>
       <outputDataFileType name="left-right flipped"/>
       <outputDataFileType name="up-down flipped"/>
-      <moduleParameter name="Multiple subtask configuration"/>
     </node>
 
   </pipeline>

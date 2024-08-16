@@ -91,8 +91,7 @@ public class DatastoreTestUtils {
 
     private static void setFullPath(DatastoreNode node, DatastoreNode parent) {
         String parentPath = parent != null ? parent.getFullPath() : null;
-        node.setFullPath(
-            DatastoreConfigurationImporter.fullPathFromParentPath(node.getName(), parentPath));
+        node.setFullPath(DatastoreWalker.fullPathFromParentPath(node.getName(), parentPath));
     }
 
     /** Returns regexps based on a partial implementation of DR and CAL. */
@@ -122,24 +121,58 @@ public class DatastoreTestUtils {
 
         DataFileType uncalibratedSciencePixelType = new DataFileType(
             "uncalibrated science pixel values",
-            "sector/mda/dr/pixels/cadenceType/pixelType$science/channel");
+            "sector/mda/dr/pixels/cadenceType/pixelType$science/channel",
+            "(uncalibrated-pixels-[0-9]+)\\.science\\.nc");
         dataFileTypesByName.put(uncalibratedSciencePixelType.getName(),
             uncalibratedSciencePixelType);
 
         DataFileType uncalibratedCollateralPixelType = new DataFileType(
             "uncalibrated collateral pixel values",
-            "sector/mda/dr/pixels/cadenceType/pixelType$collateral/channel");
+            "sector/mda/dr/pixels/cadenceType/pixelType$collateral/channel",
+            "(uncalibrated-pixels-[0-9]+)\\.collateral\\.nc");
         dataFileTypesByName.put(uncalibratedCollateralPixelType.getName(),
             uncalibratedCollateralPixelType);
 
         DataFileType calibratedSciencePixelType = new DataFileType(
             "calibrated science pixel values",
-            "sector/mda/cal/pixels/cadenceType/pixelType$science/channel");
+            "sector/mda/cal/pixels/cadenceType/pixelType$science/channel",
+            "(everyone-needs-me-[0-9]+)\\.nc");
         dataFileTypesByName.put(calibratedSciencePixelType.getName(), calibratedSciencePixelType);
 
         DataFileType calibratedCollateralPixelType = new DataFileType(
             "calibrated collateral pixel values",
-            "sector/mda/cal/pixels/cadenceType/pixelType$collateral/channel");
+            "sector/mda/cal/pixels/cadenceType/pixelType$collateral/channel",
+            "(outputs-file-[0-9]+)\\.nc");
+        dataFileTypesByName.put(calibratedCollateralPixelType.getName(),
+            calibratedCollateralPixelType);
+
+        return dataFileTypesByName;
+    }
+
+    public static Map<String, DataFileType> dataFileTypesByNameRegexpsInFileName() {
+
+        Map<String, DataFileType> dataFileTypesByName = new HashMap<>();
+
+        DataFileType uncalibratedSciencePixelType = new DataFileType(
+            "uncalibrated science pixel values", "sector/mda/dr/pixels/cadenceType",
+            "pixelType$science/channel/(uncalibrated-pixels-[0-9]+)\\.science\\.nc");
+        dataFileTypesByName.put(uncalibratedSciencePixelType.getName(),
+            uncalibratedSciencePixelType);
+
+        DataFileType uncalibratedCollateralPixelType = new DataFileType(
+            "uncalibrated collateral pixel values", "sector/mda/dr/pixels/cadenceType",
+            "pixelType$collateral/channel/(uncalibrated-pixels-[0-9]+)\\.collateral\\.nc");
+        dataFileTypesByName.put(uncalibratedCollateralPixelType.getName(),
+            uncalibratedCollateralPixelType);
+
+        DataFileType calibratedSciencePixelType = new DataFileType(
+            "calibrated science pixel values", "sector/mda/cal/pixels/cadenceType",
+            "pixelType$science/channel/(everyone-needs-me-[0-9]+)\\.nc");
+        dataFileTypesByName.put(calibratedSciencePixelType.getName(), calibratedSciencePixelType);
+
+        DataFileType calibratedCollateralPixelType = new DataFileType(
+            "calibrated collateral pixel values", "sector/mda/cal/pixels/cadenceType",
+            "pixelType$collateral/channel/(outputs-file-[0-9]+)\\.nc");
         dataFileTypesByName.put(calibratedCollateralPixelType.getName(),
             calibratedCollateralPixelType);
 

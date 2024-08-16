@@ -12,7 +12,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Names and creates the task directories for external process invocation.
@@ -44,7 +44,7 @@ public class TaskDirectoryManager {
         if (Files.isDirectory(taskDir()) && cleanExisting) {
             log.info(
                 "Working directory for name=" + pipelineTask.getId() + " already exists, deleting");
-            FileUtil.deleteDirectoryTree(taskDir());
+            ZiggyFileUtils.deleteDirectoryTree(taskDir());
         }
 
         log.info("Creating task working dir: " + taskDir().toString());

@@ -203,7 +203,7 @@ public class ZiggyCppMexPojoTest {
         expectedCommand = "/dev/null/g++ -o " + buildDir.getAbsolutePath() + "/lib/"
             + "libdummy.dylib -L/dummy1/lib -L/dummy2/lib "
             + "-L/dev/null/MATLAB_R2017b/bin/maca64 " + "-shared -install_name "
-            + rootDir.getAbsolutePath() + "/build/lib/libdummy.dylib"
+            + buildDir.getAbsolutePath() + "/lib/libdummy.dylib"
             + " o1.o o2.o -lhdf5 -lnetcdf -lmex -lmx -lmat ";
         assertEquals(expectedCommand, linkCommand);
 
@@ -214,7 +214,7 @@ public class ZiggyCppMexPojoTest {
         expectedCommand = "/dev/null/g++ -o " + buildDir.getAbsolutePath() + "/lib/"
             + "libdummy.dylib -L/dummy1/lib -L/dummy2/lib "
             + "-L/dev/null/MATLAB_R2017b/bin/maci64 " + "-shared -install_name "
-            + rootDir.getAbsolutePath() + "/build/lib/libdummy.dylib"
+            + buildDir.getAbsolutePath() + "/lib/libdummy.dylib"
             + " o1.o o2.o -lhdf5 -lnetcdf -lmex -lmx -lmat ";
         assertEquals(expectedCommand, linkCommand);
     }
@@ -283,29 +283,20 @@ public class ZiggyCppMexPojoTest {
 
         // check the calls -- first the 4 compile commands
         executorCalls.verify(defaultExecutor)
-            .setWorkingDirectory(new File(projectDir, "src/main/cpp/mex"));
-        executorCalls.verify(defaultExecutor)
             .execute(ziggyCppMexObject.new CommandLineComparable(ziggyCppMexObject
                 .generateCompileCommand(new File(srcDir, "CSource1.c"), cCompiler)));
-        executorCalls.verify(defaultExecutor)
-            .setWorkingDirectory(new File(projectDir, "src/main/cpp/mex"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppMexObject.new CommandLineComparable(ziggyCppMexObject
                 .generateCompileCommand(new File(srcDir, "CSource2.c"), cCompiler)));
         executorCalls.verify(defaultExecutor)
-            .setWorkingDirectory(new File(projectDir, "src/main/cpp/mex"));
-        executorCalls.verify(defaultExecutor)
             .execute(ziggyCppMexObject.new CommandLineComparable(ziggyCppMexObject
                 .generateCompileCommand(new File(srcDir, "CppSource1.cpp"), cppCompiler)));
-        executorCalls.verify(defaultExecutor)
-            .setWorkingDirectory(new File(projectDir, "src/main/cpp/mex"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppMexObject.new CommandLineComparable(ziggyCppMexObject
                 .generateCompileCommand(new File(srcDir, "CppSource2.cpp"), cppCompiler)));
 
         // then the link command for the dynamic library (and also make sure that 2 of the 4 files
         // got removed from the list of object files)
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(buildDir, "obj"));
         List<File> allObjectFiles = ziggyCppMexObject.getObjectFiles();
         assertEquals(2, allObjectFiles.size());
         executorCalls.verify(defaultExecutor)
@@ -313,12 +304,10 @@ public class ZiggyCppMexPojoTest {
                 ziggyCppMexObject.generateLinkCommand()));
 
         // then the mex commands
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(buildDir, "obj"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppMexObject.new CommandLineComparable(
                 ziggyCppMexObject.generateMexCommand(new File(buildDir, "mex/CSource1.mexa64"),
                     new File(buildDir, "obj/CSource1.o"))));
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(buildDir, "obj"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppMexObject.new CommandLineComparable(
                 ziggyCppMexObject.generateMexCommand(new File(buildDir, "mex/CppSource2.mexa64"),
@@ -403,13 +392,13 @@ public class ZiggyCppMexPojoTest {
         ziggyCppMexObject.setRootDir(rootDir);
         ZiggyCppPojo.setCppCompiler("/dev/null/g++");
         ZiggyCppPojo.setCCompiler("/dev/null/gcc");
-        ziggyCppMexObject.setCppFilePath(srcDir.getAbsolutePath());
+        ziggyCppMexObject.setSourceFilePath(srcDir.getAbsolutePath());
         ziggyCppMexObject.setMatlabPath("/dev/null/MATLAB_R2017b");
         ziggyCppMexObject.setOutputName("dummy");
         ziggyCppMexObject.setMexfileNames(List.of("CSource1", "CppSource2"));
         ziggyCppMexObject
             .setIncludeFilePaths(List.of(srcDir.getAbsolutePath(), incDir.getAbsolutePath()));
-        ziggyCppMexObject.setCppCompileOptions(List.of("-Wall", "-fPic"));
+        ziggyCppMexObject.setcppCompileOptions(List.of("-Wall", "-fPic"));
         ziggyCppMexObject.setReleaseOptimizations(List.of("-O2", "-DNDEBUG", "-g"));
         ziggyCppMexObject.setDebugOptimizations(List.of("-Og", "-g"));
         ziggyCppMexObject.setMaxCompileThreads(1);

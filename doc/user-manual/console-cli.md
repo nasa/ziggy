@@ -13,16 +13,16 @@ $ ziggy console --help
 usage: ZiggyConsole command [options]
 
 Commands:
-cancel                 Cancel running pipelines
 config --configType TYPE [--instance ID | --pipeline NAME]
                        Display pipeline configuration
 display [[--displayType TYPE] --instance ID | --task ID]
                        Display pipeline activity
+halt [--instance ID | --task ID ...]
+                       Halts the given task(s) or all incomplete tasks in the given instance
 log --task ID | --errors
                        Request logs for the given task(s)
-reset --resetType TYPE --instance ID
-                       Put tasks in the ERROR state so they can be restarted
-restart --task ID ...  Restart tasks
+restart [--restartMode MODE] [--instance ID | --task ID ...]
+                       Restarts the given task(s) or all halted tasks in the given instance
 start PIPELINE [NAME [START_NODE [STOP_NODE]]]
                        Start the given pipeline and assign its name to NAME
                        (default: NAME is the current time, and the NODES are
@@ -37,17 +37,14 @@ Options:
  -h,--help                Show this help
  -i,--instance <arg>      Instance ID
  -p,--pipeline <arg>      Pipeline name
- -r,--resetType <arg>     Reset type (all | submitted)
- -t,--task <arg>          Task ID
+ -r,--restartMode <arg>   Restart mode (restart-from-beginning, resume-current-step, resubmit,
+                          resume-monitoring; default: restart-from-beginning)
+ -t,--task <arg>          Comma-separated list of task IDs and ranges
 ```
 
 ### Commands
 
 We'll cover each command in turn.
-
-**cancel**
-
-This command is currently broken. It will be renamed to halt and given the same semantics as the halt commands in the GUI in a future version.
 
 **config --configType TYPE [--instance ID | --pipeline NAME]**
 
@@ -65,20 +62,25 @@ Display pipeline activity. When the command appears by itself, a table of instan
 $ while true; do ziggy console display --instance 2 --displayType full; sleep 15; done
 ```
 
+**halt --instance ID | --task ID ...**
+
+Halt the given task(s) or all incomplete tasks in the given instance. Multiple `--task options` may be given. Task options can be comma-separated lists of IDs and ranges.
+
+```console
+$ ziggy console halt --task 2 --task 3,4,7-10
+```
+
 **log --task ID | --errors**
 
 Request logs for the given task(s). This command is not yet implemented.
 
-**reset --resetType TYPE --instance ID**
+**restart [--restartMode MODE] --instance ID | --task ID ...**
 
-This command is currently broken. It will be renamed to halt and given the same semantics as the halt commands in the GUI in a future version.
-
-**restart restart --task ID ...**
-
-Restart tasks. Multiple `--task options` may be given. Tasks are started from the beginning. This command only has effect on tasks in the ERROR state.
+Restart the given task(s) or all halted tasks in the given instance
+Restart tasks. Multiple `--task options` may be given. Task options can be comma-separated lists of IDs and ranges. Tasks are started with the given restart mode. The default is to restart from the beginning of the pipeline module. This command only has effect on tasks that errored out.
 
 ```console
-$ ziggy console restart --task 2 --task 3
+$ ziggy console restart --restartMode resubmit --task 2 --task 3,4,7-10
 ```
 
 **start PIPELINE [NAME [START_NODE [STOP_NODE]]]**

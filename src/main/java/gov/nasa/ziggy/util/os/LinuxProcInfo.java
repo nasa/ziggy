@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * This class parses /proc/PID/status on a Linux box and provides the contents as a {@link Map}.
@@ -117,7 +117,7 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
     public long getMaximumPid() {
         Path pidMaxFile = Paths.get("/proc/sys/kernel/pid_max");
         try {
-            String pidMaxLine = Files.readAllLines(pidMaxFile, FileUtil.ZIGGY_CHARSET).get(0);
+            String pidMaxLine = Files.readAllLines(pidMaxFile, ZiggyFileUtils.ZIGGY_CHARSET).get(0);
             if (pidMaxLine.endsWith("\n")) {
                 pidMaxLine = pidMaxLine.substring(0, pidMaxLine.length() - 1);
             }

@@ -17,12 +17,10 @@ public final class TaskLogInformationRequest extends SpecifiedRequestorMessage {
 
     private static final long serialVersionUID = 20230614L;
 
-    private final long instanceId;
     private final long taskId;
 
-    private TaskLogInformationRequest(Requestor sender, long instanceId, long taskId) {
+    private TaskLogInformationRequest(Requestor sender, long taskId) {
         super(sender);
-        this.instanceId = instanceId;
         this.taskId = taskId;
     }
 
@@ -34,12 +32,7 @@ public final class TaskLogInformationRequest extends SpecifiedRequestorMessage {
      * method.
      */
     public static void requestTaskLogInformation(Requestor sender, PipelineTask task) {
-        ZiggyMessenger.publish(new TaskLogInformationRequest(sender,
-            task.getPipelineInstance().getId(), task.getId()));
-    }
-
-    public long getInstanceId() {
-        return instanceId;
+        ZiggyMessenger.publish(new TaskLogInformationRequest(sender, task.getId()));
     }
 
     public long getTaskId() {

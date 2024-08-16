@@ -5,7 +5,6 @@ import java.util.Map;
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
 /**
@@ -23,7 +22,6 @@ public class TaskContext {
     private String module = "-";
     private String moduleUow = "-";
     private long processingStartTimeMillis = 0;
-    private TaskLog taskLog = null;
     private long moduleExecTime = 0L;
     private Map<String, Metric> taskMetrics = null;
 
@@ -32,7 +30,7 @@ public class TaskContext {
 
     public void setTask(PipelineTask pipelineTask) {
         pipelineTaskId = pipelineTask.getId();
-        pipelineInstanceId = pipelineTask.getPipelineInstance().getId();
+        pipelineInstanceId = pipelineTask.getPipelineInstanceId();
         module = pipelineTask.getModuleName();
         UnitOfWork uow = pipelineTask.uowTaskInstance();
         moduleUow = uow.briefState();
@@ -92,14 +90,6 @@ public class TaskContext {
 
     public void setProcessingStartTimeMillis(long currentProcessingStartTimeMillis) {
         processingStartTimeMillis = currentProcessingStartTimeMillis;
-    }
-
-    public TaskLog getTaskLog() {
-        return taskLog;
-    }
-
-    public void setTaskLog(TaskLog taskLog) {
-        this.taskLog = taskLog;
     }
 
     public long getModuleExecTime() {

@@ -43,11 +43,11 @@ The `Export` button writes the current state of the parameter library to an XML 
 The exported file will provide a modicum of additional information relative to the original XML you used to import the parameters. To see what I mean, let's look at the representation of the `Algorithm Parameters` parameter set in the export file:
 
 ```XML
-<parameter-set name="Algorithm Parameters" version="1" locked="false"     classname="gov.nasa.ziggy.parameters.DefaultParameters">
+<parameter-set name="Algorithm Parameters">
     <parameter name="produce output subtask 1" value="true" type="boolean"/>
-    <parameter name="execution pause seconds" value="5" type="int"/>
-    <parameter name="dummy array parameter" value="1,2" type="intarray"/>
-    <parameter name="throw exception subtask_0" value="false" type="boolean"/>
+    <parameter name="execution pause seconds" value="0" type="int"/>
+    <parameter name="dummy array parameter" value="1,2,3" type="intarray"/>
+    <parameter name="throw exception subtask 0" value="false" type="boolean"/>
 </parameter-set>
 ```
 
@@ -72,10 +72,6 @@ The `Action` column tells you how, if at all, each parameter set differs from th
 - `LIBRARY_ONLY`: the parameter set exists in the database but not in the XML file. Obviously, if you "import" this parameter set, nothing will happen because there's nothing to import.
 
 The `Include` column lets you select exactly which parameter sets you're going to import. This means that if you have an XML file that has a bunch of changed parameter sets, you can pick and choose which ones will be imported and which will be left as-is in the database.
-
-### New Parameter Set
-
-This allows a user to create a new parameter set via the console, without an XML file. Or at least it's supposed to. It doesn't work correctly at the moment. We'll let you know when it's fixed.
 
 ### Modifying an Existing Parameter Set
 

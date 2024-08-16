@@ -6,18 +6,22 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.GroupLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.SwingWorker;
 import javax.swing.table.AbstractTableModel;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gov.nasa.ziggy.services.alert.AlertLog;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
+import gov.nasa.ziggy.services.alert.AlertLogOperations;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.proxy.AlertLogCrudProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.AlertLogDisplayModel;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
@@ -27,6 +31,7 @@ import gov.nasa.ziggy.util.dispmod.ModelContentClass;
  */
 @SuppressWarnings("serial")
 public class AlertLogDialog extends javax.swing.JDialog {
+    private static final Logger log = LoggerFactory.getLogger(AlertLogDialog.class);
 
     public AlertLogDialog(Window owner, long pipelineInstanceId) {
         super(owner, DEFAULT_MODALITY_TYPE);
@@ -41,8 +46,8 @@ public class AlertLogDialog extends javax.swing.JDialog {
         getContentPane().add(createDataPanel(pipelineInstanceId), BorderLayout.CENTER);
         getContentPane().add(ZiggySwingUtils.createButtonPanel(createButton(CLOSE, this::close)),
             BorderLayout.SOUTH);
+        setPreferredSize(ZiggyGuiConstants.MIN_DIALOG_SIZE);
 
-        setMinimumSize(ZiggySwingUtils.MIN_DIALOG_SIZE);
         pack();
     }
 
@@ -71,27 +76,34 @@ public class AlertLogDialog extends javax.swing.JDialog {
 
     private static class AlertLogTableModel extends AbstractTableModel
         implements ModelContentClass<AlertLog> {
-        private final AlertLogCrudProxy alertLogCrud;
-        private List<AlertLog> alerts = new ArrayList<>();
+
         private final long pipelineInstanceId;
         private final AlertLogDisplayModel alertLogDisplayModel = new AlertLogDisplayModel();
 
+        private final AlertLogOperations alertLogOperations = new AlertLogOperations();
+
         public AlertLogTableModel(long pipelineInstanceId) {
             this.pipelineInstanceId = pipelineInstanceId;
-
-            alertLogCrud = new AlertLogCrudProxy();
-
             loadFromDatabase();
         }
 
         public void loadFromDatabase() {
-            try {
-                alerts = alertLogCrud.retrieveForPipelineInstance(pipelineInstanceId);
-                alertLogDisplayModel.update(alerts);
-            } catch (ConsoleSecurityException ignore) {
-            }
+            new SwingWorker<List<AlertLog>, Void>() {
+                @Override
+                protected List<AlertLog> doInBackground() throws Exception {
+                    return alertLogOperations().alertLogs(pipelineInstanceId);
+                }
 
-            fireTableDataChanged();
+                @Override
+                protected void done() {
+                    try {
+                        alertLogDisplayModel.update(get());
+                        fireTableDataChanged();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Could not retrieve alerts", e);
+                    }
+                }
+            }.execute();
         }
 
         @Override
@@ -117,6 +129,10 @@ public class AlertLogDialog extends javax.swing.JDialog {
         @Override
         public Class<AlertLog> tableModelContentClass() {
             return AlertLog.class;
+        }
+
+        private AlertLogOperations alertLogOperations() {
+            return alertLogOperations;
         }
     }
 }

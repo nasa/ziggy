@@ -1,11 +1,11 @@
 package gov.nasa.ziggy.ui.util.collections;
 
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.ADD_SYMBOL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW_SYMBOL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CANCEL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.EXPORT;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.IMPORT;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.OK;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REMOVE_SYMBOL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DELETE_SYMBOL;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
 
 import java.awt.BorderLayout;
@@ -30,7 +30,7 @@ import javax.swing.table.AbstractTableModel;
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.ui.util.FloatingPointTableCellRenderer;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 
@@ -82,10 +82,10 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
 
         JLabel addRemoveElement = ZiggySwingUtils.boldLabel("Add/remove element");
         JPanel addRemoveButtons = ZiggySwingUtils.createButtonPanel(ButtonPanelContext.TOOL_BAR,
-            createButton(ADD_SYMBOL,
+            createButton(NEW_SYMBOL,
                 "Insert the specified element before the selected row (or at the end if no row is selected)",
                 this::addElement),
-            createButton(REMOVE_SYMBOL, "Remove the element at the selected row", this::remove),
+            createButton(DELETE_SYMBOL, "Remove the element at the selected row", this::remove),
             createButton(IMPORT, this::importArray), createButton(EXPORT, this::exportArray));
 
         addTextField = new JTextField();
@@ -154,7 +154,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
                 arrayEditorTableModel.replaceWith(newArray);
             }
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -170,7 +170,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
                 ArrayImportExportUtils.exportArray(file, values);
             }
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 

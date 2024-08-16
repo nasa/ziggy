@@ -1,8 +1,6 @@
 package gov.nasa.ziggy.ui.parameters;
 
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CANCEL;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.EXPORT;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.IMPORT;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.RESTORE_DEFAULTS;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.SAVE;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.boldLabel;
@@ -12,27 +10,28 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.GroupLayout;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.SwingWorker;
 
 import com.l2fprod.common.propertysheet.PropertySheetPanel;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersUtils;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.PropertySheetHelper;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
-import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
 
 /**
  * @author Todd Klaus
@@ -41,31 +40,24 @@ import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
 @SuppressWarnings("serial")
 public class EditParameterSetDialog extends javax.swing.JDialog {
     private final ParameterSet parameterSet;
-    private Parameters currentParams;
+    private Set<Parameter> currentParams;
     private PropertySheetPanel paramsPropPanel;
     private JTextArea descriptionTextArea;
 
     private boolean cancelled;
     private boolean isNew;
 
+    private final ParametersOperations parametersOperations = new ParametersOperations();
+
     public EditParameterSetDialog(Window owner, ParameterSet parameterSet, boolean isNew) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.parameterSet = parameterSet;
         this.isNew = isNew;
 
-        initializeCurrentParamsfromDefinition();
+        currentParams = parameterSet.copyOfParameters();
 
         buildComponent();
         setLocationRelativeTo(owner);
-    }
-
-    private void initializeCurrentParamsfromDefinition() {
-        currentParams = parameterSet.parametersInstance();
-
-        // Make a copy of currentParams; otherwise the property sheet panel will overwrite the
-        // original parameters and the updateParameterSet() call in save() won't notice that
-        // anything has changed.
-        currentParams.setParameters(currentParams.getParametersCopy());
     }
 
     private void buildComponent() {
@@ -75,8 +67,8 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
         getContentPane().add(
             createButtonPanel(createButton(SAVE, this::save), createButton(CANCEL, this::cancel)),
             BorderLayout.SOUTH);
-
         populateParamsPropertySheet();
+
         pack();
     }
 
@@ -92,11 +84,9 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
         JScrollPane descriptionScrollPane = new JScrollPane(descriptionTextArea);
 
         JPanel buttonPanel = ZiggySwingUtils.createButtonPanel(ButtonPanelContext.TOOL_BAR,
-            ZiggySwingUtils.createButton(RESTORE_DEFAULTS, this::defaults),
-            ZiggySwingUtils.createButton(IMPORT, this::importParameters),
-            ZiggySwingUtils.createButton(EXPORT, this::exportParameters));
+            ZiggySwingUtils.createButton(RESTORE_DEFAULTS, this::defaults));
 
-        JLabel parameters = boldLabel("Parameters - " + parameterSet.clazz().getSimpleName());
+        JLabel parameters = boldLabel("Parameters");
         paramsPropPanel = new PropertySheetPanel();
 
         JPanel dataPanel = new JPanel();
@@ -139,46 +129,26 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
         paramsPropPanel.readFromObject(currentParams);
     }
 
-    private void importParameters(ActionEvent evt) {
-        try {
-            JFileChooser fc = new JFileChooser();
-            int returnVal = fc.showOpenDialog(this);
-
-            if (returnVal == JFileChooser.APPROVE_OPTION) {
-                File file = fc.getSelectedFile();
-                currentParams = ParametersUtils.importParameters(file, currentParams.getClass());
-                paramsPropPanel.readFromObject(currentParams);
-            }
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
-    }
-
-    private void exportParameters(ActionEvent evt) {
-        try {
-            JFileChooser fc = new JFileChooser();
-            int returnVal = fc.showSaveDialog(this);
-
-            if (returnVal == JFileChooser.APPROVE_OPTION) {
-                File file = fc.getSelectedFile();
-                paramsPropPanel.writeToObject(currentParams);
-                ParametersUtils.exportParameters(file, currentParams);
-            }
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
-    }
-
     private void save(ActionEvent evt) {
-        try {
-            paramsPropPanel.writeToObject(currentParams);
-            PipelineOperationsProxy pipelineOperations = new PipelineOperationsProxy();
-            pipelineOperations.updateParameterSet(parameterSet, currentParams,
-                descriptionTextArea.getText(), isNew);
-            setVisible(false);
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                paramsPropPanel.writeToObject(currentParams);
+                parametersOperations().updateParameterSet(parameterSet, currentParams,
+                    descriptionTextArea.getText(), isNew);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    setVisible(false);
+                } catch (InterruptedException | ExecutionException e) {
+                    MessageUtils.showError(getRootPane(), e);
+                }
+            }
+        }.execute();
     }
 
     private void cancel(ActionEvent evt) {
@@ -200,9 +170,13 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
         return cancelled;
     }
 
+    private ParametersOperations parametersOperations() {
+        return parametersOperations;
+    }
+
     public static void main(String[] args) {
         ParameterSet parameters = new ParameterSet("test");
-        parameters.setTypedParameters(new Parameters().getParameters());
+        parameters.setParameters(new HashSet<>());
         ZiggySwingUtils.displayTestDialog(new EditParameterSetDialog(null, parameters, false));
     }
 }

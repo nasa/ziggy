@@ -8,21 +8,25 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -39,8 +43,9 @@ public class DatastoreWalker {
 
     // The nodes in a location are always separated by a slash regardless of what the
     // OS uses for the directory separator character.
-    public static final String NODE_SEPARATOR = "/";
-    private static final String REGEXP_VALUE_SEPARATOR = "\\$";
+    private static final String NODE_SEPARATOR = "/";
+    private static final String REGEXP_VALUE_SEPARATOR = "$";
+    private static final String REGEXP_VALUE_SEPARATOR_AS_REGEXP = "\\" + REGEXP_VALUE_SEPARATOR;
 
     // NB This is how SpotBugs suggests to handle the file separator so that
     // MacOS, Linux, and Windows all work correctly.
@@ -49,14 +54,13 @@ public class DatastoreWalker {
 
     private Map<String, DatastoreRegexp> regexpsByName;
     private Map<String, DatastoreNode> datastoreNodesByFullPath;
-    private Path datastoreRootPath;
+    private Path datastoreRootPath = Paths.get(
+        ZiggyConfiguration.getInstance().getString(PropertyName.DATASTORE_ROOT_DIR.property()));
 
     public DatastoreWalker(Map<String, DatastoreRegexp> regexpsByName,
         Map<String, DatastoreNode> datastoreNodesByFullPath) {
         this.regexpsByName = regexpsByName;
         this.datastoreNodesByFullPath = datastoreNodesByFullPath;
-        datastoreRootPath = Paths.get(
-            ZiggyConfiguration.getInstance().getString(PropertyName.DATASTORE_ROOT_DIR.property()));
     }
 
     /**
@@ -67,13 +71,7 @@ public class DatastoreWalker {
      * @see DatastoreNodeCrud#retrieveNodesByFullPath()
      */
     public static DatastoreWalker newInstance() {
-        return (DatastoreWalker) DatabaseTransactionFactory.performTransaction(() -> {
-            Map<String, DatastoreRegexp> regexpsByName = new DatastoreRegexpCrud()
-                .retrieveRegexpsByName();
-            Map<String, DatastoreNode> datastoreNodesByFullPath = new DatastoreNodeCrud()
-                .retrieveNodesByFullPath();
-            return new DatastoreWalker(regexpsByName, datastoreNodesByFullPath);
-        });
+        return new DatastoreOperations().newDatastoreWalkerInstance();
     }
 
     /**
@@ -103,8 +101,8 @@ public class DatastoreWalker {
         for (int locationIndex = 0; locationIndex < locationsAndRegexpValues
             .size(); locationIndex++) {
             if (locationsAndRegexpValues.get(locationIndex).getLocation() == null) {
-                invalidLocations
-                    .add(locationElements[locationIndex].split(REGEXP_VALUE_SEPARATOR)[0]);
+                invalidLocations.add(
+                    locationElements[locationIndex].split(REGEXP_VALUE_SEPARATOR_AS_REGEXP)[0]);
             }
         }
         if (!invalidLocations.isEmpty()) {
@@ -156,7 +154,7 @@ public class DatastoreWalker {
                 continue;
             }
             String locationRegexp = locationAndRegexpValue.getRegexpValue();
-            if (!regexp.matchesValue(locationRegexp) && !StringUtils.isEmpty(locationRegexp)) {
+            if (!regexp.matchesValue(locationRegexp) && !StringUtils.isBlank(locationRegexp)) {
                 invalidLocations.add(location);
             }
         }
@@ -324,9 +322,12 @@ public class DatastoreWalker {
     private List<Path> listPaths(Path parentPath, String regexpValueThisLevel,
         DatastoreRegexp regexp) {
         List<Path> pathsThisLevel = new ArrayList<>();
+        if (!Files.exists(parentPath) || !Files.isDirectory(parentPath)) {
+            return pathsThisLevel;
+        }
         DirectoryStream.Filter<? super Path> dirFilter = path -> regexp
             .matches(path.getFileName().toString())
-            && (StringUtils.isEmpty(regexpValueThisLevel)
+            && (StringUtils.isBlank(regexpValueThisLevel)
                 || path.getFileName().toString().matches(regexpValueThisLevel));
         try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(parentPath, dirFilter)) {
             for (Path entry : dirStream) {
@@ -353,27 +354,27 @@ public class DatastoreWalker {
             return pathElementIndicesForBriefState;
         }
 
-        // Determine which parts vary across the collection of datastore paths. A set in the "parts"
-        // list will only have one item if the part is common across all paths.
+        // Determine which elements vary across the collection of datastore paths. A set in the
+        // "elements" list will only have one item if the element is common across all paths.
         int nameCount = datastorePaths.get(0).getNameCount();
-        List<Set<Path>> parts = new ArrayList<>();
+        List<Set<Path>> elements = new ArrayList<>();
         for (int i = 0; i < nameCount; i++) {
-            parts.add(new HashSet<>());
+            elements.add(new HashSet<>());
         }
         for (Path path : datastorePaths) {
             if (nameCount != path.getNameCount()) {
                 throw new IllegalArgumentException(path.toString() + " has " + path.getNameCount()
                     + " elements, but " + nameCount + " was expected");
             }
-            for (int partIndex = 0; partIndex < path.getNameCount(); partIndex++) {
-                parts.get(partIndex).add(path.getName(partIndex).getFileName());
+            for (int elementIndex = 0; elementIndex < path.getNameCount(); elementIndex++) {
+                elements.get(elementIndex).add(path.getName(elementIndex).getFileName());
             }
         }
 
-        // Find the indices of the path parts that have > 1 item (i.e., the ones that vary).
-        for (int partIndex = 0; partIndex < nameCount; partIndex++) {
-            if (parts.get(partIndex).size() > 1) {
-                pathElementIndicesForBriefState.add(partIndex);
+        // Find the indices of the path elements that have > 1 item (i.e., the ones that vary).
+        for (int elementIndex = 0; elementIndex < nameCount; elementIndex++) {
+            if (elements.get(elementIndex).size() > 1) {
+                pathElementIndicesForBriefState.add(elementIndex);
             }
         }
         return pathElementIndicesForBriefState;
@@ -381,51 +382,53 @@ public class DatastoreWalker {
 
     /**
      * Constructs a {@link Map} of regexp values by regexp name. This requires a location string
-     * (which can be used to determine which parts of the path are regular expressions and which are
-     * single-valued nodes), and a path (so that the parts of the path that are now known to be
-     * regexps can be captured and used to populate the Map).
+     * (which can be used to determine which elements of the path correspond to datastore nodes that
+     * are regular expressions and which are single-valued nodes), and a path (so that the elements
+     * of the path that are now known to be regexps can be captured and used to populate the Map).
      */
     public Map<String, String> regexpValues(String location, Path path) {
-        return regexpValues(location, path, true);
+        return regexpValuesByRegexpName(location, path, true);
     }
 
     /**
      * Constructs a {@link Map} of regexp values by regexp name. This requires a location string
-     * (which can be used to determine which parts of the path are regular expressions and which are
-     * single-valued nodes), and a path (so that the parts of the path that are now known to be
-     * regexps can be captured and used to populate the Map). The caller has the option to suppress
-     * regexp values that are specified in the location string (i.e., "foo$bar"), or populate same.
+     * (which can be used to determine which elements of the path are regular expressions and which
+     * are single-valued nodes), and a path (so that the elements of the path that are now known to
+     * be regexps can be captured and used to populate the Map). The caller has the option to
+     * suppress regexp values that are specified in the location string (i.e., "foo$bar"), or
+     * populate same.
      */
-    public Map<String, String> regexpValues(String location, Path path,
+    public Map<String, String> regexpValuesByRegexpName(String location, Path path,
         boolean includeValuesFromLocation) {
         Map<String, String> regexpValues = new LinkedHashMap<>();
         Map<String, String> regexpValuesInLocation = new LinkedHashMap<>();
-        String[] pathParts = null;
+        String[] pathElements = null;
         if (path != null) {
             if (path.isAbsolute()) {
                 path = datastoreRootPath.toAbsolutePath().relativize(path);
             }
-            pathParts = path.toString().split(FILE_SEPARATOR);
+            pathElements = path.toString().split(FILE_SEPARATOR);
         }
 
-        String[] locationParts = location.split(NODE_SEPARATOR);
+        String[] locationElements = location.split(NODE_SEPARATOR);
         String cumulativePath = "";
-        for (int i = 0; i < locationParts.length; i++) {
+        for (int i = 0; i < locationElements.length; i++) {
             if (cumulativePath.length() > 0) {
                 cumulativePath = cumulativePath + NODE_SEPARATOR;
             }
-            String[] locationSubparts = locationParts[i].split(REGEXP_VALUE_SEPARATOR);
-            String truncatedLocation = locationSubparts[0];
+            String[] locationSubelements = locationElements[i]
+                .split(REGEXP_VALUE_SEPARATOR_AS_REGEXP);
+            String truncatedLocation = locationSubelements[0];
             cumulativePath = cumulativePath + truncatedLocation;
             if (datastoreNodesByFullPath.get(cumulativePath).isRegexp()) {
-                if (locationSubparts.length == 2 && !includeValuesFromLocation) {
+                if (locationSubelements.length == 2 && !includeValuesFromLocation) {
                     continue;
                 }
-                if (pathParts != null) {
-                    regexpValues.put(truncatedLocation, pathParts[i]);
+                if (pathElements != null) {
+                    regexpValues.put(truncatedLocation, pathElements[i]);
                 }
-                if (locationSubparts.length == 2 && includeValuesFromLocation) {
-                    regexpValuesInLocation.put(truncatedLocation, locationSubparts[1]);
+                if (locationSubelements.length == 2 && includeValuesFromLocation) {
+                    regexpValuesInLocation.put(truncatedLocation, locationSubelements[1]);
                 }
             }
         }
@@ -438,15 +441,15 @@ public class DatastoreWalker {
      */
     public Path pathFromLocationAndRegexpValues(Map<String, String> regexpValues, String location) {
         Path path = datastoreRootPath.toAbsolutePath();
-        String[] locationParts = location.split(NODE_SEPARATOR);
-        for (String locationPart : locationParts) {
-            String[] locationAndValue = locationPart.split(REGEXP_VALUE_SEPARATOR);
+        String[] locationElements = location.split(NODE_SEPARATOR);
+        for (String locationElement : locationElements) {
+            String[] locationAndValue = locationElement.split(REGEXP_VALUE_SEPARATOR_AS_REGEXP);
             String trimmedLocation = locationAndValue[0];
             if (regexpValues.get(trimmedLocation) != null) {
 
                 // NB: if the location has an associated value
-                // for the current part (i.e., "foo$bar"),
-                // and there is also a regexp value for that part
+                // for the current element (i.e., "foo$bar"),
+                // and there is also a regexp value for that element
                 // (i.e., regexpValues.get("foo") == "baz"), the value
                 // from the location takes precedence.
                 String regexpValue = locationAndValue.length == 1
@@ -461,8 +464,213 @@ public class DatastoreWalker {
         return path;
     }
 
+    /**
+     * Converts a {@link Path} to a specific location.
+     * <p>
+     * A path is a file path on the file system, with no regular expression argle-bargle. A
+     * {@link DataFileType} contains a full location, which can include regular expressions and can
+     * have more elements than the path does. The specific location is one in which the full
+     * location and the path are merged to produce a String that the {@link DatastoreWalker} can use
+     * to locate directories. Imagine for example that the path is "foo/baz", and the full location
+     * is "foo/bar/duran/sisters\$mercy/bauhaus", where bar is a datastore regular expression. The
+     * String returned by {@link #specificLocation(DataFileType, Path)} would be
+     * "foo/bar$baz/duran/sisters$mercy/bauhaus".
+     * <p>
+     * The specific location does not necessarily correspond to a single file path on the file
+     * system. To understand this, consider again the example in which the path is "foo/baz", but in
+     * this case the full location is "foo/bar/duran/sisters/bauhaus", where "sisters" is a
+     * reference to a datastore regular expression that can have values "mercy", "indulgence", or
+     * "colleges". The specific location that combines these would be
+     * "foo/bar$baz/duran/sisters/bauhaus". Note that the "bar" regular expression element is
+     * expanded to "bar$baz", but "sisters" is not expanded. When given this specific location, the
+     * {@link DatastoreWalker} will, if asked to find the file system paths that correspond to the
+     * location, return "foo/baz/duran/mercy/bauhaus", "foo/baz/duran/indulgence/bauhaus", and
+     * "foo/baz/duran/colleges/bauhaus".
+     */
+    public String specificLocation(DataFileType dataFileType, Path directory) {
+
+        String[] fullLocationElements = elements(fullLocation(dataFileType));
+
+        String[] datastoreDirectoryNameElements = datastorePathElements(directory);
+
+        // Construct the specific location from its constituent elements.
+        StringBuilder specificLocation = new StringBuilder();
+        for (int locationIndex = 0; locationIndex < fullLocationElements.length; locationIndex++) {
+            specificLocation.append(specificLocationElement(fullLocationElements,
+                datastoreDirectoryNameElements, locationIndex));
+            specificLocation.append(NODE_SEPARATOR);
+        }
+        specificLocation.setLength(specificLocation.length() - 1);
+        return specificLocation.toString();
+    }
+
+    static String[] elements(String location) {
+        return location.split(NODE_SEPARATOR);
+    }
+
+    /**
+     * Break a {@link Path} into its specific path elements.
+     * <p>
+     * Given the Path "foo/baz/duran/sisters", this method will return a String array containing
+     * "foo", "baz", "duran", "sisters". The path argument is first relativized to the datastore
+     * root to ensure that its name elements correspond to the full location elements (i.e., in both
+     * cases the first string in the array is "foo"). The result is returned as a String array to
+     * match the data type of the full location elements.
+     */
+    private String[] datastorePathElements(Path directory) {
+        Path datastoreDirectory = DirectoryProperties.datastoreRootDir()
+            .toAbsolutePath()
+            .relativize(directory.toAbsolutePath());
+        String[] datastorePathElements = new String[datastoreDirectory.getNameCount()];
+        int elementIndex = 0;
+        for (Path pathElement : datastoreDirectory) {
+            datastorePathElements[elementIndex++] = pathElement.toString();
+        }
+        return datastorePathElements;
+    }
+
+    /**
+     * Generate the specific location element for a given element of the location. In most cases,
+     * the specific location element is just the element from the full location. The exceptions are
+     * as follows:
+     * <ol>
+     * <li>If the full location element contains "\$", it must be replaced with "$".
+     * <li>If the full location element is a reference to a {@link DatastoreRegexp}, it must be
+     * combined with the corresponding path name element: in other words, a location element of
+     * "foo" and a path element of "bar" will result in a specific location element of "foo$bar".
+     * </ol>
+     */
+    private String specificLocationElement(String[] fullLocationElements,
+        String[] directoryNameElements, int fullLocationIndex) {
+
+        // If there's a "\$" in the specified full location element, replace it with "$"
+        String correctedFullLocationElement = fullLocationElements[fullLocationIndex]
+            .replace(REGEXP_VALUE_SEPARATOR_AS_REGEXP, REGEXP_VALUE_SEPARATOR);
+        // If we're past the end of the directory name elements, we return the location
+        // element verbatim.
+        if (fullLocationIndex >= directoryNameElements.length) {
+            return correctedFullLocationElement;
+        }
+
+        String directoryNameElement = directoryNameElements[fullLocationIndex];
+
+        // If the full location element contains a constraint that matches the path name element
+        // (i.e., if the full location element is "foo$bar" and the path element is "bar"),
+        // we can return the location element verbatim.
+        if (correctedFullLocationElement.equals(directoryNameElement)
+            || fullLocationConsistentWithDirectoryElement(correctedFullLocationElement,
+                directoryNameElement)) {
+            return correctedFullLocationElement;
+        }
+
+        // If the full location element contains a constraint that conflicts with the path name
+        // element (i.e., the full location element is "foo$bar" and the path element is "baz"),
+        // throw an exception.
+        if (correctedFullLocationElement.contains(DatastoreWalker.REGEXP_VALUE_SEPARATOR)) {
+            throw new PipelineException("Path name element " + directoryNameElement
+                + " cannot be combined with location element " + correctedFullLocationElement);
+        }
+        return correctedFullLocationElement + DatastoreWalker.REGEXP_VALUE_SEPARATOR
+            + directoryNameElement;
+    }
+
+    /**
+     * Determines whether the full location element is consistent with the directory name element.
+     * In this case, "consistent" means any of the following:
+     * <ol>
+     * <li>The full location element matches the directory name element.
+     * <li>The full location element has a regexp constraint that matches the value of the directory
+     * name element (i.e., "foo$bar" and "bar");
+     * </ol>
+     */
+    private boolean fullLocationConsistentWithDirectoryElement(String correctedFullLocationElement,
+        String directoryNameElement) {
+        if (correctedFullLocationElement.equals(directoryNameElement)) {
+            return true;
+        }
+        String[] correctedLocationSplitAtDollarSign = correctedFullLocationElement
+            .split(REGEXP_VALUE_SEPARATOR_AS_REGEXP);
+        if (correctedLocationSplitAtDollarSign.length == 1) {
+            return false;
+        }
+        String regexpConstraint = correctedLocationSplitAtDollarSign[1];
+        if (regexpConstraint.equals(directoryNameElement)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Determines the indices for location elements that must be searched for data files.
+     * <p>
+     * Consider a situation in which the location of a data file type is "foo/bar", but the full
+     * location is "foo/bar/baz$duran/sisters/bauhaus". Any search for data files must start in
+     * "foo/bar/duran" and include any directories that are referenced by the "sisters" and
+     * "bauhaus" elements (i.e., if "bauhaus" is a DatastoreRegexp, then all the directories under
+     * "foo/bar/duran/sisters" have to be searched). The
+     * {@link #findLocationIndicesForSublocation(DataFileType)} method provides this information by
+     * finding the indices for elements in the full location that (a) are after the end of the
+     * location, and (b) do not contain a "$". For this example, the indices that match these
+     * conditions are 3 and 4 (i.e., "sisters" and "bauhaus").
+     * <p>
+     * The indices are stored with an offset relative to the length of the location, i.e., they are
+     * indices into the element of the full location that comes after the location. Thus, since the
+     * location has 2 elements, the indices that would be returned in this example are 1 and 2.
+     */
+    public Set<Integer> findLocationIndicesForSublocation(DataFileType dataFileType) {
+
+        // Use a TreeSet so that the element indices are in order.
+        Set<Integer> locationIndicesForSublocation = new TreeSet<>();
+        int locationElementsCount = elements(dataFileType.getLocation()).length;
+        String[] fullLocationElements = elements(fullLocation(dataFileType));
+
+        // Are there any components of the full location after the location?
+        int numberOfElementsNotInLocation = fullLocationElements.length - locationElementsCount;
+        if (numberOfElementsNotInLocation == 0) {
+            return locationIndicesForSublocation;
+        }
+
+        // Loop over the elements that fall after the location. Reject any that contain
+        // a "$". Capture the indices of the rest.
+        for (int fullLocationElementsIndex = locationElementsCount; fullLocationElementsIndex < fullLocationElements.length; fullLocationElementsIndex++) {
+            if (fullLocationElements[fullLocationElementsIndex].contains(REGEXP_VALUE_SEPARATOR)) {
+                continue;
+            }
+            locationIndicesForSublocation.add(fullLocationElementsIndex - locationElementsCount);
+        }
+        return locationIndicesForSublocation;
+    }
+
+    public static String fileNameRegexpBaseName(DataFileType dataFileType) {
+        String[] fileNameRegexpElements = elements(dataFileType.getFileNameRegexp());
+        return fileNameRegexpElements[fileNameRegexpElements.length - 1];
+    }
+
+    public static String fullLocation(DataFileType dataFileType) {
+        String[] fileNameRegexpElements = elements(dataFileType.getFileNameRegexp());
+        String regexpLocation = Arrays
+            .asList(Arrays.copyOf(fileNameRegexpElements, fileNameRegexpElements.length - 1))
+            .stream()
+            .collect(Collectors.joining(NODE_SEPARATOR));
+        return StringUtils.isBlank(regexpLocation) ? dataFileType.getLocation()
+            : dataFileType.getLocation() + NODE_SEPARATOR + regexpLocation;
+    }
+
+    /**
+     * Full path string for a {@link DatastoreNode} when the full path of its parent is taken into
+     * account. Package scoped for test purposes.
+     */
+    static String fullPathFromParentPath(String nodeName, String parentFullPath) {
+        return StringUtils.isBlank(parentFullPath) ? nodeName
+            : parentFullPath + NODE_SEPARATOR + nodeName;
+    }
+
     Map<String, DatastoreRegexp> regexpsByName() {
         return regexpsByName;
+    }
+
+    Map<String, DatastoreNode> datastoreNodesByFullPath() {
+        return datastoreNodesByFullPath;
     }
 
     private static class LocationAndRegexpValue {

@@ -50,6 +50,12 @@ public abstract class PipelineInputsOutputsUtils implements Persistable {
         return m.moduleName();
     }
 
+    public static long taskId(Path taskDir) {
+        String taskDirString = taskDir.getFileName().toString();
+        PipelineTask.TaskBaseNameMatcher m = new PipelineTask.TaskBaseNameMatcher(taskDirString);
+        return m.taskId();
+    }
+
     /**
      * Applies the log stream identifier to the current thread, so that log messages will contain
      * information on which subtask generated them.
@@ -73,6 +79,20 @@ public abstract class PipelineInputsOutputsUtils implements Persistable {
         String filename = ModuleInterfaceUtils.inputsFileName(moduleName);
         File inputInTaskDir = new File(directory.toFile(), filename);
         new Hdf5ModuleInterface().readFile(inputInTaskDir, inputs, true);
+    }
+
+    public static void writePipelineOutputsToDirectory(PipelineOutputs outputs, String moduleName,
+        Path directory) {
+        String filename = ModuleInterfaceUtils.outputsFileName(moduleName);
+        File outputInTaskDir = new File(directory.toFile(), filename);
+        new Hdf5ModuleInterface().writeFile(outputInTaskDir, outputs, true);
+    }
+
+    public static void readPipelineOutputsFromDirectory(PipelineOutputs outputs, String moduleName,
+        Path directory) {
+        String filename = ModuleInterfaceUtils.outputsFileName(moduleName);
+        File outputInTaskDir = new File(directory.toFile(), filename);
+        new Hdf5ModuleInterface().readFile(outputInTaskDir, outputs, true);
     }
 
     /**

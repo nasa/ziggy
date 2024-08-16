@@ -234,7 +234,7 @@ public class PbsParameters {
         double requestedWallTimeHours = 0.25 * Math.ceil(4 * bareWallTimeHours);
         requestedWallTime = TimeFormatter.timeInHoursToStringHhMmSs(requestedWallTimeHours);
 
-        if (StringUtils.isEmpty(executionResources.getQueueName())) {
+        if (StringUtils.isBlank(executionResources.getQueueName())) {
             List<RemoteQueueDescriptor> queues = descriptorsSortedByMaxTime(
                 architecture.getRemoteCluster());
             for (RemoteQueueDescriptor queue : queues) {
@@ -315,7 +315,7 @@ public class PbsParameters {
 
             // Next the fields where we need to find the maximum value across all
             // members of the collection.
-            double wallTimeHours = StringUtils.isEmpty(aggregatedParameters.getRequestedWallTime())
+            double wallTimeHours = StringUtils.isBlank(aggregatedParameters.getRequestedWallTime())
                 ? 0
                 : TimeFormatter
                     .timeStringHhMmSsToTimeInHours(aggregatedParameters.getRequestedWallTime());
@@ -329,7 +329,7 @@ public class PbsParameters {
             RemoteQueueDescriptor pbsQueue = RemoteQueueDescriptor
                 .fromQueueName(pbsParameters.getQueueName());
             RemoteQueueDescriptor aggregatorQueue = StringUtils
-                .isEmpty(aggregatedParameters.getQueueName()) ? pbsQueue
+                .isBlank(aggregatedParameters.getQueueName()) ? pbsQueue
                     : RemoteQueueDescriptor.fromQueueName(aggregatedParameters.getQueueName());
             RemoteQueueDescriptor longerQueue = RemoteQueueDescriptor.max(pbsQueue,
                 aggregatorQueue);

@@ -4,6 +4,7 @@
   <Properties>
     <Property name="pattern">%d %-5p [%t:%C{1}.%M] %X{logStreamIdentifier} %m%n</Property>
     <Property name="filename">${sys:ziggy.logFile:-/dev/null}</Property>
+    <Property name="algorithm">${sys:ziggy.algorithmName}</Property>
     <!-- TODO
 	 1. Rename ziggy.logFile to ziggy.logFile.prefix when we introduce alternate files like ziggy-err.log.
 	 2. When we introduce a prefix, consider an alternative to /dev/null such as "ziggy"
@@ -21,6 +22,10 @@
     <!-- The name of the file appender must match the value of TaskLog.CLI_APPENDER_NAME. -->
     <File name="cli" filename="${filename}">
       <PatternLayout pattern="${pattern}"/>
+    </File>
+    
+    <File name="algorithm" filename="${filename}">
+    	<PatternLayout pattern="%d %-5p [${algorithm}:stdout] %X{logStreamIdentifier} %m%n"/>
     </File>
 
     <!--
@@ -47,6 +52,10 @@
     <Logger name="gov.nasa.ziggy.util.ClasspathScanner" level="info"/>
     <Logger name="gov.nasa.ziggy" level="info"/>
     <Logger name="org.hibernate" level="warn"/>
+    <Logger name="gov.nasa.ziggy.services.logging.WriterLogOutputStream"
+    	level="info" additivity="false">
+    	<AppenderRef ref="algorithm"/>
+    </Logger>
 
     <!--
         To view the stack trace whenever DatabaseTransactionFactory.performTransaction is called, uncomment the following.

@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,8 +30,8 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.pipeline.definition.database.ModelCrud;
+import gov.nasa.ziggy.services.database.DatabaseOperations;
 
 @Category(IntegrationTestCategory.class)
 public class ModelImporterTest {
@@ -40,6 +41,8 @@ public class ModelImporterTest {
     private ModelType modelType3;
     private File datastoreRoot;
     private File modelImportDirectory;
+    private ModelOperations modelOperations = new ModelOperations();
+    private TestOperations testOperations = new TestOperations();
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -97,20 +100,18 @@ public class ModelImporterTest {
         modelImportDirectory.mkdirs();
 
         // Create the database objects
-        DatabaseTransactionFactory.performTransaction(() -> {
-            ModelCrud modelCrud = new ModelCrud();
-            modelCrud.persist(modelType1);
-            modelCrud.persist(modelType2);
-            modelCrud.persist(modelType3);
-            modelCrud.persist(modelMetadata1);
-            modelCrud.persist(modelMetadata2);
-            modelCrud.persist(modelMetadata3);
-            ModelRegistry modelRegistry = modelCrud.retrieveUnlockedRegistry();
-            modelRegistry.updateModelMetadata(modelMetadata1);
-            modelRegistry.updateModelMetadata(modelMetadata2);
-            modelRegistry.updateModelMetadata(modelMetadata3);
-            return null;
-        });
+
+        testOperations.persistModelType(modelType1);
+        testOperations.persistModelType(modelType2);
+        testOperations.persistModelType(modelType3);
+        modelOperations.persistModelMetadata(modelMetadata1);
+        modelOperations.persistModelMetadata(modelMetadata2);
+        modelOperations.persistModelMetadata(modelMetadata3);
+        ModelRegistry modelRegistry = modelOperations.unlockedRegistry();
+        modelRegistry.updateModelMetadata(modelMetadata1);
+        modelRegistry.updateModelMetadata(modelMetadata2);
+        modelRegistry.updateModelMetadata(modelMetadata3);
+        modelOperations.mergeRegistryAndReturnUnlockedId(modelRegistry);
 
         // create the new files to be imported
         new File(modelImportDirectory, "tess2020321141517-12345_024-geometry.xml").createNewFile();
@@ -125,17 +126,10 @@ public class ModelImporterTest {
         // Import the models
         ModelImporter modelImporter = new ModelImporter(
             modelImportDirectory.toPath().toAbsolutePath().getParent(), "unit test");
-        DatabaseTransactionFactory.performTransaction(() -> {
-            modelImporter.importModels(filesInDirectory());
-            return null;
-        });
+        testOperations.importModels(modelImporter, filesInDirectory());
 
         // Retrieve the current model registry
-        ModelRegistry modelRegistry = (ModelRegistry) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                ModelCrud modelCrud = new ModelCrud();
-                return modelCrud.retrieveCurrentRegistry();
-            });
+        ModelRegistry modelRegistry = testOperations.currentRegistry();
 
         // Check the registry's properties
         assertFalse(modelRegistry.isLocked());
@@ -210,26 +204,15 @@ public class ModelImporterTest {
     public void testImportWithCurrentRegistryLocked() {
 
         // lock the current registry
-        DatabaseTransactionFactory.performTransaction(() -> {
-            ModelCrud modelCrud = new ModelCrud();
-            modelCrud.lockCurrentRegistry();
-            return null;
-        });
+        modelOperations.lockCurrentRegistry();
 
         // Import the models
         ModelImporter modelImporter = new ModelImporter(
             modelImportDirectory.toPath().toAbsolutePath().getParent(), "unit test");
-        DatabaseTransactionFactory.performTransaction(() -> {
-            modelImporter.importModels(filesInDirectory());
-            return null;
-        });
+        testOperations.importModels(modelImporter, filesInDirectory());
 
         // Retrieve the current model registry
-        ModelRegistry modelRegistry = (ModelRegistry) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                ModelCrud modelCrud = new ModelCrud();
-                return modelCrud.retrieveCurrentRegistry();
-            });
+        ModelRegistry modelRegistry = testOperations.currentRegistry();
 
         // Check the registry's properties
         assertFalse(modelRegistry.isLocked());
@@ -316,17 +299,11 @@ public class ModelImporterTest {
             .move(srcFileToFlunk.toAbsolutePath(), destFileToFlunk.toAbsolutePath());
 
         // Perform the import
-        DatabaseTransactionFactory.performTransaction(() -> {
-            modelImporter.importModels(filesInDirectory());
-            return null;
-        });
+        testOperations.importModels(modelImporter, filesInDirectory());
 
         // Retrieve the current model registry
-        ModelRegistry modelRegistry = (ModelRegistry) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                ModelCrud modelCrud = new ModelCrud();
-                return modelCrud.retrieveCurrentRegistry();
-            });
+
+        ModelRegistry modelRegistry = testOperations.currentRegistry();
 
         // Check the registry's properties
         assertFalse(modelRegistry.isLocked());
@@ -398,14 +375,31 @@ public class ModelImporterTest {
         assertEquals(modelFilename, ravenswoodModels[0].getName());
     }
 
-    private List<Path> filesInDirectory() throws IOException {
+    private List<Path> filesInDirectory() {
         List<Path> filesInDirectory = new ArrayList<>();
         try (DirectoryStream<Path> stream = java.nio.file.Files
             .newDirectoryStream(modelImportDirectory.toPath())) {
             for (Path path : stream) {
                 filesInDirectory.add(path.toAbsolutePath());
             }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
         return filesInDirectory;
+    }
+
+    private static class TestOperations extends DatabaseOperations {
+
+        public void persistModelType(ModelType modelType) {
+            performTransaction(() -> new ModelCrud().persist(modelType));
+        }
+
+        public ModelRegistry currentRegistry() {
+            return performTransaction(() -> new ModelCrud().retrieveCurrentRegistry());
+        }
+
+        public void importModels(ModelImporter modelImporter, List<Path> modelFiles) {
+            performTransaction(() -> modelImporter.importModels(modelFiles));
+        }
     }
 }

@@ -72,7 +72,6 @@ public class TaskMonitorTest {
     @Test
     public void testUpdateState() throws IOException {
         stateFile = taskMonitor.getStateFile();
-        taskMonitor.updateState();
         assertEquals(StateFile.State.INITIALIZED, stateFile.getState());
         assertEquals(6, stateFile.getNumTotal());
         assertEquals(0, stateFile.getNumComplete());
@@ -81,7 +80,7 @@ public class TaskMonitorTest {
         // Setting a subtask to PROCESSING should not affect the counts.
         algorithmStateFiles.get(0).updateCurrentState(AlgorithmStateFiles.SubtaskState.PROCESSING);
         taskMonitor.updateState();
-        assertEquals(StateFile.State.INITIALIZED, stateFile.getState());
+        assertEquals(StateFile.State.PROCESSING, stateFile.getState());
         assertEquals(6, stateFile.getNumTotal());
         assertEquals(0, stateFile.getNumComplete());
         assertEquals(0, stateFile.getNumFailed());
@@ -89,7 +88,7 @@ public class TaskMonitorTest {
         // Setting a subtask to COMPLETED will affect the results.
         algorithmStateFiles.get(1).updateCurrentState(AlgorithmStateFiles.SubtaskState.COMPLETE);
         taskMonitor.updateState();
-        assertEquals(StateFile.State.INITIALIZED, stateFile.getState());
+        assertEquals(StateFile.State.PROCESSING, stateFile.getState());
         assertEquals(6, stateFile.getNumTotal());
         assertEquals(1, stateFile.getNumComplete());
         assertEquals(0, stateFile.getNumFailed());
@@ -97,19 +96,44 @@ public class TaskMonitorTest {
         // Setting a subtask to FAILED will affect the results.
         algorithmStateFiles.get(2).updateCurrentState(AlgorithmStateFiles.SubtaskState.FAILED);
         taskMonitor.updateState();
-        assertEquals(StateFile.State.INITIALIZED, stateFile.getState());
-        assertEquals(6, stateFile.getNumTotal());
-        assertEquals(1, stateFile.getNumComplete());
-        assertEquals(1, stateFile.getNumFailed());
-
-        // Changing the state of the on-disk state file should get reflected in the state file
-        // stored in the monitor.
-        new StateFile(stateFile).setStateAndPersist(StateFile.State.PROCESSING);
-        taskMonitor.updateState();
         assertEquals(StateFile.State.PROCESSING, stateFile.getState());
         assertEquals(6, stateFile.getNumTotal());
         assertEquals(1, stateFile.getNumComplete());
         assertEquals(1, stateFile.getNumFailed());
+    }
+
+    @Test
+    public void testUpdateStateFileState() {
+        stateFile = taskMonitor.getStateFile();
+        assertEquals(StateFile.State.INITIALIZED, stateFile.getState());
+        assertEquals(6, stateFile.getNumTotal());
+        assertEquals(0, stateFile.getNumComplete());
+        assertEquals(0, stateFile.getNumFailed());
+
+        stateFile.setState(StateFile.State.QUEUED);
+        stateFile.persist();
+        stateFile = taskMonitor.getStateFile();
+        assertEquals(StateFile.State.QUEUED, stateFile.getState());
+    }
+
+    @Test
+    public void updateFromQueuedToProcessingState() {
+        stateFile = taskMonitor.getStateFile();
+        assertEquals(StateFile.State.INITIALIZED, stateFile.getState());
+
+        // Set to QUEUED state.
+        stateFile.setState(StateFile.State.QUEUED);
+        stateFile.persist();
+        stateFile = taskMonitor.getStateFile();
+        assertEquals(StateFile.State.QUEUED, stateFile.getState());
+
+        // Update a subtask to completed.
+        algorithmStateFiles.get(1).updateCurrentState(AlgorithmStateFiles.SubtaskState.COMPLETE);
+        taskMonitor.updateState();
+        assertEquals(StateFile.State.PROCESSING, stateFile.getState());
+        assertEquals(6, stateFile.getNumTotal());
+        assertEquals(1, stateFile.getNumComplete());
+        assertEquals(0, stateFile.getNumFailed());
     }
 
     /**

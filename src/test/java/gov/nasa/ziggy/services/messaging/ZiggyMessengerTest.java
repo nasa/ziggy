@@ -4,12 +4,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
@@ -48,7 +51,7 @@ public class ZiggyMessengerTest {
             // Even more nothing is done.
         });
 
-        Map<Class<? extends PipelineMessage>, List<MessageAction<?>>> subscriptions = ZiggyMessenger
+        Map<Class<? extends PipelineMessage>, Collection<MessageAction<?>>> subscriptions = ZiggyMessenger
             .getSubscriptions();
         assertEquals(2, subscriptions.size());
         assertEquals(2, subscriptions.get(Message1.class).size());
@@ -60,15 +63,14 @@ public class ZiggyMessengerTest {
      */
     @Test
     public void testPublishNoCountdownLatch() {
-        ZiggyMessenger.initializeInstance();
         ZiggyMessenger.setStoreMessages(true);
 
         ZiggyMessenger.publish(new Message1("signed"));
         TestEventDetector.detectTestEvent(1000L,
-            () -> (ZiggyMessenger.messagesFromOutgoingQueue.size() > 0));
+            () -> (ZiggyMessenger.getMessagesFromOutgoingQueue().size() > 0));
         assertTrue(ZiggyMessenger.getOutgoingMessageQueue().isEmpty());
-        assertEquals(1, ZiggyMessenger.messagesFromOutgoingQueue.size());
-        assertTrue(ZiggyMessenger.messagesFromOutgoingQueue.get(0) instanceof Message1);
+        assertEquals(1, ZiggyMessenger.getMessagesFromOutgoingQueue().size());
+        assertTrue(ZiggyMessenger.getMessagesFromOutgoingQueue().get(0) instanceof Message1);
     }
 
     /**
@@ -78,22 +80,23 @@ public class ZiggyMessengerTest {
      */
     @Test
     public void testPublishWithCountdownLatch() {
-        ZiggyMessenger.initializeInstance();
         ZiggyMessenger.setStoreMessages(true);
 
         CountDownLatch latch = new CountDownLatch(1);
         ZiggyMessenger.publish(new Message1("signed"), latch);
         assertTrue(TestEventDetector.detectTestEvent(1000L,
-            () -> (ZiggyMessenger.messagesFromOutgoingQueue.size() > 0)));
+            () -> (ZiggyMessenger.getMessagesFromOutgoingQueue().size() > 0)));
         assertTrue(TestEventDetector.detectTestEvent(1000L, () -> (latch.getCount() == 0)));
         assertTrue(ZiggyMessenger.getOutgoingMessageQueue().isEmpty());
-        assertEquals(1, ZiggyMessenger.messagesFromOutgoingQueue.size());
-        assertTrue(ZiggyMessenger.messagesFromOutgoingQueue.get(0) instanceof Message1);
+        assertEquals(1, ZiggyMessenger.getMessagesFromOutgoingQueue().size());
+        assertTrue(ZiggyMessenger.getMessagesFromOutgoingQueue().get(0) instanceof Message1);
     }
+
+    private static final Logger log = LoggerFactory.getLogger(ZiggyMessengerTest.class);
 
     @Test
     public void testTakeAction() {
-        ZiggyMessenger.initializeInstance();
+        log.info("Start");
         ZiggyMessenger.setStoreMessages(true);
 
         ZiggyMessenger.subscribe(Message1.class, message -> {
@@ -109,7 +112,7 @@ public class ZiggyMessengerTest {
         ZiggyMessenger.publish(new Message1("signed"));
         ZiggyMessenger.publish(new Message2("delivered"));
         TestEventDetector.detectTestEvent(1000L, () -> (stringsFromMessages.size() > 2));
-        assertEquals(2, ZiggyMessenger.messagesFromOutgoingQueue.size());
+        assertEquals(2, ZiggyMessenger.getMessagesFromOutgoingQueue().size());
         assertEquals(3, stringsFromMessages.size());
         assertTrue(stringsFromMessages.contains("signed"));
         assertTrue(stringsFromMessages.contains("sealed"));

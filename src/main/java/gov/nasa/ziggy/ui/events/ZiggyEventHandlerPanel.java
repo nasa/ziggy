@@ -34,7 +34,7 @@ import gov.nasa.ziggy.services.messages.EventHandlerToggleStateRequest;
 import gov.nasa.ziggy.services.messages.ZiggyEventHandlerInfoMessage;
 import gov.nasa.ziggy.services.messaging.MessageAction;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.Requestor;
@@ -109,7 +109,7 @@ public class ZiggyEventHandlerPanel extends JPanel {
             log.debug("evt={}", evt);
             update();
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -242,12 +242,12 @@ public class ZiggyEventHandlerPanel extends JPanel {
                 Set<ZiggyEventHandlerInfoForDisplay> displayContent = get();
                 log.debug("Received {} items", displayContent == null ? 0 : displayContent.size());
                 if (displayContent == null) {
-                    MessageUtil.showError(owner, "Event handler update timed out.");
+                    MessageUtils.showError(owner, "Event handler update timed out.");
                     return;
                 }
                 tableModel.setEventHandlers(displayContent);
             } catch (InterruptedException | ExecutionException e) {
-                MessageUtil.showError(owner, e);
+                MessageUtils.showError(owner, e);
             }
         }
     }

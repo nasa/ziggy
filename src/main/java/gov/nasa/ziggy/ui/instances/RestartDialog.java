@@ -27,8 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
-import gov.nasa.ziggy.pipeline.definition.ProcessingState;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
@@ -42,36 +41,36 @@ public class RestartDialog extends javax.swing.JDialog {
     private RestartTableModel restartTableModel;
     private boolean cancelled;
 
-    public RestartDialog(Window owner, List<PipelineTask> failedTasks,
-        Map<Long, ProcessingSummary> taskAttrs) {
+    public RestartDialog(Window owner,
+        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
 
         super(owner, DEFAULT_MODALITY_TYPE);
 
-        buildComponent(failedTasks, taskAttrs);
+        buildComponent(supportedRunModesByPipelineTask);
         setLocationRelativeTo(owner);
     }
 
-    private void buildComponent(List<PipelineTask> failedTasks,
-        Map<Long, ProcessingSummary> taskAttrs) {
+    private void buildComponent(Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
 
         setTitle("Restart failed tasks");
 
-        getContentPane().add(createDataPanel(failedTasks, taskAttrs), BorderLayout.CENTER);
+        getContentPane().add(createDataPanel(supportedRunModesByPipelineTask),
+            BorderLayout.CENTER);
         getContentPane().add(ZiggySwingUtils.createButtonPanel(createButton(RESTART, this::restart),
             createButton(CANCEL, this::cancel)), BorderLayout.SOUTH);
 
         pack();
     }
 
-    private JScrollPane createDataPanel(List<PipelineTask> failedTasks,
-        Map<Long, ProcessingSummary> taskAttrs) {
-        return new JScrollPane(createRestartTable(failedTasks, taskAttrs));
+    private JScrollPane createDataPanel(
+        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
+        return new JScrollPane(createRestartTable(supportedRunModesByPipelineTask));
     }
 
-    private JTable createRestartTable(List<PipelineTask> failedTasks,
-        Map<Long, ProcessingSummary> taskAttrs) {
+    private JTable createRestartTable(
+        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
 
-        restartTableModel = new RestartTableModel(failedTasks, taskAttrs);
+        restartTableModel = new RestartTableModel(supportedRunModesByPipelineTask);
 
         List<RestartAttributes> modules = restartTableModel.getModuleList();
         final List<TableCellEditor> editors = new ArrayList<>();
@@ -114,10 +113,10 @@ public class RestartDialog extends javax.swing.JDialog {
     // the restart message includes the restart mode, the right thing to do is probably to
     // change the logic such that a Map<PipelineTask, RunMode> is returned and then passed to
     // the PipelineExecutorProxy. That way we can be sure that we’re doing the right thing.
-    public static RunMode restartTasks(Window owner, List<PipelineTask> failedTasks,
-        Map<Long, ProcessingSummary> taskAttrs) {
+    public static RunMode restartTasks(Window owner,
+        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
 
-        RestartDialog dialog = new RestartDialog(owner, failedTasks, taskAttrs);
+        RestartDialog dialog = new RestartDialog(owner, supportedRunModesByPipelineTask);
         dialog.cancelled = false;
         dialog.setVisible(true);
         if (dialog.cancelled) {
@@ -128,17 +127,9 @@ public class RestartDialog extends javax.swing.JDialog {
         RestartAttributes restartAttrs = null;
         Map<String, RestartAttributes> moduleMap = dialog.restartTableModel.getModuleMap();
 
-        for (PipelineTask failedTask : failedTasks) {
-            String moduleName = failedTask.getModuleName();
-
-            ProcessingSummary attrs = taskAttrs.get(failedTask.getId());
-            String pState = ProcessingState.INITIALIZING.toString();
-
-            if (attrs != null) {
-                pState = attrs.getProcessingState().shortName();
-            }
-
-            String key = RestartAttributes.key(moduleName, pState);
+        for (PipelineTask failedTask : supportedRunModesByPipelineTask.keySet()) {
+            String key = RestartAttributes.key(failedTask.getModuleName(),
+                failedTask.getProcessingStep());
 
             restartAttrs = moduleMap.get(key);
 
@@ -154,29 +145,20 @@ public class RestartDialog extends javax.swing.JDialog {
         private final List<RestartAttributes> moduleList;
         private final Map<String, RestartAttributes> moduleMap;
 
-        public RestartTableModel(List<PipelineTask> failedTasks,
-            Map<Long, ProcessingSummary> taskAttrMap) {
+        public RestartTableModel(Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
             moduleMap = new HashMap<>();
 
-            for (PipelineTask task : failedTasks) {
+            for (PipelineTask task : supportedRunModesByPipelineTask.keySet()) {
                 String moduleName = task.getModuleName();
-                String pState = ProcessingState.INITIALIZING.toString();
-
-                ProcessingSummary taskAttrs = taskAttrMap.get(task.getId());
-                if (taskAttrs != null) {
-                    pState = taskAttrs.getProcessingState().shortName();
-                }
-
-                String key = RestartAttributes.key(moduleName, pState);
-
+                ProcessingStep processingStep = task.getProcessingStep();
+                String key = RestartAttributes.key(moduleName, processingStep);
                 RestartAttributes module = moduleMap.get(key);
 
                 if (module == null) {
-                    List<RunMode> supportedModes = task.getModuleImplementation()
-                        .supportedRestartModes();
+                    List<RunMode> supportedModes = supportedRunModesByPipelineTask.get(task);
                     RunMode selectedMode = supportedModes.get(0);
 
-                    module = new RestartAttributes(moduleName, pState, 1, supportedModes,
+                    module = new RestartAttributes(moduleName, processingStep, 1, supportedModes,
                         selectedMode);
 
                     moduleMap.put(key, module);
@@ -203,7 +185,7 @@ public class RestartDialog extends javax.swing.JDialog {
 
             return switch (columnIndex) {
                 case 0 -> restartGroup.getModuleName();
-                case 1 -> restartGroup.getProcessingState();
+                case 1 -> restartGroup.getProcessingStep();
                 case 2 -> restartGroup.getCount();
                 case 3 -> restartGroup.getSelectedRestartMode();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
@@ -219,7 +201,7 @@ public class RestartDialog extends javax.swing.JDialog {
         public String getColumnName(int column) {
             return switch (column) {
                 case 0 -> "Module";
-                case 1 -> "P-state";
+                case 1 -> "Status";
                 case 2 -> "Count";
                 case 3 -> "Restart mode";
                 default -> throw new IllegalArgumentException("Unexpected value: " + column);
@@ -260,22 +242,22 @@ public class RestartDialog extends javax.swing.JDialog {
      */
     private static class RestartAttributes {
         private final String moduleName;
-        private final String processingState;
+        private final ProcessingStep processingStep;
         private int count;
         private final List<RunMode> restartModes;
         private RunMode selectedRestartMode;
 
-        public RestartAttributes(String moduleName, String processingState, int count,
+        public RestartAttributes(String moduleName, ProcessingStep processingStep, int count,
             List<RunMode> restartModes, RunMode selectedRestartMode) {
             this.moduleName = moduleName;
-            this.processingState = processingState;
+            this.processingStep = processingStep;
             this.count = count;
             this.restartModes = restartModes;
             this.selectedRestartMode = selectedRestartMode;
         }
 
-        public static String key(String moduleName, String pState) {
-            return moduleName + ":" + pState;
+        public static String key(String moduleName, ProcessingStep processingStep) {
+            return moduleName + ":" + processingStep;
         }
 
         public void incrementCount() {
@@ -286,8 +268,8 @@ public class RestartDialog extends javax.swing.JDialog {
             return moduleName;
         }
 
-        public String getProcessingState() {
-            return processingState;
+        public ProcessingStep getProcessingStep() {
+            return processingStep;
         }
 
         public int getCount() {

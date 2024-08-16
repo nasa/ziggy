@@ -1,10 +1,11 @@
 package gov.nasa.ziggy.services.messaging;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -12,7 +13,6 @@ import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -47,16 +47,13 @@ public class ZiggyMessenger {
     /**
      * The singleton instance for a process.
      */
-    private static ZiggyMessenger instance;
+    private static ZiggyMessenger instance = new ZiggyMessenger();
 
     /**
      * Blocking queue for outgoing messages. Messages wait here until the singleton instance is free
      * to deal with them, at which time they get sent from the RMI client to the RMI server.
      */
-    private static LinkedBlockingQueue<Message> outgoingMessageQueue = new LinkedBlockingQueue<>();
-
-    /** For testing only. */
-    static List<PipelineMessage> messagesFromOutgoingQueue = new ArrayList<>();
+    private LinkedBlockingQueue<Message> outgoingMessageQueue = new LinkedBlockingQueue<>();
 
     /**
      * Dedicated thread for pulling messages off the blocking queue and giving them to the
@@ -77,26 +74,35 @@ public class ZiggyMessenger {
      * Stores the mapping between a message class and the actions that must be taken when such a
      * message arrives.
      */
-    private Map<Class<? extends PipelineMessage>, List<MessageAction<?>>> subscriptions = new ConcurrentHashMap<>();
+    private Map<Class<? extends PipelineMessage>, Collection<MessageAction<?>>> subscriptions = new ConcurrentHashMap<>();
 
     /**
      * In some cases it may be necessary to get confirmation that a message has actually gone out
      * before some other action is taken. For that reason we have a {@link Map} between messages and
      * instances of {@link CountDownLatch}.
      */
-    private Map<PipelineMessage, CountDownLatch> messageCountdownLatches = new HashMap<>();
+    private Map<PipelineMessage, CountDownLatch> messageCountdownLatches = new ConcurrentHashMap<>();
 
     /**
-     * Determines whether messages are stored when they are sent out from the message queue. For
-     * testing only.
+     * Determines whether messages are stored when they are sent out from the message queue. Use
+     * {@link #getMessagesFromOutgoingQueue()} to retrieve them. For testing only.
      */
     private boolean storeMessages;
 
+    /** For testing only. */
+    private List<PipelineMessage> messagesFromOutgoingQueue = new ArrayList<>();
+
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private ZiggyMessenger() {
+        startOutgoingMessageThread();
+    }
+
+    private void startOutgoingMessageThread() {
         outgoingMessageThread = new Thread(() -> {
+            Thread.currentThread().setName("Message Publisher");
             while (!Thread.currentThread().isInterrupted()) {
                 try {
+                    log.debug("Waiting for message to send");
                     Message message = outgoingMessageQueue.take();
                     if (storeMessages) {
                         messagesFromOutgoingQueue.add(message.getPipelineMessage());
@@ -117,6 +123,7 @@ public class ZiggyMessenger {
         if (ZiggyRmiClient.isInitialized() && message.isBroadcastOverRmi()) {
             log.debug("Sending message {}", message);
             ZiggyRmiClient.send(message.getPipelineMessage(), latch);
+            log.debug("Sending message {}...done", message);
         } else {
             takeAction(message.getPipelineMessage());
         }
@@ -127,26 +134,16 @@ public class ZiggyMessenger {
 
     @SuppressWarnings("unchecked")
     private <T extends PipelineMessage> void takeAction(T message) {
-        List<MessageAction<?>> actions = subscriptions.get(message.getClass());
+        Collection<MessageAction<?>> actions = subscriptions.get(message.getClass());
         if (CollectionUtils.isEmpty(actions)) {
+            log.debug("No subscribers for {}", message);
             return;
         }
         for (MessageAction<?> action : actions) {
-            log.debug("Applying action for message {}", message);
+            log.debug("Dispatching {} to {}", message, action.getClass().getSimpleName());
             ((MessageAction<T>) action).action(message);
+            log.debug("Dispatching {} to {}...done", message, action.getClass().getSimpleName());
         }
-    }
-
-    /** For internal use and testing only. */
-    static void initializeInstance() {
-        if (!isInitialized()) {
-            log.info("Initializing ZiggyMessenger singleton");
-            instance = new ZiggyMessenger();
-        }
-    }
-
-    private static boolean isInitialized() {
-        return instance != null;
     }
 
     /**
@@ -154,16 +151,13 @@ public class ZiggyMessenger {
      */
     public static <T extends PipelineMessage> void subscribe(Class<T> messageClass,
         MessageAction<T> action) {
-        if (!isInitialized()) {
-            initializeInstance();
-        }
         instance.addSubscription(messageClass, action);
     }
 
     private <T extends PipelineMessage> void addSubscription(Class<T> messageClass,
         MessageAction<T> action) {
         if (subscriptions.get(messageClass) == null) {
-            subscriptions.put(messageClass, new ArrayList<>());
+            subscriptions.put(messageClass, new ConcurrentLinkedQueue<>());
         }
         subscriptions.get(messageClass).add(action);
     }
@@ -173,9 +167,6 @@ public class ZiggyMessenger {
      */
     public static <T extends PipelineMessage> void unsubscribe(Class<T> messageClass,
         MessageAction<T> action) {
-        if (!isInitialized()) {
-            return;
-        }
         instance.removeSubscription(messageClass, action);
     }
 
@@ -210,53 +201,55 @@ public class ZiggyMessenger {
     public static void publish(PipelineMessage message, boolean broadcastOverRmi,
         CountDownLatch latch) {
 
-        if (!isInitialized()) {
-            initializeInstance();
-        }
         try {
             if (latch != null) {
                 instance.messageCountdownLatches.put(message, latch);
             }
-            outgoingMessageQueue.put(new Message(message, broadcastOverRmi));
+            instance.outgoingMessageQueue.put(new Message(message, broadcastOverRmi));
+            log.debug("Added {} to outgoing queue ({} messages)", message,
+                instance.outgoingMessageQueue.size());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
     /**
-     * Acts on a message via the {@link ZiggyMessenger} singleton. If the singleton has not been
-     * initialized, a {@link PipelineException} will be thrown. Package scoped because only
+     * Acts on a message via the {@link ZiggyMessenger} singleton. Package scoped because only
      * {@link ZiggyRmiClient} should use this method.
      */
     static void actOnMessage(PipelineMessage message) {
-        if (!isInitialized()) {
-            throw new PipelineException("Unable to act on message of "
-                + message.getClass().toString() + " due to absence of ZiggyMessenger instance");
-        }
-        log.debug("Taking action on message of {}", message);
         instance.takeAction(message);
     }
 
     /** For testing only. */
     static void reset() {
         instance.outgoingMessageThread.interrupt();
-        instance = null;
-        messagesFromOutgoingQueue.clear();
+        getOutgoingMessageQueue().clear();
+        getSubscriptions().clear();
+        setStoreMessages(false);
+        instance.messagesFromOutgoingQueue.clear();
+        instance.messageCountdownLatches.clear();
+        instance.startOutgoingMessageThread();
     }
 
     /** For testing only. */
-    static Map<Class<? extends PipelineMessage>, List<MessageAction<?>>> getSubscriptions() {
+    static Map<Class<? extends PipelineMessage>, Collection<MessageAction<?>>> getSubscriptions() {
         return instance.subscriptions;
     }
 
     /** For testing only. */
     static LinkedBlockingQueue<Message> getOutgoingMessageQueue() {
-        return ZiggyMessenger.outgoingMessageQueue;
+        return instance.outgoingMessageQueue;
     }
 
     /** For testing only. */
     static void setStoreMessages(boolean storeMessages) {
         instance.storeMessages = storeMessages;
+    }
+
+    /** For testing only. */
+    static List<PipelineMessage> getMessagesFromOutgoingQueue() {
+        return instance.messagesFromOutgoingQueue;
     }
 
     private static class Message {

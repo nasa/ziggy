@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
 
 /**
  * CRUD class for {@link FailedImport} instances.

@@ -2,11 +2,8 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -14,9 +11,6 @@ import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 
 import gov.nasa.ziggy.data.datastore.DataFileType;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
@@ -109,9 +103,9 @@ public class PipelineDefinitionNode {
     @Transient
     private String childNodeNames;
 
-    @ElementCollection
-    @JoinTable(name = "ziggy_PipelineDefinitionNode_moduleParameterSetNames")
-    private Map<ClassWrapper<ParametersInterface>, String> moduleParameterSetNames = new HashMap<>();
+    @ElementCollection(fetch = FetchType.EAGER)
+    @JoinTable(name = "ziggy_PipelineDefinitionNode_parameterSetNames")
+    private Set<String> parameterSetNames = new HashSet<>();
 
     @ManyToMany
     @JoinTable(name = "ziggy_PipelineDefinitionNode_inputDataFileTypes")
@@ -129,11 +123,10 @@ public class PipelineDefinitionNode {
     // model types to be entered in the XML file in any order. The downside of this flexibility
     // is that all of the elements wind up in the xmlReferences collection jumbled up together,
     // which complicates the bookkeeping of the various references.
-    @XmlElements(
-        value = { @XmlElement(name = "moduleParameter", type = ParameterSetReference.class),
-            @XmlElement(name = "inputDataFileType", type = InputTypeReference.class),
-            @XmlElement(name = "outputDataFileType", type = OutputTypeReference.class),
-            @XmlElement(name = "modelType", type = ModelTypeReference.class) })
+    @XmlElements(value = { @XmlElement(name = "parameterSet", type = ParameterSetReference.class),
+        @XmlElement(name = "inputDataFileType", type = InputTypeReference.class),
+        @XmlElement(name = "outputDataFileType", type = OutputTypeReference.class),
+        @XmlElement(name = "modelType", type = ModelTypeReference.class) })
     @Transient
     private Set<XmlReference> xmlReferences = new HashSet<>();
 
@@ -143,13 +136,6 @@ public class PipelineDefinitionNode {
     @XmlAttribute(name = "singleSubtask", required = false)
     private Boolean singleSubtask = false;
 
-    /*
-     * Not stored in the database, but can be set for all nodes in a pipeline by calling
-     * PipelineDefinition.buildPaths()
-     */
-    private transient PipelineDefinitionNode parentNode = null;
-    private transient PipelineDefinitionNodePath path = null;
-
     public PipelineDefinitionNode() {
     }
 
@@ -157,31 +143,6 @@ public class PipelineDefinitionNode {
         String pipelineDefinitionName) {
         moduleName = pipelineModuleDefinitionName;
         pipelineName = pipelineDefinitionName;
-    }
-
-    /**
-     * Duplicates this node and all of its child nodes.
-     */
-    public PipelineDefinitionNode(PipelineDefinitionNode other) {
-        maxWorkerCount = other.maxWorkerCount;
-        heapSizeMb = other.heapSizeMb;
-
-        moduleName = other.moduleName;
-
-        for (PipelineDefinitionNode otherNode : other.nextNodes) {
-            nextNodes.add(new PipelineDefinitionNode(otherNode));
-        }
-
-        for (Entry<ClassWrapper<ParametersInterface>, String> moduleParameterSetName : other.moduleParameterSetNames
-            .entrySet()) {
-            moduleParameterSetNames.put(moduleParameterSetName.getKey(),
-                moduleParameterSetName.getValue());
-        }
-
-        inputDataFileTypes = new HashSet<>(other.inputDataFileTypes);
-        outputDataFileTypes.addAll(other.outputDataFileTypes);
-        modelTypes.addAll(other.modelTypes);
-        pipelineName = other.pipelineName;
     }
 
     /**
@@ -209,10 +170,8 @@ public class PipelineDefinitionNode {
         xmlReferences.addAll(modelTypes.stream()
             .map(s -> new ModelTypeReference(s.getType()))
             .collect(Collectors.toSet()));
-        xmlReferences.addAll(moduleParameterSetNames.values()
-            .stream()
-            .map(ParameterSetReference::new)
-            .collect(Collectors.toSet()));
+        xmlReferences.addAll(
+            parameterSetNames.stream().map(ParameterSetReference::new).collect(Collectors.toSet()));
 
         // Use the setters to fill in the optional XML values.
         setMaxWorkerCount(getMaxWorkerCount());
@@ -259,14 +218,6 @@ public class PipelineDefinitionNode {
         populateXmlFields();
     }
 
-    public PipelineDefinitionNode getParentNode() {
-        return parentNode;
-    }
-
-    public void setParentNode(PipelineDefinitionNode parentNode) {
-        this.parentNode = parentNode;
-    }
-
     public Integer getMaxWorkerCount() {
         return maxWorkerCount;
     }
@@ -303,65 +254,19 @@ public class PipelineDefinitionNode {
         moduleName = moduleDefinition.getName();
     }
 
-    /**
-     * Enforce the use of Java object identity so that we can use transient instances in a Set. This
-     * of course means that non-transient instances with the same database id will not be equal(),
-     * but this approach is safer because there's no chance that the equals/hashCode value will
-     * change while it's contained in a Set, which would break the contract of Set.
-     * <p>
-     */
-    @Override
-    public boolean equals(Object obj) {
-        return super.equals(obj);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
-
-    public PipelineDefinitionNodePath getPath() {
-        return path;
-    }
-
-    public void setPath(PipelineDefinitionNodePath path) {
-        this.path = path;
-    }
-
-    public Map<ClassWrapper<ParametersInterface>, String> getModuleParameterSetNames() {
-        return moduleParameterSetNames;
-    }
-
-    public String putModuleParameterSetName(Class<? extends Parameters> clazz,
-        String paramSetName) {
-        ClassWrapper<ParametersInterface> classWrapper = new ClassWrapper<>(clazz);
-
-        if (moduleParameterSetNames.containsKey(classWrapper)) {
-            throw new PipelineException(
-                "This TriggerDefinition already contains a pipeline parameter set name for class: "
-                    + classWrapper);
-        }
-        populateXmlFields();
-        return moduleParameterSetNames.put(classWrapper, paramSetName);
-    }
-
-    public void setModuleParameterSetNames(
-        Map<ClassWrapper<ParametersInterface>, String> moduleParameterSetNames) {
-        this.moduleParameterSetNames = moduleParameterSetNames;
-        CollectionFilters.removeTypeFromCollection(xmlReferences, ParameterSetReference.class);
-        populateXmlFields();
-    }
-
     public Set<String> getParameterSetNames() {
+        return parameterSetNames;
+    }
+
+    public void setParameterSetNames(Set<String> parameterSetNames) {
+        this.parameterSetNames = parameterSetNames;
+    }
+
+    public Set<String> getXmlParameterSetNames() {
         return CollectionFilters.filterToSet(xmlReferences, ParameterSetReference.class)
             .stream()
             .map(ParameterSetReference::getName)
             .collect(Collectors.toSet());
-    }
-
-    public void addInputDataFileType(DataFileType dataFileType) {
-        inputDataFileTypes.add(dataFileType);
-        populateXmlFields();
     }
 
     public void addAllInputDataFileTypes(Collection<DataFileType> dataFileTypes) {
@@ -382,7 +287,7 @@ public class PipelineDefinitionNode {
         populateXmlFields();
     }
 
-    public void addAllOutputDataFileTypes(Set<DataFileType> dataFileTypes) {
+    public void addAllOutputDataFileTypes(Collection<DataFileType> dataFileTypes) {
         outputDataFileTypes.addAll(dataFileTypes);
         populateXmlFields();
     }
@@ -411,18 +316,17 @@ public class PipelineDefinitionNode {
         return modelTypes;
     }
 
-    public void addModelType(ModelType modelType) {
-        modelTypes.add(modelType);
-        populateXmlFields();
-    }
-
-    public void addAllModelTypes(Set<ModelType> modelTypes) {
+    public void addAllModelTypes(Collection<ModelType> modelTypes) {
         this.modelTypes.addAll(modelTypes);
         populateXmlFields();
     }
 
     public Set<ModelTypeReference> getModelTypeReferences() {
         return CollectionFilters.filterToSet(xmlReferences, ModelTypeReference.class);
+    }
+
+    public Set<XmlReference> getXmlReferences() {
+        return xmlReferences;
     }
 
     public String getPipelineName() {
@@ -449,5 +353,28 @@ public class PipelineDefinitionNode {
 
     void addXmlReference(XmlReference xmlReference) {
         xmlReferences.add(xmlReference);
+    }
+
+    /**
+     * Enforce the use of Java object identity so that we can use transient instances in a Set. This
+     * of course means that non-transient instances with the same database id will not be equal(),
+     * but this approach is safer because there's no chance that the equals/hashCode value will
+     * change while it's contained in a Set, which would break the contract of Set.
+     * <p>
+     */
+    // TODO Make equals/hashCode more natural
+    // The current approach means that Set.of(new PipelineDefinitionNode("foo", "bar"), new
+    // PipelineDefinitionNode("foo", "bar")) will have two elements, which is surprising as one
+    // element is expected. When updating hashCode/equals to take into account all of the fields
+    // that make objects unique, it is essential to inspect all uses of this class and ensure that
+    // we don't mutate these objects while they are in a set or map.
+    @Override
+    public boolean equals(Object obj) {
+        return this == obj;
+    }
+
+    @Override
+    public int hashCode() {
+        return System.identityHashCode(this);
     }
 }

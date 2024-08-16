@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.uow;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +17,9 @@ import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.data.datastore.DatastoreRegexp;
 import gov.nasa.ziggy.data.datastore.DatastoreWalker;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -45,6 +47,8 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
 
     private DatastoreWalker datastoreWalker;
 
+    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
+
     @Override
     protected Path rootDirectory() {
         return DirectoryProperties.datastoreRootDir();
@@ -52,8 +56,8 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
 
     @Override
     public List<UnitOfWork> generateUnitsOfWork(PipelineInstanceNode pipelineInstanceNode) {
-        Set<DataFileType> inputDataFileTypes = pipelineInstanceNode.getPipelineDefinitionNode()
-            .getInputDataFileTypes();
+        Set<DataFileType> inputDataFileTypes = pipelineDefinitionNodeOperations()
+            .inputDataFileTypes(pipelineInstanceNode.getPipelineDefinitionNode());
         if (CollectionUtils.isEmpty(inputDataFileTypes)) {
             throw new IllegalArgumentException("Pipeline definition has no input data file types");
         }
@@ -78,13 +82,13 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
             UnitOfWork uow = new UnitOfWork();
 
             // Populate the UOW parameters for the datastore paths used by this UOW.
-            populateDirectoryTypedParameters(uow, unitOfWorkPathInformation);
+            populateDirectoryParameters(uow, unitOfWorkPathInformation);
 
             // Populate the regular expression parameters used by this UOW.
             Map<String, String> uowRegexpValuesByName = uowRegexpValuesByName(
                 unitOfWorkPathInformation);
             for (Map.Entry<String, String> regexpEntry : uowRegexpValuesByName.entrySet()) {
-                uow.addParameter(new TypedParameter(regexpEntry.getKey(), regexpEntry.getValue(),
+                uow.addParameter(new Parameter(regexpEntry.getKey(), regexpEntry.getValue(),
                     ZiggyDataType.ZIGGY_STRING));
             }
             uow.setBriefState(unitOfWorkPathInformation.getBriefState());
@@ -123,12 +127,15 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
             // if the location is "foo/bar$baz/blah", and all 3 elements are regexps, we
             // take only "foo" and "blah").
             if (CollectionUtils.isEmpty(pathElementIndicesForBriefState)) {
-                dataFileTypesInformation.add(new DataFileTypeInformation(
-                    inputType, briefStateFromAllRegexps(datastoreWalker()
-                        .regexpValues(inputType.getLocation(), uowPaths.get(0), false)),
+                dataFileTypesInformation.add(new DataFileTypeInformation(inputType,
+                    briefStateFromAllRegexps(datastoreWalker()
+                        .regexpValuesByRegexpName(inputType.getLocation(), uowPaths.get(0), false)),
                     uowPaths.get(0)));
             } else {
                 for (Path uowPath : uowPaths) {
+                    if (!Files.exists(uowPath) || !Files.isDirectory(uowPath)) {
+                        continue;
+                    }
                     DatastoreDirectoryBriefStateBuilder briefStateBuilder = new DatastoreDirectoryBriefStateBuilder();
                     for (int elementIndex : pathElementIndicesForBriefState) {
                         briefStateBuilder.addUowPart(uowPath.getName(elementIndex));
@@ -216,11 +223,11 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
     }
 
     /** Add to a {@link UnitOfWork} instance the datastore directory paths for that UOW. */
-    private void populateDirectoryTypedParameters(UnitOfWork uow,
+    private void populateDirectoryParameters(UnitOfWork uow,
         UowPathInformation uowPathInformation) {
         for (Map.Entry<DataFileType, Path> entry : uowPathInformation.getPathByDataFileType()
             .entrySet()) {
-            uow.addParameter(new TypedParameter(
+            uow.addParameter(new Parameter(
                 DIRECTORY_PARAMETER_NAME + DirectoryUnitOfWorkGenerator.DIRECTORY_NAME_SEPARATOR
                     + entry.getKey().getName(),
                 entry.getValue().toString(), ZiggyDataType.ZIGGY_STRING));
@@ -244,14 +251,14 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
                 + " is not DatastoreDirectoryUnitOfWorkGenerator or a subclass of same");
         }
         Map<String, String> regexpValues = new HashMap<>();
-        for (TypedParameter typedParameter : uow.getParameters()) {
-            if (typedParameter.getName()
+        for (Parameter parameter : uow.getParameters()) {
+            if (parameter.getName()
                 .startsWith(DirectoryUnitOfWorkGenerator.DIRECTORY_PARAMETER_NAME)
-                || typedParameter.getName().equals(UnitOfWork.BRIEF_STATE_PARAMETER_NAME)
-                || typedParameter.getName().equals(GENERATOR_CLASS_PARAMETER_NAME)) {
+                || parameter.getName().equals(UnitOfWork.BRIEF_STATE_PARAMETER_NAME)
+                || parameter.getName().equals(GENERATOR_CLASS_PARAMETER_NAME)) {
                 continue;
             }
-            regexpValues.put(typedParameter.getName(), typedParameter.getString());
+            regexpValues.put(parameter.getName(), parameter.getString());
         }
         return regexpValues;
     }
@@ -269,6 +276,10 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
             datastoreWalker = DatastoreWalker.newInstance();
         }
         return datastoreWalker;
+    }
+
+    public PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations() {
+        return pipelineDefinitionNodeOperations;
     }
 
     /** Uses a fluent pattern to assemble a UOW brief state from Strings. */

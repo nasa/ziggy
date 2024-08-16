@@ -20,7 +20,7 @@ import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * @author Todd Klaus
@@ -79,16 +79,16 @@ public class TextualReportDialog extends javax.swing.JDialog {
             try {
                 Files.createDirectories(savePath.getParent());
             } catch (Exception e) {
-                MessageUtil.showError(this, e);
+                MessageUtils.showError(this, e);
                 return;
             }
             File file = savePath.toFile();
             try (BufferedWriter writer = new BufferedWriter(
-                new OutputStreamWriter(new FileOutputStream(file), FileUtil.ZIGGY_CHARSET))) {
+                new OutputStreamWriter(new FileOutputStream(file), ZiggyFileUtils.ZIGGY_CHARSET))) {
                 writer.write(report);
                 setTitle(savePath.getFileName().toString());
             } catch (Exception e) {
-                MessageUtil.showError(this, e);
+                MessageUtils.showError(this, e);
             }
         }
     }
@@ -103,7 +103,7 @@ public class TextualReportDialog extends javax.swing.JDialog {
                 selectedPath = fc.getSelectedFile().toPath();
             }
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
         return selectedPath;
     }

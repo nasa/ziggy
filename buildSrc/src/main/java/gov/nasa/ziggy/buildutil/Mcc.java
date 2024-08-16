@@ -59,6 +59,7 @@ public class Mcc extends TessExecTask {
     }
 
     @InputFiles
+    @Optional
     public FileCollection getControllerFiles() {
         return controllerFiles;
     }
@@ -113,6 +114,14 @@ public class Mcc extends TessExecTask {
         singleThreaded = newValue;
     }
 
+    public Set<File> controllerFiles() {
+        return controllerFiles != null ? controllerFiles.getFiles() : new HashSet<>();
+    }
+
+    public Set<File> additionalFiles() {
+        return additionalFiles != null ? additionalFiles.getFiles() : new HashSet<>();
+    }
+
     @TaskAction
     public void action() {
         log.info(String.format("%s.action()\n", this.getClass().getSimpleName()));
@@ -162,14 +171,15 @@ public class Mcc extends TessExecTask {
             }
         }
 
-        if (controllerFiles != null) {
-            for (File f : controllerFiles) {
-                command.add(f.toString());
-            }
+        if (controllerFiles().isEmpty()) {
+            throw new GradleException("No controller files identified");
+        }
+        for (File f : controllerFiles()) {
+            command.add(f.toString());
         }
 
-        if (additionalFiles != null) {
-            for (File f : additionalFiles) {
+        if (!additionalFiles().isEmpty()) {
+            for (File f : additionalFiles()) {
                 command.add("-a");
                 command.add(f.toString());
             }

@@ -14,7 +14,9 @@ import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,20 @@ public class ZiggyStringUtils {
      * constant name to camel-case, part by part.
      */
     private static final Pattern CONSTANT_PART = Pattern.compile("_?([A-Za-z0-9])([A-Za-z0-9]*)");
+
+    /**
+     * A pattern that matches positive and negative numbers with optional leading or trailing space.
+     * There is one capturing group for the number.
+     */
+    public static final Pattern NUMERIC = Pattern.compile("^\\s*(-?[0-9]+)\\s*$");
+
+    /**
+     * A pattern that matches numeric ranges defined by two numbers separated by a dash and optional
+     * spaces. For example, 1-3, or even -1 - -2 will match. There are two capturing groups for each
+     * of the two numbers that define the range.
+     */
+    public static final Pattern NUMERIC_RANGE = Pattern
+        .compile("^\\s*(-?[0-9]+)\\s*-\\s*(-?[0-9]+)\\s*$");
 
     /**
      * Convert a string to array of String
@@ -217,6 +233,40 @@ public class ZiggyStringUtils {
         return elapsedTime(startTime.getTime(), endTime.getTime());
     }
 
+    /**
+     * Returns a list of Longs for the given string, which contains a comma-separated list of
+     * numbers and ranges. For example, for the input "1, 3-5, 7", the list [ 1L, 3L, 4L, 5L, 7L ]
+     * is returned. Ranges can only contain increasing numbers. For example 3-1 won't add any values
+     * to the list. However, 2-2 will add 2 to the list.
+     *
+     * @param s the input string
+     * @return a non-null list of numbers, which is empty if the string is null or empty
+     * @throws NumberFormatException if an element between the commas isn't a long or a range
+     */
+
+    public static List<Long> extractNumericRange(String s) {
+        if (StringUtils.isBlank(s)) {
+            return new ArrayList<>();
+        }
+
+        List<Long> numbers = new ArrayList<>();
+        for (String element : s.split(",")) {
+            Matcher matcher = NUMERIC_RANGE.matcher(element);
+            if (matcher.matches()) {
+                numbers.addAll(LongStream
+                    .rangeClosed(Long.parseLong(matcher.group(1).trim()),
+                        Long.parseLong(matcher.group(2).trim()))
+                    .boxed()
+                    .collect(Collectors.toList()));
+            } else if (NUMERIC.matcher(element).matches()) {
+                numbers.add(Long.valueOf(element.trim()));
+            } else {
+                throw new NumberFormatException("Invalid element " + element);
+            }
+        }
+        return numbers;
+    }
+
     public static String pad(String s, int desiredLength) {
         StringBuilder sb = new StringBuilder(s);
         int length = s.length();
@@ -337,11 +387,15 @@ public class ZiggyStringUtils {
         return stringsWithTargets;
     }
 
+    public static List<String> splitStringAtCommas(String parentString) {
+        return Arrays.asList(parentString.trim().split("\\s*,\\s*"));
+    }
+
     /**
      * Takes a {@link String} that contains line terminations and breaks it at those terminations,
      * returning the resulting {link String}s as a {@link List}.
      */
-    public static List<String> breakStringAtLineTerminations(String string) {
+    public static List<String> splitStringAtLineTerminations(String string) {
         String[] splitString = string.split(System.lineSeparator());
         return Arrays.asList(splitString);
     }

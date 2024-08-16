@@ -2,7 +2,7 @@
 
 [[Previous]](edit-pipeline.md)
 [[Up]](dusty-corners.md)
-[[Next]](contact-us.md)
+[[Next]](advanced-uow.md)
 
 ## Creating Ziggy Nicknames
 
@@ -32,4 +32,4 @@ Once you've added some nicknames, you can create a symbolic link to the ziggy pr
 
 [[Previous]](edit-pipeline.md)
 [[Up]](dusty-corners.md)
-[[Next]](contact-us.md)
+[[Next]](advanced-uow.md)

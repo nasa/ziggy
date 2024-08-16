@@ -9,22 +9,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.commons.exec.CommandLine;
-import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.services.process.ExternalProcessUtils;
@@ -55,6 +52,8 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
     private final long pipelineDefinitionNodeId;
     private final CountDownLatch taskRequestThreadCountdownLatch;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
 
     public TaskRequestHandler(int workerId, int workerCount, int heapSizeMb,
         PriorityBlockingQueue<TaskRequest> taskRequestQueue, long pipelineDefinitionNodeId,
@@ -135,6 +134,7 @@ public class TaskRequestHandler implements Runnable, Requestor {
         // the instance node means that the tasks failed and the pipeline transitioned to
         // doing nothing, and we are now rerunning the tasks and want to be able to
         // transition to the next node.
+        log.info("start: taskRequest={}", taskRequest);
         markInstanceNodeNotTransitioned(taskRequest.getInstanceNodeId());
 
         ExternalProcess externalProcess = ExternalProcess
@@ -147,49 +147,38 @@ public class TaskRequestHandler implements Runnable, Requestor {
         // thread has been interrupted and we exit the while loop.
         int status = externalProcess.execute();
 
-        DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-            PipelineOperations pipelineOperations = new PipelineOperations();
-            PipelineTask task = pipelineTaskCrud.retrieve(taskRequest.getTaskId());
+        // If the external process returned a nonzero status, we need to ensure that
+        // the task is correctly marked as errored and that the instance is properly
+        // updated.
+        if (status != 0) {
+            PipelineTask pipelineTask = pipelineTaskOperations()
+                .pipelineTask(taskRequest.getTaskId());
+            log.error("Marking task {} failed because PipelineWorker return value is {}",
+                taskRequest.getTaskId(), status);
 
-            // If the external process returned a nonzero status, we need to ensure that
-            // the task is correctly marked as errored and that the instance is properly
-            // updated.
-            if (status != 0) {
-
-                // We only need to send alerts and alter task states if the task bombed
-
-                log.error("Marking task " + taskRequest.getTaskId()
-                    + " failed because PipelineWorker return value == " + status);
-
-                AlertService alertService = AlertService.getInstance();
-                alertService.generateAndBroadcastAlert("PI", taskRequest.getTaskId(),
-                    AlertService.Severity.ERROR,
-                    "Task marked as errored due to WorkerProcess return value " + status);
-
-                if (task.getState() != PipelineTask.State.ERROR) {
-                    pipelineOperations.setTaskState(task, State.ERROR);
-                    task = pipelineTaskCrud.merge(task);
-                }
+            AlertService alertService = AlertService.getInstance();
+            alertService.generateAndBroadcastAlert("PI", taskRequest.getTaskId(),
+                AlertService.Severity.ERROR,
+                "Task marked as errored due to WorkerProcess return value " + status);
+            if (!pipelineTask.isError()) {
+                pipelineTaskOperations().taskErrored(pipelineTask);
             }
-            return null;
-        });
+        }
 
         // Finalize the task's memdrone activities.
-        DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTask task = new PipelineTaskCrud().retrieve(taskRequest.getTaskId());
-            log.info("task {}: isRetried(): {}", task.getId(), task.isRetry());
+        PipelineTask pipelineTask = pipelineTaskOperations().pipelineTask(taskRequest.getTaskId());
+        log.info("task {}: retried={}, errored={}", pipelineTask.getId(), pipelineTask.isRetry(),
+            pipelineTask.isError());
 
-            Memdrone memdrone = new Memdrone(task.getModuleName(),
-                task.getPipelineInstance().getId());
-            if (Memdrone.memdroneEnabled()) {
-                memdrone.createStatsCache();
-                memdrone.createPidMapCache();
-            }
-            return null;
-        });
+        Memdrone memdrone = new Memdrone(pipelineTask.getModuleName(),
+            pipelineTask.getPipelineInstanceId());
+        if (Memdrone.memdroneEnabled()) {
+            memdrone.createStatsCache();
+            memdrone.createPidMapCache();
+        }
 
         transitionToNextInstanceNode(taskRequest.getInstanceNodeId());
+        log.info("end: taskRequest={}", taskRequest);
     }
 
     /**
@@ -202,18 +191,11 @@ public class TaskRequestHandler implements Runnable, Requestor {
         // Retrieve the instance node, make sure some fields are populated, generate task counts,
         // perform some logging.
         PipelineExecutor pipelineExecutor = new PipelineExecutor();
-        PipelineInstanceNodeInformation nodeInformation = (PipelineInstanceNodeInformation) DatabaseTransactionFactory
-            .performTransaction(() -> {
-
-                PipelineInstanceNode instanceNode = new PipelineInstanceNodeCrud()
-                    .retrieve(instanceNodeId);
-                Hibernate.initialize(instanceNode.getPipelineInstance());
-                Hibernate.initialize(instanceNode.getPipelineDefinitionNode());
-                Hibernate.initialize(instanceNode.getPipelineDefinitionNode().getNextNodes());
-                TaskCounts taskCounts = new PipelineOperations().taskCounts(instanceNode);
-                pipelineExecutor.logUpdatedInstanceState(instanceNode.getPipelineInstance());
-                return new PipelineInstanceNodeInformation(instanceNode, taskCounts);
-            });
+        PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
+        PipelineInstanceNodeInformation nodeInformation = pipelineInstanceNodeOperations
+            .pipelineInstanceNodeInformation(instanceNodeId);
+        pipelineExecutor.logUpdatedInstanceState(
+            pipelineInstanceNodeOperations.pipelineInstance(instanceNodeId));
 
         // If some other task has already kicked off the transition, don't send it again.
         if (nodeInformation.getPipelineInstanceNode().isTransitionComplete()) {
@@ -224,20 +206,16 @@ public class TaskRequestHandler implements Runnable, Requestor {
         // tasks have failed.
         PipelineInstanceNode pipelineInstanceNode = nodeInformation.getPipelineInstanceNode();
         TaskCounts taskCounts = nodeInformation.getTaskCounts();
-        if (taskCounts.isInstanceNodeExecutionComplete()) {
-            log.info("Node {} execution complete",
-                pipelineInstanceNode.getPipelineDefinitionNode().getModuleName());
-            DatabaseTransactionFactory.performTransaction(() -> {
-                new PipelineInstanceNodeCrud().markTransitionComplete(instanceNodeId);
-                return null;
-            });
+        if (taskCounts.isPipelineTasksExecutionComplete()) {
+            log.info("Node {} execution complete", pipelineInstanceNode.getModuleName());
+            new PipelineInstanceNodeOperations().markInstanceNodeTransitionComplete(instanceNodeId);
 
-            log.info("Task counts: {}", taskCounts.log());
-            if (taskCounts.isInstanceNodeComplete()) {
-                pipelineExecutor.transitionToNextInstanceNode(pipelineInstanceNode, taskCounts);
+            log.info("Task counts: {}", taskCounts);
+            if (taskCounts.isPipelineTasksComplete()) {
+                pipelineExecutor.transitionToNextInstanceNode(pipelineInstanceNode);
             } else {
                 log.error("Halting pipeline execution due to errors in node {}",
-                    pipelineInstanceNode.getPipelineDefinitionNode().getModuleName());
+                    pipelineInstanceNode.getModuleName());
             }
 
             // Log the pipeline instance state.
@@ -247,10 +225,8 @@ public class TaskRequestHandler implements Runnable, Requestor {
     }
 
     private static synchronized void markInstanceNodeNotTransitioned(long pipelineInstanceNodeId) {
-        DatabaseTransactionFactory.performTransaction(() -> {
-            new PipelineInstanceNodeCrud().markTransitionIncomplete(pipelineInstanceNodeId);
-            return null;
-        });
+        new PipelineInstanceNodeOperations()
+            .markInstanceNodeTransitionIncomplete(pipelineInstanceNodeId);
     }
 
     /** For testing only. */
@@ -277,7 +253,8 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
         int processHeapSizeMb = Math.round((float) heapSizeMb / workerCount);
         commandLine.addArgument("-Xmx" + Integer.toString(processHeapSizeMb) + "M");
-
+        commandLine.addArgument(TaskLog.ziggyLogFileSystemProperty(
+            pipelineTaskOperations().pipelineTask(taskRequest.getTaskId())));
         // Now for the worker process fully qualified class name
         commandLine.addArgument("--class=" + PipelineWorker.class.getName());
 
@@ -293,6 +270,14 @@ public class TaskRequestHandler implements Runnable, Requestor {
     @Override
     public Object requestorIdentifier() {
         return uuid;
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
+    }
+
+    PipelineInstanceNodeOperations pipelineInstanceOperations() {
+        return pipelineInstanceNodeOperations;
     }
 
     /**

@@ -27,8 +27,8 @@ import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.ui.util.MessageUtil;
-import gov.nasa.ziggy.ui.util.proxy.PipelineModuleDefinitionCrudProxy;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
 /**
@@ -52,12 +52,12 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
     private JButton saveButton;
     private boolean savePressed = false;
 
-    private final PipelineModuleDefinitionCrudProxy pipelineModuleDefinitionCrud;
-
     private JLabel uowFullNameLabel;
 
     private final PipelineDefinition pipeline;
     private final PipelineDefinitionNode pipelineNode;
+
+    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
 
     public EditPipelineNodeDialog(Window owner, PipelineDefinition pipeline,
         PipelineDefinitionNode pipelineNode) throws Exception {
@@ -65,7 +65,6 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.pipeline = pipeline;
         this.pipelineNode = pipelineNode;
-        pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrudProxy();
 
         buildComponent();
         setLocationRelativeTo(owner);
@@ -80,7 +79,7 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
 
             setVisible(false);
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
 
         savePressed = true;
@@ -113,7 +112,8 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
             int currentIndex = 0;
             int initialIndex = 0;
             DefaultComboBoxModel<PipelineModuleDefinition> moduleComboBoxModel = new DefaultComboBoxModel<>();
-            List<PipelineModuleDefinition> modules = pipelineModuleDefinitionCrud.retrieveAll();
+            List<PipelineModuleDefinition> modules = pipelineModuleDefinitionOperations()
+                .allPipelineModuleDefinitions();
             for (PipelineModuleDefinition module : modules) {
                 moduleComboBoxModel.addElement(module);
                 if (currentModuleName != null && module.getName().equals(currentModuleName)) {
@@ -244,8 +244,8 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
     private JLabel getUowTypeLabel() {
         if (uowTypeLabel == null) {
             uowTypeLabel = new JLabel();
-            ClassWrapper<UnitOfWorkGenerator> uowWrapper = new PipelineModuleDefinitionCrudProxy()
-                .retrieveUnitOfWorkGenerator(pipelineNode.getModuleName());
+            ClassWrapper<UnitOfWorkGenerator> uowWrapper = pipelineModuleDefinitionOperations()
+                .unitOfWorkGenerator(pipelineNode.getModuleName());
             String uowName = uowWrapper.getClassName();
             String uowLabel = "Unit of Work Class: " + uowName;
             uowTypeLabel.setText(uowLabel);
@@ -262,7 +262,7 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
     @SuppressWarnings("unused")
     private void setError(String message) {
         if (saveButton != null) {
-            saveButton.setEnabled(message.isEmpty());
+            saveButton.setEnabled(message.isBlank());
         }
 
         if (errorTextArea != null) {
@@ -276,5 +276,9 @@ public class EditPipelineNodeDialog extends javax.swing.JDialog {
             uowFullNameLabel.setFont(new java.awt.Font("Dialog", 2, 10));
         }
         return uowFullNameLabel;
+    }
+
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+        return pipelineModuleDefinitionOperations;
     }
 }

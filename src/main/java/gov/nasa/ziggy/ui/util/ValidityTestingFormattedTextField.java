@@ -148,7 +148,7 @@ public class ValidityTestingFormattedTextField extends JFormattedTextField
             validState = true;
             commitEdit();
         } catch (ParseException e) {
-            validState = StringUtils.isEmpty(getText()) && emptyIsValid || !isEnabled();
+            validState = StringUtils.isBlank(getText()) && emptyIsValid || !isEnabled();
         } finally {
             updateBorder(validState);
 
@@ -189,7 +189,7 @@ public class ValidityTestingFormattedTextField extends JFormattedTextField
      */
     public void setEmptyIsValid(boolean emptyIsValid) {
         this.emptyIsValid = emptyIsValid;
-        if (StringUtils.isEmpty(getText()) && isEnabled()) {
+        if (StringUtils.isBlank(getText()) && isEnabled()) {
             validState = emptyIsValid;
         }
         updateBorder(validState);

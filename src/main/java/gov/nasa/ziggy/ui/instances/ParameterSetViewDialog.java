@@ -7,14 +7,13 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.util.Map;
+import java.util.Set;
 
 import javax.swing.GroupLayout;
 import javax.swing.JPanel;
 
-import gov.nasa.ziggy.parameters.ParametersInterface;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
@@ -24,30 +23,27 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 @SuppressWarnings("serial")
 public class ParameterSetViewDialog extends javax.swing.JDialog {
 
-    public ParameterSetViewDialog(Window owner,
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> parameterSetsMap) {
+    public ParameterSetViewDialog(Window owner, Set<ParameterSet> parameterSets) {
 
         super(owner);
 
-        buildComponent(parameterSetsMap);
+        buildComponent(parameterSets);
         setLocationRelativeTo(owner);
     }
 
-    private void buildComponent(
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> parameterSetsMap) {
+    private void buildComponent(Set<ParameterSet> parameterSets) {
         setTitle("View parameter sets");
 
-        getContentPane().add(createDataPanel(parameterSetsMap), BorderLayout.CENTER);
+        getContentPane().add(createDataPanel(parameterSets), BorderLayout.CENTER);
         getContentPane().add(createButtonPanel(createButton(CLOSE, this::close)),
             BorderLayout.SOUTH);
+        setPreferredSize(ZiggyGuiConstants.MIN_DIALOG_SIZE);
 
-        setMinimumSize(ZiggySwingUtils.MIN_DIALOG_SIZE);
         pack();
     }
 
-    private JPanel createDataPanel(
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> parameterSetsMap) {
-        ParameterSetViewPanel parameterSetViewPanel = new ParameterSetViewPanel(parameterSetsMap);
+    private JPanel createDataPanel(Set<ParameterSet> parameterSets) {
+        ParameterSetViewPanel parameterSetViewPanel = new ParameterSetViewPanel(parameterSets);
 
         JPanel dataPanel = new JPanel();
         GroupLayout dataPanelLayout = new GroupLayout(dataPanel);
@@ -68,6 +64,7 @@ public class ParameterSetViewDialog extends javax.swing.JDialog {
     }
 
     public static void main(String[] args) {
-        ZiggySwingUtils.displayTestDialog(new ParameterSetViewDialog(null, null));
+        ZiggySwingUtils
+            .displayTestDialog(new ParameterSetViewDialog(null, Set.of(new ParameterSet("foo"))));
     }
 }

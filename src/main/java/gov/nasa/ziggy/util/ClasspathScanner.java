@@ -75,14 +75,14 @@ public class ClasspathScanner {
         log.debug("ClasspathScanner: Scanning class path for matching classes");
 
         visitedClassPathElements = new HashSet<>();
-        Set<String> classPath = classPathToScan;
+        Set<String> classPathElements = classPathToScan;
 
-        if (classPath == null || classPath.isEmpty()) {
+        if (classPathElements == null || classPathElements.isEmpty()) {
             // No user-specified classpath provided, so parse the actual classpath.
-            classPath = parseClassPath();
+            classPathElements = parseClassPath();
         }
 
-        scanClassPath(classPath);
+        scanClassPath(classPathElements);
     }
 
     /**

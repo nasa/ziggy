@@ -28,7 +28,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.SpotBugsUtils;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Base class for all metrics.
@@ -116,7 +116,7 @@ public abstract class Metric implements Serializable {
      * Dump all metrics to stdout
      */
     public static void dump() {
-        Metric.dump(new PrintWriter(new OutputStreamWriter(System.out, FileUtil.ZIGGY_CHARSET)));
+        Metric.dump(new PrintWriter(new OutputStreamWriter(System.out, ZiggyFileUtils.ZIGGY_CHARSET)));
     }
 
     /**

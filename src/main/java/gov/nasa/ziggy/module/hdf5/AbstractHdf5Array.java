@@ -20,8 +20,8 @@ import java.util.List;
 
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
+import gov.nasa.ziggy.module.ModuleParameters;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.ModuleParameters;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import hdf.hdf5lib.H5;

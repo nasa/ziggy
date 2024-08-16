@@ -6,9 +6,9 @@
             instancePriority="LOWEST">
     <node moduleName="level0"
           childNodeNames="level1">
-      <moduleParameter name="New Remote Hyperion L0"/>
-      <moduleParameter name="Hyperion L0 Task Configuration"/>
-      <moduleParameter name="Sample classless parameter set"/>
+      <parameterSet name="New Remote Hyperion L0"/>
+      <parameterSet name="Hyperion L0 Task Configuration"/>
+      <parameterSet name="Sample classless parameter set"/>
       <inputDataFileType name="Hyperion L0"/>
       <outputDataFileType name="Hyperion L1R"/>
       <modelType name="bandwidth"/>
@@ -21,9 +21,9 @@
     </node>
     <node moduleName="level1"
           childNodeNames="">
-      <moduleParameter name="Hyperion L0 Task Configuration"/>
-      <moduleParameter name="ISOFIT module parameters"/>
-      <moduleParameter name="Remote Hyperion L1"/>
+      <parameterSet name="Hyperion L0 Task Configuration"/>
+      <parameterSet name="ISOFIT module parameters"/>
+      <parameterSet name="Remote Hyperion L1"/>
       <inputDataFileType name="Hyperion L1R"/>
       <outputDataFileType name="Hyperion L2"/>
       <modelType name="sRTM neural network"/>

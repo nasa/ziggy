@@ -10,29 +10,29 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.collections.ZiggyDataType;
+import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
 /**
  * @author Sean McCauliff
  */
 public class DataAccountabilityReportTest {
-    private final StubPipelineTaskCrud pipelineTaskCrud = new StubPipelineTaskCrud();
     private final ReflectionEquals reflectionEquals = new ReflectionEquals();
     private final SimpleTaskRenderer taskRenderer = new SimpleTaskRenderer();
     private static Map<Long, Set<Long>> consumerProducer = new HashMap<>();
 
     @Test
     public void emptyReport() throws Exception {
-        DataAccountabilityReport report = new DataAccountabilityReport(new HashSet<>(),
-            pipelineTaskCrud, taskRenderer);
+        DataAccountabilityReport report = dataAccountabilityReport(new HashSet<>(), taskRenderer);
 
         String reportStr = report.produceReport();
         assertEquals("", reportStr);
@@ -49,8 +49,7 @@ public class DataAccountabilityReportTest {
         init.add(0L);
         init.add(1L);
 
-        DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
-            taskRenderer);
+        DataAccountabilityReport report = dataAccountabilityReport(init, taskRenderer);
         reflectionEquals.assertEquals(new HashMap<>(), report.calculateClosure());
         reflectionEquals.assertEquals(init,
             report.findRoots(new HashSet<>(), new HashMap<>(), new HashMap<>()));
@@ -86,8 +85,7 @@ public class DataAccountabilityReportTest {
         expectedRoots.add(0L);
         expectedRoots.add(3L);
 
-        DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
-            taskRenderer);
+        DataAccountabilityReport report = dataAccountabilityReport(init, taskRenderer);
 
         reflectionEquals.assertEquals(consumerProducer, report.calculateClosure());
         Map<Long, Set<Long>> producerConsumer = report.invertMap(consumerProducer);
@@ -122,8 +120,7 @@ public class DataAccountabilityReportTest {
         consumerProducer.put(5L, Collections.singleton(6L));
         consumerProducer.put(4L, Collections.singleton(6L));
 
-        DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
-            taskRenderer);
+        DataAccountabilityReport report = dataAccountabilityReport(init, taskRenderer);
         String expectedReport = """
             Stub taskId = 6
                 Stub taskId = 4
@@ -155,8 +152,7 @@ public class DataAccountabilityReportTest {
         consumerProducer.put(5L, Sets.newHashSet(3L, 2L));
         consumerProducer.put(4L, Sets.newHashSet(1L, 0L));
 
-        DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
-            taskRenderer);
+        DataAccountabilityReport report = dataAccountabilityReport(init, taskRenderer);
 
         String expectedReport = """
             Data Receipt
@@ -203,8 +199,7 @@ public class DataAccountabilityReportTest {
         producerConsumer.put(3L, Collections.singleton(4L));
         producerConsumer.put(4L, Collections.singleton(1L));
 
-        DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
-            taskRenderer);
+        DataAccountabilityReport report = dataAccountabilityReport(init, taskRenderer);
 
         reflectionEquals.assertEquals(consumerProducer, report.calculateClosure());
         reflectionEquals.assertEquals(producerConsumer, report.invertMap(consumerProducer));
@@ -238,8 +233,7 @@ public class DataAccountabilityReportTest {
         consumerProducer.put(4L, Collections.singleton(2L));
         consumerProducer.put(2L, Collections.singleton(1L));
 
-        DataAccountabilityReport report = new DataAccountabilityReport(init, pipelineTaskCrud,
-            taskRenderer);
+        DataAccountabilityReport report = dataAccountabilityReport(init, taskRenderer);
 
         String expectedReport = "Stub taskId = 1\n    Stub taskId = 2\n        Stub taskId = 3\n"
             + "        Stub taskId = 4\n            Stub taskId = 3\n";
@@ -248,23 +242,41 @@ public class DataAccountabilityReportTest {
         assertEquals(actualReport + expectedReport, expectedReport, actualReport);
     }
 
-    private static class StubPipelineTaskCrud extends PipelineTaskCrud {
-        public StubPipelineTaskCrud() {
-            super(null);
-        }
+    private DataAccountabilityReport dataAccountabilityReport(Set<Long> initialTaskIds,
+        PipelineTaskRenderer taskRenderer) {
+
+        DataAccountabilityReport dataAccountabilityReport = Mockito
+            .spy(new DataAccountabilityReport(initialTaskIds, taskRenderer));
+        Mockito.when(dataAccountabilityReport.pipelineTaskOperations())
+            .thenReturn(new StubPipelineTaskOperations());
+        Mockito.when(dataAccountabilityReport.datastoreProducerConsumerOperations())
+            .thenReturn(new StubDatastoreProducerConsumerOperations());
+        return dataAccountabilityReport;
+    }
+
+    private static class StubPipelineTaskOperations extends PipelineTaskOperations {
 
         @Override
-        public PipelineTask retrieve(final long pipelineTaskId) {
-            PipelineTask task = new PipelineTask();
-            task.setId(pipelineTaskId);
-            task.setProducerTaskIds(consumerProducer.get(pipelineTaskId));
+        public PipelineTask pipelineTask(long pipelineTaskId) {
+            PipelineTask task = Mockito.spy(PipelineTask.class);
+            Mockito.doReturn(pipelineTaskId).when(task).getId();
 
             UnitOfWork uowt = new UnitOfWork();
-            uowt.addParameter(new TypedParameter(UnitOfWork.BRIEF_STATE_PARAMETER_NAME,
+            uowt.addParameter(new Parameter(UnitOfWork.BRIEF_STATE_PARAMETER_NAME,
                 "Stub taskId = " + pipelineTaskId, ZiggyDataType.ZIGGY_STRING));
             task.setUowTaskParameters(uowt.getParameters());
 
             return task;
+        }
+    }
+
+    private static class StubDatastoreProducerConsumerOperations
+        extends DatastoreProducerConsumerOperations {
+
+        @Override
+        public Set<Long> producerIds(PipelineTask pipelineTask) {
+            Set<Long> producerIds = consumerProducer.get(pipelineTask.getId());
+            return producerIds == null ? new HashSet<>() : producerIds;
         }
     }
 }

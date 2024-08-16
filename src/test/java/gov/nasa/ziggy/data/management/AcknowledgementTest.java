@@ -34,7 +34,7 @@ import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Unit tests for the {@link Acknowledgement} class.
@@ -80,7 +80,7 @@ public class AcknowledgementTest {
         manifest.setName("test-manifest.xml");
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(16, ack.getFileCount());
+        assertEquals(17, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         validateAckFiles(manifest.fileNameToManifestEntry(), ack.fileNameToAckEntry(), null);
         assertEquals(DataReceiptStatus.VALID, ack.getTransferStatus());
@@ -91,21 +91,21 @@ public class AcknowledgementTest {
     public void testGenerateAcknowledgementFromSymlinks() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
             testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(32, ack.getFileCount());
+        assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         validateAckFiles(manifest.fileNameToManifestEntry(), ack.fileNameToAckEntry(), null);
         assertEquals(DataReceiptStatus.VALID, ack.getTransferStatus());
@@ -116,14 +116,14 @@ public class AcknowledgementTest {
     public void testFailedTransferStatus() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
             testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
@@ -131,7 +131,7 @@ public class AcknowledgementTest {
         manifest.getManifestEntries().get(0).setName("dummy-name.rpi");
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(32, ack.getFileCount());
+        assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -149,14 +149,14 @@ public class AcknowledgementTest {
     public void testFailedSizeValidation() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
             testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
@@ -166,7 +166,7 @@ public class AcknowledgementTest {
         manifest.getManifestEntries().get(0).setSize(trueSize + 1);
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(32, ack.getFileCount());
+        assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -184,14 +184,14 @@ public class AcknowledgementTest {
     public void testFailedChecksumValidation() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
         Files.createDirectory(testDataDir.resolve("sub-directory"));
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
             testDataDir.resolve("sub-directory"));
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
@@ -201,7 +201,7 @@ public class AcknowledgementTest {
         manifest.getManifestEntries().get(0).setChecksum(trueChecksum + "0");
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(32, ack.getFileCount());
+        assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -252,7 +252,7 @@ public class AcknowledgementTest {
 
         Path schemaPath = Paths.get(ziggyHomeDirPropertyRule.getValue(), "schema", "xml",
             new Acknowledgement().getXmlSchemaFilename());
-        List<String> schemaContent = Files.readAllLines(schemaPath, FileUtil.ZIGGY_CHARSET);
+        List<String> schemaContent = Files.readAllLines(schemaPath, ZiggyFileUtils.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"acknowledgement\" type=\"acknowledgement\"/>");

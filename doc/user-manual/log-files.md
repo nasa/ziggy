@@ -43,9 +43,9 @@ ziggy.3.13.permuter.COMPLETE_4-3-1
 logs$
 ```
 
-Each task has a state file that the task execution system updates with the task processing state and the subtask counts for that task; by which we mean, the task execution system keeps changing the name of the file to reflect the current state of the task. The monitoring subsystem in the supervisor looks at these files to determine the current state of each task, which is then reflected on the GUI.
+Each task has a state file that the task execution system updates with the task processing step and the subtask counts for that task; by which we mean, the task execution system keeps changing the name of the file to reflect the current state of the task. The monitoring subsystem in the supervisor looks at these files to determine the current state of each task, which is then reflected on the GUI.
 
-In this case, we see that instance 3, task 12 has completed (i.e., the algorithm is no longer running) with final score 4 / 3 / 1, which we already knew.
+In this case, we see that instance 3, task 12 has completed (i.e., the algorithm is no longer running) with a final score of 4 total subtasks of which 3 completed and 1 failed, which we already knew.
 
 ### cli Directory
 

@@ -3,16 +3,13 @@ package gov.nasa.ziggy.pipeline.definition;
 import static com.google.common.base.Preconditions.checkState;
 import static gov.nasa.ziggy.ui.util.HtmlBuilder.htmlBuilder;
 
-import java.lang.reflect.InvocationTargetException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,15 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.util.AcceptableCatchBlock;
-import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.HostNameUtils;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
@@ -39,11 +30,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 
 /**
  * Represents a single pipeline unit of work Associated with a{@link PipelineInstance}, a
@@ -59,64 +48,21 @@ import jakarta.persistence.Transient;
 @Entity
 @Table(name = "ziggy_PipelineTask")
 public class PipelineTask implements PipelineExecutionTime {
+
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineTask.class);
 
-    public enum State {
-        /** Not yet started */
-        INITIALIZED,
+    /**
+     * Log filename format. This is used by {@link MessageFormat} to produce the filename for a log
+     * file. The first element is the basename, "instanceId-taskId-moduleName" (i.e.,
+     * "100-200-foo"). The second element is a job index, needed when running tasks on a remote
+     * system that can produce multiple log files per task (i.e., one per remote job). The final
+     * element is the task log index, a value that increments as a task gets executed or rerun,
+     * which allows the logs to be sorted into the order in which they were generated.
+     */
+    private static final String LOG_FILENAME_FORMAT = "{0}.{1}-{2}.log";
 
-        /**
-         * Task has been placed on the JMS queue, but not yet picked up by a worker.
-         */
-        SUBMITTED,
-
-        /** Task is being processed by a worker */
-        PROCESSING,
-
-        /**
-         * Task failed. Transition logic will not run (pipeline will stall). For tasks with
-         * sub-tasks, this means that all sub-tasks failed.
-         */
-        ERROR,
-
-        /** Task completed successfully. Transition logic will run. */
-        COMPLETED,
-
-        /**
-         * Task contains sub-tasks and at least one sub-task failed and at least one sub-task
-         * completed successfully
-         */
-        PARTIAL;
-
-        public String toHtmlString() {
-            String color = "black";
-
-            switch (this) {
-                case INITIALIZED:
-                case SUBMITTED:
-                    color = "black";
-                    break;
-
-                case PROCESSING:
-                    color = "blue";
-                    break;
-
-                case COMPLETED:
-                    color = "green";
-                    break;
-
-                case ERROR:
-                case PARTIAL:
-                    color = "red";
-                    break;
-
-                default:
-            }
-
-            return htmlBuilder().appendBoldColor(toString(), color).toString();
-        }
-    }
+    private static final String ERROR_PREFIX = "ERROR - ";
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_PipelineTask_generator")
@@ -124,13 +70,15 @@ public class PipelineTask implements PipelineExecutionTime {
         sequenceName = "ziggy_PipelineTask_sequence", allocationSize = 1)
     private Long id;
 
-    /** Current state of this task */
+    /** Current processing step of this task. */
     @Enumerated(EnumType.STRING)
-    private State state = State.INITIALIZED;
+    private ProcessingStep processingStep = ProcessingStep.INITIALIZING;
 
-    /** Current processing state of this task. */
-    @Enumerated(EnumType.STRING)
-    private ProcessingState processingState = ProcessingState.INITIALIZING;
+    /**
+     * Task failed. The transition logic will not run and the pipeline will stall. For tasks with
+     * subtasks, this means that the number of failed subtasks exceeds the user-set threshold.
+     */
+    private boolean error;
 
     /** Total number of subtasks. */
     private int totalSubtaskCount;
@@ -174,15 +122,9 @@ public class PipelineTask implements PipelineExecutionTime {
     @Enumerated(EnumType.STRING)
     private AlgorithmType processingMode;
 
-    @ManyToOne
-    private PipelineInstance pipelineInstance = null;
-
-    @ManyToOne
-    private PipelineInstanceNode pipelineInstanceNode = null;
-
     @ElementCollection(fetch = FetchType.EAGER)
     @JoinTable(name = "ziggy_PipelineTask_uowTaskParameters")
-    private Set<TypedParameter> uowTaskParameters;
+    private Set<Parameter> uowTaskParameters;
 
     @ElementCollection
     @JoinTable(name = "ziggy_PipelineTask_summaryMetrics")
@@ -194,10 +136,6 @@ public class PipelineTask implements PipelineExecutionTime {
     private List<TaskExecutionLog> execLog = new ArrayList<>();
 
     @ElementCollection
-    @JoinTable(name = "ziggy_PipelineTask_producerTaskIds")
-    private Set<Long> producerTaskIds = new TreeSet<>();
-
-    @ElementCollection
     @JoinTable(name = "ziggy_PipelineTask_remoteJobs")
     private Set<RemoteJob> remoteJobs = new HashSet<>();
 
@@ -207,11 +145,11 @@ public class PipelineTask implements PipelineExecutionTime {
 
     private long currentExecutionStartTimeMillis;
 
-    @Transient
-    private int maxFailedSubtaskCount;
+    private String moduleName;
 
-    @Transient
-    private int maxAutoResubmits;
+    private String executableName;
+
+    private long pipelineInstanceId;
 
     /**
      * Required by Hibernate
@@ -221,116 +159,23 @@ public class PipelineTask implements PipelineExecutionTime {
 
     public PipelineTask(PipelineInstance pipelineInstance,
         PipelineInstanceNode pipelineInstanceNode) {
-        this.pipelineInstance = pipelineInstance;
-        this.pipelineInstanceNode = pipelineInstanceNode;
-    }
 
-    /**
-     * Get {@link Parameters} from either the pipeline or module parameters for the specified class.
-     *
-     * @throws PipelineException if the parameters are not defined as either pipeline parameters or
-     * module parameters, or if they are defined at both levels.
-     */
-    public <T extends Parameters> T getParameters(Class<T> parametersClass) {
-        return getParameters(parametersClass, true);
-    }
-
-    /**
-     * Get {@link Parameters} from either the pipeline or module parameters for the specified class.
-     *
-     * @throws PipelineException if {@code throwIfMissing} is {@code true} and the parameters are
-     * not defined as either pipeline parameters or module parameters, or if they are defined at
-     * both levels.
-     */
-    @SuppressWarnings("unchecked")
-    public <T extends Parameters> T getParameters(Class<T> parametersClass,
-        boolean throwIfMissing) {
-        ParameterSet parameterSet = getParameterSet(parametersClass, throwIfMissing);
-        return parameterSet == null ? null : (T) parameterSet.parametersInstance();
-    }
-
-    /**
-     * Get {@link ParameterSet} from either the pipeline or module parameters for the specified
-     * class.
-     *
-     * @throws PipelineException if the parameters are not defined as either pipeline parameters or
-     * module parameters, or if they are defined at both levels.
-     */
-    public <T extends Parameters> ParameterSet getParameterSet(Class<T> parametersClass) {
-        return getParameterSet(parametersClass, true);
-    }
-
-    /**
-     * Returns the full {@link Map} of pipeline-level {@link ParameterSet} instances. This is mainly
-     * used to force Hibernate to lazy-instantiate the parameters.
-     */
-    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getPipelineParameterSets() {
-        return pipelineInstance.getPipelineParameterSets();
-    }
-
-    /**
-     * Returns the full {@link Map} of module-level {@link ParameterSet} instances. This is mainly
-     * used to force Hibernate to lazy-instantiate the parameters.
-     */
-    public Map<ClassWrapper<ParametersInterface>, ParameterSet> getModuleParameterSets() {
-        return pipelineInstanceNode.getModuleParameterSets();
-    }
-
-    /**
-     * Get {@link ParameterSet} from either the pipeline or module parameters for the specified
-     * class.
-     *
-     * @throws PipelineException if {@code throwIfMissing} is {@code true} and the parameters are
-     * not defined as either pipeline parameters or module parameters, or if they are defined at
-     * both levels.
-     */
-    public <T extends Parameters> ParameterSet getParameterSet(Class<T> parametersClass,
-        boolean throwIfMissing) {
-
-        ParameterSet pipelineParamSet = pipelineInstance.getPipelineParameterSet(parametersClass);
-        ParameterSet moduleParamSet = pipelineInstanceNode.getModuleParameterSet(parametersClass);
-
-        if (pipelineParamSet == null && moduleParamSet == null) {
-            String errMsg = "Parameters for class: " + parametersClass
-                + " not found in either pipeline parameters or module parameters";
-
-            if (throwIfMissing) {
-                throw new PipelineException(errMsg);
-            }
-            return null;
+        // The pipelineInstanceNode can be null in tests.
+        if (pipelineInstanceNode != null) {
+            moduleName = pipelineInstanceNode.getModuleName();
+            executableName = pipelineInstanceNode.getExecutableName();
         }
-        if (pipelineParamSet != null && moduleParamSet != null) {
-            throw new PipelineException("Parameters for class: " + parametersClass
-                + " found in both pipeline parameters and module parameters");
-        }
-        if (moduleParamSet != null) {
-            return moduleParamSet;
-        }
-        return pipelineParamSet;
-    }
 
-    /**
-     * Conveninence method for getting the externalId for a model for this pipeline task.
-     *
-     * @return
-     */
-    public int getModelExternalId(String modelType) {
-        ModelRegistry modelRegistry = getPipelineInstance().getModelRegistry();
-        ModelMetadata modelMetadata = modelRegistry.getMetadataForType(modelType);
-        if (modelMetadata == null) {
-            throw new PipelineException("No model metadata found for modelType=" + modelType);
+        // The pipelineInstance can be null in tests.
+        if (pipelineInstance != null && pipelineInstance.getId() != null) {
+            pipelineInstanceId = pipelineInstance.getId();
         }
-        return Integer.parseInt(modelMetadata.getModelRevision());
     }
 
     /**
      * A human readable description of this task and its parameters.
-     *
-     * @throws PipelineException
      */
     public String prettyPrint() {
-        PipelineModuleDefinition moduleDefinition = pipelineInstanceNode
-            .getPipelineModuleDefinition();
 
         StringBuilder bldr = new StringBuilder();
         bldr.append("TaskId: ")
@@ -339,99 +184,18 @@ public class PipelineTask implements PipelineExecutionTime {
             .append("Module Software Revision: ")
             .append(getSoftwareRevision())
             .append(" ")
-            .append(moduleDefinition.getName())
+            .append(getModuleName())
             .append(" ")
             .append(" UoW: ")
             .append(uowTaskInstance().briefState())
             .append(" ");
 
-        Collection<ParameterSet> setOfParameterSets = pipelineInstanceNode.getModuleParameterSets()
-            .values();
-
-        for (ParameterSet pset : setOfParameterSets) {
-            bldr.append('[').append(pset.getDescription()).append(" ");
-            bldr.append(pset.getVersion()).append(" ");
-            Set<TypedParameter> properties = pset.getTypedParameters();
-            for (TypedParameter property : properties) {
-                bldr.append(property.getName()).append("=").append(property.getValue()).append(" ");
-            }
-            bldr.append(']');
-        }
-
         return bldr.toString();
-    }
-
-    public String getModuleName() {
-        return getPipelineInstanceNode().getPipelineModuleDefinition().getName();
-    }
-
-    public PipelineModule getModuleImplementation() {
-        return getModuleImplementation(RunMode.STANDARD);
-    }
-
-    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
-    public PipelineModule getModuleImplementation(RunMode runMode) {
-        ClassWrapper<PipelineModule> moduleWrapper = pipelineInstanceNode
-            .getPipelineModuleDefinition()
-            .getPipelineModuleClass();
-        try {
-            return moduleWrapper.constructor(PipelineTask.class, RunMode.class)
-                .newInstance(this, runMode);
-        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
-            | InvocationTargetException e) {
-            // Can never occur. The PipelineModule has a constructor that takes PipelineTask
-            // and RunMode as arguments.
-            throw new AssertionError(e);
-        }
-    }
-
-    public PipelineDefinitionNode pipelineDefinitionNode() {
-        return pipelineInstanceNode.getPipelineDefinitionNode();
-    }
-
-    public Date getCreated() {
-        return created;
-    }
-
-    public void setCreated(Date created) {
-        this.created = created;
-    }
-
-    public PipelineInstance getPipelineInstance() {
-        return pipelineInstance;
-    }
-
-    public void setPipelineInstance(PipelineInstance instance) {
-        pipelineInstance = instance;
-    }
-
-    public long pipelineInstanceId() {
-        return pipelineInstance.getId();
-    }
-
-    public PipelineDefinition pipelineDefinition() {
-        return pipelineInstance.getPipelineDefinition();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Set<TypedParameter> getUowTaskParameters() {
-        return uowTaskParameters;
-    }
-
-    public void setUowTaskParameters(Set<TypedParameter> uowTaskParameters) {
-        this.uowTaskParameters = uowTaskParameters;
     }
 
     @Override
     public String toString() {
-        return "PipelineTask [id=" + id + ", state=" + state + ", uowTask="
+        return "PipelineTask [id=" + id + ", processingStep=" + processingStep + ", uowTask="
             + uowTaskInstance().briefState() + "]";
     }
 
@@ -441,27 +205,76 @@ public class PipelineTask implements PipelineExecutionTime {
         return uow;
     }
 
-    public State getState() {
-        return state;
+    public static String taskBaseName(long instanceId, long taskId, String moduleName) {
+        return baseNamePrefix(instanceId, taskId) + "-" + moduleName;
+    }
+
+    public static String baseNamePrefix(long instanceId, long taskId) {
+        return instanceId + "-" + taskId;
+    }
+
+    public String taskBaseName() {
+        return taskBaseName(pipelineInstanceId, getId(), getModuleName());
+    }
+
+    /**
+     * Produces a file name for log files of the following form: {@code
+     * <instanceId>-<taskId>-<moduleName>.<jobIndex>-<taskLogIndex>.log
+     * }
+     *
+     * @param jobIndex index for the current job. Each pipeline task's algorithm execution can be
+     * performed across multiple independent jobs; this index identifies a specific job out of the
+     * set that are running for the current task.
+     */
+    public String logFilename(int jobIndex) {
+        return MessageFormat.format(LOG_FILENAME_FORMAT, taskBaseName(), jobIndex, taskLogIndex);
+    }
+
+    /** Returns the label for a task that is used in some UI displays. */
+    public String taskLabelText() {
+        return htmlBuilder().appendBold("ID: ")
+            .append(getPipelineInstanceId())
+            .append(":")
+            .append(getId())
+            .appendBold(" WORKER: ")
+            .append(getWorkerName())
+            .appendBold(" TASK: ")
+            .append(getModuleName())
+            .append(" [")
+            .append(uowTaskInstance().briefState())
+            .append("] ")
+            .appendBoldColor(getDisplayProcessingStep(), isError() ? "red" : "green")
+            .append(" ")
+            .appendItalic(elapsedTime())
+            .toString();
+    }
+
+    public ProcessingStep getProcessingStep() {
+        return processingStep;
+    }
+
+    public String getDisplayProcessingStep() {
+        return (isError() ? ERROR_PREFIX : "") + getProcessingStep();
     }
 
     /**
      * Use of this method is not recommended. Use
-     * {@link PipelineOperations#setTaskState(PipelineTask, gov.nasa.ziggy.pipeline.definition.PipelineTask.State)}
-     * instead.
-     *
-     * @param state
+     * {@link PipelineTaskOperations#updateProcessingStep(PipelineTask, ProcessingStep)} instead.
      */
-    public void setState(State state) {
-        this.state = state;
+    public void setProcessingStep(ProcessingStep processingStep) {
+        this.processingStep = processingStep;
     }
 
-    public ProcessingState getProcessingState() {
-        return processingState;
+    public boolean isError() {
+        return error;
     }
 
-    public void setProcessingState(ProcessingState processingState) {
-        this.processingState = processingState;
+    public void setError(boolean error) {
+        this.error = error;
+    }
+
+    public void clearError() {
+        setError(false);
     }
 
     public int getTotalSubtaskCount() {
@@ -528,18 +341,6 @@ public class PipelineTask implements PipelineExecutionTime {
         return "-";
     }
 
-    public PipelineInstanceNode getPipelineInstanceNode() {
-        return pipelineInstanceNode;
-    }
-
-    public int exeTimeoutSeconds() {
-        return getPipelineInstanceNode().getPipelineModuleDefinition().getExeTimeoutSecs();
-    }
-
-    public long pipelineInstanceNodeId() {
-        return getPipelineInstanceNode().getId();
-    }
-
     public String getSoftwareRevision() {
         return softwareRevision;
     }
@@ -588,29 +389,6 @@ public class PipelineTask implements PipelineExecutionTime {
         this.execLog = execLog;
     }
 
-    public void addProducerTaskIds(Collection<Long> producerTaskIds) {
-        this.producerTaskIds.addAll(producerTaskIds);
-    }
-
-    public void addProducerTaskId(long producerTaskId) {
-        producerTaskIds.add(producerTaskId);
-    }
-
-    public Set<Long> getProducerTaskIds() {
-        return producerTaskIds;
-    }
-
-    public void clearProducerTaskIds() {
-        producerTaskIds = new TreeSet<>();
-    }
-
-    public void setProducerTaskIds(Collection<Long> producerTaskIds) {
-        clearProducerTaskIds();
-        if (producerTaskIds != null) {
-            addProducerTaskIds(producerTaskIds);
-        }
-    }
-
     public void setTaskLogIndex(int taskLogIndex) {
         this.taskLogIndex = taskLogIndex;
     }
@@ -621,60 +399,6 @@ public class PipelineTask implements PipelineExecutionTime {
 
     public void incrementTaskLogIndex() {
         taskLogIndex++;
-    }
-
-    public String taskBaseName() {
-        return taskBaseName(pipelineInstance.getId(), getId(), getModuleName());
-    }
-
-    public static String taskBaseName(long instanceId, long taskId, String moduleName) {
-        return baseNamePrefix(instanceId, taskId) + "-" + moduleName;
-    }
-
-    public static String baseNamePrefix(long instanceId, long taskId) {
-        return Long.toString(instanceId) + "-" + Long.toString(taskId);
-    }
-
-    /**
-     * Returns the label for a task that is used in some UI displays.
-     */
-    public String taskLabelText() {
-
-        return htmlBuilder().appendBold("ID: ")
-            .append(getPipelineInstance().getId())
-            .append(":")
-            .append(id)
-            .appendBold(" WORKER: ")
-            .append(getWorkerName())
-            .appendBold(" TASK: ")
-            .append(getModuleName())
-            .append(" [")
-            .append(uowTaskInstance().briefState())
-            .append("] ")
-            .appendBoldColor(state.toString(), state == State.ERROR ? "red" : "green")
-            .append(" ")
-            .appendItalic(elapsedTime())
-            .toString();
-    }
-
-    /**
-     * Produces a file name for log files of the following form: {@code
-     * <instanceId>-<taskId>-<moduleName>.<jobIndex>-<taskLogIndex>.log
-     * }
-     *
-     * @param jobIndex index for the current job. Each pipeline task's algorithm execution can be
-     * performed across multiple independent jobs; this index identifies a specific job out of the
-     * set that are running for the current task.
-     */
-    public String logFilename(int jobIndex) {
-        return taskBaseName() + "." + jobIndex + "-" + taskLogIndex + ".log";
-    }
-
-    /**
-     * For TEST use only
-     */
-    public void setPipelineInstanceNode(PipelineInstanceNode pipelineInstanceNode) {
-        this.pipelineInstanceNode = pipelineInstanceNode;
     }
 
     @Override
@@ -783,20 +507,16 @@ public class PipelineTask implements PipelineExecutionTime {
         return currentExecutionStartTimeMillis;
     }
 
-    public int getMaxFailedSubtaskCount() {
-        return maxFailedSubtaskCount;
+    public long getPipelineInstanceId() {
+        return pipelineInstanceId;
     }
 
-    public void setMaxFailedSubtaskCount(int maxFailedSubtaskCount) {
-        this.maxFailedSubtaskCount = maxFailedSubtaskCount;
+    public String getModuleName() {
+        return moduleName;
     }
 
-    public int getMaxAutoResubmits() {
-        return maxAutoResubmits;
-    }
-
-    public void setMaxAutoResubmits(int maxAutoResubmits) {
-        this.maxAutoResubmits = maxAutoResubmits;
+    public String getExecutableName() {
+        return executableName;
     }
 
     public Set<RemoteJob> getRemoteJobs() {
@@ -839,17 +559,36 @@ public class PipelineTask implements PipelineExecutionTime {
         autoResubmitCount = 0;
     }
 
+    public Date getCreated() {
+        return created;
+    }
+
+    public void setCreated(Date created) {
+        this.created = created;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Set<Parameter> getUowTaskParameters() {
+        return uowTaskParameters;
+    }
+
+    public void setUowTaskParameters(Set<Parameter> uowTaskParameters) {
+        this.uowTaskParameters = uowTaskParameters;
+    }
+
     /**
      * Starts execution clock for {@link PipelineTask} by first using the default method from
      * {@link PipelineExecutionTime}, then starting the clock for the {@link PipelineInstance} as
      * well. Users are generally advised not to call this method directly, as the clock is started
-     * and stopped at appropriate times when a {@link PipelineOperations} instance is used to set a
-     * task's state.
+     * and stopped at appropriate times when a {@link PipelineTaskOperations} instance is used to
+     * set a task's state.
      */
     @Override
     public void startExecutionClock() {
         PipelineExecutionTime.super.startExecutionClock();
-        getPipelineInstance().startExecutionClock();
     }
 
     public double costEstimate() {
@@ -858,67 +597,5 @@ public class PipelineTask implements PipelineExecutionTime {
             estimate += job.getCostEstimate();
         }
         return estimate;
-    }
-
-    /**
-     * Convenience class that provides read-only copies of the current values of the processing
-     * state and subtask count fields of a {@link PipelineTask}.
-     *
-     * @author PT
-     */
-    public static class ProcessingSummary {
-
-        private final long id;
-        private final int totalSubtaskCount;
-        private final int completedSubtaskCount;
-        private final int failedSubtaskCount;
-        private final ProcessingState processingState;
-
-        public ProcessingSummary(PipelineTask pipelineTask) {
-            id = pipelineTask.getId();
-            totalSubtaskCount = pipelineTask.getTotalSubtaskCount();
-            completedSubtaskCount = pipelineTask.getCompletedSubtaskCount();
-            failedSubtaskCount = pipelineTask.getFailedSubtaskCount();
-            processingState = pipelineTask.getProcessingState();
-        }
-
-        public long getId() {
-            return id;
-        }
-
-        public int getTotalSubtaskCount() {
-            return totalSubtaskCount;
-        }
-
-        public int getCompletedSubtaskCount() {
-            return completedSubtaskCount;
-        }
-
-        public int getFailedSubtaskCount() {
-            return failedSubtaskCount;
-        }
-
-        public ProcessingState getProcessingState() {
-            return processingState;
-        }
-
-        public String processingStateShortLabel() {
-            String pState = "?";
-            if (processingState != null) {
-                pState = processingState.shortName();
-            }
-
-            StringBuilder sb = new StringBuilder();
-            sb.append(pState);
-            sb.append(" (");
-            sb.append(totalSubtaskCount);
-            sb.append(" / ");
-            sb.append(completedSubtaskCount);
-            sb.append(" / ");
-            sb.append(failedSubtaskCount);
-            sb.append(")");
-
-            return sb.toString();
-        }
     }
 }

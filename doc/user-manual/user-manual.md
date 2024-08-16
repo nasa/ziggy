@@ -126,17 +126,19 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
 19. [Ziggy's Dustier Corners](dusty-corners.md)
 
-      19.1​. [More on the Relational Database](more-rdbms.md)
+       19.1​. [More on the Relational Database](more-rdbms.md)
 
-      19.2​. [More on Parameter Sets](more-parameter-sets.md)
+       19.2​. [More on Parameter Sets](more-parameter-sets.md)
 
-      19.3​. [Parameter Overrides](parameter-overrides.md)
+       19.3​. [Parameter Overrides](parameter-overrides.md)
 
-      19.4​. [Redefining a Pipeline](redefine-pipeline.md)
+       19.4​. [Redefining a Pipeline](redefine-pipeline.md)
 
-      19.5. [Creating Ziggy Nicknames](nicknames.md)
+       19.5. [Creating Ziggy Nicknames](nicknames.md)
 
-      <!-- 19.6. [Customizing Ziggy](customizing-ziggy.md) -->
+       19.6. [Advanced Unit of Work Configurations](advanced-uow.md)
+
+       <!-- 19.7. [Customizing Ziggy](customizing-ziggy.md) -->
 
 20. [Contact Us](contact-us.md)
 

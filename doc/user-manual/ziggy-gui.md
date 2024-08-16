@@ -16,7 +16,7 @@ This is probably the first thing you want to do: see an actual pipeline run!
 
 ### [The Instances Panel](instances-panel.md)
 
-Watch what Ziggyy is doing in real time.
+Watch what Ziggy is doing in real time.
 
 ### [Changing the Start and End Nodes](start-end-nodes.md)
 

@@ -60,7 +60,7 @@ public enum SupportedRemoteClusters {
                 .simpleExternalProcess(CommandLine.parse("/usr/bin/grep Amazon /etc/os-release"));
             p.run(true, 0);
             String grepResult = p.getStdoutString();
-            if (grepResult.isEmpty()) {
+            if (grepResult.isBlank()) {
                 remoteCluster = SupportedRemoteClusters.NAS;
             } else {
                 remoteCluster = SupportedRemoteClusters.AWS;

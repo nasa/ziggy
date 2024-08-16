@@ -45,14 +45,14 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.database.ModelCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.ProcessingState;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
-import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
@@ -81,6 +81,7 @@ public class DataReceiptPipelineModuleTest {
     private ModelCrud modelCrud;
     private PipelineInstanceCrud pipelineInstanceCrud;
     private DatastoreWalker datastoreWalker;
+    private DataReceiptOperations dataReceiptOperations;
     ModelRegistry registry;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
@@ -122,38 +123,37 @@ public class DataReceiptPipelineModuleTest {
         dataImporterPath = Paths.get(dataReceiptDirPropertyRule.getValue()).toAbsolutePath();
         datastoreRootPath = Paths.get(datastoreRootDirPropertyRule.getValue()).toAbsolutePath();
         dataImporterSubdirPath = dataImporterPath.resolve("sub-dir");
-        dataSubdirUow.addParameter(new TypedParameter(
-            UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
+        dataSubdirUow.addParameter(new Parameter(UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
             DataReceiptUnitOfWorkGenerator.class.getCanonicalName(), ZiggyDataType.ZIGGY_STRING));
-        singleUow.addParameter(new TypedParameter(
-            UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
+        singleUow.addParameter(new Parameter(UnitOfWorkGenerator.GENERATOR_CLASS_PARAMETER_NAME,
             DataReceiptUnitOfWorkGenerator.class.getCanonicalName(), ZiggyDataType.ZIGGY_STRING));
         dataSubdirUow
-            .addParameter(new TypedParameter(DirectoryUnitOfWorkGenerator.DIRECTORY_PARAMETER_NAME,
+            .addParameter(new Parameter(DirectoryUnitOfWorkGenerator.DIRECTORY_PARAMETER_NAME,
                 "sub-dir", ZiggyDataType.ZIGGY_STRING));
-        singleUow.addParameter(new TypedParameter(
-            DirectoryUnitOfWorkGenerator.DIRECTORY_PARAMETER_NAME, "", ZiggyDataType.ZIGGY_STRING));
+        singleUow.addParameter(new Parameter(DirectoryUnitOfWorkGenerator.DIRECTORY_PARAMETER_NAME,
+            "", ZiggyDataType.ZIGGY_STRING));
 
         // construct the model type information
         node.setModelTypes(ImmutableSet.of(modelType1, modelType2, modelType3));
 
         // Create the "database objects," these are actually an assortment of mocks
         // so we can test this without needing an actual database.
-        Mockito.when(pipelineTask.pipelineDefinitionNode()).thenReturn(node);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
         PipelineInstance pipelineInstance = new PipelineInstance();
         pipelineInstance.setId(2L);
-        Mockito.when(pipelineTask.getPipelineInstance()).thenReturn(pipelineInstance);
         pipelineInstanceCrud = Mockito.mock(PipelineInstanceCrud.class);
         Mockito.when(pipelineInstanceCrud.retrieve(ArgumentMatchers.anyLong()))
             .thenReturn(pipelineInstance);
+
+        dataReceiptOperations = Mockito.spy(DataReceiptOperations.class);
+        Mockito.doReturn(pipelineInstanceCrud).when(dataReceiptOperations).pipelineInstanceCrud();
 
         // Put in a mocked AlertService instance.
         AlertService.setInstance(Mockito.mock(AlertService.class));
 
         // Set up the model importer and data receipt definition.
         constructDataReceiptDefinition();
-        Mockito.doReturn(pipelineInstanceCrud).when(dataReceiptDefinition).pipelineInstanceCrud();
+        Mockito.doReturn(dataReceiptOperations).when(dataReceiptDefinition).dataReceiptOperations();
         Mockito.doReturn(List.of(modelType1, modelType2, modelType3))
             .when(dataReceiptDefinition)
             .modelTypes();
@@ -193,7 +193,7 @@ public class DataReceiptPipelineModuleTest {
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the importer files
-        constructFilesForImport(dataImporterPath);
+        constructFilesForImport(dataImporterPath, true);
 
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
 
@@ -298,8 +298,8 @@ public class DataReceiptPipelineModuleTest {
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the importer files
-        constructFilesForImport(dataImporterPath);
-        constructFilesForImport(dataImporterSubdirPath);
+        constructFilesForImport(dataImporterPath, true);
+        constructFilesForImport(dataImporterSubdirPath, false);
         Mockito.doReturn(subdirModelImporter).when(dataReceiptDefinition).modelImporter();
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
@@ -387,7 +387,7 @@ public class DataReceiptPipelineModuleTest {
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Populate the models
-        constructFilesForImport(dataImporterPath);
+        constructFilesForImport(dataImporterPath, true);
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
@@ -574,7 +574,6 @@ public class DataReceiptPipelineModuleTest {
         // Reconstruct the data receipt definition and model importer so that the extant versions
         // don't throw IOExceptions.
         constructDataReceiptDefinition();
-        Mockito.doReturn(pipelineInstanceCrud).when(dataReceiptDefinition).pipelineInstanceCrud();
         Mockito.doReturn(List.of(modelType1, modelType2, modelType3))
             .when(dataReceiptDefinition)
             .modelTypes();
@@ -638,12 +637,11 @@ public class DataReceiptPipelineModuleTest {
         IllegalAccessException, SAXException, JAXBException, IllegalArgumentException,
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
-        constructFilesForImport(dataImporterPath);
+        constructFilesForImport(dataImporterPath, true);
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
-        Mockito.when(pipelineTask.pipelineDefinitionNode()).thenReturn(node);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
 
         // Perform the import
@@ -674,7 +672,7 @@ public class DataReceiptPipelineModuleTest {
         IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
         SecurityException, IOException, SAXException, JAXBException {
 
-        constructFilesForImport(dataImporterPath);
+        constructFilesForImport(dataImporterPath, true);
         Files.delete(dataImporterPath.resolve("data-importer-manifest.xml"));
 
         Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
@@ -716,14 +714,14 @@ public class DataReceiptPipelineModuleTest {
      * directory and in each of two subdirectories, and each of the 3 directories then gets a
      * manifest generated.
      */
-    private void constructFilesForImport(Path importerPath)
+    public static void constructFilesForImport(Path importerPath, boolean useMainImportDirectory)
         throws IOException, InstantiationException, IllegalAccessException,
         IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
         SecurityException, SAXException, JAXBException {
 
         // Start with the dataImporterPath files.
-        if (importerPath.equals(dataImporterPath)) {
-            Path sample1 = dataImporterPath.resolve("sector-0002")
+        if (useMainImportDirectory) {
+            Path sample1 = importerPath.resolve("sector-0002")
                 .resolve("mda")
                 .resolve("dr")
                 .resolve("pixels")
@@ -734,7 +732,7 @@ public class DataReceiptPipelineModuleTest {
             Files.createDirectories(sample1.getParent());
             Files.createFile(sample1);
 
-            sample1 = dataImporterPath.resolve("sector-0002")
+            sample1 = importerPath.resolve("sector-0002")
                 .resolve("mda")
                 .resolve("cal")
                 .resolve("pixels")
@@ -745,7 +743,7 @@ public class DataReceiptPipelineModuleTest {
             Files.createDirectories(sample1.getParent());
             Files.createFile(sample1);
 
-            sample1 = dataImporterPath.resolve("sector-0002")
+            sample1 = importerPath.resolve("sector-0002")
                 .resolve("mda")
                 .resolve("cal")
                 .resolve("pixels")
@@ -756,13 +754,13 @@ public class DataReceiptPipelineModuleTest {
             Files.createDirectories(sample1.getParent());
             Files.createFile(sample1);
 
-            setUpModelsForImport(dataImporterPath);
-            constructManifest(dataImporterPath, "data-importer-manifest.xml", -1L);
+            setUpModelsForImport(importerPath);
+            constructManifest(importerPath, "data-importer-manifest.xml", -1L);
             return;
         }
 
         // Now do the dataImporterSubdirPath.
-        Path sample2 = dataImporterSubdirPath.resolve("sector-0002")
+        Path sample2 = importerPath.resolve("sector-0002")
             .resolve("mda")
             .resolve("dr")
             .resolve("pixels")
@@ -773,13 +771,13 @@ public class DataReceiptPipelineModuleTest {
         Files.createDirectories(sample2.getParent());
         Files.createFile(sample2);
 
-        if (importerPath.equals(dataImporterSubdirPath)) {
-            setUpModelsForImport(dataImporterSubdirPath);
-            constructManifest(dataImporterSubdirPath, "data-importer-subdir-manifest.xml", -2L);
+        if (importerPath.equals(importerPath)) {
+            setUpModelsForImport(importerPath);
+            constructManifest(importerPath, "data-importer-subdir-manifest.xml", -2L);
         }
     }
 
-    private void setUpModelsForImport(Path dataImportDir) throws IOException {
+    private static void setUpModelsForImport(Path dataImportDir) throws IOException {
         Path modelImportDir = dataImportDir.resolve("models");
         // create the new files to be imported
         Files.createDirectories(modelImportDir);
@@ -794,7 +792,7 @@ public class DataReceiptPipelineModuleTest {
         Files.createFile(modelFile4);
     }
 
-    private void constructManifest(Path dir, String name, long datasetId)
+    private static void constructManifest(Path dir, String name, long datasetId)
         throws IOException, InstantiationException, IllegalAccessException, SAXException,
         JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
         SecurityException {
@@ -817,9 +815,8 @@ public class DataReceiptPipelineModuleTest {
             DatastoreTestUtils.datastoreNodesByFullPath());
         Mockito.doReturn(datastoreWalker).when(dataReceiptDefinition).datastoreWalker();
         Mockito.doReturn(modelImporter).when(dataReceiptDefinition).modelImporter();
-        Mockito.doReturn(modelCrud).when(dataReceiptDefinition).modelCrud();
+        Mockito.doReturn(modelCrud).when(dataReceiptOperations).modelCrud();
         Mockito.doNothing().when(dataReceiptDefinition).updateModelRegistryForPipelineInstance();
-
     }
 
     /**
@@ -831,7 +828,7 @@ public class DataReceiptPipelineModuleTest {
     private class DataReceiptModuleForTest extends DataReceiptPipelineModule implements Runnable {
 
         private boolean performDirectoryCleanupEnabled = true;
-        private ProcessingState processingState = ProcessingState.INITIALIZING;
+        private ProcessingStep processingStep = processingSteps().get(0);
         private Set<DatastoreProducerConsumer> successfulImportsDataAccountability = new HashSet<>();
         private Set<FailedImport> failedImportsDataAccountability = new HashSet<>();
 
@@ -850,11 +847,6 @@ public class DataReceiptPipelineModuleTest {
         }
 
         @Override
-        public void processingCompleteTaskAction() {
-            super.processingCompleteTaskAction();
-        }
-
-        @Override
         public void performDirectoryCleanup() {
             if (performDirectoryCleanupEnabled) {
                 super.performDirectoryCleanup();
@@ -864,6 +856,11 @@ public class DataReceiptPipelineModuleTest {
         @Override
         DataReceiptDefinition dataReceiptDefinition() {
             return dataReceiptDefinition;
+        }
+
+        @Override
+        DataReceiptOperations dataReceiptOperations() {
+            return dataReceiptOperations;
         }
 
         @Override
@@ -879,18 +876,18 @@ public class DataReceiptPipelineModuleTest {
         }
 
         /**
-         * Returns the sequence of {@link ProcessingState} instances that are produced by the
-         * production version of {@link #databaseProcessingState()} during pipeline execution. This
+         * Returns the sequence of {@link ProcessingStep} instances that are produced by the
+         * production version of {@link #currentProcessingStep()} during pipeline execution. This
          * allows us to live without a database connection for these tests.
          */
         @Override
-        public ProcessingState databaseProcessingState() {
-            return processingState;
+        public ProcessingStep currentProcessingStep() {
+            return processingStep;
         }
 
         @Override
-        public void incrementDatabaseProcessingState() {
-            processingState = nextProcessingState(processingState);
+        public void incrementProcessingStep() {
+            processingStep = nextProcessingStep(processingStep);
         }
 
         public void disableDirectoryCleanup() {

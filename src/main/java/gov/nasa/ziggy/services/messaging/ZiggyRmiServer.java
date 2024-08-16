@@ -147,7 +147,6 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
         log.info("Starting RMI communications server with registry on port {}", rmiPort());
 
         try {
-            log.info("Starting new ZiggyRmiServer instance");
             ZiggyRmiServer serverInstance = new ZiggyRmiServer();
 
             log.info("Exporting and binding objects into registry");
@@ -161,12 +160,12 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
                 log.info("SHUTDOWN: ZiggyRmiServer...done");
             });
             instance = serverInstance;
-            log.info("Starting RMI communications server with registry on port {}...done",
-                rmiPort());
         } catch (RemoteException e) {
             throw new PipelineException(
                 "Exception occurred when attempting to initialize ZiggyRmiServer", e);
         }
+
+        log.info("Starting RMI communications server with registry on port {}...done", rmiPort());
     }
 
     /**
@@ -196,8 +195,7 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
      */
     @Override
     public void addClientStub(ZiggyRmiClientService clientStub) throws RemoteException {
-        log.info("Adding RMI client with name: " + clientStub.clientName());
-//        clientServiceStubs.put(clientStub, clientStub.clientName());
+        log.info("Adding RMI client {}", clientStub.clientName());
         RmiClientThread clientInformation = new RmiClientThread(clientStub,
             clientStub.clientName());
         clientInformation.start();
@@ -257,33 +255,24 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
             PipelineMessage message;
             try {
                 message = messageQueue.take();
-            } catch (InterruptedException e1) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
             }
-            log.debug("Broadcasting " + message.getClass().getName() + " message to "
-                + clientThreads.size() + " clients");
+            log.debug("Broadcasting {} to {} clients", message.getClass().getName(),
+                clientThreads.size());
             Set<RmiClientThread> obsoleteStubs = new HashSet<>();
-            Set<String> obsoleteStubNames = new HashSet<>();
             for (RmiClientThread clientService : clientThreads) {
                 if (clientService.isClientDisconnected()) {
                     obsoleteStubs.add(clientService);
-                    obsoleteStubNames.add(clientService.getClientName());
                     continue;
                 }
                 clientService.addMessage(message);
             }
 
-            if (!obsoleteStubs.isEmpty()) {
-                log.info("Removing " + obsoleteStubs.size() + " clients from cache, keeping "
-                    + (clientThreads.size() - obsoleteStubs.size()));
-                if (!obsoleteStubNames.isEmpty()) {
-                    log.debug("Obsolete stub names: " + obsoleteStubNames.toString());
-                } else {
-                    log.debug("Unable to capture names of obsolete stubs");
-                }
-            }
             for (RmiClientThread stub : obsoleteStubs) {
+                log.debug("Removing RMI client {} ({} remain)", stub.getClientName(),
+                    clientThreads.size() - 1);
                 clientThreads.remove(stub);
             }
         }
@@ -437,11 +426,17 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
 
         @Override
         public void run() {
+            PipelineMessage message = null;
             try {
                 while (true) {
-                    serviceStub.takeMessageActionInClient(outgoingMessageQueue.take());
+                    message = outgoingMessageQueue.take();
+                    serviceStub.takeMessageActionInClient(message);
                 }
-            } catch (RemoteException e) {
+            } catch (RemoteException | PipelineException e) {
+                log.info("Caught {}{} sending {} to {}", e.getClass().getSimpleName(),
+                    e.getCause() != null ? " caused by " + e.getCause().getClass().getSimpleName()
+                        : "",
+                    message.getClass().getSimpleName(), clientName);
                 clientDisconnected = true;
                 Thread.currentThread().interrupt();
             } catch (InterruptedException e) {

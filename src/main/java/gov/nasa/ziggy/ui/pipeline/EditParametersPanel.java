@@ -6,7 +6,7 @@ import com.l2fprod.common.propertysheet.PropertySheet;
 import com.l2fprod.common.propertysheet.PropertySheetPanel;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.ParametersInterface;
+import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.ui.util.PropertySheetHelper;
 
 /**
@@ -15,9 +15,9 @@ import gov.nasa.ziggy.ui.util.PropertySheetHelper;
 @SuppressWarnings("serial")
 public class EditParametersPanel extends javax.swing.JPanel {
     private PropertySheetPanel propertySheetPanel;
-    private ParametersInterface parameters;
+    private ParameterSet parameters;
 
-    public EditParametersPanel(ParametersInterface parameters) {
+    public EditParametersPanel(ParameterSet parameters) {
         this.parameters = parameters;
         buildComponent();
     }
@@ -42,7 +42,7 @@ public class EditParametersPanel extends javax.swing.JPanel {
         add(propertySheetPanel);
     }
 
-    public ParametersInterface getParameters() throws PipelineException {
+    public ParameterSet getParameters() throws PipelineException {
         propertySheetPanel.writeToObject(parameters);
         return parameters;
     }

@@ -38,6 +38,7 @@ public class AlertService {
     public static final boolean BROADCAST_ALERTS_ENABLED_DEFAULT = false;
 
     public boolean broadcastEnabled = false;
+    private AlertLogOperations alertLogOperations = new AlertLogOperations();
 
     static AlertService instance;
 
@@ -116,8 +117,7 @@ public class AlertService {
 
         // store alert in db
         try {
-            AlertLogCrud alertCrud = new AlertLogCrud();
-            alertCrud.persist(new AlertLog(alertData));
+            alertLogOperations().persist(new AlertLog(alertData));
         } catch (PipelineException e) {
             log.error("Failed to store Alert in database", e);
         }
@@ -125,5 +125,9 @@ public class AlertService {
         if (broadcastEnabled || severity == AlertService.Severity.INFRASTRUCTURE) {
             ZiggyMessenger.publish(new AlertMessage(alertData));
         }
+    }
+
+    AlertLogOperations alertLogOperations() {
+        return alertLogOperations;
     }
 }

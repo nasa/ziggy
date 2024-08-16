@@ -4,6 +4,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Objects;
 
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 
@@ -111,5 +113,10 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
             return priority.compareTo(o.getPriority());
         }
         return (int) (taskId - o.getTaskId());
+    }
+
+    @Override
+    public String toString() {
+        return ReflectionToStringBuilder.toString(this);
     }
 }

@@ -29,7 +29,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -118,7 +118,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
     public static String nameFromManifestName(Manifest manifest) {
 
         String manifestName = manifest.getName();
-        if (manifestName.isEmpty()) {
+        if (manifestName.isBlank()) {
             throw new PipelineException(
                 "Unable to generate Acknowledgement name from unnamed Manifest");
         }
@@ -336,7 +336,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
 
                 // Start by making sure the file exists and is a regular file (or symlink to same)
                 if (Files.exists(file) || Files.isSymbolicLink(file)) {
-                    realFile = FileUtil.realSourceFile(file);
+                    realFile = ZiggyFileUtils.realSourceFile(file);
                     ackEntry.setTransferStatus(DataReceiptStatus.PRESENT);
                 }
                 if (ackEntry.getTransferStatus() == DataReceiptStatus.ABSENT) {

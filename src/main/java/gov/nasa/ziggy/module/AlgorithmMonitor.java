@@ -1,7 +1,5 @@
 package gov.nasa.ziggy.module;
 
-import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.performTransaction;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,25 +13,19 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.ProcessingState;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskOperations;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
 import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -65,6 +57,8 @@ public class AlgorithmMonitor implements Runnable {
     private boolean startLogMessageWritten = false;
     private AlgorithmType algorithmType;
     private String monitorVersion;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineExecutor pipelineExecutor = new PipelineExecutor();
 
     JobMonitor jobMonitor = null;
 
@@ -78,7 +72,7 @@ public class AlgorithmMonitor implements Runnable {
             @Override
             public void performActions(AlgorithmMonitor monitor, PipelineTask pipelineTask) {
                 StateFile stateFile = new StateFile(pipelineTask.getModuleName(),
-                    pipelineTask.pipelineInstanceId(), pipelineTask.getId())
+                    pipelineTask.getPipelineInstanceId(), pipelineTask.getId())
                         .newStateFileFromDiskFile();
                 if (stateFile.getNumFailed() != 0) {
                     log.warn("{} subtasks out of {} failed but task completed",
@@ -91,13 +85,9 @@ public class AlgorithmMonitor implements Runnable {
                 log.info("Sending task with id: " + pipelineTask.getId()
                     + " to worker to persist results");
 
-                DatabaseTransactionFactory.performTransaction(() -> {
-                    PipelineTaskCrud pipelineTaskCrud = monitor.pipelineTaskCrud();
-                    PipelineTask dbTask = pipelineTaskCrud.retrieve(pipelineTask.getId());
-                    // Submit tasks for persistence at high priority.
-                    monitor.pipelineExecutor().persistTaskResults(dbTask);
-                    return null;
-                });
+                monitor.pipelineExecutor()
+                    .persistTaskResults(
+                        monitor.pipelineTaskOperations().pipelineTask(pipelineTask.getId()));
             }
         },
 
@@ -110,23 +100,12 @@ public class AlgorithmMonitor implements Runnable {
                 monitor.alertService()
                     .generateAndBroadcastAlert("Algorithm Monitor", pipelineTask.getId(),
                         Severity.WARNING, "Resubmitting task for further processing");
-                PipelineExecutor pipelineExecutor = monitor.pipelineExecutor();
-                PipelineOperations pipelineOperations = monitor.pipelineOperations();
-                PipelineTask databaseTask = (PipelineTask) DatabaseTransactionFactory
-                    .performTransaction(() -> {
-                        PipelineTaskCrud pipelineTaskCrud = monitor.pipelineTaskCrud();
-                        PipelineTask dbTask = pipelineTaskCrud.retrieve(pipelineTask.getId());
-                        dbTask.incrementAutoResubmitCount();
-                        pipelineOperations.setTaskState(dbTask, PipelineTask.State.ERROR);
-                        return pipelineTaskCrud.merge(dbTask);
-                    });
+                PipelineTask databaseTask = monitor.pipelineTaskOperations()
+                    .prepareTaskForAutoResubmit(pipelineTask);
 
                 // Submit tasks for resubmission at highest priority.
-                DatabaseTransactionFactory.performTransaction(() -> {
-                    pipelineExecutor.restartFailedTasks(List.of(databaseTask), false,
-                        RunMode.RESUBMIT);
-                    return null;
-                });
+                monitor.pipelineExecutor()
+                    .restartFailedTasks(List.of(databaseTask), false, RunMode.RESUBMIT);
             }
         },
 
@@ -138,25 +117,12 @@ public class AlgorithmMonitor implements Runnable {
                 log.error("Task with id " + pipelineTask.getId() + " failed on remote system, "
                     + "marking task as errored and not restarting.");
                 monitor.handleFailedTask(monitor.state.get(StateFile.invariantPart(pipelineTask)));
-                DatabaseTransactionFactory.performTransaction(() -> {
-                    PipelineTaskCrud pipelineTaskCrud = monitor.pipelineTaskCrud();
-                    PipelineTask databaseTask = pipelineTaskCrud.retrieve(pipelineTask.getId());
-                    PipelineOperations pipelineOperations = monitor.pipelineOperations();
-                    pipelineOperations.setTaskState(pipelineTask, PipelineTask.State.ERROR);
-                    pipelineTaskCrud.merge(databaseTask);
-                    return null;
-                });
+                monitor.pipelineTaskOperations().taskErrored(pipelineTask);
             }
         };
 
         /**
          * Performs the necessary actions for each of the enumerations.
-         *
-         * @param monitor {@link AlgorithmMonitor}, provided so that the monitor's instances of
-         * {@link PipelineTaskCrud} and {@link PipelineExecutor} can be used by the enumerations,
-         * which in turn means that they can be given mocked instances for test purposes.
-         * @param pipelineTask {@link PipelineTask} that is ready for results persisting,
-         * resubmission, or declaration of failure.
          */
         public abstract void performActions(AlgorithmMonitor monitor, PipelineTask pipelineTask);
     }
@@ -295,20 +261,20 @@ public class AlgorithmMonitor implements Runnable {
             log.info("Updating state for: " + remoteState + " (was: " + oldState + ")");
             state.put(key, remoteState);
 
-            ProcessingSummaryOperations attrOps = processingSummaryOperations();
             long taskId = remoteState.getPipelineTaskId();
 
-            attrOps.updateSubTaskCounts(taskId, remoteState.getNumTotal(),
+            pipelineTaskOperations().updateSubtaskCounts(taskId, remoteState.getNumTotal(),
                 remoteState.getNumComplete(), remoteState.getNumFailed());
 
             if (remoteState.isRunning()) {
                 // update processing state
-                attrOps.updateProcessingState(taskId, ProcessingState.ALGORITHM_EXECUTING);
+                pipelineTaskOperations().updateProcessingStep(taskId, ProcessingStep.EXECUTING);
             }
 
             if (remoteState.isDone()) {
                 // update processing state
-                attrOps.updateProcessingState(taskId, ProcessingState.ALGORITHM_COMPLETE);
+                pipelineTaskOperations().updateProcessingStep(taskId,
+                    ProcessingStep.WAITING_TO_STORE);
 
                 // It may be the case that all the subtasks are processed, but that
                 // there are jobs still running, or (more likely) queued. We can address
@@ -401,22 +367,10 @@ public class AlgorithmMonitor implements Runnable {
      */
     private void sendTaskToWorker(StateFile remoteState) {
 
-        PipelineTask pipelineTask = (PipelineTask) performTransaction(() -> {
-            long taskId = remoteState.getPipelineTaskId();
+        PipelineTask pipelineTask = pipelineTaskOperations()
+            .pipelineTask(remoteState.getPipelineTaskId());
 
-            PipelineTask task = pipelineTaskCrud().retrieve(taskId);
-            Hibernate.initialize(task.getPipelineParameterSets());
-            Hibernate.initialize(task.getModuleParameterSets());
-            Hibernate.initialize(task.getPipelineInstance().getId());
-            PipelineDefinitionNodeExecutionResources resources = pipelineDefinitionNodeCrud()
-                .retrieveExecutionResources(task.pipelineDefinitionNode());
-            task.setMaxAutoResubmits(resources.getMaxAutoResubmits());
-            task.setMaxFailedSubtaskCount(resources.getMaxFailedSubtaskCount());
-
-            // Update remote job information
-            pipelineTaskOperations().updateJobs(task);
-            return task;
-        });
+        pipelineTaskOperations().updateJobs(pipelineTask, true);
 
         // Perform the actions necessary based on the task disposition
         determineDisposition(remoteState, pipelineTask).performActions(this, pipelineTask);
@@ -467,12 +421,12 @@ public class AlgorithmMonitor implements Runnable {
     }
 
     private String taskStatusValues(StateFile stateFile) {
-        Map<Long, Integer> exitStatus = jobMonitor().exitStatus(stateFile);
-        if (exitStatus.isEmpty()) {
+        Map<Long, Integer> exitStatusByJobId = jobMonitor().exitStatus(stateFile);
+        if (exitStatusByJobId.isEmpty()) {
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<Long, Integer> entry : exitStatus.entrySet()) {
+        for (Map.Entry<Long, Integer> entry : exitStatusByJobId.entrySet()) {
             sb.append(entry.getKey());
             sb.append("(");
             if (entry.getValue() != null) {
@@ -523,14 +477,16 @@ public class AlgorithmMonitor implements Runnable {
         // The total number of bad subtasks includes both the ones that failed and the
         // ones that never ran / never finished. If there are few enough bad subtasks,
         // then we can persist results.
-        if (state.getNumTotal() - state.getNumComplete() <= pipelineTask
-            .getMaxFailedSubtaskCount()) {
+
+        PipelineDefinitionNodeExecutionResources resources = pipelineTaskOperations()
+            .executionResources(pipelineTask);
+        if (state.getNumTotal() - state.getNumComplete() <= resources.getMaxFailedSubtaskCount()) {
             return Disposition.PERSIST;
         }
 
         // If the task has bad subtasks but the number of automatic resubmits hasn't
         // been exhausted, then resubmit.
-        if (pipelineTask.getAutoResubmitCount() < pipelineTask.getMaxAutoResubmits()) {
+        if (pipelineTask.getAutoResubmitCount() < resources.getMaxAutoResubmits()) {
             return Disposition.RESUBMIT;
         }
 
@@ -557,36 +513,12 @@ public class AlgorithmMonitor implements Runnable {
     }
 
     /**
-     * Obtains a new PipelineTaskCrud. Replace with mocked method for unit testing.
-     *
-     * @return
-     */
-    PipelineTaskCrud pipelineTaskCrud() {
-        return new PipelineTaskCrud();
-    }
-
-    /**
      * Obtains a new PipelineExecutor. Replace with mocked method for unit testing.
      *
      * @return
      */
     PipelineExecutor pipelineExecutor() {
-        return new PipelineExecutor();
-    }
-
-    /** Obtains a new {@link PipelineOperations}. Replace with mocked unit for testing. */
-    PipelineOperations pipelineOperations() {
-        return new PipelineOperations();
-    }
-
-    /** Replace with mocked method for unit testing. */
-    ProcessingSummaryOperations processingSummaryOperations() {
-        return new ProcessingSummaryOperations();
-    }
-
-    /** Replace with mocked method for unit testing. */
-    PipelineTaskOperations pipelineTaskOperations() {
-        return new PipelineTaskOperations();
+        return pipelineExecutor;
     }
 
     /** Replace with mocked method for unit testing. */
@@ -597,10 +529,6 @@ public class AlgorithmMonitor implements Runnable {
     /** Replace with mocked method for unit testing. */
     boolean taskIsKilled(long taskId) {
         return PipelineSupervisor.taskOnKilledTaskList(taskId);
-    }
-
-    PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
-        return new PipelineDefinitionNodeCrud();
     }
 
     /**
@@ -631,5 +559,9 @@ public class AlgorithmMonitor implements Runnable {
     /** Replace with mocked method for unit testing. */
     JobMonitor jobMonitor() {
         return jobMonitor;
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

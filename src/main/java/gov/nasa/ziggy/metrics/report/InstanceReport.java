@@ -1,9 +1,8 @@
 package gov.nasa.ziggy.metrics.report;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,28 +13,29 @@ import gov.nasa.ziggy.module.PipelineCategories;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
-import gov.nasa.ziggy.util.TasksStates;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.dispmod.InstancesDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskSummaryDisplayModel;
 
 public class InstanceReport extends Report {
     private static final Logger log = LoggerFactory.getLogger(InstanceReport.class);
 
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+
     public InstanceReport(PdfRenderer pdfRenderer) {
         super(pdfRenderer);
     }
 
     public void generateReport(PipelineInstance instance, List<PipelineInstanceNode> nodes) {
-        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
 
-        String instanceName = instance.getId() + ":" + instance.getName();
+        String instanceName = instance.getPipelineDefinition().getName()
+            + (StringUtils.isBlank(instance.getName()) ? "" : ": " + instance.getName()) + " ("
+            + instance.getId() + ")";
 
         pdfRenderer.printText("Performance Report for " + instanceName, PdfRenderer.titleFont);
-
         pdfRenderer.println();
         pdfRenderer.println();
         pdfRenderer.println();
@@ -67,18 +67,8 @@ public class InstanceReport extends Report {
         pdfRenderer.println();
 
         // Task Summary
-        List<PipelineTask> tasks = new ArrayList<>();
-
-        for (PipelineInstanceNode node : nodes) {
-            List<PipelineTask> nodeTasks = pipelineTaskCrud.retrieveAll(node);
-            tasks.addAll(nodeTasks);
-        }
-
-        Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
-            .processingSummaries(tasks);
-
         TaskSummaryDisplayModel tasksDisplayModel = new TaskSummaryDisplayModel(
-            new TasksStates(tasks, taskAttrs));
+            pipelineInstanceNodeOperations().taskCounts(nodes));
         printDisplayModel("Pipeline Task Summary", tasksDisplayModel);
 
         pdfRenderer.println();
@@ -127,15 +117,13 @@ public class InstanceReport extends Report {
         BytesFormat bytesFormatter = new BytesFormat();
         BytesPerSecondFormat rateFormatter = new BytesPerSecondFormat();
 
-        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-
         DescriptiveStatistics sizeStats = new DescriptiveStatistics();
         DescriptiveStatistics timeStats = new DescriptiveStatistics();
 
-        List<PipelineTask> tasks = pipelineTaskCrud.retrieveAll(node);
+        List<PipelineTask> tasks = pipelineTaskOperations().allPipelineTasks();
 
         for (PipelineTask task : tasks) {
-            List<PipelineTaskMetrics> taskMetrics = task.getSummaryMetrics();
+            List<PipelineTaskMetrics> taskMetrics = pipelineTaskOperations().summaryMetrics(task);
 
             for (PipelineTaskMetrics taskMetric : taskMetrics) {
                 if (taskMetric.getCategory().equals(sizeCategory)) {
@@ -155,9 +143,17 @@ public class InstanceReport extends Report {
         log.info("millisForNode = " + millisForNode);
         log.info("bytesPerSecondForNode = " + bytesPerSecondForNode);
 
-        addCell(transfersTable, node.getPipelineDefinitionNode().getModuleName());
+        addCell(transfersTable, node.getModuleName());
         addCell(transfersTable, label);
         addCell(transfersTable, bytesFormatter.format(bytesForNode));
         addCell(transfersTable, rateFormatter.format(bytesPerSecondForNode));
+    }
+
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
+        return pipelineInstanceNodeOperations;
+    }
+
+    private PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

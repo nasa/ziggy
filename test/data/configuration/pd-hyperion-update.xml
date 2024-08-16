@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+  <!-- Here is a genuinely new pipeline -->
+  <pipeline name="genuinely-new" description="should always import" 
+  	rootNodeNames="level0">
+  	<node moduleName="level0">
+  	  <parameterSet name="New Remote Hyperion L0"/>
+      <inputDataFileType name="Hyperion L2"/>
+  	</node>
+  </pipeline>
+  
+  <!-- here is a genuinely new module -->
+  <module name="level3" description="should always import"
+          exeTimeoutSecs="1000000" minMemoryMegabytes="10"/>
+
+  <!-- Here is a module that is updated -->
+  <module name="level0" description="Hyperion L0 -> L1R"
+          exeTimeoutSecs="200000" minMemoryMegabytes="1"/>
+          
+  <!-- here is a modified pipeline -->
+    <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="level1">
+      <node moduleName="level1" childNodeNames="level3">
+      	<parameterSet name="Hyperion L0 Task Configuration"/>
+      	<modelType name="bandwidth"/>
+	  </node>
+	  <node moduleName="level3"/>
+	</pipeline>
+
+</pipelineDefinition>

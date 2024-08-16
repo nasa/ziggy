@@ -10,7 +10,7 @@ Ziggy provides a mechanism for viewing task logs that is more convenient than go
 
 To use this feature, go to the instances panel, select the task of interest and right-click to bring up the tasks menu:
 
-<img src="images/tasks-menu.png" style="width:15cm;"/>
+<img src="images/tasks-menu.png" style="width:16cm;"/>
 
 Select `List task logs`. You'll get this dialog box:
 

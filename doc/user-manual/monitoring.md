@@ -8,7 +8,7 @@
 
 When stuff goes wrong, it's often worthwhile to select the `Status` content menu item. In the current situation, you'll see something like this:
 
-<img src="images/monitoring-worker.png" style="width:32cm;"/>
+<img src="images/monitoring-worker.png" style="width:35cm;"/>
 
 The first thing you should notice is that the colored boxes in the content menu for the status panel mirror the colors of the stoplights. From this you can see that the stoplights are for pipelines (`Pi`), workers (`W`), Processes (`Pr`), and alerts (`A`).
 
@@ -28,7 +28,7 @@ Workers are created as needed, and each worker is assigned to perform a particul
 
 Thus the blank workers display: when there are no tasks running, there are no workers running; and when a worker isn't running, it ceases to exist. If you were to start the sample pipeline with the default maximum number of workers set to 6, after the delay mentioned in the first point you'd see that only 2 workers would be started to process the two tasks.
 
-<img src="images/monitoring-worker-2.png" style="width:32cm;"/>
+<img src="images/monitoring-worker-2.png" style="width:35cm;"/>
 
 Most of this table is (hopefully) self-explanatory. The thing that might not be is the content of the first column. This shows the worker ID for a given task (which you've seen before on the operations monitoring panel); the host ID (ditto); and the worker's process ID. The process ID is useful if you want to use one of your system's utilities (such as the `ps` or `top` commands) to get more information on what that worker is doing.
 

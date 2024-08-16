@@ -17,6 +17,7 @@ import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.DisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
@@ -55,12 +56,14 @@ public class TaskInfoDialog extends javax.swing.JDialog {
         JLabel idLabel = boldLabel("ID:");
         JLabel idTextField = new JLabel(pipelineTask.getId() + "");
 
-        JLabel stateLabel = boldLabel("State:");
-        JLabel stateTextField = new JLabel(pipelineTask.getState().toString());
+        JLabel stateLabel = boldLabel("Processing step:");
+        JLabel stateTextField = new JLabel(HtmlBuilder.htmlBuilder()
+            .appendBoldColor(pipelineTask.getDisplayProcessingStep(),
+                pipelineTask.isError() ? "red" : "green")
+            .toString());
 
         JLabel moduleLabel = boldLabel("Module:");
-        JLabel moduleTextField = new JLabel(
-            pipelineTask.getPipelineInstanceNode().getPipelineModuleDefinition().getName() + "");
+        JLabel moduleTextField = new JLabel(pipelineTask.getModuleName() + "");
 
         JLabel uowLabel = boldLabel("Unit of work:");
         JLabel uowTextField = new JLabel(pipelineTask.uowTaskInstance().briefState());
@@ -166,9 +169,7 @@ public class TaskInfoDialog extends javax.swing.JDialog {
 
     private ZiggyTable<ModuleTaskMetrics> createProcessingBreakdownTable() {
         TaskMetricsTableModel processingBreakdownTableModel = new TaskMetricsTableModel(
-            List.of(pipelineTask),
-            List.of(pipelineTask.getPipelineInstanceNode().getPipelineModuleDefinition().getName()),
-            false);
+            List.of(pipelineTask), List.of(pipelineTask.getModuleName()), false);
         return new ZiggyTable<>(processingBreakdownTableModel);
     }
 

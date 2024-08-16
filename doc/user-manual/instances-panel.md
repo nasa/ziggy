@@ -38,11 +38,11 @@ Subtasks, confusingly, are numbered from zero. Also, subtask numbers are "recycl
 
 With all that in mind, let's look at the instances panel again:
 
-<img src="images/pipeline-done.png" style="width:32cm;"/>
+<img src="images/pipeline-done.png" style="width:35cm;"/>
 
-The instance on the left, instance 1, is the pipeline instance that's going to plow through the entire pipeline, from data receipt to averaging. On the right, we see the tasks that instance 1 uses for the processing: one task for data receipt, two each for permuter, flip, and averaging. The numbers in the `P-state` column represent subtask counts: the first number is total number of subtasks, the second is number completed, the third is number failed. Each of permuter and flip used 4 subtasks per task; averaging ran with just 1 subtask per task.
+The instance on the left, instance 1, is the pipeline instance that's going to plow through the entire pipeline, from data receipt to averaging. On the right, we see the tasks that instance 1 uses for the processing: one task for data receipt, two each for permuter, flip, and averaging. The numbers in the `Subtasks` column represent subtask counts: the first number is the number of completed subtasks, the second is the total number of subtasks. If any of the subtasks encounter an error, the number of subtasks with errors will appear in parenthesis and the row will turn red. Each of permuter and flip used 4 subtasks per task; averaging ran with just 1 subtask per task.
 
-The scoreboard at the top rolls up the tasks table according to algorithm name. The permuter line shows the aggregated results of the 2 permuter tasks, and so on. The final line is the roll-up across all tasks within the pipeline. The scoreboard presents the task information slightly differently in that it shows totals of `Submitted`, `Processing`, `Completed`, and `Failed`. `Completed` and `Failed` are self-explanatory (I hope). `Processing` indicates tasks that are currently using computer time to process their data. `Submitted` tasks are tasks that are waiting for some hardware, somewhere, to decide to process them. Depending on your system, tasks may go instantly from `Submitted` to `Processing`, or some of them might have to wait around awhile in the `Submitted` queue.
+The scoreboard at the top rolls up the tasks table according to the name of the algorithm. The permuter line shows the aggregated results of the 2 permuter tasks, and so on. The final line is the roll-up across all tasks within the pipeline. The scoreboard presents the task information slightly differently in that it shows totals of `Waiting to run`, `Processing`, `Completed`, and `Failed`. `Completed` and `Failed` are self-explanatory (I hope). `Processing` indicates tasks that are currently using computer time to process their data. `Waiting to run` tasks are tasks that are waiting for some hardware, somewhere, to decide to process them. Depending on your system, tasks may go instantly from `Waiting to run` to `Processing`, or some of them might have to wait around awhile in the `Waiting to run` queue.
 
 ### Unit of Work
 
@@ -197,7 +197,7 @@ At this point you're probably thoroughly sick of the entire topic of subtasks, s
 
 ### Pipeline States
 
-The instances panel also has numerous indicators named `State` and `p-State` that deserve some explanation.
+The instances panel also has numerous indicators in the `Status` columns that deserve some explanation.
 
 #### Pipeline Instance States
 
@@ -214,33 +214,23 @@ The possible states for a pipeline instance are described below.
 
 About ERRORS_RUNNING and ERRORS_STALLED: as a general matter, tasks that are running the same algorithm in parallel are totally independent, so if one fails the others can keep running; this is the ERRORS_RUNNING state. However: once all tasks for a given algorithm are done, if one or more has failed, it's not guaranteed that the next algorithm can run. After all, a classic pipeline has the outputs from one task become the inputs of the next, and in this case some of the outputs from some of the tasks aren't there. In this case, the instance goes to ERRORS_STALLED, and nothing more will happen until the operator addresses whatever caused the failure.
 
-#### Pipeline Task States
+#### Pipeline Task Processing Steps
 
-The possible states for a pipeline task are described below.
+A pipeline task progresses through the following steps.
 
 | State       | Description |
 | -----       | ----------- |
-| INITIALIZED | Task has been created and is waiting for some kind of attention.|
-| SUBMITTED   | The task will run as soon as the supervisor has available resources to devote to it.|
-| PROCESSING  | The task is running. |
-| ERROR       | All subtasks have run, and at least one subtask has failed. |
-| COMPLETED   | All subtasks completed successfully and results were copied back to the datastore. |
-| PARTIAL     | Not currently used. |                                        |
+| INITIALIZING     | Task has been created and is waiting for some kind of attention. |
+| WAITING_TO_RUN   | The task will run as soon as the supervisor has available resources to devote to it. |
+| MARSHALING       | The inputs for the task are being assembled. |
+| SUBMITTING       | The task is ready to run and is being sent to whatever system is in charge of scheduling its execution. |
+| QUEUED           | In the case of execution environments that use a batch system, the task is waiting in the batch queue to run. |
+| EXECUTING        | The algorithm is running, data is getting processed. |
+| WAITING_TO_STORE | The algorithm is done running and the task will continue as soon as the supervisor has available resources to devote to it. |
+| STORING          | Ziggy is storing results in the datastore. Sometimes referred to as "persisting." |
+| COMPLETE         | The results have been copied back to the datastore. |
 
-#### Pipeline Task Processing States (p-States)
-
-When a task is in the `PROCESSING` state, it's useful to have a more fine-grained sense of what it's doing, where it is in the process, etc. This is the role of the processing state, or `P-state`, of the task. Each `P-state` has an abbreviation that's shown in the last column of the tasks table. The `P-states` are shown below.
-
-| P-state              | Abbreviation | Description |
-| -------              | ------------ | ----------- |
-| INITIALIZING         | I            | Nothing has happened yet, the task is still in the state it was in at creation time. |
-| MARSHALING           | M            | The inputs for the task are being assembled. |
-| ALGORITHM_SUBMITTING | As           | The task is ready to run and is being sent to whatever system is in charge of scheduling its execution. |
-| ALGORITHM_QUEUED     | Aq           | In the case of execution environments that use a batch system, the task is waiting in the batch queue to run. |
-| ALGORITHM_EXECUTING  | Ae           | The algorithm is running, data is getting processed. |
-| ALGORITHM_COMPLETE   | Ac           | The algorithm is done running. |
-| STORING              | S            | Ziggy is storing results in the datastore. Sometimes referred to as "persisting." |
-| COMPLETE             | C            | The results have been copied back to the datastore. |
+If a task is in the `INITIALIZING` or `WAITING_TO_RUN` steps, it'll be counted in the `Waiting to run` column in the scoreboard. A task that has reached the `COMPLETE` step will be counted in the `Completed` column. If a task is any other step and has not failed, it'll be counted in the `Processing` column.
 
 ### Worker
 
@@ -250,9 +240,9 @@ Right now, the workers all run on the same system as the supervisor, which is al
 
 Recall from the discussion on [Running the Cluster](running-pipeline.md) that the supervisor can create multiple worker processes that can execute in parallel. The worker number tells you which of these is occupied with a given task.
 
-### P-Time
+### Time
 
-Both the instances table and the tasks table have a column labeled `P-time`. This represents the total "wall time" the instance or task has been running. Put simply, `P-time` is a timer or stopwatch that starts when the task or instance starts running, stops when the instance or task completes or fails, and starts again if the task or instance restarts. It's thus the total-to-date time spent processing, including any time spent in execution attempts that failed.
+Both the instances table and the tasks table have a column labeled `Time`. This represents the total "wall time" the instance or task has been running. Put simply, `Time` is a timer or stopwatch that starts when the task or instance starts running, stops when the instance or task completes or fails, and starts again if the task or instance restarts. It's thus the total-to-date time spent processing, including any time spent in execution attempts that failed.
 
 [[Previous]](start-pipeline.md)
 [[Up]](ziggy-gui.md)

@@ -15,6 +15,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
@@ -22,7 +23,6 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.StateFile.State;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -46,6 +46,7 @@ public class StateFileTest {
     private static final int REQUESTED_NODE_COUNT = 2;
     private static final double GIGS_PER_SUBTASK = 1.5;
     public static final String REQUESTED_WALL_TIME = "4:30:00";
+    public static final String EXECUTABLE_NAME = "executable2";
 
     private static File workingDirectory;
 
@@ -91,15 +92,15 @@ public class StateFileTest {
 
     private PipelineTask createPipelineTask() {
         PipelineModuleDefinition moduleDefinition = new PipelineModuleDefinition("any");
-        PipelineDefinition pipelineDefinition = new PipelineDefinition("any");
-
+        PipelineDefinitionNode pipelineDefinitionNode = new PipelineDefinitionNode("dummy",
+            moduleDefinition.getName());
+        moduleDefinition.setExecutableName(EXECUTABLE_NAME);
         PipelineInstance instance = new PipelineInstance();
         instance.setId(42L);
 
-        PipelineTask task = new PipelineTask(instance, new PipelineInstanceNode(instance,
-            new PipelineDefinitionNode(moduleDefinition.getName(), pipelineDefinition.getName()),
-            moduleDefinition));
-        task.setId(43L);
+        PipelineTask task = Mockito.spy(new PipelineTask(instance,
+            new PipelineInstanceNode(pipelineDefinitionNode, moduleDefinition)));
+        Mockito.doReturn(43L).when(task).getId();
 
         return task;
     }
@@ -207,6 +208,7 @@ public class StateFileTest {
         assertEquals(StateFile.INVALID_VALUE, stateFile.getPbsSubmitTimeMillis());
         assertEquals(StateFile.INVALID_VALUE, stateFile.getPfeArrivalTimeMillis());
         assertEquals(StateFile.INVALID_VALUE, stateFile.getGigsPerSubtask(), 1e-9);
+        assertEquals(StateFile.INVALID_STRING, stateFile.getExecutableName());
     }
 
     @Test
@@ -286,6 +288,7 @@ public class StateFileTest {
 
         stateFile.setPbsSubmitTimeMillis(PBS_SUBMIT_TIME_MILLIS);
         stateFile.setPfeArrivalTimeMillis(PFE_ARRIVAL_TIME_MILLIS);
+        stateFile.setExecutableName(EXECUTABLE_NAME);
 
         return stateFile;
     }
@@ -303,5 +306,6 @@ public class StateFileTest {
 
         assertEquals(PBS_SUBMIT_TIME_MILLIS, stateFile.getPbsSubmitTimeMillis());
         assertEquals(PFE_ARRIVAL_TIME_MILLIS, stateFile.getPfeArrivalTimeMillis());
+        assertEquals(EXECUTABLE_NAME, stateFile.getExecutableName());
     }
 }

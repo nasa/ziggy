@@ -102,12 +102,11 @@ public class ComputeNodeMaster implements Runnable {
 
     private TaskConfiguration inputsHandler;
 
-    public ComputeNodeMaster(String workingDir, TaskLog algorithmLog) {
+    public ComputeNodeMaster(String workingDir) {
         this.workingDir = workingDir;
 
         log.info("RemoteTaskMaster START");
         log.info(" workingDir = " + workingDir);
-        log.info(" algorithmLog = " + algorithmLog);
 
         nodeName = HostNameUtils.shortHostName();
 
@@ -122,8 +121,12 @@ public class ComputeNodeMaster implements Runnable {
      * {@link SubtaskMaster} instances. For the node that is going to host the {@link SubtaskServer}
      * instance it also starts the server, updates the {@link StateFile}, creates symlinks, and
      * creates task-start timestamps.
+     * <p>
+     * The {@link #initialize()} method returns a boolean that indicates whether monitoring is
+     * required. This returns true if there are unprocessed subtasks and false if all subtasks are
+     * actually processed.
      */
-    public void initialize() {
+    public boolean initialize() {
 
         log.info("Starting ComputeNodeMaster ({})",
             ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
@@ -134,8 +137,11 @@ public class ComputeNodeMaster implements Runnable {
         monitor = new TaskMonitor(stateFile, taskDir);
         monitor.updateState();
         if (monitor.allSubtasksProcessed()) {
+            StateFile updatedStateFile = new StateFile(stateFile);
+            updatedStateFile.setState(StateFile.State.COMPLETE);
+            StateFile.updateStateFile(stateFile, updatedStateFile);
             log.info("All subtasks processed, ComputeNodeMaster exiting");
-            return;
+            return false;
         }
 
         coresPerNode = stateFile.getActiveCoresPerNode();
@@ -146,6 +152,7 @@ public class ComputeNodeMaster implements Runnable {
 
         log.info("Starting " + coresPerNode + " subtask masters");
         startSubtaskMasters();
+        return true;
     }
 
     /**
@@ -213,7 +220,7 @@ public class ComputeNodeMaster implements Runnable {
                 throw new AssertionError(e);
             }
             SubtaskMaster subtaskMaster = new SubtaskMaster(i, nodeName, subtaskMasterSemaphore,
-                stateFile.getModuleName(), workingDir, timeoutSecs);
+                stateFile.getExecutableName(), workingDir, timeoutSecs);
             subtaskMasters.add(subtaskMaster);
             threadPool.submit(subtaskMaster, threadFactory);
         }
@@ -407,24 +414,20 @@ public class ComputeNodeMaster implements Runnable {
 
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public static void main(String[] args) {
-        if (args.length != 2) {
-            System.err.println("USAGE: ComputeNodeMaster workingDir logFilePath");
+        if (args.length != 1) {
+            System.err.println("USAGE: ComputeNodeMaster workingDir");
             System.exit(-1);
         }
 
         String workingDir = args[0];
-        String logFilePath = args[1];
-
-        // Start up logging
-        TaskLog algorithmLog = new TaskLog(logFilePath);
-        algorithmLog.startLogging();
-
+        TaskLog.endConsoleLogging();
         ComputeNodeMaster computeNodeMaster = null;
 
         // Startup: constructor and initialization
+        boolean monitoringRequired = false;
         try {
-            computeNodeMaster = new ComputeNodeMaster(workingDir, algorithmLog);
-            computeNodeMaster.initialize();
+            computeNodeMaster = new ComputeNodeMaster(workingDir);
+            monitoringRequired = computeNodeMaster.initialize();
         } catch (Exception e) {
 
             // Any exception that occurs in the constructor or initialization is
@@ -438,7 +441,9 @@ public class ComputeNodeMaster implements Runnable {
 
         // Monitoring: wait for subtasks to finish, subtask masters to finish, or exceptions
         // to be thrown
-        computeNodeMaster.monitor();
+        if (monitoringRequired) {
+            computeNodeMaster.monitor();
+        }
 
         // Wrap-up: finalize and clean up
         computeNodeMaster.finish();

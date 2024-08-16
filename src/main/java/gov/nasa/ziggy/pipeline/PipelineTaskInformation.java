@@ -12,7 +12,6 @@ import gov.nasa.ziggy.module.PipelineInputs;
 import gov.nasa.ziggy.module.PipelineInputsOutputsUtils;
 import gov.nasa.ziggy.module.SubtaskInformation;
 import gov.nasa.ziggy.module.remote.RemoteParameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
@@ -21,9 +20,11 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
@@ -45,55 +46,16 @@ public class PipelineTaskInformation {
 
     private static final Logger log = LoggerFactory.getLogger(PipelineTaskInformation.class);
 
-    private ParameterSetCrud parameterSetCrud;
-    private PipelineDefinitionCrud pipelineDefinitionCrud;
-    private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud;
-
-    void setParameterSetCrud(ParameterSetCrud parameterSetCrud) {
-        this.parameterSetCrud = parameterSetCrud;
-    }
-
-    void setPipelineDefinitionCrud(PipelineDefinitionCrud pipelineDefinitionCrud) {
-        this.pipelineDefinitionCrud = pipelineDefinitionCrud;
-    }
-
-    void setPipelineModuleDefinitionCrud(
-        PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud) {
-        this.pipelineModuleDefinitionCrud = pipelineModuleDefinitionCrud;
-    }
-
-    private ParameterSetCrud getParameterSetCrud() {
-        if (parameterSetCrud == null) {
-            parameterSetCrud = new ParameterSetCrud();
-        }
-        return parameterSetCrud;
-    }
-
-    private PipelineDefinitionCrud getPipelineDefinitionCrud() {
-        if (pipelineDefinitionCrud == null) {
-            pipelineDefinitionCrud = new PipelineDefinitionCrud();
-        }
-        return pipelineDefinitionCrud;
-    }
-
-    private PipelineModuleDefinitionCrud getPipelineModuleDefinitionCrud() {
-        if (pipelineModuleDefinitionCrud == null) {
-            pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
-        }
-        return pipelineModuleDefinitionCrud;
-    }
+    private ParametersOperations parametersOperations = new ParametersOperations();
+    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+    private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
 
     /**
      * Singleton instance.
      */
     private static PipelineTaskInformation instance = new PipelineTaskInformation();
-
-    /**
-     * Allows a mocked instance to be provided for unit tests.
-     */
-    static void setInstance(PipelineTaskInformation newInstance) {
-        instance = newInstance;
-    }
 
     /**
      * Cache of information organized by {@link PipelineDefinitionNode}.
@@ -136,36 +98,27 @@ public class PipelineTaskInformation {
      * in the appropriate {@link PipelineInputs} subclasss is used to generate an instance of
      * {@link SubtaskInformation} for each pipeline task.
      */
-
     private static synchronized void generateSubtaskInformation(PipelineDefinitionNode node) {
 
         log.debug("Generating subtask information for node " + node.getModuleName());
-        PipelineDefinition pipelineDefinition = pipelineDefinitionCrud()
-            .retrieveLatestVersionForName(node.getPipelineName());
+        PipelineDefinition pipelineDefinition = instancePipelineDefinitionOperations()
+            .pipelineDefinition(node.getPipelineName());
 
         // Construct the pipeline instance.
         PipelineInstance pipelineInstance = new PipelineInstance();
         pipelineInstance.setPipelineDefinition(pipelineDefinition);
 
         // Populate the instance parameters
-        Map<ClassWrapper<ParametersInterface>, String> triggerParamNames = pipelineDefinition
-            .getPipelineParameterSetNames();
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> instanceParams = pipelineInstance
-            .getPipelineParameterSets();
-        populateParameters(triggerParamNames, instanceParams);
-        pipelineInstance.setPipelineParameterSets(instanceParams);
+        pipelineInstance
+            .setParameterSets(instanceParametersOperations().parameterSets(pipelineDefinition));
 
         // Find the pipeline definition node of interest
-        PipelineModuleDefinition moduleDefinition = pipelineModuleDefinitionCrud()
-            .retrieveLatestVersionForName(node.getModuleName());
+        PipelineModuleDefinition moduleDefinition = instancePipelineModuleDefinitionOperations()
+            .pipelineModuleDefinition(node.getModuleName());
 
         // Construct a PipelineInstanceNode for this module
-        PipelineInstanceNode instanceNode = new PipelineInstanceNode(pipelineInstance, node,
-            moduleDefinition);
-        triggerParamNames = node.getModuleParameterSetNames();
-        instanceParams = instanceNode.getModuleParameterSets();
-        populateParameters(triggerParamNames, instanceParams);
-        instanceNode.setModuleParameterSets(instanceParams);
+        PipelineInstanceNode instanceNode = new PipelineInstanceNode(node, moduleDefinition);
+        instanceNode.setParameterSets(instanceParametersOperations().parameterSets(node));
 
         ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = instance.unitOfWorkGenerator(node);
 
@@ -179,10 +132,11 @@ public class PipelineTaskInformation {
             PipelineTask pipelineTask = instance.pipelineTask(pipelineInstance, instanceNode, task);
             pipelineTask.setUowTaskParameters(task.getParameters());
             SubtaskInformation subtaskInformation = instance.subtaskInformation(moduleDefinition,
-                pipelineTask);
+                pipelineTask, node);
             subtaskInformationList.add(subtaskInformation);
         }
         subtaskInformationMap.put(node, subtaskInformationList);
+        log.debug("Generating subtask information...done");
     }
 
     /**
@@ -201,7 +155,7 @@ public class PipelineTaskInformation {
      * support of unit tests.
      */
     ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator(PipelineDefinitionNode node) {
-        return pipelineModuleDefinitionCrud().retrieveUnitOfWorkGenerator(node.getModuleName());
+        return pipelineModuleDefinitionOperations().unitOfWorkGenerator(node.getModuleName());
     }
 
     /**
@@ -219,33 +173,48 @@ public class PipelineTaskInformation {
      * Implemented as an instance method in support of unit tests.
      */
     SubtaskInformation subtaskInformation(PipelineModuleDefinition moduleDefinition,
-        PipelineTask pipelineTask) {
+        PipelineTask pipelineTask, PipelineDefinitionNode pipelineDefinitionNode) {
         PipelineInputs pipelineInputs = PipelineInputsOutputsUtils
             .newPipelineInputs(moduleDefinition.getInputsClass(), pipelineTask, null);
-        return pipelineInputs.subtaskInformation();
+        return pipelineInputs.subtaskInformation(pipelineDefinitionNode);
     }
 
-    private static void populateParameters(
-        Map<ClassWrapper<ParametersInterface>, String> parameterSetNames,
-        Map<ClassWrapper<ParametersInterface>, ParameterSet> parameterSets) {
-        for (ClassWrapper<ParametersInterface> paramClass : parameterSetNames.keySet()) {
-            String pipelineParamName = parameterSetNames.get(paramClass);
-            ParameterSet paramSet = parameterSetCrud()
-                .retrieveLatestVersionForName(pipelineParamName);
-            parameterSets.put(paramClass, paramSet);
-        }
+    ParametersOperations parametersOperations() {
+        return parametersOperations;
     }
 
-    // Methods to retrieve CRUD instance from the singleton.
-    private static synchronized ParameterSetCrud parameterSetCrud() {
-        return instance.getParameterSetCrud();
+    /**
+     * Allows a mocked instance to be provided for unit tests.
+     */
+    static void setInstance(PipelineTaskInformation newInstance) {
+        instance = newInstance;
     }
 
-    private static synchronized PipelineDefinitionCrud pipelineDefinitionCrud() {
-        return instance.getPipelineDefinitionCrud();
+    PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
     }
 
-    private static synchronized PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud() {
-        return instance.getPipelineModuleDefinitionCrud();
+    PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+        return pipelineModuleDefinitionOperations;
+    }
+
+    PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
+    }
+
+    PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
+        return pipelineInstanceNodeOperations;
+    }
+
+    private static synchronized PipelineDefinitionOperations instancePipelineDefinitionOperations() {
+        return instance.pipelineDefinitionOperations();
+    }
+
+    private static synchronized PipelineModuleDefinitionOperations instancePipelineModuleDefinitionOperations() {
+        return instance.pipelineModuleDefinitionOperations();
+    }
+
+    private static synchronized ParametersOperations instanceParametersOperations() {
+        return instance.parametersOperations();
     }
 }

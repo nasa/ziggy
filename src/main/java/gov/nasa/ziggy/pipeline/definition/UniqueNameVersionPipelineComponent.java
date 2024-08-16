@@ -3,11 +3,13 @@ package gov.nasa.ziggy.pipeline.definition;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.util.List;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.crud.UniqueNameVersionPipelineComponentCrud;
+import gov.nasa.ziggy.pipeline.definition.database.UniqueNameVersionPipelineComponentCrud;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.ReflectionUtils;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Version;
@@ -40,6 +42,10 @@ import jakarta.xml.bind.annotation.XmlTransient;
 @XmlTransient
 public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVersionPipelineComponent<T>> {
 
+    // Fields that must not be updated by the upateContents method.
+    private static final List<String> FIELD_NAMES_NOT_UPDATED = List.of("name", "version", "locked",
+        "id");
+    private static final String OPTIMISTIC_LOCK_VALUE_FIELD_NAME = "optimisticLockValue";
     private int version;
 
     @XmlAttribute(required = true)
@@ -95,43 +101,89 @@ public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVer
         this.locked = locked;
     }
 
-    public T rename(String name) {
-        T renamedInstance = newInstance();
-        renamedInstance.setName(name);
-        return renamedInstance;
-    }
-
     @SuppressWarnings("unchecked")
     /**
-     * Returns an unlocked version of the object. If the object is already unlocked, the object is
-     * returned. If it is locked, a shallow copy is returned that has the following properties:
-     * <ol>
-     * <li>The value of locked is set to false.
-     * <li>The database ID is null.
-     * <li>The version number is 1 greater than the version number of the current object.
-     * </ol>
-     * This provides a new version of the object that can be persisted as such, which leaves the
-     * existing, locked database instance untouched.
-     *
-     * @return
+     * Returns an object that is unlocked and suitable for persistence in the database, which
+     * contains the content of the object in the argument. Assumes that the current object (i.e.,
+     * this) is a detached entity.
+     * <p>
+     * If the detached version is unlocked, then we need to merge the detached version in order to
+     * satisfy the database name-version uniqueness constraint. In this case, the content of the
+     * argument version is copied to the detached version.
+     * <p>
+     * If the detached version is locked, we need to return a transient entity with the content of
+     * the argument version, an incremented ID, and its lock flag set to false. Because the argument
+     * version might be transient or might be detached, it's necessary to copy the content of the
+     * content version into a new, transient object.
      */
-    public T unlockedVersion() {
-        if (!isLocked()) {
-            return (T) this;
+    public T unlockedVersion(T contentVersion) {
+
+        // If this version is locked, we can persist the content version with a new
+        // version number.
+        if (isLocked()) {
+            T unlockedVersion = contentVersion.newInstance();
+            unlockedVersion.setName(contentVersion.getName());
+            unlockedVersion.setVersion(getVersion() + 1);
+            unlockedVersion.setLocked(false);
+            unlockedVersion.resetOptimisticLockValue();
+            return unlockedVersion;
         }
-        T unlockedVersion = newInstance();
-        unlockedVersion.setName(name);
-        unlockedVersion.setVersion(version + 1);
-        return unlockedVersion;
+
+        // Otherwise, we want to persist the new content but do so in this object,
+        // which is a detached entity.
+        updateContents(contentVersion);
+        return (T) this;
+    }
+
+    /**
+     * Replaces the content of the current instance with the content of the instance in the method
+     * argument.
+     * <p>
+     * The point of this is to take a detached database entity and fill it with new values. The
+     * resulting entity can then be merged and the changes will be implemented under the name and
+     * version number of the database entity. This, in turn, is necessary in order to make changes
+     * to an unlocked entity, which preserves the same name and version number as currently used in
+     * the database; to do this, the entity to be merged must be a detached entity (not transient)
+     * with the correct name and version.
+     */
+    public void updateContents(T newContentInstance) {
+        List<Field> fields = ReflectionUtils.getAllFields(this, true);
+        for (Field field : fields) {
+            if (Modifier.isFinal(field.getModifiers())) {
+                continue;
+            }
+            if (FIELD_NAMES_NOT_UPDATED.contains(field.getName())) {
+                continue;
+            }
+
+            // If the newContentInstance was not imported from a file, we need to preserve
+            // the new instance's optimistic lock value. If it was imported from a file,
+            // we need to keep the optimistic lock value of this instance when all the rest of the
+            // content from the newContentInstance gets copied over.
+            if (field.getName().equals(OPTIMISTIC_LOCK_VALUE_FIELD_NAME)
+                && newContentInstance.getId() == null) {
+                continue;
+            }
+            field.setAccessible(true);
+            try {
+                field.set(this, field.get(newContentInstance));
+            } catch (IllegalArgumentException | IllegalAccessException e) {
+                throw new PipelineException("Unable to update content of " + getClass().getName()
+                    + " instance with name '" + getName(), e);
+            }
+        }
     }
 
     protected abstract void clearDatabaseId();
 
+    public abstract Long getId();
+
     /**
      * Determines whether two objects are identical. This is used to determine whether it is
-     * necessary for the CRUD merge() method to do anything at all. This is in contrast to
-     * {@link #equals}, which might limit the fields considered to ensure that a component of a
-     * given name, for example, is present in a set but once.
+     * necessary the CRUD merge() to first update the version number, in combination with the lock
+     * status of the object to merge. This is in contrast to {@link #equals}, which might limit the
+     * fields considered to ensure that a component of a given name, for example, is present in a
+     * set but once.
      */
     public abstract boolean totalEquals(Object other);
 
@@ -156,18 +208,10 @@ public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVer
     public T newInstance() {
 
         try {
-            T copy = (T) this.getClass()
-                .getDeclaredConstructor((Class<?>[]) null)
+            T copy = (T) getClass().getDeclaredConstructor((Class<?>[]) null)
                 .newInstance((Object[]) null);
-            Field[] fields = this.getClass().getDeclaredFields();
-            for (Field field : fields) {
-                if (Modifier.isFinal(field.getModifiers())) {
-                    continue;
-                }
-                field.setAccessible(true);
-                field.set(copy, field.get(this));
-            }
-            copy.setName("Copy of " + this.getName());
+            copy.updateContents((T) this);
+            copy.setName("Copy of " + getName());
             copy.setVersion(0);
             copy.clearDatabaseId();
             copy.setLocked(false);
@@ -177,6 +221,10 @@ public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVer
             throw new PipelineException("Unable to construct copy of " + getClass().getName()
                 + " instance with name '" + getName(), e);
         }
+    }
+
+    protected void resetOptimisticLockValue() {
+        optimisticLockValue = 0;
     }
 
     public AuditInfo getAuditInfo() {

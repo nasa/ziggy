@@ -6,7 +6,6 @@ import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -22,25 +21,13 @@ import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.module.AlgorithmExecutor.AlgorithmType;
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
-import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.ProcessingState;
-import gov.nasa.ziggy.pipeline.definition.TaskCounts;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskOperations;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseService;
@@ -58,12 +45,10 @@ public class AlgorithmMonitorTest {
     private PipelineTask pipelineTask;
     private StateFile stateFile;
     private JobMonitor jobMonitor;
-    private PipelineTaskCrud pipelineTaskCrud;
     private PipelineExecutor pipelineExecutor;
-    private PipelineOperations pipelineOperations;
+    private PipelineTaskOperations pipelineTaskOperations;
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations;
     private AlertService alertService;
-    private ProcessingSummaryOperations attrOps;
-    private PipelineInstanceNodeCrud nodeCrud;
     private PipelineDefinitionNodeExecutionResources resources = new PipelineDefinitionNodeExecutionResources(
         "dummy", "dummy");
 
@@ -89,57 +74,39 @@ public class AlgorithmMonitorTest {
         Mockito.when(monitor.pollingIntervalMillis()).thenReturn(50L);
         Mockito.doReturn(false).when(monitor).taskIsKilled(ArgumentMatchers.isA(long.class));
         pipelineTask = Mockito.spy(PipelineTask.class);
-        Mockito.doReturn(50L).when(pipelineTask).pipelineInstanceId();
+        Mockito.doReturn(50L).when(pipelineTask).getPipelineInstanceId();
+        Mockito.doReturn(50L).when(pipelineTask).getPipelineInstanceId();
         Mockito.doReturn(100L).when(pipelineTask).getId();
         Mockito.doReturn("dummy").when(pipelineTask).getModuleName();
-        Mockito.doReturn(Mockito.mock(PipelineInstance.class))
-            .when(pipelineTask)
-            .getPipelineInstance();
-        Mockito.doReturn(100).when(pipelineTask).exeTimeoutSeconds();
-        Mockito.doReturn(new HashMap<>())
-            .when(pipelineTask)
-            .getPipelineParameterSets();
-        Mockito.doReturn(new HashMap<>())
-            .when(pipelineTask)
-            .getModuleParameterSets();
-        pipelineTaskCrud = Mockito.mock(PipelineTaskCrud.class);
-        Mockito.when(pipelineTaskCrud.retrieve(100L)).thenReturn(pipelineTask);
-        Mockito.when(pipelineTaskCrud.merge(ArgumentMatchers.isA(PipelineTask.class)))
-            .thenReturn(pipelineTask);
-        Mockito.when(monitor.pipelineTaskCrud()).thenReturn(pipelineTaskCrud);
-        nodeCrud = Mockito.mock(PipelineInstanceNodeCrud.class);
-        pipelineOperations = Mockito.mock(PipelineOperations.class);
-        Mockito
-            .when(pipelineOperations.taskCounts(ArgumentMatchers.isA(PipelineInstanceNode.class)))
-            .thenReturn(new TaskCounts(50, 50, 10, 1));
-        Mockito.when(monitor.pipelineOperations()).thenReturn(pipelineOperations);
         pipelineExecutor = Mockito.spy(PipelineExecutor.class);
-        Mockito.doReturn(pipelineTaskCrud).when(pipelineExecutor).pipelineTaskCrud();
-        Mockito.doReturn(nodeCrud).when(pipelineExecutor).pipelineInstanceNodeCrud();
-        Mockito.doReturn(pipelineOperations).when(pipelineExecutor).pipelineOperations();
+        pipelineTaskOperations = Mockito.mock(PipelineTaskOperations.class);
+        Mockito.when(pipelineTaskOperations.pipelineTask(100L)).thenReturn(pipelineTask);
+        Mockito.when(pipelineTaskOperations.merge(ArgumentMatchers.isA(PipelineTask.class)))
+            .thenReturn(pipelineTask);
+        pipelineInstanceNodeOperations = Mockito.mock(PipelineInstanceNodeOperations.class);
+        Mockito.doReturn(pipelineTaskOperations).when(pipelineExecutor).pipelineTaskOperations();
+        Mockito.doReturn(pipelineInstanceNodeOperations)
+            .when(pipelineExecutor)
+            .pipelineInstanceNodeOperations();
+        Mockito.when(monitor.pipelineTaskOperations()).thenReturn(pipelineTaskOperations);
         Mockito.doNothing()
             .when(pipelineExecutor)
             .removeTaskFromKilledTaskList(ArgumentMatchers.isA(long.class));
-        Mockito
-            .when(nodeCrud.retrieve(ArgumentMatchers.isA(PipelineInstance.class),
-                ArgumentMatchers.isA(PipelineDefinitionNode.class)))
-            .thenReturn(Mockito.mock(PipelineInstanceNode.class));
         Mockito.when(pipelineExecutor.taskRequestEnabled()).thenReturn(false);
-        attrOps = Mockito.mock(ProcessingSummaryOperations.class);
-        Mockito.doReturn(Mockito.mock(PipelineInstanceCrud.class))
-            .when(pipelineExecutor)
-            .pipelineInstanceCrud();
-        PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = Mockito
-            .mock(PipelineDefinitionNodeCrud.class);
-        PipelineDefinitionNode pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
-        Mockito.when(monitor.pipelineDefinitionNodeCrud()).thenReturn(pipelineDefinitionNodeCrud);
-        Mockito.doReturn(pipelineDefinitionNode).when(pipelineTask).pipelineDefinitionNode();
-        Mockito.when(pipelineDefinitionNodeCrud.retrieveExecutionResources(pipelineDefinitionNode))
+        Mockito
+            .when(
+                pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(resources);
         Mockito.when(monitor.pipelineExecutor()).thenReturn(pipelineExecutor);
-        Mockito.when(monitor.processingSummaryOperations()).thenReturn(attrOps);
-        Mockito.when(monitor.pipelineTaskOperations())
-            .thenReturn(Mockito.mock(PipelineTaskOperations.class));
+        Mockito.when(monitor.pipelineTaskOperations()).thenReturn(pipelineTaskOperations);
+        Mockito.when(pipelineTaskOperations.pipelineTask(ArgumentMatchers.anyLong()))
+            .thenReturn(pipelineTask);
+        Mockito.when(pipelineTaskOperations.merge(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineTask);
+        Mockito
+            .when(pipelineTaskOperations
+                .prepareTaskForAutoResubmit(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineTask);
         alertService = Mockito.mock(AlertService.class);
         Mockito.when(monitor.alertService()).thenReturn(alertService);
         stateFile = StateFile.generateStateFile(pipelineTask, null, 100);
@@ -197,7 +164,7 @@ public class AlgorithmMonitorTest {
         assertEquals(10, storedStateFile.getNumComplete());
         assertEquals(5, storedStateFile.getNumFailed());
         assertEquals(StateFile.State.PROCESSING, storedStateFile.getState());
-        Mockito.verify(attrOps).updateProcessingState(100L, ProcessingState.ALGORITHM_EXECUTING);
+        Mockito.verify(pipelineTaskOperations).updateProcessingStep(100L, ProcessingStep.EXECUTING);
     }
 
     // Test a failed execution, that is to say one in which:
@@ -223,10 +190,11 @@ public class AlgorithmMonitorTest {
         assertEquals(StateFile.State.COMPLETE, updatedStateFile.getState());
 
         // The task should be advanced to Ac state
-        Mockito.verify(attrOps).updateProcessingState(100L, ProcessingState.ALGORITHM_COMPLETE);
+        Mockito.verify(pipelineTaskOperations)
+            .updateProcessingStep(100L, ProcessingStep.WAITING_TO_STORE);
 
         // The pipeline task state was set to ERROR.
-        Mockito.verify(pipelineOperations).setTaskState(pipelineTask, PipelineTask.State.ERROR);
+        Mockito.verify(pipelineTaskOperations).taskErrored(pipelineTask);
 
         // There are no task requests in the queue.
         assertEquals(0, lifecycleManager.taskRequestSize());
@@ -248,10 +216,11 @@ public class AlgorithmMonitorTest {
         assertNull(monitor.getStateFile(stateFile));
 
         // The task should be advanced to Ac state
-        Mockito.verify(attrOps).updateProcessingState(100L, ProcessingState.ALGORITHM_COMPLETE);
+        Mockito.verify(pipelineTaskOperations)
+            .updateProcessingStep(100L, ProcessingStep.WAITING_TO_STORE);
 
         // The pipeline task state was set to ERROR.
-        Mockito.verify(pipelineOperations).setTaskState(pipelineTask, PipelineTask.State.ERROR);
+        Mockito.verify(pipelineTaskOperations).taskErrored(pipelineTask);
 
         // There are no task requests in the queue.
         assertEquals(0, lifecycleManager.taskRequestSize());
@@ -274,10 +243,11 @@ public class AlgorithmMonitorTest {
         assertNull(monitor.getStateFile(stateFile));
 
         // The task should be advanced to Ac state
-        Mockito.verify(attrOps).updateProcessingState(100L, ProcessingState.ALGORITHM_COMPLETE);
+        Mockito.verify(pipelineTaskOperations)
+            .updateProcessingStep(100L, ProcessingStep.WAITING_TO_STORE);
 
         // The pipeline task state was set to ERROR.
-        Mockito.verify(pipelineOperations).setTaskState(pipelineTask, PipelineTask.State.ERROR);
+        Mockito.verify(pipelineTaskOperations).taskErrored(pipelineTask);
 
         // There are no task requests in the queue.
         assertEquals(0, lifecycleManager.taskRequestSize());
@@ -300,7 +270,8 @@ public class AlgorithmMonitorTest {
         assertNull(monitor.getStateFile(stateFile));
 
         // The task should be advanced to Ac state
-        Mockito.verify(attrOps).updateProcessingState(100L, ProcessingState.ALGORITHM_COMPLETE);
+        Mockito.verify(pipelineTaskOperations)
+            .updateProcessingStep(100L, ProcessingStep.WAITING_TO_STORE);
 
         // The PipelineExecutor should have been asked to submit the task for persisting.
         Mockito.verify(pipelineExecutor).persistTaskResults(pipelineTask);
@@ -317,7 +288,7 @@ public class AlgorithmMonitorTest {
         resources.setMaxFailedSubtaskCount(4);
         resources.setMaxAutoResubmits(3);
         Mockito.when(pipelineTask.getAutoResubmitCount()).thenReturn(1);
-        Mockito.when(pipelineTask.getState()).thenReturn(PipelineTask.State.ERROR);
+        Mockito.when(pipelineTask.isError()).thenReturn(true);
         Mockito.doNothing()
             .when(pipelineExecutor)
             .restartFailedTasks(ArgumentMatchers.anyCollection(), ArgumentMatchers.anyBoolean(),
@@ -332,13 +303,11 @@ public class AlgorithmMonitorTest {
         assertNull(monitor.getStateFile(stateFile));
 
         // The task should be advanced to Ac state
-        Mockito.verify(attrOps).updateProcessingState(100L, ProcessingState.ALGORITHM_COMPLETE);
+        Mockito.verify(pipelineTaskOperations)
+            .updateProcessingStep(100L, ProcessingStep.WAITING_TO_STORE);
 
         // The task should have its auto-resubmit count incremented
-        Mockito.verify(pipelineTask).incrementAutoResubmitCount();
-
-        // The pipeline task state was set to ERROR
-        Mockito.verify(pipelineOperations).setTaskState(pipelineTask, PipelineTask.State.ERROR);
+        Mockito.verify(pipelineTaskOperations).prepareTaskForAutoResubmit(pipelineTask);
 
         // The pipeline executor method to restart tasks was called
         Mockito.verify(pipelineExecutor)
@@ -351,10 +320,10 @@ public class AlgorithmMonitorTest {
     public void testOutOfAutoResubmits()
         throws ConfigurationException, IOException, InterruptedException {
 
-        Mockito.when(pipelineTask.getMaxFailedSubtaskCount()).thenReturn(4);
-        Mockito.when(pipelineTask.getMaxAutoResubmits()).thenReturn(3);
+        resources.setMaxFailedSubtaskCount(4);
+        resources.setMaxAutoResubmits(3);
         Mockito.when(pipelineTask.getAutoResubmitCount()).thenReturn(3);
-        Mockito.when(pipelineTask.getState()).thenReturn(PipelineTask.State.ERROR);
+        Mockito.when(pipelineTask.isError()).thenReturn(true);
         stateFile.setState(StateFile.State.COMPLETE);
         stateFile.setNumComplete(95);
         stateFile.setNumFailed(5);
@@ -365,10 +334,11 @@ public class AlgorithmMonitorTest {
         assertNull(monitor.getStateFile(stateFile));
 
         // The task should be advanced to Ac state
-        Mockito.verify(attrOps).updateProcessingState(100L, ProcessingState.ALGORITHM_COMPLETE);
+        Mockito.verify(pipelineTaskOperations)
+            .updateProcessingStep(100L, ProcessingStep.WAITING_TO_STORE);
 
         // The pipeline task state was set to ERROR, then to SUBMITTED
-        Mockito.verify(pipelineOperations).setTaskState(pipelineTask, PipelineTask.State.ERROR);
+        Mockito.verify(pipelineTaskOperations).taskErrored(pipelineTask);
 
         // There are no task requests in the queue.
         assertEquals(0, lifecycleManager.taskRequestSize());

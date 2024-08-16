@@ -61,7 +61,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -186,7 +186,7 @@ public class Manifest implements HasXmlSchemaFilename {
         List<Future<ManifestEntry>> futures = new ArrayList<>();
 
         // Get all the files to include in the manifest. Some of these may be symbolic links.
-        Map<Path, Path> regularFiles = FileUtil.regularFilesInDirTree(directory);
+        Map<Path, Path> regularFiles = ZiggyFileUtils.regularFilesInDirTree(directory);
 
         // Create a new ManifestEntry for each file. In the interest of performance this is
         // done using a thread pool, with each ManifestEntry generated in a separate thread.
@@ -238,7 +238,7 @@ public class Manifest implements HasXmlSchemaFilename {
         ValidatingXmlManager<Manifest> xmlManager = new ValidatingXmlManager<>(Manifest.class);
         // TODO : fix this!
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, entry -> {
-            Path trueFile = FileUtil.realSourceFile(entry);
+            Path trueFile = ZiggyFileUtils.realSourceFile(entry);
             return Files.isRegularFile(trueFile)
                 && entry.getFileName().toString().endsWith(FILENAME_SUFFIX);
         })) {
@@ -247,7 +247,7 @@ public class Manifest implements HasXmlSchemaFilename {
                     throw new IllegalStateException(
                         "Multiple manifest files identified in directory " + directory.toString());
                 }
-                manifest = xmlManager.unmarshal(FileUtil.realSourceFile(entry).toFile());
+                manifest = xmlManager.unmarshal(ZiggyFileUtils.realSourceFile(entry).toFile());
                 manifest.setName(entry.getFileName().toString());
             }
         } catch (IOException e) {

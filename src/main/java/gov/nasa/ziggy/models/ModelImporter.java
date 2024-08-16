@@ -23,12 +23,10 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Imports models of all types from a specified directory.
@@ -55,7 +53,6 @@ public class ModelImporter {
     private static final Logger log = LoggerFactory.getLogger(ModelImporter.class);
 
     private Path datastoreRoot;
-    private ModelCrud modelCrud = new ModelCrud();
     private Path datastoreModelsRoot;
     private Path dataImportPath;
     String modelDescription;
@@ -63,6 +60,7 @@ public class ModelImporter {
     private long dataReceiptTaskId;
     private List<Path> successfulImports = new ArrayList<>();
     private List<Path> failedImports = new ArrayList<>();
+    private ModelOperations modelOperations = new ModelOperations();
 
     public static final String DATASTORE_MODELS_SUBDIR_NAME = "models";
 
@@ -236,7 +234,7 @@ public class ModelImporter {
 
     // The DataFileManager method is broken out in this fashion to facilitate testing.
     public void move(Path src, Path dest) throws IOException {
-        FileUtil.CopyType.MOVE.copy(src, dest);
+        ZiggyFileUtils.CopyType.MOVE.copy(src, dest);
     }
 
     // The ModelMetadata constructor is broken out in this fashion to facilitate testing.
@@ -271,28 +269,22 @@ public class ModelImporter {
     }
 
     public ModelRegistry unlockedRegistry() {
-        return (ModelRegistry) DatabaseTransactionFactory
-            .performTransaction(() -> modelCrud.retrieveUnlockedRegistry());
+        return modelOperations().unlockedRegistry();
     }
 
     public void persistModelMetadata(ModelMetadata modelMetadata) {
-        DatabaseTransactionFactory.performTransaction(() -> {
-            modelCrud.persist(modelMetadata);
-            return null;
-        });
+        modelOperations().persistModelMetadata(modelMetadata);
     }
 
     public long mergeRegistryAndReturnUnlockedId(ModelRegistry modelRegistry) {
-        return (long) DatabaseTransactionFactory.performTransaction(() -> {
-            modelCrud.merge(modelRegistry);
-            return modelCrud.retrieveUnlockedRegistryId();
-        });
+        return modelOperations().mergeRegistryAndReturnUnlockedId(modelRegistry);
     }
 
-    @SuppressWarnings("unchecked")
     public List<ModelType> modelTypes() {
-        return (List<ModelType>) DatabaseTransactionFactory
-            .performTransaction(() -> modelCrud.retrieveAllModelTypes());
+        return modelOperations().allModelTypes();
     }
 
+    ModelOperations modelOperations() {
+        return modelOperations;
+    }
 }

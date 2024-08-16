@@ -148,7 +148,7 @@ public class ZiggyConsolePanel extends JSplitPane {
         public ContentMenu(ContentPanel contentPanel) {
             super(createModel());
             this.contentPanel = contentPanel;
-            getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+            getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             setVisibleRowCount(-1);
             addListSelectionListener(this);
         }

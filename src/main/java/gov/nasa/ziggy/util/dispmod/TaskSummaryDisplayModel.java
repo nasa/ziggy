@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import gov.nasa.ziggy.util.TasksStates;
-import gov.nasa.ziggy.util.TasksStates.Summary;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
 
 /**
  * {@link DisplayModel} for the pipeline task summary. This class is used to format the pipeline
@@ -11,74 +11,39 @@ import gov.nasa.ziggy.util.TasksStates.Summary;
  */
 public class TaskSummaryDisplayModel extends DisplayModel {
 
-    private static final String[] COLUMN_NAMES = { "Module", "Submitted", "Processing", "Completed",
-        "Failed", "Subtasks" };
+    private static final String[] COLUMN_NAMES = { "Module", "Waiting to run", "Processing",
+        "Completed", "Failed", "Subtasks" };
 
-    private TasksStates taskStates = new TasksStates();
+    private TaskCounts taskCounts = new TaskCounts();
 
     public TaskSummaryDisplayModel() {
     }
 
-    public TaskSummaryDisplayModel(TasksStates taskStates) {
-        this.taskStates = taskStates;
+    public TaskSummaryDisplayModel(TaskCounts taskCounts) {
+        this.taskCounts = taskCounts;
     }
 
-    public void update(TasksStates taskStates) {
-        this.taskStates = taskStates;
+    public void update(TaskCounts taskCounts) {
+        this.taskCounts = taskCounts;
     }
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        int moduleCount = taskStates.getModuleNames().size();
+        int moduleCount = taskCounts.getModuleNames().size();
         boolean isTotalsRow = rowIndex == moduleCount;
-        String moduleName = "";
-        TasksStates.Summary moduleSummary = null;
+        String moduleName = isTotalsRow ? "" : taskCounts.getModuleNames().get(rowIndex);
+        TaskCounts.Counts counts = isTotalsRow ? taskCounts.getTotalCounts()
+            : taskCounts.getModuleCounts().get(moduleName);
 
-        if (!isTotalsRow) {
-            moduleName = taskStates.getModuleNames().get(rowIndex);
-            moduleSummary = taskStates.getModuleStates().get(moduleName);
-        }
-
-        switch (columnIndex) {
-            case 0: // Module
-                return moduleName;
-            case 1: // Submitted
-                if (isTotalsRow) {
-                    return taskStates.getTotalSubmittedCount();
-                } else {
-                    return moduleSummary.getSubmittedCount();
-                }
-            case 2: // Processing
-                if (isTotalsRow) {
-                    return taskStates.getTotalProcessingCount();
-                } else {
-                    return moduleSummary.getProcessingCount();
-                }
-            case 3: // Completed
-                if (isTotalsRow) {
-                    return taskStates.getTotalCompletedCount();
-                } else {
-                    return moduleSummary.getCompletedCount();
-                }
-            case 4: // Failed
-                if (isTotalsRow) {
-                    return taskStates.getTotalErrorCount();
-                } else {
-                    return moduleSummary.getErrorCount();
-                }
-            case 5: // SubTasks
-                if (isTotalsRow) {
-                    return taskStates.getTotalSubTaskTotalCount() + " / "
-                        + taskStates.getTotalSubTaskCompleteCount() + " / "
-                        + taskStates.getTotalSubTaskFailedCount();
-                } else {
-                    return moduleSummary.getSubTaskTotalCount() + " / "
-                        + moduleSummary.getSubTaskCompleteCount() + " / "
-                        + moduleSummary.getSubTaskFailedCount();
-                }
-            default:
-                throw new IllegalArgumentException("Unexpected value: " + columnIndex);
-        }
+        return switch (columnIndex) {
+            case 0 -> moduleName;
+            case 1 -> counts.getWaitingToRunTaskCount();
+            case 2 -> counts.getProcessingTaskCount();
+            case 3 -> counts.getCompletedTaskCount();
+            case 4 -> counts.getFailedTaskCount();
+            case 5 -> counts.subtaskCountsLabel();
+            default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
+        };
     }
 
     @Override
@@ -86,8 +51,8 @@ public class TaskSummaryDisplayModel extends DisplayModel {
         return COLUMN_NAMES.length;
     }
 
-    public Summary getContentAtRow(int row) {
-        return taskStates.getModuleStates().get(taskStates.getModuleNames().get(row));
+    public Counts getContentAtRow(int row) {
+        return taskCounts.getModuleCounts().get(taskCounts.getModuleNames().get(row));
     }
 
     @Override
@@ -97,13 +62,13 @@ public class TaskSummaryDisplayModel extends DisplayModel {
 
     @Override
     public int getRowCount() {
-        if (taskStates != null) {
-            return taskStates.getModuleNames().size() + 1;
+        if (taskCounts != null) {
+            return taskCounts.getModuleNames().size() + 1;
         }
         return 0;
     }
 
-    public TasksStates getTaskStates() {
-        return taskStates;
+    public TaskCounts getTaskCounts() {
+        return taskCounts;
     }
 }

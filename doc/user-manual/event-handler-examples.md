@@ -51,11 +51,11 @@ $
 
 Once you do this, the Pi light on the console will quickly turn green. After a few seconds, you'll see a new pipeline instance appear in the instances panel:
 
-<img src="images/event-handler-instances-1.png" style="width:13cm;"/>
+<img src="images/event-handler-instances-1.png" style="width:14cm;"/>
 
 The event handler automatically names the pipeline with the "bare" pipeline name ("sample"), the event handler name ("data-receipt"), and the timestamp of the event that started the processing. The Event name column shows the name of the event handler as well ("data-receipt"). Note that the Event name column is initially hidden as it duplicates the information in the pipeline name. If you want to sort the table by the event handler name, use the context menu in the table header to enable to Event name column. Then you can click in the header to update the sort. Meanwhile, the tasks table looks like this:
 
-<img src="images/event-handler-tasks-1.png" style="width:14cm;"/>
+<img src="images/event-handler-tasks-1.png" style="width:16cm;"/>
 
 The data receipt task ran to completion before the display could even update, and the pipeline went on to its `permuter` tasks. After the usual few seconds, the pipeline will finish, with `flip` and `averaging` tasks.
 
@@ -85,11 +85,7 @@ For this example, we're going to simulate the following situation:
 
 Two different sources are pushing data into the data-receipt directory. The first source is responsible for `sample-1` and `sample-2`; the other is responsible for `sample-3`. At some point, the first source has finished its deliveries but the second has not. This is the point at which the example will start.
 
-Before we do that, though, let's reconfigure the pipeline a bit. First, we need to tell data receipt that it should expect files to be in the subdirectories of data-receipt. To do this, return to Configuration > Parameter Library, select `Data receipt configuration`, and modify the `taskDirectoryRegex`:
-
-<img src="images/data-receipt-use-subdirs.png" style="width:11cm;" />
-
-Second, let's tell the pipeline that we only want it to process new data that's never been processed, and it should leave alone any data that's been successfully processed before this. To do so, select the `Multiple subtask configuration` and the `Single subtask configuration` parameter sets, and uncheck the reprocess box:
+Before we do that, though, let's reconfigure the pipeline a bit. Specifically, let's tell the pipeline that we only want it to process new data that's never been processed, and it should leave alone any data that's been successfully processed before this. To do so, select the `Multiple subtask configuration` and the `Single subtask configuration` parameter sets, and uncheck the reprocess box:
 
 <img src="images/disable-reprocess.png" style="width:13cm;" />
 
@@ -103,11 +99,11 @@ $
 
 As soon as the second ready file is created, a new pipeline instance will start:
 
-<img src="images/event-handler-instances-2.png" style="width:13cm;"/>
+<img src="images/event-handler-instances-2.png" style="width:14cm;"/>
 
 The tasks display will look like this:
 
-<img src="images/event-handler-tasks-2.png" style="width:14cm;"/>
+<img src="images/event-handler-tasks-2.png" style="width:16cm;"/>
 
 There's a fair amount of interesting stuff going on here, so let's dig into this display!
 
@@ -117,31 +113,29 @@ There are two data receipt tasks, `sample-1` and `sample-2`. These are the tasks
 
 #### Permuter Tasks for UOWs 3, 4, 5, and 6
 
-The two directories that were imported by data receipt contained a total of 4 data sets: `set-3`, `set-4`, `set-5`, and `set-6`. These ran with task IDs 11, 12, 13, and 14. Note that the data sets didn't get mapped to task IDs in the way that a person would do it, i.e., making `set-3` the first task, then `set-4`, etc. As a general matter, when Ziggy needs to make multiple tasks for a given pipeline module, it creates them in no particular order, so you can wind up with situations like the one we see above.
+The two directories that were imported by data receipt contained a total of 4 data sets: `set-3`, `set-4`, `set-5`, and `set-6`. These ran with task IDs 12, 13, 14, and 15. As a general matter, when Ziggy needs to make multiple tasks for a given pipeline module, it creates them in no particular order, so you can wind up with situations where the units of work do not appear in order.
 
-Another curious thing that's happened is that tasks 11 and 12 got as far as processing state `Ac` (Algorithm Complete, see the article on the [Instances Panel](instances-panel.md) for more information). At that point, we would have expected those tasks to store outputs and then go to processing state `C` (Complete). Instead, tasks 11 and 12 seem to wait in state `Ac` while tasks 13 and 14 execute their algorithms. Why is that?
+If you have more tasks than workers, you will see that some tasks will get as far as `WAITING_TO_STORE` (see the article on the [Instances Panel](instances-panel.md) for more information). At that point, we would expect those tasks to store outputs and then go to the final processing step `COMPLETE`. Instead, those tasks will wait in the `WAITING_TO_STORE` step while other tasks execute their algorithms. Why is that?
 
-Take a quick look at the properties file, `sample-pipeline/etc/sample.properties`, and you'll see the following line:
+This means that the supervisor has a finite number of workers that can be used for assorted task processing activities. That creates a problem: there are fewer workers than tasks that need to run, and each task needs to perform several steps (marshaling, algorithm execution, storing results). Ziggy needs to prioritize users of its limited number of worker threads, and it does so by putting algorithm execution at a higher priority than storing results. Thus, we can wind up with tasks that have produced results, but they're waiting for workers to store those results; and the workers won't be available for this purpose until all the tasks have completed algorithm execution.
+
+Take a quick look at the properties file, `sample-pipeline/etc/sample.properties`, to see how many workers are provided by the sample pipeline:
 
 ```
-ziggy.worker.count = 2
+ziggy.worker.count = 6
 ```
 
-(See the article on [Properties](properties.md) to refresh your memory on this). This means that the supervisor has 2 and only 2 workers that can be used for assorted task processing activities. In this case, that creates a problem: there are only 2 workers but 6 tasks that need to run, and each task needs to perform several steps (marshaling, algorithm execution, storing results). Ziggy needs to prioritize users of its limited number of worker threads, and it does so by putting algorithm execution at a higher priority than storing results. Thus, we wind up with 2 tasks that have produced results, but they're waiting for workers to store those results; and the workers won't be available for this purpose until all the tasks have completed algorithm execution.
+(See the article on [Properties](properties.md) to refresh your memory on this).
 
 #### Permuter Task for UOW 2
 
-Meanwhile, before any of the `sample-1` or `sample-2` data sets got processed, we see a task with ID 10, permuter module, running on data set 2. Oddly, its subtask "scoreboard" is `(0 / 0 / 0)`. What happened?!?!
+Meanwhile, before any of the `sample-1` or `sample-2` data sets got processed, we see two tasks with ID 10 and 11, permuter module, running on data sets 1 and 2. Oddly, the subtask "scoreboards" are `0/0`. What happened?!?!
 
-Well -- remember that we set up this example so that it wouldn't process any data that got processed before (i.e., we are doing "keep-up" processing, not reprocessing). All of the data in `set-2` was processed in the first example, so there were no `set-2` subtasks that needed to be processed in this example.
+Well -- remember that we set up this example so that it wouldn't process any data that got processed before (i.e., we are doing "keep-up" processing, not reprocessing). All of the data in `set-1` and `set-2` was processed in the first example, so there were no `set-1` or `set-2` subtasks that needed to be processed in this example.
 
-Okay, but in that case, why did Ziggy create a task for `set-2` processing? Well, the situation is this:
+Okay, but in that case, why did Ziggy create tasks for `set-1` and `set-2` processing? Well, the situation is this:
 
-Ziggy's order of operations is that it has to first create its tasks, and only then can it go and figure out how many subtasks need to be processed in each task. Ziggy found that its datastore held a total of 6 units of work for permuter, went ahead and created one task for each unit of work, and only then realized that two of the tasks had no subtasks that needed processing! Once it's gotten that far, it lets the zero-subtask tasks run through the system. This prevents some potential user confusion ("Hey, why did Ziggy go from task 9 to task 11? Why isn't there a task 10?" "Why isn't there a task for set 1?"). It also avoids some other problems too boring to get into here.
-
-#### Permuter Task for UOW 1
-
-Finally, task 15 is the permuter task for `set-1`. In the task display, it's state is `SUBMITTED`, with a p-state of `I` (for initializing). This is the result of two features we've already talked about. First, Ziggy doesn't try to put its tasks into any particular order, so the set-1 task wound up being the final permuter task. Second, there are only 2 workers that need to service the demands of 6 tasks. What's happened is that task 15 is waiting for a worker to become available to process it. Of course, like `set-2`, `set-1` has no subtasks that need processing in this example, so as soon as `set-1` gets a worker, it will instantly jump to state COMPLETED.
+Ziggy's order of operations is that it has to first create its tasks, and only then can it go and figure out how many subtasks need to be processed in each task. Ziggy found that its datastore held a total of 6 units of work for permuter, went ahead and created one task for each unit of work, and only then realized that two of the tasks had no subtasks that needed processing! Once it's gotten that far, it lets the zero-subtask tasks run through the system. This prevents some potential user confusion ("Hey, why did Ziggy go from task 9 to task 12? Where are tasks 10 and 11?" "Why aren't there tasks for set 1 and set 2?"). It also avoids some other problems too boring to get into here.
 
 #### Meanwhile, Back in the Data Receipt Directory...
 

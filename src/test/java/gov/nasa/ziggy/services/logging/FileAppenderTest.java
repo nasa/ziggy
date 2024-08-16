@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.services.config.PropertyName;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 public class FileAppenderTest {
 
@@ -63,7 +63,7 @@ public class FileAppenderTest {
 
         assertTrue(Files.exists(appenderFile));
 
-        List<String> logLines = Files.readAllLines(appenderFile, FileUtil.ZIGGY_CHARSET);
+        List<String> logLines = Files.readAllLines(appenderFile, ZiggyFileUtils.ZIGGY_CHARSET);
         assertEquals(2, logLines.size());
         assertTrue(logLines.get(0).contains("Here is a test message with INFO level"));
         assertTrue(logLines.get(1).contains("Here is a test message with WARN level"));

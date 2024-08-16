@@ -34,14 +34,16 @@
 
 package gov.nasa.ziggy.ui;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -54,34 +56,32 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.PerformanceReport;
-import gov.nasa.ziggy.models.ModelRegistryOperations;
+import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.services.alert.AlertLog;
-import gov.nasa.ziggy.services.alert.AlertLogCrud;
+import gov.nasa.ziggy.services.alert.AlertLogOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.database.DatabaseTransaction;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.messages.FireTriggerRequest;
+import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
-import gov.nasa.ziggy.ui.util.proxy.PipelineExecutorProxy;
+import gov.nasa.ziggy.ui.util.TaskHalter;
+import gov.nasa.ziggy.ui.util.TaskRestarter;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.TasksStates;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.dispmod.AlertLogDisplayModel;
 import gov.nasa.ziggy.util.dispmod.InstancesDisplayModel;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel;
@@ -105,7 +105,7 @@ public class ZiggyConsole {
     private static final String NAME = "CLI Console";
 
     private enum Command {
-        CANCEL, CONFIG, DISPLAY, HELP, LOG, RESET, RESTART, START, VERSION;
+        CONFIG, DISPLAY, HALT, HELP, LOG, RESTART, START, VERSION;
 
         @Override
         public String toString() {
@@ -121,10 +121,6 @@ public class ZiggyConsole {
         ALERTS, ERRORS, FULL, STATISTICS, STATISTICS_DETAILED;
     }
 
-    private enum ResetType {
-        ALL, SUBMITTED;
-    }
-
     // Options
     private static final String CONFIG_TYPE_OPTION = "configType";
     private static final String DISPLAY_TYPE_OPTION = "displayType";
@@ -132,22 +128,22 @@ public class ZiggyConsole {
     private static final String HELP_OPTION = "help";
     private static final String INSTANCE_OPTION = "instance";
     private static final String PIPELINE_OPTION = "pipeline";
-    private static final String RESET_TYPE_OPTION = "resetType";
+    private static final String RESTART_MODE_OPTION = "restartMode";
     private static final String TASK_OPTION = "task";
 
     private static final String COMMAND_HELP = """
 
         Commands:
-        cancel                 Cancel running pipelines
         config --configType TYPE [--instance ID | --pipeline NAME]
                                Display pipeline configuration
         display [[--displayType TYPE] --instance ID | --task ID]
                                Display pipeline activity
+        halt [--instance ID | --task ID ...]
+                               Halts the given task(s) or all incomplete tasks in the given instance
         log --task ID | --errors
                                Request logs for the given task(s)
-        reset --resetType TYPE --instance ID
-                               Put tasks in the ERROR state so they can be restarted
-        restart --task ID ...  Restart tasks
+        restart [--restartMode MODE] [--instance ID | --task ID ...]
+                               Restarts the given task(s) or all halted tasks in the given instance
         start PIPELINE [NAME [START_NODE [STOP_NODE]]]
                                Start the given pipeline and assign its name to NAME
                                (default: NAME is the current time, and the NODES are
@@ -160,6 +156,12 @@ public class ZiggyConsole {
 
     // Other constants.
     private static final long MESSAGE_SENT_WAIT_MILLIS = 500;
+
+    private final AlertLogOperations alertLogOperations = new AlertLogOperations();
+    private final ModelOperations modelOperations = new ModelOperations();
+    private final PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     @AcceptableCatchBlock(rationale = Rationale.USAGE)
     @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
@@ -190,15 +192,16 @@ public class ZiggyConsole {
             .addOption(
                 Option.builder("p").longOpt(PIPELINE_OPTION).hasArg().desc("Pipeline name").build())
             .addOption(Option.builder("r")
-                .longOpt(RESET_TYPE_OPTION)
+                .longOpt(RESTART_MODE_OPTION)
                 .hasArg()
-                .desc("Reset type (all | submitted)")
+                .desc("Restart mode (" + runModes().stream().collect(Collectors.joining(", "))
+                    + "; default: restart-from-beginning)")
                 .build())
             .addOption(Option.builder("t")
                 .longOpt(TASK_OPTION)
                 .hasArgs()
                 .type(Long.class) // if only this did the type checking for us
-                .desc("Task ID")
+                .desc("Comma-separated list of task IDs and ranges")
                 .build());
 
         options.addOptionGroup(new OptionGroup()
@@ -294,9 +297,22 @@ public class ZiggyConsole {
      * client
      */
     private CountDownLatch startZiggyClient() {
+        return startZiggyClient(1);
+    }
+
+    /**
+     * Starts a {@link ZiggyRmiClient}. This method ensures that the RMI client is no longer needed
+     * before allowing the system to shut down. The caller notifies this code that it is done with
+     * the client by decrementing the latch that this method returns the given number of times.
+     *
+     * @param latchCount the number of latches to create
+     * @return a countdown latch that should be decremented after the caller no longer needs the
+     * client
+     */
+    private CountDownLatch startZiggyClient(int latchCount) {
         ZiggyRmiClient.start(NAME);
 
-        final CountDownLatch clientStillNeededLatch = new CountDownLatch(1);
+        final CountDownLatch clientStillNeededLatch = new CountDownLatch(latchCount);
         ZiggyShutdownHook.addShutdownHook(() -> {
 
             // Wait for any messages to be sent before we reset the ZiggyRmiClient.
@@ -305,7 +321,6 @@ public class ZiggyConsole {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-
             ZiggyRmiClient.reset();
         });
 
@@ -315,25 +330,22 @@ public class ZiggyConsole {
     @AcceptableCatchBlock(rationale = Rationale.USAGE)
     private void runCommand(Command command, CommandLine cmdLine, List<String> commands) {
 
-        Throwable exception = (Throwable) DatabaseTransactionFactory.performTransaction(() -> {
-            try {
-                switch (command) {
-                    case CANCEL -> cancel();
-                    case CONFIG -> config(cmdLine);
-                    case DISPLAY -> display(cmdLine);
-                    case HELP -> throw new IllegalArgumentException("");
-                    case LOG -> log();
-                    case RESET -> reset(cmdLine);
-                    case RESTART -> restart(cmdLine);
-                    case START -> start(commands);
-                    case VERSION -> System.out.println(ZiggyConfiguration.getInstance()
-                        .getString(PropertyName.ZIGGY_VERSION.property()));
-                }
-            } catch (Throwable e) {
-                return e;
+        Throwable exception = null;
+        try {
+            switch (command) {
+                case CONFIG -> config(cmdLine);
+                case DISPLAY -> display(cmdLine);
+                case HALT -> halt(cmdLine);
+                case HELP -> throw new IllegalArgumentException("");
+                case LOG -> log();
+                case RESTART -> restart(cmdLine);
+                case START -> start(commands);
+                case VERSION -> System.out.println(ZiggyConfiguration.getInstance()
+                    .getString(PropertyName.ZIGGY_VERSION.property()));
             }
-            return null;
-        });
+        } catch (Throwable e) {
+            exception = e;
+        }
 
         if (exception instanceof RuntimeException) {
             throw (RuntimeException) exception;
@@ -343,33 +355,25 @@ public class ZiggyConsole {
         }
     }
 
-    private void cancel() {
-        List<PipelineInstance> activeInstances = new PipelineInstanceCrud().retrieveAllActive();
-        System.out.println("Cancelling running pipelines:");
-        for (PipelineInstance instance : activeInstances) {
-            System.out.println(" " + instance.getName());
-        }
-        new PipelineInstanceCrud().cancelAllActive();
-    }
-
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void config(CommandLine cmdLine) {
         switch (parseConfigType(cmdLine)) {
             case DATA_MODEL_REGISTRY:
                 System.out.println("Data Model Registry\n");
-                ModelRegistryOperations modelMetadataOps = new ModelRegistryOperations();
-                System.out.println(modelMetadataOps.report());
+                System.out.println(modelOperations().report());
                 break;
             case INSTANCE:
                 System.out.println("Pipeline Instance Configuration(s)\n");
                 if (cmdLine.hasOption(INSTANCE_OPTION)) {
                     PipelineInstance instance = pipelineInstance(
                         cmdLine.getOptionValue(INSTANCE_OPTION));
-                    System.out.println(new PipelineOperations().generatePedigreeReport(instance));
+                    System.out
+                        .println(new PipelineReportGenerator().generatePedigreeReport(instance));
                 } else {
-                    for (PipelineInstance instance : new PipelineInstanceCrud().retrieveAll()) {
-                        System.out
-                            .println(new PipelineOperations().generatePedigreeReport(instance));
+                    for (PipelineInstance instance : pipelineInstanceOperations()
+                        .pipelineInstances()) {
+                        System.out.println(
+                            new PipelineReportGenerator().generatePedigreeReport(instance));
                     }
                 }
                 break;
@@ -377,13 +381,14 @@ public class ZiggyConsole {
                 System.out.println("Pipeline Configuration(s)\n");
                 List<PipelineDefinition> pipelines;
                 if (cmdLine.hasOption(PIPELINE_OPTION)) {
-                    pipelines = new PipelineDefinitionCrud()
-                        .retrieveAllVersionsForName(cmdLine.getOptionValue(PIPELINE_OPTION));
+                    pipelines = pipelineDefinitionOperations()
+                        .allPipelineDefinitionsForName(cmdLine.getOptionValue(PIPELINE_OPTION));
                 } else {
-                    pipelines = new PipelineDefinitionCrud().retrieveAll();
+                    pipelines = pipelineDefinitionOperations().pipelineDefinitions();
                 }
                 for (PipelineDefinition pipeline : pipelines) {
-                    System.out.println(new PipelineOperations().generatePipelineReport(pipeline));
+                    System.out
+                        .println(new PipelineReportGenerator().generatePipelineReport(pipeline));
                 }
                 break;
             case PIPELINE_NODES:
@@ -416,30 +421,24 @@ public class ZiggyConsole {
     }
 
     private boolean showPipelineNodes(String pipelineName) {
-        DatabaseTransactionFactory.performTransaction(new DatabaseTransaction<Void>() {
 
-            @Override
-            public void catchBlock(Throwable e) {
-                System.out.println("Unable to retrieve pipeline: " + e);
+        try {
+
+            PipelineDefinition pipelineDefinition = pipelineDefinitionOperations()
+                .pipelineDefinition(pipelineName);
+            if (pipelineDefinition == null) {
+                System.err.println("Pipeline " + pipelineName + " not found");
+                return false;
             }
 
-            @Override
-            public Void transaction() throws Exception {
-                PipelineDefinition pipelineDefinition = new PipelineDefinitionCrud()
-                    .retrieveLatestVersionForName(pipelineName);
-                if (pipelineDefinition == null) {
-                    System.err.println("Pipeline " + pipelineName + " not found");
-                    return null;
-                }
-
-                System.out.println("Nodes for pipeline " + pipelineName + ":");
-                int index = 1;
-                for (PipelineDefinitionNode node : pipelineDefinition.getRootNodes()) {
-                    index += showPipelineNode(node, index);
-                }
-                return null;
+            System.out.println("Nodes for pipeline " + pipelineName + ":");
+            int index = 1;
+            for (PipelineDefinitionNode node : pipelineDefinition.getRootNodes()) {
+                index += showPipelineNode(node, index);
             }
-        });
+        } catch (Throwable e) {
+            System.out.println("Unable to retrieve pipeline: " + e);
+        }
         return true;
     }
 
@@ -465,6 +464,9 @@ public class ZiggyConsole {
 
         boolean displayed = false;
         if (displayType != null) {
+            if (instance == null) {
+                throw new IllegalArgumentException("An instance is not specified");
+            }
             displayed = switch (displayType) {
                 case ALERTS -> displayAlert(instance);
                 case ERRORS -> displayErrors(instance);
@@ -482,12 +484,10 @@ public class ZiggyConsole {
             instancesDisplayModel.print(System.out, "Instance Summary");
             displayTaskSummary(instance, displayType == DisplayType.FULL);
         } else if (task != null) {
-            ProcessingSummary taskAttr = new ProcessingSummaryOperations()
-                .processingSummary(task.getId());
-            TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(task, taskAttr);
+            TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(task);
             tasksDisplayModel.print(System.out, "Task Summary");
         } else {
-            List<PipelineInstance> instances = new PipelineInstanceCrud().retrieveAll();
+            List<PipelineInstance> instances = pipelineInstanceOperations().pipelineInstances();
             new InstancesDisplayModel(instances).print(System.out, "Pipeline Instances");
         }
     }
@@ -495,7 +495,7 @@ public class ZiggyConsole {
     private PipelineInstance pipelineInstance(String instanceOption) {
         long id = parseId(instanceOption);
 
-        PipelineInstance instance = new PipelineInstanceCrud().retrieve(id);
+        PipelineInstance instance = pipelineInstanceOperations().pipelineInstance(id);
         if (instance == null) {
             throw new PipelineException("No instance found with ID " + id);
         }
@@ -504,9 +504,11 @@ public class ZiggyConsole {
     }
 
     private PipelineTask pipelineTask(String taskOption) {
-        long id = parseId(taskOption);
+        return pipelineTask(parseId(taskOption));
+    }
 
-        PipelineTask task = new PipelineTaskCrud().retrieve(id);
+    private PipelineTask pipelineTask(long id) {
+        PipelineTask task = pipelineTaskOperations().pipelineTask(id);
         if (task == null) {
             throw new PipelineException("No task found with ID " + id);
         }
@@ -525,7 +527,7 @@ public class ZiggyConsole {
                     cmdLine.getOptionValue(DISPLAY_TYPE_OPTION).toUpperCase().replace("-", "_"));
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("The display type "
-                    + cmdLine.getOptionValue(CONFIG_TYPE_OPTION) + " is not recognized");
+                    + cmdLine.getOptionValue(DISPLAY_TYPE_OPTION) + " is not recognized");
             }
         }
 
@@ -533,38 +535,24 @@ public class ZiggyConsole {
     }
 
     private boolean displayAlert(PipelineInstance instance) {
-        if (instance == null) {
-            throw new IllegalArgumentException("An instance is not specified");
-        }
-        List<AlertLog> alerts = new AlertLogCrud().retrieveForPipelineInstance(instance.getId());
+        List<AlertLog> alerts = alertLogOperations().alertLogs(instance.getId());
         AlertLogDisplayModel alertLogDisplayModel = new AlertLogDisplayModel(alerts);
         alertLogDisplayModel.print(System.out, "Alerts");
         return true;
     }
 
     private boolean displayErrors(PipelineInstance instance) {
-        if (instance == null) {
-            throw new IllegalArgumentException("An instance is not specified");
-        }
-        List<PipelineTask> tasks = new PipelineTaskCrud().retrieveAll(instance,
-            PipelineTask.State.ERROR);
-
-        Map<Long, ProcessingSummary> taskAttrs = new ProcessingSummaryOperations()
-            .processingSummaries(tasks);
+        List<PipelineTask> tasks = pipelineTaskOperations().erroredPipelineTasks(instance);
 
         for (PipelineTask task : tasks) {
-            TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(task,
-                taskAttrs.get(task.getId()));
+            TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(task);
             tasksDisplayModel.print(System.out, "Task Summary");
         }
         return true;
     }
 
     private boolean displayStatistics(PipelineInstance instance) {
-        if (instance == null) {
-            throw new IllegalArgumentException("An instance is not specified");
-        }
-        List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForInstance(instance);
+        List<PipelineTask> tasks = pipelineTaskOperations().pipelineTasks(instance);
         List<String> orderedModuleNames = displayTaskSummary(instance, false).getModuleNames();
 
         PipelineStatsDisplayModel pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks,
@@ -579,9 +567,6 @@ public class ZiggyConsole {
     }
 
     private boolean displayDetailedStatistics(PipelineInstance instance) {
-        if (instance == null) {
-            throw new IllegalArgumentException("An instance is not specified");
-        }
         PerformanceReport perfReport = new PerformanceReport(instance.getId(),
             DirectoryProperties.taskDataDir().toFile(), null);
         perfReport.generateReport();
@@ -597,26 +582,54 @@ public class ZiggyConsole {
         }
     }
 
-    private TasksStates displayTaskSummary(PipelineInstance instance, boolean full) {
-        List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForInstance(instance);
-        Map<Long, ProcessingSummary> taskSummaryById = new ProcessingSummaryOperations()
-            .processingSummaries(tasks);
+    private TaskCounts displayTaskSummary(PipelineInstance instance, boolean full) {
+        List<PipelineTask> tasks = pipelineTaskOperations().pipelineTasks(instance);
         TaskSummaryDisplayModel taskSummaryDisplayModel = new TaskSummaryDisplayModel(
-            new TasksStates(tasks, taskSummaryById));
+            new TaskCounts(tasks));
         taskSummaryDisplayModel.print(System.out, "Instance Task Summary");
 
         if (full) {
-            TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(tasks, taskSummaryById);
+            TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(tasks);
             tasksDisplayModel.print(System.out, "Pipeline Tasks");
         }
 
-        return taskSummaryDisplayModel.getTaskStates();
+        return taskSummaryDisplayModel.getTaskCounts();
+    }
+
+    private void halt(CommandLine cmdLine) {
+        checkArgument(cmdLine.hasOption(INSTANCE_OPTION) || cmdLine.hasOption(TASK_OPTION),
+            "One or more tasks or an instance are not specified");
+
+        // Get the list of tasks, if present.
+        List<Long> taskIds = new ArrayList<>();
+        if (cmdLine.hasOption(TASK_OPTION)) {
+            for (String taskIdOption : cmdLine.getOptionValues(TASK_OPTION)) {
+                taskIds.addAll(ZiggyStringUtils.extractNumericRange(taskIdOption));
+            }
+        }
+
+        // Get instance. First try getting instance option. If missing, get the instance from the
+        // first task.
+        PipelineInstance pipelineInstance;
+        if (cmdLine.hasOption(INSTANCE_OPTION)) {
+            pipelineInstance = pipelineInstance(cmdLine.getOptionValue(INSTANCE_OPTION));
+        } else {
+            PipelineTask pipelineTask = pipelineTask(taskIds.get(0));
+            pipelineInstance = pipelineTaskOperations().pipelineInstance(pipelineTask);
+        }
+
+        System.out.println("Halting task(s) "
+            + taskIds.stream().map(Object::toString).collect(Collectors.joining(", "))
+            + " in instance " + pipelineInstance.getId());
+        CountDownLatch messageSentLatch = startZiggyClient();
+        new TaskHalter().haltTasks(pipelineInstance, taskIds);
+        messageSentLatch.countDown();
     }
 
     private void log() {
         System.out.println("Not implemented");
         // TODO Implement log retrieval
-//        startZiggyClient();
+//        CountDownLatch messageSentLatch = startZiggyClient();
 //        if (cmdLine.hasOption(TASK_OPTION)) {
 //            PipelineTask task = pipelineTask(cmdLine.getOptionValue(TASK_OPTION));
 //            System.out.println("Requesting log from worker...");
@@ -626,8 +639,7 @@ public class ZiggyConsole {
 //                throw new IllegalArgumentException("An instance is not specified");
 //            }
 //            PipelineInstance instance = pipelineInstance(cmdLine.getOptionValue(INSTANCE_OPTION));
-//            List<PipelineTask> tasks = new PipelineTaskCrud().retrieveAll(instance,
-//                PipelineTask.State.ERROR);
+//            List<PipelineTask> tasks = pipelineTaskOperations().erroredPipelineTasks(instance);
 //            for (PipelineTask task : tasks) {
 //                System.out.println();
 //                System.out.println("Worker log: ");
@@ -636,100 +648,86 @@ public class ZiggyConsole {
 //        }
     }
 
-    private void reset(CommandLine cmdLine) {
-        if (!cmdLine.hasOption(INSTANCE_OPTION)) {
-            throw new IllegalArgumentException("An instance is not specified");
-        }
+    private void restart(CommandLine cmdLine) {
+        checkArgument(cmdLine.hasOption(INSTANCE_OPTION) || cmdLine.hasOption(TASK_OPTION),
+            "One or more tasks or an instance are not specified");
 
-        PipelineInstance instance = pipelineInstance(cmdLine.getOptionValue(INSTANCE_OPTION));
-
-        switch (parseResetType(cmdLine)) {
-            case ALL -> resetPipelineInstance(instance, true);
-            case SUBMITTED -> resetPipelineInstance(instance, false);
-        }
-    }
-
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    private ResetType parseResetType(CommandLine cmdLine) {
-        ResetType resetType = null;
-        if (cmdLine.hasOption(RESET_TYPE_OPTION)) {
-            try {
-                // Allow input to be lowercase and to use dashes instead of underscores.
-                resetType = ResetType.valueOf(
-                    cmdLine.getOptionValue(RESET_TYPE_OPTION).toUpperCase().replace("-", "_"));
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("The reset type "
-                    + cmdLine.getOptionValue(RESET_TYPE_OPTION) + " is not recognized");
+        // Get the list of tasks, if present.
+        List<Long> taskIds = new ArrayList<>();
+        if (cmdLine.hasOption(TASK_OPTION)) {
+            for (String taskIdOption : cmdLine.getOptionValues(TASK_OPTION)) {
+                taskIds.addAll(ZiggyStringUtils.extractNumericRange(taskIdOption));
             }
         }
-        if (resetType == null) {
-            throw new IllegalArgumentException("The reset type is not specified");
+
+        // Get instance. First try getting instance option. If missing, get the instance from the
+        // first task.
+        PipelineInstance pipelineInstance;
+        if (cmdLine.hasOption(INSTANCE_OPTION)) {
+            pipelineInstance = pipelineInstance(cmdLine.getOptionValue(INSTANCE_OPTION));
+        } else {
+            PipelineTask pipelineTask = pipelineTask(taskIds.get(0));
+            pipelineInstance = pipelineTaskOperations().pipelineInstance(pipelineTask);
         }
 
-        return resetType;
+        // Get the run mode, using Restart from beginning if none provided.
+        RunMode runMode = parseRunMode(cmdLine);
+        System.out.println("Restarting task(s) "
+            + taskIds.stream().map(Object::toString).collect(Collectors.joining(", "))
+            + " in instance " + pipelineInstance.getId() + " with restart mode " + runMode);
+
+        // Create two latches to wait for the restart messages.
+        CountDownLatch clientStillNeededLatch = startZiggyClient(2);
+        new TaskRestarter().restartTasks(pipelineInstance, taskIds, runMode,
+            clientStillNeededLatch);
     }
 
     /**
-     * Sets the pipeline task state to ERROR for any tasks assigned to this worker that are in the
-     * PROCESSING state. This condition indicates that the previous instance of the worker process
-     * on this host died abnormally.
+     * Parses the optional run mode. If the option is not provided,
+     * {@link RunMode#compareTo(RunMode) is returned. If the option is provided, the value can be
+     * abbreviated, but must match 1 and only 1 known run mode. That run mode is returned;
+     * otherwise, an {@link IllegalArgumentException} is thrown.
      */
-    private void resetPipelineInstance(PipelineInstance instance, boolean allStalledTasks) {
-        new PipelineTaskCrud().resetTaskStates(instance.getId(), allStalledTasks);
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private RunMode parseRunMode(CommandLine cmdLine) {
+        if (!cmdLine.hasOption(RESTART_MODE_OPTION)) {
+            return RunMode.RESTART_FROM_BEGINNING;
+        }
+
+        String runModeInput = cmdLine.getOptionValue(RESTART_MODE_OPTION);
+        Set<String> runModes = new HashSet<>();
+        for (String runMode : runModes()) {
+            if (runMode.startsWith(runModeInput)) {
+                runModes.add(runMode);
+            }
+        }
+        if (runModes.size() > 1) {
+            throw new IllegalArgumentException("Ambiguous restart mode: " + runModeInput
+                + " (could be: " + runModes.stream().collect(Collectors.joining(", ")) + ")");
+        }
+        if (runModes.size() == 0) {
+            throw new IllegalArgumentException("Unknown restart mode " + runModeInput);
+        }
+
+        return RunMode.valueOf(runModes.iterator().next().toUpperCase().replace("-", "_"));
     }
 
-    private void restart(CommandLine cmdLine) {
-        if (!cmdLine.hasOption(TASK_OPTION)) {
-            throw new IllegalArgumentException("One or more tasks are not specified");
-        }
-
-        CountDownLatch messageSentLatch = startZiggyClient();
-
-        Collection<Long> taskIds = new ArrayList<>();
-        for (String taskId : cmdLine.getOptionValues(TASK_OPTION)) {
-            taskIds.add(parseId(taskId));
-        }
-
-        DatabaseTransactionFactory.performTransaction(new DatabaseTransaction<Void>() {
-            @Override
-            public void catchBlock(Throwable e) {
-                System.out.println("Unable to restart tasks: " + e);
-            }
-
-            @Override
-            public Void transaction() throws Exception {
-                List<PipelineTask> tasks = new PipelineTaskCrud().retrieveAll(taskIds);
-                List<Long> missingTasks = new ArrayList<>();
-                for (long taskId : taskIds) {
-                    boolean found = false;
-                    for (PipelineTask task : tasks) {
-                        if (task.getId() == taskId) {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found) {
-                        missingTasks.add(taskId);
-                    }
-                }
-                if (missingTasks.size() > 0) {
-                    System.out.println("Tasks not found with the following IDs: " + missingTasks);
-                    return null;
-                }
-
-                new PipelineExecutorProxy().restartTasks(tasks, RunMode.RESTART_FROM_BEGINNING,
-                    messageSentLatch);
-
-                return null;
-            }
-        });
+    /**
+     * Returns a list of the run modes in lowercase using dashes instead of underscores that the
+     * user is expected to use. The standard mode is omitted.
+     */
+    private static List<String> runModes() {
+        List<RunMode> runModes = new ArrayList<>(Arrays.asList(RunMode.values()));
+        runModes.remove(RunMode.STANDARD);
+        return runModes.stream()
+            .map(Enum::name)
+            .map(String::toLowerCase)
+            .map(s -> s.replace("_", "-"))
+            .collect(Collectors.toList());
     }
 
     private void start(List<String> commands) {
-        if (commands.size() < 1) {
-            throw new IllegalArgumentException("A pipeline name is not specified");
-        }
+        checkArgument(commands.size() > 0, "A pipeline name is not specified");
 
         CountDownLatch messageSentLatch = startZiggyClient();
 
@@ -738,14 +736,31 @@ public class ZiggyConsole {
         String startNodeName = commands.size() > 2 ? commands.get(2) : null;
         String stopNodeName = commands.size() > 3 ? commands.get(3) : null;
 
-        System.out.println(String.format("Launching %s: name=%s, start=%s, stop=%s...",
+        System.out.println(String.format("Launching %s: name=\"%s\", start=\"%s\", stop=\"%s\"...",
             pipelineName, instanceName, startNodeName != null ? startNodeName : "",
             stopNodeName != null ? stopNodeName : ""));
         ZiggyMessenger.publish(
-            new FireTriggerRequest(pipelineName, instanceName, startNodeName, stopNodeName, 1, 0),
+            new StartPipelineRequest(pipelineName, instanceName, startNodeName, stopNodeName, 1, 0),
             messageSentLatch);
-        System.out.println(String.format("Launching %s: name=%s, start=%s, stop=%s...done",
-            pipelineName, instanceName, startNodeName != null ? startNodeName : "",
-            stopNodeName != null ? stopNodeName : ""));
+    }
+
+    private AlertLogOperations alertLogOperations() {
+        return alertLogOperations;
+    }
+
+    private ModelOperations modelOperations() {
+        return modelOperations;
+    }
+
+    private PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
+    }
+
+    private PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
+    }
+
+    private PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

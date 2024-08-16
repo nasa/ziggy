@@ -82,7 +82,12 @@ public class XmlUtils {
                 break;
             }
         }
-        assertTrue(contains);
+        assertTrue(contentToFind, contains);
+    }
+
+    public static boolean containsAllElements(List<String> xmlStringElements,
+        List<String> lineToFindElements) {
+        return xmlStringElements.containsAll(lineToFindElements);
     }
 
     /**

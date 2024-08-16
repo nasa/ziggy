@@ -2,6 +2,8 @@ package gov.nasa.ziggy.services.database;
 
 import java.nio.file.Path;
 
+import org.apache.commons.lang3.StringUtils;
+
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
@@ -29,7 +31,7 @@ public abstract class DatabaseController {
 
         String databaseName = ZiggyConfiguration.getInstance()
             .getString(PropertyName.DATABASE_SOFTWARE.property(), null);
-        if (databaseName == null || databaseName.trim().isEmpty()) {
+        if (StringUtils.isBlank(databaseName)) {
             return null;
         }
 

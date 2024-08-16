@@ -22,7 +22,7 @@ See [the article on the Remote Execution dialog box](remote-dialog.md) for detai
 
 #### HPC Execution Flow
 
-When Ziggy runs a task that's configured to go on HPC, it issues commands to the HPC's batch system (in the case of the NAS, that's the [Portable Batch System](https://www.altair.com/pbs-professional), or PBS). The PBS commands specify the number of compute nodes to be used and the allowed wall time (i.e., how long you have the use of the nodes before the HPC repos them). While the PBS commands are being issued, the task status will be `ALGORITHM_SUBMITTING`, or `As`. Once each PBS submission has been accepted, the task will go to `ALGORITHM_QUEUED`, or `Aq`. Depending on how heavily loaded the queues are, sooner or later your jobs will start to run on the HPC system, at which time the task goes to `ALGORITHM_EXECUTING`, `Ae`.
+When Ziggy runs a task that's configured to go on HPC, it issues commands to the HPC's batch system (in the case of the NAS, that's the [Portable Batch System](https://www.altair.com/pbs-professional), or PBS). The PBS commands specify the number of compute nodes to be used and the allowed wall time (i.e., how long you have the use of the nodes before the HPC repos them). While the PBS commands are being issued, the task status will be `SUBMITTING`. Once each PBS submission has been accepted, the task will go to `QUEUED`. Depending on how heavily loaded the queues are, sooner or later your jobs will start to run on the HPC system, at which time the task goes to `EXECUTING`.
 
 #### Tasks and Jobs
 
@@ -34,7 +34,7 @@ For the most part, you don't really need to know about this except for the fact 
 
 #### When Your Jobs Time Out
 
-If you haven't set the parameters for remote execution correctly, it's possible that your HPC jobs will reach their wall time limits and exit while there are still subtasks waiting to be processed. If this happens, the task will go to state `ERROR` and P-state `Ac` (`ALGORITHM_COMPLETE`). What then?
+If you haven't set the parameters for remote execution correctly, it's possible that your HPC jobs will reach their wall time limits and exit while there are still subtasks waiting to be processed. If this happens, the current step will receive an `ERROR` prefix. What then?
 
 One option is to resubmit the task to PBS via the `Resubmit` option on the task menu (see the article [Re-run or Resume a Failed Task](rerun-task.md) for details). When you do this, Ziggy will automatically adjust the PBS request based on how many subtasks are left. That is, if 80% of subtasks ran successfully, on resubmit Ziggy will only ask for 20% as much compute capacity as it asked for the first time.
 
@@ -50,7 +50,7 @@ In the event that a really small number of subtasks haven't run when your jobs e
 
 In the discussion above, we suggested that, in the event that execution times out, you can resubmit the task and the subtasks that didn't run to completion will then be run (subject to the possibility that some of them will then also time out). We also offered the option to disable remote execution if the number of subtasks gets small enough that your local system (i.e., the system that runs the supervisor process) can readily handle them. This is all true, but it can be a nuisance. For this reason, there are some additional options to consider.
 
-First: Ziggy can automatically resubmit tasks that don't complete successfully. This is discussed in [the article on the Edit Pipeline dialog box](edit-dialog.md). You can specify that, in the event that a task doesn't complete, Ziggy should resubmit it. In fact, you can specify the number of times that Ziggy should resubmit the task: after the number of automatic resubmits is exhausted, the task will wait in the ALGORITHM_COMPLETE processing state for you to decide what to do with it (i.e., try to resubmit it again, or fix underlying software problems, or decide that the number of completed subtasks is sufficient and that you want to move on to persisting the results).
+First: Ziggy can automatically resubmit tasks that don't complete successfully. This is discussed in [the article on the Edit Pipeline dialog box](edit-dialog.md). You can specify that, in the event that a task doesn't complete, Ziggy should resubmit it. In fact, you can specify the number of times that Ziggy should resubmit the task: after the number of automatic resubmits is exhausted, the task will wait in the WAITING_TO_STORE processing step for you to decide what to do with it (i.e., try to resubmit it again, or fix underlying software problems, or decide that the number of completed subtasks is sufficient and that you want to move on to persisting the results).
 
 At this point, we need to reiterate the warning in the TaskConfigurationParameters article regarding this parameter: Ziggy can't tell the difference between a task that didn't finish because it ran out of wall time and a task that didn't finish because of a bug in the algorithm code somewhere. If there's an algorithm bug, Ziggy will nonetheless resubmit an incomplete task (because Ziggy doesn't know the problem is a bug), and the task will fail again when it hits that bug.
 

@@ -5,7 +5,6 @@ import java.util.List;
 import javax.swing.table.AbstractTableModel;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
@@ -27,12 +26,8 @@ public class TaskMetricsTableModel extends AbstractTableModel
     }
 
     public void update(List<PipelineTask> tasks, List<String> orderedModuleNames) {
-        try {
-            taskMetricsDisplayModel = new TaskMetricsDisplayModel(tasks, orderedModuleNames,
-                completedTasksOnly);
-        } catch (ConsoleSecurityException ignore) {
-        }
-
+        taskMetricsDisplayModel = new TaskMetricsDisplayModel(tasks, orderedModuleNames,
+            completedTasksOnly);
         fireTableDataChanged();
     }
 

@@ -84,7 +84,7 @@ public enum RemoteQueueDescriptor implements Comparator<RemoteQueueDescriptor> {
     }
 
     public static RemoteQueueDescriptor fromQueueName(String queueName) {
-        checkArgument(!StringUtils.isEmpty(queueName), "name argument cannot be null or empty");
+        checkArgument(!StringUtils.isBlank(queueName), "name argument cannot be null or empty");
         if (queueName.startsWith("R")) {
             return RESERVED;
         }

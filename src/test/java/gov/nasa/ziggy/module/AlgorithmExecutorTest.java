@@ -7,13 +7,9 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.module.remote.nas.NasExecutor;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 
 /**
  * Unit tests for {@link AlgorithmExecutor} class.
@@ -41,15 +37,12 @@ public class AlgorithmExecutorTest {
     @Test
     public void testNewInstanceNullRemoteParameters() {
         PipelineTask task = Mockito.spy(PipelineTask.class);
-        Mockito.doReturn(new PipelineDefinitionNode()).when(task).pipelineDefinitionNode();
-        ParameterSetCrud parameterSetCrud = Mockito.mock(ParameterSetCrud.class);
-        PipelineDefinitionNodeCrud nodeDefCrud = Mockito.mock(PipelineDefinitionNodeCrud.class);
+        PipelineTaskOperations pipelineTaskOperations = Mockito.mock(PipelineTaskOperations.class);
         Mockito
-            .when(nodeDefCrud
-                .retrieveExecutionResources(ArgumentMatchers.any(PipelineDefinitionNode.class)))
+            .when(
+                pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(new PipelineDefinitionNodeExecutionResources("dummy", "dummy"));
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, parameterSetCrud,
-            nodeDefCrud, new ProcessingSummaryOperations());
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
         assertTrue(executor instanceof LocalAlgorithmExecutor);
     }
 
@@ -58,18 +51,15 @@ public class AlgorithmExecutorTest {
     @Test
     public void testNewInstanceRemoteDisabled() {
         PipelineTask task = Mockito.spy(PipelineTask.class);
-        Mockito.doReturn(new PipelineDefinitionNode()).when(task).pipelineDefinitionNode();
-        ParameterSetCrud parameterSetCrud = Mockito.mock(ParameterSetCrud.class);
         PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
             "dummy", "dummy");
         executionResources.setRemoteExecutionEnabled(false);
-        PipelineDefinitionNodeCrud nodeDefCrud = Mockito.mock(PipelineDefinitionNodeCrud.class);
+        PipelineTaskOperations pipelineTaskOperations = Mockito.mock(PipelineTaskOperations.class);
         Mockito
-            .when(nodeDefCrud
-                .retrieveExecutionResources(ArgumentMatchers.any(PipelineDefinitionNode.class)))
+            .when(
+                pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(executionResources);
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, parameterSetCrud,
-            nodeDefCrud, new ProcessingSummaryOperations());
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
         assertTrue(executor instanceof LocalAlgorithmExecutor);
     }
 
@@ -79,24 +69,18 @@ public class AlgorithmExecutorTest {
     public void testNewInstanceTooFewSubtasks() {
         PipelineTask task = Mockito.mock(PipelineTask.class);
         Mockito.when(task.getId()).thenReturn(100L);
-        Mockito.when(task.pipelineDefinitionNode()).thenReturn(new PipelineDefinitionNode());
-        ParameterSetCrud parameterSetCrud = Mockito.mock(ParameterSetCrud.class);
         PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
             "dummy", "dummy");
         executionResources.setRemoteExecutionEnabled(true);
         executionResources.setMinSubtasksForRemoteExecution(5);
-        PipelineDefinitionNodeCrud nodeDefCrud = Mockito.mock(PipelineDefinitionNodeCrud.class);
+        PipelineTaskOperations pipelineTaskOperations = Mockito.mock(PipelineTaskOperations.class);
         Mockito
-            .when(nodeDefCrud
-                .retrieveExecutionResources(ArgumentMatchers.any(PipelineDefinitionNode.class)))
+            .when(
+                pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(executionResources);
-        ProcessingSummaryOperations sumOps = Mockito.mock(ProcessingSummaryOperations.class);
-        ProcessingSummary summary = Mockito.mock(PipelineTask.ProcessingSummary.class);
-        Mockito.when(summary.getTotalSubtaskCount()).thenReturn(100);
-        Mockito.when(summary.getCompletedSubtaskCount()).thenReturn(99);
-        Mockito.when(sumOps.processingSummary(100L)).thenReturn(summary);
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, parameterSetCrud,
-            nodeDefCrud, sumOps);
+        Mockito.when(task.getTotalSubtaskCount()).thenReturn(100);
+        Mockito.when(task.getCompletedSubtaskCount()).thenReturn(99);
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
         assertTrue(executor instanceof LocalAlgorithmExecutor);
     }
 
@@ -106,24 +90,18 @@ public class AlgorithmExecutorTest {
     public void testNewInstanceRemote() {
         PipelineTask task = Mockito.mock(PipelineTask.class);
         Mockito.when(task.getId()).thenReturn(100L);
-        Mockito.when(task.pipelineDefinitionNode()).thenReturn(new PipelineDefinitionNode());
-        ParameterSetCrud parameterSetCrud = Mockito.mock(ParameterSetCrud.class);
         PipelineDefinitionNodeExecutionResources executionResources = new PipelineDefinitionNodeExecutionResources(
             "dummy", "dummy");
         executionResources.setRemoteExecutionEnabled(true);
         executionResources.setMinSubtasksForRemoteExecution(5);
-        PipelineDefinitionNodeCrud nodeDefCrud = Mockito.mock(PipelineDefinitionNodeCrud.class);
+        PipelineTaskOperations pipelineTaskOperations = Mockito.mock(PipelineTaskOperations.class);
         Mockito
-            .when(nodeDefCrud
-                .retrieveExecutionResources(ArgumentMatchers.any(PipelineDefinitionNode.class)))
+            .when(
+                pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(executionResources);
-        ProcessingSummaryOperations sumOps = Mockito.mock(ProcessingSummaryOperations.class);
-        ProcessingSummary summary = Mockito.mock(PipelineTask.ProcessingSummary.class);
-        Mockito.when(summary.getTotalSubtaskCount()).thenReturn(100);
-        Mockito.when(summary.getCompletedSubtaskCount()).thenReturn(90);
-        Mockito.when(sumOps.processingSummary(100L)).thenReturn(summary);
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, parameterSetCrud,
-            nodeDefCrud, sumOps);
+        Mockito.when(task.getTotalSubtaskCount()).thenReturn(100);
+        Mockito.when(task.getCompletedSubtaskCount()).thenReturn(90);
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
         assertTrue(executor instanceof NasExecutor);
     }
 }

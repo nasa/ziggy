@@ -250,7 +250,7 @@ public class SubtaskMasterTest {
         // execAlgorithm() method should not run and the write lock should not be
         // released (since it was never obtained).
         verify(subtaskExecutor, times(0)).execAlgorithm();
-        verify(subtaskMaster, times(1)).releaseWriteLock(DirectoryProperties.taskDataDir()
+        verify(subtaskMaster, times(0)).releaseWriteLock(DirectoryProperties.taskDataDir()
             .resolve(TASK_DIR)
             .resolve("st-" + SUBTASK_INDEX)
             .resolve(TaskConfiguration.LOCK_FILE_NAME)

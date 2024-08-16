@@ -40,9 +40,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -60,6 +59,8 @@ public class ZiggyEventHandlerDefinitionImporter {
 
     private ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager;
     private File[] files;
+    private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
+    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
 
     public ZiggyEventHandlerDefinitionImporter(String[] filenames) {
         files = new File[filenames.length];
@@ -78,9 +79,9 @@ public class ZiggyEventHandlerDefinitionImporter {
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void importFromFiles() {
 
-        List<String> pipelineDefinitionNames = new PipelineDefinitionCrud().retrieveNames();
+        List<String> pipelineDefinitionNames = pipelineDefinitionOperations()
+            .pipelineDefinitionNames();
 
-        ZiggyEventCrud eventCrud = new ZiggyEventCrud();
         for (File file : files) {
             ZiggyEventHandlerFile handlerFile = null;
             try {
@@ -100,7 +101,7 @@ public class ZiggyEventHandlerDefinitionImporter {
                 }
                 try {
                     log.info("Persisting handler " + handler.getName() + "...");
-                    eventCrud.merge(handler);
+                    ziggyEventOperations().mergeEventHandler(handler);
                 } catch (Exception e) {
                     log.error("Unable to persist handler " + handler.getName(), e);
                     continue;
@@ -117,12 +118,14 @@ public class ZiggyEventHandlerDefinitionImporter {
             throw new IllegalArgumentException(
                 "No files listed for import as Ziggy event handlers");
         }
-        ZiggyEventHandlerDefinitionImporter importer = new ZiggyEventHandlerDefinitionImporter(
-            args);
-        final ZiggyEventHandlerDefinitionImporter finalImporter = importer;
-        DatabaseTransactionFactory.performTransaction(() -> {
-            finalImporter.importFromFiles();
-            return null;
-        });
+        new ZiggyEventHandlerDefinitionImporter(args).importFromFiles();
+    }
+
+    ZiggyEventOperations ziggyEventOperations() {
+        return ziggyEventOperations;
+    }
+
+    private PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
     }
 }

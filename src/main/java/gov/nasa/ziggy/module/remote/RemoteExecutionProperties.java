@@ -15,7 +15,7 @@ public class RemoteExecutionProperties {
      */
     public static String[] getHost() {
         String hosts = ZiggyConfiguration.getInstance().getString(REMOTE_HOST.property(), "");
-        if (hosts.isEmpty()) {
+        if (hosts.isBlank()) {
             return new String[0];
         }
         return hosts.split(";");

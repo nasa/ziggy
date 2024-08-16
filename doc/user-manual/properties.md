@@ -84,7 +84,7 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | ziggy.pipeline.mcrRoot | Location of the MATLAB Compiler Runtime (MCR), including the version, if MATLAB algorithm executables are used | "" |
 | ziggy.pipeline.memdrone.enabled | Enable/disable memory consumption tracker | false |
 | ziggy.pipeline.memdrone.sleepSeconds | Sample interval for memory consumption tracker | 60 |
-| ziggy.pipeline.processing.halt.step | Automatically halt pipeline after a given processing step (marshaling, submitting, etc.). Mainly for debugging. See the article on [The Instances Panel](instances-panel.md) for more about processing steps. | C |
+| ziggy.pipeline.processing.halt.step | Automatically halt pipeline after a given processing step (marshaling, submitting, etc.). Mainly for debugging. See the article on [The Instances Panel](instances-panel.md) for more about processing steps. | complete |
 | ziggy.pipeline.results.dir | Location for working directories, log files, etc. | None |
 | ziggy.pipeline.uow.defaultIdentifier.classname | Class used to identify default UOWs that are defined in the pipeline (not Ziggy) | DatastoreDirectoryUnitOfWorkGenerator.class or DataReceiptUnitOfWorkGenerator.class as appropriate |
 | ziggy.pipeline.useSymlinks | Use symbolic links rather than copies when staging files to working directory | false |

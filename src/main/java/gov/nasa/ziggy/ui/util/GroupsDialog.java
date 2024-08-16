@@ -1,18 +1,21 @@
 package gov.nasa.ziggy.ui.util;
 
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.ADD_SYMBOL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW_SYMBOL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CANCEL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.OK;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REMOVE_SYMBOL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DELETE_SYMBOL;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.boldLabel;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.GroupLayout;
 import javax.swing.JCheckBox;
@@ -24,11 +27,17 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.event.ListSelectionEvent;
 
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gov.nasa.ziggy.pipeline.definition.Group;
+import gov.nasa.ziggy.pipeline.definition.database.GroupOperations;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
-import gov.nasa.ziggy.ui.util.proxy.GroupCrudProxy;
 
 /**
  * @author Todd Klaus
@@ -36,12 +45,15 @@ import gov.nasa.ziggy.ui.util.proxy.GroupCrudProxy;
  */
 @SuppressWarnings("serial")
 public class GroupsDialog extends javax.swing.JDialog {
+    private static final Logger log = LoggerFactory.getLogger(GroupsDialog.class);
+
     private JCheckBox defaultCheckBox;
     private JTextField newGroupTextField;
     private JList<Group> groupsList;
     private GenericListModel<Group> groupsListModel;
-    private GroupCrudProxy groupCrud = new GroupCrudProxy();
     private boolean isCancelled;
+
+    private final GroupOperations groupOperations = new GroupOperations();
 
     public GroupsDialog(Window owner) {
         super(owner, DEFAULT_MODALITY_TYPE);
@@ -68,13 +80,17 @@ public class GroupsDialog extends javax.swing.JDialog {
         defaultCheckBox.addActionListener(this::useDefaultGroup);
 
         groupsListModel = new GenericListModel<>();
+        ArrayList<Group> groups = new ArrayList<>();
+        groups.add(new Group(ZiggyGuiConstants.LOADING));
+        groupsListModel.setList(groups);
         groupsList = new JList<>(groupsListModel);
         groupsList.addListSelectionListener(this::groupsListValueChanged);
         JScrollPane groupsListScrollPane = new JScrollPane(groupsList);
+        groupsListScrollPane.setMinimumSize(new Dimension(300, 100));
 
         JLabel addRemoveGroup = boldLabel("Add/remove group");
         JPanel addRemoveButtons = createButtonPanel(ButtonPanelContext.TOOL_BAR,
-            createButton(ADD_SYMBOL, this::addGroup), createButton(REMOVE_SYMBOL, this::remove));
+            createButton(NEW_SYMBOL, this::addGroup), createButton(DELETE_SYMBOL, this::remove));
 
         newGroupTextField = new JTextField();
         newGroupTextField.addActionListener(this::addGroup);
@@ -114,34 +130,60 @@ public class GroupsDialog extends javax.swing.JDialog {
     }
 
     private void addGroup(ActionEvent evt) {
-        try {
-            String groupName = newGroupTextField.getText();
-            if (groupName != null && groupName.length() > 0) {
-                List<Group> currentList = groupsListModel.getList();
-                Group newGroup = new Group(groupName);
-                if (currentList.contains(newGroup)) {
-                    MessageUtil.showError(this, "A group by that name already exists");
-                } else {
-                    groupCrud.save(newGroup);
+        String groupName = newGroupTextField.getText();
+        if (StringUtils.isBlank(groupName)) {
+            return;
+        }
 
+        List<Group> currentList = groupsListModel.getList();
+        Group newGroup = new Group(groupName);
+        if (currentList.contains(newGroup)) {
+            MessageUtils.showError(this, "A group by that name already exists");
+            return;
+        }
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                groupOperations().persist(newGroup);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
                     loadFromDatabase(groupName);
+                } catch (Exception e) {
+                    MessageUtils.showError(GroupsDialog.this, e);
                 }
             }
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
+        }.execute();
     }
 
     private void remove(ActionEvent evt) {
-        try {
-            Group group = getSelectedGroup();
-            if (group != null) {
-                groupCrud.delete(group);
-                loadFromDatabase();
-            }
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
+        Group group = getSelectedGroup();
+        if (group == null) {
+            return;
         }
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                groupOperations().delete(group);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    loadFromDatabase();
+                } catch (Exception e) {
+                    MessageUtils.showError(GroupsDialog.this, e);
+                }
+            }
+        }.execute();
     }
 
     private void ok(ActionEvent evt) {
@@ -162,22 +204,42 @@ public class GroupsDialog extends javax.swing.JDialog {
     }
 
     private void loadFromDatabase() {
-        List<Group> groups = groupCrud.retrieveAll();
-        groupsListModel.setList(groups);
+        loadFromDatabase(null);
     }
 
     private void loadFromDatabase(String selectedName) {
-        loadFromDatabase();
-
-        List<Group> groups = groupsListModel.getList();
-        int index = 0;
-
-        for (Group group : groups) {
-            if (group.getName().equals(selectedName)) {
-                groupsList.setSelectedIndex(index);
+        new SwingWorker<List<Group>, Void>() {
+            @Override
+            protected List<Group> doInBackground() throws Exception {
+                return groupOperations().groups();
             }
-            index++;
-        }
+
+            @Override
+            protected void done() {
+                try {
+                    groupsListModel.setList(get());
+
+                    if (selectedName == null) {
+                        return;
+                    }
+
+                    int index = 0;
+                    for (Group group : groupsListModel.getList()) {
+                        if (group.getName().equals(selectedName)) {
+                            groupsList.setSelectedIndex(index);
+                            // TODO Add break?
+                        }
+                        index++;
+                    }
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Could not load groups", e);
+                }
+            }
+        }.execute();
+    }
+
+    private GroupOperations groupOperations() {
+        return groupOperations;
     }
 
     public static Group selectGroup(Component owner) {

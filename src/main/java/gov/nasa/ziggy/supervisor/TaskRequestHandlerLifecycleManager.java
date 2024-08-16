@@ -13,12 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
 import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
@@ -68,6 +64,8 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     private List<List<TaskRequestHandler>> taskRequestHandlers = new ArrayList<>();
     private final boolean storeTaskRequestHandlers;
 
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+
     private TaskRequestHandlerLifecycleManager() {
         this(false);
     }
@@ -108,10 +106,10 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
 
     /**
      * Performs the deletion of queued tasks. This consists of removing the task requests from the
-     * task request queue and setting the state of all tasks thus removed to ERROR. The IDs of all
-     * tasks listed in the {@link KillTasksRequest} are added to the supervisor's list of killed
-     * task IDs. This avoids the need to capture the IDs from the worker, the supervisor, and the
-     * batch queues.
+     * task request queue and setting the error flag of the removed tasks. The IDs of all tasks
+     * listed in the {@link KillTasksRequest} are added to the supervisor's list of killed task IDs.
+     * This avoids the need to capture the IDs from the worker, the supervisor, and the batch
+     * queues.
      * <p>
      * This method is package scoped to facilitate testing.
      */
@@ -149,22 +147,10 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
         ZiggyMessenger.publish(new KilledTaskMessage(request, taskId));
     }
 
-    /** CRUD class constructor. Broken out to facilitate testing. */
-    protected PipelineTaskCrud pipelineTaskCrud() {
-        return new PipelineTaskCrud();
+    protected PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 
-    /** Executor class constructor. Broken out to facilitate testing. */
-    protected PipelineExecutor pipelineExecutor() {
-        return new PipelineExecutor();
-    }
-
-    /** PipelineOperations class constructor. Broken out to facilitate testing. */
-    protected PipelineOperations pipelineOperations() {
-        return new PipelineOperations();
-    }
-
-    /** Alert service class accessor. Broken out to facilitate testing. */
     protected AlertService alertService() {
         return AlertService.getInstance();
     }
@@ -260,11 +246,8 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
      * as appropriate.
      */
     WorkerResources workerResources(TaskRequest taskRequest) {
-        WorkerResources databaseResources = (WorkerResources) DatabaseTransactionFactory
-            .performTransaction(() -> new PipelineDefinitionNodeCrud()
-                .retrieveExecutionResources(new PipelineTaskCrud().retrieve(taskRequest.getTaskId())
-                    .pipelineDefinitionNode())
-                .workerResources());
+        WorkerResources databaseResources = pipelineTaskOperations()
+            .workerResourcesForTask(taskRequest.getTaskId());
         Integer compositeWorkerCount = databaseResources.getMaxWorkerCount() != null
             ? databaseResources.getMaxWorkerCount()
             : PipelineSupervisor.defaultResources().getMaxWorkerCount();

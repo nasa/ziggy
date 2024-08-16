@@ -1,34 +1,51 @@
 package gov.nasa.ziggy.ui.module;
 
-import java.awt.Cursor;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
-import gov.nasa.ziggy.ui.util.MessageUtil;
-import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.PipelineModuleDefinitionCrudProxy;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.ui.util.MessageUtils;
+import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
+import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
 
 /**
+ * View / Edit panel for {@link PipelineModuleDefinition} instances.
+ *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 @SuppressWarnings("serial")
 public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineModuleDefinition> {
 
-    private final PipelineModuleDefinitionCrudProxy pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrudProxy();
+    private static final Logger log = LoggerFactory.getLogger(ViewEditModuleLibraryPanel.class);
+
+    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
 
     public ViewEditModuleLibraryPanel() {
         super(new ModuleLibraryTableModel());
 
         buildComponent();
+
+        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+    }
+
+    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+        ziggyTable.loadFromDatabase();
     }
 
     @Override
@@ -38,58 +55,58 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
     }
 
     @Override
+    protected void refresh() {
+        try {
+            ziggyTable.loadFromDatabase();
+        } catch (Throwable e) {
+            MessageUtils.showError(this, e);
+        }
+    }
+
+    @Override
     protected void create() {
 
-        String newModuleName = JOptionPane.showInputDialog(SwingUtilities.getWindowAncestor(this),
-            "Enter the name for the new Module Definition", "New Pipeline Module Definition",
-            JOptionPane.PLAIN_MESSAGE);
-
+        String newModuleName = readModuleName("Enter the name for the new module definition",
+            "New pipeline module definition");
         if (newModuleName == null) {
             return;
         }
-        if (newModuleName.isEmpty()) {
-            MessageUtil.showError(this, "Please enter a module name");
-            return;
-        }
 
-        // TODO Fix this wait cursor so it actually shows
-        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         showEditDialog(new PipelineModuleDefinition(newModuleName));
-        setCursor(null);
+    }
+
+    @Override
+    protected void edit(int row) {
+        showEditDialog(ziggyTable.getContentAtViewRow(row));
     }
 
     @Override
     protected void rename(int row) {
 
-        PipelineModuleDefinition selectedModule = ziggyTable.getContentAtViewRow(row);
-
-        try {
-            String newModuleName = JOptionPane.showInputDialog(
-                SwingUtilities.getWindowAncestor(this),
-                "Enter the new name for this Module Definition", "Rename Module Definition",
-                JOptionPane.PLAIN_MESSAGE);
-
-            if (newModuleName == null) {
-                return;
-            }
-            if (newModuleName.isEmpty()) {
-                MessageUtil.showError(this, "Please enter a module name");
-                return;
-            }
-
-            pipelineModuleDefinitionCrud.rename(selectedModule, newModuleName);
-            ziggyTable.loadFromDatabase();
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
+        String newModuleName = readModuleName("Enter the new name for this module definition",
+            "Rename module definition");
+        if (newModuleName == null) {
+            return;
         }
-    }
 
-    @Override
-    protected void edit(int row) {
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                pipelineModuleDefinitionOperations().rename(ziggyTable.getContentAtViewRow(row),
+                    newModuleName);
+                return null;
+            }
 
-        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-        showEditDialog(ziggyTable.getContentAtViewRow(row));
-        setCursor(null);
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    ziggyTable.loadFromDatabase();
+                } catch (InterruptedException | ExecutionException e) {
+                    MessageUtils.showError(ViewEditModuleLibraryPanel.this, e);
+                }
+            }
+        }.execute();
     }
 
     @Override
@@ -97,31 +114,50 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
         PipelineModuleDefinition module = ziggyTable.getContentAtViewRow(row);
 
-        if (!module.isLocked()) {
-            int choice = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to delete module '" + module.getName() + "'?");
-
-            if (choice == JOptionPane.YES_OPTION) {
-                try {
-                    pipelineModuleDefinitionCrud.delete(module);
-                    ziggyTable.loadFromDatabase();
-                } catch (Throwable e) {
-                    MessageUtil.showError(this, e);
-                }
-            }
-        } else {
-            JOptionPane.showMessageDialog(this,
-                "Can't delete a locked module definition. Modules are locked when referenced by a pipeline instance",
-                "Error", JOptionPane.ERROR_MESSAGE);
+        int choice = JOptionPane.showConfirmDialog(this,
+            "Are you sure you want to delete module '" + module.getName() + "'?");
+        if (choice != JOptionPane.YES_OPTION) {
+            return;
         }
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                pipelineModuleDefinitionOperations().delete(module);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    ziggyTable.loadFromDatabase();
+                } catch (InterruptedException | ExecutionException e) {
+                    MessageUtils.showError(ViewEditModuleLibraryPanel.this, e);
+                }
+
+                super.done();
+            }
+        }.execute();
     }
 
-    @Override
-    protected void refresh() {
-        try {
-            ziggyTable.loadFromDatabase();
-        } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+    private String readModuleName(String message, String title) {
+        while (true) {
+            String moduleName = JOptionPane.showInputDialog(SwingUtilities.getWindowAncestor(this),
+                message, title, JOptionPane.PLAIN_MESSAGE);
+            if (moduleName == null) {
+                return null;
+            }
+
+            if (moduleName.isBlank()) {
+                MessageUtils.showError(this, "Please enter a module name");
+            } else if (pipelineModuleDefinitionOperations()
+                .pipelineModuleDefinition(moduleName) != null) {
+                MessageUtils.showError(this,
+                    moduleName + " already exists; please enter a unique module name");
+            } else {
+                return moduleName;
+            }
         }
     }
 
@@ -130,51 +166,65 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
             module);
         dialog.setVisible(true);
 
-        if (!dialog.isCancelled()) {
-            try {
-                ziggyTable.loadFromDatabase();
-            } catch (Exception e) {
-                MessageUtil.showError(this, e);
-            }
+        if (dialog.isCancelled()) {
+            return;
+        }
+
+        try {
+            ziggyTable.loadFromDatabase();
+        } catch (Exception e) {
+            MessageUtils.showError(this, e);
         }
     }
 
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+        return pipelineModuleDefinitionOperations;
+    }
+
     private static class ModuleLibraryTableModel
-        extends AbstractDatabaseModel<PipelineModuleDefinition> {
-        private List<PipelineModuleDefinition> modules = new LinkedList<>();
-        private final PipelineModuleDefinitionCrudProxy pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrudProxy();
+        extends AbstractZiggyTableModel<PipelineModuleDefinition> implements DatabaseModel {
 
         private static final String[] COLUMN_NAMES = { "ID", "Name", "Version", "Locked", "User",
             "Modified" };
         private static final Class<?>[] COLUMN_CLASSES = { Integer.class, String.class,
             Integer.class, Boolean.class, String.class, Object.class };
 
+        private List<PipelineModuleDefinition> modules = new LinkedList<>();
+
+        private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+
         @Override
         public void loadFromDatabase() {
-            try {
-                modules = pipelineModuleDefinitionCrud.retrieveLatestVersions();
-            } catch (ConsoleSecurityException ignore) {
-            }
+            new SwingWorker<List<PipelineModuleDefinition>, Void>() {
+                @Override
+                protected List<PipelineModuleDefinition> doInBackground() throws Exception {
+                    return pipelineModuleDefinitionOperations().pipelineModuleDefinitions();
+                }
 
-            fireTableDataChanged();
+                @Override
+                protected void done() {
+                    try {
+                        modules = get();
+                        fireTableDataChanged();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Could not load pipeline module definitions", e);
+                    }
+                }
+            }.execute();
         }
 
         @Override
         public int getRowCount() {
-            validityCheck();
             return modules.size();
         }
 
         @Override
         public int getColumnCount() {
-            validityCheck();
-            return 6;
+            return COLUMN_NAMES.length;
         }
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            validityCheck();
-
             PipelineModuleDefinition module = modules.get(rowIndex);
 
             AuditInfo auditInfo = module.getAuditInfo();
@@ -200,25 +250,26 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
         @Override
         public Class<?> getColumnClass(int columnIndex) {
-            validityCheck();
             return COLUMN_CLASSES[columnIndex];
         }
 
         @Override
         public String getColumnName(int column) {
-            validityCheck();
             return COLUMN_NAMES[column];
         }
 
         @Override
         public PipelineModuleDefinition getContentAtRow(int row) {
-            validityCheck();
             return modules.get(row);
         }
 
         @Override
         public Class<PipelineModuleDefinition> tableModelContentClass() {
             return PipelineModuleDefinition.class;
+        }
+
+        private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+            return pipelineModuleDefinitionOperations;
         }
     }
 }

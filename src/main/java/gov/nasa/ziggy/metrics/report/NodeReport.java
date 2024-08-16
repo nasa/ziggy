@@ -18,6 +18,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 
 public class NodeReport extends Report {
     private static final Logger log = LoggerFactory.getLogger(NodeReport.class);
@@ -25,13 +26,14 @@ public class NodeReport extends Report {
     private Map<String, DescriptiveStatistics> categoryStats;
     private Map<String, TopNList> categoryTopTen;
     private Map<String, Units> categoryUnits;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     public NodeReport(PdfRenderer pdfRenderer) {
         super(pdfRenderer);
     }
 
-    public void generateReport(PipelineInstanceNode node, List<PipelineTask> tasks) {
-        String moduleName = node.getPipelineModuleDefinition().getName();
+    public void generateReport(PipelineInstanceNode node) {
+        String moduleName = node.getModuleName();
         pdfRenderer.printText("Pipeline Module: " + moduleName, PdfRenderer.h1Font);
 
         categoryStats = new HashMap<>();
@@ -42,10 +44,11 @@ public class NodeReport extends Report {
 
         orderedCategoryNames = new LinkedList<>();
 
-        for (PipelineTask task : tasks) {
-            List<PipelineTaskMetrics> taskMetrics = task.getSummaryMetrics();
+        Map<PipelineTask, List<PipelineTaskMetrics>> taskMetricsByTask = pipelineTaskOperations()
+            .taskMetricsByTask(node);
 
-            for (PipelineTaskMetrics taskMetric : taskMetrics) {
+        for (PipelineTask task : taskMetricsByTask.keySet()) {
+            for (PipelineTaskMetrics taskMetric : taskMetricsByTask.get(task)) {
                 String category = taskMetric.getCategory();
 
                 categoryUnits.put(category, taskMetric.getUnits());
@@ -77,7 +80,7 @@ public class NodeReport extends Report {
                 List<PipelineTaskMetricValue> valueList = categoryMetrics.get(category);
 
                 if (valueList == null) {
-                    valueList = new ArrayList<>(tasks.size());
+                    valueList = new ArrayList<>(taskMetricsByTask.size());
                     categoryMetrics.put(category, valueList);
                 }
 
@@ -170,6 +173,10 @@ public class NodeReport extends Report {
 
     public Map<String, Units> getCategoryUnits() {
         return categoryUnits;
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 
     /**

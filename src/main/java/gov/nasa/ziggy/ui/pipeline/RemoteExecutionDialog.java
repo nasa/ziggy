@@ -50,11 +50,11 @@ import gov.nasa.ziggy.pipeline.PipelineTaskInformation;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ValidityTestingFormattedTextField;
-import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
-import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionCrudProxy;
 import gov.nasa.ziggy.util.TimeFormatter;
 
 /**
@@ -68,7 +68,7 @@ public class RemoteExecutionDialog extends JDialog {
 
     private static final Logger log = LoggerFactory.getLogger(RemoteExecutionDialog.class);
 
-    private static final long serialVersionUID = 20240111L;
+    private static final long serialVersionUID = 20240614L;
 
     private static final int COLUMNS = 6;
 
@@ -126,6 +126,8 @@ public class RemoteExecutionDialog extends JDialog {
     private Consumer<Boolean> checkFieldsAndRecalculate = this::checkFieldsAndRecalculate;
     private boolean skipCheck;
     private boolean pbsParametersValid = true;
+
+    private final PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
 
     public RemoteExecutionDialog(Window owner,
         PipelineDefinitionNodeExecutionResources originalConfiguration, PipelineDefinitionNode node,
@@ -187,8 +189,8 @@ public class RemoteExecutionDialog extends JDialog {
         JLabel moduleGroup = boldLabel("Module", LabelType.HEADING1);
 
         JLabel pipeline = boldLabel("Pipeline");
-        ProcessingMode processingMode = new PipelineDefinitionCrudProxy()
-            .retrieveProcessingMode(originalConfiguration.getPipelineName());
+        ProcessingMode processingMode = pipelineDefinitionOperations()
+            .processingMode(originalConfiguration.getPipelineName());
         JLabel pipelineText = new JLabel(MessageFormat.format("{0} (processing {1} data)",
             originalConfiguration.getPipelineName(), processingMode.toString()));
 
@@ -324,7 +326,7 @@ public class RemoteExecutionDialog extends JDialog {
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(moduleGroup)
                     .addGroup(dataPanelLayout.createSequentialGroup()
-                        .addGap(ZiggySwingUtils.INDENT)
+                        .addGap(ZiggyGuiConstants.INDENT)
                         .addGroup(dataPanelLayout.createParallelGroup()
                             .addComponent(pipeline)
                             .addComponent(pipelineText)
@@ -332,7 +334,7 @@ public class RemoteExecutionDialog extends JDialog {
                             .addComponent(moduleText)))
                     .addComponent(requiredRemoteParametersGroup)
                     .addGroup(dataPanelLayout.createSequentialGroup()
-                        .addGap(ZiggySwingUtils.INDENT)
+                        .addGap(ZiggyGuiConstants.INDENT)
                         .addGroup(dataPanelLayout.createParallelGroup()
                             .addComponent(oneSubtaskCheckBox)
                             .addComponent(wallTimeScalingCheckBox)
@@ -358,7 +360,7 @@ public class RemoteExecutionDialog extends JDialog {
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(pbsParametersGroup)
                     .addGroup(dataPanelLayout.createSequentialGroup()
-                        .addGap(ZiggySwingUtils.INDENT)
+                        .addGap(ZiggyGuiConstants.INDENT)
                         .addGroup(dataPanelLayout.createParallelGroup()
                             .addGroup(dataPanelLayout.createSequentialGroup()
                                 .addGroup(dataPanelLayout.createParallelGroup()
@@ -386,7 +388,7 @@ public class RemoteExecutionDialog extends JDialog {
                             .addComponent(pbsLimits)))))
             .addComponent(optionalRemoteParametersGroup)
             .addGroup(dataPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addGroup(dataPanelLayout.createSequentialGroup()
                         .addGroup(dataPanelLayout.createParallelGroup()
@@ -430,7 +432,7 @@ public class RemoteExecutionDialog extends JDialog {
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addComponent(module)
                     .addComponent(moduleText)
-                    .addGap(ZiggySwingUtils.GROUP_GAP)
+                    .addGap(ZiggyGuiConstants.GROUP_GAP)
                     .addComponent(requiredRemoteParametersGroup)
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addComponent(remoteExecutionEnabledCheckBox)
@@ -490,7 +492,7 @@ public class RemoteExecutionDialog extends JDialog {
                             .addComponent(pbsCost)))
                     .addPreferredGap(ComponentPlacement.UNRELATED)
                     .addComponent(pbsLimits)))
-            .addGap(ZiggySwingUtils.GROUP_GAP)
+            .addGap(ZiggyGuiConstants.GROUP_GAP)
             .addComponent(optionalRemoteParametersGroup)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addGroup(dataPanelLayout.createParallelGroup()
@@ -822,7 +824,7 @@ public class RemoteExecutionDialog extends JDialog {
         gigsPerSubtaskField.setToolTipText(gigsPerSubtaskToolTip());
 
         // Optional parameters.
-        if (!StringUtils.isEmpty(currentConfiguration.getRemoteNodeArchitecture())) {
+        if (!StringUtils.isBlank(currentConfiguration.getRemoteNodeArchitecture())) {
             architectureComboBox.setSelectedItem(
                 RemoteNodeDescriptor.fromName(currentConfiguration.getRemoteNodeArchitecture()));
         } else {
@@ -831,7 +833,7 @@ public class RemoteExecutionDialog extends JDialog {
         lastArchitectureComboBoxSelection = (RemoteNodeDescriptor) architectureComboBox
             .getSelectedItem();
 
-        if (!StringUtils.isEmpty(currentConfiguration.getQueueName())) {
+        if (!StringUtils.isBlank(currentConfiguration.getQueueName())) {
             queueComboBox.setSelectedItem(
                 RemoteQueueDescriptor.fromQueueName(currentConfiguration.getQueueName()));
             if (queueComboBox.getSelectedItem() == RemoteQueueDescriptor.RESERVED) {
@@ -1076,5 +1078,9 @@ public class RemoteExecutionDialog extends JDialog {
 
     public PipelineDefinitionNodeExecutionResources getCurrentConfiguration() {
         return currentConfiguration;
+    }
+
+    private PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
     }
 }

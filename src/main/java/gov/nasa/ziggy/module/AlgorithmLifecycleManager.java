@@ -5,16 +5,12 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 
-import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.supervisor.TaskFileCopy;
-import gov.nasa.ziggy.supervisor.TaskFileCopyParameters;
+import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -32,6 +28,8 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
 
     private PipelineTask pipelineTask;
     private AlgorithmExecutor executor;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private ParametersOperations parametersOperations = new ParametersOperations();
 
     public AlgorithmLifecycleManager(PipelineTask pipelineTask) {
         this.pipelineTask = pipelineTask;
@@ -46,20 +44,12 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
 
         // Replace the pipeline task and the executor now, since we have new information
         // about the task's subtask counts.
-        pipelineTask = (PipelineTask) DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTask p = new PipelineTaskCrud().retrieve(pipelineTask.getId());
-            Hibernate.initialize(p.getModuleParameterSets());
-            Hibernate.initialize(p.getPipelineInstance());
-            Hibernate.initialize(p.getPipelineInstance().getPipelineParameterSets());
-            return p;
-        });
         executor = AlgorithmExecutor.newInstance(pipelineTask);
         executor.submitAlgorithm(inputs);
     }
 
     @Override
     public void doPostProcessing() {
-        doTaskFileCopy();
     }
 
     @Override
@@ -76,25 +66,6 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
             }
         }
         return taskDir;
-    }
-
-    private void doTaskFileCopy() {
-        if (pipelineTask != null) {
-            TaskFileCopyParameters copyParams = pipelineTask
-                .getParameters(TaskFileCopyParameters.class, false);
-            if (copyParams != null && copyParams.isEnabled()) {
-                final TaskFileCopy copier = new TaskFileCopy(pipelineTask, copyParams);
-
-                log.info("Starting copy of task files for pipelineTask : " + pipelineTask.getId());
-
-                IntervalMetric.measure(PipelineMetrics.COPY_TASK_FILES_METRIC, () -> {
-                    copier.copyTaskFiles();
-                    return null;
-                });
-
-                log.info("Finished copy of task files for pipelineTask : " + pipelineTask.getId());
-            }
-        }
     }
 
     /*
@@ -130,5 +101,13 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
             log.info("defaultWorkingDir = " + taskDir);
         }
         return taskDir.toFile();
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
+    }
+
+    ParametersOperations parametersOperations() {
+        return parametersOperations;
     }
 }

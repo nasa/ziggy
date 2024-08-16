@@ -29,12 +29,13 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.services.messages.FireTriggerRequest;
+import gov.nasa.ziggy.services.messages.StartPipelineRequest;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.IntTextField;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
-import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
 
 /**
  * @author Todd Klaus
@@ -134,11 +135,11 @@ public class StartPipelineDialog extends javax.swing.JDialog {
         dataPanelLayout.setHorizontalGroup(dataPanelLayout.createParallelGroup()
             .addComponent(instanceNameGroup)
             .addGroup(dataPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addComponent(instanceNameTextField))
             .addComponent(repetitionsGroup)
             .addGroup(dataPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addComponent(unlimitedCheckBox)
                 .addPreferredGap(ComponentPlacement.RELATED)
                 .addGroup(dataPanelLayout.createParallelGroup()
@@ -157,7 +158,7 @@ public class StartPipelineDialog extends javax.swing.JDialog {
                         GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)))
             .addComponent(overrideGroup)
             .addGroup(dataPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addGroup(dataPanelLayout.createSequentialGroup()
                         .addComponent(overrideStartCheckBox)
@@ -175,7 +176,7 @@ public class StartPipelineDialog extends javax.swing.JDialog {
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(instanceNameTextField, GroupLayout.PREFERRED_SIZE,
                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-            .addGap(ZiggySwingUtils.GROUP_GAP)
+            .addGap(ZiggyGuiConstants.GROUP_GAP)
             .addComponent(repetitionsGroup)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addGroup(dataPanelLayout.createParallelGroup()
@@ -192,7 +193,7 @@ public class StartPipelineDialog extends javax.swing.JDialog {
                     .addComponent(delayUnits)
                     .addComponent(delayUnitsComboBox, GroupLayout.PREFERRED_SIZE,
                         GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)))
-            .addGap(ZiggySwingUtils.GROUP_GAP)
+            .addGap(ZiggyGuiConstants.GROUP_GAP)
             .addComponent(overrideGroup)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addGroup(dataPanelLayout.createParallelGroup()
@@ -249,36 +250,19 @@ public class StartPipelineDialog extends javax.swing.JDialog {
             RepetitionsAndDelay repsAndDelay = getRepetitionAndDelay();
             int repetitions = repsAndDelay.getRepetitions();
             int delayMinutes = repsAndDelay.getDelayMinutes();
-            if (repetitions == 1) {
-                log.info("Pipeline started with 1 repetition");
-            } else if (repetitions < 0) {
-                log.info("Pipeline started with unlimited repetitions at " + delayMinutes
-                    + " minutes interval");
-            } else {
-                log.info("Pipeline started with " + repetitions + " repetitions at " + delayMinutes
-                    + " minutes interval");
-            }
+            log.info("Pipeline started with {} repetition(s){} from {} to {}",
+                repetitions > 0 ? repetitions : "unlimited",
+                repetitions == 1 ? "" : " at " + delayMinutes + " minutes interval",
+                startNode == null ? "pipeline start" : startNode.getModuleName(),
+                endNode == null ? "pipeline end" : endNode.getModuleName());
 
-            if (startNode == null) {
-                log.info("Pipeline start at pipeline start nodes");
-            } else {
-                log.info("Pipeline start at node: " + startNode.getModuleName());
-            }
-
-            if (endNode == null) {
-                log.info("Pipeline end at pipeline end nodes");
-            } else {
-                log.info("Pipeline end at node: " + endNode.getModuleName());
-            }
-
-            PipelineOperationsProxy pipelineOps = new PipelineOperationsProxy();
-            pipelineOps.sendPipelineMessage(
-                new FireTriggerRequest(pipeline.getName(), instanceNameTextField.getText(),
+            ZiggyMessenger
+                .publish(new StartPipelineRequest(pipeline.getName(), instanceNameTextField.getText(),
                     startNode, endNode, repetitions, delayMinutes * 60));
 
             setCursor(null);
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
 
         setVisible(false);
@@ -293,7 +277,7 @@ public class StartPipelineDialog extends javax.swing.JDialog {
             repetitions = -1;
         } else {
             String repsText = repetitionsTextField.getText();
-            if (repsText.isEmpty()) {
+            if (repsText.isBlank()) {
                 throw new IllegalStateException("Number of repetitions is empty");
             }
             repetitions = Integer.parseInt(repsText);
@@ -304,7 +288,7 @@ public class StartPipelineDialog extends javax.swing.JDialog {
 
         if (repetitions != 1) {
             String delayText = delayTextField.getText();
-            if (delayText.isEmpty()) {
+            if (delayText.isBlank()) {
                 throw new IllegalStateException("Repetitions delay is empty");
             }
             int delay = Integer.parseInt(delayText);

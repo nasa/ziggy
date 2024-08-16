@@ -21,13 +21,12 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.TestEventDetector;
-import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
@@ -284,7 +283,7 @@ public class TaskRequestHandlerLifecycleManagerTest {
 
         private int maxWorkers;
         private PipelineTaskCrud pipelineTaskCrud;
-        private PipelineOperations pipelineOperations;
+        private PipelineTaskOperations pipelineTaskOperations;
 
         public InstrumentedTaskRequestHandlerLifecycleManager() {
             super(true);
@@ -292,7 +291,7 @@ public class TaskRequestHandlerLifecycleManagerTest {
             pipelineTaskCrud = Mockito.mock(PipelineTaskCrud.class);
             Mockito.when(pipelineTaskCrud.retrieveAll(ArgumentMatchers.<Long> anyList()))
                 .thenReturn(new ArrayList<>());
-            pipelineOperations = Mockito.spy(PipelineOperations.class);
+            pipelineTaskOperations = Mockito.spy(PipelineTaskOperations.class);
         }
 
         public void setMaxWorkers(int maxWorkers) {
@@ -305,23 +304,13 @@ public class TaskRequestHandlerLifecycleManagerTest {
         }
 
         @Override
-        protected PipelineTaskCrud pipelineTaskCrud() {
-            return pipelineTaskCrud;
-        }
-
-        @Override
-        protected PipelineExecutor pipelineExecutor() {
-            return Mockito.mock(PipelineExecutor.class);
-        }
-
-        @Override
         protected AlertService alertService() {
             return Mockito.mock(AlertService.class);
         }
 
         @Override
-        protected PipelineOperations pipelineOperations() {
-            return pipelineOperations;
+        protected PipelineTaskOperations pipelineTaskOperations() {
+            return pipelineTaskOperations;
         }
 
         @Override

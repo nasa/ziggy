@@ -20,7 +20,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Process-related functions.
@@ -66,7 +66,7 @@ public class ProcessUtils {
         int retCode = pgrepProcess.execute();
         if (retCode == 0) {
             String resultString = pgrepProcess.getStdoutString();
-            if (!resultString.isEmpty()) {
+            if (!resultString.isBlank()) {
                 String[] splitProcessIds = resultString.split(System.lineSeparator());
                 for (String processIdString : splitProcessIds) {
                     long processId = Long.parseLong(processIdString);
@@ -101,9 +101,9 @@ public class ProcessUtils {
             return;
         }
 
-        FileUtil.close(process.getOutputStream());
-        FileUtil.close(process.getInputStream());
-        FileUtil.close(process.getErrorStream());
+        ZiggyFileUtils.close(process.getOutputStream());
+        ZiggyFileUtils.close(process.getInputStream());
+        ZiggyFileUtils.close(process.getErrorStream());
     }
 
     /**
@@ -158,7 +158,7 @@ public class ProcessUtils {
             log.info("Executing java process with command line \"" + cmd + "\".");
             Process process = Runtime.getRuntime().exec(commandArray);
             BufferedReader errors = new BufferedReader(
-                new InputStreamReader(process.getErrorStream(), FileUtil.ZIGGY_CHARSET_NAME));
+                new InputStreamReader(process.getErrorStream(), ZiggyFileUtils.ZIGGY_CHARSET_NAME));
 
             // Report stderr if the process fails to launch. Unfortunately, if there
             // is a problem here, it seems you have to be stepping in the debugger

@@ -43,12 +43,17 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
      */
     private int[] counter;
 
+    /**
+     * Indicates that an empty array is being iterated over.
+     */
+    private boolean emptyArray;
+
     public HyperRectangleIterator(int[] fullArraySize, int maxElementsPerHyperRectangle) {
         this.fullArraySize = fullArraySize;
         for (int element : fullArraySize) {
             if (element <= 0) {
-                throw new IllegalArgumentException(
-                    "Arrays with zero-length dimensions are not permitted.");
+                emptyArray = true;
+                break;
             }
         }
         this.maxElementsPerHyperRectangle = maxElementsPerHyperRectangle;
@@ -74,6 +79,9 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
      * x 5. If the max # of elements is 2, then the standard hyper-rectangle will be 1 x 1 x 2.
      */
     private int[] size() {
+        if (emptyArray) {
+            return new int[] { 0 };
+        }
         int[] nominalSize = new int[fullArraySize.length];
 
         // pre-initialize the nominal slab size to be the full array size
@@ -117,6 +125,9 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
      * size / slab size, plus 1 if there is a remainder.
      */
     private int[] nRectangles() {
+        if (emptyArray) {
+            return new int[] { 0 };
+        }
         int[] nSlabsPerDim = new int[fullArraySize.length];
         for (int iDim = 0; iDim < fullArraySize.length; iDim++) {
 
@@ -141,6 +152,9 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
      * @return size of the final slab in each dimension
      */
     int[] lastSize() {
+        if (emptyArray) {
+            return new int[] { 0 };
+        }
         int[] lastSlabSize = new int[fullArraySize.length];
         for (int iDim = 0; iDim < fullArraySize.length; iDim++) {
             int remainder = fullArraySize[iDim] % size[iDim];
@@ -151,6 +165,9 @@ public class HyperRectangleIterator implements Iterator<HyperRectangle> {
 
     @Override
     public boolean hasNext() {
+        if (emptyArray) {
+            return false;
+        }
 
         // when every hyper-rectangle has been processed, the first entry in nRectangles
         // will be equal to the # of hyper-rectangles in that direction, thanks to

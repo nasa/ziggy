@@ -28,7 +28,7 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -43,7 +43,6 @@ public class ManifestTest {
 
     private Path testDataDir;
     private Path subDir;
-    private ChecksumType checksumType = Manifest.CHECKSUM_TYPE;
 
     @Rule
     public ZiggyDirectoryRule ziggyDirectoryRule = new ZiggyDirectoryRule();
@@ -78,8 +77,8 @@ public class ManifestTest {
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         assertEquals(100L, manifest.getDatasetId());
-        assertEquals(32, manifest.getFileCount());
-        assertEquals(32, manifest.getManifestEntries().size());
+        assertEquals(34, manifest.getFileCount());
+        assertEquals(34, manifest.getManifestEntries().size());
         for (ManifestEntry manifestFile : manifest.getManifestEntries()) {
             validateManifestFile(manifestFile);
         }
@@ -89,19 +88,19 @@ public class ManifestTest {
     public void testGenerateFromSymlinks() throws IOException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
         Files.createDirectory(subDir);
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), subDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), subDir);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         assertEquals(100L, manifest.getDatasetId());
-        assertEquals(32, manifest.getFileCount());
-        assertEquals(32, manifest.getManifestEntries().size());
+        assertEquals(34, manifest.getFileCount());
+        assertEquals(34, manifest.getManifestEntries().size());
         for (ManifestEntry manifestFile : manifest.getManifestEntries()) {
             validateManifestFile(manifestFile);
         }
@@ -130,8 +129,8 @@ public class ManifestTest {
         // Read the manifest back in
         Manifest roundTripManifest = Manifest.readManifest(testDataDir);
         assertEquals("test-manifest.xml", roundTripManifest.getName());
-        assertEquals(32, roundTripManifest.getFileCount());
-        assertEquals(32, roundTripManifest.getManifestEntries().size());
+        assertEquals(34, roundTripManifest.getFileCount());
+        assertEquals(34, roundTripManifest.getManifestEntries().size());
         assertEquals(100L, roundTripManifest.getDatasetId());
         for (ManifestEntry manifestFile : roundTripManifest.getManifestEntries()) {
             assertTrue(manifest.getManifestEntries().contains(manifestFile));
@@ -144,14 +143,14 @@ public class ManifestTest {
         InvocationTargetException, NoSuchMethodException, SecurityException {
 
         // Symlink all the files from the source directory
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
         Files.createDirectory(subDir);
-        FileUtil.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), subDir);
+        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), subDir);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -161,8 +160,8 @@ public class ManifestTest {
         // Read the manifest back in
         Manifest roundTripManifest = Manifest.readManifest(testDataDir);
         assertEquals("test-manifest.xml", roundTripManifest.getName());
-        assertEquals(32, roundTripManifest.getFileCount());
-        assertEquals(32, roundTripManifest.getManifestEntries().size());
+        assertEquals(34, roundTripManifest.getFileCount());
+        assertEquals(34, roundTripManifest.getManifestEntries().size());
         assertEquals(100L, roundTripManifest.getDatasetId());
         for (ManifestEntry manifestFile : roundTripManifest.getManifestEntries()) {
             assertTrue(manifest.getManifestEntries().contains(manifestFile));
@@ -174,7 +173,7 @@ public class ManifestTest {
         Path schemaPath = Paths.get(
             ZiggyConfiguration.getInstance().getString(ZIGGY_HOME_DIR.property()), "schema", "xml",
             new Manifest().getXmlSchemaFilename());
-        List<String> schemaContent = Files.readAllLines(schemaPath, FileUtil.ZIGGY_CHARSET);
+        List<String> schemaContent = Files.readAllLines(schemaPath, ZiggyFileUtils.ZIGGY_CHARSET);
 
         assertContains(schemaContent, "<xs:element name=\"manifest\" type=\"manifest\"/>");
 

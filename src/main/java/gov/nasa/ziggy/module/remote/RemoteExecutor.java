@@ -11,14 +11,9 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.AlgorithmExecutor;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.ProcessingState;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskOperations;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -70,7 +65,6 @@ public abstract class RemoteExecutor extends AlgorithmExecutor {
                     .getCanonicalPath())
                 .ziggyProgram(NODE_MASTER_NAME)
                 .pbsLogDir(pbsLogDir)
-                .nasLogDir(algorithmLogDir.toString())
                 .pipelineTask(pipelineTask)
                 .taskDir(workingDir().toString());
             b.cluster(RemoteQueueDescriptor.fromQueueName(getStateFile().getQueueName())
@@ -95,26 +89,18 @@ public abstract class RemoteExecutor extends AlgorithmExecutor {
             }
 
             // Update the task log index.
-            DatabaseTransactionFactory.performTransaction(() -> {
-                PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-                PipelineTask task = pipelineTaskCrud.retrieve(pipelineTask.getId());
-                task.incrementTaskLogIndex();
-                task.setRemoteExecution(true);
-                pipelineTaskCrud.merge(task);
-                return null;
-            });
+            pipelineTaskOperations().setRemoteExecution(pipelineTask.getId());
 
             // Update the remote jobs in the database
-            new PipelineTaskOperations().createRemoteJobsFromQstat(pipelineTask.getId());
+            pipelineTaskOperations().createRemoteJobsFromQstat(pipelineTask.getId());
 
-            // update processing state
-            log.info("Updating processing state -> " + ProcessingState.ALGORITHM_QUEUED);
+            log.info("Updating processing step -> " + ProcessingStep.QUEUED);
 
-            ProcessingSummaryOperations attrOps = new ProcessingSummaryOperations();
-
-            attrOps.updateProcessingState(pipelineTask.getId(), ProcessingState.ALGORITHM_QUEUED);
-            attrOps.updateSubTaskCounts(pipelineTask.getId(), initialState.getNumTotal(),
-                initialState.getNumComplete(), initialState.getNumFailed());
+            pipelineTaskOperations().updateProcessingStep(pipelineTask.getId(),
+                ProcessingStep.QUEUED);
+            pipelineTaskOperations().updateSubtaskCounts(pipelineTask.getId(),
+                initialState.getNumTotal(), initialState.getNumComplete(),
+                initialState.getNumFailed());
         } catch (IOException e) {
             throw new UncheckedIOException("Submit to PBS failed due to IOException", e);
         }
@@ -133,16 +119,6 @@ public abstract class RemoteExecutor extends AlgorithmExecutor {
     @Override
     protected Path taskDataDir() {
         return DirectoryProperties.taskDataDir();
-    }
-
-    @Override
-    protected void setParameterSetCrud(ParameterSetCrud parameterSetCrud) {
-        super.setParameterSetCrud(parameterSetCrud);
-    }
-
-    @Override
-    protected void setProcessingSummaryOperations(ProcessingSummaryOperations crud) {
-        super.setProcessingSummaryOperations(crud);
     }
 
     @Override

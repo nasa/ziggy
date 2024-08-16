@@ -23,6 +23,7 @@ import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,9 +33,8 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.Iso8601Formatter;
-import gov.nasa.ziggy.util.TimeFormatter;
-import gov.nasa.ziggy.util.io.FileUtil;
 import gov.nasa.ziggy.util.io.LockManager;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * This class models a file whose name contains the state of a pipeline task executing on a remote
@@ -120,6 +120,7 @@ public class StateFile implements Comparable<StateFile>, Serializable {
     private static final String REQUESTED_NODE_COUNT_PROP_NAME = "requestedNodeCount";
     private static final String ACTIVE_CORES_PER_NODE_PROP_NAME = "activeCoresPerNode";
     private static final String GIGS_PER_SUBTASK_PROP_NAME = "gigsPerSubtask";
+    private static final String EXECUTABLE_NAME_PROP_NAME = "executableName";
 
     private static final String PBS_SUBMIT_PROP_NAME = "pbsSubmitTimeMillis";
     private static final String PFE_ARRIVAL_PROP_NAME = "pfeArrivalTimeMillis";
@@ -166,7 +167,7 @@ public class StateFile implements Comparable<StateFile>, Serializable {
     // Pattern and regex for a state file name
     private static final String STATE_FILE_NAME_REGEX = PREFIX_WITH_BACKSLASHES
         + "([0-9]+)\\.([0-9]+)\\.(\\S+)\\." + "(" + statesPatternElement + ")"
-        + "_([0-9]+)-([0-9]+)-([0-9])";
+        + "_([0-9]+)-([0-9]+)-([0-9]+)";
     public static final Pattern STATE_FILE_NAME_PATTERN = Pattern.compile(STATE_FILE_NAME_REGEX);
     private static final int STATE_FILE_NAME_INSTANCE_ID_GROUP_NUMBER = 1;
     private static final int STATE_FILE_NAME_TASK_ID_GROUP_NUMBER = 2;
@@ -294,12 +295,13 @@ public class StateFile implements Comparable<StateFile>, Serializable {
      * Creates a StateFile from the given parameters.
      */
     public static StateFile generateStateFile(PipelineTask pipelineTask,
-        PbsParameters pbsParameters, int numSubTasks) {
+        PbsParameters pbsParameters, int numSubtasks) {
 
         StateFile state = new StateFile.Builder().moduleName(pipelineTask.getModuleName())
-            .pipelineInstanceId(pipelineTask.pipelineInstanceId())
+            .executableName(pipelineTask.getExecutableName())
+            .pipelineInstanceId(pipelineTask.getPipelineInstanceId())
             .pipelineTaskId(pipelineTask.getId())
-            .numTotal(numSubTasks)
+            .numTotal(numSubtasks)
             .numComplete(0)
             .numFailed(0)
             .state(StateFile.State.QUEUED)
@@ -320,8 +322,6 @@ public class StateFile implements Comparable<StateFile>, Serializable {
             state.setRemoteNodeArchitecture("");
             state.setRemoteGroup("");
             state.setQueueName("");
-            state.setRequestedWallTime(
-                TimeFormatter.timeInSecondsToStringHhMmSs(pipelineTask.exeTimeoutSeconds()));
         }
 
         return state;
@@ -336,7 +336,7 @@ public class StateFile implements Comparable<StateFile>, Serializable {
         File directory = DirectoryProperties.stateFilesDir().toFile();
         File file = new File(directory, name());
         try (Writer fw = new OutputStreamWriter(new FileOutputStream(file),
-            FileUtil.ZIGGY_CHARSET)) {
+            ZiggyFileUtils.ZIGGY_CHARSET)) {
             props.write(fw);
 
             // Also, move any old state files that are for the same instance and
@@ -517,7 +517,8 @@ public class StateFile implements Comparable<StateFile>, Serializable {
     }
 
     public static String invariantPart(PipelineTask task) {
-        return PREFIX + task.pipelineInstanceId() + "." + task.getId() + "." + task.getModuleName();
+        return PREFIX + task.getPipelineInstanceId() + "." + task.getId() + "."
+            + task.getModuleName();
     }
 
     public String taskBaseName() {
@@ -561,6 +562,10 @@ public class StateFile implements Comparable<StateFile>, Serializable {
 
     public boolean isQueued() {
         return state == State.QUEUED;
+    }
+
+    public boolean isStarted() {
+        return isRunning() || isDone();
     }
 
     @Override
@@ -629,13 +634,24 @@ public class StateFile implements Comparable<StateFile>, Serializable {
         this.numFailed = numFailed;
     }
 
+    public String getExecutableName() {
+        return props.getProperty(EXECUTABLE_NAME_PROP_NAME) != null
+            && !StringUtils.isBlank(props.getString(EXECUTABLE_NAME_PROP_NAME))
+                ? props.getString(EXECUTABLE_NAME_PROP_NAME)
+                : INVALID_STRING;
+    }
+
+    public void setExecutableName(String executableName) {
+        props.setProperty(EXECUTABLE_NAME_PROP_NAME, executableName);
+    }
+
     /**
      * Returns the value of the {@value #REMOTE_NODE_ARCHITECTURE_PROP_NAME} property, or
      * {@link #DEFAULT_REMOTE_NODE_ARCHITECTURE} if not present or set.
      */
     public String getRemoteNodeArchitecture() {
         return props.getProperty(REMOTE_NODE_ARCHITECTURE_PROP_NAME) != null
-            && !props.getString(REMOTE_NODE_ARCHITECTURE_PROP_NAME).isEmpty()
+            && !props.getString(REMOTE_NODE_ARCHITECTURE_PROP_NAME).isBlank()
                 ? props.getString(REMOTE_NODE_ARCHITECTURE_PROP_NAME)
                 : DEFAULT_REMOTE_NODE_ARCHITECTURE;
     }
@@ -827,6 +843,11 @@ public class StateFile implements Comparable<StateFile>, Serializable {
 
         public Builder moduleName(String moduleName) {
             stateFile.setModuleName(moduleName);
+            return this;
+        }
+
+        public Builder executableName(String executableName) {
+            stateFile.setExecutableName(executableName);
             return this;
         }
 

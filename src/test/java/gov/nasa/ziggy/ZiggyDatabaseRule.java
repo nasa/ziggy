@@ -19,8 +19,8 @@ import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
 import gov.nasa.ziggy.services.database.DatabaseController;
+import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.services.database.DatabaseService;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.services.database.HsqldbController;
 
 /**
@@ -85,19 +85,12 @@ public class ZiggyDatabaseRule extends ExternalResource {
         hibernateJdbcBatchSize = System.setProperty(HIBERNATE_JDBC_BATCH_SIZE.property(), "0");
         hibernateShowSql = System.setProperty(HIBERNATE_SHOW_SQL.property(), "false");
 
-        DatabaseTransactionFactory.performTransaction(() -> {
-            databaseController.createDatabase();
-            return null;
-        });
+        new DatabaseRuleOperations().createDatabase();
     }
 
     @Override
     protected void after() {
-        DatabaseTransactionFactory.performTransaction(() -> {
-            databaseController.dropDatabase();
-            DatabaseService.getInstance().clear();
-            return null;
-        });
+        new DatabaseRuleOperations().dropDatabase();
         DatabaseService.reset();
 
         resetSystemProperty(DATABASE_SOFTWARE.property(), databaseSoftwareName);
@@ -124,6 +117,20 @@ public class ZiggyDatabaseRule extends ExternalResource {
             System.setProperty(property, value);
         } else {
             System.clearProperty(property);
+        }
+    }
+
+    private class DatabaseRuleOperations extends DatabaseOperations {
+
+        public void createDatabase() {
+            performTransaction(() -> databaseController.createDatabase());
+        }
+
+        public void dropDatabase() {
+            performTransaction(() -> {
+                databaseController.dropDatabase();
+                DatabaseService.getInstance().clear();
+            });
         }
     }
 }

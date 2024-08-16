@@ -15,7 +15,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * @author Todd Klaus
@@ -40,7 +40,7 @@ public class ArrayImportExportUtils {
 
         try {
             reader = new BufferedReader(
-                new InputStreamReader(new FileInputStream(file), FileUtil.ZIGGY_CHARSET));
+                new InputStreamReader(new FileInputStream(file), ZiggyFileUtils.ZIGGY_CHARSET));
             log.info("Importing array from: " + file.getName());
 
             String oneLine = null;
@@ -53,7 +53,7 @@ public class ArrayImportExportUtils {
                 }
             } while (oneLine != null);
         } finally {
-            FileUtil.close(reader);
+            ZiggyFileUtils.close(reader);
         }
 
         return values;
@@ -63,7 +63,7 @@ public class ArrayImportExportUtils {
         log.info("Exporting array to: " + file.getName());
 
         try (BufferedWriter writer = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(file), FileUtil.ZIGGY_CHARSET));) {
+            new OutputStreamWriter(new FileOutputStream(file), ZiggyFileUtils.ZIGGY_CHARSET));) {
             writer.write("# Exported by ParametersUtils");
             writer.newLine();
             writer.write("#" + new Date().toString());

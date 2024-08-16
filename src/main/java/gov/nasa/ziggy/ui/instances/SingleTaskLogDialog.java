@@ -28,13 +28,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.logging.TaskLogInformation;
 import gov.nasa.ziggy.services.messages.SingleTaskLogMessage;
 import gov.nasa.ziggy.services.messages.SingleTaskLogRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.proxy.PipelineTaskCrudProxy;
 import gov.nasa.ziggy.util.Requestor;
 
 /**
@@ -43,7 +43,7 @@ import gov.nasa.ziggy.util.Requestor;
 public class SingleTaskLogDialog extends javax.swing.JDialog implements Requestor {
 
     private static final Logger log = LoggerFactory.getLogger(TaskLogInformationDialog.class);
-    private static final long serialVersionUID = 20230817L;
+    private static final long serialVersionUID = 20240614L;
     private static final long LOG_CONTENT_TIMEOUT_MILLIS = 2000L;
 
     private JLabel taskLogLabel;
@@ -56,19 +56,22 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
 
     private final UUID uuid = UUID.randomUUID();
 
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+
     public SingleTaskLogDialog(Window owner, TaskLogInformation taskLogInformation) {
 
         super(owner, ModalityType.MODELESS);
         this.taskLogInformation = taskLogInformation;
-        buildComponent();
-        setLocationRelativeTo(owner);
 
+        // Subscribe to the task log messages before refreshing the window.
         ZiggyMessenger.subscribe(SingleTaskLogMessage.class, message -> {
             if (isDestination(message)) {
                 currentMessage = message;
                 taskLogMessageCountdownLatch.countDown();
             }
         });
+        buildComponent();
+        setLocationRelativeTo(owner);
     }
 
     private void buildComponent() {
@@ -139,8 +142,8 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
             protected String doInBackground() throws Exception {
 
                 // Retrieve the task from the database
-                PipelineTask task = new PipelineTaskCrudProxy()
-                    .retrieve(taskLogInformation.getTaskId());
+                PipelineTask task = pipelineTaskOperations()
+                    .pipelineTask(taskLogInformation.getTaskId());
                 log.debug("selected task id = " + task.getId());
                 taskLogLabel.setText(task.taskLabelText());
 
@@ -152,7 +155,7 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
                 // Wait for the task log to be delivered, but don't wait too long.
                 if (!taskLogMessageCountdownLatch.await(LOG_CONTENT_TIMEOUT_MILLIS,
                     TimeUnit.MILLISECONDS)) {
-                    MessageUtil.showError(rootPane, "Log request timed out.");
+                    MessageUtils.showError(rootPane, "Log request timed out.");
                     return null;
                 }
 
@@ -172,7 +175,7 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
                     }
                     textArea.setText(updatedText);
                 } catch (InterruptedException | ExecutionException e) {
-                    MessageUtil.showError(rootPane, e);
+                    MessageUtils.showError(rootPane, e);
                 }
             }
         }.execute();
@@ -185,5 +188,9 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
     @Override
     public UUID requestorIdentifier() {
         return uuid;
+    }
+
+    private PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

@@ -89,8 +89,8 @@ public class ZiggyCppPojo {
     private static final int DEFAULT_PARALLEL_COMPILE_THREADS = Runtime.getRuntime()
         .availableProcessors();
 
-    /** Path to the C++ files to be compiled */
-    private List<String> cppFilePaths = null;
+    /** Path to the files to be compiled */
+    private List<String> sourceFilePaths = null;
 
     /** Paths to the include files */
     private List<String> includeFilePaths = new ArrayList<>();
@@ -129,7 +129,7 @@ public class ZiggyCppPojo {
     protected String outputDirParent;
 
     /** C++ files found in the cppFilePath directory */
-    private Map<File, String> cppFiles = new TreeMap<>();
+    private Map<File, String> sourceFiles = new TreeMap<>();
 
     /** Object files built from the C++ files */
     private List<File> objectFiles = new ArrayList<>();
@@ -166,7 +166,7 @@ public class ZiggyCppPojo {
     public String argListToString(List<String> argList, String prefix) {
         StringBuilder argStringBuilder = new StringBuilder();
         for (String arg : argList) {
-            if (arg != null && !arg.isEmpty()) {
+            if (!StringUtils.isBlank(arg)) {
                 argStringBuilder.append(prefix + arg + " ");
             }
         }
@@ -196,24 +196,24 @@ public class ZiggyCppPojo {
      * Search the specified file path for C and C++ files, and populate the cppFiles list with same.
      * If the file path is not set or does not exist, a GradleException will be thrown.
      */
-    private void populateCppFiles(boolean warn) {
+    private void populateSourceFiles(boolean warn) {
 
         // check that the path is set and exists
-        if (cppFilePaths == null) {
+        if (sourceFilePaths == null) {
             throw new GradleException("C++ file path is null");
         }
 
         // clear any existing files, and also handle the null pointer case
         // neither of these should ever occur in real life, but why risk it?
-        if (cppFiles == null || !cppFiles.isEmpty()) {
-            cppFiles = new TreeMap<>();
+        if (sourceFiles == null || !sourceFiles.isEmpty()) {
+            sourceFiles = new TreeMap<>();
         }
 
-        for (String cppFilePath : cppFilePaths) {
-            File cppFileDir = new File(cppFilePath);
-            if (!cppFileDir.exists()) {
+        for (String sourceFilePath : sourceFilePaths) {
+            File sourceFileDir = new File(sourceFilePath);
+            if (!sourceFileDir.exists()) {
                 if (warn) {
-                    String w = "C++ file path " + cppFilePath + " does not exist";
+                    String w = "Source file path " + sourceFilePath + " does not exist";
                     log.warn(w);
                     addLoggerWarning(w);
                 }
@@ -221,26 +221,26 @@ public class ZiggyCppPojo {
 
                 // find all C and C++ files and add them to the cppFiles list
                 for (Compiler compiler : Compiler.values()) {
-                    File[] cFiles = cppFileDir.listFiles(
+                    File[] cFiles = sourceFileDir.listFiles(
                         (FilenameFilter) (dir, name) -> name.endsWith(compiler.fileSuffix()));
                     if (cFiles == null) {
                         continue;
                     }
                     for (File cFile : cFiles) {
-                        cppFiles.put(cFile, compiler.compiler());
+                        sourceFiles.put(cFile, compiler.compiler());
                     }
                 }
             }
         }
 
-        if (!cppFiles.isEmpty()) {
+        if (!sourceFiles.isEmpty()) {
             // write the list of files to the log if info logging is set
             StringBuilder fileListBuilder = new StringBuilder();
-            for (File file : cppFiles.keySet()) {
+            for (File file : sourceFiles.keySet()) {
                 fileListBuilder.append(file.getName());
                 fileListBuilder.append(" ");
             }
-            log.info("List of C/C++ files in directory " + cppFilePaths + ": "
+            log.info("List of C/C++ files in directory " + sourceFilePaths + ": "
                 + fileListBuilder.toString());
         }
     }
@@ -347,7 +347,7 @@ public class ZiggyCppPojo {
         compileStringBuilder.append(argListToString(includeFilePaths, "-I"));
 
         // If there is a MATLAB include path, handle that now
-        if (matlabIncludePath != null && !matlabIncludePath.isEmpty()) {
+        if (!StringUtils.isBlank(matlabIncludePath)) {
             compileStringBuilder.append("-I" + matlabIncludePath + " ");
         }
 
@@ -359,7 +359,7 @@ public class ZiggyCppPojo {
         }
 
         // if there is a MATLAB compiler directive, handle that now
-        if (matlabCompilerDirective != null && !matlabCompilerDirective.isEmpty()) {
+        if (!StringUtils.isBlank(matlabCompilerDirective)) {
             compileStringBuilder.append("-" + matlabCompilerDirective + " ");
         }
 
@@ -417,7 +417,7 @@ public class ZiggyCppPojo {
         // and library paths
         if (outputType != BuildType.STATIC) {
             linkStringBuilder.append(argListToString(libraryPaths, "-L"));
-            if (matlabLibPath != null && !matlabLibPath.isEmpty()) {
+            if (!StringUtils.isBlank(matlabLibPath)) {
                 linkStringBuilder.append("-L" + matlabLibPath + " ");
             }
         }
@@ -444,8 +444,8 @@ public class ZiggyCppPojo {
 
         if ((architecture == SystemArchitecture.MAC_M1
             || architecture == SystemArchitecture.MAC_INTEL) && outputType == BuildType.SHARED) {
-            linkStringBuilder.append("-install_name " + getRootDir().getAbsolutePath()
-                + "/build/lib/" + getBuiltFile().getName() + " ");
+            linkStringBuilder
+                .append("-install_name " + libDir() + "/" + getBuiltFile().getName() + " ");
         }
 
         // add the object files, sorted into alphabetical order (to simplify testing).
@@ -458,7 +458,7 @@ public class ZiggyCppPojo {
         // dependence in the Linux linker
         if (outputType != BuildType.STATIC) {
             linkStringBuilder.append(argListToString(libraries, "-l"));
-            if (matlabLibPath != null && !matlabLibPath.isEmpty()) {
+            if (!StringUtils.isBlank(matlabLibPath)) {
                 linkStringBuilder.append("-lmex -lmx -lmat ");
             }
         }
@@ -474,9 +474,9 @@ public class ZiggyCppPojo {
      *
      * @return a new DefaultExecutor (normal execution), or a mocked one (testing).
      */
-    protected DefaultExecutor getDefaultExecutor() {
+    protected DefaultExecutor getDefaultExecutor(File workingDirectory) {
         if (defaultExecutor == null) {
-            return new DefaultExecutor();
+            return DefaultExecutor.builder().setWorkingDirectory(workingDirectory).get();
         }
         return defaultExecutor;
     }
@@ -514,7 +514,7 @@ public class ZiggyCppPojo {
         Set<Future<CompilationResult>> compilationResults = new HashSet<>();
 
         // loop over source files, compile them and add the object file to the object file list
-        for (Map.Entry<File, String> file : getCppFiles(true).entrySet()) {
+        for (Map.Entry<File, String> file : getSourceFiles(true).entrySet()) {
             compilationResults.add(compilerThreadPool.submit(() -> compileActionInternal(file)));
         }
 
@@ -534,8 +534,7 @@ public class ZiggyCppPojo {
 
     private CompilationResult compileActionInternal(Map.Entry<File, String> sourceFile)
         throws ExecuteException, IOException {
-        DefaultExecutor compilerExec = getDefaultExecutor();
-        compilerExec.setWorkingDirectory(new File(cppFilePaths.get(0)));
+        DefaultExecutor compilerExec = getDefaultExecutor(new File(sourceFilePaths.get(0)));
         int returnCode = compilerExec
             .execute(new CommandLineComparable(generateCompileCommand(sourceFile)));
         return new CompilationResult(sourceFile.getKey(), returnCode);
@@ -544,8 +543,7 @@ public class ZiggyCppPojo {
     protected void linkAction() {
 
         File objDir = objDir();
-        DefaultExecutor linkExec = getDefaultExecutor();
-        linkExec.setWorkingDirectory(objDir);
+        DefaultExecutor linkExec = getDefaultExecutor(objDir);
         File destDir = null;
         if (outputType.equals(BuildType.EXECUTABLE)) {
             destDir = binDir();
@@ -635,16 +633,16 @@ public class ZiggyCppPojo {
 
 //	setters and getters
 
-    public void setCppFilePath(Object cppFilePath) {
-        cppFilePaths = List.of(cppFilePath.toString());
+    public void setSourceFilePath(Object sourceFilePath) {
+        sourceFilePaths = List.of(sourceFilePath.toString());
     }
 
-    public List<String> getCppFilePaths() {
-        return cppFilePaths;
+    public List<String> getSourceFilePaths() {
+        return sourceFilePaths;
     }
 
-    public void setCppFilePaths(List<Object> cppFilePaths) {
-        this.cppFilePaths = objectListToStringList(cppFilePaths);
+    public void setSourceFilePaths(List<Object> sourceFilePaths) {
+        this.sourceFilePaths = objectListToStringList(sourceFilePaths);
     }
 
     public List<String> getIncludeFilePaths() {
@@ -671,20 +669,20 @@ public class ZiggyCppPojo {
         this.libraries = objectListToStringList(libraries);
     }
 
-    public List<String> getCppCompileOptions() {
+    public List<String> getcppCompileOptions() {
         return cppCompileOptions;
     }
 
-    public void setCppCompileOptions(List<? extends Object> compileOptions) {
+    public void setcppCompileOptions(List<? extends Object> compileOptions) {
         cppCompileOptions = objectListToStringList(compileOptions);
     }
 
-    public List<String> getCCompileOptions() {
+    public List<String> getcCompileOptions() {
         return cCompileOptions;
     }
 
-    public void setCCompileOptions(List<String> cCompileOptions) {
-        this.cCompileOptions = cCompileOptions;
+    public void setcCompileOptions(List<? extends Object> compileOptions) {
+        cCompileOptions = objectListToStringList(compileOptions);
     }
 
     public List<String> getLinkOptions() {
@@ -731,22 +729,18 @@ public class ZiggyCppPojo {
         this.name = name.toString();
     }
 
-    public Map<File, String> getCppFiles() {
-        return getCppFiles(false);
-    }
-
     public List<File> getSourceFiles() {
-        return new ArrayList<>(getCppFiles().keySet());
+        return new ArrayList<>(getSourceFiles(false).keySet());
     }
 
-    public Map<File, String> getCppFiles(boolean warn) {
+    public Map<File, String> getSourceFiles(boolean warn) {
         // Always generate the list afresh -- necessary because Gradle calls the ZiggyCpp
         // method getCppFiles() prior to the actual build, at which time the directories of
         // source files may or may not exist yet! Thus we can't afford to cache the C++
         // file list, since I can't tell whether Gradle creates a new ZiggyCpp object when
         // it actually does the build, or whether it simply re-uses the one from pre-build.
-        populateCppFiles(warn);
-        return cppFiles;
+        populateSourceFiles(warn);
+        return sourceFiles;
     }
 
     public List<File> getObjectFiles() {

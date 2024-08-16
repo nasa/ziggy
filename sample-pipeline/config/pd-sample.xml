@@ -13,7 +13,7 @@ and outputs, information about models, and parameter sets. Enjoy! -->
        the program has to be on the path set by property
        ziggy.pipeline.binPath. -->
   <module name="permuter" description="Color Permuter"/>
-  <module name="flip" description="Flip Up-Down and Left-Right"/>
+  <module name="flip" executableName="flipper" description="Flip Up-Down and Left-Right"/>
   <module name="averaging" description="Average Images Together"/>
 
   <!-- Here's the pipeline definition. Note that we could have defined multiple
@@ -23,7 +23,7 @@ and outputs, information about models, and parameter sets. Enjoy! -->
 
     <!-- Pipeline parameter sets are applied to every node in the
          pipeline. -->
-    <pipelineParameter name="Algorithm Parameters"/>
+    <parameterSet name="Algorithm Parameters"/>
 
     <!-- Data receipt is the exception to the requirement that the node has to
          be a user-defined module. Ziggy provides data receipt "for free" as a

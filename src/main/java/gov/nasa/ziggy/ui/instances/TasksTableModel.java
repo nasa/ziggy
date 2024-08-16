@@ -1,47 +1,49 @@
 package gov.nasa.ziggy.ui.instances;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.SwingWorker;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
-import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.PipelineTaskCrudProxy;
-import gov.nasa.ziggy.ui.util.proxy.ProcessingSummaryOpsProxy;
-import gov.nasa.ziggy.util.TasksStates;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
+import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.util.dispmod.TasksDisplayModel;
 
 @SuppressWarnings("serial")
-public class TasksTableModel extends AbstractDatabaseModel<PipelineTask> {
+public class TasksTableModel extends AbstractZiggyTableModel<PipelineTask>
+    implements DatabaseModel {
+
+    private static final Logger log = LoggerFactory.getLogger(TasksTableModel.class);
+
+    /** Preferred column widths. */
+    public static final int[] COLUMN_WIDTHS = TasksDisplayModel.COLUMN_WIDTHS;
+
     private PipelineInstance pipelineInstance;
     private List<PipelineTask> tasks = new LinkedList<>();
-    private Map<Long, ProcessingSummary> taskAttrs = new HashMap<>();
-    private final PipelineTaskCrudProxy pipelineTaskCrud;
-    private final ProcessingSummaryOpsProxy attrOps;
 
     // Used to store member values when the instance is TEMPORARILY set to null
     private List<PipelineTask> stashedTasks;
-    private Map<Long, ProcessingSummary> stashedAttributes;
     long instanceIdForStashedTaskInfo = -1L;
 
-    private final TasksDisplayModel tasksDisplayModel = new TasksDisplayModel();
+    private TasksDisplayModel tasksDisplayModel = new TasksDisplayModel();
+
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     private enum UpdateMode {
         SAME_INSTANCE, REPLACE_TEMP_NULL, FULL_UPDATE
     }
 
     public TasksTableModel() {
-        pipelineTaskCrud = new PipelineTaskCrudProxy();
-        attrOps = new ProcessingSummaryOpsProxy();
         stashedTasks = tasks;
-        stashedAttributes = taskAttrs;
     }
 
     @Override
@@ -50,33 +52,26 @@ public class TasksTableModel extends AbstractDatabaseModel<PipelineTask> {
     }
 
     public void loadFromDatabase(boolean forceUpdate) {
-        SwingWorker<Void, Void> swingWorker = new SwingWorker<>() {
-
+        new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                try {
-                    if (pipelineInstance == null) {
-                        tasks = new LinkedList<>();
-                        taskAttrs = new HashMap<>();
-                    } else {
-                        UpdateMode updateMode = getUpdateMode(forceUpdate);
-                        switch (updateMode) {
-                            case SAME_INSTANCE:
-                                break;
-                            case REPLACE_TEMP_NULL:
-                                tasks = stashedTasks;
-                                taskAttrs = stashedAttributes;
-                                break;
-                            case FULL_UPDATE:
-                                tasks = pipelineTaskCrud.retrieveAll(pipelineInstance);
-                                taskAttrs = attrOps.retrieveByInstanceId(pipelineInstance.getId());
-                                break;
-                            default:
-                                throw new IllegalStateException(
-                                    "Unsupported update mode " + updateMode.toString());
-                        }
+                if (pipelineInstance == null) {
+                    tasks = new LinkedList<>();
+                } else {
+                    UpdateMode updateMode = getUpdateMode(forceUpdate);
+                    switch (updateMode) {
+                        case SAME_INSTANCE:
+                            break;
+                        case REPLACE_TEMP_NULL:
+                            tasks = stashedTasks;
+                            break;
+                        case FULL_UPDATE:
+                            tasks = pipelineTaskOperations().pipelineTasks(pipelineInstance, true);
+                            break;
+                        default:
+                            throw new IllegalStateException(
+                                "Unsupported update mode " + updateMode.toString());
                     }
-                } catch (ConsoleSecurityException ignore) {
                 }
                 return null;
             }
@@ -84,13 +79,14 @@ public class TasksTableModel extends AbstractDatabaseModel<PipelineTask> {
             @Override
             protected void done() {
                 try {
-                    tasksDisplayModel.update(tasks, taskAttrs);
-                } catch (ConsoleSecurityException ignore) {
+                    get(); // check for exception
+                    tasksDisplayModel = new TasksDisplayModel(tasks);
+                    fireTableDataChanged();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Could not load pipeline tasks or attributes", e);
                 }
-                fireTableDataChanged();
             }
-        };
-        swingWorker.execute();
+        }.execute();
     }
 
     /**
@@ -127,7 +123,6 @@ public class TasksTableModel extends AbstractDatabaseModel<PipelineTask> {
 
     @Override
     public int getRowCount() {
-        validityCheck();
         return tasksDisplayModel.getRowCount();
     }
 
@@ -138,7 +133,6 @@ public class TasksTableModel extends AbstractDatabaseModel<PipelineTask> {
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        validityCheck();
         return tasksDisplayModel.getValueAt(rowIndex, columnIndex);
     }
 
@@ -199,22 +193,24 @@ public class TasksTableModel extends AbstractDatabaseModel<PipelineTask> {
      */
     private void stashTaskInfo() {
         stashedTasks = tasks;
-        stashedAttributes = taskAttrs;
         instanceIdForStashedTaskInfo = pipelineInstance != null ? pipelineInstance.getId() : -1L;
     }
 
-    public TasksStates getTaskStates() {
-        return tasksDisplayModel.getTaskStates();
+    public TaskCounts getTaskStates() {
+        return tasksDisplayModel.getTaskCounts();
     }
 
     @Override
     public PipelineTask getContentAtRow(int row) {
-        validityCheck();
         return tasks.get(row);
     }
 
     @Override
     public Class<PipelineTask> tableModelContentClass() {
         return PipelineTask.class;
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

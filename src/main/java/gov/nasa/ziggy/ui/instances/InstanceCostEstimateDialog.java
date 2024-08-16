@@ -23,9 +23,9 @@ import org.netbeans.swing.etable.ETable;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
-import gov.nasa.ziggy.ui.util.proxy.PipelineTaskOperationsProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
@@ -38,12 +38,15 @@ import gov.nasa.ziggy.util.dispmod.ModelContentClass;
  */
 public class InstanceCostEstimateDialog extends JDialog {
 
-    private static final long serialVersionUID = 20230817L;
+    private static final long serialVersionUID = 20240614L;
+
+    private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
 
     public InstanceCostEstimateDialog(Window owner, PipelineInstance pipelineInstance) {
         super(owner, DEFAULT_MODALITY_TYPE);
 
         buildComponent(pipelineInstance);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(owner);
     }
 
@@ -53,16 +56,12 @@ public class InstanceCostEstimateDialog extends JDialog {
         getContentPane().add(createDataPanel(pipelineInstance), BorderLayout.CENTER);
         getContentPane().add(createButtonPanel(createButton(CLOSE, this::close)),
             BorderLayout.SOUTH);
+        setPreferredSize(ZiggyGuiConstants.MIN_DIALOG_SIZE);
 
-        setMinimumSize(ZiggySwingUtils.MIN_DIALOG_SIZE);
         pack();
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
     }
 
     private JPanel createDataPanel(PipelineInstance pipelineInstance) {
-        List<PipelineTask> pipelineTasksInInstance = new PipelineTaskOperationsProxy()
-            .updateAndRetrieveTasks(pipelineInstance);
-
         JLabel instance = boldLabel("Pipeline instance", LabelType.HEADING);
         instance.setToolTipText("Displays estimated cost of the full pipeline instance.");
 
@@ -71,6 +70,9 @@ public class InstanceCostEstimateDialog extends JDialog {
 
         JLabel state = boldLabel("State:");
         JLabel stateText = new JLabel(pipelineInstance.getState().toString());
+
+        List<PipelineTask> pipelineTasksInInstance = pipelineInstanceOperations()
+            .updateJobs(pipelineInstance);
 
         JLabel cost = boldLabel("Cost estimate:");
         JLabel costText = new JLabel(instanceCost(pipelineTasksInInstance));
@@ -94,7 +96,7 @@ public class InstanceCostEstimateDialog extends JDialog {
         dataPanelLayout.setHorizontalGroup(dataPanelLayout.createParallelGroup()
             .addComponent(instance)
             .addGroup(dataPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(instanceId)
                     .addComponent(state)
@@ -150,12 +152,16 @@ public class InstanceCostEstimateDialog extends JDialog {
         return new DecimalFormat(format).format(cost);
     }
 
+    private PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
+    }
+
     private static class TaskCostEstimateTableModel extends AbstractTableModel
         implements ModelContentClass<PipelineTask> {
 
-        private static final long serialVersionUID = 20230817L;
+        private static final long serialVersionUID = 20240614L;
 
-        private static final String[] COLUMN_NAMES = { "ID", "Module", "UOW", "State",
+        private static final String[] COLUMN_NAMES = { "ID", "Module", "UOW", "Status",
             "Cost estimate" };
 
         private final List<PipelineTask> pipelineTasks;
@@ -186,7 +192,7 @@ public class InstanceCostEstimateDialog extends JDialog {
                 case 0 -> task.getId();
                 case 1 -> task.getModuleName();
                 case 2 -> task.uowTaskInstance().briefState();
-                case 3 -> task.getState().toString();
+                case 3 -> task.getDisplayProcessingStep();
                 case 4 -> formatCost(task.costEstimate());
                 default -> throw new IllegalArgumentException(
                     "Illegal column number: " + columnIndex);

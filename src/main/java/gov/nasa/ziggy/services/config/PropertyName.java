@@ -111,6 +111,9 @@ public enum PropertyName {
      */
     USER_NAME("user.name"),
 
+    /** Algorithm name used in log files. */
+    ZIGGY_ALGORITHM_NAME("ziggy.algorithmName"),
+
     /** Location of the configuration properties for Ziggy. */
     ZIGGY_CONFIG_PATH("ziggy.config.path"),
 
@@ -176,6 +179,9 @@ public enum PropertyName {
 
     /** Directory from which data receipt imports files. */
     DATA_RECEIPT_DIR("ziggy.pipeline.data.receipt.dir"),
+
+    /** Name of user-supplied UOW generator class. */
+    DATA_RECEIPT_UOW_GENERATOR_CLASS("ziggy.pipeline.data.receipt.uow.classname"),
 
     /** Maximum percentage of files that can fail validation before DR throws an exception. */
     MAX_FAILURE_PERCENTAGE("ziggy.pipeline.data.receipt.validation.maxFailurePercentage"),

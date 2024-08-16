@@ -7,5 +7,10 @@
   <parameter-set name="ISOFIT module parameters">
     <parameter name="n_cores" value="8"/>
   </parameter-set>
+  
+  <parameter-set name="Multiple subtask configuration">
+    <parameter name="reprocessingTasksExclude" value="1, 2, 3"/>
+  </parameter-set>
+
 
 </parameterLibrary>

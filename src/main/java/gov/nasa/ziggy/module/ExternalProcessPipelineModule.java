@@ -12,11 +12,9 @@ import static gov.nasa.ziggy.module.PipelineMetrics.PLEIADES_WALL_METRIC;
 import static gov.nasa.ziggy.module.PipelineMetrics.REMOTE_METRICS;
 import static gov.nasa.ziggy.module.PipelineMetrics.REMOTE_WORKER_WAIT_METRIC;
 import static gov.nasa.ziggy.module.PipelineMetrics.STORE_OUTPUTS_METRIC;
-import static gov.nasa.ziggy.services.database.DatabaseTransactionFactory.performTransaction;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,24 +25,19 @@ import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableList;
-
 import gov.nasa.ziggy.data.datastore.DatastoreFileManager;
 import gov.nasa.ziggy.data.datastore.DatastoreFileManager.InputFiles;
-import gov.nasa.ziggy.data.management.DatastoreProducerConsumerCrud;
+import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.metrics.ValueMetric;
 import gov.nasa.ziggy.module.remote.TimestampFile;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
-import gov.nasa.ziggy.pipeline.definition.ProcessingState;
-import gov.nasa.ziggy.pipeline.definition.ProcessingStatePipelineModule;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -57,45 +50,31 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
  *
  * @author PT
  */
-public class ExternalProcessPipelineModule extends PipelineModule
-    implements ProcessingStatePipelineModule {
+public class ExternalProcessPipelineModule extends PipelineModule {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalProcessPipelineModule.class);
 
     /**
-     * List of valid processing states
+     * List of valid processing steps.
      */
-    static final List<ProcessingState> PROCESSING_STATES = ImmutableList.of(
-        ProcessingState.INITIALIZING, ProcessingState.MARSHALING,
-        ProcessingState.ALGORITHM_SUBMITTING, ProcessingState.ALGORITHM_QUEUED,
-        ProcessingState.ALGORITHM_EXECUTING, ProcessingState.ALGORITHM_COMPLETE,
-        ProcessingState.STORING, ProcessingState.COMPLETE);
+    static final List<ProcessingStep> PROCESSING_STEPS = List.of(ProcessingStep.MARSHALING,
+        ProcessingStep.SUBMITTING, ProcessingStep.QUEUED, ProcessingStep.EXECUTING,
+        ProcessingStep.WAITING_TO_STORE, ProcessingStep.STORING);
 
     // Instance members
     private AlgorithmLifecycle algorithmManager;
     private long instanceId;
     private TaskConfiguration taskConfiguration;
-    private String haltStep = "C";
     private PipelineInputs pipelineInputs;
     private PipelineOutputs pipelineOutputs;
 
-    private boolean processingSuccessful;
-    private boolean doneLooping;
+    protected boolean processingSuccessful;
+    protected boolean doneLooping;
+    private DatastoreProducerConsumerOperations datastoreProducerConsumerOperations = new DatastoreProducerConsumerOperations();
 
     public ExternalProcessPipelineModule(PipelineTask pipelineTask, RunMode runMode) {
         super(pipelineTask, runMode);
-        instanceId = pipelineTask.getPipelineInstance().getId();
-        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
-        haltStep = config.getString(PropertyName.PIPELINE_HALT.property(), "C");
-
-        PipelineModuleDefinition pipelineModuleDefinition = pipelineTask.getPipelineInstanceNode()
-            .getPipelineModuleDefinition();
-        ClassWrapper<PipelineInputs> inputsClass = pipelineModuleDefinition.getInputsClass();
-        pipelineInputs = PipelineInputsOutputsUtils.newPipelineInputs(inputsClass, pipelineTask,
-            taskDirManager().taskDir());
-        ClassWrapper<PipelineOutputs> outputsClass = pipelineModuleDefinition.getOutputsClass();
-        pipelineOutputs = PipelineInputsOutputsUtils.newPipelineOutputs(outputsClass, pipelineTask,
-            taskDirManager().taskDir());
+        instanceId = pipelineTask.getPipelineInstanceId();
     }
 
     /**
@@ -110,164 +89,152 @@ public class ExternalProcessPipelineModule extends PipelineModule
 
     @Override
     public List<RunMode> restartModes() {
-        return Arrays.asList(RunMode.RESTART_FROM_BEGINNING, RunMode.RESUBMIT,
+        return List.of(RunMode.RESTART_FROM_BEGINNING, RunMode.RESUBMIT,
             RunMode.RESUME_CURRENT_STEP, RunMode.RESUME_MONITORING);
     }
 
-    private File getTaskDir() {
+    protected File getTaskDir() {
         return algorithmManager().getTaskDir(false);
     }
 
-    /**
-     * Performs necessary processing for the INITIALIZING processing state. In this case, all that
-     * means is advancing to the MARSHALING processing state.
-     */
-    @Override
-    public void initializingTaskAction() {
-        checkHaltRequest(ProcessingState.INITIALIZING);
-        incrementDatabaseProcessingState();
-        processingSuccessful = false;
-    }
-
-    public void checkHaltRequest(ProcessingState state) {
-        String stateShortName = state.shortName();
-        String haltStepShortName = haltStep();
-        if (haltStepShortName.equals(stateShortName)) {
-            throw new PipelineException("Halting processing at end of step " + state.toString()
-                + " due to configuration request for halt after step " + haltStep());
+    public void checkHaltRequest(ProcessingStep step) {
+        if (step == haltStep()) {
+            throw new PipelineException("Halting processing at end of step " + step
+                + " due to setting of " + PropertyName.PIPELINE_HALT.property());
         }
     }
 
-    String haltStep() {
-        return haltStep;
+    private ProcessingStep haltStep() {
+        return ProcessingStep.valueOf(ZiggyConfiguration.getInstance()
+            .getString(PropertyName.PIPELINE_HALT.property(), ProcessingStep.COMPLETE.toString()));
     }
 
     /**
-     * Performs inputs marshaling for MARSHALING processing state, also clear all existing producer
+     * Performs inputs marshaling for MARSHALING processing step, also clear all existing producer
      * task IDs and update the PipelineTask instance after new producer task IDs are set. Updates
-     * the processing state to the ALGORITHM_SUBMITTING.
+     * the processing step to SUBMITTING.
      */
     @Override
     public void marshalingTaskAction() {
 
-        log.info("Processing step: MARSHALING");
+        log.info("Processing step {}", ProcessingStep.MARSHALING);
         boolean successful;
         File taskDir = algorithmManager().getTaskDir(true);
-        performTransaction(() -> {
-            IntervalMetric.measure(CREATE_INPUTS_METRIC, () -> {
+        IntervalMetric.measure(CREATE_INPUTS_METRIC, () -> {
 
-                // Note: here we retrieve a copy of the pipeline task from the database and
-                // update its producer task IDs. The existing copy of the task in this object
-                // is also replaced with the updated task.
-                pipelineTask = pipelineTaskCrud().retrieve(taskId());
-                pipelineTask.clearProducerTaskIds();
-                copyDatastoreFilesToTaskDirectory(taskConfiguration(), taskDir);
-            });
-            return null;
+            // Note: here we retrieve a copy of the pipeline task from the database and
+            // update its producer task IDs. The existing copy of the task in this object
+            // is also replaced with the updated task.
+//            pipelineTask = datastoreProducerConsumerOperations()
+//                .clearProducerTaskIds(pipelineTask().getId());
+            copyFilesToTaskDirectory(taskConfiguration(), taskDir);
         });
 
         if (taskConfiguration().getSubtaskCount() != 0) {
             taskConfiguration().serialize(taskDir);
 
-            checkHaltRequest(ProcessingState.MARSHALING);
-            // Set the next state, whatever it might be
-            incrementDatabaseProcessingState();
+            checkHaltRequest(ProcessingStep.MARSHALING);
 
-            // if there are sub-task inputs, then we can go on to the next step...
+            // Set the next step, whatever it might be.
+            incrementProcessingStep();
+
+            // If there are sub-task inputs, then we can go on to the next step.
             successful = true;
         } else {
 
             // If there are no sub-task inputs, we should stop processing.
             successful = false;
-            checkHaltRequest(ProcessingState.MARSHALING);
+            checkHaltRequest(ProcessingStep.MARSHALING);
         }
-        log.info("Processing step MARSHALING complete");
         doneLooping = !successful;
         processingSuccessful = doneLooping;
+        log.info("Processing step {}...done", ProcessingStep.MARSHALING);
     }
 
     /**
      * Copy datastore files needed as inputs to the specified working directory.
      */
-    void copyDatastoreFilesToTaskDirectory(TaskConfiguration taskConfiguration,
+    public void copyFilesToTaskDirectory(TaskConfiguration taskConfiguration,
         File taskWorkingDirectory) {
-        pipelineInputs.copyDatastoreFilesToTaskDirectory(taskConfiguration,
+        pipelineInputs().copyDatastoreFilesToTaskDirectory(taskConfiguration,
             taskWorkingDirectory.toPath());
-        processingSummaryOperations().updateSubTaskCounts(pipelineTask.getId(),
+        pipelineTaskOperations().updateSubtaskCounts(pipelineTask().getId(),
             taskConfiguration.getSubtaskCount(), 0, 0);
     }
 
     /**
-     * Perform the necessary processing for state ALGORITHM_SUBMITTING. This is just calling the
-     * algorithm execution method in the algorithm lifecycle object. The processing state is not
-     * advanced by this method, it will be advanced by the PBS submission infrastructure if
-     * successful.
+     * Perform the necessary processing for step SUBMITTING. This is just calling the algorithm
+     * execution method in the algorithm lifecycle object. The processing state is not advanced by
+     * this method, it will be advanced by the PBS submission infrastructure if successful.
      */
     @Override
     public void submittingTaskAction() {
 
-        log.info("Processing step: SUBMITTING");
+        log.info("Processing step {}", ProcessingStep.SUBMITTING);
         TaskConfiguration taskConfiguration = null;
         if (runMode.equals(RunMode.STANDARD)) {
             taskConfiguration = taskConfiguration();
         }
         algorithmManager().executeAlgorithm(taskConfiguration);
-        checkHaltRequest(ProcessingState.ALGORITHM_SUBMITTING);
+        checkHaltRequest(ProcessingStep.SUBMITTING);
         doneLooping = true;
         processingSuccessful = false;
+        log.info("Processing step {}...done", ProcessingStep.SUBMITTING);
     }
 
     /**
-     * Perform the necessary processing for state ALGORITHM_QUEUED. The only way that this method is
-     * ever called is if task processing somehow failed while in the queued state. In this case, the
+     * Perform the necessary processing for step QUEUED. The only way that this method is ever
+     * called is if task processing somehow failed while in the queued step. In this case, the
      * desired action is to resubmit the task.
      */
     @Override
     public void queuedTaskAction() {
 
-        log.info("Resubmitting algorithm to remote system");
+        log.info("Resubmitting {} algorithm to remote system", ProcessingStep.QUEUED);
         algorithmManager().executeAlgorithm(null);
-        checkHaltRequest(ProcessingState.ALGORITHM_QUEUED);
+        checkHaltRequest(ProcessingStep.QUEUED);
         doneLooping = true;
         processingSuccessful = false;
+        log.info("Resubmitting {} algorithm to remote system...done", ProcessingStep.QUEUED);
     }
 
     /**
-     * Perform the necessary processing for state ALGORITHM_EXECUTING. The only way that this method
-     * is ever called is if task processing somehow failed during algorithm execution. In this case,
-     * the desired action is to resubmit the task.
+     * Perform the necessary processing for step EXECUTING. The only way that this method is ever
+     * called is if task processing somehow failed during algorithm execution. In this case, the
+     * desired action is to resubmit the task.
      */
     @Override
     public void executingTaskAction() {
 
-        log.info("Resubmitting algorithm to remote system");
+        log.info("Resubmitting {} algorithm to remote system", ProcessingStep.EXECUTING);
         algorithmManager().executeAlgorithm(null);
-        checkHaltRequest(ProcessingState.ALGORITHM_EXECUTING);
+        checkHaltRequest(ProcessingStep.EXECUTING);
         doneLooping = true;
         processingSuccessful = false;
+        log.info("Resubmitting {} algorithm to remote system", ProcessingStep.EXECUTING);
     }
 
     /**
-     * Perform the necessary processing for state ALGORITHM_COMPLETE. For all algorithm types, this
-     * simply advances the processing state to the next one after complete.
+     * Perform the necessary processing for step WAITING_TO_STORE. For all algorithm types, this
+     * simply advances the processing step to the next one after complete.
      */
     @Override
-    public void algorithmCompleteTaskAction() {
+    public void waitingToStoreTaskAction() {
 
-        checkHaltRequest(ProcessingState.ALGORITHM_COMPLETE);
-        incrementDatabaseProcessingState();
+        checkHaltRequest(ProcessingStep.WAITING_TO_STORE);
+        incrementProcessingStep();
         processingSuccessful = false;
     }
 
     /**
-     * Perform the necessary processing for state STORING: specifically, store results in the
-     * database and/or datastore; update wall time metrics for remote tasks; advance the processing
-     * state to COMPLETE.
+     * Perform the necessary processing for step STORING: specifically, store results in the
+     * database and/or datastore; update wall time metrics for remote tasks. The infrastructure will
+     * pick things up from here.
      */
     @Override
     public void storingTaskAction() {
 
-        log.info("Processing step: STORING");
+        log.info("Processing step {}", ProcessingStep.STORING);
         if (algorithmManager().isRemote()) {
             long startTransferTime = System.currentTimeMillis();
 
@@ -312,41 +279,36 @@ public class ExternalProcessPipelineModule extends PipelineModule
             throw new PipelineException("Unable to persist due to sub-task failures");
         }
 
-        performTransaction(() -> {
-            IntervalMetric.measure(STORE_OUTPUTS_METRIC, () -> {
-                // process outputs
-                persistResultsAndUpdateConsumers();
-                return null;
-            });
+        IntervalMetric.measure(STORE_OUTPUTS_METRIC, () -> {
+            // process outputs
+            persistResultsAndUpdateConsumers();
             return null;
         });
 
+        // TODO This message seems orphaned
         log.info("Checking for input files that produced no output");
 
         // Finally, update status
-        performTransaction(() -> {
-            checkHaltRequest(ProcessingState.STORING);
-            incrementDatabaseProcessingState();
-            return null;
-        });
+        checkHaltRequest(ProcessingStep.STORING);
         doneLooping = true;
         processingSuccessful = true;
+        log.info("Processing step {}...done", ProcessingStep.STORING);
     }
 
     /** Process and store the algorithm outputs and update producer-consumer database table. */
     void persistResultsAndUpdateConsumers() {
-        Set<Path> outputFiles = pipelineOutputs.copyTaskFilesToDatastore();
+        Set<Path> outputFiles = pipelineOutputs().copyTaskFilesToDatastore();
 
-        log.info("Creating producer information for output files...");
-        datastoreProducerConsumerCrud().createOrUpdateProducer(pipelineTask,
+        log.info("Creating producer information for output files");
+        datastoreProducerConsumerOperations().createOrUpdateProducer(pipelineTask(),
             datastorePathsToRelative(outputFiles));
         log.info("Creating producer information for output files...done");
 
-        log.info("Updating consumer information for input files...");
+        log.info("Updating consumer information for input files");
         InputFiles inputFiles = datastoreFileManager().inputFilesByOutputStatus();
-        datastoreProducerConsumerCrud().addConsumer(pipelineTask,
+        datastoreProducerConsumerOperations().addConsumer(pipelineTask(),
             datastorePathsToNames(inputFiles.getFilesWithOutputs()));
-        datastoreProducerConsumerCrud().addNonProducingConsumer(pipelineTask,
+        datastoreProducerConsumerOperations().addNonProducingConsumer(pipelineTask(),
             datastorePathsToNames(inputFiles.getFilesWithoutOutputs()));
         log.info("Updating consumer information for input files...done");
 
@@ -378,28 +340,20 @@ public class ExternalProcessPipelineModule extends PipelineModule
             .collect(Collectors.toSet());
     }
 
-    @Override
-    public void processingCompleteTaskAction() {
-        doneLooping = true;
-        processingSuccessful = true;
-    }
-
     /**
-     * Master processing loop for tasks. Each task is advanced through all of its defined states,
-     * and at each state appropriate actions are taken. The loop exits if any of the following
-     * occur:
+     * Master processing loop for tasks. Each task is advanced through all of its defined steps, and
+     * at each step appropriate actions are taken. The loop exits if any of the following occur:
      * <ol>
      * <li>Marshaling returns unsuccessful status (i.e., no task directories created)
      * <li>Submitting is successful -- this happens for remote tasks, since the stepping from
      * submitted to queued to executing to completed happens in the remote system, not in this loop
-     * <li>re-submission of a remote task that failed in Queued or Executing states is successful
+     * <li>re-submission of a remote task that failed in Queued or Executing steps is successful
      * <li>Storing of outputs is successful
      * <li>The {@link Thread} is interrupted, indicating that the current task is to be deleted.
      * <li>Task is completed.
      * </ol>
      */
-    @Override
-    public void processingMainLoop() {
+    void processingMainLoop() {
 
         // initialize the loop variable and the return variable
         doneLooping = false;
@@ -408,15 +362,15 @@ public class ExternalProcessPipelineModule extends PipelineModule
         while (!doneLooping) {
 
             // Perform the current action (including advancing to the next
-            // processing state, if appropriate).
-            ProcessingState processingState = databaseProcessingState();
-            processingState.taskAction(this);
+            // processing step, if appropriate).
+            ProcessingStep processingStep = currentProcessingStep();
+            processingStep.taskAction(this);
         }
     }
 
     @Override
     protected void restartFromBeginning() {
-        processingSummaryOperations().updateProcessingState(taskId(), ProcessingState.INITIALIZING);
+        pipelineTaskOperations().updateProcessingStep(taskId(), processingSteps().get(0));
         processingMainLoop();
     }
 
@@ -427,8 +381,7 @@ public class ExternalProcessPipelineModule extends PipelineModule
 
     @Override
     protected void resubmit() {
-        processingSummaryOperations().updateProcessingState(taskId(),
-            ProcessingState.ALGORITHM_SUBMITTING);
+        pipelineTaskOperations().updateProcessingStep(taskId(), ProcessingStep.SUBMITTING);
         processingMainLoop();
     }
 
@@ -446,11 +399,12 @@ public class ExternalProcessPipelineModule extends PipelineModule
     public void updateMetrics(PipelineTask pipelineTask, Map<String, Metric> threadMetrics,
         long overallExecTimeMillis) {
 
-        if (!pipelineTask.equals(this.pipelineTask)) {
+        if (!pipelineTask.equals(pipelineTask())) {
             throw new PipelineException("processTask called with incorrect pipeline task");
         }
 
-        List<PipelineTaskMetrics> summaryMetrics = pipelineTask.getSummaryMetrics();
+        List<PipelineTaskMetrics> summaryMetrics = pipelineTaskOperations()
+            .summaryMetrics(pipelineTask);
 
         log.debug("Thread Metrics:");
         for (String threadMetricName : threadMetrics.keySet()) {
@@ -493,8 +447,8 @@ public class ExternalProcessPipelineModule extends PipelineModule
                 log.info("Module did not provide metric with name = " + metricName);
             }
 
-            log.info("TaskID: " + pipelineTask.getId() + ", category: " + category + ", time(ms): "
-                + totalTime);
+            log.info("TaskID={}, category={}, time(ms)={}", pipelineTask.getId(), category,
+                totalTime);
 
             PipelineTaskMetrics m = summaryMetricsByCategory.get(category);
             if (m == null) {
@@ -510,15 +464,15 @@ public class ExternalProcessPipelineModule extends PipelineModule
             }
         }
         pipelineTask.setSummaryMetrics(summaryMetrics);
+        pipelineTaskOperations().merge(pipelineTask);
     }
 
     /**
-     * Determines the correct array of processing states and converts to a list.
+     * Returns the valid processing steps for this pipeline module.
      */
     @Override
-    public List<ProcessingState> processingStates() {
-
-        return PROCESSING_STATES;
+    public List<ProcessingStep> processingSteps() {
+        return PROCESSING_STEPS;
     }
 
     // Methods that construct instances of classes used by the methods above.
@@ -526,10 +480,6 @@ public class ExternalProcessPipelineModule extends PipelineModule
     // test class (so that mocked objects are returned). Methods are
     // package-private so that non-test instances of ExternalProcessPipelineModule
     // cannot override them.
-
-    PipelineTaskCrud pipelineTaskCrud() {
-        return new PipelineTaskCrud();
-    }
 
     AlgorithmExecutor executor() {
         return algorithmManager().getExecutor();
@@ -549,12 +499,12 @@ public class ExternalProcessPipelineModule extends PipelineModule
     }
 
     ProcessingFailureSummary processingFailureSummary() {
-        return new ProcessingFailureSummary(pipelineTask.getModuleName(), getTaskDir());
+        return new ProcessingFailureSummary(pipelineTask().getModuleName(), getTaskDir());
     }
 
     public AlgorithmLifecycle algorithmManager() {
         if (algorithmManager == null) {
-            algorithmManager = new AlgorithmLifecycleManager(pipelineTask);
+            algorithmManager = new AlgorithmLifecycleManager(pipelineTask());
         }
         return algorithmManager;
     }
@@ -562,8 +512,8 @@ public class ExternalProcessPipelineModule extends PipelineModule
     TaskConfiguration taskConfiguration() {
         if (taskConfiguration == null) {
             taskConfiguration = new TaskConfiguration(getTaskDir());
-            taskConfiguration.setInputsClass(pipelineInputs.getClass());
-            taskConfiguration.setOutputsClass(pipelineOutputs.getClass());
+            taskConfiguration.setInputsClass(pipelineInputs().getClass());
+            taskConfiguration.setOutputsClass(pipelineOutputs().getClass());
         }
         return taskConfiguration;
     }
@@ -574,17 +524,38 @@ public class ExternalProcessPipelineModule extends PipelineModule
 
     @Override
     public String getModuleName() {
-        return pipelineTask.getModuleName();
+        return pipelineTask().getModuleName();
     }
 
-    /** For testing only. */
+    PipelineModuleDefinition pipelineModuleDefinition() {
+        return pipelineTaskOperations().pipelineModuleDefinition(pipelineTask());
+    }
+
     PipelineInputs pipelineInputs() {
+        if (pipelineInputs == null) {
+            pipelineInputs = PipelineInputsOutputsUtils.newPipelineInputs(
+                pipelineModuleDefinition().getInputsClass(), pipelineTask(),
+                taskDirManager().taskDir());
+        }
         return pipelineInputs;
     }
 
-    /** For testing only. */
     PipelineOutputs pipelineOutputs() {
+        if (pipelineOutputs == null) {
+            pipelineOutputs = PipelineInputsOutputsUtils.newPipelineOutputs(
+                pipelineModuleDefinition().getOutputsClass(), pipelineTask(),
+                taskDirManager().taskDir());
+        }
         return pipelineOutputs;
+    }
+
+    DatastoreProducerConsumerOperations datastoreProducerConsumerOperations() {
+        return datastoreProducerConsumerOperations;
+    }
+
+    // This simplifies the mocking needed for this class.
+    PipelineTask pipelineTask() {
+        return pipelineTask;
     }
 
     /** For testing only. */
@@ -592,17 +563,12 @@ public class ExternalProcessPipelineModule extends PipelineModule
         return processingSuccessful;
     }
 
-    /** For testing only. */
-    DatastoreProducerConsumerCrud datastoreProducerConsumerCrud() {
-        return new DatastoreProducerConsumerCrud();
-    }
-
     DatastoreFileManager datastoreFileManager() {
-        return new DatastoreFileManager(pipelineTask, getTaskDir().toPath());
+        return new DatastoreFileManager(pipelineTask(), getTaskDir().toPath());
     }
 
     TaskDirectoryManager taskDirManager() {
-        return new TaskDirectoryManager(pipelineTask);
+        return new TaskDirectoryManager(pipelineTask());
     }
 
     /** For testing only. */
@@ -613,10 +579,5 @@ public class ExternalProcessPipelineModule extends PipelineModule
     /** For testing only. */
     void setDoneLooping(boolean doneLooping) {
         this.doneLooping = doneLooping;
-    }
-
-    @Override
-    public long pipelineTaskId() {
-        return taskId();
     }
 }

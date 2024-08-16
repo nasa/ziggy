@@ -3,30 +3,30 @@ package gov.nasa.ziggy.data.datastore;
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import org.hibernate.Hibernate;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
 
 import com.google.common.collect.ImmutableList;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -47,10 +47,7 @@ public class DatastoreConfigurationImporterTest {
         .toString();
     private static final String UPDATE_FILE = DATASTORE.resolve("datastore-update.xml").toString();
 
-    private DataFileTypeCrud dataFileTypeCrud = Mockito.spy(DataFileTypeCrud.class);
-    private ModelCrud modelCrud = Mockito.spy(ModelCrud.class);
-    private DatastoreNodeCrud nodeCrud = Mockito.spy(DatastoreNodeCrud.class);
-    private DatastoreRegexpCrud regexpCrud = Mockito.spy(DatastoreRegexpCrud.class);
+    private DatastoreOperations datastoreOperations = Mockito.mock(DatastoreOperations.class);
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
@@ -60,7 +57,6 @@ public class DatastoreConfigurationImporterTest {
         DirectoryProperties.ziggyCodeBuildDir().toString());
 
     // Basic functionality -- multiple files, multiple definitions, get imported
-    @SuppressWarnings("unchecked")
     @Test
     public void testBasicImport() throws JAXBException {
 
@@ -68,10 +64,9 @@ public class DatastoreConfigurationImporterTest {
             ImmutableList.of(FILE_1, FILE_2), false);
         DatastoreConfigurationImporter importerSpy = Mockito.spy(dataFileImporter);
         setMocks(importerSpy);
-        DatabaseTransactionFactory.performTransaction(() -> {
-            importerSpy.importConfiguration();
-            return null;
-        });
+        Mockito.when(datastoreOperations.datastoreNodesByFullPath()).thenReturn(new HashMap<>());
+        Mockito.when(datastoreOperations.datastoreRegexpsByName()).thenReturn(new HashMap<>());
+        importerSpy.importConfiguration();
 
         Set<DatastoreNode> nodesForDatabase = importerSpy.nodesForDatabase();
         assertEquals(10, nodesForDatabase.size());
@@ -79,15 +74,17 @@ public class DatastoreConfigurationImporterTest {
         List<DatastoreRegexp> regexps = importerSpy.getRegexps();
         assertEquals(2, regexps.size());
 
-        assertEquals(3, importerSpy.getDataFileTypes().size());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .persist(ArgumentMatchers.<DataFileType> anyList());
+        List<DataFileType> dataFileTypes = importerSpy.getDataFileTypes();
+        assertEquals(3, dataFileTypes.size());
+        Map<String, DataFileType> dataFileTypesByName = new HashMap<>();
+        for (DataFileType dataFileType : dataFileTypes) {
+            dataFileTypesByName.put(dataFileType.getName(), dataFileType);
+        }
+        validateDataFileTypes(dataFileTypesByName);
 
         assertEquals(2, importerSpy.getModelTypes().size());
-        Mockito.verify(modelCrud, Mockito.times(1)).persist(ArgumentMatchers.<ModelType> anyList());
 
-        Map<String, DatastoreRegexp> databaseRegexps = (Map<String, DatastoreRegexp>) DatabaseTransactionFactory
-            .performTransaction(() -> regexpCrud.retrieveRegexpsByName());
+        Map<String, DatastoreRegexp> databaseRegexps = importerSpy.regexpsByName();
         assertEquals(2, databaseRegexps.size());
         DatastoreRegexp regexp = databaseRegexps.get("cadenceType");
         assertNotNull(regexp);
@@ -96,14 +93,7 @@ public class DatastoreConfigurationImporterTest {
         assertNotNull(regexp);
         assertEquals("(sector-[0-9]{4})", regexp.getValue());
 
-        Map<String, DatastoreNode> datastoreNodes = (Map<String, DatastoreNode>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                Map<String, DatastoreNode> nodes = nodeCrud.retrieveNodesByFullPath();
-                for (DatastoreNode node : nodes.values()) {
-                    Hibernate.initialize(node.getChildNodeFullPaths());
-                }
-                return nodes;
-            });
+        Map<String, DatastoreNode> datastoreNodes = importerSpy.nodesByFullPath();
         DatastoreNode sectorNode = testNode(datastoreNodes, "sector", true, 1, null);
         DatastoreNode mdaNode = testNode(datastoreNodes, "mda", false, 2, sectorNode);
 
@@ -122,13 +112,45 @@ public class DatastoreConfigurationImporterTest {
         testNode(datastoreNodes, "channel", false, 0, calCadenceTypeNode);
 
         assertEquals(10, datastoreNodes.size());
+        Mockito.verify(datastoreOperations)
+            .persistDatastoreConfiguration(ArgumentMatchers.<DataFileType> anyList(),
+                ArgumentMatchers.<ModelType> anyList(),
+                ArgumentMatchers.<DatastoreRegexp> anyList(),
+                ArgumentMatchers.<DatastoreNode> anySet(),
+                ArgumentMatchers.<DatastoreNode> anySet(), ArgumentMatchers.<Logger> any());
+    }
+
+    private void validateDataFileTypes(Map<String, DataFileType> dataFileTypes) {
+
+        DataFileType dataFileType = dataFileTypes.get("calibrated pixels");
+        assertNotNull(dataFileType);
+        assertEquals("[1-4]:[1-4]:[A-D]-calibrated-pixels.h5", dataFileType.getFileNameRegexp());
+        assertEquals("sector/mda/cal/pixels/cadenceType/channel", dataFileType.getLocation());
+        assertEquals("sector/mda/cal/pixels/cadenceType/channel",
+            DatastoreWalker.fullLocation(dataFileType));
+        assertFalse(dataFileType.isIncludeAllFilesInAllSubtasks());
+
+        dataFileType = dataFileTypes.get("raw flux");
+        assertNotNull(dataFileType);
+        assertEquals("[1-4]:[1-4]:[A-D]-raw-pixels.h5", dataFileType.getFileNameRegexp());
+        assertEquals("sector/mda/dr/pixels/cadenceType/channel", dataFileType.getLocation());
+        assertEquals("sector/mda/dr/pixels/cadenceType/channel",
+            DatastoreWalker.fullLocation(dataFileType));
+        assertFalse(dataFileType.isIncludeAllFilesInAllSubtasks());
+
+        dataFileType = dataFileTypes.get("TCE");
+        assertNotNull(dataFileType);
+        assertEquals("tce.h5", DatastoreWalker.fileNameRegexpBaseName(dataFileType));
+        assertEquals("sector/mda/dr/cal/pixels", dataFileType.getLocation());
+        assertEquals("sector/mda/dr/cal/pixels/cadenceType/channel",
+            DatastoreWalker.fullLocation(dataFileType));
+        assertTrue(dataFileType.isIncludeAllFilesInAllSubtasks());
     }
 
     private DatastoreNode testNode(Map<String, DatastoreNode> datastoreNodes, String name,
         boolean regexp, int expectedChildNodeCount, DatastoreNode parentNode) {
         String parentFullPath = parentNode != null ? parentNode.getFullPath() : "";
-        String fullPath = DatastoreConfigurationImporter.fullPathFromParentPath(name,
-            parentFullPath);
+        String fullPath = DatastoreWalker.fullPathFromParentPath(name, parentFullPath);
         DatastoreNode node = datastoreNodes.get(fullPath);
         assertNotNull(node);
         assertEquals(name, node.getName());
@@ -146,57 +168,74 @@ public class DatastoreConfigurationImporterTest {
             ImmutableList.of(FILE_1, FILE_2), false);
         DatastoreConfigurationImporter importerSpy = Mockito.spy(dataFileImporter);
         setMocks(importerSpy);
+        Mockito.when(datastoreOperations.datastoreNodesByFullPath()).thenReturn(new HashMap<>());
+        Mockito.when(datastoreOperations.datastoreRegexpsByName()).thenReturn(new HashMap<>());
         importerSpy.importConfiguration();
 
         dataFileImporter = new DatastoreConfigurationImporter(List.of(UPDATE_FILE), false);
         DatastoreConfigurationImporter updaterSpy = Mockito.spy(dataFileImporter);
         setMocks(updaterSpy);
+
+        // Use the initial imports to provide mocks for the DatastoreOperations methods.
+        Map<String, DatastoreNode> importerSpyNodeMap = importerSpy.nodesByFullPath();
+
+        // Note that the nodes that come out of the database into the update importer have
+        // no XML nodes.
+        for (DatastoreNode node : importerSpyNodeMap.values()) {
+            node.getXmlNodes().clear();
+        }
+        Mockito.when(datastoreOperations.datastoreNodesByFullPath()).thenReturn(importerSpyNodeMap);
+        Map<String, DatastoreRegexp> importerSpyRegexpMap = importerSpy.regexpsByName();
+        Mockito.when(datastoreOperations.datastoreRegexpsByName()).thenReturn(importerSpyRegexpMap);
+        List<String> regexpNames = new ArrayList<>(importerSpy.regexpsByName().keySet());
+        Mockito.when(datastoreOperations.regexpNames()).thenReturn(regexpNames);
+        List<String> dataFileTypeNames = importerSpy.getDataFileTypes()
+            .stream()
+            .map(DataFileType::getName)
+            .collect(Collectors.toList());
+        Mockito.when(datastoreOperations.dataFileTypeNames()).thenReturn(dataFileTypeNames);
+        List<String> modelTypes = importerSpy.getModelTypes()
+            .stream()
+            .map(ModelType::getType)
+            .collect(Collectors.toList());
+        Mockito.when(datastoreOperations.modelTypes()).thenReturn(modelTypes);
+
+        // Import the update file.
         updaterSpy.importConfiguration();
 
-        @SuppressWarnings("unchecked")
-        Map<String, DatastoreRegexp> regexpsByName = (Map<String, DatastoreRegexp>) DatabaseTransactionFactory
-            .performTransaction(() -> regexpCrud.retrieveRegexpsByName());
-        @SuppressWarnings("unchecked")
-        Map<String, DatastoreNode> nodesByFullPath = (Map<String, DatastoreNode>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                Map<String, DatastoreNode> nodes = nodeCrud.retrieveNodesByFullPath();
-                for (DatastoreNode node : nodes.values()) {
-                    Hibernate.initialize(node.getChildNodeFullPaths());
-                }
-                return nodes;
-            });
+        assertTrue(updaterSpy.getDataFileTypes().isEmpty());
+        assertTrue(updaterSpy.getModelTypes().isEmpty());
 
-        assertNotNull(regexpsByName.get("sector"));
-        assertEquals("(sector-[0-9]{4})", regexpsByName.get("sector").getValue());
-        assertNotNull(regexpsByName.get("cadenceType"));
-        assertEquals("(target|ffi|fast-target)", regexpsByName.get("cadenceType").getValue());
-        assertEquals(2, regexpsByName.size());
+        List<String> updatedRegexpsNames = updaterSpy.getRegexps()
+            .stream()
+            .map(DatastoreRegexp::getName)
+            .collect(Collectors.toList());
+        assertTrue(updatedRegexpsNames.contains("cadenceType"));
+        assertEquals(1, updatedRegexpsNames.size());
 
-        DatastoreNode sectorNode = testNode(nodesByFullPath, "sector", true, 1, null);
-        DatastoreNode mdaNode = testNode(nodesByFullPath, "mda", false, 2, sectorNode);
+        List<String> removedNodeFullPaths = updaterSpy.getFullPathsForNodesToRemove();
+        assertTrue(removedNodeFullPaths.contains("sector/mda/dr/pixels/cadenceType/channel"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal/pixels"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal/pixels/cadenceType"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal/pixels/cadenceType/channel"));
+        assertEquals(5, removedNodeFullPaths.size());
 
-        // DR nodes.
-        DatastoreNode drNode = testNode(nodesByFullPath, "dr", false, 1, mdaNode);
-        DatastoreNode drPixelNode = testNode(nodesByFullPath, "pixels", false, 1, drNode);
-        DatastoreNode drCadenceTypeNode = testNode(nodesByFullPath, "cadenceType", true, 1,
-            drPixelNode);
-        testNode(nodesByFullPath, "ccd", false, 0, drCadenceTypeNode);
-
-        // PA nodes.
-        DatastoreNode paNode = testNode(nodesByFullPath, "pa", false, 1, mdaNode);
-        DatastoreNode paFluxNode = testNode(nodesByFullPath, "raw-flux", false, 1, paNode);
-        DatastoreNode paCadenceTypeNode = testNode(nodesByFullPath, "cadenceType", true, 1,
-            paFluxNode);
-        testNode(nodesByFullPath, "ccd", false, 0, paCadenceTypeNode);
-
-        // Deleted nodes.
-        assertNull(nodesByFullPath.get("sector/mda/dr/pixels/cadenceType/channel"));
-        assertNull(nodesByFullPath.get("sector/mda/cal"));
-        assertNull(nodesByFullPath.get("sector/mda/cal/pixels"));
-        assertNull(nodesByFullPath.get("sector/mda/cal/pixels/cadenceType"));
-        assertNull(nodesByFullPath.get("sector/mda/cal/pixels/cadenceType/channel"));
-
-        assertEquals(10, nodesByFullPath.size());
+        List<String> nodesForDatabaseFullPaths = updaterSpy.nodesForDatabase()
+            .stream()
+            .map(DatastoreNode::getFullPath)
+            .collect(Collectors.toList());
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa/raw-flux"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa/raw-flux/cadenceType"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa/raw-flux/cadenceType/ccd"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr/pixels"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr/pixels/cadenceType"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr/pixels/cadenceType/ccd"));
+        assertEquals(10, nodesForDatabaseFullPaths.size());
     }
 
     // Dry run test -- should import but not persist
@@ -209,11 +248,12 @@ public class DatastoreConfigurationImporterTest {
         setMocks(importerSpy);
         importerSpy.importConfiguration();
 
-        assertEquals(3, importerSpy.getDataFileTypes().size());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(0))
-            .persist(ArgumentMatchers.<DataFileType> anyList());
-        assertEquals(2, importerSpy.getModelTypes().size());
-        Mockito.verify(modelCrud, Mockito.times(0)).persist(ArgumentMatchers.<ModelType> anyList());
+        Mockito.verify(datastoreOperations, Mockito.times(0))
+            .persistDatastoreConfiguration(ArgumentMatchers.<DataFileType> anyList(),
+                ArgumentMatchers.<ModelType> anyList(),
+                ArgumentMatchers.<DatastoreRegexp> anyList(),
+                ArgumentMatchers.<DatastoreNode> anySet(),
+                ArgumentMatchers.<DatastoreNode> anySet(), ArgumentMatchers.<Logger> any());
     }
 
     @Test
@@ -222,53 +262,81 @@ public class DatastoreConfigurationImporterTest {
             ImmutableList.of(FILE_1, FILE_2), false);
         DatastoreConfigurationImporter importerSpy = Mockito.spy(dataFileImporter);
         setMocks(importerSpy);
+        Mockito.when(datastoreOperations.datastoreNodesByFullPath()).thenReturn(new HashMap<>());
+        Mockito.when(datastoreOperations.datastoreRegexpsByName()).thenReturn(new HashMap<>());
         importerSpy.importConfiguration();
 
         dataFileImporter = new DatastoreConfigurationImporter(List.of(UPDATE_FILE), true);
         DatastoreConfigurationImporter updaterSpy = Mockito.spy(dataFileImporter);
         setMocks(updaterSpy);
+
+        // Use the initial imports to provide mocks for the DatastoreOperations methods.
+        Map<String, DatastoreNode> importerSpyNodeMap = importerSpy.nodesByFullPath();
+
+        // Note that the nodes that come out of the database into the update importer have
+        // no XML nodes.
+        for (DatastoreNode node : importerSpyNodeMap.values()) {
+            node.getXmlNodes().clear();
+        }
+        Mockito.when(datastoreOperations.datastoreNodesByFullPath()).thenReturn(importerSpyNodeMap);
+        Map<String, DatastoreRegexp> importerSpyRegexpMap = importerSpy.regexpsByName();
+        Mockito.when(datastoreOperations.datastoreRegexpsByName()).thenReturn(importerSpyRegexpMap);
+        List<String> regexpNames = new ArrayList<>(importerSpy.regexpsByName().keySet());
+        Mockito.when(datastoreOperations.regexpNames()).thenReturn(regexpNames);
+        List<String> dataFileTypeNames = importerSpy.getDataFileTypes()
+            .stream()
+            .map(DataFileType::getName)
+            .collect(Collectors.toList());
+        Mockito.when(datastoreOperations.dataFileTypeNames()).thenReturn(dataFileTypeNames);
+        List<String> modelTypes = importerSpy.getModelTypes()
+            .stream()
+            .map(ModelType::getType)
+            .collect(Collectors.toList());
+        Mockito.when(datastoreOperations.modelTypes()).thenReturn(modelTypes);
+
         updaterSpy.importConfiguration();
 
-        @SuppressWarnings("unchecked")
-        Map<String, DatastoreRegexp> regexpsByName = (Map<String, DatastoreRegexp>) DatabaseTransactionFactory
-            .performTransaction(() -> regexpCrud.retrieveRegexpsByName());
-        @SuppressWarnings("unchecked")
-        Map<String, DatastoreNode> nodesByFullPath = (Map<String, DatastoreNode>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                Map<String, DatastoreNode> nodes = new DatastoreNodeCrud()
-                    .retrieveNodesByFullPath();
-                for (DatastoreNode node : nodes.values()) {
-                    Hibernate.initialize(node.getChildNodeFullPaths());
-                }
-                return nodes;
-            });
+        assertTrue(updaterSpy.getDataFileTypes().isEmpty());
+        assertTrue(updaterSpy.getModelTypes().isEmpty());
 
-        assertEquals(2, regexpsByName.size());
-        DatastoreRegexp regexp = regexpsByName.get("cadenceType");
-        assertNotNull(regexp);
-        assertEquals("(target|ffi)", regexp.getValue());
-        regexp = regexpsByName.get("sector");
-        assertNotNull(regexp);
-        assertEquals("(sector-[0-9]{4})", regexp.getValue());
+        List<String> updatedRegexpsNames = updaterSpy.getRegexps()
+            .stream()
+            .map(DatastoreRegexp::getName)
+            .collect(Collectors.toList());
+        assertTrue(updatedRegexpsNames.contains("cadenceType"));
+        assertEquals(1, updatedRegexpsNames.size());
 
-        DatastoreNode sectorNode = testNode(nodesByFullPath, "sector", true, 1, null);
-        DatastoreNode mdaNode = testNode(nodesByFullPath, "mda", false, 2, sectorNode);
+        List<String> removedNodeFullPaths = updaterSpy.getFullPathsForNodesToRemove();
+        assertTrue(removedNodeFullPaths.contains("sector/mda/dr/pixels/cadenceType/channel"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal/pixels"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal/pixels/cadenceType"));
+        assertTrue(removedNodeFullPaths.contains("sector/mda/cal/pixels/cadenceType/channel"));
+        assertEquals(5, removedNodeFullPaths.size());
 
-        // DR nodes
-        DatastoreNode drNode = testNode(nodesByFullPath, "dr", false, 1, mdaNode);
-        DatastoreNode drPixelNode = testNode(nodesByFullPath, "pixels", false, 1, drNode);
-        DatastoreNode drCadenceTypeNode = testNode(nodesByFullPath, "cadenceType", true, 1,
-            drPixelNode);
-        testNode(nodesByFullPath, "channel", false, 0, drCadenceTypeNode);
+        List<String> nodesForDatabaseFullPaths = updaterSpy.nodesForDatabase()
+            .stream()
+            .map(DatastoreNode::getFullPath)
+            .collect(Collectors.toList());
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa/raw-flux"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa/raw-flux/cadenceType"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/pa/raw-flux/cadenceType/ccd"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr/pixels"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr/pixels/cadenceType"));
+        assertTrue(nodesForDatabaseFullPaths.contains("sector/mda/dr/pixels/cadenceType/ccd"));
+        assertEquals(10, nodesForDatabaseFullPaths.size());
 
-        // CAL nodes
-        DatastoreNode calNode = testNode(nodesByFullPath, "cal", false, 1, mdaNode);
-        DatastoreNode calPixelNode = testNode(nodesByFullPath, "pixels", false, 1, calNode);
-        DatastoreNode calCadenceTypeNode = testNode(nodesByFullPath, "cadenceType", true, 1,
-            calPixelNode);
-        testNode(nodesByFullPath, "channel", false, 0, calCadenceTypeNode);
-
-        assertEquals(10, nodesByFullPath.size());
+        // There should only be one call to the persist method in DatastoreOperations.
+        Mockito.verify(datastoreOperations, Mockito.times(1))
+            .persistDatastoreConfiguration(ArgumentMatchers.<DataFileType> anyList(),
+                ArgumentMatchers.<ModelType> anyList(),
+                ArgumentMatchers.<DatastoreRegexp> anyList(),
+                ArgumentMatchers.<DatastoreNode> anySet(),
+                ArgumentMatchers.<DatastoreNode> anySet(), ArgumentMatchers.<Logger> any());
     }
 
     // Test with missing and non-regular files -- should still import from the present,
@@ -283,8 +351,12 @@ public class DatastoreConfigurationImporterTest {
         importerSpy.importConfiguration();
 
         assertEquals(3, importerSpy.getDataFileTypes().size());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .persist(ArgumentMatchers.<DataFileType> anyList());
+        Mockito.verify(datastoreOperations, Mockito.times(1))
+            .persistDatastoreConfiguration(ArgumentMatchers.<DataFileType> anyList(),
+                ArgumentMatchers.<ModelType> anyList(),
+                ArgumentMatchers.<DatastoreRegexp> anyList(),
+                ArgumentMatchers.<DatastoreNode> anySet(),
+                ArgumentMatchers.<DatastoreNode> anySet(), ArgumentMatchers.<Logger> any());
     }
 
     // Test with a file that has an entry that is valid XML but instantiates to an
@@ -299,8 +371,12 @@ public class DatastoreConfigurationImporterTest {
         importerSpy.importConfiguration();
 
         assertEquals(2, importerSpy.getDataFileTypes().size());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .persist(ArgumentMatchers.<DataFileType> anyList());
+        Mockito.verify(datastoreOperations, Mockito.times(1))
+            .persistDatastoreConfiguration(ArgumentMatchers.<DataFileType> anyList(),
+                ArgumentMatchers.<ModelType> anyList(),
+                ArgumentMatchers.<DatastoreRegexp> anyList(),
+                ArgumentMatchers.<DatastoreNode> anySet(),
+                ArgumentMatchers.<DatastoreNode> anySet(), ArgumentMatchers.<Logger> any());
     }
 
     // Test with a file that has an entry that is invalid XML
@@ -314,8 +390,12 @@ public class DatastoreConfigurationImporterTest {
         importerSpy.importConfiguration();
 
         assertEquals(2, importerSpy.getDataFileTypes().size());
-        Mockito.verify(dataFileTypeCrud, Mockito.times(1))
-            .persist(ArgumentMatchers.<DataFileType> anyList());
+        Mockito.verify(datastoreOperations, Mockito.times(1))
+            .persistDatastoreConfiguration(ArgumentMatchers.<DataFileType> anyList(),
+                ArgumentMatchers.<ModelType> anyList(),
+                ArgumentMatchers.<DatastoreRegexp> anyList(),
+                ArgumentMatchers.<DatastoreNode> anySet(),
+                ArgumentMatchers.<DatastoreNode> anySet(), ArgumentMatchers.<Logger> any());
     }
 
     @Test(expected = IllegalStateException.class)
@@ -329,9 +409,6 @@ public class DatastoreConfigurationImporterTest {
     }
 
     private void setMocks(DatastoreConfigurationImporter dataFileImporter) {
-        Mockito.when(dataFileImporter.dataFileTypeCrud()).thenReturn(dataFileTypeCrud);
-        Mockito.when(dataFileImporter.modelCrud()).thenReturn(modelCrud);
-        Mockito.when(dataFileImporter.datastoreRegexpCrud()).thenReturn(regexpCrud);
-        Mockito.when(dataFileImporter.datastoreNodeCrud()).thenReturn(nodeCrud);
+        Mockito.when(dataFileImporter.datastoreOperations()).thenReturn(datastoreOperations);
     }
 }

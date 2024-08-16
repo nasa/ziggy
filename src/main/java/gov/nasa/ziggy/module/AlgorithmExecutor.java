@@ -13,12 +13,8 @@ import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;;
 
@@ -38,9 +34,7 @@ public abstract class AlgorithmExecutor {
     protected static final String NODE_MASTER_NAME = "compute-node-master";
 
     protected final PipelineTask pipelineTask;
-    private ParameterSetCrud parameterSetCrud;
-    private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud;
-    private ProcessingSummaryOperations processingSummaryOperations;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     private StateFile stateFile;
 
@@ -48,25 +42,22 @@ public abstract class AlgorithmExecutor {
      * Returns a new instance of the appropriate {@link AlgorithmExecutor} subclass.
      */
     public static final AlgorithmExecutor newInstance(PipelineTask pipelineTask) {
-        return newInstance(pipelineTask, new ParameterSetCrud(), new PipelineDefinitionNodeCrud(),
-            new ProcessingSummaryOperations());
+        return newInstance(pipelineTask, new PipelineTaskOperations());
     }
 
     /**
-     * Version of {@link #newInstance(PipelineTask)} that accepts user-supplied
-     * {@link ParameterSetCrud} and {@link ProcessingSummaryOperations} instances. Allows these
-     * classes to be mocked for testing.
+     * Version of {@link #newInstance(PipelineTask)} that accepts a user-supplied
+     * {@link PipelineTaskOperations} instances. Allows these classes to be mocked for testing.
      */
     static final AlgorithmExecutor newInstance(PipelineTask pipelineTask,
-        ParameterSetCrud parameterSetCrud, PipelineDefinitionNodeCrud defNodeCrud,
-        ProcessingSummaryOperations processingSummaryOperations) {
+        PipelineTaskOperations pipelineTaskOperations) {
 
         if (pipelineTask == null) {
             log.debug("Pipeline task is null, returning LocalAlgorithmExecutor instance");
             return new LocalAlgorithmExecutor(pipelineTask);
         }
-        PipelineDefinitionNodeExecutionResources remoteParams = defNodeCrud
-            .retrieveExecutionResources(pipelineTask.pipelineDefinitionNode());
+        PipelineDefinitionNodeExecutionResources remoteParams = pipelineTaskOperations
+            .executionResources(pipelineTask);
 
         if (remoteParams == null) {
             log.debug("Remote parameters null, returning LocalAlgorithmExecutor instance");
@@ -76,12 +67,10 @@ public abstract class AlgorithmExecutor {
             log.debug("Remote execution not selected, returning LocalAlgorithmExecutor instance");
             return new LocalAlgorithmExecutor(pipelineTask);
         }
-        ProcessingSummary processingState = processingSummaryOperations
-            .processingSummary(pipelineTask.getId());
-        log.debug("Total subtasks " + processingState.getTotalSubtaskCount());
-        log.debug("Completed subtasks " + processingState.getCompletedSubtaskCount());
-        int subtasksToRun = processingState.getTotalSubtaskCount()
-            - processingState.getCompletedSubtaskCount();
+        log.debug("Total subtasks " + pipelineTask.getTotalSubtaskCount());
+        log.debug("Completed subtasks " + pipelineTask.getCompletedSubtaskCount());
+        int subtasksToRun = pipelineTask.getTotalSubtaskCount()
+            - pipelineTask.getCompletedSubtaskCount();
         if (subtasksToRun < remoteParams.getMinSubtasksForRemoteExecution()) {
             log.info("Number subtasks to run (" + subtasksToRun
                 + ") less than min subtasks for remote execution ("
@@ -146,9 +135,8 @@ public abstract class AlgorithmExecutor {
         int numSubtasks;
         PbsParameters pbsParameters = null;
 
-        PipelineDefinitionNodeExecutionResources executionResources = (PipelineDefinitionNodeExecutionResources) DatabaseTransactionFactory
-            .performTransaction(() -> pipelineDefinitionNodeCrud()
-                .retrieveExecutionResources(pipelineTask.pipelineDefinitionNode()));
+        PipelineDefinitionNodeExecutionResources executionResources = pipelineTaskOperations()
+            .executionResources(pipelineTask);
 
         // Initial submission: this is indicated by a non-null task configuration manager
         if (inputsHandler != null) { // indicates initial submission
@@ -163,10 +151,8 @@ public abstract class AlgorithmExecutor {
 
         {
             log.info("Processing resubmission of task " + pipelineTask.getId());
-            ProcessingSummary processingState = processingSummaryOperations()
-                .processingSummary(pipelineTask.getId());
-            numSubtasks = processingState.getTotalSubtaskCount();
-            int numCompletedSubtasks = processingState.getCompletedSubtaskCount();
+            numSubtasks = pipelineTask.getTotalSubtaskCount();
+            int numCompletedSubtasks = pipelineTask.getCompletedSubtaskCount();
 
             // Scale the total subtasks to get to the number that still need to be processed
             double subtaskCountScaleFactor = (double) (numSubtasks - numCompletedSubtasks)
@@ -216,37 +202,8 @@ public abstract class AlgorithmExecutor {
 
     public abstract AlgorithmType algorithmType();
 
-    // For testing purposes we need to be able to insert a mocked ParameterSetCrud instance,
-    // so we will use the standard pattern of a package-private setter and a protected getter
-    // for the object.
-    protected ParameterSetCrud parameterSetCrud() {
-        if (parameterSetCrud == null) {
-            parameterSetCrud = new ParameterSetCrud();
-        }
-        return parameterSetCrud;
-    }
-
-    protected void setParameterSetCrud(ParameterSetCrud parameterSetCrud) {
-        this.parameterSetCrud = parameterSetCrud;
-    }
-
-    protected PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
-        if (pipelineDefinitionNodeCrud == null) {
-            pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
-        }
-        return pipelineDefinitionNodeCrud;
-    }
-
-    protected ProcessingSummaryOperations processingSummaryOperations() {
-        if (processingSummaryOperations == null) {
-            processingSummaryOperations = new ProcessingSummaryOperations();
-        }
-        return processingSummaryOperations;
-    }
-
-    protected void setProcessingSummaryOperations(
-        ProcessingSummaryOperations processingSummaryOperations) {
-        this.processingSummaryOperations = processingSummaryOperations;
+    protected PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 
     public StateFile getStateFile() {

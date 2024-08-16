@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
+import javax.swing.SwingWorker;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 
@@ -19,7 +21,6 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.ui.util.GroupInformation;
-import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
 
 /**
  * Implements a generic tree model for use with {@link Outline} for display of hierarchical tables.
@@ -32,118 +33,94 @@ import gov.nasa.ziggy.ui.util.proxy.RetrieveLatestVersionsCrudProxy;
  *
  * @author Todd Klaus
  * @author PT
+ * @author Bill Wohler
  */
-public class ZiggyTreeModel<T extends Groupable> extends DefaultTreeModel
-    implements ConsoleDatabaseModel {
+public class ZiggyTreeModel<T extends Groupable> extends DefaultTreeModel {
 
-    private static final long serialVersionUID = 20230511L;
-
+    private static final long serialVersionUID = 20240614L;
     private static final Logger log = LoggerFactory.getLogger(ZiggyTreeModel.class);
 
-    private List<T> defaultGroup = new LinkedList<>();
-    private Map<Group, List<T>> groups = new HashMap<>();
-    private Map<String, T> objectsByName = new HashMap<>();
-
-    private final RetrieveLatestVersionsCrudProxy<T> crudProxy;
+    private static final String DEFAULT_GROUP_NAME = "<Default Group>";
 
     private final DefaultMutableTreeNode rootNode;
     private DefaultMutableTreeNode defaultGroupNode;
     private Map<String, DefaultMutableTreeNode> groupNodes;
 
+    private Supplier<List<T>> items;
     private Class<T> modelClass;
 
-    private boolean modelValid = false;
-
-    public ZiggyTreeModel(RetrieveLatestVersionsCrudProxy<T> crudProxy, Class<T> modelClass) {
+    public ZiggyTreeModel(Class<T> modelClass, Supplier<List<T>> items) {
         super(new DefaultMutableTreeNode(""));
         rootNode = (DefaultMutableTreeNode) getRoot();
-        this.crudProxy = crudProxy;
         this.modelClass = modelClass;
-        DatabaseModelRegistry.registerModel(this);
+        this.items = items;
     }
 
     public void loadFromDatabase() throws PipelineException {
-        if (groups != null) {
-            log.debug("Clearing the Hibernate cache of all loaded pipelines");
-            for (List<T> objects : groups.values()) {
-                crudProxy.evictAll(objects); // clear the cache
+        new SwingWorker<GroupInformation<T>, Void>() {
+
+            @Override
+            protected GroupInformation<T> doInBackground() throws Exception {
+                // Obtain information on the groups for this component class.
+                log.debug("Loading {} items", modelClass);
+                return new GroupInformation<>(modelClass, items.get());
             }
-        }
 
-        if (defaultGroup != null) {
-            crudProxy.evictAll(defaultGroup); // clear the cache
-        }
+            @Override
+            protected void done() {
+                GroupInformation<T> groupInformation;
+                try {
+                    groupInformation = get();
+                    log.debug("Loading {} items...done", modelClass);
 
-        // Obtain information on the groups for this component class.
-        GroupInformation<T> groupInformation = new GroupInformation<>(modelClass,
-            crudProxy.retrieveLatestVersions());
-        objectsByName = groupInformation.getObjectsByName();
+                    // Add the default group.
+                    log.debug("Updating tree model for {}", modelClass);
+                    rootNode.removeAllChildren();
+                    defaultGroupNode = new DefaultMutableTreeNode(DEFAULT_GROUP_NAME);
+                    insertNodeInto(defaultGroupNode, rootNode, rootNode.getChildCount());
 
-        // Add the default group.
-        rootNode.removeAllChildren();
-        defaultGroupNode = new DefaultMutableTreeNode("<Default Group>");
-        insertNodeInto(defaultGroupNode, rootNode, rootNode.getChildCount());
+                    Collections.sort(groupInformation.getObjectsInDefaultGroup(),
+                        Comparator.comparing(Object::toString));
 
-        defaultGroup = groupInformation.getDefaultGroup();
-        Collections.sort(defaultGroup, Comparator.comparing(Object::toString));
+                    for (T object : groupInformation.getObjectsInDefaultGroup()) {
+                        DefaultMutableTreeNode pipelineNode = new DefaultMutableTreeNode(object);
+                        insertNodeInto(pipelineNode, defaultGroupNode,
+                            defaultGroupNode.getChildCount());
+                    }
 
-        for (T object : defaultGroup) {
-            DefaultMutableTreeNode pipelineNode = new DefaultMutableTreeNode(object);
-            insertNodeInto(pipelineNode, defaultGroupNode, defaultGroupNode.getChildCount());
-        }
+                    // Add the rest of the groups alphabetically.
+                    List<Group> groupsList = new ArrayList<>(
+                        groupInformation.getObjectsByGroup().keySet());
+                    Collections.sort(groupsList, Comparator.comparing(Group::getName));
+                    groupNodes = new HashMap<>();
 
-        // Add the rest of the groups alphabetically.
-        groups = groupInformation.getGroups();
-        List<Group> groupsList = new ArrayList<>(groups.keySet());
-        Collections.sort(groupsList, Comparator.comparing(Group::getName));
-        groupNodes = new HashMap<>();
+                    for (Group group : groupsList) {
+                        DefaultMutableTreeNode groupNode = new DefaultMutableTreeNode(
+                            group.getName());
+                        insertNodeInto(groupNode, rootNode, rootNode.getChildCount());
+                        groupNodes.put(group.getName(), groupNode);
 
-        for (Group group : groupsList) {
-            DefaultMutableTreeNode groupNode = new DefaultMutableTreeNode(group.getName());
-            insertNodeInto(groupNode, rootNode, rootNode.getChildCount());
-            groupNodes.put(group.getName(), groupNode);
+                        List<T> objects = groupInformation.getObjectsByGroup().get(group);
+                        Collections.sort(objects, Comparator.comparing(Object::toString));
 
-            List<T> objects = groups.get(group);
-            Collections.sort(objects, Comparator.comparing(Object::toString));
+                        for (T object : objects) {
+                            DefaultMutableTreeNode treeNode = new DefaultMutableTreeNode(object);
+                            insertNodeInto(treeNode, groupNode, groupNode.getChildCount());
+                        }
+                    }
 
-            for (T object : objects) {
-                DefaultMutableTreeNode treeNode = new DefaultMutableTreeNode(object);
-                insertNodeInto(treeNode, groupNode, groupNode.getChildCount());
+                    reload();
+
+                    log.debug("Updating tree model for {}...done", modelClass);
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Could not retrieve model data for {}", modelClass, e);
+                }
             }
-        }
-
-        reload();
-        modelValid = true;
-        log.debug("Done loading");
-    }
-
-    public DefaultMutableTreeNode groupNode(String groupName) {
-        return groupNodes.get(groupName);
+        }.execute();
     }
 
     public Map<String, DefaultMutableTreeNode> getGroupNodes() {
         return groupNodes;
-    }
-
-    /** Returns an object based on its name, or null if no object exists with that name. */
-    public T objectByName(String name) {
-        return objectsByName.get(name);
-    }
-
-    @Override
-    public void invalidateModel() {
-        modelValid = false;
-    }
-
-    /**
-     * Reload the model if it has been marked invalid Should only be called by a RowModel
-     */
-    public void validityCheck() {
-        if (!modelValid) {
-            log.info("Model invalid for " + this.getClass().getSimpleName()
-                + ", loading data from database...");
-            loadFromDatabase();
-        }
     }
 
     public DefaultMutableTreeNode getDefaultGroupNode() {

@@ -18,6 +18,7 @@ import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.HostNameUtils;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
@@ -120,7 +121,7 @@ public class AlertsStatusPanel extends JPanel {
             return switch (columnIndex) {
                 case 0 -> formatter.format(alert.getTimestamp());
                 case 1 -> alert.getSourceComponent();
-                case 2 -> alert.getProcessHost();
+                case 2 -> HostNameUtils.callerHostNameOrLocalhost(alert.getProcessHost());
                 case 3 -> alert.getSourceTaskId();
                 case 4 -> alert.getSeverity();
                 case 5 -> alert.getMessage();

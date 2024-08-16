@@ -14,6 +14,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,26 +34,26 @@ import gov.nasa.ziggy.module.AlgorithmMonitor;
 import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud.ClearStaleStateResults;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.services.events.ZiggyEventCrud;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler.ZiggyEventHandlerInfoForDisplay;
+import gov.nasa.ziggy.services.events.ZiggyEventOperations;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.EventHandlerRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
+import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
 import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
+import gov.nasa.ziggy.services.messages.RestartTasksRequest;
 import gov.nasa.ziggy.services.messages.SingleTaskLogMessage;
 import gov.nasa.ziggy.services.messages.SingleTaskLogRequest;
 import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
@@ -100,6 +101,11 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     private ScheduledExecutorService heartbeatExecutor;
     private QueueCommandManager queueCommandManager;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+    private PipelineExecutor pipelineExecutor = new PipelineExecutor();
+    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
 
     public PipelineSupervisor(int workerCount, int workerHeapSize) {
         super(NAME);
@@ -134,7 +140,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
             log.info("Subscribing to messages...");
             subscribe();
-            TriggerRequestManager.start();
+            StartPipelineRequestManager.start();
             log.info("Subscribing to messages...done");
 
             ZiggyRmiServer.start();
@@ -177,7 +183,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             AlgorithmMonitor.initialize();
 
             log.info("Loading event handlers...");
-            ziggyEventHandlers.addAll(new ZiggyEventCrud().retrieveAllEventHandlers());
+            ziggyEventHandlers.addAll(ziggyEventOperations().eventHandlers());
             for (ZiggyEventHandler handler : ziggyEventHandlers) {
                 if (handler.isEnableOnClusterStart()) {
                     handler.start();
@@ -191,38 +197,25 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     }
 
     /**
-     * Set the state to ERROR for all tasks where the state is currently PROCESSING or SUBMITTED.
-     * Used at worker startup to reset the state after an abnormal supervisor exit while processing.
+     * Set the error flag on stale tasks, which means they are in one of the
+     * {@link ProcessingStep#processingSteps()}. Used at worker startup to reset the state after an
+     * abnormal supervisor exit while processing.
      */
     public void clearStaleTaskStates() {
 
-        /*
-         * Set the pipeline task state to ERROR for any tasks assigned to this worker that are in
-         * the PROCESSING state or the SUBMITTED state. These conditions indicate that the previous
-         * instance of the worker process on this host died abnormally
-         */
-        ClearStaleStateResults clearStateResults = (ClearStaleStateResults) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-                return pipelineTaskCrud.clearStaleState();
-            });
+        // Set the error flag on stale tasks, which means they are in one of the {@link
+        // ProcessingStep#processingSteps()}. These conditions indicate that the previous instance
+        // of the worker process on this host died abnormally
+        PipelineTaskOperations.ClearStaleStateResults clearStateResults = pipelineTaskOperations()
+            .clearStaleTaskStates();
 
-        /*
-         * Update the pipeline instance state for the instances associated with the stale tasks from
-         * above since that change may result in a change to the instances
-         */
-
-        DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineExecutor pe = new PipelineExecutor();
-            PipelineInstanceCrud instanceCrud = new PipelineInstanceCrud();
-
-            for (Long instanceId : clearStateResults.uniqueInstanceIds) {
-                log.info("Updating instance state for instanceId = " + instanceId);
-                PipelineInstance instance = instanceCrud.retrieve(instanceId);
-                pe.logUpdatedInstanceState(instance);
-            }
-            return null;
-        });
+        // Update the pipeline instance state for the instances associated with the stale tasks from
+        // above since that change may result in a change to the instances
+        PipelineExecutor pe = new PipelineExecutor();
+        for (Long instanceId : clearStateResults.uniqueInstanceIds) {
+            log.info("Updating instance state for instanceId={}", instanceId);
+            pe.logUpdatedInstanceState(pipelineInstanceOperations().pipelineInstance(instanceId));
+        }
     }
 
     /**
@@ -239,7 +232,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         });
         ZiggyMessenger.subscribe(TaskLogInformationRequest.class, message -> {
             ZiggyMessenger.publish(new TaskLogInformationMessage(message,
-                TaskLog.searchForLogFiles(message.getInstanceId(), message.getTaskId())));
+                TaskLog.searchForLogFiles(message.getTaskId())));
         });
         ZiggyMessenger.subscribe(SingleTaskLogRequest.class, message -> {
             ZiggyMessenger.publish(new SingleTaskLogMessage(message, taskLogContents(message)));
@@ -255,6 +248,9 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         });
         ZiggyMessenger.subscribe(KilledTaskMessage.class, message -> {
             handleKilledTaskMessage(message);
+        });
+        ZiggyMessenger.subscribe(RestartTasksRequest.class, message -> {
+            restartTasks(message);
         });
     }
 
@@ -309,7 +305,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
      * <ol>
      * <li>Add to the list of successfully halted tasks (so other classes can find out which ones
      * got halted).
-     * <li>Set the state of the {@link PipelineTask} to ERROR.
+     * <li>Set the {@link PipelineTask} error flag.
      * <li>Issue an alert that the task has been halted.
      * </ol>
      * <p>
@@ -322,11 +318,24 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         alertService().generateAndBroadcastAlert("PI", message.getTaskId(),
             AlertService.Severity.ERROR, "Task " + message.getTaskId() + " halted");
 
-        // Set the task state.
-        DatabaseTransactionFactory.performTransaction(() -> {
-            pipelineOperations().setTaskState(message.getTaskId(), PipelineTask.State.ERROR);
-            return null;
-        });
+        // Set the task's error flag.
+        pipelineTaskOperations().taskErrored(message.getTaskId());
+    }
+
+    /**
+     * Submits a collection of {@link PipelineTask} instances for restarting, based on the contents
+     * of a restart message. Because the restart was requested by the user and is not an automatic
+     * resubmit, the resubmit counts on the tasks must be reset to zero.
+     */
+    void restartTasks(RestartTasksRequest message) {
+        List<PipelineTask> tasksToResubmit = pipelineTaskOperations()
+            .prepareTasksForManualResubmit(message.getPipelineTaskIds());
+        pipelineExecutor().restartFailedTasks(tasksToResubmit, message.isDoTransitionOnly(),
+            message.getRunMode());
+
+        // Invalidate the models since restarting a task changes other states in the
+        // consoles.
+        ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
     }
 
     public static CommandLine supervisorCommand(WrapperCommand cmd, int workerCount,
@@ -412,14 +421,28 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         return queueCommandManager;
     }
 
-    // Package scoped for testing purposes.
     AlertService alertService() {
         return AlertService.getInstance();
     }
 
-    // Package scoped for testing purposes.
-    PipelineOperations pipelineOperations() {
-        return new PipelineOperations();
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
+    }
+
+    PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
+    }
+
+    PipelineExecutor pipelineExecutor() {
+        return pipelineExecutor;
+    }
+
+    PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
+    }
+
+    ZiggyEventOperations ziggyEventOperations() {
+        return ziggyEventOperations;
     }
 
     /**

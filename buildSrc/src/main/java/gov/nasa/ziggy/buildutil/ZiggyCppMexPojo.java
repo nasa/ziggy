@@ -51,7 +51,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
 
     public ZiggyCppMexPojo() {
         super.setOutputType(BuildType.SHARED);
-        setCppCompileOptions(DEFAULT_COMPILE_OPTIONS);
+        setcppCompileOptions(DEFAULT_COMPILE_OPTIONS);
         setLinkOptions(DEFAULT_LINK_OPTIONS);
         setReleaseOptimizations(DEFAULT_RELEASE_OPTS);
         setDebugOptimizations(DEFAULT_DEBUG_OPTS);
@@ -172,7 +172,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
 
     @Override
     protected void populateBuiltFile() {
-        if (getOutputName() == null || getOutputName().isEmpty()) {
+        if (StringUtils.isBlank(getOutputName())) {
             setOutputName(generateSharedObjectName());
         }
         super.populateBuiltFile();
@@ -187,7 +187,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
     public String generateLinkCommand() {
 
         // if the build file is not set, then set it now to a default value
-        if (getOutputName() == null || getOutputName().isEmpty()) {
+        if (StringUtils.isBlank(getOutputName())) {
             setOutputName(generateSharedObjectName());
         }
 
@@ -208,7 +208,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
     public String generateSharedObjectName() {
         String objectNameStart = getProjectDir().getName();
         int projectDirLength = getProjectDir().getAbsolutePath().length();
-        String truncatedCppPath = getCppFilePaths().get(0).substring(projectDirLength + 1);
+        String truncatedCppPath = getSourceFilePaths().get(0).substring(projectDirLength + 1);
         String[] truncatedCppPathParts = truncatedCppPath.split("/");
         StringBuilder sharedObjectNameBuilder = new StringBuilder();
         sharedObjectNameBuilder.append(objectNameStart + "-");
@@ -231,7 +231,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
     public String generateMexCommand(File mexfile, File obj) {
 
         // if the build file is not set, then set it now to a default value
-        if (getOutputName() == null || getOutputName().isEmpty()) {
+        if (StringUtils.isBlank(getOutputName())) {
             setOutputName(generateSharedObjectName());
         }
 
@@ -275,11 +275,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
         for (File mexfile : mexfileMap.keySet()) {
             String mexCommand = generateMexCommand(mexfile, mexfileMap.get(mexfile));
             log.info(mexCommand);
-            DefaultExecutor mexExec = getDefaultExecutor();
-
-            // It's not strictly necessary to do this, since all the files have full
-            // paths, but it's a good practice nonetheless
-            mexExec.setWorkingDirectory(objDir());
+            DefaultExecutor mexExec = getDefaultExecutor(objDir());
 
             // execute the mex command
             try {

@@ -1,7 +1,6 @@
 package gov.nasa.ziggy.ui.instances;
 
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CLOSE;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REFRESH;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REPORT;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.boldLabel;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
@@ -15,26 +14,31 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.GroupLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.SwingWorker;
 
 import gov.nasa.ziggy.metrics.report.ReportFilePaths;
+import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
+import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.TextualReportDialog;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
-import gov.nasa.ziggy.ui.util.proxy.PipelineInstanceCrudProxy;
-import gov.nasa.ziggy.ui.util.proxy.PipelineInstanceNodeCrudProxy;
-import gov.nasa.ziggy.ui.util.proxy.PipelineOperationsProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
@@ -43,9 +47,13 @@ import gov.nasa.ziggy.ui.util.table.ZiggyTable;
  */
 @SuppressWarnings("serial")
 public class InstanceDetailsDialog extends javax.swing.JDialog {
+
     private JLabel nameText;
     private ZiggyTable<PipelineInstanceNode> ziggyTable;
     private final PipelineInstance pipelineInstance;
+
+    private final PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
+    private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
 
     public InstanceDetailsDialog(Window owner, PipelineInstance pipelineInstance) {
         super(owner, DEFAULT_MODALITY_TYPE);
@@ -59,9 +67,9 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         setTitle("Pipeline instance details");
 
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
-        getContentPane().add(createButtonPanel(ZiggySwingUtils.createButton(REFRESH, this::refresh),
-            ZiggySwingUtils.createButton(REPORT, this::generateReport),
-            ZiggySwingUtils.createButton(CLOSE, this::close)), BorderLayout.SOUTH);
+        getContentPane()
+            .add(createButtonPanel(ZiggySwingUtils.createButton(REPORT, this::generateReport),
+                ZiggySwingUtils.createButton(CLOSE, this::close)), BorderLayout.SOUTH);
 
         pack();
     }
@@ -88,8 +96,7 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
 
         JLabel pipelineParametersGroup = boldLabel("Pipeline parameter sets", LabelType.HEADING1);
         ParameterSetViewPanel pipelineParameterSetsPanel = new ParameterSetViewPanel(
-            pipelineInstance.getPipelineParameterSets());
-
+            pipelineInstanceOperations().parameterSets(pipelineInstance));
         JLabel modulesGroup = boldLabel("Modules", LabelType.HEADING1);
         JPanel modulesButtonPanel = createButtonPanel(ButtonPanelContext.TOOL_BAR,
             createButton("View module parameters", this::viewModuleParameters));
@@ -104,7 +111,7 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         dataPanelLayout.setHorizontalGroup(dataPanelLayout.createParallelGroup()
             .addComponent(instanceGroup)
             .addGroup(dataPanelLayout.createSequentialGroup()
-                .addGap(ZiggySwingUtils.INDENT)
+                .addGap(ZiggyGuiConstants.INDENT)
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(id)
                     .addComponent(name)
@@ -139,11 +146,11 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
             .addPreferredGap(ComponentPlacement.RELATED)
             .addGroup(
                 dataPanelLayout.createParallelGroup().addComponent(total).addComponent(totalText))
-            .addGap(ZiggySwingUtils.GROUP_GAP)
+            .addGap(ZiggyGuiConstants.GROUP_GAP)
             .addComponent(pipelineParametersGroup)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(pipelineParameterSetsPanel)
-            .addGap(ZiggySwingUtils.GROUP_GAP)
+            .addGap(ZiggyGuiConstants.GROUP_GAP)
             .addComponent(modulesGroup)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(modulesButtonPanel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
@@ -157,56 +164,81 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         int selectedRow = ziggyTable.getSelectedRow();
 
         if (selectedRow == -1) {
-            MessageUtil.showError(this, "No module selected");
+            MessageUtils.showError(this, "No module selected");
         } else {
             PipelineInstanceNode node = ziggyTable.getContentAtViewRow(selectedRow);
-            new ParameterSetViewDialog(this, node.getModuleParameterSets()).setVisible(true);
-        }
-    }
+            new SwingWorker<Set<ParameterSet>, Void>() {
 
-    private void refresh(ActionEvent evt) {
+                @Override
+                protected Set<ParameterSet> doInBackground() throws Exception {
+                    return pipelineInstanceNodeOperations().parameterSets(node);
+                }
 
-        try {
-            String newName = nameText.getText();
-
-            if (!newName.equals(pipelineInstance.getName())) {
-                PipelineInstanceCrudProxy instanceCrud = new PipelineInstanceCrudProxy();
-                instanceCrud.updateName(pipelineInstance.getId(), newName);
-            }
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
+                @Override
+                protected void done() {
+                    try {
+                        new ParameterSetViewDialog(InstanceDetailsDialog.this, get())
+                            .setVisible(true);
+                    } catch (InterruptedException | ExecutionException e) {
+                        MessageUtils.showError(InstanceDetailsDialog.this, e);
+                    }
+                }
+            }.execute();
         }
     }
 
     private void generateReport(ActionEvent evt) {
-        PipelineOperationsProxy ops = new PipelineOperationsProxy();
-        String report = ops.generatePedigreeReport(pipelineInstance);
+        new SwingWorker<String, String>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                return new PipelineReportGenerator().generatePedigreeReport(pipelineInstance);
+            }
 
-        TextualReportDialog.showReport(this, report, "Instance report",
-            ReportFilePaths.instanceDetailsReportPath(pipelineInstance.getId()));
+            @Override
+            protected void done() {
+                try {
+                    TextualReportDialog.showReport(InstanceDetailsDialog.this, get(),
+                        "Instance report",
+                        ReportFilePaths.instanceDetailsReportPath(pipelineInstance.getId()));
+                } catch (InterruptedException | ExecutionException e) {
+                    MessageUtils.showError(getRootPane(), e);
+                }
+            }
+        }.execute();
     }
 
     private void close(ActionEvent evt) {
         setVisible(false);
     }
 
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
+        return pipelineInstanceNodeOperations;
+    }
+
+    private PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
+    }
+
     private static class InstanceModulesTableModel
         extends AbstractZiggyTableModel<PipelineInstanceNode> {
 
-        private static final String[] COLUMN_NAMES = { "Name", "Tasks", "Submitted", "Completed",
-            "Failed" };
+        private static final String[] COLUMN_NAMES = { "Module", "Tasks", "Waiting to run",
+            "Completed", "Failed" };
 
         private List<PipelineInstanceNode> pipelineInstanceNodes = new LinkedList<>();
         private Map<PipelineInstanceNode, TaskCounts> nodeTaskCounts = new HashMap<>();
 
+        private final PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
+
         public InstanceModulesTableModel(PipelineInstance instance) {
-            if (instance != null) {
-                PipelineInstanceNodeCrudProxy pipelineInstanceNodeCrud = new PipelineInstanceNodeCrudProxy();
-                pipelineInstanceNodes = pipelineInstanceNodeCrud.retrieveAll(instance);
-                PipelineOperationsProxy pipelineOperations = new PipelineOperationsProxy();
-                for (PipelineInstanceNode node : pipelineInstanceNodes) {
-                    nodeTaskCounts.put(node, pipelineOperations.taskCounts(node));
-                }
+            if (instance == null) {
+                return;
+            }
+
+            pipelineInstanceNodes = pipelineInstanceNodeOperations()
+                .pipelineInstanceNodes(instance);
+            for (PipelineInstanceNode node : pipelineInstanceNodes) {
+                nodeTaskCounts.put(node, pipelineInstanceNodeOperations().taskCounts(node));
             }
         }
 
@@ -226,11 +258,11 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
             TaskCounts taskCounts = nodeTaskCounts.get(node);
 
             return switch (columnIndex) {
-                case 0 -> node.getPipelineDefinitionNode().getModuleName();
+                case 0 -> node.getModuleName();
                 case 1 -> taskCounts.getTaskCount();
-                case 2 -> taskCounts.getSubmittedTaskCount();
-                case 3 -> taskCounts.getCompletedTaskCount();
-                case 4 -> taskCounts.getFailedTaskCount();
+                case 2 -> taskCounts.getTotalCounts().getWaitingToRunTaskCount();
+                case 3 -> taskCounts.getTotalCounts().getCompletedTaskCount();
+                case 4 -> taskCounts.getTotalCounts().getFailedTaskCount();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
             };
         }
@@ -248,6 +280,10 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         @Override
         public PipelineInstanceNode getContentAtRow(int row) {
             return pipelineInstanceNodes.get(row);
+        }
+
+        private PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
+            return pipelineInstanceNodeOperations;
         }
     }
 }

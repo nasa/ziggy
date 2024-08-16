@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<module name="module 2" description="second module"
+<module name="module 2" executableName="executable2" description="second module"
 	pipelineModuleClass="gov.nasa.ziggy.module.ExternalProcessPipelineModuleTest$TestPipelineModule"
 	inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample"
 	outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1"

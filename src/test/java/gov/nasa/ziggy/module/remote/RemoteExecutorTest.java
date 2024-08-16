@@ -2,10 +2,7 @@ package gov.nasa.ziggy.module.remote;
 
 import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -19,7 +16,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
@@ -29,10 +25,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.ProcessingSummary;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ProcessingSummaryOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.SingleThreadExecutor;
 
@@ -45,14 +38,10 @@ public class RemoteExecutorTest {
 
     private GenericRemoteExecutor executor;
     private PipelineTask pipelineTask;
-    private ProcessingSummaryOperations crud;
+    private PipelineTaskOperations pipelineTaskOperations;
     private TaskConfiguration taskConfigurationManager;
     private PipelineInstance pipelineInstance;
-    private ProcessingSummary taskAttr;
-    private DatabaseService databaseService;
     private static Future<Void> futureVoid;
-    private static PipelineDefinitionNodeCrud defNodeCrud = Mockito
-        .mock(PipelineDefinitionNodeCrud.class);
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -77,26 +66,24 @@ public class RemoteExecutorTest {
 
         pipelineTask = mock(PipelineTask.class);
         pipelineInstance = mock(PipelineInstance.class);
-        crud = mock(ProcessingSummaryOperations.class);
+        pipelineTaskOperations = mock(PipelineTaskOperations.class);
         taskConfigurationManager = mock(TaskConfiguration.class);
-        taskAttr = mock(ProcessingSummary.class);
         executor = new GenericRemoteExecutor(pipelineTask);
-        executor.setProcessingSummaryOperations(crud);
-        databaseService = mock(DatabaseService.class);
-        DatabaseService.setInstance(databaseService);
         futureVoid = mock(Future.class);
 
-        when(pipelineTask.getPipelineInstance()).thenReturn(pipelineInstance);
-        when(pipelineTask.pipelineInstanceId()).thenReturn(10L);
+        when(pipelineTask.getPipelineInstanceId()).thenReturn(10L);
         when(pipelineTask.getModuleName()).thenReturn("modulename");
         when(pipelineTask.getId()).thenReturn(50L);
         when(pipelineTask.taskBaseName()).thenReturn("10-50-modulename");
-        when(pipelineTask.pipelineDefinitionNode()).thenReturn(new PipelineDefinitionNode());
+        when(
+            pipelineTaskOperations.pipelineDefinitionNode(ArgumentMatchers.any(PipelineTask.class)))
+                .thenReturn(new PipelineDefinitionNode());
+        when(pipelineTaskOperations.pipelineInstance(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineInstance);
         when(pipelineInstance.getId()).thenReturn(10L);
         when(taskConfigurationManager.getSubtaskCount()).thenReturn(500);
-        when(crud.processingSummary(50L)).thenReturn(taskAttr);
-        when(taskAttr.getTotalSubtaskCount()).thenReturn(500);
-        when(taskAttr.getCompletedSubtaskCount()).thenReturn(400);
+        when(pipelineTask.getTotalSubtaskCount()).thenReturn(500);
+        when(pipelineTask.getCompletedSubtaskCount()).thenReturn(400);
         when(futureVoid.get()).thenReturn(null);
     }
 
@@ -109,9 +96,8 @@ public class RemoteExecutorTest {
     @Test
     public void testExecuteAlgorithmFirstIteration() {
 
-        when(defNodeCrud
-            .retrieveExecutionResources(ArgumentMatchers.any(PipelineDefinitionNode.class)))
-                .thenReturn(remoteExecutionConfigurationForPipelineTask());
+        when(pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(remoteExecutionConfigurationForPipelineTask());
 
         executor.submitAlgorithm(taskConfigurationManager);
 
@@ -134,23 +120,15 @@ public class RemoteExecutorTest {
         checkStateFileValues(gExecutor.pbsParameters, stateFile);
 
         assertEquals(stateFile, gExecutor.monitoredStateFile);
-
-        // Make sure that the things that should not get called did not, in fact,
-        // get called.
-        verify(crud, never()).processingSummary(any(long.class));
     }
 
     @Test
     public void testExecuteAlgorithmLaterIteration() {
 
-        when(defNodeCrud
-            .retrieveExecutionResources(ArgumentMatchers.any(PipelineDefinitionNode.class)))
-                .thenReturn(remoteExecutionConfigurationFromDatabase());
+        when(pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(remoteExecutionConfigurationFromDatabase());
 
         executor.submitAlgorithm(null);
-
-        // The CRUDs should have been called
-        verify(crud).processingSummary(50L);
 
         // The correct call to generate PBS parameters should have occurred,
         // including the fact that the number of remaining subtasks should be
@@ -231,7 +209,7 @@ public class RemoteExecutorTest {
         return executionResources;
     }
 
-    private static class GenericRemoteExecutor extends RemoteExecutor {
+    private class GenericRemoteExecutor extends RemoteExecutor {
 
         int totalSubtaskCount;
         PbsParameters pbsParameters;
@@ -263,23 +241,13 @@ public class RemoteExecutorTest {
         }
 
         @Override
-        public void setParameterSetCrud(ParameterSetCrud parameterSetCrud) {
-            super.setParameterSetCrud(parameterSetCrud);
-        }
-
-        @Override
-        protected PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
-            return defNodeCrud;
-        }
-
-        @Override
-        public void setProcessingSummaryOperations(ProcessingSummaryOperations crud) {
-            super.setProcessingSummaryOperations(crud);
-        }
-
-        @Override
         protected void submitForExecution(StateFile stateFile) {
             addToMonitor(stateFile);
+        }
+
+        @Override
+        protected PipelineTaskOperations pipelineTaskOperations() {
+            return pipelineTaskOperations;
         }
     }
 }

@@ -28,10 +28,11 @@ import gov.nasa.ziggy.buildutil.ZiggyCppPojo.BuildType;
  * <pre>
  * task fooLib(type : ZiggyCpp) {
  *     outputName        = "foo"
- *     cppFilePaths      = ["$projectDir/foo", "$projectDir/bar"]
+ *     sourceFilePaths   = ["$projectDir/foo", "$projectDir/bar"]
  *     includeFilePaths  = ["$projectDir/include", "$rootDir/project2/include"]
  *     outputType        = "shared"
- *     compileOptions    = ["std=c++11", "O2"]
+ *     cppCompileOptions = ["std=c++11", "O2"]
+ *     cCompileOptions   = ["O2"]
  *     maxCompileThreads = 10
  * }
  * </pre>
@@ -52,7 +53,7 @@ import gov.nasa.ziggy.buildutil.ZiggyCppPojo.BuildType;
  * <pre>
  * task fooProgram(type : ZiggyCpp) {
  *     outputName        = "foo"
- *     cppFilePaths      = ["$projectDir/foo", "$projectDir/bar"]
+ *     sourceFilePaths   = ["$projectDir/foo", "$projectDir/bar"]
  *     includeFilePaths  = ["$projectDir/include", "$rootDir/project2/include"]
  *     outputType        = "executable"
  *     cppCompileOptions = ["std=c++11", "O2"]
@@ -103,11 +104,11 @@ public class ZiggyCpp extends DefaultTask {
         ziggyCppPojo.setBuildDir(project.getBuildDir());
         ziggyCppPojo.setRootDir(pipelineRootDir(project));
         if (project.hasProperty(DEFAULT_CPP_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
-            ziggyCppPojo.setCppCompileOptions(ZiggyCppPojo.gradlePropertyToList(
+            ziggyCppPojo.setcppCompileOptions(ZiggyCppPojo.gradlePropertyToList(
                 project.property(DEFAULT_CPP_COMPILE_OPTIONS_GRADLE_PROPERTY)));
         }
         if (project.hasProperty(DEFAULT_C_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
-            ziggyCppPojo.setCCompileOptions(ZiggyCppPojo
+            ziggyCppPojo.setcCompileOptions(ZiggyCppPojo
                 .gradlePropertyToList(project.property(DEFAULT_C_COMPILE_OPTIONS_GRADLE_PROPERTY)));
         }
         if (project.hasProperty(DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)) {
@@ -154,7 +155,7 @@ public class ZiggyCpp extends DefaultTask {
      * @return List of C++ files found in the C++ source file directory.
      */
     @InputFiles
-    public List<File> getCppFiles() {
+    public List<File> getSourceFiles() {
         return ziggyCppPojo.getSourceFiles();
     }
 
@@ -180,14 +181,14 @@ public class ZiggyCpp extends DefaultTask {
     // Groovy GString class. Consequently, we pass everything to ZiggyCppPojo as Objects, and
     // ZiggyCppPojo uses the toString() methods to convert everything to Java Strings.
 
-    // Path to the C++ source files
-    public void setCppFilePaths(List<Object> cppFilePaths) {
-        ziggyCppPojo.setCppFilePaths(cppFilePaths);
+    // Path to the source files
+    public void setSourceFilePaths(List<Object> sourceFilePaths) {
+        ziggyCppPojo.setSourceFilePaths(sourceFilePaths);
     }
 
     @Input
-    public List<String> getCppFilePaths() {
-        return ziggyCppPojo.getCppFilePaths();
+    public List<String> getSourceFilePaths() {
+        return ziggyCppPojo.getSourceFilePaths();
     }
 
     // Paths for include files
@@ -221,13 +222,22 @@ public class ZiggyCpp extends DefaultTask {
     }
 
     // compiler options
-    public void setCompileOptions(List<? extends Object> compileOptions) {
-        ziggyCppPojo.setCppCompileOptions(compileOptions);
+    public void setcppCompileOptions(List<? extends Object> compileOptions) {
+        ziggyCppPojo.setcppCompileOptions(compileOptions);
     }
 
     @Input
-    public List<String> getCompileOptions() {
-        return ziggyCppPojo.getCppCompileOptions();
+    public List<String> getcppCompileOptions() {
+        return ziggyCppPojo.getcppCompileOptions();
+    }
+
+    public void setcCompileOptions(List<? extends Object> compileOptions) {
+        ziggyCppPojo.setcCompileOptions(compileOptions);
+    }
+
+    @Input
+    public List<String> getcCompileOptions() {
+        return ziggyCppPojo.getcCompileOptions();
     }
 
     // linker options

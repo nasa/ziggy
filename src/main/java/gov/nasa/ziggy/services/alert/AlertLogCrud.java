@@ -15,8 +15,7 @@ import gov.nasa.ziggy.collections.ListChunkIterator;
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
 
 /**
  * This class provides CRUD methods for the AlertService
@@ -25,20 +24,6 @@ import gov.nasa.ziggy.services.database.DatabaseService;
  * @author Todd Klaus
  */
 public class AlertLogCrud extends AbstractCrud<AlertLog> {
-    /**
-     * Creates an {@link AlertLogCrud} object.
-     */
-    public AlertLogCrud() {
-    }
-
-    /**
-     * Creates an {@link AlertLogCrud} object.
-     *
-     * @param databaseService the database service
-     */
-    public AlertLogCrud(DatabaseService databaseService) {
-        super(databaseService);
-    }
 
     /**
      * Retrieves the names of all components that have logged alerts to the database.

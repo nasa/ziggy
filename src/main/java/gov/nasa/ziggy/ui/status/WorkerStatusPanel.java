@@ -150,8 +150,8 @@ public class WorkerStatusPanel extends JPanel {
 
         private static final long serialVersionUID = 20230511L;
 
-        private static final String[] COLUMN_NAMES = { "Worker", "State", "Age", "Instance", "Task",
-            "Module", "UOW" };
+        private static final String[] COLUMN_NAMES = { "Worker", "Status", "Age", "Instance",
+            "Task", "Module", "UOW" };
 
         /**
          * Status messages in the model. The {@link Boolean} component of the {@link Map} indicates

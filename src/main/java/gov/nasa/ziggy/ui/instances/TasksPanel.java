@@ -21,15 +21,22 @@ import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.services.messages.DisplayTasksForInstanceMessage;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
+import gov.nasa.ziggy.ui.util.TaskHalter;
+import gov.nasa.ziggy.ui.util.TaskRestarter;
+import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
-import gov.nasa.ziggy.ui.util.proxy.PipelineInstanceCrudProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
@@ -41,53 +48,83 @@ import gov.nasa.ziggy.ui.util.table.ZiggyTable;
  */
 public class TasksPanel extends JPanel {
 
-    private static final long serialVersionUID = 20230817L;
+    private static final long serialVersionUID = 20240614L;
 
-    private InstancesTasksPanel instancesTasksPanel;
+    @SuppressWarnings("unused")
+    private static final Logger log = LoggerFactory.getLogger(TasksPanel.class);
+
     private TaskStatusSummaryPanel taskStatusSummaryPanel;
     private ZiggyTable<PipelineTask> tasksTable;
     private TasksTableModel tasksTableModel;
+    private long currentInstanceId = -1;
 
-    private Map<Integer, Long> selectedTasks = new HashMap<>();
+    private Map<Integer, Long> selectedTaskIdByRow = new HashMap<>();
 
-    public TasksPanel(InstancesTasksPanel instancesTasksPanel) {
-        this.instancesTasksPanel = instancesTasksPanel;
+    private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+
+    public TasksPanel() {
         buildComponent();
 
         // Subscribe to the messages that indicate that something has potentially changed
         // with the instance panel's instance selection.
-        ZiggyMessenger.subscribe(DisplayTasksForInstanceMessage.class, message -> {
-            long instanceId = message.getPipelineInstanceId();
+        ZiggyMessenger.subscribe(DisplayTasksForInstanceMessage.class,
+            this::displayTasksForInstance);
 
-            if (message.isReselect() && instanceId == -1) {
+        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+    }
 
-                // If the message comes from a reselect action, we only need to do anything
-                // if the reselect resulted in no selected instance.
-                tasksTableModel.setPipelineInstance(null);
-                tasksTableModel.loadFromDatabase(false);
-                clearSelectedTasks();
-            } else if (!message.isReselect()) {
+    private void displayTasksForInstance(DisplayTasksForInstanceMessage message) {
+        new SwingWorker<Void, Void>() {
 
-                // If the message comes from a user clicking on a row in the table, we
-                // need to see whether this is a genuinely new instance, or if the user
-                // just clicked on the instance that was already selected.
-                PipelineInstance selectedInstance = new PipelineInstanceCrudProxy()
-                    .retrieve(instanceId);
-                boolean genuinelyNewInstance = tasksTableModel
-                    .updatePipelineInstance(selectedInstance);
-                tasksTableModel.loadFromDatabase(false);
+            @Override
+            protected Void doInBackground() {
+                long instanceId = message.getPipelineInstanceId();
 
-                // If the change is that a genuinely new instance was selected, clear the tasks
-                // table selections as they are no longer valid.
-                if (genuinelyNewInstance) {
-                    tasksTable.getTable().getSelectionModel().clearSelection();
+                if (message.isReselect() && instanceId == -1) {
+                    currentInstanceId = instanceId;
+
+                    // If the message comes from a reselect action, we only need to do anything
+                    // if the reselect resulted in no selected instance.
+                    tasksTableModel.setPipelineInstance(null);
+                    tasksTableModel.loadFromDatabase(false);
                     clearSelectedTasks();
+                } else if (!message.isReselect()) {
+
+                    // If the message comes from a user clicking on a row in the table, we
+                    // need to see whether this is a genuinely new instance, or if the user
+                    // just clicked on the instance that was already selected.
+                    PipelineInstance selectedInstance = null;
+                    if (instanceId != currentInstanceId) {
+                        selectedInstance = pipelineInstanceOperations()
+                            .pipelineInstance(instanceId);
+                        currentInstanceId = instanceId;
+                    }
+                    boolean genuinelyNewInstance = selectedInstance != null
+                        ? tasksTableModel.updatePipelineInstance(selectedInstance)
+                        : false;
+                    tasksTableModel.loadFromDatabase(false);
+
+                    // If the change is that a genuinely new instance was selected, clear the tasks
+                    // table selections as they are no longer valid.
+                    if (genuinelyNewInstance) {
+                        SwingUtilities.invokeLater(
+                            () -> tasksTable.getTable().getSelectionModel().clearSelection());
+                        clearSelectedTasks();
+                    }
                 }
+                return null;
             }
 
-            // No matter what happened, update the summary display.
-            updateSummaryPanel();
-        });
+            @Override
+            protected void done() {
+                // No matter what happened, update the summary display.
+                updateSummaryPanel();
+            }
+        }.execute();
+    }
+
+    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+        tasksTableModel.loadFromDatabase();
     }
 
     private void buildComponent() {
@@ -101,7 +138,6 @@ public class TasksPanel extends JPanel {
         createTasksTablePopupMenu();
 
         GroupLayout layout = new GroupLayout(this);
-        layout.setAutoCreateContainerGaps(true);
         setLayout(layout);
 
         layout.setHorizontalGroup(layout.createParallelGroup()
@@ -120,7 +156,9 @@ public class TasksPanel extends JPanel {
     private ZiggyTable<PipelineTask> createTasksTable(TasksTableModel tasksTableModel) {
         ZiggyTable<PipelineTask> tasksTable = new ZiggyTable<>(tasksTableModel);
         tasksTable.setWrapText(false);
-        tasksTable.registerModel();
+        for (int column = 0; column < TasksTableModel.COLUMN_WIDTHS.length; column++) {
+            tasksTable.setPreferredColumnWidth(column, TasksTableModel.COLUMN_WIDTHS[column]);
+        }
 
         ListSelectionModel selectionModel = tasksTable.getTable().getSelectionModel();
         selectionModel.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
@@ -148,15 +186,15 @@ public class TasksPanel extends JPanel {
     private void reselectTaskRows(ListSelectionModel lsm) {
 
         // If there were no selected tasks in the first place, return.
-        if (selectedTasks.isEmpty()) {
+        if (selectedTaskIdByRow.isEmpty()) {
             return;
         }
 
         // Find the model indices of the selected task IDs. Here we use a List of
         // task IDs so that the order of the task IDs and the model IDs match one another.
-        List<Long> selectedTaskIds = new ArrayList<>(selectedTasks.values());
+        List<Long> selectedTaskIds = new ArrayList<>(selectedTaskIdByRow.values());
         List<Integer> taskModelIds = tasksTableModel.getModelIndicesOfTasks(selectedTaskIds);
-        selectedTasks.clear();
+        selectedTaskIdByRow.clear();
 
         // If all the tasks that had been selected before are now gone from the table, return.
         if (taskModelIds.isEmpty()) {
@@ -169,7 +207,7 @@ public class TasksPanel extends JPanel {
             long taskId = selectedTaskIds.get(listIndex);
             int rowId = tasksTable.getTable().convertRowIndexToView(taskModelId);
             lsm.addSelectionInterval(rowId, rowId);
-            selectedTasks.put(rowId, taskId);
+            selectedTaskIdByRow.put(rowId, taskId);
         }
     }
 
@@ -178,21 +216,14 @@ public class TasksPanel extends JPanel {
      */
     private void captureSelectedTaskRows(ListSelectionModel lsm) {
 
-        // Get the range of selected rows.
-        int selectedTasksMinIndex = lsm.getMinSelectionIndex();
-        int selectedTasksMaxIndex = lsm.getMaxSelectionIndex();
-
         // Clear the cache of selected rows / tasks.
-        selectedTasks.clear();
+        selectedTaskIdByRow.clear();
 
-        // Check each row in the range to see if it's selected; if so, capture the
-        // task ID and the row index in the cache.
-        for (int i = selectedTasksMinIndex; i <= selectedTasksMaxIndex; i++) {
-            if (lsm.isSelectedIndex(i)) {
-                int rowModel = tasksTable.convertRowIndexToModel(i);
-                long taskId = tasksTableModel.getContentAtRow(rowModel).getId();
-                selectedTasks.put(i, taskId);
-            }
+        // Capture the selected row index and task ID in the cache.
+        for (int index : lsm.getSelectedIndices()) {
+            int rowModel = tasksTable.convertRowIndexToModel(index);
+            long taskId = tasksTableModel.getContentAtRow(rowModel).getId();
+            selectedTaskIdByRow.put(index, taskId);
         }
     }
 
@@ -204,7 +235,7 @@ public class TasksPanel extends JPanel {
         JMenuItem retrieveLogInfoMenuItem = createMenuItem("List task logs" + DIALOG,
             this::retrieveLogInfo);
         JMenuItem restartFailedTasksMenuItem = createMenuItem("Restart failed tasks" + DIALOG,
-            this::restartFailedTasks);
+            this::restartTasks);
         JMenuItem haltTasksMenuItem = createMenuItem("Halt selected tasks", this::haltTasks);
 
         JPopupMenu tasksPopupMenu = createPopupMenu(detailsMenuItem, retrieveLogInfoMenuItem,
@@ -213,23 +244,12 @@ public class TasksPanel extends JPanel {
         tasksTable.getTable().addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mousePressed(java.awt.event.MouseEvent e) {
-                int numTasksSelected = selectedTasks.size();
-                if (numTasksSelected == 1) {
-                    detailsMenuItem.setEnabled(true);
-                    retrieveLogInfoMenuItem.setEnabled(true);
-                } else {
-                    detailsMenuItem.setEnabled(false);
-                    retrieveLogInfoMenuItem.setEnabled(false);
-                }
-                restartFailedTasksMenuItem.setEnabled(true);
-
-                if (numTasksSelected > 0 && e.isPopupTrigger()) {
+                if (e.isPopupTrigger()) {
+                    ZiggySwingUtils.adjustSelection(tasksTable.getTable(), e);
+                    detailsMenuItem.setEnabled(selectedTaskIdByRow.size() == 1);
+                    retrieveLogInfoMenuItem.setEnabled(selectedTaskIdByRow.size() == 1);
                     tasksPopupMenu.show(tasksTable.getTable(), e.getX(), e.getY());
                 }
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent e) {
             }
         });
     }
@@ -241,7 +261,7 @@ public class TasksPanel extends JPanel {
                 TaskInfoDialog.showTaskInfoDialog(SwingUtilities.getWindowAncestor(this),
                     selectedTask);
             } catch (PipelineException e) {
-                MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
+                MessageUtils.showError(SwingUtilities.getWindowAncestor(this), e);
             }
         }
     }
@@ -254,31 +274,35 @@ public class TasksPanel extends JPanel {
                 new TaskLogInformationDialog(SwingUtilities.getWindowAncestor(this), selectedTask)
                     .setVisible(true);
             } catch (PipelineException e) {
-                MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
+                MessageUtils.showError(SwingUtilities.getWindowAncestor(this), e);
             }
         }
     }
 
-    private void restartFailedTasks(ActionEvent evt) {
-        if (selectedTasks.isEmpty()) {
+    private void restartTasks(ActionEvent evt) {
+        if (selectedTaskIdByRow.isEmpty()) {
             return;
         }
-        instancesTasksPanel.restartTasks(selectedTasks.values());
+
+        new TaskRestarter().restartTasks(SwingUtilities.getWindowAncestor(this),
+            tasksTableModel.getPipelineInstance(), selectedTaskIdByRow.values());
     }
 
     private void haltTasks(ActionEvent evt) {
-        if (selectedTasks.isEmpty()) {
+        if (selectedTaskIdByRow.isEmpty()) {
             return;
         }
-        instancesTasksPanel.haltTasks(selectedTasks.values());
+
+        new TaskHalter().haltTasks(SwingUtilities.getWindowAncestor(this),
+            tasksTableModel.getPipelineInstance(), selectedTaskIdByRow.values());
     }
 
     private PipelineTask selectedTask() {
-        if (selectedTasks.size() != 1) {
+        if (selectedTaskIdByRow.size() != 1) {
             return null;
         }
 
-        int selectedIndex = selectedTasks.keySet().iterator().next();
+        int selectedIndex = selectedTaskIdByRow.keySet().iterator().next();
         int selectedModelRow = tasksTable.convertRowIndexToModel(selectedIndex);
         return tasksTableModel.getContentAtRow(selectedModelRow);
     }
@@ -287,7 +311,7 @@ public class TasksPanel extends JPanel {
      * Allows the instances panel to clear the selected tasks when necessary.
      */
     void clearSelectedTasks() {
-        selectedTasks.clear();
+        selectedTaskIdByRow.clear();
     }
 
     public TasksTableModel tasksTableModel() {
@@ -298,7 +322,11 @@ public class TasksPanel extends JPanel {
         return taskStatusSummaryPanel;
     }
 
-    public void updateSummaryPanel() {
+    private void updateSummaryPanel() {
         taskStatusSummaryPanel.update(tasksTableModel);
+    }
+
+    private PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
     }
 }

@@ -13,6 +13,7 @@ import org.apache.commons.lang3.time.DurationFormatUtils;
 import gov.nasa.ziggy.metrics.TaskMetrics;
 import gov.nasa.ziggy.metrics.TimeAndPercentile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 
 /**
  * Display a table containing a row for each pipeline module and a column for each category defined
@@ -50,11 +51,8 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
         // partition the tasks by module
         for (PipelineTask task : tasks) {
-            if (!completedTasksOnly || task.getState() == PipelineTask.State.COMPLETED
-                || task.getState() == PipelineTask.State.PARTIAL) {
-                String moduleName = task.getPipelineInstanceNode()
-                    .getPipelineModuleDefinition()
-                    .toString();
+            if (!completedTasksOnly || task.getProcessingStep() == ProcessingStep.COMPLETE) {
+                String moduleName = task.getModuleName();
 
                 List<PipelineTask> taskListForModule = tasksByModule.get(moduleName);
                 if (taskListForModule == null) {
@@ -70,6 +68,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
         for (String moduleName : orderedModuleNames) {
             List<PipelineTask> taskListForModule = tasksByModule.get(moduleName);
             TaskMetrics taskMetrics = new TaskMetrics(taskListForModule);
+            taskMetrics.calculate();
             categorySummariesByModule.add(new ModuleTaskMetrics(moduleName, taskMetrics));
 
             Set<String> categories = taskMetrics.getCategoryMetrics().keySet();

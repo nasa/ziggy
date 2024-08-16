@@ -62,16 +62,12 @@ public class DatastoreDirectoryPipelineOutputsTest {
         // Get and update the data file types.
         Map<String, DataFileType> dataFileTypes = DatastoreTestUtils.dataFileTypesByName();
         calibratedSciencePixelsDataFileType = dataFileTypes.get("calibrated science pixel values");
-        calibratedSciencePixelsDataFileType
-            .setFileNameRegexp("calibrated-pixels-[0-9]+\\.science\\.nc");
         calibratedCollateralPixelsDataFileType = dataFileTypes
             .get("calibrated collateral pixel values");
-        calibratedCollateralPixelsDataFileType
-            .setFileNameRegexp("calibrated-pixels-[0-9]+\\.collateral\\.nc");
 
         // Construct the subtask directories and the outputs files.
-        constructOutputsFiles("calibrated-pixels-", ".science.nc", EXPECTED_SUBTASK_COUNT);
-        constructOutputsFiles("calibrated-pixels-", ".collateral.nc", EXPECTED_SUBTASK_COUNT - 1);
+        constructOutputsFiles("outputs-file-", ".nc", EXPECTED_SUBTASK_COUNT);
+        constructOutputsFiles("everyone-needs-me-", ".nc", EXPECTED_SUBTASK_COUNT - 1);
 
         // Construct a directory with no outputs files.
         SubtaskUtils.createSubtaskDirectory(taskDirectory, EXPECTED_SUBTASK_COUNT + 1);

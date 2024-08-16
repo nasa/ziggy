@@ -33,15 +33,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.logging.TaskLogInformation;
 import gov.nasa.ziggy.services.messages.TaskLogInformationMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.HtmlBuilder;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.proxy.PipelineTaskCrudProxy;
 import gov.nasa.ziggy.util.Requestor;
 
 /**
@@ -57,7 +56,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
     private static final Logger log = LoggerFactory.getLogger(TaskLogInformationDialog.class);
     private static final long LOG_CONTENT_TIMEOUT_MILLIS = 2000L;
 
-    private static final long serialVersionUID = 20230817L;
+    private static final long serialVersionUID = 20240614L;
 
     private final long taskId;
     private JLabel instanceText;
@@ -65,13 +64,15 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
     private JLabel moduleText;
     private JLabel uowText;
     private JLabel elapsedTimeText;
-    private JLabel stateText;
+    private JLabel processingStepText;
     private TaskLogInformationTableModel taskLogTableModel;
     private TaskLogInformationMessage currentMessage;
 
     private CountDownLatch taskInfoRequestCountdownLatch;
 
     private final UUID uuid = UUID.randomUUID();
+
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     public TaskLogInformationDialog(Window owner, PipelineTask pipelineTask) {
         super(owner, DEFAULT_MODALITY_TYPE);
@@ -117,8 +118,8 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
         JLabel uow = boldLabel("UOW:");
         uowText = new JLabel();
 
-        JLabel state = boldLabel("State:");
-        stateText = new JLabel();
+        JLabel processingStep = boldLabel("Processing step:");
+        processingStepText = new JLabel();
 
         JLabel elapsedTime = boldLabel("Elapsed time:");
         elapsedTimeText = new JLabel();
@@ -138,7 +139,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                     .addComponent(worker)
                     .addComponent(module)
                     .addComponent(uow)
-                    .addComponent(state)
+                    .addComponent(processingStep)
                     .addComponent(elapsedTime))
                 .addPreferredGap(ComponentPlacement.RELATED)
                 .addGroup(dataPanelLayout.createParallelGroup()
@@ -146,7 +147,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                     .addComponent(workerText)
                     .addComponent(moduleText)
                     .addComponent(uowText)
-                    .addComponent(stateText)
+                    .addComponent(processingStepText)
                     .addComponent(elapsedTimeText)))
             .addComponent(taskLogScrollPane));
 
@@ -159,8 +160,9 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
             .addGroup(
                 dataPanelLayout.createParallelGroup().addComponent(module).addComponent(moduleText))
             .addGroup(dataPanelLayout.createParallelGroup().addComponent(uow).addComponent(uowText))
-            .addGroup(
-                dataPanelLayout.createParallelGroup().addComponent(state).addComponent(stateText))
+            .addGroup(dataPanelLayout.createParallelGroup()
+                .addComponent(processingStep)
+                .addComponent(processingStepText))
             .addGroup(dataPanelLayout.createParallelGroup()
                 .addComponent(elapsedTime)
                 .addComponent(elapsedTimeText))
@@ -189,8 +191,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                         new SingleTaskLogDialog(TaskLogInformationDialog.this, logInfo)
                             .setVisible(true);
                     } catch (Throwable e) {
-                        MessageUtil.showError(TaskLogInformationDialog.this, null, e.getMessage(),
-                            e);
+                        MessageUtils.showError(TaskLogInformationDialog.this, e.getMessage(), e);
                     }
                 }
             }
@@ -217,15 +218,15 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
             protected Set<TaskLogInformation> doInBackground() throws Exception {
 
                 // Get the pipeline task up-to-date information from the database.
-                PipelineTask task = new PipelineTaskCrudProxy().retrieve(taskId);
+                PipelineTask task = pipelineTaskOperations().pipelineTask(taskId);
                 log.debug("selected task id = " + taskId);
-                instanceText.setText(Long.toString(task.getPipelineInstance().getId()));
+                instanceText.setText(Long.toString(task.getPipelineInstanceId()));
                 workerText.setText(task.getWorkerName());
                 moduleText.setText(task.getModuleName());
                 uowText.setText(task.uowTaskInstance().briefState());
-                stateText.setText(HtmlBuilder.htmlBuilder()
-                    .appendBoldColor(task.getState().toString(),
-                        task.getState() == State.ERROR ? "red" : "green")
+                processingStepText.setText(HtmlBuilder.htmlBuilder()
+                    .appendBoldColor(task.getDisplayProcessingStep(),
+                        task.isError() ? "red" : "green")
                     .toString());
                 elapsedTimeText.setText(task.elapsedTime());
 
@@ -237,7 +238,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                 // Wait for the task log to be delivered, but don't wait too long.
                 if (!taskInfoRequestCountdownLatch.await(LOG_CONTENT_TIMEOUT_MILLIS,
                     TimeUnit.MILLISECONDS)) {
-                    MessageUtil.showError(rootPane, "Request for task log list timed out.");
+                    MessageUtils.showError(rootPane, "Request for task log list timed out.");
                     return null;
                 }
 
@@ -259,7 +260,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                     }
                     taskLogTableModel.setTaskLogInformation(taskLogInformation);
                 } catch (InterruptedException | ExecutionException e) {
-                    MessageUtil.showError(rootPane, e);
+                    MessageUtils.showError(rootPane, e);
                 }
             }
         }.execute();
@@ -270,9 +271,13 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
         return uuid;
     }
 
+    private PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
+    }
+
     private static class TaskLogInformationTableModel extends AbstractTableModel {
 
-        private static final long serialVersionUID = 20230817L;
+        private static final long serialVersionUID = 20240614L;
 
         private static final String[] COLUMN_NAMES = { "Name", "Type", "Modified", "Size" };
 

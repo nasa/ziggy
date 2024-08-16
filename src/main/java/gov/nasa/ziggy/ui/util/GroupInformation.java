@@ -6,84 +6,119 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.SwingWorker;
+
 import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.Groupable;
-import gov.nasa.ziggy.ui.util.proxy.GroupCrudProxy;
+import gov.nasa.ziggy.pipeline.definition.database.GroupOperations;
 
+/**
+ * A container for a collection of items that can be organized by group.
+ *
+ * @author PT
+ * @author Bill Wohler
+ */
 public class GroupInformation<T extends Groupable> {
 
-    private List<T> defaultGroup = new LinkedList<>();
-    private Map<Group, List<T>> groups = new HashMap<>();
-    private Map<String, T> objectsByName = new HashMap<>();
-    private Map<T, Group> objectGroups = new HashMap<>();
+    private Map<String, T> objectByName;
+    private Map<Group, List<T>> objectsByGroup;
+    private List<T> objectsInDefaultGroup;
+    private Map<T, Group> groupByObject;
 
-    private final GroupCrudProxy groupCrudProxy = new GroupCrudProxy();
+    private final GroupOperations groupOperations = new GroupOperations();
 
-    private final Class<T> clazz;
-
+    /**
+     * Creates a {@code GroupInformation} object. This makes a database call so it should be
+     * performed in {@link SwingWorker#doInBackground()}.
+     */
     public GroupInformation(Class<T> clazz, List<T> allObjects) {
-        this.clazz = clazz;
-        initialize(allObjects);
+        List<Group> allGroups = groupOperations().groupsForClass(clazz);
+
+        objectByName = createObjectByName(allObjects);
+        objectsByGroup = createObjectsByGroup(allGroups, objectByName);
+        objectsInDefaultGroup = createObjectsInDefaultGroup(objectByName,
+            collectGroupedObjects(objectsByGroup));
+        groupByObject = createGroupByObject(objectsByGroup, objectsInDefaultGroup);
     }
 
-    private void initialize(List<T> allObjects) {
-        List<Group> allGroups = groupCrudProxy.retrieveAll(clazz);
-
-        defaultGroup = new LinkedList<>();
-        groups = new HashMap<>();
-        objectsByName = new HashMap<>();
-
+    private Map<String, T> createObjectByName(List<T> allObjects) {
+        Map<String, T> objectsByName = new HashMap<>();
         for (T object : allObjects) {
             objectsByName.put(object.getName(), object);
         }
+        return objectsByName;
+    }
 
-        List<T> groupList = new ArrayList<>();
+    private Map<Group, List<T>> createObjectsByGroup(List<Group> allGroups,
+        Map<String, T> objectByName) {
+
+        Map<Group, List<T>> groups = new HashMap<>();
         for (Group group : allGroups) {
 
             // Does this group contain any of the objects we're interested in today?
             Sets.SetView<String> objectsThisGroup = Sets.intersection(group.getMemberNames(),
-                objectsByName.keySet());
+                objectByName.keySet());
             if (!objectsThisGroup.isEmpty()) {
                 List<T> objects = new ArrayList<>();
                 for (String objectName : objectsThisGroup) {
-                    objects.add(objectsByName.get(objectName));
+                    objects.add(objectByName.get(objectName));
                 }
                 groups.put(group, objects);
-                groupList.addAll(objects);
             }
         }
-
-        // Now populate the default group.
-        List<T> objectsWithNoGroup = new ArrayList<>(objectsByName.values());
-        objectsWithNoGroup.removeAll(groupList);
-        defaultGroup.addAll(objectsWithNoGroup);
-
-        // Populate the inverse map.
-        for (Map.Entry<Group, List<T>> entry : groups.entrySet()) {
-            for (T object : entry.getValue()) {
-                objectGroups.put(object, entry.getKey());
-            }
-        }
-        for (T object : objectsWithNoGroup) {
-            objectGroups.put(object, Group.DEFAULT);
-        }
-    }
-
-    public Map<Group, List<T>> getGroups() {
         return groups;
     }
 
-    public List<T> getDefaultGroup() {
-        return defaultGroup;
+    private List<T> collectGroupedObjects(Map<Group, List<T>> objectsByGroup) {
+        List<T> allGroupedObjects = new ArrayList<>();
+        for (List<T> objects : objectsByGroup.values()) {
+            allGroupedObjects.addAll(objects);
+        }
+        return allGroupedObjects;
     }
 
-    public Map<T, Group> getObjectGroups() {
-        return objectGroups;
+    private List<T> createObjectsInDefaultGroup(Map<String, T> objectByName,
+        List<T> allGroupedObjects) {
+        List<T> objectsWithNoGroup = new ArrayList<>(objectByName.values());
+        objectsWithNoGroup.removeAll(allGroupedObjects);
+        return new LinkedList<>(objectsWithNoGroup);
     }
 
-    public Map<String, T> getObjectsByName() {
-        return objectsByName;
+    private Map<T, Group> createGroupByObject(Map<Group, List<T>> objectsByGroup,
+        List<T> objectsInDefaultGroup) {
+
+        Map<T, Group> groupByObject = new HashMap<>();
+        for (Map.Entry<Group, List<T>> entry : objectsByGroup.entrySet()) {
+            for (T object : entry.getValue()) {
+                groupByObject.put(object, entry.getKey());
+            }
+        }
+        for (T object : objectsInDefaultGroup) {
+            groupByObject.put(object, Group.DEFAULT);
+        }
+
+        return groupByObject;
+    }
+
+    public Map<String, T> getObjectByName() {
+        return objectByName;
+    }
+
+    public Map<Group, List<T>> getObjectsByGroup() {
+        return objectsByGroup;
+    }
+
+    public List<T> getObjectsInDefaultGroup() {
+        return objectsInDefaultGroup;
+    }
+
+    public Map<T, Group> getGroupByObject() {
+        return groupByObject;
+    }
+
+    private GroupOperations groupOperations() {
+        return groupOperations;
     }
 }

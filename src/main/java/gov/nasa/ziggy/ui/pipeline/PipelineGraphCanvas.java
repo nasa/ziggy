@@ -28,8 +28,9 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.ui.util.MessageUtil;
-import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionCrudProxy;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 
 /**
  * Display the pipeline nodes as a directed graph with pop-up menus on each node.
@@ -39,6 +40,10 @@ import gov.nasa.ziggy.ui.util.proxy.PipelineDefinitionCrudProxy;
 @SuppressWarnings("serial")
 public class PipelineGraphCanvas extends JPanel {
     private static final Logger log = LoggerFactory.getLogger(PipelineGraphCanvas.class);
+
+    private enum DrawType {
+        LINES, NODES
+    }
 
     // size of the canvas (TODO: make dynamic based on # nodes)
     private static final int CANVAS_HEIGHT = 750;
@@ -70,15 +75,11 @@ public class PipelineGraphCanvas extends JPanel {
     protected JMenuItem editMenuItem;
     protected JMenuItem deleteMenuItem;
 
-    private final PipelineDefinitionCrudProxy pipelineDefinitionCrud;
-
-    private enum DrawType {
-        LINES, NODES
-    }
+    private final PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private final PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
 
     public PipelineGraphCanvas(PipelineDefinition pipeline) {
         this.pipeline = pipeline;
-        pipelineDefinitionCrud = new PipelineDefinitionCrudProxy();
         buildComponent();
     }
 
@@ -143,9 +144,7 @@ public class PipelineGraphCanvas extends JPanel {
 
         Stroke oldStroke = g2.getStroke();
 
-        BasicStroke lineStroke;
-
-        lineStroke = new BasicStroke(2);
+        BasicStroke lineStroke = new BasicStroke(2);
 
         g2.setStroke(lineStroke);
 
@@ -191,11 +190,11 @@ public class PipelineGraphCanvas extends JPanel {
             dialog.setVisible(true);
 
             if (dialog.wasSavePressed()) {
-                pipelineDefinitionCrud.createOrUpdate(pipeline);
+                pipelineDefinitionOperations().merge(pipeline);
                 redraw();
             }
         } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -244,13 +243,12 @@ public class PipelineGraphCanvas extends JPanel {
                 // add selected node's nextNodes to parent's nextNodes list
                 currentNextNodes.addAll(selectedNode.getNextNodes());
 
-                pipelineDefinitionCrud.deletePipelineNode(selectedNode);
+                pipelineDefinitionNodeOperations().delete(selectedNode);
 
-                pipeline.buildPaths();
                 redraw();
             }
         } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -259,7 +257,6 @@ public class PipelineGraphCanvas extends JPanel {
             PipelineDefinitionNode selectedNode = selectedNodeWidget.getPipelineNode();
             PipelineDefinitionNode predecessorNode = selectedNodeWidget.getPipelineNodeParent();
             PipelineDefinitionNode newNode = new PipelineDefinitionNode();
-            newNode.setParentNode(predecessorNode);
 
             EditPipelineNodeDialog editPipelineNodeDialog = new EditPipelineNodeDialog(
                 SwingUtilities.getWindowAncestor(this), pipeline, newNode);
@@ -284,12 +281,11 @@ public class PipelineGraphCanvas extends JPanel {
                 // set new node's nextNodes to this node
                 newNode.getNextNodes().add(selectedNode);
 
-                pipelineDefinitionCrud.createOrUpdate(pipeline);
-                pipeline.buildPaths();
+                pipelineDefinitionOperations().merge(pipeline);
                 redraw();
             }
         } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -297,7 +293,6 @@ public class PipelineGraphCanvas extends JPanel {
         try {
             PipelineDefinitionNode selectedNode = selectedNodeWidget.getPipelineNode();
             PipelineDefinitionNode newNode = new PipelineDefinitionNode();
-            newNode.setParentNode(selectedNode);
 
             EditPipelineNodeDialog editPipelineNodeDialog = new EditPipelineNodeDialog(
                 SwingUtilities.getWindowAncestor(this), pipeline, newNode);
@@ -321,12 +316,11 @@ public class PipelineGraphCanvas extends JPanel {
                 selectedNodeNextNodes.clear();
                 selectedNodeNextNodes.add(newNode);
 
-                pipelineDefinitionCrud.createOrUpdate(pipeline);
-                pipeline.buildPaths();
+                pipelineDefinitionOperations().merge(pipeline);
                 redraw();
             }
         } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -334,7 +328,6 @@ public class PipelineGraphCanvas extends JPanel {
         try {
             PipelineDefinitionNode selectedNode = selectedNodeWidget.getPipelineNode();
             PipelineDefinitionNode newNode = new PipelineDefinitionNode();
-            newNode.setParentNode(selectedNode);
 
             EditPipelineNodeDialog editPipelineNodeDialog = new EditPipelineNodeDialog(
                 SwingUtilities.getWindowAncestor(this), pipeline, newNode);
@@ -352,12 +345,11 @@ public class PipelineGraphCanvas extends JPanel {
                 // add new node to selected node's nextNodes
                 currentNextNodes.add(newNode);
 
-                pipelineDefinitionCrud.createOrUpdate(pipeline);
-                pipeline.buildPaths();
+                pipelineDefinitionOperations().merge(pipeline);
                 redraw();
             }
         } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -433,24 +425,8 @@ public class PipelineGraphCanvas extends JPanel {
         parent.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mousePressed(java.awt.event.MouseEvent e) {
-
                 if (e.isPopupTrigger()) {
                     Component selectedComponent = canvasPane.getComponentAt(e.getX(), e.getY());
-                    log.debug("MP:selectedComponent = " + selectedComponent);
-                    if (selectedComponent instanceof PipelineNodeWidget) {
-                        selectedNodeWidget = (PipelineNodeWidget) selectedComponent;
-                        enableMenuItemsPerContext(selectedNodeWidget);
-                        menu.show(parent, e.getX(), e.getY());
-                    }
-                }
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent e) {
-
-                if (e.isPopupTrigger()) {
-                    Component selectedComponent = canvasPane.getComponentAt(e.getX(), e.getY());
-                    log.debug("MR:selectedComponent = " + selectedComponent);
                     if (selectedComponent instanceof PipelineNodeWidget) {
                         selectedNodeWidget = (PipelineNodeWidget) selectedComponent;
                         enableMenuItemsPerContext(selectedNodeWidget);
@@ -509,5 +485,13 @@ public class PipelineGraphCanvas extends JPanel {
         }
 
         return insertAfterMenuItem;
+    }
+
+    private PipelineDefinitionOperations pipelineDefinitionOperations() {
+        return pipelineDefinitionOperations;
+    }
+
+    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations() {
+        return pipelineDefinitionNodeOperations;
     }
 }

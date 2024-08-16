@@ -30,7 +30,7 @@ bin_src_dir=$sample_root/src/main/sh
 
 # Copy the shell scripts from src to build.
 install -m a+rx  $bin_src_dir/permuter.sh $bin_dir/permuter
-install -m a+rx  $bin_src_dir/flip.sh $bin_dir/flip
+install -m a+rx  $bin_src_dir/flipper.sh $bin_dir/flipper
 install -m a+rx  $bin_src_dir/averaging.sh $bin_dir/averaging
 
 python3 -m venv $python_env

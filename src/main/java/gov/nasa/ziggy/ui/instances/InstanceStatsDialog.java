@@ -14,14 +14,14 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.SwingWorker;
 import javax.swing.table.AbstractTableModel;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
-import gov.nasa.ziggy.ui.util.proxy.PipelineTaskCrudProxy;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel;
@@ -40,14 +40,16 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
     private final PipelineInstance pipelineInstance;
     private TaskMetricsTableModel processingBreakdownTableModel;
     private PipelineStatsTableModel processingTimeTableModel;
-    private final PipelineTaskCrudProxy pipelineTaskCrud = new PipelineTaskCrudProxy();
     private List<PipelineTask> tasks;
     private ArrayList<String> orderedModuleNames;
+
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     public InstanceStatsDialog(Window owner, PipelineInstance instance) {
         super(owner, DEFAULT_MODALITY_TYPE);
 
         pipelineInstance = instance;
+
         loadFromDatabase();
 
         buildComponent();
@@ -55,13 +57,11 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
     }
 
     private void loadFromDatabase() {
-        tasks = pipelineTaskCrud.retrieveAll(pipelineInstance);
+        tasks = pipelineTaskOperations().pipelineTasks(pipelineInstance, true);
         orderedModuleNames = new ArrayList<>();
 
         for (PipelineTask task : tasks) {
-            String moduleName = task.getPipelineInstanceNode()
-                .getPipelineModuleDefinition()
-                .getName();
+            String moduleName = task.getModuleName();
             if (!orderedModuleNames.contains(moduleName)) {
                 orderedModuleNames.add(moduleName);
             }
@@ -119,17 +119,27 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
     }
 
     private void refresh(ActionEvent evt) {
-        loadFromDatabase();
-        updateTables();
-    }
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                loadFromDatabase();
+                return null;
+            }
 
-    private void updateTables() {
-        processingTimeTableModel.update(tasks, orderedModuleNames);
-        processingBreakdownTableModel.update(tasks, orderedModuleNames);
+            @Override
+            protected void done() {
+                processingTimeTableModel.update(tasks, orderedModuleNames);
+                processingBreakdownTableModel.update(tasks, orderedModuleNames);
+            }
+        };
     }
 
     private void close(ActionEvent evt) {
         setVisible(false);
+    }
+
+    private PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 
     private static class PipelineStatsTableModel extends AbstractTableModel
@@ -142,12 +152,7 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
         }
 
         public void update(List<PipelineTask> tasks, List<String> orderedModuleNames) {
-            try {
-                pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks,
-                    orderedModuleNames);
-            } catch (ConsoleSecurityException ignore) {
-            }
-
+            pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks, orderedModuleNames);
             fireTableDataChanged();
         }
 

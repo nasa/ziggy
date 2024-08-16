@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.GroupLayout;
@@ -23,6 +24,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.SwingWorker;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,22 +33,21 @@ import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleExecutionResources;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ClasspathUtils;
-import gov.nasa.ziggy.ui.util.MessageUtil;
-import gov.nasa.ziggy.ui.util.proxy.PipelineModuleDefinitionCrudProxy;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 
 /**
  * @author Todd Klaus
  * @author Bill Wohler
  */
 public class EditModuleDialog extends javax.swing.JDialog {
-    @SuppressWarnings("unused")
+    private static final long serialVersionUID = 20240614L;
     private static final Logger log = LoggerFactory.getLogger(EditModuleDialog.class);
-    private static final long serialVersionUID = 20230824L;
 
     private PipelineModuleDefinition module;
     private PipelineModuleExecutionResources executionResources;
-    private final PipelineModuleDefinitionCrudProxy pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrudProxy();
 
     private JTextArea descText;
     private JComboBox<ClassWrapper<PipelineModule>> implementingClassComboBox;
@@ -55,12 +56,14 @@ public class EditModuleDialog extends javax.swing.JDialog {
 
     private boolean cancelled = false;
 
+    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+
     public EditModuleDialog(Window owner, PipelineModuleDefinition module) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.module = module;
-        executionResources = pipelineModuleDefinitionCrud
-            .retrievePipelineModuleExecutionResources(module);
+
         buildComponent();
+        updateExecutionResources();
         setLocationRelativeTo(owner);
     }
 
@@ -91,13 +94,11 @@ public class EditModuleDialog extends javax.swing.JDialog {
         implementingClassComboBox = createImplementingClassComboBox();
 
         JLabel exeTimeout = boldLabel("Executable timeout (seconds)");
-        exeTimeoutText = new JTextField(
-            Integer.toString(executionResources.getExeTimeoutSeconds()));
+        exeTimeoutText = new JTextField(ZiggyGuiConstants.LOADING);
         exeTimeoutText.setColumns(15);
 
         JLabel minMemory = boldLabel("Minimum memory (MB)");
-        minMemoryText = new JTextField(
-            Integer.toString(executionResources.getMinMemoryMegabytes()));
+        minMemoryText = new JTextField(ZiggyGuiConstants.LOADING);
         minMemoryText.setColumns(15);
 
         JPanel dataPanel = new JPanel();
@@ -146,7 +147,6 @@ public class EditModuleDialog extends javax.swing.JDialog {
         DefaultComboBoxModel<ClassWrapper<PipelineModule>> implementingClassComboBoxModel = new DefaultComboBoxModel<>();
         JComboBox<ClassWrapper<PipelineModule>> implementingClassComboBox = new JComboBox<>(
             implementingClassComboBoxModel);
-        implementingClassComboBox.addActionListener(this::updateImplementingClass);
 
         try {
             Set<Class<? extends PipelineModule>> detectedClasses = ClasspathUtils
@@ -180,38 +180,42 @@ public class EditModuleDialog extends javax.swing.JDialog {
                 implementingClassComboBox.setSelectedIndex(selectedIndex);
             }
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
         return implementingClassComboBox;
     }
 
-    private void updateImplementingClass(ActionEvent evt) {
-        // TODO Validate that parameters are compatible with the selected PipelineModule (ZIGGY-224)
-    }
-
     private void save(ActionEvent evt) {
-        // TODO Validate that the parameters are compatible with the selected implementingClass
-        // (ZIGGY-224)
 
-        try {
-            module.setDescription(descText.getText());
+        new SwingWorker<Void, Void>() {
 
-            @SuppressWarnings("unchecked")
-            ClassWrapper<PipelineModule> selectedImplementingClass = (ClassWrapper<PipelineModule>) implementingClassComboBox
-                .getSelectedItem();
+            @Override
+            protected Void doInBackground() throws Exception {
+                @SuppressWarnings("unchecked")
+                ClassWrapper<PipelineModule> selectedImplementingClass = (ClassWrapper<PipelineModule>) implementingClassComboBox
+                    .getSelectedItem();
 
-            module.setPipelineModuleClass(selectedImplementingClass);
-            executionResources.setExeTimeoutSeconds(toInt(exeTimeoutText.getText(), 0));
-            executionResources.setMinMemoryMegabytes(toInt(minMemoryText.getText(), 0));
+                module.setDescription(descText.getText());
+                module.setPipelineModuleClass(selectedImplementingClass);
+                module = pipelineModuleDefinitionOperations().merge(module);
 
-            module = pipelineModuleDefinitionCrud.merge(module);
-            executionResources = pipelineModuleDefinitionCrud
-                .mergeExecutionResources(executionResources);
+                executionResources.setExeTimeoutSeconds(toInt(exeTimeoutText.getText(), 0));
+                executionResources.setMinMemoryMegabytes(toInt(minMemoryText.getText(), 0));
+                executionResources = pipelineModuleDefinitionOperations().merge(executionResources);
 
-            setVisible(false);
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    setVisible(false);
+                } catch (InterruptedException | ExecutionException e) {
+                    MessageUtils.showError(EditModuleDialog.this, e);
+                }
+            }
+        }.execute();
     }
 
     /**
@@ -230,7 +234,34 @@ public class EditModuleDialog extends javax.swing.JDialog {
         setVisible(false);
     }
 
+    private void updateExecutionResources() {
+        new SwingWorker<PipelineModuleExecutionResources, Void>() {
+            @Override
+            protected PipelineModuleExecutionResources doInBackground() throws Exception {
+                return pipelineModuleDefinitionOperations()
+                    .pipelineModuleExecutionResources(module);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    executionResources = get();
+                    exeTimeoutText
+                        .setText(Integer.toString(executionResources.getExeTimeoutSeconds()));
+                    minMemoryText
+                        .setText(Integer.toString(executionResources.getMinMemoryMegabytes()));
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Could not load pipeline module execution resources", e);
+                }
+            }
+        }.execute();
+    }
+
     public boolean isCancelled() {
         return cancelled;
+    }
+
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+        return pipelineModuleDefinitionOperations;
     }
 }

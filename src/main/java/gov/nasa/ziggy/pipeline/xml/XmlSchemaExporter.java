@@ -52,7 +52,6 @@ import gov.nasa.ziggy.data.datastore.DatastoreConfigurationFile;
 import gov.nasa.ziggy.data.management.Acknowledgement;
 import gov.nasa.ziggy.data.management.Manifest;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.ParameterLibrary;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
 import gov.nasa.ziggy.services.config.DirectoryProperties;

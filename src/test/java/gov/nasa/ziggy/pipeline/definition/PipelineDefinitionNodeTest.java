@@ -27,7 +27,7 @@ import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -83,13 +83,13 @@ public class PipelineDefinitionNodeTest {
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         marshaller.marshal(node, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), ZiggyFileUtils.ZIGGY_CHARSET);
         assertEquals(9, xmlContent.size());
         List<String> nodeContent = nodeContent(xmlContent,
             "<node heapSizeMb=\"2\" moduleName=\"module 1\" "
                 + "childNodeNames=\"module 2, module 3\" singleSubtask=\"false\">");
-        String[] xmlLines = { "<moduleParameter name=\"Convergence criteria\"/>",
-            "<moduleParameter name=\"Remote execution\"/>",
+        String[] xmlLines = { "<parameterSet name=\"Convergence criteria\"/>",
+            "<parameterSet name=\"Remote execution\"/>",
             "<inputDataFileType name=\"flight L0 data\"/>",
             "<outputDataFileType name=\"flight L1 data\"/>",
             "<inputDataFileType name=\"target pixel data\"/>",
@@ -106,9 +106,9 @@ public class PipelineDefinitionNodeTest {
         PipelineDefinitionNode node = (Node) unmarshaller.unmarshal(xmlUnmarshalingFile);
         assertEquals("module 1", node.getModuleName());
         assertEquals("module 2, module 3", node.getChildNodeNames());
-        assertEquals(2, node.getParameterSetNames().size());
-        assertTrue(node.getParameterSetNames().contains("Remote execution"));
-        assertTrue(node.getParameterSetNames().contains("Convergence criteria"));
+        assertEquals(2, node.getXmlParameterSetNames().size());
+        assertTrue(node.getXmlParameterSetNames().contains("Remote execution"));
+        assertTrue(node.getXmlParameterSetNames().contains("Convergence criteria"));
         assertEquals(2, node.getInputDataFileTypeReferences().size());
         assertTrue(node.getInputDataFileTypeReferences()
             .contains(new InputTypeReference("flight L0 data")));
@@ -127,7 +127,7 @@ public class PipelineDefinitionNodeTest {
         JAXBContext context = JAXBContext.newInstance(Node.class);
         context.generateSchema(new NodeSchemaResolver());
         List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
-            FileUtil.ZIGGY_CHARSET);
+            ZiggyFileUtils.ZIGGY_CHARSET);
         assertContains(schemaContent, "<xs:element name=\"node\" type=\"node\"/>");
 
         List<String> nodeContent = complexTypeContent(schemaContent,
@@ -137,7 +137,7 @@ public class PipelineDefinitionNodeTest {
         nodeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineDefinitionNode\">");
         String[] nodeStrings = {
-            "<xs:element name=\"moduleParameter\" type=\"parameterSetReference\"/>",
+            "<xs:element name=\"parameterSet\" type=\"parameterSetReference\"/>",
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>",
             "<xs:element name=\"outputDataFileType\" type=\"outputTypeReference\"/>",
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>",

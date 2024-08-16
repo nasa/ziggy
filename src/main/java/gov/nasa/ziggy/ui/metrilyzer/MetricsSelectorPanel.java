@@ -30,7 +30,7 @@ import gov.nasa.ziggy.metrics.MetricType;
 import gov.nasa.ziggy.metrics.MetricValue;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.ui.util.DateTextField;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.util.TimeRange;
 
@@ -378,7 +378,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
             availListModel.loadMetricTypes();
         } catch (PipelineException e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         } finally {
             setCursor(null);
         }
@@ -416,7 +416,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         try {
             updateWindow();
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
 
         windowStart -= currentWindowSize;
@@ -429,7 +429,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
         try {
             updateWindow();
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
 
         windowStart += currentWindowSize;
@@ -462,7 +462,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
                     binSizeMillis);
             }
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         } finally {
             setCursor(null);
         }
@@ -505,7 +505,7 @@ public class MetricsSelectorPanel extends javax.swing.JPanel {
             endDateTextField.setDate(new Date(windowEnd));
             currentWindowSize = windowEnd - windowStart;
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         } finally {
             setCursor(null);
         }

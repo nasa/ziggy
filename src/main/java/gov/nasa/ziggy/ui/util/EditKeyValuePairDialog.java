@@ -10,17 +10,19 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingWorker;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.services.config.KeyValuePair;
-import gov.nasa.ziggy.ui.util.proxy.KeyValuePairCrudProxy;
+import gov.nasa.ziggy.services.config.KeyValuePairOperations;
 
 @SuppressWarnings("serial")
 public class EditKeyValuePairDialog extends javax.swing.JDialog {
@@ -35,6 +37,8 @@ public class EditKeyValuePairDialog extends javax.swing.JDialog {
     private JLabel valueLabel;
     private JButton cancelButton;
     private JButton saveButton;
+
+    private final KeyValuePairOperations keyValuePairOperations = new KeyValuePairOperations();
 
     public EditKeyValuePairDialog(Window owner, KeyValuePair keyValuePair) {
         super(owner, "Edit Key/Value Pair");
@@ -153,20 +157,32 @@ public class EditKeyValuePairDialog extends javax.swing.JDialog {
     }
 
     private void save(ActionEvent evt) {
-        try {
-            keyValuePair.setValue(valueText.getText());
+        keyValuePair.setValue(valueText.getText());
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                keyValuePairOperations().persist(keyValuePair);
+                return null;
+            }
 
-            KeyValuePairCrudProxy keyValuePairCrud = new KeyValuePairCrudProxy();
-            keyValuePairCrud.save(keyValuePair);
-
-            setVisible(false);
-        } catch (Exception e) {
-            MessageUtil.showError(this, e);
-        }
+            @Override
+            protected void done() {
+                try {
+                    get(); // check for exception
+                    setVisible(false);
+                } catch (InterruptedException | ExecutionException e) {
+                    MessageUtils.showError(getRootPane(), e);
+                }
+            }
+        }.execute();
     }
 
     private void cancel(ActionEvent evt) {
         setVisible(false);
+    }
+
+    private KeyValuePairOperations keyValuePairOperations() {
+        return keyValuePairOperations;
     }
 
     public static void main(String[] args) {

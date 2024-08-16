@@ -49,7 +49,7 @@ public class ExternalProcessUtils {
     private static String bareJavaLibraryPath() {
         String pipelineLibPath = ZiggyConfiguration.getInstance()
             .getString(PropertyName.LIBPATH.property(), null);
-        return StringUtils.isEmpty(pipelineLibPath) ? DirectoryProperties.ziggyLibDir().toString()
+        return StringUtils.isBlank(pipelineLibPath) ? DirectoryProperties.ziggyLibDir().toString()
             : pipelineLibPath + ":" + DirectoryProperties.ziggyLibDir().toString();
     }
 }

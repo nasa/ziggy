@@ -16,10 +16,9 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
+import gov.nasa.ziggy.data.datastore.DatastoreOperations;
 import gov.nasa.ziggy.data.datastore.DatastoreRegexp;
-import gov.nasa.ziggy.data.datastore.DatastoreRegexpCrud;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 
 /**
  * Panel for editing the include and exclude regular expressions within a {@link DatastoreRegexp}.
@@ -37,6 +36,8 @@ public class EditDatastoreRegexpDialog extends javax.swing.JDialog {
     private boolean cancelled;
     private JTextField includeTextField;
     private JTextField excludeTextField;
+
+    private final DatastoreOperations datastoreOperations = new DatastoreOperations();
 
     public EditDatastoreRegexpDialog(Window owner, DatastoreRegexp datastoreRegexp) {
         super(owner, DEFAULT_MODALITY_TYPE);
@@ -119,13 +120,10 @@ public class EditDatastoreRegexpDialog extends javax.swing.JDialog {
             // detected when reading from the database.
             datastoreRegexp.setInclude(includeTextField.getText().trim());
             datastoreRegexp.setExclude(excludeTextField.getText().trim());
-            DatabaseTransactionFactory.performTransaction(() -> {
-                new DatastoreRegexpCrud().merge(datastoreRegexp);
-                return null;
-            });
+            datastoreOperations().mergeDatastoreRegexp(datastoreRegexp);
             setVisible(false);
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -136,5 +134,9 @@ public class EditDatastoreRegexpDialog extends javax.swing.JDialog {
 
     public boolean isCancelled() {
         return cancelled;
+    }
+
+    private DatastoreOperations datastoreOperations() {
+        return datastoreOperations;
     }
 }

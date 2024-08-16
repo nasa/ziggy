@@ -55,7 +55,7 @@ public class MatlabUtils {
             mcrRoot + File.separator + "bin" + File.separator + suffix + File.pathSeparator);
         pathBuilder.append(
             mcrRoot + File.separator + "sys" + File.separator + "os" + File.separator + suffix);
-        if (!openGlString.isEmpty()) {
+        if (!openGlString.isBlank()) {
             pathBuilder.append(File.pathSeparator + mcrRoot + File.separator + "sys"
                 + File.separator + "opengl" + File.separator + "lib" + File.separator + suffix);
         }

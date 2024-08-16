@@ -3,8 +3,12 @@ package gov.nasa.ziggy.collections;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -29,8 +33,10 @@ import hdf.hdf5lib.HDF5Constants;
 
 public enum ZiggyDataType {
 
-    ZIGGY_BOOLEAN(boolean.class, "Z", false, ZiggyDataTypeConstants.BOOLEAN_TYPE_INT,
-        ZiggyDataTypeConstants.BOOLEAN_DUMMY_TYPE, "H5T_NATIVE_INT8") {
+    ZIGGY_BOOLEAN(boolean.class, "Z", EnumSet.of(Attribute.PARAMETRIC),
+        ZiggyDataTypeConstants.BOOLEAN_TYPE_INT, ZiggyDataTypeConstants.BOOLEAN_DUMMY_TYPE,
+        "H5T_NATIVE_INT8") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Boolean.valueOf(((boolean[]) array1d)[location]);
@@ -78,11 +84,12 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? Boolean.valueOf(false) : Boolean.valueOf(value);
+            return StringUtils.isBlank(value) ? Boolean.valueOf(false) : Boolean.valueOf(value);
         }
     },
-    ZIGGY_BYTE(byte.class, "B", true, ZiggyDataTypeConstants.BYTE_TYPE_INT,
-        HDF5Constants.H5T_NATIVE_INT8, "H5T_NATIVE_INT8") {
+    ZIGGY_BYTE(byte.class, "B", EnumSet.of(Attribute.NUMERIC, Attribute.PARAMETRIC),
+        ZiggyDataTypeConstants.BYTE_TYPE_INT, HDF5Constants.H5T_NATIVE_INT8, "H5T_NATIVE_INT8") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Byte.valueOf(((byte[]) array1d)[location]);
@@ -132,11 +139,12 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? 0 : Byte.parseByte(value);
+            return StringUtils.isBlank(value) ? 0 : Byte.parseByte(value);
         }
     },
-    ZIGGY_SHORT(short.class, "S", true, ZiggyDataTypeConstants.SHORT_TYPE_INT,
-        HDF5Constants.H5T_NATIVE_INT16, "H5T_NATIVE_INT16") {
+    ZIGGY_SHORT(short.class, "S", EnumSet.of(Attribute.NUMERIC, Attribute.PARAMETRIC),
+        ZiggyDataTypeConstants.SHORT_TYPE_INT, HDF5Constants.H5T_NATIVE_INT16, "H5T_NATIVE_INT16") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Short.valueOf(((short[]) array1d)[location]);
@@ -186,11 +194,12 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? 0 : Short.parseShort(value);
+            return StringUtils.isBlank(value) ? 0 : Short.parseShort(value);
         }
     },
-    ZIGGY_INT(int.class, "I", true, ZiggyDataTypeConstants.INT_TYPE_INT,
-        HDF5Constants.H5T_NATIVE_INT32, "H5T_NATIVE_INT32") {
+    ZIGGY_INT(int.class, "I", EnumSet.of(Attribute.NUMERIC, Attribute.PARAMETRIC),
+        ZiggyDataTypeConstants.INT_TYPE_INT, HDF5Constants.H5T_NATIVE_INT32, "H5T_NATIVE_INT32") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Integer.valueOf(((int[]) array1d)[location]);
@@ -240,11 +249,12 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? 0 : Integer.parseInt(value);
+            return StringUtils.isBlank(value) ? 0 : Integer.parseInt(value);
         }
     },
-    ZIGGY_LONG(long.class, "J", true, ZiggyDataTypeConstants.LONG_TYPE_INT,
-        HDF5Constants.H5T_NATIVE_INT64, "H5T_NATIVE_INT64") {
+    ZIGGY_LONG(long.class, "J", EnumSet.of(Attribute.NUMERIC, Attribute.PARAMETRIC),
+        ZiggyDataTypeConstants.LONG_TYPE_INT, HDF5Constants.H5T_NATIVE_INT64, "H5T_NATIVE_INT64") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Long.valueOf(((long[]) array1d)[location]);
@@ -294,11 +304,12 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? 0 : Long.parseLong(value);
+            return StringUtils.isBlank(value) ? 0 : Long.parseLong(value);
         }
     },
-    ZIGGY_FLOAT(float.class, "F", true, ZiggyDataTypeConstants.FLOAT_TYPE_INT,
-        HDF5Constants.H5T_NATIVE_FLOAT, "H5T_NATIVE_FLOAT") {
+    ZIGGY_FLOAT(float.class, "F", EnumSet.of(Attribute.NUMERIC, Attribute.PARAMETRIC),
+        ZiggyDataTypeConstants.FLOAT_TYPE_INT, HDF5Constants.H5T_NATIVE_FLOAT, "H5T_NATIVE_FLOAT") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Float.valueOf(((float[]) array1d)[location]);
@@ -348,11 +359,13 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? 0 : Float.parseFloat(value);
+            return StringUtils.isBlank(value) ? 0 : Float.parseFloat(value);
         }
     },
-    ZIGGY_DOUBLE(double.class, "D", true, ZiggyDataTypeConstants.DOUBLE_TYPE_INT,
-        HDF5Constants.H5T_NATIVE_DOUBLE, "H5T_NATIVE_DOUBLE") {
+    ZIGGY_DOUBLE(double.class, "D", EnumSet.of(Attribute.NUMERIC, Attribute.PARAMETRIC),
+        ZiggyDataTypeConstants.DOUBLE_TYPE_INT, HDF5Constants.H5T_NATIVE_DOUBLE,
+        "H5T_NATIVE_DOUBLE") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Double.valueOf(((double[]) array1d)[location]);
@@ -402,11 +415,13 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? 0 : Double.parseDouble(value);
+            return StringUtils.isBlank(value) ? 0 : Double.parseDouble(value);
         }
     },
-    ZIGGY_STRING(String.class, "String", "T", java.lang.String.class, false,
-        ZiggyDataTypeConstants.STRING_TYPE_INT, HDF5Constants.H5T_C_S1, "H5T_C_S1") {
+    ZIGGY_STRING(String.class, "String", "T", java.lang.String.class,
+        EnumSet.of(Attribute.PARAMETRIC), ZiggyDataTypeConstants.STRING_TYPE_INT,
+        HDF5Constants.H5T_C_S1, "H5T_C_S1") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return ((String[]) array1d)[location];
@@ -454,12 +469,13 @@ public enum ZiggyDataType {
 
         @Override
         public Object typedValue(String value) {
-            return StringUtils.isEmpty(value) ? "" : value.trim();
+            return StringUtils.isBlank(value) ? "" : value.trim();
         }
     },
     ZIGGY_PERSISTABLE(Persistable.class, "gov.nasa.ziggy.common.persistable.Persistable", "P",
-        Persistable.class, false, ZiggyDataTypeConstants.PERSISTABLE_TYPE_INT,
+        Persistable.class, new HashSet<>(), ZiggyDataTypeConstants.PERSISTABLE_TYPE_INT,
         HDF5Constants.H5T_OPAQUE, "H5T_OPAQUE") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return ((Object[]) array1d)[location];
@@ -512,8 +528,9 @@ public enum ZiggyDataType {
             throw new UnsupportedOperationException("Cannot convert string to Persistable value");
         }
     },
-    ZIGGY_ENUM(Enum.class, "E", false, ZiggyDataTypeConstants.ENUM_TYPE_INT,
+    ZIGGY_ENUM(Enum.class, "E", new HashSet<>(), ZiggyDataTypeConstants.ENUM_TYPE_INT,
         ZiggyDataTypeConstants.ENUM_DUMMY_TYPE, "H5T_C_S1") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return ((Enum<?>[]) array1d)[location];
@@ -564,8 +581,9 @@ public enum ZiggyDataType {
             throw new UnsupportedOperationException("Cannot convert string to Enum value");
         }
     },
-    ZIGGY_CHAR(char.class, "C", false, ZiggyDataTypeConstants.CHAR_TYPE_INT,
+    ZIGGY_CHAR(char.class, "C", new HashSet<>(), ZiggyDataTypeConstants.CHAR_TYPE_INT,
         HDF5Constants.H5T_NATIVE_INT16, "H5T_NATIVE_INT16") {
+
         @Override
         protected Object getArrayMember(Object array1d, int location) {
             return Character.valueOf(((char[]) array1d)[location]);
@@ -617,6 +635,10 @@ public enum ZiggyDataType {
         }
     };
 
+    private enum Attribute {
+        NUMERIC, PARAMETRIC;
+    }
+
     private final int attributeTypeInt;
     private final Class<?> javaClass;
     private final String javaClassName;
@@ -624,18 +646,18 @@ public enum ZiggyDataType {
     private final String javaTypeCharacter;
     private final Class<?> javaBoxedClass;
     private final String javaBoxedClassName;
-    private final boolean numeric;
     private final long hdf5Type;
     private final String hdf5TypeName;
+    private final Set<Attribute> attributes;
 
-    ZiggyDataType(Class<?> javaClass, String javaTypeCharacter, boolean numeric,
+    ZiggyDataType(Class<?> javaClass, String javaTypeCharacter, Set<Attribute> attributes,
         int attributeTypeInt, long hdf5Type, String hdf5TypeName) {
-        this(javaClass, null, javaTypeCharacter, null, numeric, attributeTypeInt, hdf5Type,
+        this(javaClass, null, javaTypeCharacter, null, attributes, attributeTypeInt, hdf5Type,
             hdf5TypeName);
     }
 
     ZiggyDataType(Class<?> javaClass, String javaTypeName, String javaTypeCharacter,
-        Class<?> javaBoxedClass, boolean numeric, int attributeTypeInt, long hdf5Type,
+        Class<?> javaBoxedClass, Set<Attribute> attributes, int attributeTypeInt, long hdf5Type,
         String hdf5TypeName) {
         this.javaClass = javaClass;
         javaClassName = javaClass.getName() + ".class";
@@ -651,7 +673,7 @@ public enum ZiggyDataType {
             this.javaBoxedClass = Primitives.wrap(javaClass);
         }
         javaBoxedClassName = this.javaBoxedClass.getName();
-        this.numeric = numeric;
+        this.attributes = attributes;
         this.attributeTypeInt = attributeTypeInt;
         this.hdf5Type = hdf5Type;
         this.hdf5TypeName = hdf5TypeName;
@@ -847,6 +869,16 @@ public enum ZiggyDataType {
         return hdf5Type;
     }
 
+    public static List<ZiggyDataType> parametricTypes() {
+        List<ZiggyDataType> parametricTypes = new ArrayList<>();
+        for (ZiggyDataType dataType : ZiggyDataType.values()) {
+            if (dataType.attributes.contains(Attribute.PARAMETRIC)) {
+                parametricTypes.add(dataType);
+            }
+        }
+        return parametricTypes;
+    }
+
     /**
      * Get the data type associated with a particular Java class.
      *
@@ -1036,7 +1068,7 @@ public enum ZiggyDataType {
     }
 
     public boolean isNumeric() {
-        return numeric;
+        return attributes.contains(Attribute.NUMERIC);
     }
 
     public static Object unbox1dArray(Object boxedArray) {

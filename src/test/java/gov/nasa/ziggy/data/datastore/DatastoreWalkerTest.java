@@ -7,10 +7,13 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,8 +21,10 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Unit tests for the {@link DatastoreWalker} class.
@@ -314,7 +319,7 @@ public class DatastoreWalkerTest {
     @Test
     public void testRegexpValuesWithLocationSuppression() {
         Path datastoreRoot = DirectoryProperties.datastoreRootDir();
-        Map<String, String> regexpValues = datastoreWalker.regexpValues(
+        Map<String, String> regexpValues = datastoreWalker.regexpValuesByRegexpName(
             "sector/mda/dr/pixels/cadenceType$ffi/pixelType$science/channel",
             datastoreRoot.toAbsolutePath()
                 .resolve("sector-0002")
@@ -380,5 +385,116 @@ public class DatastoreWalkerTest {
             .resolve("collateral")
             .resolve("1:1:B")
             .toString(), constructedPath.toString());
+    }
+
+    @Test
+    public void testSpecificLocation() {
+
+        // First case: the fileNameRegexp has no location parts in it.
+        Map<String, DataFileType> dataFileTypesByName = DatastoreTestUtils.dataFileTypesByName();
+        DataFileType dataFileType = dataFileTypesByName.get("uncalibrated science pixel values");
+
+        // Simple example: the path is a subset of the location.
+        String specificLocation = datastoreWalker.specificLocation(dataFileType,
+            DirectoryProperties.datastoreRootDir()
+                .resolve(Paths.get("sector/mda/dr/pixels/cadenceType")));
+        assertEquals("sector/mda/dr/pixels/cadenceType/pixelType$science/channel",
+            specificLocation);
+
+        // The path has a regexp value in it.
+        specificLocation = datastoreWalker.specificLocation(dataFileType,
+            DirectoryProperties.datastoreRootDir()
+                .resolve(Paths.get("sector/mda/dr/pixels/target")));
+        assertEquals("sector/mda/dr/pixels/cadenceType$target/pixelType$science/channel",
+            specificLocation);
+
+        // The path has a regexp value in it that matches a regexp constraint in the location.
+        specificLocation = datastoreWalker.specificLocation(dataFileType,
+            DirectoryProperties.datastoreRootDir()
+                .resolve(Paths.get("sector/mda/dr/pixels/cadenceType/science")));
+        assertEquals("sector/mda/dr/pixels/cadenceType/pixelType$science/channel",
+            specificLocation);
+
+        // Second case: the fileNameRegexp has location parts in it.
+        dataFileTypesByName = DatastoreTestUtils.dataFileTypesByNameRegexpsInFileName();
+        dataFileType = dataFileTypesByName.get("uncalibrated science pixel values");
+
+        // Simple example: the path is a subset of the location.
+        specificLocation = datastoreWalker.specificLocation(dataFileType,
+            DirectoryProperties.datastoreRootDir()
+                .resolve(Paths.get("sector/mda/dr/pixels/cadenceType")));
+        assertEquals("sector/mda/dr/pixels/cadenceType/pixelType$science/channel",
+            specificLocation);
+
+        // The path has a regexp value in it.
+        specificLocation = datastoreWalker.specificLocation(dataFileType,
+            DirectoryProperties.datastoreRootDir()
+                .resolve(Paths.get("sector/mda/dr/pixels/target")));
+        assertEquals("sector/mda/dr/pixels/cadenceType$target/pixelType$science/channel",
+            specificLocation);
+
+        // The path has a regexp value in it that matches a regexp constraint in the location.
+        specificLocation = datastoreWalker.specificLocation(dataFileType,
+            DirectoryProperties.datastoreRootDir()
+                .resolve(Paths.get("sector/mda/dr/pixels/cadenceType/science")));
+        assertEquals("sector/mda/dr/pixels/cadenceType/pixelType$science/channel",
+            specificLocation);
+    }
+
+    @Test(expected = PipelineException.class)
+    public void testExceptionOnInvalidSpecificLocation() {
+        Map<String, DataFileType> dataFileTypesByName = DatastoreTestUtils.dataFileTypesByName();
+        DataFileType dataFileType = dataFileTypesByName.get("uncalibrated science pixel values");
+        datastoreWalker.specificLocation(dataFileType,
+            DirectoryProperties.datastoreRootDir()
+                .toAbsolutePath()
+                .resolve(Paths.get("sector/mda/dr/pixels/cadenceType/collateral/1:1:A")));
+    }
+
+    @Test
+    public void testPathsForLocationForMissionLocation() {
+        Path directoryToRemove = DirectoryProperties.datastoreRootDir()
+            .toAbsolutePath()
+            .resolve(Paths.get("sector-0003/mda/cal"));
+        ZiggyFileUtils.deleteDirectoryTree(directoryToRemove, true);
+        List<Path> paths = datastoreWalker
+            .pathsForLocation("sector/mda/cal/pixels/cadenceType/pixelType/channel");
+
+        // All we care about is that the test didn't error out when it tried to get
+        // directories under sector-0003/mda/cal.
+        assertFalse(CollectionUtils.isEmpty(paths));
+    }
+
+    @Test
+    public void testFindLocationIndicesForSublocation() {
+
+        // First case: the fileNameRegexp has no location parts in it.
+        Map<String, DataFileType> dataFileTypesByName = DatastoreTestUtils.dataFileTypesByName();
+        DataFileType dataFileType = dataFileTypesByName.get("uncalibrated science pixel values");
+        assertTrue(datastoreWalker.findLocationIndicesForSublocation(dataFileType).isEmpty());
+
+        // Second case: the fileNameRegexp has location parts in it.
+        dataFileTypesByName = DatastoreTestUtils.dataFileTypesByNameRegexpsInFileName();
+        dataFileType = dataFileTypesByName.get("uncalibrated science pixel values");
+        assertEquals(Set.of(1), datastoreWalker.findLocationIndicesForSublocation(dataFileType));
+    }
+
+    @Test
+    public void testGetDataFileTypeConvenienceFields() {
+
+        // First case: the fileNameRegexp has no location parts in it.
+        Map<String, DataFileType> dataFileTypesByName = DatastoreTestUtils.dataFileTypesByName();
+        DataFileType dataFileType = dataFileTypesByName.get("uncalibrated science pixel values");
+        assertEquals(dataFileType.getFileNameRegexp(),
+            DatastoreWalker.fileNameRegexpBaseName(dataFileType));
+        assertEquals(dataFileType.getLocation(), DatastoreWalker.fullLocation(dataFileType));
+
+        // Second case: the fileNameRegexp has location parts in it.
+        dataFileTypesByName = DatastoreTestUtils.dataFileTypesByNameRegexpsInFileName();
+        dataFileType = dataFileTypesByName.get("uncalibrated science pixel values");
+        assertEquals(dataFileType.getLocation() + "/pixelType$science/channel",
+            DatastoreWalker.fullLocation(dataFileType));
+        assertEquals("(uncalibrated-pixels-[0-9]+)\\.science\\.nc",
+            DatastoreWalker.fileNameRegexpBaseName(dataFileType));
     }
 }

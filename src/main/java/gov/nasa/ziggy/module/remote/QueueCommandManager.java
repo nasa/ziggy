@@ -182,7 +182,7 @@ public abstract class QueueCommandManager {
         List<String> qstatOutput = qstat(qstatArgs, "Exit_status");
         if (qstatOutput != null && !qstatOutput.isEmpty()) {
             String exitStatusString = qstatOutput.get(0);
-            if (exitStatusString != null && !exitStatusString.isEmpty()) {
+            if (!StringUtils.isBlank(exitStatusString)) {
                 return Integer.valueOf(matchAndReturn(EXIT_STATUS_PATTERN, exitStatusString, 1));
             }
         }
@@ -253,7 +253,7 @@ public abstract class QueueCommandManager {
         List<String> qstatOutput = qstat(qstatArgs, "comment");
         if (qstatOutput != null && !qstatOutput.isEmpty()) {
             String exitCommentString = qstatOutput.get(0);
-            if (exitCommentString != null && !exitCommentString.isEmpty()) {
+            if (!StringUtils.isBlank(exitCommentString)) {
                 return matchAndReturn(EXIT_COMMENT_PATTERN, exitCommentString, 1);
             }
         }

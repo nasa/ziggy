@@ -116,7 +116,7 @@ public abstract class AbstractCrud<U> implements AbstractCrudInterface<U> {
         }
     }
 
-    public final void remove(Object o) {
+    public void remove(Object o) {
         getSession().remove(o);
     }
 

@@ -18,16 +18,15 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
-import gov.nasa.ziggy.parameters.Parameters;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
-import gov.nasa.ziggy.ui.util.MessageUtil;
-import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
- * Dialog for viewing (read-only) a {@link Parameters} object.
+ * Dialog for viewing (read-only) a {@link ParameterSet} object.
  *
  * @author Todd Klaus
  * @author Bill Wohler
@@ -53,22 +52,22 @@ public class ViewParametersDialog extends javax.swing.JDialog {
             getContentPane().add(createDataPanel(parameterSet), BorderLayout.CENTER);
             getContentPane().add(createButtonPanel(createButton(CLOSE, this::close)),
                 BorderLayout.SOUTH);
+            setPreferredSize(ZiggyGuiConstants.MIN_DIALOG_SIZE);
 
-            setMinimumSize(ZiggySwingUtils.MIN_DIALOG_SIZE);
             pack();
         } catch (Exception e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
     private JPanel createDataPanel(ParameterSet parameterSet) {
-        JLabel parameterSetLabel = boldLabel("Parameter set");
-        JLabel parameterSetText = new JLabel(parameterSet.getName());
+        JLabel name = boldLabel("Name");
+        JLabel nameTextField = new JLabel(parameterSet.getName());
 
-        JLabel parameters = boldLabel("Parameters - " + parameterSet.clazz().getSimpleName());
+        JLabel parameters = boldLabel("Parameters");
         ZiggyTable<ParameterProperties> ziggyTable = new ZiggyTable<>(
-            new ParameterPropsTableModel(parameterSet.getTypedParameters()));
-        JScrollPane tableScrollPane = new JScrollPane(ziggyTable.getTable());
+            new ParameterPropsTableModel(parameterSet.getParameters()));
+        JScrollPane parametersScrollPane = new JScrollPane(ziggyTable.getTable());
 
         JPanel dataPanel = new JPanel();
         GroupLayout dataPanelLayout = new GroupLayout(dataPanel);
@@ -76,16 +75,18 @@ public class ViewParametersDialog extends javax.swing.JDialog {
         dataPanel.setLayout(dataPanelLayout);
 
         dataPanelLayout.setHorizontalGroup(dataPanelLayout.createParallelGroup()
-            .addComponent(parameterSetLabel)
-            .addComponent(parameterSetText)
+            .addComponent(name)
+            .addComponent(nameTextField)
             .addComponent(parameters)
-            .addComponent(tableScrollPane));
+            .addComponent(parametersScrollPane));
+
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
-            .addComponent(parameterSetLabel)
-            .addComponent(parameterSetText)
-            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(name)
+            .addComponent(nameTextField)
+            .addPreferredGap(ComponentPlacement.UNRELATED)
             .addComponent(parameters)
-            .addComponent(tableScrollPane));
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(parametersScrollPane));
 
         return dataPanel;
     }
@@ -97,10 +98,10 @@ public class ViewParametersDialog extends javax.swing.JDialog {
 
         private final List<ParameterProperties> parameterProperties;
 
-        public ParameterPropsTableModel(Set<TypedParameter> properties) {
+        public ParameterPropsTableModel(Set<Parameter> properties) {
             parameterProperties = new ArrayList<>(properties.size());
 
-            for (TypedParameter property : properties) {
+            for (Parameter property : properties) {
                 parameterProperties.add(new ParameterProperties(property));
             }
         }
@@ -145,7 +146,7 @@ public class ViewParametersDialog extends javax.swing.JDialog {
         private final String name;
         private final String value;
 
-        public ParameterProperties(TypedParameter parameter) {
+        public ParameterProperties(Parameter parameter) {
             name = parameter.getName();
             value = parameter.getString();
         }

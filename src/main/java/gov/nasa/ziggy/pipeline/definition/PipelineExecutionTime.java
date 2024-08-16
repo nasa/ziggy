@@ -4,7 +4,7 @@ import java.util.Date;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
-import gov.nasa.ziggy.pipeline.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 
 /**
  * Provides capabilities needed by classes that track pipeline execution times, such as
@@ -45,7 +45,7 @@ public interface PipelineExecutionTime {
      * Starts execution timing for an instance. At start time, the processing-start time is set if
      * currently null, and the start time for the current execution time is also set.
      * <p>
-     * Users are advised not to call this method directly. The {@link PipelineOperations} class will
+     * Users are advised not to call this method directly. The {@link PipelineTaskOperations} class will
      * call this method when a change in state of a {@link PipelineExecutionTime} implementation
      * requires it.
      */
@@ -66,7 +66,7 @@ public interface PipelineExecutionTime {
      * elapsed time from the current execution attempt is added to the total execution time. The end
      * processing time is also set.
      * <p>
-     * Users are advised not to call this method directly. The {@link PipelineOperations} class will
+     * Users are advised not to call this method directly. The {@link PipelineTaskOperations} class will
      * call this method when a change in state of a {@link PipelineExecutionTime} implementation
      * requires it.
      */

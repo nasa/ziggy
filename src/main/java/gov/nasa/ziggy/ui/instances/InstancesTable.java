@@ -4,14 +4,19 @@ import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DIALOG;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createMenuItem;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createPopupMenu;
 
+import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.event.ActionEvent;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.ListSelectionModel;
@@ -28,18 +33,19 @@ import gov.nasa.ziggy.metrics.report.PerformanceReport;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceFilter;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceFilter;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.events.ZiggyEvent;
-import gov.nasa.ziggy.services.messages.DisplayTasksForInstanceMessage;
+import gov.nasa.ziggy.services.events.ZiggyEventOperations;
+import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.ui.ConsoleSecurityException;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
+import gov.nasa.ziggy.ui.util.TaskHalter;
+import gov.nasa.ziggy.ui.util.TaskRestarter;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.CrudProxyExecutor;
-import gov.nasa.ziggy.ui.util.proxy.PipelineInstanceCrudProxy;
-import gov.nasa.ziggy.ui.util.proxy.ZiggyEventCrudProxy;
+import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
+import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
@@ -49,9 +55,9 @@ import gov.nasa.ziggy.ui.util.table.ZiggyTable;
  * @author Bill Wohler
  */
 public class InstancesTable extends JPanel {
-    private static final long serialVersionUID = 20230822L;
+    private static final long serialVersionUID = 20240614L;
 
-    private InstancesTasksPanel instancesTasksPanel;
+    private Component parent;
     private ZiggyTable<PipelineInstance> instancesTable;
     private InstancesTableModel instancesTableModel;
 
@@ -64,35 +70,41 @@ public class InstancesTable extends JPanel {
         this(null, filter);
     }
 
-    public InstancesTable(InstancesTasksPanel instancesTasksPanel,
-        PipelineInstanceFilter instancesFilter) {
-        this.instancesTasksPanel = instancesTasksPanel;
+    public InstancesTable(JPanel parent, PipelineInstanceFilter instancesFilter) {
+        this.parent = parent;
         createInstancesTable(instancesFilter);
+
+        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+    }
+
+    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+        instancesTableModel.loadFromDatabase();
     }
 
     private void createInstancesTable(PipelineInstanceFilter instancesFilter) {
         instancesTable = new ZiggyTable<>(instancesTableModel(instancesFilter));
-        instancesTable.registerModel();
         instancesTable.setWrapText(false);
-        instancesTable.getTable()
-            .getSelectionModel()
-            .setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        instancesTable.getTable().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        instancesTable.getTable().getSelectionModel().addListSelectionListener(event -> {
+        for (int column = 0; column < InstancesTableModel.COLUMN_WIDTHS.length; column++) {
+            instancesTable.setPreferredColumnWidth(column,
+                InstancesTableModel.COLUMN_WIDTHS[column]);
+        }
+
+        ListSelectionModel selectionModel = instancesTable.getTable().getSelectionModel();
+        selectionModel.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        selectionModel.addListSelectionListener(event -> {
             try {
                 // Ignore extra messages.
                 if (event.getValueIsAdjusting()) {
                     return;
                 }
 
-                ListSelectionModel selectionModel = instancesTable.getTable().getSelectionModel();
                 if (selectionModel.isSelectionEmpty()) {
                     reselectPipelineInstance();
                 } else {
-                    selectNewPipelineInstance(selectionModel);
+                    selectNewPipelineInstance(selectionModel.getMinSelectionIndex());
                 }
             } catch (Exception e) {
-                MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
+                MessageUtils.showError(SwingUtilities.getWindowAncestor(parent), e);
             }
         });
 
@@ -129,21 +141,19 @@ public class InstancesTable extends JPanel {
             int rowIndex = instancesTable.getTable().convertRowIndexToView(instanceModelIndex);
             instancesTable.getTable().getSelectionModel().setSelectionInterval(rowIndex, rowIndex);
         }
-        ZiggyMessenger.publish(new DisplayTasksForInstanceMessage(true, instanceId));
+        ZiggyMessenger.publish(new DisplayTasksForInstanceMessage(true, instanceId), false);
     }
 
     /**
      * Captures the selected row and selected pipeline instance ID. Executes when the user selects a
      * row in the instances table.
      */
-    private void selectNewPipelineInstance(ListSelectionModel lsm) {
-
-        int selectedRow = lsm.getMinSelectionIndex();
+    private void selectNewPipelineInstance(int selectedRow) {
         selectedInstanceIndex = instancesTable.convertRowIndexToModel(selectedRow);
         instanceId = instancesTableModel.getContentAtRow(selectedInstanceIndex)
             .getPipelineInstance()
             .getId();
-        ZiggyMessenger.publish(new DisplayTasksForInstanceMessage(false, instanceId));
+        ZiggyMessenger.publish(new DisplayTasksForInstanceMessage(false, instanceId), false);
     }
 
     /**
@@ -154,21 +164,22 @@ public class InstancesTable extends JPanel {
         if (instancesPopupMenu == null) {
             return;
         }
+
         instancesTable.getTable().addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mousePressed(java.awt.event.MouseEvent e) {
-                if (instanceId == -1) {
-                    return;
-                }
                 if (e.isPopupTrigger()) {
-                    instancesPopupMenu.show(instancesTable.getTable(), e.getX(), e.getY());
+                    ZiggySwingUtils.adjustSelection(instancesTable.getTable(), e);
+                    if (instanceId != -1) {
+                        instancesPopupMenu.show(instancesTable.getTable(), e.getX(), e.getY());
+                    }
                 }
             }
         });
     }
 
     private JPopupMenu instancesPopupMenu() {
-        if (instancesTasksPanel == null) {
+        if (parent == null) {
             return null;
         }
         return createPopupMenu(createMenuItem("Details" + DIALOG, this::displayDetails),
@@ -185,11 +196,11 @@ public class InstancesTable extends JPanel {
     private void displayDetails(ActionEvent evt) {
         try {
             InstanceDetailsDialog instanceDetailsDialog = new InstanceDetailsDialog(
-                SwingUtilities.getWindowAncestor(this),
+                SwingUtilities.getWindowAncestor(parent),
                 instancesTableModel.getContentAtRow(selectedInstanceIndex).getPipelineInstance());
             instanceDetailsDialog.setVisible(true);
         } catch (Throwable e) {
-            MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
+            MessageUtils.showError(SwingUtilities.getWindowAncestor(parent), e);
         }
     }
 
@@ -199,55 +210,65 @@ public class InstancesTable extends JPanel {
                 .getPipelineInstance()
                 .getId(),
             DirectoryProperties.taskDataDir().toFile(), null);
-        CrudProxyExecutor.executeSynchronousDatabaseTransaction(() -> {
-            try {
-                Desktop.getDesktop().open(report.generateReport().toFile());
-            } catch (Exception e) {
-                MessageUtil.showError(this, e);
+
+        new SwingWorker<Path, Void>() {
+            @Override
+            protected Path doInBackground() throws Exception {
+                return report.generateReport();
             }
-            return null;
-        });
+
+            @Override
+            protected void done() {
+                try {
+                    Desktop.getDesktop().open(get().toFile());
+                } catch (IOException | InterruptedException | ExecutionException e) {
+                    MessageUtils.showError(InstancesTable.this, e);
+                }
+            }
+        }.execute();
     }
 
     private void displayAlerts(ActionEvent evt) {
         try {
-            new AlertLogDialog(SwingUtilities.getWindowAncestor(this),
+            new AlertLogDialog(SwingUtilities.getWindowAncestor(parent),
                 instancesTableModel.getContentAtRow(selectedInstanceIndex)
                     .getPipelineInstance()
                     .getId()).setVisible(true);
         } catch (Exception e) {
-            MessageUtil.showError(SwingUtilities.getWindowAncestor(this), "Failed to Restart Tasks",
-                e.getMessage(), e);
+            MessageUtils.showError(SwingUtilities.getWindowAncestor(parent),
+                "Failed to display alerts", e.getMessage(), e);
         }
     }
 
     private void displayStatistics(ActionEvent evt) {
         try {
-            new InstanceStatsDialog(SwingUtilities.getWindowAncestor(this),
+            new InstanceStatsDialog(SwingUtilities.getWindowAncestor(parent),
                 instancesTableModel.getContentAtRow(selectedInstanceIndex).getPipelineInstance())
                     .setVisible(true);
         } catch (Exception e) {
-            MessageUtil.showError(SwingUtilities.getWindowAncestor(this),
-                "Failed to Retrieve Performance Stats", e.getMessage(), e);
+            MessageUtils.showError(SwingUtilities.getWindowAncestor(parent),
+                "Failed to retrieve performance statistics", e.getMessage(), e);
         }
     }
 
     private void estimateCost(ActionEvent evt) {
         try {
-            new InstanceCostEstimateDialog(SwingUtilities.getWindowAncestor(this),
+            new InstanceCostEstimateDialog(SwingUtilities.getWindowAncestor(parent),
                 instancesTableModel.getContentAtRow(selectedInstanceIndex).getPipelineInstance())
                     .setVisible(true);
         } catch (Throwable e) {
-            MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
+            MessageUtils.showError(SwingUtilities.getWindowAncestor(parent), e);
         }
     }
 
     private void restartTasks(ActionEvent evt) {
-        instancesTasksPanel.restartTasks(null);
+        new TaskRestarter().restartTasks(SwingUtilities.getWindowAncestor(parent),
+            selectedPipelineInstance());
     }
 
     private void haltTasks(ActionEvent evt) {
-        instancesTasksPanel.haltTasks(null);
+        new TaskHalter().haltTasks(SwingUtilities.getWindowAncestor(parent),
+            selectedPipelineInstance());
     }
 
     public ETable getTable() {
@@ -258,7 +279,7 @@ public class InstancesTable extends JPanel {
         try {
             instancesTableModel.loadFromDatabase();
         } catch (PipelineException e) {
-            MessageUtil.showError(SwingUtilities.getWindowAncestor(this), e);
+            MessageUtils.showError(SwingUtilities.getWindowAncestor(parent), e);
         }
     }
 
@@ -274,18 +295,27 @@ public class InstancesTable extends JPanel {
     }
 
     @SuppressWarnings("serial")
-    static class InstancesTableModel extends AbstractDatabaseModel<InstanceEventInfo> {
+    static class InstancesTableModel extends AbstractZiggyTableModel<InstanceEventInfo>
+        implements DatabaseModel {
 
         private static final Logger log = LoggerFactory.getLogger(InstancesTableModel.class);
 
         private static final String EVENT_NAME = "Event name";
-        private static final String[] COLUMN_NAMES = { "ID", "Pipeline name", EVENT_NAME, "Date",
-            "State", "P-time" };
+        private static final String[] COLUMN_NAMES = { "ID", "Pipeline", EVENT_NAME, "Date",
+            "Status", "Time" };
+        private static final int[] COLUMN_WIDTHS = {
+            ZiggySwingUtils.textWidth(new JLabel(), "1234"),
+            ZiggySwingUtils.textWidth(new JLabel(), "123456789012345678"),
+            ZiggySwingUtils.textWidth(new JLabel(), EVENT_NAME),
+            ZiggySwingUtils.textWidth(new JLabel(), "0000-00-00 00:00:00"),
+            ZiggySwingUtils.textWidth(new JLabel(), "ERRORS_STALLED"),
+            ZiggySwingUtils.textWidth(new JLabel(), "00:00:00") };
 
-        private final PipelineInstanceCrudProxy pipelineInstanceCrud = new PipelineInstanceCrudProxy();
-        private final ZiggyEventCrudProxy ziggyEventCrud = new ZiggyEventCrudProxy();
         private final PipelineInstanceFilter filter;
         private List<InstanceEventInfo> instanceEventInfoList = new LinkedList<>();
+
+        private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+        private final ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
 
         public InstancesTableModel(PipelineInstanceFilter filter) {
             this.filter = filter;
@@ -293,56 +323,40 @@ public class InstancesTable extends JPanel {
 
         @Override
         public void loadFromDatabase() {
-            SwingWorker<Void, Void> swingWorker = new SwingWorker<>() {
+            new SwingWorker<Void, Void>() {
 
                 @Override
                 protected Void doInBackground() throws Exception {
-                    try {
-                        // Read the pipeline instances and associated events and merge them in a
-                        // map sorted by instance ID (the key).
-                        log.trace("filter={}", filter);
-                        Map<Long, InstanceEventInfo> instanceEventInfoById = new TreeMap<>();
-                        List<PipelineInstance> instances = pipelineInstanceCrud.retrieve(filter);
-                        for (PipelineInstance instance : instances) {
-                            instanceEventInfoById.putIfAbsent(instance.getId(),
-                                new InstanceEventInfo(instance, null));
-                        }
-                        for (ZiggyEvent ziggyEvent : ziggyEventCrud.retrieve(instances)) {
-                            instanceEventInfoById.computeIfPresent(
-                                ziggyEvent.getPipelineInstanceId(),
-                                (k, v) -> new InstanceEventInfo(v.getPipelineInstance(),
-                                    ziggyEvent));
-                        }
-
-                        // Use the sorted map to create a sorted list of container objects.
-                        instanceEventInfoList = new ArrayList<>(instanceEventInfoById.values());
-
-                        // TODO Delete once comfortable that the content is the same
-                        for (InstanceEventInfo instanceEventInfo : instanceEventInfoList) {
-                            log.trace("pipeline name: instance={}, event={}",
-                                instanceEventInfo.getPipelineInstance()
-                                    .getPipelineDefinition()
-                                    .getName(),
-                                instanceEventInfo.getZiggyEvent() != null
-                                    ? instanceEventInfo.getZiggyEvent().getPipelineName()
-                                    : "null");
-                            log.trace("date: instance={}, event={}",
-                                instanceEventInfo.getPipelineInstance().getStartProcessingTime(),
-                                instanceEventInfo.getZiggyEvent() != null
-                                    ? instanceEventInfo.getZiggyEvent().getEventTime()
-                                    : "null");
-                        }
-                    } catch (ConsoleSecurityException ignore) {
+                    // Read the pipeline instances and associated events and merge them in a
+                    // map sorted by instance ID (the key).
+                    log.trace("filter={}", filter);
+                    Map<Long, InstanceEventInfo> instanceEventInfoById = new TreeMap<>();
+                    List<PipelineInstance> instances = pipelineInstanceOperations()
+                        .pipelineInstance(filter);
+                    for (PipelineInstance instance : instances) {
+                        instanceEventInfoById.putIfAbsent(instance.getId(),
+                            new InstanceEventInfo(instance, null));
                     }
+                    for (ZiggyEvent ziggyEvent : ziggyEventOperations().events(instances)) {
+                        instanceEventInfoById.computeIfPresent(ziggyEvent.getPipelineInstanceId(),
+                            (k, v) -> new InstanceEventInfo(v.getPipelineInstance(), ziggyEvent));
+                    }
+
+                    // Use the sorted map to create a sorted list of container objects.
+                    instanceEventInfoList = new ArrayList<>(instanceEventInfoById.values());
                     return null;
                 }
 
                 @Override
                 protected void done() {
-                    fireTableDataChanged();
+                    try {
+                        get(); // check for exception
+                        fireTableDataChanged();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Can't update instances table", e);
+                    }
                 }
-            };
-            swingWorker.execute();
+            }.execute();
         }
 
         /**
@@ -366,10 +380,10 @@ public class InstancesTable extends JPanel {
 
         /**
          * Returns the state of the instance with max ID. Assumes that the list of instances is
-         * sorted ascending, which is the expected behavior of the PipelineInstanceCrudProxy
+         * sorted ascending, which is the expected behavior of the PipelineInstanceOperations
          * retriever.
          *
-         * @return State of instance with max ID number.
+         * @return state of instance with max ID number
          */
         public State getStateOfInstanceWithMaxid() {
             if (instanceEventInfoList.isEmpty()) {
@@ -382,19 +396,16 @@ public class InstancesTable extends JPanel {
 
         @Override
         public int getRowCount() {
-            validityCheck();
             return instanceEventInfoList.size();
         }
 
         @Override
         public int getColumnCount() {
-            validityCheck();
             return COLUMN_NAMES.length;
         }
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            validityCheck();
             InstanceEventInfo instanceEventInfo = instanceEventInfoList.get(rowIndex);
             PipelineInstance pipelineInstance = instanceEventInfo.getPipelineInstance();
             ZiggyEvent ziggyEvent = instanceEventInfo.getZiggyEvent();
@@ -402,7 +413,7 @@ public class InstancesTable extends JPanel {
             return switch (columnIndex) {
                 case 0 -> pipelineInstance.getId();
                 case 1 -> pipelineInstance.getPipelineDefinition().getName()
-                    + (StringUtils.isEmpty(pipelineInstance.getName()) ? ""
+                    + (StringUtils.isBlank(pipelineInstance.getName()) ? ""
                         : ": " + pipelineInstance.getName());
                 case 2 -> ziggyEvent != null ? ziggyEvent.getEventHandlerName() : "-";
                 case 3 -> ziggyEvent != null ? ziggyEvent.getEventTime()
@@ -415,19 +426,25 @@ public class InstancesTable extends JPanel {
 
         @Override
         public String getColumnName(int column) {
-            validityCheck();
             return COLUMN_NAMES[column];
         }
 
         @Override
         public InstanceEventInfo getContentAtRow(int row) {
-            validityCheck();
             return instanceEventInfoList.get(row);
         }
 
         @Override
         public Class<InstanceEventInfo> tableModelContentClass() {
             return InstanceEventInfo.class;
+        }
+
+        private PipelineInstanceOperations pipelineInstanceOperations() {
+            return pipelineInstanceOperations;
+        }
+
+        private ZiggyEventOperations ziggyEventOperations() {
+            return ziggyEventOperations;
         }
     }
 

@@ -4,6 +4,7 @@ import java.nio.file.Path;
 
 import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**
@@ -16,7 +17,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  * ({@link #writeParameterSetsToTaskDirectory()}).
  * <li>Perform a per-subtask initialization prior to starting the algorithm on a given subtask
  * ({@link #beforeAlgorithmExecution()}).
- * <li>Provide information about the task and its subtasks {@link #subtaskInformation()}.
+ * <li>Provide information about the task and its subtasks
+ * {@link #subtaskInformation(PipelineDefinitionNode)}.
  * </ol>
  * Direct use of constructors for {@link PipelineInputs} implementations is discouraged. Instead,
  * use {@link PipelineInputsOutputsUtils#newPipelineInputs(ClassWrapper, PipelineTask, Path)} to
@@ -35,7 +37,7 @@ public interface PipelineInputs extends Persistable {
     void copyDatastoreFilesToTaskDirectory(TaskConfiguration taskConfiguration, Path taskDirectory);
 
     /** Provides information about the task and its subtasks. */
-    SubtaskInformation subtaskInformation();
+    SubtaskInformation subtaskInformation(PipelineDefinitionNode pipelineDefinitionNode);
 
     /**
      * Performs any preparation that has to happen after the supervisor hands off the task to a

@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
-import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.util.TimeRange;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaDelete;
@@ -17,28 +16,11 @@ import jakarta.persistence.criteria.Root;
 public class MetricsCrud extends AbstractCrud<MetricType> {
     private static final Logger log = LoggerFactory.getLogger(MetricsCrud.class);
 
-    protected DatabaseService databaseService = null;
-
-    public MetricsCrud() {
-    }
-
-    public MetricsCrud(DatabaseService databaseService) {
-        super(databaseService);
-    }
-
-    public void createMetricType(MetricType metricType) {
-        persist(metricType);
-    }
-
-    public void createMetricValue(MetricValue metricValue) {
-        persist(metricValue);
-    }
-
     public List<MetricType> retrieveAllMetricTypes() {
         return list(createZiggyQuery(MetricType.class));
     }
 
-    public List<MetricValue> retrieveAllMetricValuesForType(MetricType metricType, Date start,
+    public List<MetricValue> metricValues(MetricType metricType, Date start,
         Date end) {
         ZiggyQuery<MetricValue, MetricValue> query = createZiggyQuery(MetricValue.class);
         query.column(MetricValue_.timestamp).between(start, end).ascendingOrder();
@@ -57,20 +39,6 @@ public class MetricsCrud extends AbstractCrud<MetricType> {
         Date max = (Date) results[1];
 
         return new TimeRange(min, max);
-    }
-
-    public long retrieveMetricValueRowCount() {
-        ZiggyQuery<MetricValue, Long> query = createZiggyQuery(MetricValue.class, Long.class);
-        query.select(query.getBuilder().count(query.getRoot()));
-        return uniqueResult(query);
-    }
-
-    public long retrieveMinimumId() {
-        ZiggyQuery<MetricValue, Object[]> query = createZiggyQuery(MetricValue.class,
-            Object[].class);
-        query.column(MetricValue_.id).minMax();
-        Object[] minMax = uniqueResult(query);
-        return (long) minMax[0];
     }
 
     public long deleteOldMetrics(int maxRows) {
@@ -109,6 +77,26 @@ public class MetricsCrud extends AbstractCrud<MetricType> {
         log.info("deleted a total of " + numUpdated + " rows.");
 
         return numUpdated;
+    }
+
+    private long retrieveMetricValueRowCount() {
+        ZiggyQuery<MetricValue, Long> query = createZiggyQuery(MetricValue.class, Long.class);
+        query.select(query.getBuilder().count(query.getRoot()));
+        return uniqueResult(query);
+    }
+
+    private long retrieveMinimumId() {
+        ZiggyQuery<MetricValue, Object[]> query = createZiggyQuery(MetricValue.class,
+            Object[].class);
+        query.column(MetricValue_.id).minMax();
+        Object[] minMax = uniqueResult(query);
+        return (long) minMax[0];
+    }
+
+    public List<Long> retrieveAllMetricIds() {
+        ZiggyQuery<MetricValue, Long> query = createZiggyQuery(MetricValue.class, Long.class);
+        query.column(MetricValue_.id).select();
+        return list(query);
     }
 
     @Override

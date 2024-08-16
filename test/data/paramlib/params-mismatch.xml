@@ -1,8 +1,0 @@
-<parameterLibrary>
-
-  <parameter-set name="Remote Hyperion L1"
-                 classname="gov.nasa.ziggy.module.remote.RemoteParameters">
-    <parameter name="mismatchedParameterName" value="1.0"/>
-  </parameter-set>
-
-</parameterLibrary>

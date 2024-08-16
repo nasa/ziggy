@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](change-param-values)
+[[Previous]](change-param-values.md)
 [[Up]](ziggy-gui.md)
 [[Next]](edit-pipeline.md)
 
@@ -53,6 +53,6 @@ With this wisdom in hand, let's look again at the `Pipelines` panel:
 
 Based on our experience with parameter sets, it's now clear that we can group pipelines in the same way that we can group parameter sets. Given that there's only one pipeline in the sample, it would be as ludicrous as our example above, but someday when you've got a couple of dozen actual pipelines you'll thank us for this.
 
-[[Previous]](change-param-values)
+[[Previous]](change-param-values.md)
 [[Up]](ziggy-gui.md)
 [[Next]](edit-pipeline.md)

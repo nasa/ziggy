@@ -10,20 +10,19 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 
+import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs;
 import gov.nasa.ziggy.module.PipelineInputs;
 import gov.nasa.ziggy.module.SubtaskInformation;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
@@ -31,9 +30,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineDefinitionCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
@@ -44,10 +43,11 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
  */
 public class PipelineTaskInformationTest {
 
-    private ParameterSetCrud parameterSetCrud = mock(ParameterSetCrud.class);
-    private PipelineDefinitionCrud pipelineDefinitionCrud = mock(PipelineDefinitionCrud.class);
-    private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud = mock(
-        PipelineModuleDefinitionCrud.class);
+    private ParametersOperations parametersOperations = mock(ParametersOperations.class);
+    private PipelineDefinitionOperations pipelineDefinitionOperations = mock(
+        PipelineDefinitionOperations.class);
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = mock(
+        PipelineModuleDefinitionOperations.class);
     private PipelineTaskInformation pipelineTaskInformation = spy(PipelineTaskInformation.class);
     private String instancePars1Name = "Instance Pars 1";
     private String instancePars2Name = "Instance Pars 2";
@@ -55,8 +55,8 @@ public class PipelineTaskInformationTest {
     private ParameterSet instanceParSet2 = new ParameterSet(instancePars2Name);
     private String moduleParsName = "Module Pars";
     private ParameterSet moduleParSet = new ParameterSet(moduleParsName);
-    private PipelineTask p1 = new PipelineTask();
-    private PipelineTask p2 = new PipelineTask();
+    private PipelineTask p1 = Mockito.spy(PipelineTask.class);
+    private PipelineTask p2 = Mockito.spy(PipelineTask.class);
     private SubtaskInformation s1, s2;
     private PipelineDefinitionNode node;
     private PipelineDefinition pipelineDefinition;
@@ -67,9 +67,11 @@ public class PipelineTaskInformationTest {
     public void setup() {
 
         // Put a fully-mocked instance in place
-        pipelineTaskInformation.setParameterSetCrud(parameterSetCrud);
-        pipelineTaskInformation.setPipelineDefinitionCrud(pipelineDefinitionCrud);
-        pipelineTaskInformation.setPipelineModuleDefinitionCrud(pipelineModuleDefinitionCrud);
+        when(pipelineTaskInformation.parametersOperations()).thenReturn(parametersOperations);
+        when(pipelineTaskInformation.pipelineDefinitionOperations())
+            .thenReturn(pipelineDefinitionOperations);
+        when(pipelineTaskInformation.pipelineModuleDefinitionOperations())
+            .thenReturn(pipelineModuleDefinitionOperations);
         PipelineTaskInformation.setInstance(pipelineTaskInformation);
 
         // Construct the instances of pipeline infrastructure needed for these tests
@@ -81,28 +83,25 @@ public class PipelineTaskInformationTest {
         node.setModuleName(moduleDefinition.getName());
         pipelineDefinition = new PipelineDefinition("pipeline");
         node.setPipelineName(pipelineDefinition.getName());
-        when(pipelineDefinitionCrud.retrieveLatestVersionForName("pipeline"))
+        when(pipelineDefinitionOperations.pipelineDefinition("pipeline"))
             .thenReturn(pipelineDefinition);
 
         // Set up of instance-level parameters
-        Map<ClassWrapper<ParametersInterface>, String> instanceParameterNames = new HashMap<>();
-        instanceParameterNames.put(new ClassWrapper<>(InstancePars1.class), instancePars1Name);
-        instanceParameterNames.put(new ClassWrapper<>(InstancePars2.class), instancePars2Name);
-        pipelineDefinition.setPipelineParameterSetNames(instanceParameterNames);
-        instanceParSet1.setTypedParameters(new InstancePars1().getParameters());
-        instanceParSet2.setTypedParameters(new InstancePars2().getParameters());
-        when(parameterSetCrud.retrieveLatestVersionForName(instancePars1Name))
-            .thenReturn(instanceParSet1);
-        when(parameterSetCrud.retrieveLatestVersionForName(instancePars2Name))
-            .thenReturn(instanceParSet2);
+        pipelineDefinition.getParameterSetNames().add(instancePars1Name);
+        pipelineDefinition.getParameterSetNames().add(instancePars2Name);
+        instanceParSet1.getParameters()
+            .add(new Parameter("intParam", "0", ZiggyDataType.ZIGGY_INT));
+        instanceParSet2.getParameters()
+            .add(new Parameter("floatParam", "0", ZiggyDataType.ZIGGY_FLOAT));
+        when(parametersOperations.parameterSet(instancePars1Name)).thenReturn(instanceParSet1);
+        when(parametersOperations.parameterSet(instancePars2Name)).thenReturn(instanceParSet2);
 
         // Set up of module-level parameters
-        when(pipelineModuleDefinitionCrud.retrieveLatestVersionForName(moduleDefinition.getName()))
-            .thenReturn(moduleDefinition);
-        Map<ClassWrapper<ParametersInterface>, String> moduleParameterNames = new HashMap<>();
-        node.setModuleParameterSetNames(moduleParameterNames);
-        when(parameterSetCrud.retrieveLatestVersionForName(moduleParsName))
-            .thenReturn(moduleParSet);
+        when(
+            pipelineModuleDefinitionOperations.pipelineModuleDefinition(moduleDefinition.getName()))
+                .thenReturn(moduleDefinition);
+        node.getParameterSetNames().add(moduleParsName);
+        when(parametersOperations.parameterSet(moduleParsName)).thenReturn(moduleParSet);
 
         // Set up unit of work generation
         doReturn(uowGenerator).when(pipelineTaskInformation).unitOfWorkGenerator(node);
@@ -117,8 +116,8 @@ public class PipelineTaskInformationTest {
                 ArgumentMatchers.<PipelineInstance> any());
 
         // Set up pipeline task generation
-        p1.setId(1L);
-        p2.setId(2L);
+        Mockito.doReturn(1L).when(p1).getId();
+        Mockito.doReturn(2L).when(p2).getId();
         doReturn(p1).doReturn(p2)
             .when(pipelineTaskInformation)
             .pipelineTask(any(PipelineInstance.class), any(PipelineInstanceNode.class),
@@ -127,8 +126,8 @@ public class PipelineTaskInformationTest {
         // Set up SubtaskInformation returns
         s1 = new SubtaskInformation("module", "u1", 3);
         s2 = new SubtaskInformation("module", "u2", 5);
-        doReturn(s1).when(pipelineTaskInformation).subtaskInformation(moduleDefinition, p1);
-        doReturn(s2).when(pipelineTaskInformation).subtaskInformation(moduleDefinition, p2);
+        doReturn(s1).when(pipelineTaskInformation).subtaskInformation(moduleDefinition, p1, node);
+        doReturn(s2).when(pipelineTaskInformation).subtaskInformation(moduleDefinition, p2, node);
     }
 
     @Test
@@ -147,29 +146,5 @@ public class PipelineTaskInformationTest {
         // Resetting it should cause it to disappear again
         PipelineTaskInformation.reset(node);
         assertFalse(PipelineTaskInformation.hasPipelineDefinitionNode(node));
-    }
-
-    public static class InstancePars1 extends Parameters {
-        private int intParam;
-
-        public int getIntParam() {
-            return intParam;
-        }
-
-        public void setIntParam(int intParam) {
-            this.intParam = intParam;
-        }
-    }
-
-    public static class InstancePars2 extends Parameters {
-        private float floatParam;
-
-        public float getFloatParam() {
-            return floatParam;
-        }
-
-        public void setFloatParam(float floatParam) {
-            this.floatParam = floatParam;
-        }
     }
 }

@@ -10,7 +10,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,26 +20,23 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
+
 import gov.nasa.ziggy.models.ModelImporter;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.ProcessingState;
-import gov.nasa.ziggy.pipeline.definition.ProcessingStatePipelineModule;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
-import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Pipeline module that performs data receipt, defined as the process that brings science data and
@@ -58,14 +55,21 @@ import gov.nasa.ziggy.util.io.FileUtil;
  *
  * @author PT
  */
-public class DataReceiptPipelineModule extends PipelineModule
-    implements ProcessingStatePipelineModule {
+public class DataReceiptPipelineModule extends PipelineModule {
 
     private static final Logger log = LoggerFactory.getLogger(DataReceiptPipelineModule.class);
 
     private static final String DEFAULT_DATA_RECEIPT_CLASS = DatastoreDirectoryDataReceiptDefinition.class
         .getCanonicalName();
     public static final String DATA_RECEIPT_MODULE_NAME = "data-receipt";
+    public static final String DEFAULT_DATA_RECEIPT_UOW_GENERATOR_CLASS = DataReceiptUnitOfWorkGenerator.class
+        .getCanonicalName();
+
+    /**
+     * Value chosen to match the chunk size used by ZiggyQuery, and then preserved because it was
+     * emprically acceptable.
+     */
+    private static final int FILE_CHUNK_SIZE = 50_000;
 
     private DataReceiptDefinition dataReceiptDefinition;
     protected ModelImporter modelImporter;
@@ -73,6 +77,8 @@ public class DataReceiptPipelineModule extends PipelineModule
     private Path dataImportPathForTask;
     private String dataReceiptDir;
     private boolean processingComplete = false;
+    private DataReceiptOperations dataReceiptOperations = new DataReceiptOperations();
+    private DatastoreProducerConsumerOperations datastoreProducerConsumerOperations = new DatastoreProducerConsumerOperations();
 
     public DataReceiptPipelineModule(PipelineTask pipelineTask, RunMode runMode) {
         super(pipelineTask, runMode);
@@ -82,10 +88,7 @@ public class DataReceiptPipelineModule extends PipelineModule
         dataReceiptDir = config.getString(PropertyName.DATA_RECEIPT_DIR.property());
         UnitOfWork uow = pipelineTask.uowTaskInstance();
         dataReceiptTopLevelPath = Paths.get(dataReceiptDir).toAbsolutePath();
-        dataImportPathForTask = dataReceiptTopLevelPath
-            .resolve(DirectoryUnitOfWorkGenerator.directory(uow));
-        checkState(Files.isDirectory(dataImportPathForTask),
-            dataImportPathForTask.toString() + " not a directory");
+        dataImportPathForTask = dataImportPathForTask(uow);
     }
 
     @Override
@@ -122,37 +125,25 @@ public class DataReceiptPipelineModule extends PipelineModule
     }
 
     /**
-     * Defines the valid processing states for DR. During
-     * {@link ProcessingState#ALGORITHM_EXECUTING}, the manifest is read, acknowledgement written,
-     * and validation steps are taken. During {@link ProcessingState#STORING}, the files in the DR
-     * directory are imported into the datastore.
+     * Defines the valid processing steps for DR. During {@link ProcessingStep#EXECUTING}, the
+     * manifest is read, acknowledgement written, and validation steps are taken. During
+     * {@link ProcessingStep#STORING}, the files in the DR directory are imported into the
+     * datastore.
      */
     @Override
-    public List<ProcessingState> processingStates() {
-        return Arrays.asList(ProcessingState.INITIALIZING, ProcessingState.ALGORITHM_EXECUTING,
-            ProcessingState.STORING, ProcessingState.COMPLETE);
+    public List<ProcessingStep> processingSteps() {
+        return List.of(ProcessingStep.EXECUTING, ProcessingStep.STORING);
     }
 
     /**
      * Performs the processing based on the current value of the task processing state. In this
-     * case, the "loop" loops over the valid states until the {@link ProcessingState#COMPLETE} is
+     * case, the "loop" loops over the valid states until the {@link ProcessingStep#COMPLETE} is
      * reached, at which time the loop exits.
      */
-    @Override
-    public void processingMainLoop() {
-
+    private void processingMainLoop() {
         while (!processingComplete) {
-            databaseProcessingState().taskAction(this);
+            currentProcessingStep().taskAction(this);
         }
-    }
-
-    /**
-     * If the task is in the initializing state, simply advance it to the next state, which will be
-     * {@link ProcessingState#ALGORITHM_EXECUTING}.
-     */
-    @Override
-    public void initializingTaskAction() {
-        incrementDatabaseProcessingState();
     }
 
     /**
@@ -184,7 +175,7 @@ public class DataReceiptPipelineModule extends PipelineModule
 
         // If we made it this far, we can proceed to the storing state, which performs the actual
         // import.
-        incrementDatabaseProcessingState();
+        incrementProcessingStep();
     }
 
     /**
@@ -205,9 +196,10 @@ public class DataReceiptPipelineModule extends PipelineModule
             throw new PipelineException("File import failures detected");
         }
 
-        performDirectoryCleanup();
-
-        incrementDatabaseProcessingState();
+        if (dataReceiptDefinition().cleanDataReceiptDirectories()) {
+            performDirectoryCleanup();
+        }
+        processingComplete = true;
     }
 
     /**
@@ -216,24 +208,30 @@ public class DataReceiptPipelineModule extends PipelineModule
     protected void persistProducerConsumerRecords(Collection<Path> successfulImports,
         Collection<Path> failedImports) {
 
-        // Persist successful file records to the datastore producer-consumer table
+        // Persist successful file records to the datastore producer-consumer table.
+        // Note that we chunk the files here even though the createOrUpdateProducer
+        // method uses ZiggyQuery's chunked query internally. This allows progress in
+        // persisting the records to be logged. It also allows the actual database
+        // transactions to occur chunk-by-chunk, which ensures that Hibernate does
+        // not become overwhelmed by the need to persist an enormous number of rows
+        // all at once.
         if (!successfulImports.isEmpty()) {
             log.info("Updating {} producer-consumer records ...", successfulImports.size());
-            DatabaseTransactionFactory.performTransaction(() -> {
-                new DatastoreProducerConsumerCrud().createOrUpdateProducer(pipelineTask,
-                    successfulImports);
-                return null;
-            });
+            int updatedFiles = 0;
+            for (List<Path> fileChunk : Lists.partition(new ArrayList<>(successfulImports),
+                FILE_CHUNK_SIZE)) {
+                datastoreProducerConsumerOperations().createOrUpdateProducer(pipelineTask,
+                    fileChunk);
+                updatedFiles += fileChunk.size();
+                log.info("Updated {} producer-consumer records", updatedFiles);
+            }
             log.info("Updating {} producer-consumer records ...done", successfulImports.size());
         }
 
         // Save the failure cases to the FailedImport database table
         if (!failedImports.isEmpty()) {
             log.info("Recording {} failed imports...", failedImports.size());
-            DatabaseTransactionFactory.performTransaction(() -> {
-                new FailedImportCrud().create(pipelineTask, failedImports);
-                return null;
-            });
+            dataReceiptOperations().createFailedImportRecords(pipelineTask, failedImports);
             log.info("Recording {} failed imports...done", failedImports.size());
         }
     }
@@ -292,7 +290,7 @@ public class DataReceiptPipelineModule extends PipelineModule
      */
     private void cleanUpSpecifiedDirectory(Path directory) {
         try {
-            Path realPath = FileUtil.realSourceFile(directory);
+            Path realPath = ZiggyFileUtils.realSourceFile(directory);
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(realPath)) {
                 for (Path file : stream) {
                     // Ignore hidden files.
@@ -322,23 +320,30 @@ public class DataReceiptPipelineModule extends PipelineModule
         }
     }
 
-    /**
-     * Notifies the processing loop that processing is complete because the task processing state is
-     * {@link ProcessingState#COMPLETE}.
-     */
-    @Override
-    public void processingCompleteTaskAction() {
-        processingComplete = true;
-    }
-
     // Allows a caller to supply an alert service instance for test purposes.
     AlertService alertService() {
         return AlertService.getInstance();
     }
 
+    DataReceiptOperations dataReceiptOperations() {
+        return dataReceiptOperations;
+    }
+
+    DatastoreProducerConsumerOperations datastoreProducerConsumerOperations() {
+        return datastoreProducerConsumerOperations;
+    }
+
     @Override
     public String getModuleName() {
         return "data receipt";
+    }
+
+    Path dataImportPathForTask(UnitOfWork uow) {
+        Path importPathForTask = dataReceiptTopLevelPath
+            .resolve(DirectoryUnitOfWorkGenerator.directory(uow));
+        checkState(Files.isDirectory(importPathForTask),
+            importPathForTask.toString() + " not a directory");
+        return importPathForTask;
     }
 
     /**
@@ -355,11 +360,7 @@ public class DataReceiptPipelineModule extends PipelineModule
 
     @Override
     protected List<RunMode> defaultRestartModes() {
-        return Arrays.asList(RunMode.RESUME_CURRENT_STEP);
-    }
-
-    @Override
-    protected void restartFromBeginning() {
+        return List.of(RunMode.RESUME_CURRENT_STEP);
     }
 
     @Override
@@ -368,52 +369,7 @@ public class DataReceiptPipelineModule extends PipelineModule
     }
 
     @Override
-    protected void resubmit() {
-    }
-
-    @Override
-    protected void resumeMonitoring() {
-    }
-
-    @Override
     protected void runStandard() {
         processingMainLoop();
-    }
-
-    @Override
-    public long pipelineTaskId() {
-        return taskId();
-    }
-
-    @Override
-    public void marshalingTaskAction() {
-    }
-
-    @Override
-    public void submittingTaskAction() {
-    }
-
-    @Override
-    public void queuedTaskAction() {
-    }
-
-    @Override
-    public void algorithmCompleteTaskAction() {
-    }
-
-    /**
-     * Creates the {@link DataReceiptPipelineModule} for import into the database.
-     */
-    public static PipelineModuleDefinition createDataReceiptPipelineForDb() {
-
-        // Create the data receipt pipeline module
-        PipelineModuleDefinition dataReceiptModule = new PipelineModuleDefinition(
-            DataReceiptPipelineModule.DATA_RECEIPT_MODULE_NAME);
-        ClassWrapper<PipelineModule> moduleClassWrapper = new ClassWrapper<>(
-            DataReceiptPipelineModule.class);
-        dataReceiptModule.setPipelineModuleClass(moduleClassWrapper);
-        dataReceiptModule.setUnitOfWorkGenerator(
-            new ClassWrapper<>(DataReceiptUnitOfWorkGenerator.class));
-        return dataReceiptModule;
     }
 }

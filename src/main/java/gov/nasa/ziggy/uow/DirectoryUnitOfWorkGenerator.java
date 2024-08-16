@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -20,7 +20,6 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerator {
 
     public static final String DIRECTORY_PARAMETER_NAME = "directory";
-    public static final String REGEX_PROPERTY_NAME = "taskDirectoryRegex";
     public static final String DIRECTORY_NAME_SEPARATOR = ":";
 
     /**
@@ -47,7 +46,7 @@ public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerato
         return uow.getParameters()
             .stream()
             .filter(s -> s.getName().startsWith(DIRECTORY_PARAMETER_NAME))
-            .map(TypedParameter::getString)
+            .map(Parameter::getString)
             .collect(Collectors.toList());
     }
 
@@ -55,7 +54,7 @@ public abstract class DirectoryUnitOfWorkGenerator implements UnitOfWorkGenerato
     public static Map<String, String> directoriesByDataFileType(UnitOfWork uow) {
         checkUowClass(uow);
         Map<String, String> directoriesByDataFileType = new HashMap<>();
-        for (TypedParameter parameter : uow.getParameters()) {
+        for (Parameter parameter : uow.getParameters()) {
             if (parameter.getName().startsWith(DIRECTORY_PARAMETER_NAME)) {
                 String[] splitParameterName = parameter.getName().split(DIRECTORY_NAME_SEPARATOR);
                 directoriesByDataFileType.put(splitParameterName[1], parameter.getString());

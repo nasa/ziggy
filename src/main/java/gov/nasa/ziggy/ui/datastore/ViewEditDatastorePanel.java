@@ -6,13 +6,19 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import gov.nasa.ziggy.data.datastore.DatastoreOperations;
 import gov.nasa.ziggy.data.datastore.DatastoreRegexp;
-import gov.nasa.ziggy.ui.util.MessageUtil;
-import gov.nasa.ziggy.ui.util.models.AbstractDatabaseModel;
-import gov.nasa.ziggy.ui.util.proxy.DatastoreRegexpCrudProxy;
+import gov.nasa.ziggy.ui.util.MessageUtils;
+import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
+import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
 
 /**
@@ -23,7 +29,8 @@ import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
  */
 public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegexp> {
 
-    private static final long serialVersionUID = 20240208L;
+    private static final Logger log = LoggerFactory.getLogger(ViewEditDatastorePanel.class);
+    private static final long serialVersionUID = 20240614L;
 
     public ViewEditDatastorePanel() {
         super(new RegexpTableModel());
@@ -38,7 +45,7 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
         try {
             ziggyTable.loadFromDatabase();
         } catch (Throwable e) {
-            MessageUtil.showError(this, e);
+            MessageUtils.showError(this, e);
         }
     }
 
@@ -51,13 +58,11 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
     protected void edit(int row) {
         DatastoreRegexp regexp = ziggyTable.getContentAtViewRow(row);
 
-        if (regexp != null) {
-            EditDatastoreRegexpDialog dialog = new EditDatastoreRegexpDialog(
-                SwingUtilities.getWindowAncestor(this), regexp);
-            dialog.setVisible(true);
-            if (!dialog.isCancelled()) {
-                ziggyTable.loadFromDatabase();
-            }
+        EditDatastoreRegexpDialog dialog = new EditDatastoreRegexpDialog(
+            SwingUtilities.getWindowAncestor(this), regexp);
+        dialog.setVisible(true);
+        if (!dialog.isCancelled()) {
+            ziggyTable.loadFromDatabase();
         }
     }
 
@@ -71,13 +76,16 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
         return new HashSet<>();
     }
 
-    public static class RegexpTableModel extends AbstractDatabaseModel<DatastoreRegexp> {
+    public static class RegexpTableModel extends AbstractZiggyTableModel<DatastoreRegexp>
+        implements DatabaseModel {
 
-        private static final long serialVersionUID = 20240124L;
+        private static final long serialVersionUID = 20240614L;
 
         private static final String[] COLUMN_NAMES = { "Name", "Value", "Include", "Exclude" };
 
         private List<DatastoreRegexp> datastoreRegexps = new ArrayList<>();
+
+        private final DatastoreOperations datastoreOperations = new DatastoreOperations();
 
         @Override
         public int getRowCount() {
@@ -115,8 +123,22 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
 
         @Override
         public void loadFromDatabase() {
-            datastoreRegexps = new DatastoreRegexpCrudProxy().retrieveAll();
-            fireTableDataChanged();
+            new SwingWorker<List<DatastoreRegexp>, Void>() {
+                @Override
+                protected List<DatastoreRegexp> doInBackground() throws Exception {
+                    return datastoreOperations().datastoreRegexps();
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        datastoreRegexps = get();
+                        fireTableDataChanged();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Could not retrieve datastore regexps", e);
+                    }
+                }
+            }.execute();
         }
 
         @Override
@@ -127,6 +149,10 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
         @Override
         public Class<DatastoreRegexp> tableModelContentClass() {
             return DatastoreRegexp.class;
+        }
+
+        private DatastoreOperations datastoreOperations() {
+            return datastoreOperations;
         }
     }
 }

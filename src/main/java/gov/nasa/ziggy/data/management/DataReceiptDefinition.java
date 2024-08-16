@@ -68,4 +68,14 @@ public interface DataReceiptDefinition {
 
     /** Set the {@link PipelineTask} for the definition instance. */
     void setPipelineTask(PipelineTask pipelineTask);
+
+    /**
+     * Tells {@link DataReceiptPipelineModule} whether to clean the DR directories after import. The
+     * default is true (i.e., do clean the DR directories). Override in order to either preserve the
+     * DR directories after import, or implement a programmatic decision on whether to clean or
+     * preserve the directories.
+     */
+    default boolean cleanDataReceiptDirectories() {
+        return true;
+    }
 }

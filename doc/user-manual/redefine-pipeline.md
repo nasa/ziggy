@@ -25,10 +25,8 @@ Note that in this case we've done the simplest possible change, but in real life
 **Run the Pipeline Definition Importer:** The relevant ziggy command here is:
 
 ```bash
-$ ziggy import-pipelines sample-pipeline/config-extra/pd-sample.xml
+$ ziggy update-pipelines sample-pipeline/config-extra/pd-sample.xml
 ```
-
-You'll get a big spew of logging output that should not end with any Java stack traces.
 
 **Refresh the Pipelines Panel:** Press the `Refresh` button in the pipelines panel. Again, select the sample pipeline, and run the `View` command from the context menu. You'll now see this:
 
@@ -37,6 +35,27 @@ You'll get a big spew of logging output that should not end with any Java stack 
 As advertised, the averaging module has been removed from the end of the pipeline.
 
 And that's all there is to it!
+
+### Another Option: Import New, Ignore Changes
+
+It also may be the case that you have a file that has some new stuff that you want, but maybe it has changes to existing pipelines / modules that you're not ready to implement yet. The way that you can import just the new pipelines and modules, while skipping changes to anything that's already in the database, is with this command:
+
+```bash
+$ ziggy import-pipelines sample-pipeline/config-extra/pd-sample.xml
+```
+
+By specifying import rather than update, Ziggy will only import the things that can be safely imported (i.e., things that don't already exist in the database).
+
+In this case, if you give that command, you'll see the following:
+
+```bash
+Module permuter already present in database, not importing
+Module flip already present in database, not importing
+Module averaging already present in database, not importing
+Pipeline sample already present in database, not importing
+```
+
+In other words, everything in this file is a modification of something that's already in the database, so the imported did nothing, for as we know, of valor, the greater part is discretion.
 
 [[Previous]](parameter-overrides.md)
 [[Up]](dusty-corners.md)

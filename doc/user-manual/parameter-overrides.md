@@ -30,16 +30,12 @@ To see what's involved, take a look at `sample-pipeline/config-extra/pl-with-ove
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <parameterLibrary override-only="true">
     <parameter-set name="Algorithm Parameters">
-        <parameter name="throw exception subtask_0" value="true" type="boolean"/>
-    </parameter-set>
-    <parameter-set name="Multiple subtask configuration"
-    classname="gov.nasa.ziggy.uow.TaskConfigurationParameters">
-        <parameter name="reprocess" value="true"/>
+        <parameter name="throw exception subtask 0" value="true" type="boolean"/>
     </parameter-set>
 </parameterLibrary>
 ```
 
-In this file, the `parameterLibrary` element has its `override-only` attribute set to `true`. Other than that, only two parameters are defined: the `throw exception subtask_0` parameter in `Algorithm Parameters`, and the `reprocess` parameter in `Multiple subtask configuration` .
+In this file, the `parameterLibrary` element has its `override-only` attribute set to `true`. Other than that, only one parameter is defined: the `throw exception subtask 0` parameter in `Algorithm Parameters`.
 
 By specifying that override-only is true, Ziggy knows that the user doesn't want any other parameter in any parameter set to be altered.
 

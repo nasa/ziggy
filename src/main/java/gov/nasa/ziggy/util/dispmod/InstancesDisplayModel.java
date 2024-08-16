@@ -14,6 +14,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
  * @author Todd Klaus
  */
 public class InstancesDisplayModel extends DisplayModel {
+    private static final String[] COLUMN_NAMES = { "ID", "Pipeline", "Status", "Time" };
+
     private List<PipelineInstance> instances = new LinkedList<>();
 
     public InstancesDisplayModel() {
@@ -39,7 +41,7 @@ public class InstancesDisplayModel extends DisplayModel {
 
     @Override
     public int getColumnCount() {
-        return 4;
+        return COLUMN_NAMES.length;
     }
 
     public PipelineInstance getInstanceAt(int rowIndex) {
@@ -53,7 +55,7 @@ public class InstancesDisplayModel extends DisplayModel {
         return switch (columnIndex) {
             case 0 -> instance.getId();
             case 1 -> instance.getPipelineDefinition().getName()
-                + (StringUtils.isEmpty(instance.getName()) ? "" : ": " + instance.getName());
+                + (StringUtils.isBlank(instance.getName()) ? "" : ": " + instance.getName());
             case 2 -> getStateString(instance.getState());
             case 3 -> instance.elapsedTime();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
@@ -62,13 +64,7 @@ public class InstancesDisplayModel extends DisplayModel {
 
     @Override
     public String getColumnName(int column) {
-        return switch (column) {
-            case 0 -> "ID";
-            case 1 -> "Pipeline Name";
-            case 2 -> "State";
-            case 3 -> "P-time";
-            default -> throw new IllegalArgumentException("Unexpected value: " + column);
-        };
+        return COLUMN_NAMES[column];
     }
 
     private String getStateString(PipelineInstance.State state) {

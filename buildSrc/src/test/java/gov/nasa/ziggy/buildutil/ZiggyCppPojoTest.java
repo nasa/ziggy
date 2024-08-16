@@ -14,6 +14,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,8 +53,11 @@ public class ZiggyCppPojoTest {
     public void before() throws IOException {
 
         // create a temporary directory for everything
-        tempDir = Files.createTempDirectory("ZiggyCpp").toFile();
-        tempDir.deleteOnExit();
+        // create a temporary directory for everything
+        tempDir = Files
+            .createDirectories(Paths.get("build").resolve("test").resolve("ZiggyCppMexPojoTest"))
+            .toFile()
+            .getAbsoluteFile();
 
         // directory for includes
         new File(tempDir, "include").mkdir();
@@ -122,12 +126,13 @@ public class ZiggyCppPojoTest {
         dummyArguments.add("DuMMY");
         dummyArguments.add("dUmMy");
         dummyArguments.add("");
-        assertEquals(tempDir.getAbsolutePath() + "/src", ziggyCppObject.getCppFilePaths().get(0));
+        assertEquals(tempDir.getAbsolutePath() + "/src",
+            ziggyCppObject.getSourceFilePaths().get(0));
 
         testStringListSettersAndGetters("IncludeFilePaths", new String[] {
             tempDir.getAbsolutePath() + "/src", tempDir.getAbsolutePath() + "/include" });
-        testStringListSettersAndGetters("CppCompileOptions", new String[] { "-Wall", "-fPic" });
-        testStringListSettersAndGetters("CCompileOptions", new String[] { "-fPic" });
+        testStringListSettersAndGetters("cppCompileOptions", new String[] { "-Wall", "-fPic" });
+        testStringListSettersAndGetters("cCompileOptions", new String[] { "-fPic" });
         testStringListSettersAndGetters("ReleaseOptimizations",
             new String[] { "-O2", "-DNDEBUG", "-g" });
         testStringListSettersAndGetters("DebugOptimizations", new String[] { "-Og", "-g" });
@@ -176,7 +181,7 @@ public class ZiggyCppPojoTest {
         assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/ZiggyCModule.c"));
 
         // Now check that the compiler choices are set correctly.
-        Map<File, String> sourceFilesWithCompiler = ziggyCppObject.getCppFiles();
+        Map<File, String> sourceFilesWithCompiler = ziggyCppObject.getSourceFiles(false);
         String cppCompiler = ZiggyCppPojo.Compiler.CPP.compiler();
         String cCompiler = ZiggyCppPojo.Compiler.C.compiler();
         assertEquals(cppCompiler, sourceFilesWithCompiler
@@ -198,7 +203,7 @@ public class ZiggyCppPojoTest {
         List<Object> cppPaths = new ArrayList<>();
         cppPaths.add(tempDir.toString() + "/src");
         cppPaths.add(buildDir.toString() + "/src/cpp");
-        ziggyCppObject.setCppFilePaths(cppPaths);
+        ziggyCppObject.setSourceFilePaths(cppPaths);
         List<File> cppFiles = ziggyCppObject.getSourceFiles();
         int nFiles = cppFiles.size();
         assertEquals(4, nFiles);
@@ -220,7 +225,7 @@ public class ZiggyCppPojoTest {
     @Test
     public void testArgListToString() {
         String compileOptionString = ziggyCppObject
-            .argListToString(ziggyCppObject.getCppCompileOptions(), "");
+            .argListToString(ziggyCppObject.getcppCompileOptions(), "");
         assertEquals("-Wall -fPic ", compileOptionString);
     }
 
@@ -371,7 +376,7 @@ public class ZiggyCppPojoTest {
     @Test
     public void testGenerateCompileCommandWithCompiler() {
 
-        Map<File, String> sourceFilesWithCompiler = ziggyCppObject.getCppFiles();
+        Map<File, String> sourceFilesWithCompiler = ziggyCppObject.getSourceFiles(false);
         ZiggyCppPojo.Compiler.CPP.compiler();
         String cCompiler = ZiggyCppPojo.Compiler.C.compiler();
 
@@ -447,35 +452,35 @@ public class ZiggyCppPojoTest {
         sharedObjectFileType = ".dylib";
         linkString = ziggyCppObject.generateLinkCommand();
         assertEquals("/dev/null/g++ -o " + buildDir.getAbsolutePath() + "/lib/libdummy"
-            + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared"
-            + " -install_name /dev/null/rootDir/build/lib/libdummy.dylib "
-            + "o1.o o2.o -lhdf5 -lnetcdf ", linkString);
+            + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared" + " -install_name "
+            + buildDir.getAbsolutePath() + "/lib/libdummy.dylib " + "o1.o o2.o -lhdf5 -lnetcdf ",
+            linkString);
 
         // debug enabled shouldn't do anything
         System.setProperty(ZiggyCppPojo.CPP_DEBUG_PROPERTY_NAME, "true");
         linkString = ziggyCppObject.generateLinkCommand();
         assertEquals("/dev/null/g++ -o " + buildDir.getAbsolutePath() + "/lib/libdummy"
-            + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared"
-            + " -install_name /dev/null/rootDir/build/lib/libdummy.dylib "
-            + "o1.o o2.o -lhdf5 -lnetcdf ", linkString);
+            + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared" + " -install_name "
+            + buildDir.getAbsolutePath() + "/lib/libdummy.dylib " + "o1.o o2.o -lhdf5 -lnetcdf ",
+            linkString);
         System.setProperty(ZiggyCppPojo.CPP_DEBUG_PROPERTY_NAME, "false");
 
         // Output dir case
         ziggyCppObject.setOutputDir("foo");
         linkString = ziggyCppObject.generateLinkCommand();
         assertEquals("/dev/null/g++ -o " + System.getProperty("user.dir") + "/foo/libdummy"
-            + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared"
-            + " -install_name /dev/null/rootDir/build/lib/libdummy.dylib "
-            + "o1.o o2.o -lhdf5 -lnetcdf ", linkString);
+            + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared" + " -install_name "
+            + "foo/libdummy.dylib " + "o1.o o2.o -lhdf5 -lnetcdf ", linkString);
 
         // Output dir parent case
         ziggyCppObject.setOutputDir("");
         ziggyCppObject.setOutputDirParent("foo");
         linkString = ziggyCppObject.generateLinkCommand();
-        assertEquals("/dev/null/g++ -o " + System.getProperty("user.dir") + "/foo/lib/libdummy"
-            + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared"
-            + " -install_name /dev/null/rootDir/build/lib/libdummy.dylib "
-            + "o1.o o2.o -lhdf5 -lnetcdf ", linkString);
+        assertEquals(
+            "/dev/null/g++ -o " + System.getProperty("user.dir") + "/foo/lib/libdummy"
+                + sharedObjectFileType + " -L/dummy1/lib -L/dummy2/lib -shared"
+                + " -install_name foo/lib/libdummy.dylib " + "o1.o o2.o -lhdf5 -lnetcdf ",
+            linkString);
 
         // static library case
         ziggyCppObject = createZiggyCppObject(buildDir);
@@ -515,15 +520,12 @@ public class ZiggyCppPojoTest {
         ziggyCppObject.action();
 
         // check the calls to the executor and their order
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(tempDir, "src"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppObject.new CommandLineComparable(ziggyCppObject
                 .generateCompileCommand(new File(srcDir, "GetString.cpp"), compiler, null, null)));
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(tempDir, "src"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppObject.new CommandLineComparable(ziggyCppObject.generateCompileCommand(
                 new File(srcDir, "ZiggyCppMain.cpp"), compiler, null, null)));
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(buildDir, "obj"));
         executorCalls.verify(defaultExecutor)
             .execute(
                 ziggyCppObject.new CommandLineComparable(ziggyCppObject.generateLinkCommand()));
@@ -541,15 +543,12 @@ public class ZiggyCppPojoTest {
         ziggyCppObject.setOutputType("shared");
         ziggyCppObject.setDefaultExecutor(defaultExecutor);
         ziggyCppObject.action();
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(tempDir, "src"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppObject.new CommandLineComparable(ziggyCppObject
                 .generateCompileCommand(new File(srcDir, "GetString.cpp"), compiler, null, null)));
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(tempDir, "src"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppObject.new CommandLineComparable(ziggyCppObject.generateCompileCommand(
                 new File(srcDir, "ZiggyCppMain.cpp"), compiler, null, null)));
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(buildDir, "obj"));
         executorCalls.verify(defaultExecutor)
             .execute(
                 ziggyCppObject.new CommandLineComparable(ziggyCppObject.generateLinkCommand()));
@@ -561,15 +560,12 @@ public class ZiggyCppPojoTest {
         ziggyCppObject.setOutputType("static");
         ziggyCppObject.setDefaultExecutor(defaultExecutor);
         ziggyCppObject.action();
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(tempDir, "src"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppObject.new CommandLineComparable(ziggyCppObject
                 .generateCompileCommand(new File(srcDir, "GetString.cpp"), compiler, null, null)));
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(tempDir, "src"));
         executorCalls.verify(defaultExecutor)
             .execute(ziggyCppObject.new CommandLineComparable(ziggyCppObject.generateCompileCommand(
                 new File(srcDir, "ZiggyCppMain.cpp"), compiler, null, null)));
-        executorCalls.verify(defaultExecutor).setWorkingDirectory(new File(buildDir, "obj"));
         executorCalls.verify(defaultExecutor)
             .execute(
                 ziggyCppObject.new CommandLineComparable(ziggyCppObject.generateLinkCommand()));
@@ -588,7 +584,7 @@ public class ZiggyCppPojoTest {
     public void testCppFilePathNullError() {
         ZiggyCppPojo ziggyCppError = new ZiggyCppPojo();
         assertThrows("C++ file path is null", GradleException.class, () -> {
-            ziggyCppError.getCppFiles();
+            ziggyCppError.getSourceFiles();
         });
     }
 
@@ -598,11 +594,11 @@ public class ZiggyCppPojoTest {
     @Test
     public void testCppFilePathDoesNotExist() {
         ZiggyCppPojo ziggyCppError = new ZiggyCppPojo();
-        ziggyCppError.setCppFilePath("/this/path/does/not/exist");
-        ziggyCppError.getCppFiles(true);
+        ziggyCppError.setSourceFilePath("/this/path/does/not/exist");
+        ziggyCppError.getSourceFiles(true);
         List<String> w = ziggyCppError.loggerWarnings();
         assertTrue(w.size() > 0);
-        assertTrue(w.contains("C++ file path /this/path/does/not/exist does not exist"));
+        assertTrue(w.contains("Source file path /this/path/does/not/exist does not exist"));
     }
 
     /**
@@ -611,7 +607,7 @@ public class ZiggyCppPojoTest {
     @Test
     public void testErrorNoOutputName() {
         ZiggyCppPojo ziggyCppError = new ZiggyCppPojo();
-        ziggyCppError.setCppFilePath(tempDir.getAbsolutePath() + "/src");
+        ziggyCppError.setSourceFilePath(tempDir.getAbsolutePath() + "/src");
         ziggyCppError.setBuildDir(buildDir);
         ziggyCppError.setOutputType("executable");
         assertThrows("Both output name and output type must be specified", GradleException.class,
@@ -626,7 +622,7 @@ public class ZiggyCppPojoTest {
     @Test
     public void testErrorNoOutputType() {
         ZiggyCppPojo ziggyCppError = new ZiggyCppPojo();
-        ziggyCppError.setCppFilePath(tempDir.getAbsolutePath() + "/src");
+        ziggyCppError.setSourceFilePath(tempDir.getAbsolutePath() + "/src");
         ziggyCppError.setBuildDir(buildDir);
         ziggyCppError.setOutputName("dummy");
         assertThrows("Both output name and output type must be specified", GradleException.class,
@@ -642,7 +638,7 @@ public class ZiggyCppPojoTest {
     public void testErrorNoOutputTypeOrName() {
         ZiggyCppPojo ziggyCppError = new ZiggyCppPojo();
         new ArrayList<>();
-        ziggyCppError.setCppFilePath(tempDir.getAbsolutePath() + "/src");
+        ziggyCppError.setSourceFilePath(tempDir.getAbsolutePath() + "/src");
         ziggyCppError.setBuildDir(buildDir);
         assertThrows("Both output name and output type must be specified", GradleException.class,
             () -> {
@@ -790,11 +786,11 @@ public class ZiggyCppPojoTest {
      */
     public ZiggyCppPojo createZiggyCppObject(File buildDir) {
         ZiggyCppPojo ziggyCppObject = new ZiggyCppPojo();
-        ziggyCppObject.setCppFilePath(tempDir.getAbsolutePath() + "/src");
+        ziggyCppObject.setSourceFilePath(tempDir.getAbsolutePath() + "/src");
         ziggyCppObject.setIncludeFilePaths(
             List.of(tempDir.getAbsolutePath() + "/src", tempDir.getAbsolutePath() + "/include"));
-        ziggyCppObject.setCppCompileOptions(List.of("-Wall", "-fPic"));
-        ziggyCppObject.setCCompileOptions(List.of("-fPic"));
+        ziggyCppObject.setcppCompileOptions(List.of("-Wall", "-fPic"));
+        ziggyCppObject.setcCompileOptions(List.of("-fPic"));
         ziggyCppObject.setReleaseOptimizations(List.of("-O2", "-DNDEBUG", "-g"));
         ziggyCppObject.setDebugOptimizations(List.of("-Og", "-g"));
         ziggyCppObject.setOutputName("dummy");

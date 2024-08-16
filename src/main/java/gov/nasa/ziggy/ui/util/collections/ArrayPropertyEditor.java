@@ -13,7 +13,7 @@ import com.l2fprod.common.beans.editor.AbstractPropertyEditor;
 
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.ui.util.MessageUtil;
+import gov.nasa.ziggy.ui.util.MessageUtils;
 
 /**
  * Custom property editor for Java arrays
@@ -75,7 +75,7 @@ public class ArrayPropertyEditor extends AbstractPropertyEditor {
                 firePropertyChange(array, newArray);
             }
         } catch (Exception e) {
-            MessageUtil.showError(null, e);
+            MessageUtils.showError(null, e);
         } finally {
             if (dialog != null) {
                 dialog.dispose();

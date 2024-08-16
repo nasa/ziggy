@@ -76,23 +76,22 @@ These are the Ziggy-specific imports (the other imports are standard Python pack
 The next block of code looks like this:
 
 ```python
-# define an instance of the HDF5 read/write class as a global variable.
+# Define the HDF5 read/write class as a global variable.
 hdf5_module_interface = Hdf5ModuleInterface()
 
 if __name__ == '__main__':
     try:
 
-        # generate the process ID (PID) file in the working directory.
+        # Generate the PID file.
         write_pid_file()
 
         # Read inputs: note that the inputs contain the names of all the files
         # that are to be used in this process, as well as model names and
         # parameters. All files are in the working directory.
-        inputs = hdf5_module_interface.read_file("permuter-inputs-0.h5")
+        inputs = hdf5_module_interface.read_file("permuter-inputs.h5")
         data_file = inputs.dataFilenames
         parameters = inputs.moduleParameters.Algorithm_Parameters
         models = inputs.modelFilenames
-
 ```
 
 The main thing of interest here is that the HDF5 file with the inputs information is opened and read. The file name will always be the module name followed by `-inputs-0.h5`. The data object that's read from that file provides the data file names as a Python list in the `.filenames` field; all the module parameters in the `.moduleParameters` field; and the names of the models as a Python list in the `.modelFilenames` field. Note that, as described in [the article on parameter sets](module-parameters.md), the module parameter set named `Algorithm Parameters` in the parameters XML file is renamed to `Algorithm_Parameters` here.
@@ -101,7 +100,7 @@ Next:
 
 ```Python
         # Handle the parameter values that can cause an error or cause
-        # execution to complete without generating output
+        # execution to complete without generating output.
         dir_name = os.path.basename(os.getcwd())
         if dir_name == "st-0":
             throw_exception = parameters.throw_exception_subtask_0
@@ -185,13 +184,13 @@ trap 'deactivate' EXIT
 
 source $SAMPLE_PIPELINE_PYTHON_ENV/bin/activate
 
-# Get the location of the environment's site packages directory
+# Get the location of the environment's site packages directory.
 SITE_PKGS=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 
-# Use the environment's Python to run the permuter Python script
+# Use the environment's Python to run the permuter Python script.
 python3 $SITE_PKGS/major_tom/permuter.py
 
-# capture the Python exit code and pass it to the caller as the script's exit code
+# Capture the Python exit code and pass it to the caller as the script's exit code.
 exit $?
 ```
 

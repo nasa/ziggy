@@ -8,7 +8,6 @@ import java.util.List;
 import org.junit.Test;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
 
 public class TaskProcessingTimeStatsTest {
 
@@ -36,13 +35,13 @@ public class TaskProcessingTimeStatsTest {
         // hour.
         return List.of(
             pipelineTask("module1", new Date(START_MILLIS),
-                new Date(START_MILLIS + 2 * HOUR_MILLIS), State.COMPLETED),
+                new Date(START_MILLIS + 2 * HOUR_MILLIS)),
             pipelineTask("module2", new Date(START_MILLIS + 4 * HOUR_MILLIS),
-                new Date(START_MILLIS + 5 * HOUR_MILLIS), State.COMPLETED),
-            pipelineTask("module3", new Date(0), new Date(0), State.SUBMITTED));
+                new Date(START_MILLIS + 5 * HOUR_MILLIS)),
+            pipelineTask("module3", new Date(0), new Date(0)));
     }
 
-    private PipelineTask pipelineTask(String moduleName, Date start, Date end, State state) {
+    private PipelineTask pipelineTask(String moduleName, Date start, Date end) {
         PipelineTask pipelineTask = new PipelineTask();
         pipelineTask.setStartProcessingTime(start);
         pipelineTask.setEndProcessingTime(end);

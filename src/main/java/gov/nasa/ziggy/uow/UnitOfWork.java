@@ -1,15 +1,19 @@
 package gov.nasa.ziggy.uow;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
-import gov.nasa.ziggy.pipeline.definition.TypedParameterCollection;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 
 /**
  * Defines the unit of work to be processed by a specified task.
  * <p>
- * The unit of work contains a set of parameters, in the form of {@link TypedParameter} instances,
+ * The unit of work contains a set of parameters, in the form of {@link Parameter} instances,
  * that can be used by a pipeline module to determine the range of data to be processed by a given
  * pipeline task. For example, for units of work based on time range, the parameters might be the
  * start time and stop time for the task.
@@ -26,12 +30,13 @@ import gov.nasa.ziggy.pipeline.definition.TypedParameterCollection;
  *
  * @author PT
  */
-public class UnitOfWork extends TypedParameterCollection
-    implements Serializable, Comparable<UnitOfWork> {
+public class UnitOfWork implements Serializable, Comparable<UnitOfWork> {
 
     private static final long serialVersionUID = 20230511L;
 
     public static final String BRIEF_STATE_PARAMETER_NAME = "briefState";
+
+    private Map<String, Parameter> parameterByName = new HashMap<>();
 
     public String briefState() {
         return getParameter(BRIEF_STATE_PARAMETER_NAME).getString();
@@ -39,7 +44,26 @@ public class UnitOfWork extends TypedParameterCollection
 
     public void setBriefState(String briefState) {
         addParameter(
-            new TypedParameter(BRIEF_STATE_PARAMETER_NAME, briefState, ZiggyDataType.ZIGGY_STRING));
+            new Parameter(BRIEF_STATE_PARAMETER_NAME, briefState, ZiggyDataType.ZIGGY_STRING));
+    }
+
+    public void addParameter(Parameter parameter) {
+        parameterByName.put(parameter.getName(), parameter);
+    }
+
+    public Parameter getParameter(String name) {
+        return parameterByName.get(name);
+    }
+
+    public Set<Parameter> getParameters() {
+        return new HashSet<>(parameterByName.values());
+    }
+
+    public void setParameters(Collection<Parameter> parameters) {
+        parameterByName.clear();
+        for (Parameter parameter : parameters) {
+            parameterByName.put(parameter.getName(), parameter);
+        }
     }
 
     /**

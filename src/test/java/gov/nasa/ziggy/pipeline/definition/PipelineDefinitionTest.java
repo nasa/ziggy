@@ -25,13 +25,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
-import gov.nasa.ziggy.parameters.Parameters;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.InputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ModelTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.OutputTypeReference;
 import gov.nasa.ziggy.pipeline.xml.XmlReference.ParameterSetReference;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -98,12 +97,10 @@ public class PipelineDefinitionTest {
 
         node2.addNextNode(node4);
 
-        // Create 2 pipelines
         pipelineDefinition1 = new PipelineDef("pipeline 1");
         pipelineDefinition1.addRootNode(node1);
         pipelineDefinition1.setDescription("first pipeline");
-        pipelineDefinition1.addPipelineParameterSetName(Parameters.class,
-            new ParameterSet("Pipeline parameters"));
+        pipelineDefinition1.addParameterSetName("Pipeline parameters");
         pipelineDefinition1.setInstancePriority(Priority.LOW);
     }
 
@@ -112,37 +109,38 @@ public class PipelineDefinitionTest {
         JAXBContext context = JAXBContext.newInstance(PipelineDef.class);
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+        pipelineDefinition1.populateXmlFields();
         marshaller.marshal(pipelineDefinition1, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), ZiggyFileUtils.ZIGGY_CHARSET);
 
         List<String> pipelineContents = pipelineContent(xmlContent,
             "<pipeline name=\"pipeline 1\" description=\"first pipeline\" "
                 + "instancePriority=\"LOW\" rootNodeNames=\"module 1\">");
-        assertContains(pipelineContents, "<pipelineParameter name=\"Pipeline parameters\"/>");
+        assertContains(pipelineContents, "<parameterSet name=\"Pipeline parameters\"/>");
         List<String> nodeContents = nodeContent(pipelineContents, "<node "
             + "moduleName=\"module 1\" childNodeNames=\"module 2, module 3\" singleSubtask=\"false\">");
-        assertContains(nodeContents, "<moduleParameter name=\"Convergence criteria\"/>");
-        assertContains(nodeContents, "<moduleParameter name=\"Remote execution\"/>");
+        assertContains(nodeContents, "<parameterSet name=\"Convergence criteria\"/>");
+        assertContains(nodeContents, "<parameterSet name=\"Remote execution\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L0 data\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"target pixel table\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L1 data\"/>");
         nodeContents = nodeContent(pipelineContents, "<node "
             + "moduleName=\"module 2\" childNodeNames=\"module 4\" singleSubtask=\"false\">");
-        assertContains(nodeContents, "<moduleParameter name=\"Convergence criteria\"/>");
-        assertContains(nodeContents, "<moduleParameter name=\"Remote execution\"/>");
+        assertContains(nodeContents, "<parameterSet name=\"Convergence criteria\"/>");
+        assertContains(nodeContents, "<parameterSet name=\"Remote execution\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L1 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<modelType name=\"georeferencing constants\"/>");
         nodeContents = nodeContent(pipelineContents,
             "<node moduleName=\"module 3\" singleSubtask=\"false\">");
-        assertContains(nodeContents, "<moduleParameter name=\"Excluded bands\"/>");
+        assertContains(nodeContents, "<parameterSet name=\"Excluded bands\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L1 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<modelType name=\"Temperature references\"/>");
         nodeContents = nodeContent(pipelineContents,
             "<node moduleName=\"module 4\" singleSubtask=\"false\">");
-        assertContains(nodeContents, "<moduleParameter name=\"Export format\"/>");
+        assertContains(nodeContents, "<parameterSet name=\"Export format\"/>");
         assertContains(nodeContents, "<inputDataFileType name=\"flight L2 data\"/>");
         assertContains(nodeContents, "<outputDataFileType name=\"exports\"/>");
     }
@@ -153,6 +151,7 @@ public class PipelineDefinitionTest {
         Unmarshaller unmarshaller = context.createUnmarshaller();
         PipelineDefinition pipelineDefinition = (PipelineDef) unmarshaller
             .unmarshal(xmlUnmarshalingFile);
+        pipelineDefinition1.populateXmlFields();
         comparePipelines(pipelineDefinition1, pipelineDefinition);
     }
 
@@ -161,10 +160,10 @@ public class PipelineDefinitionTest {
         assertEquals(groundTruthPipeline.getDescription(), pipeline.getDescription());
         assertEquals(groundTruthPipeline.getInstancePriority(), pipeline.getInstancePriority());
         assertEquals(groundTruthPipeline.getRootNodeNames(), pipeline.getRootNodeNames());
-        assertEquals(groundTruthPipeline.getParameterSetNames().size(),
-            pipeline.getParameterSetNames().size());
-        for (String paramSetName : pipeline.getParameterSetNames()) {
-            assertTrue(groundTruthPipeline.getParameterSetNames().contains(paramSetName));
+        assertEquals(groundTruthPipeline.parameterSetNamesFromXml().size(),
+            pipeline.parameterSetNamesFromXml().size());
+        for (String paramSetName : pipeline.parameterSetNamesFromXml()) {
+            assertTrue(groundTruthPipeline.parameterSetNamesFromXml().contains(paramSetName));
         }
         for (PipelineDefinitionNode node : pipeline.getNodes()) {
             checkNode(node, groundTruthPipeline.getNodes());
@@ -188,8 +187,8 @@ public class PipelineDefinitionTest {
             node.getInputDataFileTypeReferences());
         compareXmlReferences(groundTruthNode.getOutputDataFileTypeReferences(),
             node.getOutputDataFileTypeReferences());
-        compareParameterSetReferences(groundTruthNode.getParameterSetNames(),
-            node.getParameterSetNames());
+        compareParameterSetReferences(groundTruthNode.getXmlParameterSetNames(),
+            node.getXmlParameterSetNames());
     }
 
     @Test
@@ -197,7 +196,7 @@ public class PipelineDefinitionTest {
         JAXBContext context = JAXBContext.newInstance(PipelineDef.class);
         context.generateSchema(new PipelineDefinitionListSchemaResolver());
         List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
-            FileUtil.ZIGGY_CHARSET);
+            ZiggyFileUtils.ZIGGY_CHARSET);
         assertContains(schemaContent, "<xs:element name=\"pipeline\" type=\"pipelineDef\"/>");
 
         List<String> complexTypeContent = complexTypeContent(schemaContent,
@@ -205,7 +204,7 @@ public class PipelineDefinitionTest {
         assertContains(complexTypeContent,
             "<xs:element name=\"node\" type=\"pipelineDefinitionNode\"/>");
         assertContains(complexTypeContent,
-            "<xs:element name=\"pipelineParameter\" " + "type=\"parameterSetReference\"/>");
+            "<xs:element name=\"parameterSet\" " + "type=\"parameterSetReference\"/>");
         assertContains(complexTypeContent,
             "<xs:attribute name=\"description\" type=\"xs:string\" use=\"required\"/>");
         assertContains(complexTypeContent,
@@ -218,7 +217,7 @@ public class PipelineDefinitionTest {
         complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineDefinitionNode\">");
         assertContains(complexTypeContent,
-            "<xs:element name=\"moduleParameter\" " + "type=\"parameterSetReference\"/>");
+            "<xs:element name=\"parameterSet\" " + "type=\"parameterSetReference\"/>");
         assertContains(complexTypeContent,
             "<xs:element name=\"inputDataFileType\" type=\"inputTypeReference\"/>");
         assertContains(complexTypeContent,

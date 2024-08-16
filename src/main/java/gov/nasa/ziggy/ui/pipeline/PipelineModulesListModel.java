@@ -29,8 +29,6 @@ public class PipelineModulesListModel extends AbstractListModel<String>
         moduleNames.clear();
         pipelineNodes.clear();
 
-        pipeline.buildPaths();
-
         addNodes(pipeline, pipeline.getRootNodes());
 
         if (moduleNames.size() > 0) {

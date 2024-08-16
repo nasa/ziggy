@@ -55,7 +55,7 @@ public class ModelRegistry implements HasXmlSchemaFilename {
     @Transient
     private List<ModelMetadata> modelsMetadata = new ArrayList<>();
 
-    private boolean locked = false;
+    private boolean locked;
     private Date lockTime;
 
     @Transient
@@ -69,8 +69,6 @@ public class ModelRegistry implements HasXmlSchemaFilename {
      */
     public ModelRegistry(ModelRegistry other) {
         models = new HashMap<>(other.models);
-
-        locked = false;
     }
 
     /**

@@ -55,10 +55,8 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceNodeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -76,6 +74,8 @@ public class PerformanceReport {
     private final long instanceId;
     private final File taskFilesDir;
     private final NodeIndexRange nodes;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
 
     public PerformanceReport(long instanceId, File taskFilesDir, NodeIndexRange nodes) {
         this.instanceId = instanceId;
@@ -87,11 +87,7 @@ public class PerformanceReport {
     public Path generateReport() {
         log.info("Generating performance report");
 
-        PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
-        PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
-        PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-
-        PipelineInstance instance = pipelineInstanceCrud.retrieve(instanceId);
+        PipelineInstance instance = pipelineInstanceOperations().pipelineInstance(instanceId);
 
         if (instance == null) {
             System.err.println("No instance found with ID = " + instanceId);
@@ -110,23 +106,17 @@ public class PerformanceReport {
 
         PdfRenderer pdfRenderer = new PdfRenderer(outputPath.toFile(), false);
 
-        List<PipelineInstanceNode> instanceNodes = pipelineInstanceNodeCrud.retrieveAll(instance);
-        List<PipelineInstanceNode> nodesToProcess = null;
-        String nodesIncluded;
+        List<PipelineInstanceNode> instanceNodes = pipelineInstanceOperations()
+            .instanceNodes(instance);
+        List<PipelineInstanceNode> nodesToProcess = nodes == null ? instanceNodes
+            : selectNodes(instanceNodes);
 
-        if (nodes == null) {
-            nodesIncluded = "All";
-            nodesToProcess = instanceNodes;
-        } else {
-            nodesIncluded = nodes.toString();
-            nodesToProcess = selectNodes(instanceNodes);
-        }
-
-        pdfRenderer.printText("Nodes included in report: " + nodesIncluded, PdfRenderer.h1Font);
+        pdfRenderer.printText(
+            "Nodes included in report: " + (nodes == null ? "All" : nodes.toString()),
+            PdfRenderer.h1Font);
         pdfRenderer.println();
 
-        InstanceReport instanceReport = new InstanceReport(pdfRenderer);
-        instanceReport.generateReport(instance, nodesToProcess);
+        new InstanceReport(pdfRenderer).generateReport(instance, nodesToProcess);
 
         if (nodesToProcess.isEmpty()) {
             System.err.println("No instance nodes found for instance = " + instanceId);
@@ -135,15 +125,13 @@ public class PerformanceReport {
             pdfRenderer.newPage();
 
             for (PipelineInstanceNode node : nodesToProcess) {
-                List<PipelineTask> nodeTasks = pipelineTaskCrud.retrieveAll(node);
-                generateNodeReport(pdfRenderer, node, nodeTasks);
+                generateNodeReport(pdfRenderer, node);
             }
         }
 
         pdfRenderer.newPage();
 
-        AppendixReport appendixReport = new AppendixReport(pdfRenderer);
-        appendixReport.generateReport(instance, nodesToProcess);
+        new AppendixReport(pdfRenderer).generateReport(instance, nodesToProcess);
 
         pdfRenderer.close();
 
@@ -166,12 +154,11 @@ public class PerformanceReport {
         return instanceNodes.subList(startNode, endNode + 1);
     }
 
-    private void generateNodeReport(PdfRenderer pdfRenderer, PipelineInstanceNode node,
-        List<PipelineTask> tasks) {
-        String moduleName = node.getPipelineModuleDefinition().getName();
+    private void generateNodeReport(PdfRenderer pdfRenderer, PipelineInstanceNode node) {
+        String moduleName = node.getModuleName();
 
         NodeReport nodeReport = new NodeReport(pdfRenderer);
-        nodeReport.generateReport(node, tasks);
+        nodeReport.generateReport(node);
 
         pdfRenderer.newPage();
 
@@ -290,5 +277,13 @@ public class PerformanceReport {
         }
         PerformanceReport report = new PerformanceReport(instanceId, taskDir, nodes);
         report.generateReport();
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
+    }
+
+    PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
     }
 }

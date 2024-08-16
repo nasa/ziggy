@@ -12,8 +12,9 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -28,13 +29,12 @@ public class DataAccountabilityReport {
     private static final int DATA_RECEIPT_ID = 0;
 
     private final Set<Long> initialTaskIds;
-    private final PipelineTaskCrud taskCrud;
     private final PipelineTaskRenderer taskRenderer;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private DatastoreProducerConsumerOperations datastoreProducerConsumerOperations = new DatastoreProducerConsumerOperations();
 
-    public DataAccountabilityReport(Set<Long> initialTaskIds, PipelineTaskCrud taskCrud,
-        PipelineTaskRenderer taskRenderer) {
+    public DataAccountabilityReport(Set<Long> initialTaskIds, PipelineTaskRenderer taskRenderer) {
         this.initialTaskIds = initialTaskIds;
-        this.taskCrud = taskCrud;
         this.taskRenderer = taskRenderer;
     }
 
@@ -66,8 +66,9 @@ public class DataAccountabilityReport {
             queue.remove(taskId);
             visited.add(taskId);
 
-            PipelineTask consumerTask = taskCrud.retrieve(taskId);
-            Set<Long> parentTasks = consumerTask.getProducerTaskIds();
+            PipelineTask consumerTask = pipelineTaskOperations().pipelineTask(taskId);
+            DatastoreProducerConsumerOperations ops = datastoreProducerConsumerOperations();
+            Set<Long> parentTasks = ops.producerIds(consumerTask);
 
             if (parentTasks != null && !parentTasks.isEmpty()) {
                 consumerProducer.put(taskId, parentTasks);
@@ -179,12 +180,20 @@ public class DataAccountabilityReport {
             if (taskId == DATA_RECEIPT_ID) {
                 bldr.append(taskRenderer.renderDefaultTask()).append('\n');
             } else {
-                PipelineTask task = taskCrud.retrieve(taskId);
+                PipelineTask task = pipelineTaskOperations().pipelineTask(taskId);
                 bldr.append(taskRenderer.renderTask(task));
                 bldr.append("\n");
             }
         } catch (IOException e) {
             throw new UncheckedIOException("IOException occurred rendering line ", e);
         }
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
+    }
+
+    DatastoreProducerConsumerOperations datastoreProducerConsumerOperations() {
+        return datastoreProducerConsumerOperations;
     }
 }

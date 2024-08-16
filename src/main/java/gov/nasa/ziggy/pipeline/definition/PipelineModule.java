@@ -3,18 +3,20 @@ package gov.nasa.ziggy.pipeline.definition;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.Metric;
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
  * This is the super-class for all pipeline modules.
@@ -26,6 +28,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
  * @author Todd Klaus
  * @author Sean McCauliff
  * @author PT
+ * @author Bill Wohler
  */
 public abstract class PipelineModule {
 
@@ -34,18 +37,10 @@ public abstract class PipelineModule {
     protected PipelineTask pipelineTask;
     protected RunMode runMode;
 
-    /**
-     * Used by sub-classes to indicate that only a subset of the unit of work was processed
-     * successfully. In this case, the transaction will be committed and the transition logic will
-     * be executed, but the {@link PipelineTask} state will be set to PARTIAL instead of COMPLETE.
-     */
-    private boolean partialSuccess = false;
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     /**
      * Standard constructor. Stores the {@link PipelineTask} and {@link RunMode} for the instance.
-     *
-     * @param pipelineTask
-     * @param runMode
      */
     public PipelineModule(PipelineTask pipelineTask, RunMode runMode) {
         this.pipelineTask = checkNotNull(pipelineTask, "pipelineTask");
@@ -54,6 +49,120 @@ public abstract class PipelineModule {
 
     public final long taskId() {
         return pipelineTask.getId();
+    }
+
+    /**
+     * Defines the subset of {@link ProcessingStep} enumerations that are valid, and the order in
+     * which they are stepped through.
+     */
+    public List<ProcessingStep> processingSteps() {
+        return List.of(ProcessingStep.EXECUTING);
+    }
+
+    /**
+     * Returns the next processing step for the current pipeline module.
+     *
+     * @param currentProcessingStep current processing step of the module
+     * @return ProcessingStep that is next in the list of steps
+     * @throw PipelineException if the currentProcessingStep is not in the list or is the last step
+     * in the list, a PipelineException is thrown
+     */
+    public ProcessingStep nextProcessingStep(ProcessingStep currentProcessingStep) {
+
+        int processingStepIndex = processingSteps().indexOf(currentProcessingStep);
+        if (processingStepIndex == -1) {
+            throw new PipelineException("Processing step " + currentProcessingStep.toString()
+                + " not valid for this pipeline module");
+        }
+        if (processingStepIndex == processingSteps().size() - 1) {
+            throw new PipelineException(
+                "No more processing steps after " + currentProcessingStep.toString());
+        }
+        return processingSteps().get(++processingStepIndex);
+    }
+
+    /**
+     * Increments the processing step of a {@link PipelineTask} in the database from its current
+     * step in the database.
+     */
+    public void incrementProcessingStep() {
+        pipelineTaskOperations().updateProcessingStep(taskId(),
+            nextProcessingStep(currentProcessingStep()));
+    }
+
+    /**
+     * Returns the current processing step in the database.
+     *
+     * @return current processing step
+     */
+    public ProcessingStep currentProcessingStep() {
+        return pipelineTaskOperations().pipelineTask(taskId()).getProcessingStep();
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is
+     * {@link ProcessingStep#INITIALIZING}. This action is performed by the infrastructure so
+     * pipeline module authors are not allowed to define their own.
+     */
+    public final void initializingTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is
+     * {@link ProcessingStep#WAITING_TO_RUN}. This action is performed by the infrastructure so
+     * pipeline module authors are not allowed to define their own.
+     */
+    public final void waitingToRunTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is {@link ProcessingStep#MARSHALING}.
+     * The default action is to do nothing.
+     */
+    public void marshalingTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is {@link ProcessingStep#SUBMITTING}.
+     * The default action is to do nothing.
+     */
+    public void submittingTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is {@link ProcessingStep#QUEUED}. The
+     * default action is to do nothing.
+     */
+    public void queuedTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is {@link ProcessingStep#EXECUTING}.
+     * The default action is to do nothing.
+     */
+    public void executingTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is
+     * {@link ProcessingStep#WAITING_TO_STORE}. The default action is to do nothing.
+     */
+    public void waitingToStoreTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is {@link ProcessingStep#STORING}. The
+     * default action is to do nothing.
+     */
+    public void storingTaskAction() {
+    }
+
+    /**
+     * Defines the task action to be taken when the task step is {@link ProcessingStep#COMPLETE}.
+     * This action is performed by the infrastructure so pipeline module authors are not allowed to
+     * define their own.
+     */
+    public final void processingCompleteTaskAction() {
     }
 
     /**
@@ -94,7 +203,7 @@ public abstract class PipelineModule {
      */
 
     public final List<RunMode> supportedRestartModes() {
-        Set<RunMode> supportedRestartModes = new HashSet<>(defaultRestartModes());
+        Set<RunMode> supportedRestartModes = new LinkedHashSet<>(defaultRestartModes());
         List<RunMode> restartModes = restartModes();
         if (restartModes != null && !restartModes.isEmpty()) {
             supportedRestartModes.addAll(restartModes);
@@ -106,23 +215,17 @@ public abstract class PipelineModule {
     /**
      * Ensures that all {@link PipelineModule} concrete classes will support restart from beginning
      * as a restart mode, even if the developer who wrote the class ignored the entire issue of
-     * restart modes.
+     * restart modes. This method can be overridden if restarting from the beginning is
+     * inappropriate, which may be the case if the pipeline removes the inputs for example.
      */
     protected List<RunMode> defaultRestartModes() {
-        return Arrays.asList(RunMode.RESTART_FROM_BEGINNING);
+        return List.of(RunMode.RESTART_FROM_BEGINNING);
     }
 
     /**
      * The specific restart modes that a subclass supports.
      */
     protected abstract List<RunMode> restartModes();
-
-    /**
-     * Returns the text strings for the supported restart modes.
-     */
-    public List<String> supportedRestartModeStrings() {
-        return supportedRestartModes().stream().map(RunMode::toString).collect(Collectors.toList());
-    }
 
     protected void logTaskInfo(PipelineInstance instance, PipelineTask task) {
         log.debug("[" + getModuleName() + "]instance id = " + instance.getId());
@@ -131,12 +234,10 @@ public abstract class PipelineModule {
             "[" + getModuleName() + "]instance node uow = " + task.uowTaskInstance().briefState());
     }
 
-    public boolean isPartialSuccess() {
-        return partialSuccess;
-    }
-
-    public void setPartialSuccess(boolean partialSuccess) {
-        this.partialSuccess = partialSuccess;
+    // TODO Make protected so it's not in the public API
+    // The unit test that uses this method can define its own PipelineModule to mock this field.
+    public PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 
     // Run modes:
@@ -148,78 +249,52 @@ public abstract class PipelineModule {
     // but (b) otherwise we get all the virtues of enum-with-behavior, which is safer than using
     // an enum in a switch statement.
 
-    protected abstract void restartFromBeginning();
+    /** Defines what it means to restart from the beginning. The default action is to do nothing. */
+    protected void restartFromBeginning() {
+    }
 
-    protected abstract void resumeCurrentStep();
+    /**
+     * Defines what it means to resume from the current step. The default action is to do nothing.
+     */
+    protected void resumeCurrentStep() {
+    }
 
-    protected abstract void resubmit();
+    /** Defines what it means to resubmit the task. The default action is to do nothing. */
+    protected void resubmit() {
+    }
 
-    protected abstract void resumeMonitoring();
+    /** Defines what it means to resume monitoring. The default action is to do nothing. */
+    protected void resumeMonitoring() {
+    }
 
-    protected abstract void runStandard();
+    /**
+     * Defines the standard run mode. The default action is to do nothing, so you'll definitely want
+     * to override this method if you want your module to do something useful.
+     */
+    protected void runStandard() {
+    }
 
     public enum RunMode {
-        RESTART_FROM_BEGINNING {
-            @Override
-            public void run(PipelineModule pipelineModule) {
-                pipelineModule.restartFromBeginning();
-            }
+        RESTART_FROM_BEGINNING(PipelineModule::restartFromBeginning),
+        RESUME_CURRENT_STEP(PipelineModule::resumeCurrentStep),
+        RESUBMIT(PipelineModule::resubmit),
+        RESUME_MONITORING(PipelineModule::resumeMonitoring),
+        STANDARD(PipelineModule::runStandard);
 
-            @Override
-            public String toString() {
-                return "Restart from beginning";
-            }
-        },
-        RESUME_CURRENT_STEP {
-            @Override
-            public void run(PipelineModule pipelineModule) {
-                pipelineModule.resumeCurrentStep();
-            }
+        private Consumer<PipelineModule> taskAction;
 
-            @Override
-            public String toString() {
-                return "Resume current step";
-            }
-        },
-        RESUBMIT {
-            @Override
-            public void run(PipelineModule pipelineModule) {
-                pipelineModule.resubmit();
-            }
+        RunMode(Consumer<PipelineModule> taskAction) {
+            this.taskAction = taskAction;
+        }
 
-            @Override
-            public String toString() {
-                return "Resubmit";
-            }
-        },
-
-        RESUME_MONITORING {
-            @Override
-            public void run(PipelineModule pipelineModule) {
-                pipelineModule.resumeMonitoring();
-            }
-
-            @Override
-            public String toString() {
-                return "Resume monitoring";
-            }
-        },
-
-        STANDARD {
-            @Override
-            public void run(PipelineModule pipelineModule) {
-                pipelineModule.runStandard();
-            }
-
-            @Override
-            public String toString() {
-                return "-";
-            }
-        };
-
-        public abstract void run(PipelineModule pipelineModule);
+        public void run(PipelineModule pipelineModule) {
+            taskAction.accept(pipelineModule);
+        }
 
         @Override
-        public abstract String toString();
+        public String toString() {
+            return this == STANDARD ? "-"
+                : ZiggyStringUtils.constantToSentenceWithSpaces(super.toString());
+        }
     }
 }

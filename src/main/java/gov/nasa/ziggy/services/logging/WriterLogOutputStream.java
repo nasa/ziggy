@@ -7,6 +7,7 @@ import java.io.Writer;
 import org.apache.commons.exec.LogOutputStream;
 import org.apache.commons.exec.PumpStreamHandler;
 import org.apache.commons.io.output.WriterOutputStream;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +68,7 @@ public class WriterLogOutputStream extends LogOutputStream {
             // DefaultExecutor. Consequently it's necessary to set the appropriate thread
             // context map entry when writing logs. Unfortunately, it's not clear to me that
             // setting this once will be safe, so we set it every time a message is logged.
-            if (logStreamIdentifier != null && !logStreamIdentifier.isEmpty()) {
+            if (!StringUtils.isBlank(logStreamIdentifier)) {
                 SubtaskUtils.putLogStreamIdentifier(logStreamIdentifier);
             }
 

@@ -40,7 +40,7 @@ import java.util.Map;
 
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.metrics.MetricType;
-import gov.nasa.ziggy.metrics.MetricsCrud;
+import gov.nasa.ziggy.metrics.MetricsOperations;
 import gov.nasa.ziggy.util.TimeRange;
 
 /**
@@ -49,6 +49,9 @@ import gov.nasa.ziggy.util.TimeRange;
  * @author Todd Klaus
  */
 public class MetricsCli {
+
+    private MetricsOperations metricsOperations = new MetricsOperations();
+
     public MetricsCli() {
     }
 
@@ -81,13 +84,12 @@ public class MetricsCli {
     }
 
     private void dumpAvailableTypes() {
-        MetricsCrud metricsCrud = new MetricsCrud();
 
-        List<MetricType> availableTypes = metricsCrud.retrieveAllMetricTypes();
+        List<MetricType> availableTypes = metricsOperations().metricTypes();
         System.out.println("Found " + availableTypes.size() + " metric types.");
 
         for (MetricType type : availableTypes) {
-            TimeRange dateRange = metricsCrud.getTimestampRange(type);
+            TimeRange dateRange = metricsOperations().timestampRange(type);
             System.out.println(type + ": [" + dateRange.getStartTimestamp() + " through "
                 + dateRange.getEndTimestamp() + "]");
         }
@@ -145,5 +147,9 @@ public class MetricsCli {
 
         MetricsCli cli = new MetricsCli();
         cli.processCommand(args);
+    }
+
+    MetricsOperations metricsOperations() {
+        return metricsOperations;
     }
 }

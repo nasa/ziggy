@@ -22,7 +22,7 @@ import org.junit.Test;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils;
 import gov.nasa.ziggy.module.ExternalProcessPipelineModule;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -77,12 +77,13 @@ public class PipelineModuleDefinitionTest {
         module2.setInputsClass(new ClassWrapper<>(DataFileTestUtils.PipelineInputsSample.class));
         module2.setOutputsClass(new ClassWrapper<>(DataFileTestUtils.PipelineOutputsSample1.class));
         module2.setPipelineModuleClass(new ClassWrapper<>(ExternalProcessPipelineModule.class));
+        module2.setExecutableName("executable2");
         module2XmlString = """
             <module name="module 2" description="second module" \
             pipelineModuleClass="gov.nasa.ziggy.module.ExternalProcessPipelineModule" \
             inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample" \
             outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample1" \
-            exeTimeoutSecs="300" minMemoryMegabytes="0"/>""";
+            exeTimeoutSecs="300" minMemoryMegabytes="0" executableName="executable2"/>""";
     }
 
     @Test
@@ -92,12 +93,12 @@ public class PipelineModuleDefinitionTest {
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         marshaller.marshal(module1, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), ZiggyFileUtils.ZIGGY_CHARSET);
         assertContains(xmlContent, module1XmlString);
 
         marshaller.marshal(module2, xmlFile);
         assertTrue(xmlFile.exists());
-        xmlContent = Files.readAllLines(xmlFile.toPath(), FileUtil.ZIGGY_CHARSET);
+        xmlContent = Files.readAllLines(xmlFile.toPath(), ZiggyFileUtils.ZIGGY_CHARSET);
         assertContains(xmlContent, module2XmlString);
     }
 
@@ -118,7 +119,7 @@ public class PipelineModuleDefinitionTest {
         JAXBContext context = JAXBContext.newInstance(PipelineMod.class);
         context.generateSchema(new ModulesSchemaResolver());
         List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
-            FileUtil.ZIGGY_CHARSET);
+            ZiggyFileUtils.ZIGGY_CHARSET);
         assertContains(schemaContent, "<xs:element name=\"module\" type=\"pipelineMod\"/>");
         List<String> moduleDefContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"pipelineModuleDefinition\">");
@@ -131,6 +132,7 @@ public class PipelineModuleDefinitionTest {
             "<xs:attribute name=\"inputsClass\" type=\"xs:string\"/>",
             "<xs:attribute name=\"outputsClass\" type=\"xs:string\"/>",
             "<xs:attribute name=\"exeTimeoutSecs\" type=\"xs:int\"/>",
+            "<xs:attribute name=\"executableName\" type=\"xs:string\"/>",
             "<xs:attribute name=\"minMemoryMegabytes\" type=\"xs:int\"/>" };
         for (String moduleAttribute : moduleDefAttributes) {
             assertContains(moduleDefContent, moduleAttribute);

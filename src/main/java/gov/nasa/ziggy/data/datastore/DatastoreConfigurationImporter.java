@@ -37,6 +37,7 @@ package gov.nasa.ziggy.data.datastore;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,15 +53,11 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.crud.DataFileTypeCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
@@ -86,19 +83,16 @@ public class DatastoreConfigurationImporter {
     private List<String> filenames;
     private boolean dryRun;
 
-    private List<DataFileType> dataFileTypes = new ArrayList<>();
-    private List<ModelType> modelTypes = new ArrayList<>();
-    private List<DatastoreRegexp> datastoreRegexps = new ArrayList<>();
-    private List<DatastoreNode> datastoreNodes = new ArrayList<>();
+    private List<DataFileType> importedDataFileTypes = new ArrayList<>();
+    private List<ModelType> importedModelTypes = new ArrayList<>();
+    private List<DatastoreRegexp> importedDatastoreRegexps = new ArrayList<>();
+    private List<DatastoreNode> importedDatastoreNodes = new ArrayList<>();
     private List<String> fullPathsForNodesToRemove = new ArrayList<>();
     private Set<DatastoreNode> nodesForDatabase = new HashSet<>();
 
     private Map<String, DatastoreNode> databaseDatastoreNodesByFullPath;
 
-    private DataFileTypeCrud dataFileTypeCrud = new DataFileTypeCrud();
-    private ModelCrud modelCrud = new ModelCrud();
-    private DatastoreRegexpCrud datastoreRegexpCrud = new DatastoreRegexpCrud();
-    private DatastoreNodeCrud datastoreNodeCrud = new DatastoreNodeCrud();
+    private DatastoreOperations datastoreOperations = new DatastoreOperations();
 
     // The following are instantiated so that unit tests that rely on them don't fail
 
@@ -122,15 +116,7 @@ public class DatastoreConfigurationImporter {
         boolean dryRun = cmdLine.hasOption(DRY_RUN_OPTION);
         DatastoreConfigurationImporter importer = new DatastoreConfigurationImporter(
             Arrays.asList(filenames), dryRun);
-
-        if (!dryRun) {
-            DatabaseTransactionFactory.performTransaction(() -> {
-                importer.importConfiguration();
-                return null;
-            });
-        } else {
-            importer.importConfiguration();
-        }
+        importer.importConfiguration();
     }
 
     private static void usageAndExit(Options options, String message, Throwable e) {
@@ -162,18 +148,10 @@ public class DatastoreConfigurationImporter {
      * DataFileType instances to be imported, none will be imported. The import also imports model
      * definitions.
      */
-    @SuppressWarnings("unchecked")
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void importConfiguration() {
 
-        databaseDatastoreNodesByFullPath = (Map<String, DatastoreNode>) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                Map<String, DatastoreNode> nodes = datastoreNodeCrud().retrieveNodesByFullPath();
-                for (DatastoreNode node : nodes.values()) {
-                    Hibernate.initialize(node.getChildNodeFullPaths());
-                }
-                return nodes;
-            });
+        databaseDatastoreNodesByFullPath = datastoreOperations().datastoreNodesByFullPath();
 
         for (String filename : filenames) {
             File file = new File(filename);
@@ -194,17 +172,16 @@ public class DatastoreConfigurationImporter {
             }
 
             log.info("Importing DataFileType definitions from {}", filename);
-            dataFileTypes.addAll(configDoc.getDataFileTypes());
+            importedDataFileTypes.addAll(configDoc.getDataFileTypes());
 
-            // Now for the models
             log.info("Importing ModelType definitions from {}", filename);
-            modelTypes.addAll(configDoc.getModelTypes());
+            importedModelTypes.addAll(configDoc.getModelTypes());
 
             log.info("Importing datastore regexp definitions from {}", filename);
-            datastoreRegexps.addAll(configDoc.getRegexps());
+            importedDatastoreRegexps.addAll(configDoc.getRegexps());
 
             log.info("Importing datastore node definitions from {}", filename);
-            datastoreNodes.addAll(configDoc.getDatastoreNodes());
+            importedDatastoreNodes.addAll(configDoc.getDatastoreNodes());
         }
         checkDefinitions();
         if (!dryRun) {
@@ -246,11 +223,10 @@ public class DatastoreConfigurationImporter {
         List<DatastoreRegexp> regexpsToPersist = new ArrayList<>();
 
         // Get the regexps out of the database.
-        @SuppressWarnings("unchecked")
-        Map<String, DatastoreRegexp> databaseRegexpsByName = (Map<String, DatastoreRegexp>) DatabaseTransactionFactory
-            .performTransaction(() -> datastoreRegexpCrud().retrieveRegexpsByName());
+        Map<String, DatastoreRegexp> databaseRegexpsByName = datastoreOperations()
+            .datastoreRegexpsByName();
         Set<String> regexpNames = new HashSet<>(databaseRegexpsByName.keySet());
-        for (DatastoreRegexp regexp : datastoreRegexps) {
+        for (DatastoreRegexp regexp : importedDatastoreRegexps) {
 
             // If the regexp is new, we need to persist it; if it matches one in the database,
             // we need to update the value of the database copy.
@@ -267,7 +243,7 @@ public class DatastoreConfigurationImporter {
                     regexp.getValue());
             }
         }
-        datastoreRegexps = regexpsToPersist;
+        importedDatastoreRegexps = regexpsToPersist;
     }
 
     /**
@@ -292,7 +268,7 @@ public class DatastoreConfigurationImporter {
         for (DatastoreNode nodeForDatabase : nodesForDatabase) {
             if (!isNodeSelfConsistent(nodeForDatabase, allRegexpNames, false)) {
                 log.warn("Unable to store datastore nodes in database due to validation failures");
-                datastoreNodes.clear();
+                importedDatastoreNodes.clear();
                 fullPathsForNodesToRemove.clear();
                 return;
             }
@@ -300,20 +276,18 @@ public class DatastoreConfigurationImporter {
         log.info("All datastore nodes successfully populated");
     }
 
-    @SuppressWarnings("unchecked")
     private Set<String> allRegexpNames() {
-        Set<String> allRegexpNames = datastoreRegexps.stream()
+        Set<String> allRegexpNames = importedDatastoreRegexps.stream()
             .map(DatastoreRegexp::getName)
             .collect(Collectors.toSet());
-        allRegexpNames.addAll((List<String>) DatabaseTransactionFactory
-            .performTransaction(() -> datastoreRegexpCrud().retrieveRegexpNames()));
+        allRegexpNames.addAll(datastoreOperations().regexpNames());
 
         return allRegexpNames;
     }
 
     /** Top-level method for locating the nodes that will be persisted. */
     private void findNodesForDatabase(Set<String> allRegexpNames) {
-        findNodesForDatabase(datastoreNodes, allRegexpNames, "");
+        findNodesForDatabase(importedDatastoreNodes, allRegexpNames, "");
     }
 
     /**
@@ -355,16 +329,7 @@ public class DatastoreConfigurationImporter {
      * account.
      */
     private static String fullPathFromParentPath(DatastoreNode node, String parentFullPath) {
-        return fullPathFromParentPath(node.getName(), parentFullPath);
-    }
-
-    /**
-     * Full path string for a {@link DatastoreNode} when the full path of its parent is taken into
-     * account. Package scoped for test purposes.
-     */
-    static String fullPathFromParentPath(String nodeName, String parentFullPath) {
-        return StringUtils.isEmpty(parentFullPath) ? nodeName
-            : parentFullPath + DatastoreWalker.NODE_SEPARATOR + nodeName;
+        return DatastoreWalker.fullPathFromParentPath(node.getName(), parentFullPath);
     }
 
     /**
@@ -445,7 +410,7 @@ public class DatastoreConfigurationImporter {
         for (String childNodeName : childNodeNames) {
             if (!StringUtils.isBlank(childNodeName)) {
                 updatedChildNodeFullPaths
-                    .add(fullPathFromParentPath(childNodeName, node.getFullPath()));
+                    .add(DatastoreWalker.fullPathFromParentPath(childNodeName, node.getFullPath()));
             }
         }
 
@@ -511,7 +476,7 @@ public class DatastoreConfigurationImporter {
             }
             if (childNode == null) {
                 childNode = childNodeFromDatabaseNodes(
-                    fullPathFromParentPath(childNodeName, node.getFullPath()));
+                    DatastoreWalker.fullPathFromParentPath(childNodeName, node.getFullPath()));
             }
             if (childNode != null) {
                 childNodes.add(childNode);
@@ -554,14 +519,6 @@ public class DatastoreConfigurationImporter {
         return childNodeNames;
     }
 
-//    /** Checks a {@link List} of {@link String}s for duplicates. */
-//    List<String> duplicateStrings(List<String> childNodeNames) {
-//        Set<String> allChildNodeNames = new HashSet<>();
-//        return childNodeNames.stream()
-//            .filter(s -> !allChildNodeNames.add(s))
-//            .collect(Collectors.toList());
-//    }
-
     /** Checks a {@link List} of {@link DatastoreNode}s for duplicate names. */
     List<String> duplicateXmlNodeNames(List<DatastoreNode> xmlNodes) {
         return ZiggyStringUtils.duplicateStrings(
@@ -573,10 +530,8 @@ public class DatastoreConfigurationImporter {
 
         // First check against the database definitions.
         List<DataFileType> dataFileTypesNotImported = new ArrayList<>();
-        @SuppressWarnings("unchecked")
-        List<String> databaseDataFileTypeNames = (List<String>) DatabaseTransactionFactory
-            .performTransaction(() -> dataFileTypeCrud().retrieveAllNames());
-        for (DataFileType typeXb : dataFileTypes) {
+        List<String> databaseDataFileTypeNames = datastoreOperations().dataFileTypeNames();
+        for (DataFileType typeXb : importedDataFileTypes) {
             if (databaseDataFileTypeNames.contains(typeXb.getName())) {
                 log.warn("Not importing data file type definition \"{}\""
                     + " due to presence of existing type with same name", typeXb.getName());
@@ -584,13 +539,13 @@ public class DatastoreConfigurationImporter {
                 continue;
             }
         }
-        dataFileTypes.removeAll(dataFileTypesNotImported);
+        importedDataFileTypes.removeAll(dataFileTypesNotImported);
 
         // Now check for duplicates within the imports.
-        Set<String> uniqueDataFileTypeNames = dataFileTypes.stream()
+        Set<String> uniqueDataFileTypeNames = importedDataFileTypes.stream()
             .map(DataFileType::getName)
             .collect(Collectors.toSet());
-        if (dataFileTypes.size() != uniqueDataFileTypeNames.size()) {
+        if (importedDataFileTypes.size() != uniqueDataFileTypeNames.size()) {
             throw new IllegalStateException(
                 "Unable to persist data file types due to duplicate names");
         }
@@ -602,13 +557,8 @@ public class DatastoreConfigurationImporter {
      */
     private void checkModelTypeDefinitions() {
         List<ModelType> modelTypesNotImported = new ArrayList<>();
-        @SuppressWarnings("unchecked")
-        List<String> databaseModelTypes = (List<String>) DatabaseTransactionFactory
-            .performTransaction(() -> modelCrud().retrieveAllModelTypes()
-                .stream()
-                .map(ModelType::getType)
-                .collect(Collectors.toList()));
-        for (ModelType modelTypeXb : modelTypes) {
+        List<String> databaseModelTypes = datastoreOperations().modelTypes();
+        for (ModelType modelTypeXb : importedModelTypes) {
             try {
                 modelTypeXb.validate();
             } catch (Exception e) {
@@ -625,74 +575,67 @@ public class DatastoreConfigurationImporter {
                 continue;
             }
         }
-        modelTypes.removeAll(modelTypesNotImported);
-        log.info("Imported {} ModelType definitions from files", modelTypes.size());
+        importedModelTypes.removeAll(modelTypesNotImported);
+        log.info("Imported {} ModelType definitions from files", importedModelTypes.size());
 
         // Now check for duplicate model names in the imports.
-        Set<String> uniqueModelTypeNames = modelTypes.stream()
+        Set<String> uniqueModelTypeNames = importedModelTypes.stream()
             .map(ModelType::getType)
             .collect(Collectors.toSet());
-        if (modelTypes.size() != uniqueModelTypeNames.size()) {
+        if (importedModelTypes.size() != uniqueModelTypeNames.size()) {
             throw new IllegalStateException("Unable to persist model types due to duplicate names");
         }
     }
 
     /** Persist all definitions to the database. */
     private void persistDefinitions() {
-        DatabaseTransactionFactory.performTransaction(() -> {
-            log.info("Persisting to database {} DataFileType definitions", dataFileTypes.size());
-            dataFileTypeCrud().persist(dataFileTypes);
-            log.info("Persisting to database {} model definitions", modelTypes.size());
-            modelCrud().persist(modelTypes);
-            log.info("Persisting to database {} regexp definitions", datastoreRegexps.size());
-            for (DatastoreRegexp regexp : datastoreRegexps) {
-                datastoreRegexpCrud().merge(regexp);
-            }
-            log.info("Deleting from database {} datastore node definitions",
-                fullPathsForNodesToRemove.size());
-            for (String fullPathForRemoval : fullPathsForNodesToRemove) {
-                datastoreNodeCrud()
-                    .remove(databaseDatastoreNodesByFullPath.get(fullPathForRemoval));
-            }
-            log.info("Persisting to database {} datastore node definitions",
-                nodesForDatabase.size());
-            for (DatastoreNode nodeForDatabase : nodesForDatabase) {
-                datastoreNodeCrud().merge(nodeForDatabase);
-            }
-            log.info("Persist step complete");
-            return null;
-        });
+        Set<DatastoreNode> datastoreNodesToRemove = new HashSet<>();
+        for (String fullPathForNodeToRemove : fullPathsForNodesToRemove) {
+            datastoreNodesToRemove
+                .add(databaseDatastoreNodesByFullPath.get(fullPathForNodeToRemove));
+        }
+        datastoreOperations().persistDatastoreConfiguration(importedDataFileTypes,
+            importedModelTypes, importedDatastoreRegexps, datastoreNodesToRemove, nodesForDatabase,
+            log);
     }
 
-    DataFileTypeCrud dataFileTypeCrud() {
-        return dataFileTypeCrud;
-    }
-
-    ModelCrud modelCrud() {
-        return modelCrud;
-    }
-
-    DatastoreRegexpCrud datastoreRegexpCrud() {
-        return datastoreRegexpCrud;
-    }
-
-    DatastoreNodeCrud datastoreNodeCrud() {
-        return datastoreNodeCrud;
+    DatastoreOperations datastoreOperations() {
+        return datastoreOperations;
     }
 
     List<DataFileType> getDataFileTypes() {
-        return dataFileTypes;
+        return importedDataFileTypes;
     }
 
     List<ModelType> getModelTypes() {
-        return modelTypes;
+        return importedModelTypes;
     }
 
     List<DatastoreRegexp> getRegexps() {
-        return datastoreRegexps;
+        return importedDatastoreRegexps;
+    }
+
+    Map<String, DatastoreRegexp> regexpsByName() {
+        Map<String, DatastoreRegexp> regexpsByName = new HashMap<>();
+        for (DatastoreRegexp regexp : importedDatastoreRegexps) {
+            regexpsByName.put(regexp.getName(), regexp);
+        }
+        return regexpsByName;
     }
 
     Set<DatastoreNode> nodesForDatabase() {
         return nodesForDatabase;
+    }
+
+    List<String> getFullPathsForNodesToRemove() {
+        return fullPathsForNodesToRemove;
+    }
+
+    Map<String, DatastoreNode> nodesByFullPath() {
+        Map<String, DatastoreNode> nodesByFullPath = new HashMap<>();
+        for (DatastoreNode node : nodesForDatabase) {
+            nodesByFullPath.put(node.getFullPath(), node);
+        }
+        return nodesByFullPath;
     }
 }

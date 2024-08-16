@@ -2,6 +2,7 @@ package gov.nasa.ziggy.crud;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -32,14 +33,21 @@ import org.mockito.Mockito;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask.State;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.UniqueNameVersionPipelineComponent_;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.PropertyName;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Unit tests for {@link ZiggyQuery}.
@@ -56,6 +64,8 @@ public class ZiggyQueryTest {
     private PipelineTaskCrud crud;
     private Path logPath;
     private FileAppender hibernateLog;
+    private TestOperations testOperations = new TestOperations();
+    private List<PipelineTask> pipelineTasks;
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
@@ -102,6 +112,7 @@ public class ZiggyQueryTest {
             .build();
         hibernateLog.start();
         lc.addAppender(hibernateLog, Level.ALL, null);
+        pipelineTasks = new ArrayList<>();
     }
 
     @After
@@ -122,9 +133,7 @@ public class ZiggyQueryTest {
     public void sqlRetrieveTest() throws IOException {
 
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertTrue(tasks.isEmpty());
 
         // Read in the log file
@@ -146,7 +155,8 @@ public class ZiggyQueryTest {
         List<String> fieldNames = new ArrayList<>();
         Set<String> lazyFieldNames = Set.of("log", "uowTaskParameters", "summaryMetrics", "execLog",
             "producerTaskIds", "remoteJobs");
-        Set<String> transientFieldNames = Set.of("maxFailedSubtaskCount", "maxAutoResubmits");
+        Set<String> transientFieldNames = Set.of("maxFailedSubtaskCount", "maxAutoResubmits",
+            "ERROR_PREFIX", "LOG_FILENAME_FORMAT");
 
         for (Field field : fields) {
             if (!lazyFieldNames.contains(field.getName())
@@ -178,9 +188,7 @@ public class ZiggyQueryTest {
 
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(4, tasks.size());
     }
 
@@ -191,10 +199,8 @@ public class ZiggyQueryTest {
     public void testColumnCriterion() {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.state).in(PipelineTask.State.COMPLETED);
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        query.column(PipelineTask_.processingStep).in(ProcessingStep.COMPLETE);
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(2, tasks.size());
         List<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toList());
         assertTrue(taskIds.contains(1L));
@@ -210,9 +216,7 @@ public class ZiggyQueryTest {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
         query.where(query.getBuilder().between(query.getRoot().get(PipelineTask_.id), 2L, 3L));
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(2, tasks.size());
         List<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toList());
         assertTrue(taskIds.contains(2L));
@@ -228,9 +232,7 @@ public class ZiggyQueryTest {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
         query.where(query.in(query.get(PipelineTask_.id), Set.of(1L, 2L)));
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(2, tasks.size());
         List<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toList());
         assertTrue(taskIds.contains(1L));
@@ -245,9 +247,7 @@ public class ZiggyQueryTest {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
         query.where(query.in(query.get(PipelineTask_.id), 1L));
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(1, tasks.size());
         List<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toList());
         assertTrue(taskIds.contains(1L));
@@ -261,12 +261,10 @@ public class ZiggyQueryTest {
     public void testColumnMultiValueCriterion() {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.state)
-            .in(Set.of(PipelineTask.State.COMPLETED, PipelineTask.State.PROCESSING));
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
-        assertEquals(3, tasks.size());
+        query.column(PipelineTask_.processingStep)
+            .in(Set.of(ProcessingStep.COMPLETE, ProcessingStep.EXECUTING));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
+        assertEquals(4, tasks.size());
         List<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toList());
         assertTrue(taskIds.contains(1L));
         assertTrue(taskIds.contains(2L));
@@ -281,9 +279,7 @@ public class ZiggyQueryTest {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
         query.column(PipelineTask_.id).in(Set.of(2L, 4L)).between(1L, 3L);
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(1, tasks.size());
         List<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toList());
         assertTrue(taskIds.contains(2L));
@@ -298,11 +294,9 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
         query.column(PipelineTask_.id)
             .in(Set.of(2L, 3L, 4L))
-            .column(PipelineTask_.state)
-            .in(PipelineTask.State.COMPLETED);
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+            .column(PipelineTask_.processingStep)
+            .in(ProcessingStep.COMPLETE);
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(1, tasks.size());
         List<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toList());
         assertTrue(taskIds.contains(4L));
@@ -316,9 +310,7 @@ public class ZiggyQueryTest {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, PipelineTask> query = crud.createZiggyQuery(PipelineTask.class);
         query.column(PipelineTask_.id).descendingOrder();
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<PipelineTask> tasks = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(4, tasks.size());
         assertEquals(Long.valueOf(4L), tasks.get(0).getId());
         assertEquals(Long.valueOf(3L), tasks.get(1).getId());
@@ -335,9 +327,7 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
         query.column(PipelineTask_.id).select();
-        @SuppressWarnings("unchecked")
-        List<Long> ids = (List<Long>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<Long> ids = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(4, ids.size());
         assertTrue(ids.contains(1L));
         assertTrue(ids.contains(2L));
@@ -355,9 +345,7 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
         query.select(PipelineTask_.id);
-        @SuppressWarnings("unchecked")
-        List<Long> ids = (List<Long>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<Long> ids = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(4, ids.size());
         assertTrue(ids.contains(1L));
         assertTrue(ids.contains(2L));
@@ -375,9 +363,7 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
         query.select(query.getRoot().get("id"));
-        @SuppressWarnings("unchecked")
-        List<Long> ids = (List<Long>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<Long> ids = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(4, ids.size());
         assertTrue(ids.contains(1L));
         assertTrue(ids.contains(2L));
@@ -391,16 +377,14 @@ public class ZiggyQueryTest {
     @Test
     public void testNonDistinctSelection() {
         populatePipelineTasks();
-        ZiggyQuery<PipelineTask, PipelineTask.State> query = crud
-            .createZiggyQuery(PipelineTask.class, PipelineTask.State.class);
-        query.column(PipelineTask_.state).select();
-        @SuppressWarnings("unchecked")
-        List<PipelineTask.State> states = (List<PipelineTask.State>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
-        assertEquals(4, states.size());
-        assertTrue(states.contains(PipelineTask.State.COMPLETED));
-        assertTrue(states.contains(PipelineTask.State.PROCESSING));
-        assertTrue(states.contains(PipelineTask.State.ERROR));
+        ZiggyQuery<PipelineTask, ProcessingStep> query = crud.createZiggyQuery(PipelineTask.class,
+            ProcessingStep.class);
+        query.column(PipelineTask_.processingStep).select();
+        List<ProcessingStep> steps = testOperations.performListQueryOnPipelineTaskTable(query);
+        assertEquals(4, steps.size());
+        assertTrue(steps.contains(ProcessingStep.COMPLETE));
+        assertTrue(steps.contains(ProcessingStep.EXECUTING));
+        assertErrorCount(1);
     }
 
     /**
@@ -409,17 +393,24 @@ public class ZiggyQueryTest {
     @Test
     public void testDistinctSelection() {
         populatePipelineTasks();
-        ZiggyQuery<PipelineTask, PipelineTask.State> query = crud
-            .createZiggyQuery(PipelineTask.class, PipelineTask.State.class);
-        query.column(PipelineTask_.state).select();
+        ZiggyQuery<PipelineTask, ProcessingStep> query = crud.createZiggyQuery(PipelineTask.class,
+            ProcessingStep.class);
+        query.column(PipelineTask_.processingStep).select();
         query.distinct(true);
-        @SuppressWarnings("unchecked")
-        List<PipelineTask.State> states = (List<PipelineTask.State>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
-        assertEquals(3, states.size());
-        assertTrue(states.contains(PipelineTask.State.COMPLETED));
-        assertTrue(states.contains(PipelineTask.State.PROCESSING));
-        assertTrue(states.contains(PipelineTask.State.ERROR));
+        List<ProcessingStep> steps = testOperations.performListQueryOnPipelineTaskTable(query);
+        assertEquals(2, steps.size());
+        assertTrue(steps.contains(ProcessingStep.COMPLETE));
+        assertTrue(steps.contains(ProcessingStep.EXECUTING));
+        assertErrorCount(1);
+    }
+
+    private void assertErrorCount(int expectedErrors) {
+        ZiggyQuery<PipelineTask, Long> errorCountQuery = crud.createZiggyQuery(PipelineTask.class,
+            Long.class);
+        errorCountQuery.column(PipelineTask_.error).in(true).count();
+        long errorCount = testOperations
+            .performUniqueResultQueryOnPipelineTaskTable(errorCountQuery);
+        assertEquals(expectedErrors, errorCount);
     }
 
     /**
@@ -431,8 +422,7 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
         query.column(PipelineTask_.id).max();
-        Long maxId = (Long) DatabaseTransactionFactory
-            .performTransaction(() -> crud.uniqueResult(query));
+        Long maxId = testOperations.performUniqueResultQueryOnPipelineTaskTable(query);
         assertEquals(4L, maxId.longValue());
     }
 
@@ -445,8 +435,7 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
         query.column(PipelineTask_.id).min();
-        Long minId = (Long) DatabaseTransactionFactory
-            .performTransaction(() -> crud.uniqueResult(query));
+        Long minId = testOperations.performUniqueResultQueryOnPipelineTaskTable(query);
         assertEquals(1L, minId.longValue());
     }
 
@@ -459,13 +448,12 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
         query.column(PipelineTask_.id).sum();
-        Long idSum = (Long) DatabaseTransactionFactory
-            .performTransaction(() -> crud.uniqueResult(query));
+        Long idSum = testOperations.performUniqueResultQueryOnPipelineTaskTable(query);
         assertEquals(10L, idSum.longValue());
     }
 
     /**
-     * Tests selection of mulitple columns.
+     * Tests selection of multiple columns.
      */
     @Test
     public void testMultiSelect() {
@@ -473,20 +461,25 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Object[]> query = crud.createZiggyQuery(PipelineTask.class,
             Object[].class);
         query.column(PipelineTask_.id).select();
-        query.column(PipelineTask_.state).select();
+        query.column(PipelineTask_.processingStep).select();
         query.column(PipelineTask_.id).descendingOrder();
-        @SuppressWarnings("unchecked")
-        List<Object[]> results = (List<Object[]>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<Object[]> results = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(4, results.size());
         assertEquals(4L, ((Long) results.get(0)[0]).longValue());
-        assertEquals(PipelineTask.State.COMPLETED, results.get(0)[1]);
+        assertEquals(ProcessingStep.COMPLETE, results.get(0)[1]);
         assertEquals(3L, ((Long) results.get(1)[0]).longValue());
-        assertEquals(PipelineTask.State.ERROR, results.get(1)[1]);
+        assertEquals(ProcessingStep.EXECUTING, results.get(1)[1]);
         assertEquals(2L, ((Long) results.get(2)[0]).longValue());
-        assertEquals(PipelineTask.State.PROCESSING, results.get(2)[1]);
+        assertEquals(ProcessingStep.EXECUTING, results.get(2)[1]);
         assertEquals(1L, ((Long) results.get(3)[0]).longValue());
-        assertEquals(PipelineTask.State.COMPLETED, results.get(3)[1]);
+        assertEquals(ProcessingStep.COMPLETE, results.get(3)[1]);
+
+        query = crud.createZiggyQuery(PipelineTask.class, Object[].class);
+        query.column(PipelineTask_.id).select();
+        query.column(PipelineTask_.error).in(true);
+        results = testOperations.performListQueryOnPipelineTaskTable(query);
+        assertEquals(1, results.size());
+        assertEquals(3L, ((Long) results.get(0)[0]).longValue());
     }
 
     /**
@@ -498,9 +491,7 @@ public class ZiggyQueryTest {
         ZiggyQuery<PipelineTask, Object[]> query = crud.createZiggyQuery(PipelineTask.class,
             Object[].class);
         query.column(PipelineTask_.id).minMax();
-        @SuppressWarnings("unchecked")
-        List<Object[]> results = (List<Object[]>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<Object[]> results = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(1, results.size());
         assertEquals(1L, ((Long) results.get(0)[0]).longValue());
         assertEquals(4L, ((Long) results.get(0)[1]).longValue());
@@ -514,11 +505,9 @@ public class ZiggyQueryTest {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
-        query.column(PipelineTask_.state).in(PipelineTask.State.COMPLETED);
+        query.column(PipelineTask_.processingStep).in(ProcessingStep.COMPLETE);
         query.column(PipelineTask_.id).select();
-        @SuppressWarnings("unchecked")
-        List<Long> results = (List<Long>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<Long> results = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(2, results.size());
         assertTrue(results.contains(1L));
         assertTrue(results.contains(4L));
@@ -527,25 +516,24 @@ public class ZiggyQueryTest {
     @Test
     public void testWhereScalarInScalar() {
         populatePipelineTasks();
-        ZiggyQuery<PipelineTask, State> query = crud
-            .createZiggyQuery(PipelineTask.class, State.class)
-            .column(PipelineTask_.state)
+        ZiggyQuery<PipelineTask, ProcessingStep> query = crud
+            .createZiggyQuery(PipelineTask.class, ProcessingStep.class)
+            .column(PipelineTask_.processingStep)
             .select()
-            .in(PipelineTask.State.ERROR);
-        @SuppressWarnings("unchecked")
-        List<State> results = (List<State>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
-        assertEquals(1, results.size());
-        assertTrue(results.contains(State.ERROR));
+            .in(ProcessingStep.COMPLETE);
+        List<ProcessingStep> results = testOperations.performListQueryOnPipelineTaskTable(query);
+        assertEquals(2, results.size());
+        assertTrue(results.contains(ProcessingStep.COMPLETE));
     }
 
     @Test(expected = IllegalStateException.class)
     public void testWhereCollectionInScalar() {
         populatePipelineTasks();
-        crud.createZiggyQuery(PipelineTask.class, Long.class)
-            .column(PipelineTask_.producerTaskIds)
+        crud.createZiggyQuery(PipelineInstanceNode.class, Long.class)
+            .column(PipelineInstanceNode_.id)
             .select()
-            .in(42L);
+            .column(PipelineInstanceNode_.pipelineTasks)
+            .in(pipelineTasks.get(0));
     }
 
     /**
@@ -558,9 +546,7 @@ public class ZiggyQueryTest {
             .spy(crud.createZiggyQuery(PipelineTask.class, Long.class));
         Mockito.doReturn(2).when(query).maxExpressions();
         query.column(PipelineTask_.id).select().chunkedIn(Set.of(1L, 2L, 3L, 4L));
-        @SuppressWarnings("unchecked")
-        List<Long> results = (List<Long>) DatabaseTransactionFactory
-            .performTransaction(() -> crud.list(query));
+        List<Long> results = testOperations.performListQueryOnPipelineTaskTable(query);
         assertEquals(4, results.size());
         assertTrue(results.contains(1L));
         assertTrue(results.contains(2L));
@@ -586,38 +572,176 @@ public class ZiggyQueryTest {
         populatePipelineTasks();
         ZiggyQuery<PipelineTask, Long> query = crud.createZiggyQuery(PipelineTask.class,
             Long.class);
-        query.column(PipelineTask_.state).in(PipelineTask.State.COMPLETED);
+        query.column(PipelineTask_.processingStep).in(ProcessingStep.COMPLETE);
         query.count();
-        Long resultCount = (Long) DatabaseTransactionFactory
-            .performTransaction(() -> crud.uniqueResult(query));
+        Long resultCount = testOperations.performUniqueResultQueryOnPipelineTaskTable(query);
         assertEquals(2L, resultCount.longValue());
+    }
+
+    /**
+     * Exercises the {@link ZiggyQuery#contains(Object)} method. Implicitly tests the
+     * {@link ZiggyQuery#join()} method, which is used internally by contains.
+     */
+    @Test
+    public void testContains() {
+        populatePipelineTasks();
+        List<PipelineTask> pipelineTasks = testOperations
+            .performListQueryOnPipelineTaskTable(crud.createZiggyQuery(PipelineTask.class));
+        ZiggyQuery<PipelineInstanceNode, PipelineInstanceNode> query = crud
+            .createZiggyQuery(PipelineInstanceNode.class);
+        query.column(PipelineInstanceNode_.pipelineTasks).contains(pipelineTasks.get(0));
+        PipelineInstanceNode pipelineInstanceNode = testOperations
+            .performUniqueResultQueryOnPipelineInstanceNodeTable(query);
+        assertNotNull(pipelineInstanceNode);
+        assertEquals(1L, pipelineInstanceNode.getId().longValue());
+    }
+
+    /**
+     * Exercises the {@link ZiggyQuery#containsAny(java.util.Collection)} method. Implicitly tests
+     * the {@link ZiggyQuery#join()} method, which is used internally by containsAny.
+     */
+    @Test
+    public void testContainsAny() {
+        populatePipelineTasksWithTwoInstances();
+        List<PipelineTask> pipelineTasks = testOperations
+            .performListQueryOnPipelineTaskTable(crud.createZiggyQuery(PipelineTask.class));
+        ZiggyQuery<PipelineInstanceNode, PipelineInstanceNode> query = crud
+            .createZiggyQuery(PipelineInstanceNode.class);
+        query.column(PipelineInstanceNode_.pipelineTasks).containsAny(pipelineTasks);
+        List<PipelineInstanceNode> pipelineInstanceNodes = testOperations
+            .performListQueryOnPipelineInstanceNodeTable(query);
+        assertFalse(pipelineInstanceNodes.isEmpty());
+        assertEquals(2, pipelineInstanceNodes.size());
+        List<Long> pipelineInstanceNodeIds = pipelineInstanceNodes.stream()
+            .map(PipelineInstanceNode::getId)
+            .collect(Collectors.toList());
+        assertTrue(pipelineInstanceNodeIds.contains(1L));
+        assertTrue(pipelineInstanceNodeIds.contains(2L));
+    }
+
+    @Test
+    public void testContainsAnyNullArgument() {
+        ZiggyQuery<PipelineInstanceNode, PipelineInstanceNode> query = crud
+            .createZiggyQuery(PipelineInstanceNode.class);
+        query.column(PipelineInstanceNode_.pipelineTasks).containsAny(null);
+        List<PipelineInstanceNode> pipelineInstanceNodes = testOperations
+            .performListQueryOnPipelineInstanceNodeTable(query);
+        assertTrue(pipelineInstanceNodes.isEmpty());
+    }
+
+    @Test
+    public void testSubquery() {
+        PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
+        pipelineOperationsTestUtils.setUpSingleModulePipeline();
+        ZiggyQuery<PipelineDefinition, PipelineDefinition> query = crud
+            .createZiggyQuery(PipelineDefinition.class);
+
+        // Find the maximum index of the selected name via a subquery. We need to use a
+        // subquery because the max() method automatically implements a select of the column
+        // that's being searched.
+        ZiggyQuery<PipelineDefinition, Integer> subquery = query
+            .ziggySubquery(PipelineDefinition.class, Integer.class);
+        subquery.column(UniqueNameVersionPipelineComponent_.NAME)
+            .in(pipelineOperationsTestUtils.pipelineDefinition().getName());
+        subquery.column(UniqueNameVersionPipelineComponent_.VERSION).max();
+
+        // Use the subquery result to find the correct pipeline definition version.
+        query.column(UniqueNameVersionPipelineComponent_.NAME)
+            .in(pipelineOperationsTestUtils.pipelineDefinition().getName());
+        query.column(UniqueNameVersionPipelineComponent_.VERSION).in(subquery);
+        PipelineDefinition retrievedDefinition = testOperations
+            .performUniqueResultQueryOnPipelineDefinitionTable(query);
+        assertNotNull(retrievedDefinition);
+        assertEquals(1L, retrievedDefinition.getId().longValue());
+        assertEquals(0, retrievedDefinition.getVersion());
     }
 
     private List<String> logFileContents() throws IOException {
         return ZiggyStringUtils
-            .breakStringAtLineTerminations(Files.readString(logPath, FileUtil.ZIGGY_CHARSET));
+            .splitStringAtLineTerminations(Files.readString(logPath, ZiggyFileUtils.ZIGGY_CHARSET));
     }
 
     private void populatePipelineTasks() {
 
-        DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTask pipelineTask = new PipelineTask();
-            pipelineTask.setState(PipelineTask.State.COMPLETED);
-            pipelineTask.addProducerTaskId(40);
-            crud.persist(pipelineTask);
-            pipelineTask = new PipelineTask();
-            pipelineTask.setState(PipelineTask.State.PROCESSING);
-            pipelineTask.addProducerTaskId(41);
-            crud.persist(pipelineTask);
-            pipelineTask = new PipelineTask();
-            pipelineTask.setState(PipelineTask.State.ERROR);
-            pipelineTask.addProducerTaskId(42);
-            crud.persist(pipelineTask);
-            pipelineTask = new PipelineTask();
-            pipelineTask.setState(PipelineTask.State.COMPLETED);
-            pipelineTask.addProducerTaskId(43);
-            crud.persist(pipelineTask);
-            return null;
-        });
+        PipelineInstanceNode pipelineInstanceNode = testOperations
+            .merge(new PipelineInstanceNode());
+        PipelineTask pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.COMPLETE);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode);
+        pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.EXECUTING);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode);
+        pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.EXECUTING);
+        pipelineTask.setError(true);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode);
+        pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.COMPLETE);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode);
+        testOperations.merge(pipelineInstanceNode);
+    }
+
+    private void populatePipelineTasksWithTwoInstances() {
+
+        PipelineInstanceNode pipelineInstanceNode1 = testOperations
+            .merge(new PipelineInstanceNode());
+        PipelineInstanceNode pipelineInstanceNode2 = testOperations
+            .merge(new PipelineInstanceNode());
+
+        PipelineTask pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.COMPLETE);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode1);
+        pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.EXECUTING);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode1);
+        pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.EXECUTING);
+        pipelineTask.setError(true);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode2);
+        pipelineTask = new PipelineTask();
+        pipelineTask.setProcessingStep(ProcessingStep.COMPLETE);
+        testOperations.persistPipelineTask(pipelineTask, pipelineInstanceNode2);
+        testOperations.merge(pipelineInstanceNode1);
+        testOperations.merge(pipelineInstanceNode2);
+    }
+
+    private class TestOperations extends DatabaseOperations {
+
+        public <T> List<T> performListQueryOnPipelineTaskTable(ZiggyQuery<PipelineTask, T> query) {
+            return performTransaction(() -> new PipelineTaskCrud().list(query));
+        }
+
+        public <T> T performUniqueResultQueryOnPipelineTaskTable(
+            ZiggyQuery<PipelineTask, T> query) {
+            return performTransaction(() -> new PipelineTaskCrud().uniqueResult(query));
+        }
+
+        public <T> T performUniqueResultQueryOnPipelineInstanceNodeTable(
+            ZiggyQuery<PipelineInstanceNode, T> query) {
+            return performTransaction(() -> new PipelineInstanceNodeCrud().uniqueResult(query));
+        }
+
+        public <T> List<T> performListQueryOnPipelineInstanceNodeTable(
+            ZiggyQuery<PipelineInstanceNode, T> query) {
+            return performTransaction(() -> new PipelineInstanceNodeCrud().list(query));
+        }
+
+        public <T> T performUniqueResultQueryOnPipelineDefinitionTable(
+            ZiggyQuery<PipelineDefinition, T> query) {
+            return performTransaction(() -> new PipelineDefinitionCrud().uniqueResult(query));
+        }
+
+        public void persistPipelineTask(PipelineTask pipelineTask,
+            PipelineInstanceNode pipelineInstanceNode) {
+            PipelineTask mergedTask = performTransaction(
+                () -> new PipelineTaskCrud().merge(pipelineTask));
+            pipelineInstanceNode.addPipelineTask(mergedTask);
+            pipelineTasks.add(mergedTask);
+        }
+
+        public PipelineInstanceNode merge(PipelineInstanceNode pipelineInstanceNode) {
+            return performTransaction(
+                () -> new PipelineInstanceNodeCrud().merge(pipelineInstanceNode));
+        }
     }
 }

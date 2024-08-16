@@ -6,6 +6,7 @@ import java.util.Set;
 
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -22,6 +23,9 @@ import jakarta.persistence.UniqueConstraint;
  * <p>
  * Groups are used in the console to organize these entities into folders since their numbers can
  * grow large over the course of the mission.
+ * <p>
+ * The names associated with a {@link Group} are represented as element collections with eager
+ * fetching because we generally need all of the names whenever we access a group.
  *
  * @author Todd Klaus
  */
@@ -44,15 +48,15 @@ public class Group {
 
     private String description;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @JoinTable(name = "ziggy_Group_pipelineDefinitionNames")
     private Set<String> pipelineDefinitionNames = new HashSet<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @JoinTable(name = "ziggy_Group_pipelineModuleNames")
     private Set<String> pipelineModuleNames = new HashSet<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @JoinTable(name = "ziggy_Group_parameterSetNames")
     private Set<String> parameterSetNames = new HashSet<>();
 

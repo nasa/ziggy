@@ -37,15 +37,11 @@ package gov.nasa.ziggy.worker;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.ModuleFatalProcessingException;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.KillTasksRequest;
@@ -87,6 +83,12 @@ public class PipelineWorker extends AbstractPipelineProcess {
 
     private int workerId;
     private long taskId;
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+
+    public PipelineWorker(String name, int workerId) {
+        super(name + " " + Integer.toString(workerId));
+        this.workerId = workerId;
+    }
 
     /**
      * The {@link #main(String[])} method permits this class to be run in its own JVM, which is a
@@ -108,40 +110,22 @@ public class PipelineWorker extends AbstractPipelineProcess {
     }
 
     /**
-     * Kills the worker by calling {@link System#exit(int)}. This method is called when the worker
-     * receives a {@link KillTasksRequest} message from the supervisor, and the task processed in
-     * this worker is one of the ones that is to be killed. Because the worker is a standalone
-     * process, and because each worker processes one and only one task, this approach (killing the
-     * task by killing the worker) is the easiest and most robust way to ensure that the task is
-     * stopped.
-     * <p>
-     * Default access (package-only) for unit test purposes.
-     */
-    void killWorker() {
-        SystemProxy.exit(0);
-    }
-
-    public PipelineWorker(String name, int workerId) {
-        super(name + " " + Integer.toString(workerId));
-        this.workerId = workerId;
-    }
-
-    /**
      * Main processing method. Instantiates the {@link ZiggyRmiClient} and {@link TaskExecutor}
      * instances, then starts the {@link TaskExecutor#executeTask()} method.
      */
     private void processTask(long taskId, RunMode runMode) {
 
         this.taskId = taskId;
-        TaskLog taskLog = taskLog();
-        log.info("Process " + NAME + " instance " + workerId + " starting");
+        TaskLog.endConsoleLogging();
+        pipelineTaskOperations().incrementPipelineTaskLogIndex(taskId);
+        log.info("Process {} instance {} starting", NAME, workerId);
 
         // Initialize an instance of TaskExecutor
-        TaskExecutor taskRequestExecutor = new TaskExecutor(workerId, taskId, taskLog, runMode);
+        TaskExecutor taskRequestExecutor = new TaskExecutor(workerId, taskId, runMode);
         addProcessStatusReporter(taskRequestExecutor);
 
         // Initialize the ProcessHeartbeatManager for this process.
-        log.info("Initializing ProcessHeartbeatManager...");
+        log.info("Initializing ProcessHeartbeatManager");
         HeartbeatManager.startInstance();
         log.info("Initializing ProcessHeartbeatManager...done");
 
@@ -169,41 +153,30 @@ public class PipelineWorker extends AbstractPipelineProcess {
     }
 
     /**
-     * Starts logging for this process.
-     * <p>
-     * Log messages for this process go directly to the Ziggy task log in logs/ziggy.
+     * Subscribes to messages where the worker as a whole is the intended recipient.
      */
-    private TaskLog taskLog() {
-        PipelineTaskCrud crud = new PipelineTaskCrud();
-        PipelineTask pipelineTask = (PipelineTask) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                PipelineTask task = null;
-                int iTry = 0;
-                while (task == null && iTry < MAX_TASK_RETRIEVE_RETRIES) {
-                    task = crud.retrieve(taskId);
-                    if (task == null) {
-                        Thread.sleep(WAIT_BETWEEN_RETRIES_MILLIS);
-                    }
-                }
-                if (task == null) {
-                    throw new ModuleFatalProcessingException(
-                        "No pipeline task found for ID=" + taskId);
-                }
-                Hibernate.initialize(task.getSummaryMetrics());
-                Hibernate.initialize(task.getExecLog());
-                Hibernate.initialize(task.getProducerTaskIds());
-                return task;
-            });
+    private void subscribe() {
 
-        TaskLog taskLog = new TaskLog(workerId, pipelineTask);
-        taskLog.startLogging();
-        DatabaseTransactionFactory.performTransaction(() -> {
-            PipelineTask task = crud.retrieve(taskId);
-            task.incrementTaskLogIndex();
-            crud.merge(task);
-            return null;
+        // When a heartbeat comes in, send out the update message.
+        ZiggyMessenger.subscribe(HeartbeatMessage.class, message -> {
+            Thread t = new Thread(() -> {
+                log.debug("heartbeat received");
+                AbstractPipelineProcess.sendUpdates();
+            });
+            t.setDaemon(true);
+            t.start();
         });
-        return taskLog;
+
+        // When a shutdown request comes in, honor it.
+        ZiggyMessenger.subscribe(ShutdownMessage.class, message -> {
+            log.info("Shutting down due to shutdown signal");
+            killWorker();
+        });
+
+        // When a kill-tasks request comes in, honor it if appropriate.
+        ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
+            killTasks(message);
+        });
     }
 
     /**
@@ -228,38 +201,35 @@ public class PipelineWorker extends AbstractPipelineProcess {
      * Default access (package-only) for unit tests.
      */
     void sendKilledTaskMessage(KillTasksRequest message, long taskId) {
-        ZiggyMessenger.publish(new KilledTaskMessage(message, taskId));
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        ZiggyMessenger.publish(new KilledTaskMessage(message, taskId), countDownLatch);
+        try {
+            countDownLatch.await(FINAL_MESSAGE_LATCH_WAIT_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
-     * Subscribes to messages where the worker as a whole is the intended recipient.
+     * Kills the worker by calling {@link System#exit(int)}. This method is called when the worker
+     * receives a {@link KillTasksRequest} message from the supervisor, and the task processed in
+     * this worker is one of the ones that is to be killed. Because the worker is a standalone
+     * process, and because each worker processes one and only one task, this approach (killing the
+     * task by killing the worker) is the easiest and most robust way to ensure that the task is
+     * stopped.
+     * <p>
+     * Default access (package-only) for unit test purposes.
      */
-    private void subscribe() {
-
-        // When a heartbeat comes in, send out the update message.
-        ZiggyMessenger.subscribe(HeartbeatMessage.class, message -> {
-            Thread t = new Thread(() -> {
-                log.debug("heartbeat received");
-                AbstractPipelineProcess.sendUpdates();
-            });
-            t.setDaemon(true);
-            t.start();
-        });
-
-        // When a shutdown request comes in, honor it.
-        ZiggyMessenger.subscribe(ShutdownMessage.class, message -> {
-            log.info("Shutting down due to shutdown signal");
-            SystemProxy.exit(0);
-        });
-
-        // When a kill-tasks request comes in, honor it if appropriate.
-        ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
-            killTasks(message);
-        });
+    void killWorker() {
+        SystemProxy.exit(0);
     }
 
     /** For testing only. */
     void setTaskId(long taskId) {
         this.taskId = taskId;
+    }
+
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
     }
 }

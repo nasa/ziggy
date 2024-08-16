@@ -20,7 +20,7 @@ public class TimeFormatter {
      */
     public static double timeStringHhMmSsToTimeInHours(String timeString) {
         checkNotNull(timeString, "timeString");
-        checkArgument(!timeString.isEmpty(), "timeString can't be empty");
+        checkArgument(!timeString.isBlank(), "timeString can't be empty");
 
         String[] wallTimeChunks = timeString.split(":");
         return Double.parseDouble(wallTimeChunks[0]) + Double.parseDouble(wallTimeChunks[1]) / 60
@@ -32,7 +32,7 @@ public class TimeFormatter {
      */
     public static double timeStringHhMmSsToTimeInSeconds(String timeString) {
         checkNotNull(timeString, "timeString");
-        checkArgument(!timeString.isEmpty(), "timeString can't be empty");
+        checkArgument(!timeString.isBlank(), "timeString can't be empty");
 
         String[] wallTimeChunks = timeString.split(":");
         return Double.parseDouble(wallTimeChunks[0]) * 3600
@@ -78,7 +78,7 @@ public class TimeFormatter {
      */
     public static String stripSeconds(String timeString) {
         checkNotNull(timeString, "timeString");
-        checkArgument(!timeString.isEmpty(), "timeString can't be empty");
+        checkArgument(!timeString.isBlank(), "timeString can't be empty");
 
         Matcher matcher = TIME_REGEXP.matcher(timeString);
         if (matcher.find()) {

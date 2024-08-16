@@ -16,7 +16,7 @@ To see how to do this, return to the `Pipelines` panel, select the `sample` pipe
 
 Now press the `Start` button and return to the `Instances` panel. The pipeline will be running instance 2, which will start with the `permuter` tasks. Eventually the panel will look like this:
 
-<img src="images/gui-start-end-adjusted.png" style="width: 32cm;/"/>
+<img src="images/gui-start-end-adjusted.png" style="width: 35cm;/"/>
 
 As advertised, the pipeline ran again but this time it skipped data receipt and stopped short of the averaging tasks.
 

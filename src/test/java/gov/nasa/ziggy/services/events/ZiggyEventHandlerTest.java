@@ -20,12 +20,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import org.hibernate.Hibernate;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
@@ -36,33 +34,28 @@ import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.datastore.DatastoreConfigurationImporter;
-import gov.nasa.ziggy.data.management.DataReceiptPipelineModule;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.parameters.ParameterLibraryImportExportCli.ParamIoMode;
-import gov.nasa.ziggy.parameters.ParametersOperations;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.PipelineOperations;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionImporter;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.ParameterSetCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineModuleDefinitionCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.xml.ParameterImportExportOperations;
+import gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli.ParamIoMode;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
-import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
-import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -80,8 +73,12 @@ public class ZiggyEventHandlerTest {
     private ZiggyEventHandler ziggyEventHandler;
     private String pipelineName = "sample";
     private Path readyIndicator1, readyIndicator2a, readyIndicator2b;
-    private PipelineOperations pipelineOperations = Mockito.spy(PipelineOperations.class);
+    private PipelineDefinitionOperations pipelineDefinitionOperations = Mockito
+        .spy(PipelineDefinitionOperations.class);
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
+    private ParametersOperations parametersOperations = new ParametersOperations();
+    private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+    private TestOperations testOperations = new TestOperations();
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -113,9 +110,6 @@ public class ZiggyEventHandlerTest {
         Files.createDirectory(testDataDir.resolve("psittacus"));
         Files.createDirectory(testDataDir.resolve("archosaur"));
 
-        ClassWrapper<UnitOfWorkGenerator> dataReceiptUowGenerator = new ClassWrapper<>(
-            DataReceiptUnitOfWorkGenerator.class);
-
         // Create a ZiggyEventHandler instance with mocked instances of some
         // pipeline classes and a shortened interval between checks for the ready-indicator
         // file.
@@ -126,29 +120,24 @@ public class ZiggyEventHandlerTest {
         // Mock out the machinery that returns a PipelineExecutor so that we can substitute
         // our own UOW generator retrieval; for some reason the test fails when retrieving the
         // UOW for data receipt, but it works correctly in real life, so... .
-        Mockito.doReturn(pipelineOperations).when(ziggyEventHandler).pipelineOperations();
-        Mockito.doReturn(pipelineExecutor).when(pipelineOperations).pipelineExecutor();
-        Mockito.doReturn(dataReceiptUowGenerator)
-            .when(pipelineExecutor)
-            .unitOfWorkGenerator(ArgumentMatchers.any(PipelineDefinitionNode.class));
+        Mockito.doReturn(pipelineDefinitionOperations)
+            .when(ziggyEventHandler)
+            .pipelineDefinitionOperations();
+        Mockito.doReturn(pipelineExecutor).when(ziggyEventHandler).pipelineExecutor();
 
         ziggyEventHandler.setPipelineName(pipelineName);
         ziggyEventHandler.setDirectory(testDataDir.toString());
         ziggyEventHandler.setName("test-event");
 
         // Set up the database, including with the pipeline to be used by the event handler.
-        DatabaseTransactionFactory.performTransaction(() -> {
-            new ParametersOperations().importParameterLibrary(
-                new File(TEST_DATA_SRC, "pl-event.xml"), null, ParamIoMode.STANDARD);
-            new DatastoreConfigurationImporter(
-                ImmutableList.of(new File(TEST_DATA_SRC, "pt-event.xml").toString()), false)
-                    .importConfiguration();
-            new PipelineModuleDefinitionCrud()
-                .merge(DataReceiptPipelineModule.createDataReceiptPipelineForDb());
-            new PipelineDefinitionOperations().importPipelineConfiguration(
-                ImmutableList.of(new File(TEST_DATA_SRC, "pd-event.xml")));
-            return null;
-        });
+        new ParameterImportExportOperations().importParameterLibrary(
+            new File(TEST_DATA_SRC, "pl-event.xml"), null, ParamIoMode.STANDARD);
+        new DatastoreConfigurationImporter(
+            ImmutableList.of(new File(TEST_DATA_SRC, "pt-event.xml").toString()), false)
+                .importConfiguration();
+        new PipelineModuleDefinitionOperations().createDataReceiptPipelineModule();
+        new PipelineDefinitionImporter()
+            .importPipelineConfiguration(ImmutableList.of(new File(TEST_DATA_SRC, "pd-event.xml")));
 
         // Construct the PipelineSupervisor just so that we have a value set for the
         // number of workers
@@ -160,7 +149,7 @@ public class ZiggyEventHandlerTest {
         Path schemaPath = Paths.get(
             ZiggyConfiguration.getInstance().getString(ZIGGY_HOME_DIR.property()), "schema", "xml",
             new ZiggyEventHandlerFile().getXmlSchemaFilename());
-        List<String> schemaContent = Files.readAllLines(schemaPath, FileUtil.ZIGGY_CHARSET);
+        List<String> schemaContent = Files.readAllLines(schemaPath, ZiggyFileUtils.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"pipelineEventDefinition\" type=\"ziggyEventHandlerFile\"/>");
@@ -196,18 +185,14 @@ public class ZiggyEventHandlerTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testStartPipeline() throws IOException, InterruptedException {
 
         // At this point, there should be no entries in the events database table
-        DatabaseTransactionFactory.performTransaction(() -> {
-            assertTrue(new ZiggyEventCrud().retrieveAllEvents().isEmpty());
-            assertTrue(new PipelineInstanceCrud().retrieveAll().isEmpty());
-            assertTrue(new PipelineTaskCrud().retrieveAll().isEmpty());
-            assertNull(new ParameterSetCrud().retrieveLatestVersionForName("test-event mammal"));
-            return null;
-        });
+        assertNull(parametersOperations.parameterSet("test-event mammal"));
+        assertTrue(testOperations.allPipelineTasks().isEmpty());
+        assertTrue(testOperations.allZiggyEvents().isEmpty());
+        assertTrue(pipelineInstanceOperations.pipelineInstances().isEmpty());
 
         // create the ready-indicator file
         Files.createFile(readyIndicator1);
@@ -221,8 +206,7 @@ public class ZiggyEventHandlerTest {
 
         ziggyEventHandler.run();
 
-        List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
+        List<ZiggyEvent> events = testOperations.allZiggyEvents();
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
         assertEquals(1L, event.getPipelineInstanceId());
@@ -231,8 +215,7 @@ public class ZiggyEventHandlerTest {
         assertTrue(event.getEventTime() != null);
 
         // Get the task out of the database and check its values.
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(this::retrievePipelineTasks);
+        List<PipelineTask> tasks = retrievePipelineTasks();
 
         assertEquals(1, tasks.size());
         PipelineTask task = tasks.get(0);
@@ -248,20 +231,11 @@ public class ZiggyEventHandlerTest {
         // fired again
         Files.createFile(readyIndicator1);
         ziggyEventHandler.run();
-        DatabaseTransactionFactory.performTransaction(() -> {
-            ZiggyEventCrud crud = new ZiggyEventCrud();
-            TestEventDetector.detectTestEvent(100L, () -> crud.retrieveAllEvents().size() == 2);
-            return null;
-        });
+        TestEventDetector.detectTestEvent(100L, () -> testOperations.allZiggyEvents().size() == 2);
     }
 
     private List<PipelineTask> retrievePipelineTasks() {
-        List<PipelineTask> pipelineTasks = new PipelineTaskCrud().retrieveTasksForInstance(1L);
-        for (PipelineTask task : pipelineTasks) {
-            Hibernate.initialize(task.getPipelineInstanceNode().getModuleParameterSets());
-            Hibernate.initialize(task.getUowTaskParameters());
-        }
-        return pipelineTasks;
+        return testOperations.allPipelineTasksForInstanceId(1L);
     }
 
     @Test
@@ -278,19 +252,14 @@ public class ZiggyEventHandlerTest {
             .resolve("test-manifest.xml"));
 
         // There should be no indication that the event handler acted.
-        DatabaseTransactionFactory.performTransaction(() -> {
-            assertTrue(new ZiggyEventCrud().retrieveAllEvents().isEmpty());
-            assertTrue(new PipelineInstanceCrud().retrieveAll().isEmpty());
-            assertTrue(new PipelineTaskCrud().retrieveAll().isEmpty());
-            assertNull(new ParameterSetCrud().retrieveLatestVersionForName("test-event mammal"));
-            return null;
-        });
+        assertNull(parametersOperations.parameterSet("test-event mammal"));
+        assertTrue(testOperations.allPipelineTasks().isEmpty());
+        assertTrue(testOperations.allZiggyEvents().isEmpty());
+        assertTrue(pipelineInstanceOperations.pipelineInstances().isEmpty());
 
         ziggyEventHandler.run();
 
-        @SuppressWarnings("unchecked")
-        List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
+        List<ZiggyEvent> events = testOperations.allZiggyEvents();
 
         // Now we should see an event in the database.
         assertEquals(1, events.size());
@@ -337,13 +306,10 @@ public class ZiggyEventHandlerTest {
         ziggyEventHandler.run();
 
         // At this point, there should be no entries in the events database table
-        DatabaseTransactionFactory.performTransaction(() -> {
-            assertTrue(new ZiggyEventCrud().retrieveAllEvents().isEmpty());
-            assertTrue(new PipelineInstanceCrud().retrieveAll().isEmpty());
-            assertTrue(new PipelineTaskCrud().retrieveAll().isEmpty());
-            assertNull(new ParameterSetCrud().retrieveLatestVersionForName("test-event mammal"));
-            return null;
-        });
+        assertNull(parametersOperations.parameterSet("test-event mammal"));
+        assertTrue(testOperations.allPipelineTasks().isEmpty());
+        assertTrue(testOperations.allZiggyEvents().isEmpty());
+        assertTrue(pipelineInstanceOperations.pipelineInstances().isEmpty());
 
         // When the second one is created, the event handler should act.
         Files.createFile(readyIndicator2b);
@@ -357,9 +323,7 @@ public class ZiggyEventHandlerTest {
 
         ziggyEventHandler.run();
 
-        @SuppressWarnings("unchecked")
-        List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
+        List<ZiggyEvent> events = testOperations.allZiggyEvents();
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
         assertEquals(1L, event.getPipelineInstanceId());
@@ -368,9 +332,7 @@ public class ZiggyEventHandlerTest {
         assertTrue(event.getEventTime() != null);
 
         // Get the tasks out of the database and check their values.
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(this::retrievePipelineTasks);
+        List<PipelineTask> tasks = retrievePipelineTasks();
 
         assertEquals(2, tasks.size());
         List<String> uowStrings = new ArrayList<>();
@@ -409,13 +371,10 @@ public class ZiggyEventHandlerTest {
 
         ziggyEventHandler.run();
 
-        @SuppressWarnings("unchecked")
-        List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
+        List<ZiggyEvent> events = testOperations.allZiggyEvents();
         assertEquals(2, events.size());
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testRetrieveByInstance() throws IOException, InterruptedException {
 
@@ -442,21 +401,18 @@ public class ZiggyEventHandlerTest {
 
         ziggyEventHandler.run();
 
-        List<PipelineInstance> instances = (List<PipelineInstance>) DatabaseTransactionFactory
-            .performTransaction(() -> new PipelineInstanceCrud().retrieveAll());
+        List<PipelineInstance> instances = pipelineInstanceOperations.pipelineInstances();
         instances.sort(Comparator.comparing(PipelineInstance::getId));
-        List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieve(List.of(instances.get(0))));
+        List<ZiggyEvent> events = testOperations
+            .ziggyEventsForPipelineInstances(List.of(instances.get(0)));
         assertEquals(1, events.size());
         assertEquals(1L, events.get(0).getPipelineInstanceId());
         assertEquals("test-event", events.get(0).getEventHandlerName());
-        events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieve(List.of(instances.get(1))));
+        events = testOperations.ziggyEventsForPipelineInstances(List.of(instances.get(1)));
         assertEquals(1, events.size());
         assertEquals(2L, events.get(0).getPipelineInstanceId());
         assertEquals("test-event", events.get(0).getEventHandlerName());
-        events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieve(instances));
+        events = testOperations.ziggyEventsForPipelineInstances(instances);
         assertEquals(2, events.size());
         assertEquals(1L, events.get(0).getPipelineInstanceId());
         assertEquals(2L, events.get(1).getPipelineInstanceId());
@@ -478,9 +434,7 @@ public class ZiggyEventHandlerTest {
                 .resolve("test-manifest.xml"));
         ziggyEventHandler.run();
 
-        @SuppressWarnings("unchecked")
-        List<ZiggyEvent> events = (List<ZiggyEvent>) DatabaseTransactionFactory
-            .performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
+        List<ZiggyEvent> events = testOperations.allZiggyEvents();
         assertEquals(1, events.size());
         ZiggyEvent event = events.get(0);
         assertEquals(1L, event.getPipelineInstanceId());
@@ -489,18 +443,11 @@ public class ZiggyEventHandlerTest {
         assertTrue(event.getEventTime() != null);
 
         // Get the instance out of the database and check its values.
-        PipelineInstance instance = (PipelineInstance) DatabaseTransactionFactory
-            .performTransaction(() -> {
-                PipelineInstance pipelineInstance = new PipelineInstanceCrud().retrieve(1L);
-                Hibernate.initialize(pipelineInstance.getPipelineParameterSets());
-                return pipelineInstance;
-            });
-        assertEquals(0, instance.getPipelineParameterSets().size());
+        PipelineInstance instance = pipelineInstanceOperations.pipelineInstance(1L);
+        assertEquals(0, pipelineInstanceOperations.parameterSets(instance).size());
 
         // Get the task out of the database and check its values.
-        @SuppressWarnings("unchecked")
-        List<PipelineTask> tasks = (List<PipelineTask>) DatabaseTransactionFactory
-            .performTransaction(this::retrievePipelineTasks);
+        List<PipelineTask> tasks = retrievePipelineTasks();
 
         assertEquals(1, tasks.size());
         PipelineTask task = tasks.get(0);
@@ -535,5 +482,25 @@ public class ZiggyEventHandlerTest {
         assertFalse(handler.isEnableOnClusterStart());
         assertFalse(handler.isRunning());
         assertEquals("/yet/another/directory", handler.getDirectory());
+    }
+
+    private static class TestOperations extends DatabaseOperations {
+
+        public List<PipelineTask> allPipelineTasks() {
+            return performTransaction(() -> new PipelineTaskCrud().retrieveAll());
+        }
+
+        public List<ZiggyEvent> allZiggyEvents() {
+            return performTransaction(() -> new ZiggyEventCrud().retrieveAllEvents());
+        }
+
+        public List<ZiggyEvent> ziggyEventsForPipelineInstances(List<PipelineInstance> instances) {
+            return performTransaction(() -> new ZiggyEventCrud().retrieve(instances));
+        }
+
+        public List<PipelineTask> allPipelineTasksForInstanceId(long instanceId) {
+            return performTransaction(
+                () -> new PipelineTaskCrud().retrieveTasksForInstance(instanceId));
+        }
     }
 }

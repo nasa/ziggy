@@ -25,13 +25,14 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.datastore.DatastoreTestUtils;
 import gov.nasa.ziggy.data.datastore.DatastoreWalker;
 import gov.nasa.ziggy.models.ModelImporter;
+import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.crud.ModelCrud;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineInstanceCrud;
+import gov.nasa.ziggy.pipeline.definition.database.ModelCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -49,12 +50,13 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
     private Path datastoreRootPath;
     private DatastoreDirectoryDataReceiptDefinition dataReceiptDefinition;
     private ModelType modelType1, modelType2, modelType3;
-    private ManifestCrud manifestCrud;
     private ModelCrud modelCrud;
     private Path dataFile1, dataFile2, dataFile3;
     private Path modelFile1, modelFile2, modelFile3, modelFile4;
     private DatastoreWalker datastoreWalker;
     private ModelImporter modelImporter;
+    private DataReceiptOperations dataReceiptOperations;
+    private ModelOperations modelOperations;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -92,24 +94,26 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
         // Construct a Spy of the definition instance.
         dataReceiptDefinition = Mockito.spy(DatastoreDirectoryDataReceiptDefinition.class);
         dataReceiptDefinition.setDataImportDirectory(dataImporterPath);
-        PipelineTask pipelineTask = new PipelineTask();
-        pipelineTask.setId(1L);
+        PipelineTask pipelineTask = Mockito.spy(PipelineTask.class);
+        Mockito.doReturn(1L).when(pipelineTask).getId();
         PipelineInstance pipelineInstance = new PipelineInstance();
         pipelineInstance.setId(2L);
-        pipelineTask.setPipelineInstance(pipelineInstance);
         dataReceiptDefinition.setPipelineTask(pipelineTask);
         setUpModelTypes();
-        manifestCrud = Mockito.mock(ManifestCrud.class);
-        Mockito.doReturn(manifestCrud).when(dataReceiptDefinition).manifestCrud();
         Mockito.doReturn(List.of(modelType1, modelType2, modelType3))
             .when(dataReceiptDefinition)
             .modelTypes();
         datastoreWalker = new DatastoreWalker(DatastoreTestUtils.regexpsByName(),
             DatastoreTestUtils.datastoreNodesByFullPath());
         Mockito.doReturn(datastoreWalker).when(dataReceiptDefinition).datastoreWalker();
+        dataReceiptOperations = Mockito.spy(DataReceiptOperations.class);
+        Mockito.doReturn(dataReceiptOperations).when(dataReceiptDefinition).dataReceiptOperations();
+        modelOperations = Mockito.spy(ModelOperations.class);
+        Mockito.doReturn(modelOperations).when(dataReceiptDefinition).modelOperations();
 
         modelCrud = Mockito.mock(ModelCrud.class);
-        Mockito.doReturn(modelCrud).when(dataReceiptDefinition).modelCrud();
+        Mockito.doReturn(modelCrud).when(dataReceiptOperations).modelCrud();
+        Mockito.doReturn(modelCrud).when(modelOperations).modelCrud();
 
         modelImporter = Mockito.spy(new ModelImporter(dataImporterPath, "importerForTest"));
         Mockito.doReturn(modelImporter).when(dataReceiptDefinition).modelImporter();
@@ -119,7 +123,7 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
         Mockito.doNothing().when(dataReceiptDefinition).updateModelRegistryForPipelineInstance();
 
         PipelineInstanceCrud pipelineInstanceCrud = Mockito.mock(PipelineInstanceCrud.class);
-        Mockito.doReturn(pipelineInstanceCrud).when(dataReceiptDefinition).pipelineInstanceCrud();
+        Mockito.doReturn(pipelineInstanceCrud).when(dataReceiptOperations).pipelineInstanceCrud();
         Mockito.when(pipelineInstanceCrud.retrieve(ArgumentMatchers.anyLong()))
             .thenReturn(pipelineInstance);
     }
@@ -165,7 +169,7 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
     /** Tests that isConformingDelivery is false if the dataset ID has already been used. */
     @Test
     public void testManifestIdInvalid() {
-        Mockito.doReturn(true).when(manifestCrud).datasetIdExists(1L);
+        Mockito.doReturn(true).when(dataReceiptOperations).datasetIdExists(1L);
         assertFalse(dataReceiptDefinition.isConformingDelivery());
     }
 

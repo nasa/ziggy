@@ -10,8 +10,7 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.util.Map;
 
-import gov.nasa.ziggy.parameters.ParametersInterface;
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
+import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 
 /**
  * Dialog box that allows a user to select a module parameter set for editing.
@@ -27,9 +26,9 @@ public class ModuleParameterSetMapEditorDialog extends javax.swing.JDialog
     private ParameterSetMapEditorListener mapListener;
 
     public ModuleParameterSetMapEditorDialog(Window owner,
-        Map<ClassWrapper<ParametersInterface>, String> currentModuleParameters,
-        Map<ClassWrapper<ParametersInterface>, String> currentPipelineParameters,
-        Map<String, ParametersInterface> editedParameterSets) {
+        Map<String, ParameterSet> currentModuleParameters,
+        Map<String, ParameterSet> currentPipelineParameters,
+        Map<String, ParameterSet> editedParameterSets) {
 
         super(owner, DEFAULT_MODALITY_TYPE);
 
@@ -37,10 +36,9 @@ public class ModuleParameterSetMapEditorDialog extends javax.swing.JDialog
         setLocationRelativeTo(owner);
     }
 
-    private void buildComponent(
-        Map<ClassWrapper<ParametersInterface>, String> currentModuleParameters,
-        Map<ClassWrapper<ParametersInterface>, String> currentPipelineParameters,
-        Map<String, ParametersInterface> editedParameterSets) {
+    private void buildComponent(Map<String, ParameterSet> currentModuleParameters,
+        Map<String, ParameterSet> currentPipelineParameters,
+        Map<String, ParameterSet> editedParameterSets) {
 
         setTitle("Edit parameter sets");
 
@@ -54,9 +52,9 @@ public class ModuleParameterSetMapEditorDialog extends javax.swing.JDialog
     }
 
     private ParameterSetMapEditorPanel createDataPanel(
-        Map<ClassWrapper<ParametersInterface>, String> currentModuleParameters,
-        Map<ClassWrapper<ParametersInterface>, String> currentPipelineParameters,
-        Map<String, ParametersInterface> editedParameterSets) {
+        Map<String, ParameterSet> currentModuleParameters,
+        Map<String, ParameterSet> currentPipelineParameters,
+        Map<String, ParameterSet> editedParameterSets) {
 
         parameterSetMapEditorPanel = new ParameterSetMapEditorPanel(currentModuleParameters,
             currentPipelineParameters, editedParameterSets);
@@ -84,7 +82,7 @@ public class ModuleParameterSetMapEditorDialog extends javax.swing.JDialog
         }
     }
 
-    public Map<ClassWrapper<ParametersInterface>, String> getParameterSetsMap() {
-        return parameterSetMapEditorPanel.getParameterSetsMap();
+    public Map<String, ParameterSet> getModuleParameterSetByName() {
+        return parameterSetMapEditorPanel.getModuleParameterSetByName();
     }
 }

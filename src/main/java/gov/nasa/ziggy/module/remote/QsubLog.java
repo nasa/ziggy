@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * This class logs all qsub command lines to a file for debugging purposes. The log file only
@@ -21,6 +21,7 @@ import gov.nasa.ziggy.util.io.FileUtil;
  * @author todd klaus
  */
 public class QsubLog {
+    @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(QsubLog.class);
     private static final String LOG_FILENAME = "qsub.log";
 
@@ -42,7 +43,7 @@ public class QsubLog {
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void log(String qsubCommandLine) {
         try (BufferedWriter bw = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(logFile, true), FileUtil.ZIGGY_CHARSET))) {
+            new OutputStreamWriter(new FileOutputStream(logFile, true), ZiggyFileUtils.ZIGGY_CHARSET))) {
             // append to existing file if it exists
             bw.write(qsubCommandLine + "\n");
         } catch (IOException e) {

@@ -21,6 +21,7 @@ import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.environment.EnvironmentUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +37,7 @@ import gov.nasa.ziggy.services.process.ExternalProcessUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.HostNameUtils;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
@@ -92,15 +93,15 @@ public class SubtaskExecutor {
         libPath = config.getString(PropertyName.LIBPATH.property(), "");
 
         String mcrRoot = config.getString(PropertyName.MCRROOT.property(), null);
-        if (mcrRoot != null && !mcrRoot.isEmpty()) {
-            libPath = libPath + (!libPath.isEmpty() ? File.pathSeparator : "")
+        if (!StringUtils.isBlank(mcrRoot)) {
+            libPath = libPath + (!libPath.isBlank() ? File.pathSeparator : "")
                 + MatlabUtils.mcrPaths(mcrRoot);
         }
 
         // Search for the application first in the path specified by the
         // BINPATH property followed by the pipeline's bin directory.
         binPath = config.getString(PropertyName.BINPATH.property(), null);
-        if (binPath == null || binPath.isEmpty()) {
+        if (StringUtils.isBlank(binPath)) {
             binPath = DirectoryProperties.pipelineBinDir().toString();
         } else {
             binPath = binPath + File.pathSeparator + DirectoryProperties.pipelineBinDir();
@@ -165,8 +166,7 @@ public class SubtaskExecutor {
         File binFile = null;
         String[] binPaths = binPathString.split(File.pathSeparator);
         for (String binPath : binPaths) {
-            String trimmedBinPath = binPath.trim();
-            if (trimmedBinPath.isEmpty()) {
+            if (StringUtils.isBlank(binPath)) {
                 continue;
             }
             File binPathFile = binPathFile(binPath, pathSuffix);
@@ -416,11 +416,11 @@ public class SubtaskExecutor {
             Writer stdOutWriter = new OutputStreamWriter(
                 new FileOutputStream(
                     new File(workingDir, ModuleInterfaceUtils.stdoutFileName(logPrefix))),
-                FileUtil.ZIGGY_CHARSET);
+                ZiggyFileUtils.ZIGGY_CHARSET);
             Writer stdErrWriter = new OutputStreamWriter(
                 new FileOutputStream(
                     new File(workingDir, ModuleInterfaceUtils.stderrFileName(logPrefix))),
-                FileUtil.ZIGGY_CHARSET)) {
+                ZiggyFileUtils.ZIGGY_CHARSET)) {
             File binary = new File(binaryDir.getPath(), binaryName);
             if ((!binary.exists() || !binary.isFile())
                 && OperatingSystemType.getInstance() == OperatingSystemType.MAC_OS_X) {

@@ -1,17 +1,6 @@
 package gov.nasa.ziggy.module.remote;
 
-import static com.google.common.base.Preconditions.checkState;
-
-import java.util.HashSet;
-import java.util.Set;
-
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
-
-import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.parameters.Parameters;
-import gov.nasa.ziggy.parameters.ParametersInterface;
-import gov.nasa.ziggy.pipeline.definition.TypedParameter;
 
 /**
  * User-facing parameters that control remote execution (on the NAS, AWS, or other large-scale batch
@@ -21,55 +10,42 @@ import gov.nasa.ziggy.pipeline.definition.TypedParameter;
  *
  * @author PT
  */
-public class RemoteParameters extends Parameters {
+public class RemoteParameters {
 
-    // N.B.: If you add, remove, or rename fields, you will need to do the following:
-    // 1. Edit the default constructor to keep the TypedParameter instances matched to
-    // the fields.
-    // 2. In the setter methods, make sure that any changes to the setters set both the
-    // field value and the value of the corresponding TypedParameter instance.
-
-    // REQUIRED parameters
-    private boolean enabled;
     /** Do you want to run remote at all? */
+    private boolean enabled;
 
-    private double subtaskMaxWallTimeHours;
     /** longest wall time needed by any subtask */
+    private double subtaskMaxWallTimeHours;
 
-    private double subtaskTypicalWallTimeHours;
     /** typical (median) wall time needed for a subtask */
+    private double subtaskTypicalWallTimeHours;
 
-    private double gigsPerSubtask;
     /** RAM needed by each subtask, in GB */
+    private double gigsPerSubtask;
 
+    /** Minimum number of subtasks that must be present for remote execution to be used. */
     private int minSubtasksForRemoteExecution = 0;
-    /**
-     * Minimum number of subtasks that must be present for remote execution to be used.
-     */
 
-    // OPTIONAL parameters -- these are all Strings so that they can be empty,
-    // and can appear empty on the parameters GUI. Non-empty instances will be checked
-    // to make sure they can be converted to appropriate numeric values in validate().
     private String remoteNodeArchitecture;
-    /** Type of node to use */
 
-    private String queueName;
     /** job queue to use */
+    private String queueName;
 
-    private String subtasksPerCore;
     /** number of subtasks per active core */
+    private String subtasksPerCore;
 
-    private String maxNodes;
     /** Maximum number of nodes to select */
+    private String maxNodes;
 
-    private String minCoresPerNode;
     /** minimum cores per node (AWS only) */
+    private String minCoresPerNode;
 
-    private String minGigsPerNode;
     /** minimum RAM per node in GB (AWS only) */
+    private String minGigsPerNode;
 
-    private String optimizer = "CORES";
     /** Which optimizer to use in selecting an architecture */
+    private String optimizer = "CORES";
 
     /**
      * Allow a node to process multiple subtasks in parallel. This is the standard mode of
@@ -86,45 +62,23 @@ public class RemoteParameters extends Parameters {
      */
     private boolean wallTimeScaling = true;
 
-    public RemoteParameters() {
-        Set<TypedParameter> typedParameters = new HashSet<>();
-        typedParameters
-            .add(new TypedParameter("enabled", "false", ZiggyDataType.ZIGGY_BOOLEAN, true));
-        typedParameters.add(
-            new TypedParameter("subtaskMaxWallTimeHours", "0", ZiggyDataType.ZIGGY_DOUBLE, true));
-        typedParameters.add(new TypedParameter("subtaskTypicalWallTimeHours", "0",
-            ZiggyDataType.ZIGGY_DOUBLE, true));
-        typedParameters
-            .add(new TypedParameter("gigsPerSubtask", "0", ZiggyDataType.ZIGGY_DOUBLE, true));
-        typedParameters.add(new TypedParameter("minSubtasksForRemoteExecution", "0",
-            ZiggyDataType.ZIGGY_INT, true));
-        typedParameters.add(
-            new TypedParameter("remoteNodeArchitecture", "", ZiggyDataType.ZIGGY_STRING, true));
-        typedParameters.add(new TypedParameter("queueName", "", ZiggyDataType.ZIGGY_STRING, true));
-        typedParameters
-            .add(new TypedParameter("subtasksPerCore", "", ZiggyDataType.ZIGGY_DOUBLE, true));
-        typedParameters.add(new TypedParameter("maxNodes", "", ZiggyDataType.ZIGGY_INT, true));
-        typedParameters
-            .add(new TypedParameter("minCoresPerNode", "", ZiggyDataType.ZIGGY_INT, true));
-        typedParameters
-            .add(new TypedParameter("minGigsPerNode", "", ZiggyDataType.ZIGGY_DOUBLE, true));
-        typedParameters
-            .add(new TypedParameter("optimizer", "CORES", ZiggyDataType.ZIGGY_STRING, true));
-        typedParameters
-            .add(new TypedParameter("nodeSharing", "true", ZiggyDataType.ZIGGY_BOOLEAN, true));
-        typedParameters
-            .add(new TypedParameter("wallTimeScaling", "true", ZiggyDataType.ZIGGY_BOOLEAN, true));
-        setParameters(typedParameters);
-    }
-
     /**
-     * Copy constructor. Uses a copy of the {@link TypedParameter} instances from the original to
-     * instantiate the {@link TypedParameter} collection in the new object, and uses the
-     * {@link ParametersInterface} {@code populate()} method to ensure that the fields are updated
-     * with the typed parameter values.
+     * Copy constructor.
      */
     public RemoteParameters(RemoteParameters original) {
-        populate(original.getParametersCopy());
+        enabled = original.enabled;
+        subtaskMaxWallTimeHours = original.subtaskMaxWallTimeHours;
+        subtaskTypicalWallTimeHours = original.subtaskTypicalWallTimeHours;
+        gigsPerSubtask = original.gigsPerSubtask;
+        minSubtasksForRemoteExecution = original.minSubtasksForRemoteExecution;
+        remoteNodeArchitecture = original.remoteNodeArchitecture;
+        queueName = original.queueName;
+        subtasksPerCore = original.subtasksPerCore;
+        minCoresPerNode = original.minCoresPerNode;
+        minGigsPerNode = original.minGigsPerNode;
+        optimizer = original.optimizer;
+        nodeSharing = original.nodeSharing;
+        wallTimeScaling = original.wallTimeScaling;
     }
 
     public PbsParameters pbsParametersInstance() {
@@ -132,72 +86,27 @@ public class RemoteParameters extends Parameters {
         pbsParameters.setEnabled(enabled);
         pbsParameters.setArchitecture(RemoteNodeDescriptor.fromName(remoteNodeArchitecture));
         pbsParameters.setGigsPerSubtask(gigsPerSubtask);
-        if (!StringUtils.isEmpty(queueName)) {
+        if (!StringUtils.isBlank(queueName)) {
             pbsParameters.setQueueName(queueName);
         }
-        if (!StringUtils.isEmpty(minCoresPerNode)) {
+        if (!StringUtils.isBlank(minCoresPerNode)) {
             pbsParameters.setMinCoresPerNode(Integer.parseInt(minCoresPerNode));
         }
-        if (!StringUtils.isEmpty(minGigsPerNode)) {
+        if (!StringUtils.isBlank(minGigsPerNode)) {
             pbsParameters.setMinGigsPerNode(Integer.parseInt(minGigsPerNode));
         }
-        if (!StringUtils.isEmpty(maxNodes)) {
+        if (!StringUtils.isBlank(maxNodes)) {
             pbsParameters.setRequestedNodeCount(Integer.parseInt(maxNodes));
         }
         return pbsParameters;
     }
 
-    @Override
-    public void validate() {
-        checkState(subtaskMaxWallTimeHours > 0, "subtaskMaxWallTimeHours must > 0");
-        checkState(subtaskTypicalWallTimeHours <= subtaskMaxWallTimeHours,
-            "Typical wall time must be <= maximum wall time");
-        checkState(gigsPerSubtask > 0, "gigsPerSubtask must be > 0");
-
-        checkState(subtasksPerCore.isEmpty()
-            || NumberUtils.isCreatable(subtasksPerCore) && Double.parseDouble(subtasksPerCore) > 0,
-            "subtasksPerCore must be > 0");
-        checkState(
-            maxNodes.isEmpty()
-                || NumberUtils.isCreatable(maxNodes) && Integer.parseInt(maxNodes) > 0,
-            "maxNodes must be > 0");
-        checkState(minCoresPerNode.isEmpty()
-            || NumberUtils.isCreatable(minCoresPerNode) && Integer.parseInt(minCoresPerNode) > 0,
-            "minCoresPerNode must be > 0");
-        checkState(minGigsPerNode.isEmpty()
-            || NumberUtils.isCreatable(minGigsPerNode) && Double.parseDouble(minGigsPerNode) > 0,
-            "minGigsPerNode must be > 0");
-        checkState(queueName.isEmpty() || RemoteQueueDescriptor.fromQueueName(queueName) != null,
-            "Queue name not recognized: " + queueName);
-        checkState(
-            remoteNodeArchitecture.isEmpty()
-                || RemoteNodeDescriptor.fromName(remoteNodeArchitecture) != null,
-            "Architecture not recognized: " + remoteNodeArchitecture);
-
-        checkState(RemoteArchitectureOptimizer.fromName(optimizer) != null,
-            "Optimizer must be one of " + RemoteArchitectureOptimizer.options());
-
-        if (!remoteNodeArchitecture.isEmpty() && !queueName.isEmpty()) {
-            checkState(checkArchitectureAndQueue(), "Architecture " + remoteNodeArchitecture
-                + " and queue " + queueName + " not consistent");
-        }
-    }
-
-    private boolean checkArchitectureAndQueue() {
-        RemoteNodeDescriptor node = RemoteNodeDescriptor.fromName(remoteNodeArchitecture);
-        RemoteQueueDescriptor queue = RemoteQueueDescriptor.fromQueueName(queueName);
-        return node.getRemoteCluster().equals(queue.getRemoteCluster());
-    }
-
-    // NB: the setters here must set both the RemoteParameters field and the value of the
-    // corresponding TypedParameter instance.
     public boolean isEnabled() {
         return enabled;
     }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        getParameter("enabled").setValue(enabled);
     }
 
     public double getSubtaskMaxWallTimeHours() {
@@ -205,7 +114,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setSubtaskMaxWallTimeHours(double subtaskMaxWallTimeHours) {
-        getParameter("subtaskMaxWallTimeHours").setValue(subtaskMaxWallTimeHours);
         this.subtaskMaxWallTimeHours = subtaskMaxWallTimeHours;
     }
 
@@ -214,7 +122,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setSubtaskTypicalWallTimeHours(double subtaskTypicalWallTimeHours) {
-        getParameter("subtaskTypicalWallTimeHours").setValue(subtaskTypicalWallTimeHours);
         this.subtaskTypicalWallTimeHours = subtaskTypicalWallTimeHours;
     }
 
@@ -223,7 +130,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setGigsPerSubtask(double gigsPerSubtask) {
-        getParameter("gigsPerSubtask").setValue(gigsPerSubtask);
         this.gigsPerSubtask = gigsPerSubtask;
     }
 
@@ -232,7 +138,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setRemoteNodeArchitecture(String remoteNodeArchitecture) {
-        getParameter("remoteNodeArchitecture").setValue(remoteNodeArchitecture);
         this.remoteNodeArchitecture = remoteNodeArchitecture;
     }
 
@@ -241,7 +146,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setQueueName(String queueName) {
-        getParameter("queueName").setValue(queueName);
         this.queueName = queueName;
     }
 
@@ -250,7 +154,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setSubtasksPerCore(String subtasksPerCore) {
-        getParameter("subtasksPerCore").setValue(subtasksPerCore);
         this.subtasksPerCore = subtasksPerCore;
     }
 
@@ -259,7 +162,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setMaxNodes(String maxNodes) {
-        getParameter("maxNodes").setValue(maxNodes);
         this.maxNodes = maxNodes;
     }
 
@@ -268,7 +170,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setMinCoresPerNode(String minCoresPerNode) {
-        getParameter("minCoresPerNode").setValue(minCoresPerNode);
         this.minCoresPerNode = minCoresPerNode;
     }
 
@@ -277,16 +178,14 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setMinGigsPerNode(String minGigsPerNode) {
-        getParameter("minGigsPerNode").setValue(minGigsPerNode);
         this.minGigsPerNode = minGigsPerNode;
     }
 
     public String getOptimizer() {
-        return StringUtils.isEmpty(optimizer) ? "CORES" : optimizer;
+        return StringUtils.isBlank(optimizer) ? "CORES" : optimizer;
     }
 
     public void setOptimizer(String optimizer) {
-        getParameter("optimizer").setValue(optimizer);
         this.optimizer = optimizer;
     }
 
@@ -295,7 +194,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setNodeSharing(boolean nodeSharing) {
-        getParameter("nodeSharing").setValue(nodeSharing);
         this.nodeSharing = nodeSharing;
     }
 
@@ -304,7 +202,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setWallTimeScaling(boolean wallTimeScaling) {
-        getParameter("wallTimeScaling").setValue(wallTimeScaling);
         this.wallTimeScaling = wallTimeScaling;
     }
 
@@ -313,7 +210,6 @@ public class RemoteParameters extends Parameters {
     }
 
     public void setMinSubtasksForRemoteExecution(int minSubtasksForRemoteExecution) {
-        getParameter("minSubtasksForRemoteExecution").setValue(minSubtasksForRemoteExecution);
         this.minSubtasksForRemoteExecution = minSubtasksForRemoteExecution;
     }
 }

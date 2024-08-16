@@ -14,7 +14,7 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.services.process.ExternalProcess;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * @author Sean McCauliff
@@ -55,13 +55,13 @@ public class ProcessUtilsTest {
 
         InputStream inputStream = subJavaProcess.getInputStream();
         BufferedReader bufferedReader = new BufferedReader(
-            new InputStreamReader(inputStream, FileUtil.ZIGGY_CHARSET));
+            new InputStreamReader(inputStream, ZiggyFileUtils.ZIGGY_CHARSET));
         String helloWorld = bufferedReader.readLine();
         inputStream.close();
         InputStream errorStream = subJavaProcess.getErrorStream();
         if (errorStream.available() > 0) {
             StringBuilder builder = new StringBuilder();
-            FileUtil.readAll(builder, errorStream);
+            ZiggyFileUtils.readAll(builder, errorStream);
             System.out.println(builder.toString());
         }
         subJavaProcess.getErrorStream().close();

@@ -11,13 +11,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Rule;
 import org.junit.Test;
 
+import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
-import gov.nasa.ziggy.pipeline.definition.crud.PipelineTaskCrud;
-import gov.nasa.ziggy.services.database.DatabaseTransactionFactory;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 
 public class TaskMetricsTest {
 
@@ -25,24 +26,35 @@ public class TaskMetricsTest {
     private static final long HOUR_MILLIS = 60 * 60 * 1000;
     private long totalDuration;
 
+    @Rule
+    public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
     @SuppressWarnings("unlikely-arg-type")
     @Test
     public void testHashCodeEquals() {
-        TaskMetrics taskMetrics = taskMetrics(2);
-        assertTrue(taskMetrics.equals(taskMetrics));
-        assertFalse(taskMetrics.equals(null));
-        assertFalse(taskMetrics.equals("a string"));
+        TaskMetrics taskMetrics2 = taskMetrics(2);
+        taskMetrics2.calculate();
+        assertTrue(taskMetrics2.equals(taskMetrics2));
+        assertFalse(taskMetrics2.equals(null));
+        assertFalse(taskMetrics2.equals("a string"));
 
-        assertTrue(taskMetrics(2).equals(taskMetrics(2)));
-        assertFalse(taskMetrics(2).equals(taskMetrics(3)));
+        TaskMetrics taskMetrics3 = taskMetrics(3);
+        taskMetrics3.calculate();
 
-        assertEquals(taskMetrics(2).hashCode(), taskMetrics(2).hashCode());
-        assertNotEquals(taskMetrics(2).hashCode(), taskMetrics(3).hashCode());
+        TaskMetrics taskMetrics2Additional = taskMetrics(2);
+        taskMetrics2Additional.calculate();
+
+        assertTrue(taskMetrics2.equals(taskMetrics2Additional));
+        assertFalse(taskMetrics2.equals(taskMetrics3));
+
+        assertEquals(taskMetrics2.hashCode(), taskMetrics2Additional.hashCode());
+        assertNotEquals(taskMetrics2.hashCode(), taskMetrics3.hashCode());
     }
 
     @Test
     public void testGetCategoryMetrics() {
         TaskMetrics taskMetrics = taskMetrics(3);
+        taskMetrics.calculate();
         Map<String, TimeAndPercentile> categoryMetrics = taskMetrics.getCategoryMetrics();
         assertEquals(3, categoryMetrics.size());
         checkCategoryMetrics(categoryMetrics.get("module0"));
@@ -59,6 +71,7 @@ public class TaskMetricsTest {
     @Test
     public void testGetUnallocatedTime() {
         TaskMetrics taskMetrics = taskMetrics(3);
+        taskMetrics.calculate();
         TimeAndPercentile unallocatedTime = taskMetrics.getUnallocatedTime();
         assertEquals(99.999, unallocatedTime.getPercent(), 0.01);
         assertEquals(2.16E7, unallocatedTime.getTimeMillis(), 0.01E7);
@@ -67,35 +80,9 @@ public class TaskMetricsTest {
     @Test
     public void testGetTotalProcessingTimeMillis() {
         TaskMetrics taskMetrics = taskMetrics(3);
+        taskMetrics.calculate();
         long totalProcessingTimeMillis = taskMetrics.getTotalProcessingTimeMillis();
         assertEquals(totalDuration, totalProcessingTimeMillis);
-    }
-
-    /**
-     * This test reproduces the following error:
-     *
-     * <pre>
-     * org.hibernate.LazyInitializationException: failed to lazily initialize a collection of role:
-     * gov.nasa.ziggy.pipeline.definition.PipelineTask.summaryMetrics: could not initialize proxy -
-     * no Session
-     * </pre>
-     *
-     * This test is commented out as it is beyond the scope of this unit test and slows down the
-     * test by a couple of orders of magnitude. However, it provides a good example of the
-     * importance of creating TaskMetrics objects within the same transaction in which the pipeline
-     * tasks were retrieved.
-     */
-//    @Test
-    public void testCreateMetricsWithDatabaseTasks() {
-        DatabaseTransactionFactory.performTransaction(() -> {
-            new PipelineTaskCrud().persist(pipelineTasks(3));
-            return null;
-        });
-        DatabaseTransactionFactory.performTransaction(() -> {
-            List<PipelineTask> pipelineTasks = new PipelineTaskCrud().retrieveAll();
-            new TaskMetrics(pipelineTasks);
-            return null;
-        });
     }
 
     private TaskMetrics taskMetrics(int taskCount) {
@@ -122,7 +109,7 @@ public class TaskMetricsTest {
         pipelineTask.setStartProcessingTime(start);
         pipelineTask.setEndProcessingTime(end);
         pipelineTask.setSummaryMetrics(summaryMetrics(moduleName));
-        return pipelineTask;
+        return new PipelineTaskOperations().merge(pipelineTask);
     }
 
     private List<PipelineTaskMetrics> summaryMetrics(String moduleName) {

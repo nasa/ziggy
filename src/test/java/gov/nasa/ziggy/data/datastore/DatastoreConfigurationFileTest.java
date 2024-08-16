@@ -21,7 +21,7 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.util.io.FileUtil;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.SchemaOutputResolver;
@@ -57,7 +57,7 @@ public class DatastoreConfigurationFileTest {
         JAXBContext context = JAXBContext.newInstance(DatastoreConfigurationFile.class);
         context.generateSchema(new DatastoreFileSchemaResolver());
         List<String> schemaContent = Files.readAllLines(schemaFile.toPath(),
-            FileUtil.ZIGGY_CHARSET);
+            ZiggyFileUtils.ZIGGY_CHARSET);
 
         assertContains(schemaContent,
             "<xs:element name=\"datastoreConfiguration\" type=\"datastoreConfigurationFile\"/>");

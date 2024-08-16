@@ -46,7 +46,7 @@ import gov.nasa.ziggy.buildutil.ZiggyCppPojo.BuildType;
  *
  * <pre>
  * task mexFoo(type : ZiggyCppMex) {
- *     cppFilePath      = "$projectDir/src/cpp/foo"
+ *     sourceFilePath   = "$projectDir/src/cpp/foo"
  *     includeFilePaths = ["$projectDir/src/cpp/foo", "$projectDir/include"]
  *     libraryPaths     = ["$buildDir/lib", "$rootDir/project2/build/lib"]
  *     libraries        = ["blas", "lapack"]
@@ -108,7 +108,7 @@ public class ZiggyCppMex extends DefaultTask {
         ziggyCppMexObject.setRootDir(ZiggyCpp.pipelineRootDir(project));
         ziggyCppMexObject.setProjectDir(project.getProjectDir());
         if (project.hasProperty(DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
-            ziggyCppMexObject.setCppCompileOptions(ZiggyCppPojo
+            ziggyCppMexObject.setcppCompileOptions(ZiggyCppPojo
                 .gradlePropertyToList(project.property(DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)));
         }
         if (project.hasProperty(DEFAULT_LINK_OPTIONS_GRADLE_PROPERTY)) {
@@ -134,7 +134,7 @@ public class ZiggyCppMex extends DefaultTask {
 
     /** Specifies that the C/C++ source files are the input files for this Gradle task. */
     @InputFiles
-    public List<File> getCppFiles() {
+    public List<File> getSourceFiles() {
         return ziggyCppMexObject.getSourceFiles();
     }
 
@@ -161,14 +161,14 @@ public class ZiggyCppMex extends DefaultTask {
     // Groovy GString class. Consequently, we pass everything to ZiggyCppMexPojo as Objects, and
     // ZiggyCppMexPojo uses the toString() methods to convert everything to Java Strings.
 
-    // Path to the C++ source files
-    public void setCppFilePath(Object cppFilePath) {
-        ziggyCppMexObject.setCppFilePath(cppFilePath);
+    // Path to the source files
+    public void setSourceFilePath(Object cppFilePath) {
+        ziggyCppMexObject.setSourceFilePath(cppFilePath);
     }
 
     @Internal
-    public String getCppFilePath() {
-        return ziggyCppMexObject.getCppFilePaths().get(0);
+    public String getSourceFilePath() {
+        return ziggyCppMexObject.getSourceFilePaths().get(0);
     }
 
     // Paths for include files
@@ -202,13 +202,22 @@ public class ZiggyCppMex extends DefaultTask {
     }
 
     // compiler options
-    public void setCompileOptions(List<? extends Object> compileOptions) {
-        ziggyCppMexObject.setCppCompileOptions(compileOptions);
+    public void setcppCompileOptions(List<? extends Object> compileOptions) {
+        ziggyCppMexObject.setcppCompileOptions(compileOptions);
     }
 
     @Internal
-    public List<String> getCompileOptions() {
-        return ziggyCppMexObject.getCppCompileOptions();
+    public List<String> getcppCompileOptions() {
+        return ziggyCppMexObject.getcppCompileOptions();
+    }
+
+    public void setcCompileOptions(List<? extends Object> compileOptions) {
+        ziggyCppMexObject.setcCompileOptions(compileOptions);
+    }
+
+    @Internal
+    public List<String> getcCompileOptions() {
+        return ziggyCppMexObject.getcCompileOptions();
     }
 
     // linker options

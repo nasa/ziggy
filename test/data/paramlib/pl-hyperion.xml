@@ -1,43 +1,40 @@
 <parameterLibrary>
 
-  <parameter-set name="New Remote Hyperion L0" locked="false"
-                 classname="gov.nasa.ziggy.module.remote.RemoteParameters">
-    <parameter name="enabled" value="false" />
-    <parameter name="gigsPerSubtask" value="10" />
-    <parameter name="subtaskMaxWallTimeHours" value="0.15" />
-    <parameter name="subtaskTypicalWallTimeHours" value="0.15" />
-    <parameter name="optimizer" value="COST" />
-    <parameter name="nodeSharing" value="true"/>
-    <parameter name="wallTimeScaling" value="false"/>
+  <parameter-set name="New Remote Hyperion L0">
+    <parameter name="enabled" value="false" type="boolean"/>
+    <parameter name="gigsPerSubtask" value="10" type="int"/>
+    <parameter name="subtaskMaxWallTimeHours" value="0.15" type="float"/>
+    <parameter name="subtaskTypicalWallTimeHours" value="0.15" type="float"/>
+    <parameter name="optimizer" value="COST" type="string"/>
+    <parameter name="nodeSharing" value="true" type="boolean"/>
+    <parameter name="wallTimeScaling" value="false" type="boolean"/>
   </parameter-set>
 
-  <parameter-set name="Remote Hyperion L1" locked="false"
-                 classname="gov.nasa.ziggy.module.remote.RemoteParameters">
-    <parameter name="enabled" value="false" />
-    <parameter name="gigsPerSubtask" value="0.1" />
-    <parameter name="subtaskMaxWallTimeHours" value="2.1" />
-    <parameter name="subtaskTypicalWallTimeHours" value="2.1" />
-    <parameter name="optimizer" value="COST" />
-    <parameter name="nodeSharing" value="false"/>
-    <parameter name="wallTimeScaling" value="true"/>
+  <parameter-set name="Remote Hyperion L1">
+    <parameter name="enabled" value="false" type="boolean"/>
+    <parameter name="gigsPerSubtask" value="0.1" type="float"/>
+    <parameter name="subtaskMaxWallTimeHours" value="2.1" type="float"/>
+    <parameter name="subtaskTypicalWallTimeHours" value="2.1" type="float"/>
+    <parameter name="optimizer" value="COST" type="string"/>
+    <parameter name="nodeSharing" value="false" type="boolean"/>
+    <parameter name="wallTimeScaling" value="true" type="boolean"/>
   </parameter-set>
 
-  <parameter-set name="Hyperion L0 Task Configuration" locked="false"
-                 classname="gov.nasa.ziggy.uow.TaskConfigurationParameters">
-    <parameter name="taskDirectoryRegex" value="hyperion/([0-9]{4})"/>
-    <parameter name="singleSubtask" value="false"/>
-    <parameter name="maxFailedSubtaskCount" value="0" />
-    <parameter name="reprocess" value="true"/>
-    <parameter name="reprocessingTasksExclude" value="0"/>
+  <parameter-set name="Hyperion L0 Task Configuration">
+    <parameter name="taskDirectoryRegex" value="hyperion/([0-9]{4})" type="string"/>
+    <parameter name="singleSubtask" value="false" type="boolean"/>
+    <parameter name="maxFailedSubtaskCount" value="0" type="int"/>
+    <parameter name="reprocess" value="true" type="boolean"/>
+    <parameter name="reprocessingTasksExclude" value="0" type="int"/>
   </parameter-set>
 
-  <parameter-set name="Sample classless parameter set" locked="false">
+  <parameter-set name="Sample classless parameter set">
     <parameter name="z1" value="100" type="int"/>
     <parameter name="z2" value="28.56, 57.12" type="floatarray"/>
     <parameter name="z3" value="some text" type="string"/>
   </parameter-set>
 
-  <parameter-set name="ISOFIT module parameters" locked="false">
+  <parameter-set name="ISOFIT module parameters" >
     <parameter name="n_cores" value="4" type="int"/>
     <parameter name="use_hyperthreading" value="false" type="boolean"/>
     <parameter name="presolve" value="true" type="boolean"/>
