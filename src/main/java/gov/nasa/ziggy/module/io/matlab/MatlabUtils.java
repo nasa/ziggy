@@ -63,7 +63,7 @@ public class MatlabUtils {
     }
 
     private static OperatingSystemType osType() {
-        return OperatingSystemType.getInstance();
+        return OperatingSystemType.newInstance();
     }
 
     private static String architecture() {

@@ -1,12 +1,11 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 import javax.swing.JLabel;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
@@ -16,6 +15,7 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
  * on the console.
  *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 public class TasksDisplayModel extends DisplayModel {
     private static final String[] COLUMN_NAMES = { "ID", "Module", "UOW", "Worker", "Status",
@@ -28,26 +28,26 @@ public class TasksDisplayModel extends DisplayModel {
         ZiggySwingUtils.textWidth(new JLabel(), "Subtasks"),
         ZiggySwingUtils.textWidth(new JLabel(), "00:00:00") };
 
-    private List<PipelineTask> tasks = new LinkedList<>();
-    private final TaskCounts taskCounts;
+    private List<PipelineTaskDisplayData> tasks = new LinkedList<>();
+    private TaskCounts taskCounts = new TaskCounts();
 
     public TasksDisplayModel() {
-        taskCounts = new TaskCounts();
     }
 
-    public TasksDisplayModel(List<PipelineTask> tasks) {
-        this.tasks = tasks;
+    public TasksDisplayModel(List<PipelineTaskDisplayData> tasks) {
+        update(tasks);
+    }
 
+    public TasksDisplayModel(PipelineTaskDisplayData task) {
+        update(List.of(task));
+    }
+
+    public void update(List<PipelineTaskDisplayData> tasks) {
+        this.tasks = tasks;
         taskCounts = new TaskCounts(this.tasks);
     }
 
-    public TasksDisplayModel(PipelineTask task) {
-        tasks = new ArrayList<>(100);
-        tasks.add(task);
-        taskCounts = new TaskCounts(tasks);
-    }
-
-    public PipelineTask getPipelineTaskForRow(int row) {
+    public PipelineTaskDisplayData getPipelineTaskForRow(int row) {
         return tasks.get(row);
     }
 
@@ -63,17 +63,17 @@ public class TasksDisplayModel extends DisplayModel {
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        PipelineTask task = tasks.get(rowIndex);
+        PipelineTaskDisplayData task = tasks.get(rowIndex);
 
         String value = switch (columnIndex) {
-            case 0 -> task.getId().toString();
+            case 0 -> Long.toString(task.getPipelineTaskId());
             case 1 -> task.getModuleName();
-            case 2 -> task.uowTaskInstance().briefState();
+            case 2 -> task.getBriefState();
             case 3 -> task.getWorkerName();
             case 4 -> task.getDisplayProcessingStep();
             case 5 -> TaskCounts.subtaskCountsLabel(task.getCompletedSubtaskCount(),
                 task.getTotalSubtaskCount(), task.getFailedSubtaskCount());
-            case 6 -> task.elapsedTime();
+            case 6 -> task.getExecutionClock().toString();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
         };
 

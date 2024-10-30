@@ -1,10 +1,6 @@
 package gov.nasa.ziggy.services.messages;
 
-import java.util.Set;
-
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.services.logging.TaskLogInformation;
-import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.Requestor;
 
 /**
@@ -12,30 +8,20 @@ import gov.nasa.ziggy.util.Requestor;
  *
  * @see gov.nasa.ziggy.services.logging.TaskLogInformation
  * @author PT
+ * @author Bill Wohler
  */
 public final class TaskLogInformationRequest extends SpecifiedRequestorMessage {
 
-    private static final long serialVersionUID = 20230614L;
+    private static final long serialVersionUID = 20240909L;
 
-    private final long taskId;
+    private final PipelineTask pipelineTask;
 
-    private TaskLogInformationRequest(Requestor sender, long taskId) {
+    public TaskLogInformationRequest(Requestor sender, PipelineTask pipelineTask) {
         super(sender);
-        this.taskId = taskId;
+        this.pipelineTask = pipelineTask;
     }
 
-    /**
-     * Performs the request for task log information and returns the information for all logs as a
-     * {@link Set} of {@link TaskLogInformation} instances. This method is the only public method to
-     * retrieve a task log, as the {@link TaskLogInformationRequest} constructor is private. This
-     * prevents callers from attempting to bypass the privilege verification performed in this
-     * method.
-     */
-    public static void requestTaskLogInformation(Requestor sender, PipelineTask task) {
-        ZiggyMessenger.publish(new TaskLogInformationRequest(sender, task.getId()));
-    }
-
-    public long getTaskId() {
-        return taskId;
+    public PipelineTask getPipelineTask() {
+        return pipelineTask;
     }
 }

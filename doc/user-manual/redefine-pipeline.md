@@ -12,7 +12,7 @@ The good news is that it's straightforward to update a pipeline definition in Zi
 
 To see this in action, open up the Pipelines panel, select the sample pipeline, and run the `View` command from the context menu. You'll see this:
 
-<img src="images/pipelines-config-1.png" style="width:11cm;"/>
+<img src="images/pipelines-config-1.png" style="width:9cm;"/>
 
 This shows the modules in the pipeline and their order of execution.
 
@@ -30,7 +30,7 @@ $ ziggy update-pipelines sample-pipeline/config-extra/pd-sample.xml
 
 **Refresh the Pipelines Panel:** Press the `Refresh` button in the pipelines panel. Again, select the sample pipeline, and run the `View` command from the context menu. You'll now see this:
 
-<img src="images/pipelines-config-2.png" style="width:11cm;"/>
+<img src="images/pipelines-config-2.png" style="width:9cm;"/>
 
 As advertised, the averaging module has been removed from the end of the pipeline.
 

@@ -117,6 +117,26 @@ public class DataReceiptPanel extends JPanel {
         private final DataReceiptOperations dataReceiptOperations = new DataReceiptOperations();
 
         @Override
+        public void loadFromDatabase() {
+            new SwingWorker<List<DataReceiptInstance>, Void>() {
+                @Override
+                protected List<DataReceiptInstance> doInBackground() throws Exception {
+                    return dataReceiptOperations().dataReceiptInstances();
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        dataReceiptInstances = get();
+                        fireTableDataChanged();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Could not load data receipt objects", e);
+                    }
+                }
+            }.execute();
+        }
+
+        @Override
         public int getRowCount() {
             return dataReceiptInstances.size();
         }
@@ -142,26 +162,6 @@ public class DataReceiptPanel extends JPanel {
                 default -> throw new IllegalArgumentException(
                     "Invalid column index: " + columnIndex);
             };
-        }
-
-        @Override
-        public void loadFromDatabase() {
-            new SwingWorker<List<DataReceiptInstance>, Void>() {
-                @Override
-                protected List<DataReceiptInstance> doInBackground() throws Exception {
-                    return dataReceiptOperations().dataReceiptInstances();
-                }
-
-                @Override
-                protected void done() {
-                    try {
-                        dataReceiptInstances = get();
-                        fireTableDataChanged();
-                    } catch (InterruptedException | ExecutionException e) {
-                        log.error("Could not load data receipt objects", e);
-                    }
-                }
-            }.execute();
         }
 
         @Override

@@ -85,28 +85,28 @@ public class ZiggyEventHandlerDefinitionImporter {
         for (File file : files) {
             ZiggyEventHandlerFile handlerFile = null;
             try {
-                log.info("Unmarshaling file " + file.getName() + "...");
+                log.info("Unmarshaling file {}", file.getName());
                 handlerFile = xmlManager.unmarshal(file);
             } catch (Exception e) {
-                log.error("Unable to unmarshal file " + file.getName(), e);
+                log.error("Unable to unmarshal file {}", file.getName(), e);
                 continue;
             }
-            log.info("Unmarshaling file " + file.getName() + "...done");
+            log.info("Unmarshaling file {}...done", file.getName());
             for (ZiggyEventHandler handler : handlerFile.getZiggyEventHandlers()) {
                 if (!pipelineDefinitionNames.contains(handler.getPipelineName())) {
-                    log.error("Handler " + handler.getName() + " fires pipeline "
-                        + handler.getPipelineName() + ", which is not defined");
-                    log.error("Not persisting handler " + handler.getName());
+                    log.error("Handler {} fires pipeline {}, which is not defined",
+                        handler.getName(), handler.getPipelineName());
+                    log.error("Not persisting handler {}", handler.getName());
                     continue;
                 }
                 try {
-                    log.info("Persisting handler " + handler.getName() + "...");
+                    log.info("Persisting handler {}", handler.getName());
                     ziggyEventOperations().mergeEventHandler(handler);
                 } catch (Exception e) {
-                    log.error("Unable to persist handler " + handler.getName(), e);
+                    log.error("Unable to persist handler {}", handler.getName(), e);
                     continue;
                 }
-                log.info("Persisting handler " + handler.getName() + "...done");
+                log.info("Persisting handler {}...done", handler.getName());
             }
         }
         log.info("Done importing Ziggy event handlers");

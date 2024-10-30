@@ -53,8 +53,8 @@ public class PbsParameters {
 
         // If the architecture isn't specified, determine it via optimization.
         if (getArchitecture() == null) {
-            log.info("Selecting infrastructure for " + totalSubtasks + " subtasks using optimizer "
-                + executionResources.getOptimizer());
+            log.info("Selecting infrastructure for {} subtasks using optimizer {}", totalSubtasks,
+                executionResources.getOptimizer());
             selectArchitecture(executionResources, totalSubtasks, remoteCluster);
         }
 
@@ -176,8 +176,9 @@ public class PbsParameters {
             if (overrideSubtasksPerCore >= subtasksPerCore) {
                 subtasksPerCore = overrideSubtasksPerCore;
             } else {
-                log.warn("User-supplied subtasks per core " + overrideSubtasksPerCore
-                    + " too small, using algorithmic value of " + subtasksPerCore);
+                log.warn(
+                    "User-supplied subtasks per core {} too small, using algorithmic value of {}",
+                    overrideSubtasksPerCore, subtasksPerCore);
             }
         }
         return subtasksPerCore;
@@ -251,8 +252,8 @@ public class PbsParameters {
             RemoteQueueDescriptor descriptor = RemoteQueueDescriptor
                 .fromQueueName(executionResources.getQueueName());
             if (descriptor.equals(RemoteQueueDescriptor.UNKNOWN)) {
-                log.warn("Unable to determine max wall time for queue "
-                    + executionResources.getQueueName());
+                log.warn("Unable to determine max wall time for queue {}",
+                    executionResources.getQueueName());
                 queueName = executionResources.getQueueName();
             } else if (descriptor.equals(RemoteQueueDescriptor.RESERVED)) {
                 queueName = executionResources.getQueueName();

@@ -32,8 +32,10 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskData_;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.TaskCountsTest;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations.ClearStaleStateResults;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
@@ -49,11 +51,14 @@ import gov.nasa.ziggy.uow.UnitOfWork;
  *
  * @author Todd Klaus
  * @author PT
+ * @author Bill Wohler
  */
 @Category(IntegrationTestCategory.class)
 public class PipelineInstanceTaskCrudTest {
 
     private static final String TEST_PIPELINE_NAME = "Test Pipeline";
+    // TODO Remove annotation when constant used in modifyPipelineTask()
+    @SuppressWarnings("unused")
     private static final String TEST_WORKER_NAME = "TestWorker";
 
     private PipelineDefinitionCrud pipelineDefinitionCrud;
@@ -63,6 +68,7 @@ public class PipelineInstanceTaskCrudTest {
     private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud;
     private ParameterSetCrud parameterSetCrud;
     private PipelineTaskOperations pipelineTaskOperations;
+    private PipelineTaskDataOperations pipelineTaskDataOperations;
     private PipelineInstanceOperations pipelineInstanceOperations;
 
     private PipelineInstance pipelineInstance;
@@ -93,6 +99,7 @@ public class PipelineInstanceTaskCrudTest {
         pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
         parameterSetCrud = new ParameterSetCrud();
         pipelineTaskOperations = new PipelineTaskOperations();
+        pipelineTaskDataOperations = new PipelineTaskDataOperations();
         pipelineInstanceOperations = new PipelineInstanceOperations();
         testOperations = new TestOperations();
     }
@@ -110,14 +117,26 @@ public class PipelineInstanceTaskCrudTest {
 
     private PipelineTask createPipelineTask(PipelineInstanceNode parentPipelineInstanceNode)
         throws PipelineException {
-        PipelineTask pipelineTask = new PipelineTask(pipelineInstance, parentPipelineInstanceNode);
-        UnitOfWork uow = PipelineExecutor.generateUnitsOfWork(new SingleUnitOfWorkGenerator(), null)
+        UnitOfWork unitOfWork = PipelineExecutor
+            .generateUnitsOfWork(new SingleUnitOfWorkGenerator(), null)
             .get(0);
-        pipelineTask.setUowTaskParameters(uow.getParameters());
-        pipelineTask.setWorkerHost(TEST_WORKER_NAME);
-        pipelineTask.setSoftwareRevision("42");
+        PipelineTask pipelineTask = new PipelineTask(pipelineInstance, parentPipelineInstanceNode,
+            unitOfWork);
         parentPipelineInstanceNode.addPipelineTask(pipelineTask);
         return pipelineTask;
+    }
+
+    private void modifyPipelineTask(PipelineTask pipelineTask, ProcessingStep processingStep) {
+        modifyPipelineTask(pipelineTask, processingStep, false);
+    }
+
+    private void modifyPipelineTask(PipelineTask pipelineTask, ProcessingStep processingStep,
+        boolean error) {
+        pipelineTaskDataOperations.createPipelineTaskData(pipelineTask, processingStep);
+        pipelineTaskDataOperations.setError(pipelineTask, error);
+        // TODO Add, when the time comes
+        // pipelineTask.setWorkerHost(TEST_WORKER_NAME);
+        // pipelineTask.setSoftwareRevision("42");
     }
 
     // TODO Move transactionless CRUD methods to TestOperations
@@ -134,9 +153,9 @@ public class PipelineInstanceTaskCrudTest {
     }
 
     private int pipelineTasksWithErrorsCount() {
-        PipelineTaskCrud crud = new PipelineTaskCrud();
-        return crud.uniqueResult(crud.createZiggyQuery(PipelineTask.class, Long.class)
-            .column(PipelineTask_.error)
+        PipelineTaskDataCrud crud = new PipelineTaskDataCrud();
+        return crud.uniqueResult(crud.createZiggyQuery(PipelineTaskData.class, Long.class)
+            .column(PipelineTaskData_.error)
             .in(true)
             .count()).intValue();
     }
@@ -256,8 +275,8 @@ public class PipelineInstanceTaskCrudTest {
         testOperations.populateObjects();
 
         // Retrieve
-        PipelineTask actualPipelineTask = testOperations
-            .retrieveAndInitializePipelineTask(pipelineTask1.getId());
+        PipelineTask actualPipelineTask = pipelineTaskOperations
+            .pipelineTask(pipelineTask1.getId());
 
         ReflectionEquals comparer = new ReflectionEquals();
         comparer.excludeField(".*\\.lastChangedTime");
@@ -267,14 +286,6 @@ public class PipelineInstanceTaskCrudTest {
 
         assertEquals("PipelineInstance count", 1, pipelineInstanceCount());
         assertEquals("PipelineTask count", 4, pipelineTaskCount());
-
-        List<String> nodeRevisions = pipelineTaskCrud
-            .distinctSoftwareRevisions(pipelineInstanceNode1);
-        assertEquals("nodeRevisions count", 1, nodeRevisions.size());
-
-        List<String> instanceRevisions = pipelineTaskCrud
-            .distinctSoftwareRevisions(pipelineInstance);
-        assertEquals("instanceRevisions count", 1, instanceRevisions.size());
     }
 
     @Test
@@ -282,8 +293,8 @@ public class PipelineInstanceTaskCrudTest {
         testOperations.populateObjects();
 
         // Retrieve
-        List<PipelineTask> actualPipelineTasks = testOperations.retrieveAndInitializePipelineTasks(
-            Set.of(pipelineTask1.getId(), pipelineTask2.getId()));
+        List<PipelineTask> actualPipelineTasks = pipelineTaskOperations
+            .pipelineTasks(Set.of(pipelineTask1.getId(), pipelineTask2.getId()));
 
         List<PipelineTask> expectedPipelineTasks = new ArrayList<>();
         expectedPipelineTasks.add(pipelineTask1);
@@ -297,8 +308,8 @@ public class PipelineInstanceTaskCrudTest {
         testOperations.populateObjects();
 
         // Retrieve
-        List<PipelineTask> actualPipelineTasks = testOperations
-            .retrieveAndInitializePipelineTasks(new HashSet<>());
+        List<PipelineTask> actualPipelineTasks = pipelineTaskOperations
+            .pipelineTasks(new HashSet<>());
 
         List<PipelineTask> expectedPipelineTasks = new ArrayList<>();
 
@@ -314,7 +325,7 @@ public class PipelineInstanceTaskCrudTest {
     @Test
     public void testInstanceState() throws Exception {
         testOperations.populateObjects();
-        PipelineOperationsTestUtils.testTaskCounts(4, 0, 1, 1,
+        TaskCountsTest.testTaskCounts(4, 0, 1, 1,
             pipelineInstanceOperations.taskCounts(pipelineInstance));
     }
 
@@ -369,43 +380,6 @@ public class PipelineInstanceTaskCrudTest {
     }
 
     @Test
-    public void testEditPipelineTask() throws Exception {
-        // Create
-        testOperations.populateObjects();
-
-        // Retrieve & Edit
-        testOperations.retrieveAndEditPipelineTask(pipelineTask1.getId());
-
-        // Retrieve
-        PipelineTask actualPipelineTask = testOperations
-            .retrieveAndInitializePipelineTask(pipelineTask1.getId());
-
-        PipelineTask expectedPipelineTask = createPipelineTask(pipelineInstanceNode1);
-        editPipelineTask(expectedPipelineTask);
-
-        ReflectionEquals comparer = new ReflectionEquals();
-        comparer.excludeField(".*\\.id");
-        comparer.excludeField(".*\\.created");
-        comparer.excludeField(".*\\.lastChangedTime");
-        comparer.excludeField(".*\\.classname");
-        comparer.excludeField(".*\\.xmlParameters");
-
-        comparer.assertEquals("PipelineTask", expectedPipelineTask, actualPipelineTask);
-
-        assertEquals("PipelineInstance count", 1, pipelineInstanceCount());
-        assertEquals("PipelineTask count", 4, pipelineTaskCount());
-    }
-
-    /**
-     * simulate modifications made by a user
-     *
-     * @param pipelineDef
-     */
-    private void editPipelineTask(PipelineTask pipelineTask) {
-        pipelineTask.setProcessingStep(ProcessingStep.COMPLETE);
-    }
-
-    @Test
     public void testClearStaleState() throws Exception {
         // Create
         testOperations.populateObjects();
@@ -423,7 +397,7 @@ public class PipelineInstanceTaskCrudTest {
         assertEquals("unique instance id", pipelineInstance.getId(),
             staleStateResults.uniqueInstanceIds.iterator().next());
         assertEquals("pipelineTaskWithErrorsCount count", 3, pipelineTasksWithErrorsCount());
-        PipelineOperationsTestUtils.testTaskCounts(4, 0, 1, 3,
+        TaskCountsTest.testTaskCounts(4, 0, 1, 3,
             pipelineInstanceOperations.taskCounts(pipelineInstance));
     }
 
@@ -509,35 +483,28 @@ public class PipelineInstanceTaskCrudTest {
                 pipelineInstance = pipelineInstanceCrud.merge(createPipelineInstance());
                 pipelineInstanceNode1 = pipelineInstanceNodeCrud
                     .merge(createPipelineInstanceNode(pipelineDefNode1));
-                pipelineInstanceNode2 = pipelineInstanceNodeCrud
-                    .merge(createPipelineInstanceNode(pipelineDefNode2));
+                pipelineInstance.addPipelineInstanceNode(pipelineInstanceNode1);
+                pipelineInstance = pipelineInstanceCrud.merge(pipelineInstance);
 
                 pipelineTask1 = createPipelineTask(pipelineInstanceNode1);
-                pipelineTask1.setProcessingStep(ProcessingStep.EXECUTING);
                 pipelineTaskCrud.persist(pipelineTask1);
+                modifyPipelineTask(pipelineTask1, ProcessingStep.EXECUTING);
 
                 pipelineTask2 = createPipelineTask(pipelineInstanceNode1);
-                pipelineTask2.setProcessingStep(ProcessingStep.COMPLETE);
                 pipelineTaskCrud.persist(pipelineTask2);
+                modifyPipelineTask(pipelineTask2, ProcessingStep.COMPLETE);
 
-                pipelineInstanceNode2 = createPipelineInstanceNode(pipelineDefNode2);
-                pipelineInstanceNodeCrud.persist(pipelineInstanceNode2);
+                pipelineInstanceNode2 = pipelineInstanceNodeCrud
+                    .merge(createPipelineInstanceNode(pipelineDefNode2));
+                pipelineInstance.addPipelineInstanceNode(pipelineInstanceNode2);
 
                 pipelineTask3 = createPipelineTask(pipelineInstanceNode2);
-                pipelineTask3.setProcessingStep(ProcessingStep.EXECUTING);
                 pipelineTaskCrud.persist(pipelineTask3);
+                modifyPipelineTask(pipelineTask3, ProcessingStep.EXECUTING);
 
                 pipelineTask4 = createPipelineTask(pipelineInstanceNode2);
-                pipelineTask4.setProcessingStep(ProcessingStep.EXECUTING);
-                pipelineTask4.setError(true);
                 pipelineTaskCrud.persist(pipelineTask4);
-
-                pipelineInstanceNode1 = pipelineInstanceNodeCrud.merge(pipelineInstanceNode1);
-                pipelineInstanceNode2 = pipelineInstanceNodeCrud.merge(pipelineInstanceNode2);
-
-                pipelineInstance.addPipelineInstanceNode(pipelineInstanceNode1);
-                pipelineInstance.addPipelineInstanceNode(pipelineInstanceNode2);
-                pipelineInstanceCrud.merge(pipelineInstance);
+                modifyPipelineTask(pipelineTask4, ProcessingStep.EXECUTING, true);
             });
         }
 
@@ -576,31 +543,6 @@ public class PipelineInstanceTaskCrudTest {
                     ZiggyUnitTestUtils.initializePipelineInstanceNode(node);
                 }
                 return nodes;
-            });
-        }
-
-        public PipelineTask retrieveAndInitializePipelineTask(long pipelineTaskId) {
-            return performTransaction(() -> {
-                PipelineTask pi = pipelineTaskCrud.retrieve(pipelineTaskId);
-                ZiggyUnitTestUtils.initializePipelineTask(pi);
-                return pi;
-            });
-        }
-
-        public List<PipelineTask> retrieveAndInitializePipelineTasks(Collection<Long> taskIds) {
-            return performTransaction(() -> {
-                List<PipelineTask> tasks = pipelineTaskCrud.retrieveAll(taskIds);
-                for (PipelineTask task : tasks) {
-                    ZiggyUnitTestUtils.initializePipelineTask(task);
-                }
-                return tasks;
-            });
-        }
-
-        public void retrieveAndEditPipelineTask(long pipelineTaskId) {
-            performTransaction(() -> {
-                PipelineTask pTask = pipelineTaskCrud.retrieve(pipelineTaskId);
-                editPipelineTask(pTask);
             });
         }
 

@@ -61,7 +61,7 @@ public class ZiggyHibernateConfiguration {
             String key = (String) iter.next();
             String value = ziggyConfig.getString(key);
 
-            log.debug("copying property, key=" + key + ", value=" + value);
+            log.debug("copying property, key={}, value={}", key, value);
             hibernateConfig.setProperty(key, value);
         }
 
@@ -69,12 +69,12 @@ public class ZiggyHibernateConfiguration {
         hibernateConfig.setProperty(HIBERNATE_DIALECT.property(), hibernateDialect());
         hibernateConfig.setProperty(HIBERNATE_DRIVER.property(), driverClassName());
 
-        log.info("Database URL: " + hibernateConfig.getProperty(HIBERNATE_URL.property()));
-        log.debug("Database User: " + hibernateConfig.getProperty(HIBERNATE_USERNAME.property()));
+        log.info("Database URL {}", hibernateConfig.getProperty(HIBERNATE_URL.property()));
+        log.debug("Database user {}", hibernateConfig.getProperty(HIBERNATE_USERNAME.property()));
 
         Set<Class<?>> detectedClasses = annotatedClasses();
 
-        log.debug("Adding " + detectedClasses.size() + " annotated POJOs to Hibernate");
+        log.debug("Adding {} annotated POJOs to Hibernate", detectedClasses.size());
 
         for (Class<?> clazz : detectedClasses) {
             hibernateConfig.addAnnotatedClass(clazz);

@@ -31,6 +31,7 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
@@ -78,7 +79,8 @@ public class AcknowledgementTest {
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
-        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
+        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
+            new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
         assertEquals(17, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
@@ -103,7 +105,8 @@ public class AcknowledgementTest {
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
-        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
+        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
+            new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
         assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
@@ -129,7 +132,8 @@ public class AcknowledgementTest {
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
         manifest.getManifestEntries().get(0).setName("dummy-name.rpi");
-        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
+        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
+            new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
         assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
@@ -164,7 +168,8 @@ public class AcknowledgementTest {
         String testFileName = manifest.getManifestEntries().get(0).getName();
         long trueSize = manifest.getManifestEntries().get(0).getSize();
         manifest.getManifestEntries().get(0).setSize(trueSize + 1);
-        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
+        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
+            new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
         assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
@@ -199,7 +204,8 @@ public class AcknowledgementTest {
         String testFileName = manifest.getManifestEntries().get(0).getName();
         String trueChecksum = manifest.getManifestEntries().get(0).getChecksum();
         manifest.getManifestEntries().get(0).setChecksum(trueChecksum + "0");
-        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
+        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
+            new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
         assertEquals(34, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
@@ -228,7 +234,8 @@ public class AcknowledgementTest {
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
 
-        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir, 0);
+        Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
+            new PipelineTask(null, null, null));
         ack.write(testDataDir);
 
         // There's no method for reading in an acknowledgement because

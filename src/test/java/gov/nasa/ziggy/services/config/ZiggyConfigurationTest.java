@@ -201,12 +201,6 @@ public class ZiggyConfigurationTest {
     }
 
     @Test
-    public void testBuildProperty() {
-        assertNotNull(
-            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
-    }
-
-    @Test
     public void testLogJvmProperties() {
         // Just ensure that the code is covered and doesn't blow up. If the log output can be easily
         // checked, do it.

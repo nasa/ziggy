@@ -147,10 +147,10 @@ public class DatastoreDirectoryPipelineInputs implements PipelineInputs {
     public SubtaskInformation subtaskInformation(PipelineDefinitionNode pipelineDefinitionNode) {
         if (pipelineDefinitionNode.getSingleSubtask()) {
             return new SubtaskInformation(getPipelineTask().getModuleName(),
-                getPipelineTask().uowTaskInstance().briefState(), 1);
+                getPipelineTask().getUnitOfWork().briefState(), 1);
         }
         return new SubtaskInformation(getPipelineTask().getModuleName(),
-            getPipelineTask().uowTaskInstance().briefState(),
+            getPipelineTask().getUnitOfWork().briefState(),
             datastoreFileManager().subtaskCount(pipelineDefinitionNode));
     }
 

@@ -210,7 +210,7 @@ public class DatastoreFileManagerFullLocationTest {
 
         List<UnitOfWork> uows = PipelineExecutor.generateUnitsOfWork(uowGenerator,
             pipelineInstanceNode);
-        Mockito.doReturn(uows.get(0)).when(pipelineTask).uowTaskInstance();
+        Mockito.doReturn(uows.get(0)).when(pipelineTask).getUnitOfWork();
     }
 
     /** Constructs a collection of zero-length files in the datastore. */

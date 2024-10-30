@@ -68,7 +68,7 @@ public class MatlabMetrics {
                 topTen = new TopNList(10);
 
                 if (cacheFile.exists()) {
-                    log.info("Found cache file");
+                    log.info("Found cache file {}", cacheFile);
                     try (ObjectInputStream ois = new ObjectInputStream(
                         new BufferedInputStream(new FileInputStream(cacheFile)))) {
                         CacheContents cacheContents = (CacheContents) ois.readObject();
@@ -84,34 +84,34 @@ public class MatlabMetrics {
                             && f.isDirectory());
 
                     for (File taskDir : taskDirs) {
-                        log.info("Processing: " + taskDir);
+                        log.info("Processing {}", taskDir);
 
                         SubtaskDirectoryIterator directoryIterator = new SubtaskDirectoryIterator(
                             taskDir);
 
                         if (directoryIterator.hasNext()) {
-                            log.info("Found " + directoryIterator.numSubTasks()
-                                + " sub-task directories");
+                            log.info("Found {} subtask directories",
+                                directoryIterator.numSubtasks());
                         } else {
-                            log.info("No sub-task directories found");
+                            log.info("No subtask directories found");
                         }
 
                         while (directoryIterator.hasNext()) {
-                            File subTaskDir = directoryIterator.next().getSubtaskDir();
+                            File subtaskDir = directoryIterator.next().getSubtaskDir();
 
-                            log.debug("STM: " + subTaskDir);
+                            log.debug("STM {}", subtaskDir);
 
-                            File subTaskMetricsFile = new File(subTaskDir, MATLAB_METRICS_FILENAME);
+                            File subtaskMetricsFile = new File(subtaskDir, MATLAB_METRICS_FILENAME);
 
-                            if (subTaskMetricsFile.exists()) {
-                                Map<String, Metric> subTaskMetrics = Metric
-                                    .loadMetricsFromSerializedFile(subTaskMetricsFile);
+                            if (subtaskMetricsFile.exists()) {
+                                Map<String, Metric> subtaskMetrics = Metric
+                                    .loadMetricsFromSerializedFile(subtaskMetricsFile);
 
-                                for (String metricName : subTaskMetrics.keySet()) {
+                                for (String metricName : subtaskMetrics.keySet()) {
                                     if (!metricName.equals(MATLAB_CONTROLLER_EXEC_TIME_METRIC)) {
-                                        Metric metric = subTaskMetrics.get(metricName);
+                                        Metric metric = subtaskMetrics.get(metricName);
 
-                                        log.debug("STM: " + metricName + ": " + metric.toString());
+                                        log.debug("STM {}={}", metricName, metric.toString());
 
                                         DescriptiveStatistics metricStats = functionStats
                                             .get(metricName);
@@ -125,22 +125,22 @@ public class MatlabMetrics {
                                     }
                                 }
 
-                                Metric metric = subTaskMetrics
+                                Metric metric = subtaskMetrics
                                     .get(MATLAB_CONTROLLER_EXEC_TIME_METRIC);
                                 if (metric != null) {
-                                    String subTaskName = subTaskDir.getParentFile().getName() + "/"
-                                        + subTaskDir.getName();
+                                    String subtaskName = subtaskDir.getParentFile().getName() + "/"
+                                        + subtaskDir.getName();
 
                                     IntervalMetric totalTimeMetric = (IntervalMetric) metric;
                                     double mean = totalTimeMetric.getAverage();
                                     totalTimeStats.addValue(mean);
-                                    topTen.add((long) mean, subTaskName);
+                                    topTen.add((long) mean, subtaskName);
                                 } else {
-                                    log.warn("no metric found with name: "
-                                        + MATLAB_CONTROLLER_EXEC_TIME_METRIC + " in:" + subTaskDir);
+                                    log.warn("No metric found with name {} in {}",
+                                        MATLAB_CONTROLLER_EXEC_TIME_METRIC, subtaskDir);
                                 }
                             } else {
-                                log.warn("No metrics file found in: " + subTaskDir);
+                                log.warn("No metrics file found in {}", subtaskDir);
                             }
                         }
                     }

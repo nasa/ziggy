@@ -129,6 +129,16 @@ public class ZiggyEventHandlerPanel extends JPanel {
         private final UUID uuid = UUID.randomUUID();
         private List<ZiggyEventHandlerInfoForDisplay> eventHandlers = new ArrayList<>();
 
+        /**
+         * Updates the models event handlers.
+         */
+        private void setEventHandlers(Collection<ZiggyEventHandlerInfoForDisplay> handlerInfo) {
+            log.debug("Updating model");
+            eventHandlers.clear();
+            eventHandlers.addAll(handlerInfo);
+            fireTableDataChanged();
+        }
+
         public String getName(int rowIndex) {
             return eventHandlers.get(rowIndex).getName();
         }
@@ -176,16 +186,6 @@ public class ZiggyEventHandlerPanel extends JPanel {
         @Override
         public UUID requestorIdentifier() {
             return uuid;
-        }
-
-        /**
-         * Updates the models event handlers.
-         */
-        private void setEventHandlers(Collection<ZiggyEventHandlerInfoForDisplay> handlerInfo) {
-            log.debug("Updating model");
-            eventHandlers.clear();
-            eventHandlers.addAll(handlerInfo);
-            fireTableDataChanged();
         }
     }
 

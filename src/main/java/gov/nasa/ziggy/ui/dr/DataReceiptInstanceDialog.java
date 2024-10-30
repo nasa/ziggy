@@ -142,6 +142,13 @@ public class DataReceiptInstanceDialog extends JDialog {
         }
 
         @Override
+        public void loadFromDatabase() {
+            dataReceiptFiles = dataReceiptOperations()
+                .dataReceiptFilesForInstance(dataReceiptInstance.getInstanceId());
+            fireTableDataChanged();
+        }
+
+        @Override
         public int getRowCount() {
             return dataReceiptFiles.size();
         }
@@ -166,13 +173,6 @@ public class DataReceiptInstanceDialog extends JDialog {
                 default -> throw new IllegalArgumentException(
                     "Invalid column index: " + columnIndex);
             };
-        }
-
-        @Override
-        public void loadFromDatabase() {
-            dataReceiptFiles = dataReceiptOperations()
-                .dataReceiptFilesForInstance(dataReceiptInstance.getInstanceId());
-            fireTableDataChanged();
         }
 
         @Override

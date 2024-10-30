@@ -43,7 +43,7 @@ import gov.nasa.ziggy.util.os.OperatingSystemType;
 /**
  * This class encapsulates the setup and execution algorithm code for a single subtask. The code is
  * assumed to be runnable from the shell using the binary name for invocation. It also invokes the
- * populateSubTaskInputs() method of the module's {@link PipelineInputs} subclass prior to running
+ * populateSubtaskInputs() method of the module's {@link PipelineInputs} subclass prior to running
  * the algorithm, and invokes the populateTaskResults() method of the module's
  * {@link PipelineOutputs} subclass subsequent to running the algorithm.
  * <p>
@@ -71,7 +71,7 @@ public class SubtaskExecutor {
     private CommandLine commandLine;
     private Map<String, String> environment = new HashMap<>();
 
-    private OperatingSystemType osType = OperatingSystemType.getInstance();
+    private OperatingSystemType osType = OperatingSystemType.newInstance();
 
     private String libPath;
     private String binPath;
@@ -117,11 +117,11 @@ public class SubtaskExecutor {
 
         String hostname = HostNameUtils.shortHostName();
 
-        log.info("osType = " + osType.toString());
-        log.info("hostname = " + hostname);
-        log.info("binaryDir = " + binaryDir);
-        log.info("binaryName = " + binaryName);
-        log.info("libPath = " + libPath);
+        log.info("osType = {}", osType.toString());
+        log.info("hostname = {}", hostname);
+        log.info("binaryDir = {}", binaryDir);
+        log.info("binaryName = {}", binaryName);
+        log.info("libPath = {}", libPath);
 
         // Construct the environment
         environment.put(MCR_CACHE_ROOT_ENV_VAR_NAME,
@@ -153,7 +153,7 @@ public class SubtaskExecutor {
      */
     private File binaryDir(String binPathString, String binaryName) {
         File binFile = binaryDirInternal(binPathString, binaryName, null);
-        if (binFile == null && OperatingSystemType.getInstance() == OperatingSystemType.MAC_OS_X) {
+        if (binFile == null && OperatingSystemType.newInstance() == OperatingSystemType.MAC_OS_X) {
             binFile = binaryDirInternal(binPathString, binaryName,
                 new String[] { binaryName + ".app", "Contents", "MacOS" });
         }
@@ -162,7 +162,7 @@ public class SubtaskExecutor {
 
     private File binaryDirInternal(String binPathString, String binaryName, String[] pathSuffix) {
 
-        log.info("Searching for binary " + binaryName + " in path " + binPathString);
+        log.info("Searching for binary {} in path {}", binaryName, binPathString);
         File binFile = null;
         String[] binPaths = binPathString.split(File.pathSeparator);
         for (String binPath : binPaths) {
@@ -238,7 +238,7 @@ public class SubtaskExecutor {
         }
         sb.setLength(sb.length() - 2);
         sb.append("]");
-        log.info("Execution environment: " + sb.toString());
+        log.info("Execution environment is {}", sb.toString());
     }
 
     /**
@@ -265,16 +265,16 @@ public class SubtaskExecutor {
             retCode = execAlgorithmInternal();
 
             if (retCode != 0) {
-                log.warn("Marking subtask as failed because retCode = " + retCode);
+                log.warn("Marking subtask as failed (retCode={})", retCode);
                 markSubtaskFailed(workingDir);
             }
 
             if (errorFile.exists()) {
-                log.warn("Marking subtask as failed because an error file exists");
+                log.warn("Marking subtask as failed (error file exists)");
                 markSubtaskFailed(workingDir);
             }
         } catch (Exception e) {
-            log.warn("Marking subtask as failed because a Java-side exception occurred", e);
+            log.warn("Marking subtask as failed (Java-side exception occurred)", e);
             markSubtaskFailed(workingDir);
         }
         return retCode;
@@ -292,7 +292,7 @@ public class SubtaskExecutor {
         }
 
         AlgorithmStateFiles stateFile = new AlgorithmStateFiles(workingDir);
-        stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.PROCESSING);
+        stateFile.updateCurrentState(AlgorithmStateFiles.AlgorithmState.PROCESSING);
 
         boolean inputsProcessingSucceeded = false;
         boolean algorithmProcessingSucceeded = false;
@@ -320,7 +320,7 @@ public class SubtaskExecutor {
         File errorFile = ModuleInterfaceUtils.errorFile(workingDir, binaryName);
 
         if (retCode == 0 && !errorFile.exists()) {
-            stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.COMPLETE);
+            stateFile.updateCurrentState(AlgorithmStateFiles.AlgorithmState.COMPLETE);
         } else {
             /*
              * Don't handle an error in processing at this point in execution. Instead, allow the
@@ -328,15 +328,15 @@ public class SubtaskExecutor {
              * level, after some error-management tasks have been completed.
              */
 
-            stateFile.updateCurrentState(AlgorithmStateFiles.SubtaskState.FAILED);
+            stateFile.updateCurrentState(AlgorithmStateFiles.AlgorithmState.FAILED);
             if (retCode != 0) {
                 if (!inputsProcessingSucceeded) {
-                    log.error("failed to generate sub-task inputs, retCode = " + retCode);
+                    log.error("Failed to generate subtask inputs (retCode={})", retCode);
                 } else if (algorithmProcessingSucceeded) {
-                    log.error("failed to generate task results, retCode = " + retCode);
+                    log.error("Failed to generate task results (retCode={})", retCode);
                 }
             } else {
-                log.info("Algorithm process completed, retCode=" + retCode);
+                log.info("Algorithm process completed (retCode={})", retCode);
             }
         }
 
@@ -349,7 +349,7 @@ public class SubtaskExecutor {
      */
     public int execSimple(List<String> commandLineArgs) {
         int retCode = runCommandline(commandLineArgs, binaryName);
-        log.info("execSimple: retCode = " + retCode);
+        log.info("retCode={}", retCode);
 
         return retCode;
     }
@@ -406,7 +406,7 @@ public class SubtaskExecutor {
             throw new UncheckedIOException("Unable to get process environment ", e);
         }
 
-        log.info("Executing command: " + commandLine.toString());
+        log.info("Executing command {}", commandLine.toString());
         return externalProcess.execute();
     }
 
@@ -423,19 +423,19 @@ public class SubtaskExecutor {
                 ZiggyFileUtils.ZIGGY_CHARSET)) {
             File binary = new File(binaryDir.getPath(), binaryName);
             if ((!binary.exists() || !binary.isFile())
-                && OperatingSystemType.getInstance() == OperatingSystemType.MAC_OS_X) {
+                && OperatingSystemType.newInstance() == OperatingSystemType.MAC_OS_X) {
                 binary = new File(binaryDir.getPath(),
                     binaryName + ".app/Contents/MacOS/" + binaryName);
             }
 
-            log.info("executing " + binary);
+            log.info("binary={}", binary);
 
             commandLine = new CommandLine(binary.getCanonicalPath());
             for (String element : commandline) {
                 commandLine.addArgument(element);
             }
 
-            log.info("CommandLine: " + commandLine);
+            log.info("commandLine={}", commandLine);
 
             Map<String, String> env = EnvironmentUtils.getProcEnvironment();
 
@@ -480,7 +480,7 @@ public class SubtaskExecutor {
                 externalProcess.timeout(timeoutSecs * 1000);
                 externalProcess.setCommandLine(commandLine);
 
-                log.info("env = " + env);
+                log.info("env={}", env);
                 retCode = externalProcess.execute();
             } finally {
                 IntervalMetric.stop("pipeline.module.externalProcess." + binaryName + ".execTime",
@@ -502,9 +502,9 @@ public class SubtaskExecutor {
     }
 
     private static void markSubtaskFailed(File workingDir) {
-        AlgorithmStateFiles subTaskState = new AlgorithmStateFiles(workingDir);
-        if (subTaskState.currentSubtaskState() != AlgorithmStateFiles.SubtaskState.FAILED) {
-            subTaskState.updateCurrentState(AlgorithmStateFiles.SubtaskState.FAILED);
+        AlgorithmStateFiles subtaskState = new AlgorithmStateFiles(workingDir);
+        if (subtaskState.currentAlgorithmState() != AlgorithmStateFiles.AlgorithmState.FAILED) {
+            subtaskState.updateCurrentState(AlgorithmStateFiles.AlgorithmState.FAILED);
         }
     }
 

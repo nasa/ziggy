@@ -1,3 +1,73 @@
+test {
+    systemProperty "java.library.path", "$outsideDir/lib"
+    maxHeapSize = "1024m"
+
+    testLogging {
+        events "failed", "skipped"
+    }
+    useJUnit {
+        // If a code coverage report that incudes the integration tests is desired, then comment
+        // out the IntegrationTestCategory line and uncomment the RunByNameTestCategory line. When
+        // the JaCoCo issue described below is resolved, then delete this comment.
+        // excludeCategories 'gov.nasa.ziggy.RunByNameTestCategory'
+        excludeCategories 'gov.nasa.ziggy.IntegrationTestCategory'
+    }
+
+    // Use "gradle -P traceTests test" to show test order.
+    if (project.hasProperty("traceTests")) {
+        afterTest { desc, result ->
+            logger.quiet "${desc.className}.${desc.name}: ${result.resultType}"
+        }
+    }
+}
+
+// Execute tests marked with @Category(IntegrationTestCategory.class).
+task integrationTest(type: Test) {
+    systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
+    systemProperty "ziggy.logfile", "$buildDir/build.log"
+    systemProperty "java.library.path", "$outsideDir/lib"
+
+    testLogging {
+        events "failed", "skipped"
+    }
+    useJUnit {
+        includeCategories 'gov.nasa.ziggy.IntegrationTestCategory'
+        excludeCategories 'gov.nasa.ziggy.FlakyTestCategory'
+        excludeCategories 'gov.nasa.ziggy.RunByNameTestCategory'
+    }
+}
+
+check.dependsOn integrationTest
+cleanTest.dependsOn cleanIntegrationTest
+
+// Execute tests marked with @Category(FlakyTestCategory.class).
+task flakyTest(type: Test) {
+    systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
+    systemProperty "ziggy.logfile", "$buildDir/build.log"
+    systemProperty "java.library.path", "$outsideDir/lib"
+
+    useJUnit {
+        includeCategories 'gov.nasa.ziggy.FlakyTestCategory'
+    }
+}
+
+check.dependsOn flakyTest
+cleanTest.dependsOn cleanFlakyTest
+
+// Execute tests marked with @Category(RunByNameTestCategory.class).
+// These tests are typically run explicitly with the --tests option
+// since they don't play well with others. For example:
+// gradle runByNameTests --tests *RmiInterProcessCommunicationTest
+task runByNameTest(type: Test) {
+    systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
+    systemProperty "ziggy.logfile", "$buildDir/build.log"
+    systemProperty "java.library.path", "$outsideDir/lib"
+
+    useJUnit {
+        includeCategories 'gov.nasa.ziggy.RunByNameTestCategory'
+    }
+}
+
 /**
  * testprog is used to test external process control.  testprog has the
  * advantage over something like /bin/true that it can run for a specified

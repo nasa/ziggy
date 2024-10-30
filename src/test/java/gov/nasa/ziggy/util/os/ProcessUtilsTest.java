@@ -39,7 +39,7 @@ public class ProcessUtilsTest {
     public void testPid() throws Exception {
         long pid = ProcessUtils.getPid();
         assertTrue(pid > 0); // 0 is init on UNIX
-        assertTrue(pid <= OperatingSystemType.getInstance().getProcInfo().getMaximumPid());
+        assertTrue(pid <= OperatingSystemType.newInstance().getProcInfo().getMaximumPid());
         ExternalProcess psProcess = ExternalProcess
             .simpleExternalProcess("/bin/ps -o pid,comm " + Long.toString(pid));
         psProcess.execute();

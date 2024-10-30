@@ -4,6 +4,7 @@ import static gov.nasa.ziggy.XmlUtils.assertContains;
 import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyName.DATA_RECEIPT_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HOME_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -87,6 +88,10 @@ public class ZiggyEventHandlerTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
+
+    @Rule
+    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(PIPELINE_HOME_DIR,
         DirectoryProperties.ziggyCodeBuildDir().toString());
 
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(DATA_RECEIPT_DIR,
@@ -219,7 +224,7 @@ public class ZiggyEventHandlerTest {
 
         assertEquals(1, tasks.size());
         PipelineTask task = tasks.get(0);
-        UnitOfWork uow = task.uowTaskInstance();
+        UnitOfWork uow = task.getUnitOfWork();
         assertEquals(
             DirectoryProperties.dataReceiptDir().toAbsolutePath().resolve("gazelle").toString(),
             DirectoryUnitOfWorkGenerator.directory(uow));
@@ -337,7 +342,7 @@ public class ZiggyEventHandlerTest {
         assertEquals(2, tasks.size());
         List<String> uowStrings = new ArrayList<>();
         for (PipelineTask task : tasks) {
-            UnitOfWork uow = task.uowTaskInstance();
+            UnitOfWork uow = task.getUnitOfWork();
             uowStrings.add(DirectoryUnitOfWorkGenerator.directory(uow));
         }
         Path dataReceiptDir = DirectoryProperties.dataReceiptDir().toAbsolutePath();
@@ -451,7 +456,7 @@ public class ZiggyEventHandlerTest {
 
         assertEquals(1, tasks.size());
         PipelineTask task = tasks.get(0);
-        UnitOfWork uow = task.uowTaskInstance();
+        UnitOfWork uow = task.getUnitOfWork();
         assertEquals(directoryRule.directory().toAbsolutePath().resolve("events").toString(),
             DirectoryUnitOfWorkGenerator.directory(uow));
     }

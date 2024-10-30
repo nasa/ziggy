@@ -256,8 +256,8 @@ public class StartPipelineDialog extends javax.swing.JDialog {
                 startNode == null ? "pipeline start" : startNode.getModuleName(),
                 endNode == null ? "pipeline end" : endNode.getModuleName());
 
-            ZiggyMessenger
-                .publish(new StartPipelineRequest(pipeline.getName(), instanceNameTextField.getText(),
+            ZiggyMessenger.publish(
+                new StartPipelineRequest(pipeline.getName(), instanceNameTextField.getText(),
                     startNode, endNode, repetitions, delayMinutes * 60));
 
             setCursor(null);

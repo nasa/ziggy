@@ -9,15 +9,13 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.Group_;
-import gov.nasa.ziggy.pipeline.definition.Groupable;
-import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**
  * Provides CRUD methods for {@link Group}
  *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 public class GroupCrud extends AbstractCrud<Group> {
     @SuppressWarnings("unused")
@@ -30,36 +28,26 @@ public class GroupCrud extends AbstractCrud<Group> {
         super(databaseService);
     }
 
-    public List<Group> retrieveAll() {
-        List<Group> groups = list(
-            createZiggyQuery(Group.class).column(Group_.name).ascendingOrder());
-        return groups;
-    }
-
-    public List<Group> retrieveAll(Class<? extends Groupable> clazz) {
-        List<Group> groups = retrieveAll();
-        for (Group group : groups) {
-            setGroupMemberNames(group, clazz);
-        }
-        return groups;
-    }
-
-    public Group retrieveGroupByName(String name, Class<? extends Groupable> clazz) {
-        if (StringUtils.isBlank(name)) {
+    public Group retrieve(String name, String type) {
+        if (StringUtils.isBlank(name) || StringUtils.isBlank(type)) {
             return Group.DEFAULT;
         }
-        Group group = uniqueResult(createZiggyQuery(Group.class).column(Group_.name).in(name));
-        setGroupMemberNames(group, clazz);
-        return group;
+        Group group = uniqueResult(createZiggyQuery(Group.class).column(Group_.name)
+            .in(name)
+            .column(Group_.type)
+            .in(type));
+        return group != null ? group : Group.DEFAULT;
     }
 
-    private void setGroupMemberNames(Group group, Class<? extends Groupable> clazz) {
-        if (clazz.equals(PipelineDefinition.class)) {
-            group.setMemberNames(group.getPipelineDefinitionNames());
-        }
-        if (clazz.equals(ParameterSet.class)) {
-            group.setMemberNames(group.getParameterSetNames());
-        }
+    public List<Group> retrieveAll() {
+        return list(createZiggyQuery(Group.class).column(Group_.name).ascendingOrder());
+    }
+
+    public List<Group> retrieveAll(String type) {
+        return list(createZiggyQuery(Group.class).column(Group_.type)
+            .in(type)
+            .column(Group_.name)
+            .ascendingOrder());
     }
 
     @Override

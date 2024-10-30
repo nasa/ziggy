@@ -151,4 +151,9 @@ public abstract class DatabaseController {
      * Checks whether the database specified by {@link #dbName()} exists.
      */
     public abstract boolean dbExists();
+
+    /**
+     * Maximum expressions allowed in a query.
+     */
+    public abstract int maxExpressions();
 }

@@ -96,12 +96,9 @@ public class SampleList {
         samples.add(newSample);
     }
 
-    /**
-     * @param binSizeMillis
-     */
     public void bin(long binSizeMillis) {
         if (samples.size() == 0) {
-            log.warn("sample list empty!  No bin for you!");
+            log.warn("Not binning an empty sample list");
             return;
         }
 
@@ -115,21 +112,21 @@ public class SampleList {
         double sum = 0.0;
         double count = 0.0;
 
-        log.info("START binning, input set size=" + samples.size());
+        log.info("Binning {} samples", samples.size());
 
         while (thisBinStart < lastSampleTime) {
             if (currentSample.time >= nextBinStart) {
-                // end of bin
-                log.debug("end of bin, count=" + count);
+                // End of bin.
+                log.debug("End of bin, count={}", count);
                 if (count > 0.0) {
-                    // at least one sample in this bin, store the average
-                    log.debug("adding sample @" + new Date(currentBinMid) + " = " + sum / count);
+                    // At least one sample in this bin, store the average.
+                    log.debug("Adding sample @{}={}", new Date(currentBinMid), sum / count);
                     newList.add(new Sample(currentBinMid, sum / count));
                 }
                 thisBinStart = nextBinStart;
                 nextBinStart = thisBinStart + binSizeMillis;
                 currentBinMid = (thisBinStart + nextBinStart) / 2;
-                log.debug("new bin start = " + new Date(thisBinStart));
+                log.debug("New bin start={}", new Date(thisBinStart));
                 sum = 0.0;
                 count = 0.0;
             } else {
@@ -143,19 +140,19 @@ public class SampleList {
         }
 
 //        for (Sample sample : samples) {
-//            log.debug("sample.time = " + new Date(sample.time));
+//            log.debug("Sample time is {}", new Date(sample.time));
 //            if (sample.time >= nextBinStart) {
-//                // end of bin
-//                log.debug("end of bin, count=" + count);
+//                // End of bin.
+//                log.debug("End of bin, count={}", count);
 //                if (count > 0.0) {
-//                    // at least one sample in this bin, store the average
-//                    log.debug("adding sample @" + new Date(currentBinMid) + " = " + sum / count);
+//                    // At least one sample in this bin, store the average.
+//                    log.debug("Adding sample @{}={}",sum / count, new Date(currentBinMid));
 //                    newList.add(new Sample(currentBinMid, sum / count));
 //                }
 //                thisBinStart = nextBinStart;
 //                nextBinStart = thisBinStart + binSizeMillis;
 //                currentBinMid = (thisBinStart + nextBinStart) / 2;
-//                log.debug("new bin start = " + new Date(thisBinStart));
+//                log.debug("New bin start={}", new Date(thisBinStart));
 //                sum = 0.0;
 //                count = 0.0;
 //            }
@@ -164,7 +161,8 @@ public class SampleList {
 //            count += 1.0;
 //        }
 
-        log.info("END binning, output set size=" + newList.size());
+        log.info("Binning {} samples...done, output set size is {}", samples.size(),
+            newList.size());
 
         samples = newList;
     }

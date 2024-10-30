@@ -1,8 +1,6 @@
 package gov.nasa.ziggy.module;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
 
 import org.slf4j.Logger;
@@ -55,17 +53,7 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
     @Override
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public File getTaskDir(boolean cleanExisting) {
-        File taskDir = allocateTaskDir(cleanExisting);
-        if (isRemote()) {
-            File stateFileLockFile = new File(taskDir, StateFile.LOCK_FILE_NAME);
-            try {
-                stateFileLockFile.createNewFile();
-            } catch (IOException e) {
-                throw new UncheckedIOException(
-                    "Unable to create file " + stateFileLockFile.toString(), e);
-            }
-        }
-        return taskDir;
+        return allocateTaskDir(cleanExisting);
     }
 
     /*
@@ -75,7 +63,7 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
      */
     @Override
     public boolean isRemote() {
-        return executor.algorithmType() == AlgorithmExecutor.AlgorithmType.REMOTE;
+        return executor.algorithmType() == AlgorithmType.REMOTE;
     }
 
     @Override
@@ -98,7 +86,7 @@ public class AlgorithmLifecycleManager implements AlgorithmLifecycle {
 
         if (taskDir == null) {
             taskDir = taskDirManager.allocateTaskDir(cleanExisting);
-            log.info("defaultWorkingDir = " + taskDir);
+            log.info("defaultWorkingDir={}", taskDir);
         }
         return taskDir.toFile();
     }

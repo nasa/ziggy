@@ -13,8 +13,9 @@ import gov.nasa.ziggy.module.PipelineCategories;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.dispmod.InstancesDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskSummaryDisplayModel;
@@ -22,8 +23,9 @@ import gov.nasa.ziggy.util.dispmod.TaskSummaryDisplayModel;
 public class InstanceReport extends Report {
     private static final Logger log = LoggerFactory.getLogger(InstanceReport.class);
 
-    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
     public InstanceReport(PdfRenderer pdfRenderer) {
         super(pdfRenderer);
@@ -48,28 +50,23 @@ public class InstanceReport extends Report {
         timeTable.setWidthPercentage(100);
 
         addCell(timeTable, "Start", true);
-        addCell(timeTable, "End", true);
         addCell(timeTable, "Total", true);
 
-        addCell(timeTable, dateToDateString(instance.getStartProcessingTime()), false);
-        addCell(timeTable, dateToDateString(instance.getEndProcessingTime()), false);
-        String elapsedTime = instance.elapsedTime();
-        addCell(timeTable, elapsedTime, false);
+        addCell(timeTable, dateToDateString(instance.getCreated()), false);
+        addCell(timeTable, instance.getExecutionClock().toString(), false);
 
         pdfRenderer.add(timeTable);
 
         pdfRenderer.println();
 
         // Instance Summary
-        InstancesDisplayModel instancesDisplayModel = new InstancesDisplayModel(instance);
-        printDisplayModel("", instancesDisplayModel);
+        printDisplayModel("", new InstancesDisplayModel(instance));
 
         pdfRenderer.println();
 
         // Task Summary
-        TaskSummaryDisplayModel tasksDisplayModel = new TaskSummaryDisplayModel(
-            pipelineInstanceNodeOperations().taskCounts(nodes));
-        printDisplayModel("Pipeline Task Summary", tasksDisplayModel);
+        printDisplayModel("Pipeline Task Summary",
+            new TaskSummaryDisplayModel(pipelineTaskDisplayDataOperations().taskCounts(nodes)));
 
         pdfRenderer.println();
 
@@ -123,9 +120,10 @@ public class InstanceReport extends Report {
         List<PipelineTask> tasks = pipelineTaskOperations().allPipelineTasks();
 
         for (PipelineTask task : tasks) {
-            List<PipelineTaskMetrics> taskMetrics = pipelineTaskOperations().summaryMetrics(task);
+            List<PipelineTaskMetric> taskMetrics = pipelineTaskDataOperations()
+                .pipelineTaskMetrics(task);
 
-            for (PipelineTaskMetrics taskMetric : taskMetrics) {
+            for (PipelineTaskMetric taskMetric : taskMetrics) {
                 if (taskMetric.getCategory().equals(sizeCategory)) {
                     sizeStats.addValue(taskMetric.getValue());
                 } else if (taskMetric.getCategory().equals(timeCategory)) {
@@ -139,9 +137,9 @@ public class InstanceReport extends Report {
 
         double bytesPerSecondForNode = bytesForNode / (millisForNode / 1000);
 
-        log.info("bytesForNode = " + bytesForNode);
-        log.info("millisForNode = " + millisForNode);
-        log.info("bytesPerSecondForNode = " + bytesPerSecondForNode);
+        log.info("bytesForNode = {}", bytesForNode);
+        log.info("millisForNode = {}", millisForNode);
+        log.info("bytesPerSecondForNode = {}", bytesPerSecondForNode);
 
         addCell(transfersTable, node.getModuleName());
         addCell(transfersTable, label);
@@ -149,11 +147,15 @@ public class InstanceReport extends Report {
         addCell(transfersTable, rateFormatter.format(bytesPerSecondForNode));
     }
 
-    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
-        return pipelineInstanceNodeOperations;
-    }
-
     private PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    private PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
+    }
+
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 }

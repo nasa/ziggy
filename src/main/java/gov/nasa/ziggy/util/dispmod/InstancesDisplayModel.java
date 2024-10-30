@@ -57,7 +57,7 @@ public class InstancesDisplayModel extends DisplayModel {
             case 1 -> instance.getPipelineDefinition().getName()
                 + (StringUtils.isBlank(instance.getName()) ? "" : ": " + instance.getName());
             case 2 -> getStateString(instance.getState());
-            case 3 -> instance.elapsedTime();
+            case 3 -> instance.getCreated();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
         };
     }

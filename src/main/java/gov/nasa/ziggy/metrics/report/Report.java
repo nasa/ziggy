@@ -177,7 +177,7 @@ public abstract class Report {
 
     protected void generateSummaryTable(String label, DescriptiveStatistics stats, TopNList topTen,
         Format f) {
-        log.info("Generating report for: " + label);
+        log.info("Generating report for {}", label);
 
         PdfPTable layoutTable = new PdfPTable(2);
         PdfPTable statsTable = new PdfPTable(2);

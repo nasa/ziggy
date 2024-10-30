@@ -60,9 +60,7 @@ public class ZiggyGuiConstants {
     public static final String CANCEL = "Cancel";
     public static final String CLOSE = "Close";
     public static final String COLLAPSE_ALL = "Collapse all";
-    public static final String COPY = "Copy";
     public static final String CREATE = "Create";
-    public static final String DELETE = "Delete";
     public static final String DELETE_SYMBOL = "-";
     public static final String DIALOG = "...";
     public static final String EDIT = "Edit";
@@ -72,11 +70,9 @@ public class ZiggyGuiConstants {
     public static final String FILE = "File";
     public static final String HELP = "Help";
     public static final String IMPORT = "Import";
-    public static final String NEW = "+ New";
     public static final String NEW_SYMBOL = "+";
     public static final String OK = "OK";
     public static final String REFRESH = "Refresh";
-    public static final String RENAME = "Rename";
     public static final String REPORT = "Report";
     public static final String RESTART = "Restart";
     public static final String RESTORE_DEFAULTS = "Restore defaults";

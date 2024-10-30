@@ -80,28 +80,28 @@ public class ConfigMerge {
             // Read base file
             File baseFile = new File(basePath);
             if (!baseFile.exists()) {
-                throw new PipelineException("baseFile: " + baseFile + " does not exist");
+                throw new PipelineException("baseFile " + baseFile + " does not exist");
             }
 
-            log.info("reading base file: " + baseFile);
+            log.info("Reading base file {}", baseFile);
             PropertiesConfiguration baseConfig = new Configurations().properties(baseFile);
 
             // Read the override file
             File overrideFile = new File(overridePath);
             if (!overrideFile.exists()) {
-                throw new PipelineException("overrideFile: " + overrideFile + " does not exist");
+                throw new PipelineException("overrideFile " + overrideFile + " does not exist");
             }
 
-            log.info("reading override file: " + overrideFile);
+            log.info("Reading override file {}", overrideFile);
             PropertiesConfiguration overrideConfig = new Configurations().properties(overrideFile);
 
             // Copy the override properties to the base config
             ConfigurationUtils.copy(overrideConfig, baseConfig);
 
             // Write out the merged config .properties file
-            log.info("writing merged file: " + mergedFile);
-            BufferedWriter outputWriter = new BufferedWriter(
-                new OutputStreamWriter(new FileOutputStream(mergedFile), ZiggyFileUtils.ZIGGY_CHARSET));
+            log.info("Writing merged file {}", mergedFile);
+            BufferedWriter outputWriter = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(mergedFile), ZiggyFileUtils.ZIGGY_CHARSET));
             baseConfig.write(outputWriter);
         } catch (IOException e) {
             throw new UncheckedIOException("Unable to write to file " + mergedFile.toString(), e);

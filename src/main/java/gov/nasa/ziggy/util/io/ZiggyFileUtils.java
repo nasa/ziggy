@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,7 +190,7 @@ public class ZiggyFileUtils {
 
                     @Override
                     public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                        log.error("Unable to visit file " + file + " for checksum purposes.", exc);
+                        log.error("Unable to visit file {} for checksum purposes", file, exc);
                         return FileVisitResult.CONTINUE;
                     }
 

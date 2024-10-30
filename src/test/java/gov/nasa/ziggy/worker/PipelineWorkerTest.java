@@ -2,6 +2,7 @@ package gov.nasa.ziggy.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 
 import java.util.List;
@@ -10,8 +11,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import gov.nasa.ziggy.services.messages.KillTasksRequest;
-import gov.nasa.ziggy.util.Requestor;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.util.SystemProxy;
 
 /**
@@ -22,44 +23,58 @@ import gov.nasa.ziggy.util.SystemProxy;
  * functionality.
  *
  * @author PT
+ * @author Bill Wohler
  */
-public class PipelineWorkerTest implements Requestor {
+public class PipelineWorkerTest {
 
-    private PipelineWorker worker = Mockito.spy(new PipelineWorker("dummy", 0));
-    private KillTasksRequest request = KillTasksRequest.forTaskIds(this, List.of(1L, 2L, 3L));
+    private PipelineTask pipelineTask1;
+    private PipelineTask pipelineTask2;
+    private PipelineTask pipelineTask3;
+    private PipelineTask pipelineTask100;
+
+    private HaltTasksRequest request;
 
     @Before
     public void setUp() {
         SystemProxy.disableExit();
-        Mockito.doNothing()
-            .when(worker)
-            .sendKilledTaskMessage(Mockito.any(KillTasksRequest.class), Mockito.anyLong());
+
+        pipelineTask1 = spy(PipelineTask.class);
+        pipelineTask2 = spy(PipelineTask.class);
+        pipelineTask3 = spy(PipelineTask.class);
+        pipelineTask100 = spy(PipelineTask.class);
+
+        List<PipelineTask> pipelineTasks = List.of(pipelineTask1, pipelineTask2, pipelineTask3);
+        request = new HaltTasksRequest(pipelineTasks);
     }
 
     /**
-     * Exercises the {@link PipelineWorker#killTasks(KillTasksRequest)} method when the kill-tasks
+     * Exercises the {@link PipelineWorker#haltTask(HaltTasksRequest)} method when the kill-tasks
      * request doesn't include the task of the worker.
      */
     @Test
-    public void testKillRequestOtherTasks() {
-        worker.setTaskId(100L);
-        worker.killTasks(request);
-        Mockito.verify(worker, times(0)).sendKilledTaskMessage(request, 100L);
+    public void testHaltRequestOtherTasks() {
+        PipelineWorker worker = createPipelineWorker(pipelineTask100);
+        worker.haltTask(request);
+        Mockito.verify(worker, times(0)).sendTaskHaltedMessage(request, pipelineTask100);
         Mockito.verify(worker, times(0)).killWorker();
         assertNull(SystemProxy.getLatestExitCode());
     }
 
     @Test
-    public void testKillRequestThisTask() {
-        worker.setTaskId(3L);
-        worker.killTasks(request);
-        Mockito.verify(worker).sendKilledTaskMessage(request, 3L);
+    public void testHaltRequestThisTask() {
+        PipelineWorker worker = createPipelineWorker(pipelineTask3);
+        worker.haltTask(request);
+        Mockito.verify(worker).sendTaskHaltedMessage(request, pipelineTask3);
         Mockito.verify(worker).killWorker();
         assertEquals(0, SystemProxy.getLatestExitCode().intValue());
     }
 
-    @Override
-    public Object requestorIdentifier() {
-        return Integer.valueOf(100);
+    private PipelineWorker createPipelineWorker(PipelineTask pipelineTask) {
+        PipelineWorker worker = spy(new PipelineWorker("dummy", pipelineTask, 0));
+        Mockito.doNothing()
+            .when(worker)
+            .sendTaskHaltedMessage(Mockito.any(HaltTasksRequest.class),
+                Mockito.any(PipelineTask.class));
+        return worker;
     }
 }

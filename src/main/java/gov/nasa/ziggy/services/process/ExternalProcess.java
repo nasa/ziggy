@@ -528,12 +528,12 @@ public class ExternalProcess {
             ZiggyShutdownHook.addShutdownHook(() -> {
                 pool.shutdown();
                 childProcessIds.addAll(childProcessIdsPreviousCall);
-                log.debug("SHUTDOWN: Sending SIGTERM to child processes");
+                log.debug("Sending SIGTERM to child processes");
                 for (Long processId : childProcessIds) {
-                    log.debug("SHUTDOWN: Sending SIGTERM to PID " + processId);
+                    log.debug("Sending SIGTERM to PID {}", processId);
                     ProcessUtils.sendSigtermToProcess(processId);
                 }
-                log.debug("SHUTDOWN: done with SIGTERMs");
+                log.debug("Sending SIGTERM to child processes...done");
             });
             externalProcessesShutdownHookSet = true;
         }

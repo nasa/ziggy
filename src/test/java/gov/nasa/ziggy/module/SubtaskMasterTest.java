@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Before;
@@ -47,10 +47,10 @@ public class SubtaskMasterTest {
     private SubtaskMaster subtaskMaster;
     private SubtaskClient subtaskClient;
     private SubtaskExecutor subtaskExecutor;
-    private Semaphore completionCounter;
+    private CountDownLatch countdownLatch;
     private AlgorithmStateFiles algorithmStateFiles;
 
-    private final int THREAD_NUMBER = 5;
+    private final int THREAD_COUNT = 5;
     private final String NODE = "dummy";
     private final String BINARY_NAME = "dummy";
     private final String TASK_DIR = "dummy";
@@ -66,9 +66,8 @@ public class SubtaskMasterTest {
         algorithmStateFiles = mock(AlgorithmStateFiles.class);
 
         // Set up the object for test.
-        completionCounter = new Semaphore(THREAD_NUMBER);
-        completionCounter.acquire();
-        subtaskMaster = spy(new SubtaskMaster(THREAD_NUMBER, NODE, completionCounter, BINARY_NAME,
+        countdownLatch = new CountDownLatch(THREAD_COUNT);
+        subtaskMaster = spy(new SubtaskMaster(THREAD_COUNT, NODE, countdownLatch, BINARY_NAME,
             DirectoryProperties.taskDataDir().resolve(TASK_DIR).toString(), TIMEOUT));
         doReturn(subtaskClient).when(subtaskMaster).subtaskClient();
         doReturn(subtaskExecutor).when(subtaskMaster).subtaskExecutor(ArgumentMatchers.anyInt());
@@ -103,7 +102,7 @@ public class SubtaskMasterTest {
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
-        assertEquals(5, completionCounter.availablePermits());
+        assertEquals(4, countdownLatch.getCount());
     }
 
     /**
@@ -130,7 +129,7 @@ public class SubtaskMasterTest {
             .toFile());
         verify(subtaskMaster).logException(ArgumentMatchers.eq(SUBTASK_INDEX),
             ArgumentMatchers.any(ModuleFatalProcessingException.class));
-        assertEquals(5, completionCounter.availablePermits());
+        assertEquals(4, countdownLatch.getCount());
     }
 
     /**
@@ -143,7 +142,7 @@ public class SubtaskMasterTest {
         standardSetUp();
 
         // The subtask should have a prior algorithm state file, one that indicates completion.
-        when(algorithmStateFiles.subtaskStateExists()).thenReturn(true);
+        when(algorithmStateFiles.stateExists()).thenReturn(true);
         when(algorithmStateFiles.isComplete()).thenReturn(true);
 
         // Execute the run() method.
@@ -159,7 +158,7 @@ public class SubtaskMasterTest {
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
-        assertEquals(5, completionCounter.availablePermits());
+        assertEquals(4, countdownLatch.getCount());
     }
 
     /**
@@ -172,7 +171,7 @@ public class SubtaskMasterTest {
         standardSetUp();
 
         // The subtask should have a prior algorithm state file, one that indicates completion.
-        when(algorithmStateFiles.subtaskStateExists()).thenReturn(true);
+        when(algorithmStateFiles.stateExists()).thenReturn(true);
         when(algorithmStateFiles.isFailed()).thenReturn(true);
 
         // Execute the run() method.
@@ -188,7 +187,7 @@ public class SubtaskMasterTest {
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
-        assertEquals(5, completionCounter.availablePermits());
+        assertEquals(4, countdownLatch.getCount());
     }
 
     /**
@@ -204,7 +203,7 @@ public class SubtaskMasterTest {
         standardSetUp();
 
         // The subtask should have a prior algorithm state file, one that indicates completion.
-        when(algorithmStateFiles.subtaskStateExists()).thenReturn(true);
+        when(algorithmStateFiles.stateExists()).thenReturn(true);
         when(algorithmStateFiles.isProcessing()).thenReturn(true);
 
         // Execute the run() method.
@@ -220,7 +219,7 @@ public class SubtaskMasterTest {
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
-        assertEquals(5, completionCounter.availablePermits());
+        assertEquals(4, countdownLatch.getCount());
     }
 
     /**
@@ -257,7 +256,7 @@ public class SubtaskMasterTest {
             .toFile());
         verify(subtaskMaster, times(0)).logException(ArgumentMatchers.any(Integer.class),
             ArgumentMatchers.any(Exception.class));
-        assertEquals(5, completionCounter.availablePermits());
+        assertEquals(4, countdownLatch.getCount());
     }
 
     /**
@@ -288,7 +287,7 @@ public class SubtaskMasterTest {
             Paths.get(TASK_DIR, "st-" + SUBTASK_INDEX, TaskConfiguration.LOCK_FILE_NAME).toFile());
         verify(subtaskMaster).logException(ArgumentMatchers.eq(SUBTASK_INDEX),
             ArgumentMatchers.any(PipelineException.class));
-        assertEquals(5, completionCounter.availablePermits());
+        assertEquals(4, countdownLatch.getCount());
     }
 
     /**
@@ -314,7 +313,7 @@ public class SubtaskMasterTest {
                     .toFile());
 
         // The subtask should have no prior algorithm state file.
-        when(algorithmStateFiles.subtaskStateExists()).thenReturn(false);
+        when(algorithmStateFiles.stateExists()).thenReturn(false);
         when(algorithmStateFiles.isProcessing()).thenReturn(false);
         when(algorithmStateFiles.isFailed()).thenReturn(false);
         when(algorithmStateFiles.isComplete()).thenReturn(false);

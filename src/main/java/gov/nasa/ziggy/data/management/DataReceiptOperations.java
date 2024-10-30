@@ -39,7 +39,7 @@ public class DataReceiptOperations extends DatabaseOperations {
             for (PipelineInstance pipelineInstance : pipelineInstances) {
                 DataReceiptInstance dataReceiptInstance = new DataReceiptInstance();
                 dataReceiptInstance.setInstanceId(pipelineInstance.getId());
-                dataReceiptInstance.setDate(pipelineInstance.getStartProcessingTime());
+                dataReceiptInstance.setDate(pipelineInstance.getCreated());
 
                 dataReceiptInstance.setFailedImportCount(
                     failedImportCrud().retrieveCountForInstance(pipelineInstance.getId()));

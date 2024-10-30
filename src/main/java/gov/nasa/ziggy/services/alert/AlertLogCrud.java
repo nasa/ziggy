@@ -3,19 +3,19 @@ package gov.nasa.ziggy.services.alert;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.hibernate.HibernateException;
 
-import gov.nasa.ziggy.collections.ListChunkIterator;
+import com.google.common.collect.Lists;
+
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 
 /**
  * This class provides CRUD methods for the AlertService
@@ -49,12 +49,12 @@ public class AlertLogCrud extends AbstractCrud<AlertLog> {
      * @throws NullPointerException if any of the arguments were {@code null}
      * @throws HibernateException if there were problems accessing the database
      */
-    public List<String> retrieveSeverities() {
-        ZiggyQuery<AlertLog, String> query = createZiggyQuery(AlertLog.class, String.class);
+    public List<Severity> retrieveSeverities() {
+        ZiggyQuery<AlertLog, Severity> query = createZiggyQuery(AlertLog.class, Severity.class);
         query.select(query.get(AlertLog_.alertData).get(Alert_.severity));
         query.getCriteriaQuery()
-            .orderBy(
-                query.getBuilder().asc(query.getRoot().get("alertData").<String> get("severity")));
+            .orderBy(query.getBuilder()
+                .asc(query.getRoot().get(AlertLog_.alertData).get(Alert_.severity)));
         query.distinct(true);
         return list(query);
     }
@@ -69,7 +69,7 @@ public class AlertLogCrud extends AbstractCrud<AlertLog> {
      * @throws HibernateException if there were problems accessing the database
      */
     public List<AlertLog> retrieve(Date startDate, Date endDate) {
-        return retrieve(startDate, endDate, new String[0], new String[0]);
+        return retrieve(startDate, endDate, List.of(), List.of());
     }
 
     /**
@@ -84,8 +84,8 @@ public class AlertLogCrud extends AbstractCrud<AlertLog> {
      * @throws NullPointerException if any of the arguments were {@code null}
      * @throws HibernateException if there were problems accessing the database
      */
-    public List<AlertLog> retrieve(Date startDate, Date endDate, String[] components,
-        String[] severities) {
+    public List<AlertLog> retrieve(Date startDate, Date endDate, List<String> components,
+        List<Severity> severities) {
         checkNotNull(components, "components");
         checkNotNull(severities, "severities");
         checkNotNull(startDate, "startDate");
@@ -94,13 +94,12 @@ public class AlertLogCrud extends AbstractCrud<AlertLog> {
         ZiggyQuery<AlertLog, AlertLog> query = createZiggyQuery(AlertLog.class);
         query.where(query.getBuilder()
             .between(query.get(AlertLog_.alertData).get(Alert_.timestamp), startDate, endDate));
-        if (components.length > 0) {
-            query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.sourceComponent),
-                Arrays.asList(components)));
+        if (!components.isEmpty()) {
+            query.where(
+                query.in(query.get(AlertLog_.alertData).get(Alert_.sourceComponent), components));
         }
-        if (severities.length > 0) {
-            query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.severity),
-                Arrays.asList(severities)));
+        if (!severities.isEmpty()) {
+            query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.severity), severities));
         }
 
         query.getCriteriaQuery()
@@ -114,39 +113,30 @@ public class AlertLogCrud extends AbstractCrud<AlertLog> {
 
     /**
      * Retrieve all alerts for the specified pipeline instance.
-     *
-     * @param pipelineInstanceId
-     * @return
      */
-    public List<AlertLog> retrieveForPipelineInstance(long pipelineInstanceId) {
+    public List<AlertLog> retrieveForPipelineInstance(PipelineInstance pipelineInstance) {
 
         // I don't know how to do this as one query, so I'm doing it as two.
         List<PipelineTask> tasksInInstance = new PipelineTaskCrud()
-            .retrieveTasksForInstance(pipelineInstanceId);
-        List<Long> taskIds = tasksInInstance.stream()
-            .map(PipelineTask::getId)
-            .collect(Collectors.toList());
+            .retrieveTasksForInstance(pipelineInstance);
         ZiggyQuery<AlertLog, AlertLog> query = createZiggyQuery(AlertLog.class);
-        query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.sourceTaskId), taskIds));
+        query.where(
+            query.in(query.get(AlertLog_.alertData).get(Alert_.sourceTask), tasksInInstance));
 
         return list(query);
     }
 
-    /**
-     * Retrieve all alerts for the specified list of pipeline task ids.
-     */
-    public List<AlertLog> retrieveByPipelineTaskIds(Collection<Long> taskIds) {
-        List<AlertLog> rv = new ArrayList<>();
-        ListChunkIterator<Long> idIt = new ListChunkIterator<>(taskIds.iterator(), 50);
-        for (List<Long> idChunk : idIt) {
-            rv.addAll(retrieveChunk(idChunk));
+    public List<AlertLog> retrieveByPipelineTasks(List<PipelineTask> tasks) {
+        List<AlertLog> alertLogs = new ArrayList<>();
+        for (List<PipelineTask> idChunk : Lists.partition(tasks, 50)) {
+            alertLogs.addAll(retrieveChunkByPipelineTasks(idChunk));
         }
-        return rv;
+        return alertLogs;
     }
 
-    private List<AlertLog> retrieveChunk(List<Long> taskIds) {
+    private List<AlertLog> retrieveChunkByPipelineTasks(List<PipelineTask> tasks) {
         ZiggyQuery<AlertLog, AlertLog> query = createZiggyQuery(AlertLog.class);
-        query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.sourceTaskId), taskIds));
+        query.where(query.in(query.get(AlertLog_.alertData).get(Alert_.sourceTask), tasks));
 
         return list(query);
     }

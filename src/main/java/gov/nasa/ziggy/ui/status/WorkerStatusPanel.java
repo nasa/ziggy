@@ -240,7 +240,7 @@ public class WorkerStatusPanel extends JPanel {
                 case 2 -> ZiggyStringUtils.elapsedTime(message.getProcessingStartTime(),
                     System.currentTimeMillis());
                 case 3 -> message.getInstanceId();
-                case 4 -> message.getTaskId();
+                case 4 -> message.getPipelineTask();
                 case 5 -> message.getModule();
                 case 6 -> message.getModuleUow();
                 default -> "";

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doReturn;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -13,12 +14,16 @@ import java.util.Map;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
+import gov.nasa.ziggy.uow.UnitOfWork;
+import gov.nasa.ziggy.util.SystemProxy;
 
 public class TaskMetricsTest {
 
@@ -29,14 +34,12 @@ public class TaskMetricsTest {
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
-    @SuppressWarnings("unlikely-arg-type")
     @Test
     public void testHashCodeEquals() {
         TaskMetrics taskMetrics2 = taskMetrics(2);
         taskMetrics2.calculate();
         assertTrue(taskMetrics2.equals(taskMetrics2));
         assertFalse(taskMetrics2.equals(null));
-        assertFalse(taskMetrics2.equals("a string"));
 
         TaskMetrics taskMetrics3 = taskMetrics(3);
         taskMetrics3.calculate();
@@ -81,18 +84,17 @@ public class TaskMetricsTest {
     public void testGetTotalProcessingTimeMillis() {
         TaskMetrics taskMetrics = taskMetrics(3);
         taskMetrics.calculate();
-        long totalProcessingTimeMillis = taskMetrics.getTotalProcessingTimeMillis();
-        assertEquals(totalDuration, totalProcessingTimeMillis);
+        assertEquals(totalDuration, taskMetrics.getTotalProcessingTimeMillis());
     }
 
     private TaskMetrics taskMetrics(int taskCount) {
         return new TaskMetrics(pipelineTasks(taskCount));
     }
 
-    private List<PipelineTask> pipelineTasks(int taskCount) {
+    private List<PipelineTaskDisplayData> pipelineTasks(int taskCount) {
         // Each task starts one hour after the last. The task duration starts at one hour and each
         // subsequent task is one hour longer.
-        ArrayList<PipelineTask> pipelineTasks = new ArrayList<>();
+        ArrayList<PipelineTaskDisplayData> pipelineTasks = new ArrayList<>();
         long startTime = START_MILLIS;
         for (int i = 0; i < taskCount; i++) {
             long duration = (i + 1) * HOUR_MILLIS;
@@ -104,15 +106,24 @@ public class TaskMetricsTest {
         return pipelineTasks;
     }
 
-    private PipelineTask pipelineTask(String moduleName, Date start, Date end) {
-        PipelineTask pipelineTask = new PipelineTask();
-        pipelineTask.setStartProcessingTime(start);
-        pipelineTask.setEndProcessingTime(end);
-        pipelineTask.setSummaryMetrics(summaryMetrics(moduleName));
-        return new PipelineTaskOperations().merge(pipelineTask);
+    private PipelineTaskDisplayData pipelineTask(String moduleName, Date start, Date end) {
+        PipelineTask pipelineTask = Mockito
+            .spy(new PipelineTask(null, null, new UnitOfWork(moduleName)));
+        doReturn(42L).when(pipelineTask).getId();
+
+        PipelineTaskData pipelineTaskData = new PipelineTaskData(pipelineTask);
+        pipelineTaskData.setPipelineTaskMetrics(pipelineTaskMetrics(moduleName));
+        PipelineTaskDisplayData pipelineTaskDisplayData = new PipelineTaskDisplayData(
+            pipelineTaskData);
+        SystemProxy.setUserTime(start.getTime());
+        pipelineTaskDisplayData.getExecutionClock().start();
+        SystemProxy.setUserTime(end.getTime());
+        pipelineTaskDisplayData.getExecutionClock().stop();
+
+        return pipelineTaskDisplayData;
     }
 
-    private List<PipelineTaskMetrics> summaryMetrics(String moduleName) {
-        return List.of(new PipelineTaskMetrics(moduleName, 42, Units.TIME));
+    private List<PipelineTaskMetric> pipelineTaskMetrics(String moduleName) {
+        return List.of(new PipelineTaskMetric(moduleName, 42, Units.TIME));
     }
 }

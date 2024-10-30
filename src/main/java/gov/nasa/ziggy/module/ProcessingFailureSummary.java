@@ -7,41 +7,41 @@ import java.util.List;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
 
 /**
- * Provides summary information on failed sub-tasks.
+ * Provides summary information on failed subtasks.
  *
  * @author PT
  */
 public class ProcessingFailureSummary {
 
-    private List<String> failedSubTaskDirs = new ArrayList<>();
+    private List<String> failedSubtaskDirs = new ArrayList<>();
     private boolean allTasksFailed = false;
 
     public ProcessingFailureSummary(String moduleName, File taskDirectory) {
 
         SubtaskDirectoryIterator taskDirectoryIterator = new SubtaskDirectoryIterator(
             taskDirectory);
-        int numSubTasks = taskDirectoryIterator.numSubTasks();
+        int numSubtasks = taskDirectoryIterator.numSubtasks();
 
-        // loop over sub-task directories and look for stack trace files
+        // loop over subtask directories and look for stack trace files
 
         while (taskDirectoryIterator.hasNext()) {
-            File subTaskDir = taskDirectoryIterator.next().getSubtaskDir();
-            if (ModuleInterfaceUtils.errorFile(subTaskDir, moduleName).exists()) {
-                failedSubTaskDirs.add(subTaskDir.getName());
+            File subtaskDir = taskDirectoryIterator.next().getSubtaskDir();
+            if (ModuleInterfaceUtils.errorFile(subtaskDir, moduleName).exists()) {
+                failedSubtaskDirs.add(subtaskDir.getName());
             }
         }
-        allTasksFailed = failedSubTaskDirs.size() == numSubTasks;
+        allTasksFailed = failedSubtaskDirs.size() == numSubtasks;
     }
 
     public boolean isAllTasksFailed() {
         return allTasksFailed;
     }
 
-    public List<String> getFailedSubTaskDirs() {
-        return failedSubTaskDirs;
+    public List<String> getFailedSubtaskDirs() {
+        return failedSubtaskDirs;
     }
 
     public boolean isAllTasksSucceeded() {
-        return failedSubTaskDirs.size() == 0;
+        return failedSubtaskDirs.size() == 0;
     }
 }

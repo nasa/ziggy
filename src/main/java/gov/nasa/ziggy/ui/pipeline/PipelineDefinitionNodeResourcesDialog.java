@@ -217,7 +217,7 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
         JButton closeButton = ZiggySwingUtils.createButton(CLOSE,
             htmlBuilder("Close this dialog box.").appendBreak()
                 .append(
-                    "Your worker resource parameter changes won't be saved until you hit Save on the edit pipeline dialog.")
+                    "Your worker resource parameter changes won't be saved until you press the Save button on the edit pipeline dialog.")
                 .toString(),
             this::updateWorkerResources);
 
@@ -226,7 +226,7 @@ public class PipelineDefinitionNodeResourcesDialog extends JDialog {
         // focus, the resulting event causes the validity of that box to become false for
         // a blink, which causes the close button to become disabled for a
         // blink; as a result, the buttons are disabled when the action listener would tell
-        // them to take their actions, and the user has to hit the button again to get it to
+        // them to take their actions, and the user has to press the button again to get it to
         // take its action. By performing the action when the button gains focus, we get
         // back to needing only one button push to get the focus and perform the action.
         closeButton.addFocusListener(new FocusAdapter() {

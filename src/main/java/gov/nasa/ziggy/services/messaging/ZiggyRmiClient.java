@@ -22,6 +22,7 @@ import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.ui.ZiggyConsole;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.ZiggyUtils;
 import gov.nasa.ziggy.util.os.ProcessUtils;
 import gov.nasa.ziggy.worker.PipelineWorker;
 
@@ -50,7 +51,7 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
     private static final String RMI_REGISTRY_HOST = "localhost";
 
     private static final int REGISTRY_LOOKUP_EFFORTS = 25;
-    private static final int REGISTRY_LOOKUP_PAUSE_MILLIS = 200;
+    private static final long REGISTRY_LOOKUP_PAUSE_MILLIS = 200;
 
     /**
      * Singleton instance of {@link ZiggyRmiClient} class. All threads in the UI process can access
@@ -80,26 +81,9 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
 
         // Get the stub that the server provided. In case the server just started, try every 200 ms
         // for five seconds.
-        ZiggyRmiServerService service = null;
-        for (int i = 0; i < REGISTRY_LOOKUP_EFFORTS; i++) {
-            log.info("Looking up services in registry (take {}/{})", i + 1,
-                REGISTRY_LOOKUP_EFFORTS);
-            try {
-                service = (ZiggyRmiServerService) registry
-                    .lookup(ZiggyRmiServerService.SERVICE_NAME);
-                break;
-            } catch (RemoteException | NotBoundException e) {
-                if (i == REGISTRY_LOOKUP_EFFORTS - 1) {
-                    throw e;
-                }
-                try {
-                    Thread.sleep(REGISTRY_LOOKUP_PAUSE_MILLIS);
-                } catch (InterruptedException interrupt) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-        ziggyRmiServerService = service;
+        ziggyRmiServerService = ZiggyUtils.tryPatiently("Looking up services in registry",
+            REGISTRY_LOOKUP_EFFORTS, REGISTRY_LOOKUP_PAUSE_MILLIS,
+            () -> (ZiggyRmiServerService) registry.lookup(ZiggyRmiServerService.SERVICE_NAME));
     }
 
     /**

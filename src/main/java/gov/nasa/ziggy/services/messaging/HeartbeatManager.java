@@ -103,9 +103,11 @@ public class HeartbeatManager {
 
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private void initializeHeartbeatManagerInternal() {
+        log.debug("Initializing heartbeat manager");
+
         heartbeatCountdownLatch = new CountDownLatch(1);
         SystemProxy.currentTimeMillis();
-        log.debug("Heartbeat time: " + heartbeatTime);
+        log.debug("Heartbeat time is {}", heartbeatTime);
         try {
             // If the console, for example, is stopped for a few hours and then resumed,
             // checkForHeartbeat() will call initializeHeartbeatManager() a lot, which can result in
@@ -134,7 +136,7 @@ public class HeartbeatManager {
             startHeartbeatListener();
         }
         started = true;
-        log.debug("initializeHeartbeatManagerInternal: done");
+        log.debug("Initializing heartbeat manager...done");
     }
 
     /**
@@ -163,7 +165,7 @@ public class HeartbeatManager {
         ZiggyShutdownHook.addShutdownHook(() -> {
             heartbeatListener.shutdownNow();
         });
-        log.info("Heartbeat listener thread started");
+        log.info("Starting heartbeat listener thread...done");
     }
 
     /**

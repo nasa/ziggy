@@ -124,7 +124,7 @@ public class Mcc extends TessExecTask {
 
     @TaskAction
     public void action() {
-        log.info(String.format("%s.action()\n", this.getClass().getSimpleName()));
+        log.info("{}.action()", this.getClass().getSimpleName());
         File matlabHome = matlabHome();
 
         File buildBinDir = new File(getProject().getBuildDir(), "bin");
@@ -150,9 +150,9 @@ public class Mcc extends TessExecTask {
             path += ".app";
             executable = new File(path);
             String message = String.format(
-                "The outputExecutable, \"%s\", already exists and cannot be deleted\n", executable);
+                "The outputExecutable, %s, already exists and cannot be deleted\n", executable);
             if (executable.exists()) {
-                log.info(String.format("%s: already exists, delete it\n", executable));
+                log.info("{} already exists, delete it", executable);
                 if (executable.isDirectory()) {
                     try {
                         FileUtils.deleteDirectory(executable);
@@ -198,7 +198,7 @@ public class Mcc extends TessExecTask {
             processBuilder.environment()
                 .put("MCC_DIR", getProject().getProjectDir().getCanonicalPath());
         } catch (IOException e) {
-            log.error(String.format("Could not set MCC_DIR: %s", e.getMessage()), e);
+            log.error("Could not set MCC_DIR: {}", e.getMessage(), e);
         }
         execProcess(processBuilder);
 

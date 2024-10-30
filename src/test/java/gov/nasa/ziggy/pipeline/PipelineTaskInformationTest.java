@@ -11,11 +11,11 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs;
@@ -55,8 +55,8 @@ public class PipelineTaskInformationTest {
     private ParameterSet instanceParSet2 = new ParameterSet(instancePars2Name);
     private String moduleParsName = "Module Pars";
     private ParameterSet moduleParSet = new ParameterSet(moduleParsName);
-    private PipelineTask p1 = Mockito.spy(PipelineTask.class);
-    private PipelineTask p2 = Mockito.spy(PipelineTask.class);
+    private PipelineTask p1 = spy(PipelineTask.class);
+    private PipelineTask p2 = spy(PipelineTask.class);
     private SubtaskInformation s1, s2;
     private PipelineDefinitionNode node;
     private PipelineDefinition pipelineDefinition;
@@ -106,7 +106,9 @@ public class PipelineTaskInformationTest {
         // Set up unit of work generation
         doReturn(uowGenerator).when(pipelineTaskInformation).unitOfWorkGenerator(node);
         UnitOfWork u1 = new UnitOfWork();
+        u1.setParameters(Set.of(new Parameter("param1", "value1")));
         UnitOfWork u2 = new UnitOfWork();
+        u2.setParameters(Set.of(new Parameter("param2", "value2")));
         List<UnitOfWork> uowList = new ArrayList<>();
         uowList.add(u1);
         uowList.add(u2);
@@ -116,8 +118,8 @@ public class PipelineTaskInformationTest {
                 ArgumentMatchers.<PipelineInstance> any());
 
         // Set up pipeline task generation
-        Mockito.doReturn(1L).when(p1).getId();
-        Mockito.doReturn(2L).when(p2).getId();
+        doReturn(1L).when(p1).getId();
+        doReturn(2L).when(p2).getId();
         doReturn(p1).doReturn(p2)
             .when(pipelineTaskInformation)
             .pipelineTask(any(PipelineInstance.class), any(PipelineInstanceNode.class),

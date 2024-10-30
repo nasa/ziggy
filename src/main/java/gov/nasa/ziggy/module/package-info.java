@@ -10,7 +10,7 @@
  * <p>
  * The processing steps found in the {@link gov.nasa.ziggy.pipeline.definition.ProcessingStep} enum
  * are set with the
- * {@link gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations#updateProcessingStep(long, gov.nasa.ziggy.pipeline.definition.ProcessingStep)}
+ * {@link gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations#updateProcessingStep(gov.nasa.ziggy.pipeline.definition.PipelineTask, gov.nasa.ziggy.pipeline.definition.ProcessingStep)}
  * method and implicitly with the
  * {@link gov.nasa.ziggy.pipeline.definition.PipelineModule#incrementProcessingStep()} method. Here
  * is where each of these steps occur:

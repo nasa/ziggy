@@ -14,7 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
 
@@ -38,6 +39,7 @@ public abstract class PipelineModule {
     protected RunMode runMode;
 
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private final PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
     /**
      * Standard constructor. Stores the {@link PipelineTask} and {@link RunMode} for the instance.
@@ -45,10 +47,6 @@ public abstract class PipelineModule {
     public PipelineModule(PipelineTask pipelineTask, RunMode runMode) {
         this.pipelineTask = checkNotNull(pipelineTask, "pipelineTask");
         this.runMode = checkNotNull(runMode, "runMode");
-    }
-
-    public final long taskId() {
-        return pipelineTask.getId();
     }
 
     /**
@@ -86,7 +84,7 @@ public abstract class PipelineModule {
      * step in the database.
      */
     public void incrementProcessingStep() {
-        pipelineTaskOperations().updateProcessingStep(taskId(),
+        pipelineTaskDataOperations().updateProcessingStep(pipelineTask,
             nextProcessingStep(currentProcessingStep()));
     }
 
@@ -96,7 +94,7 @@ public abstract class PipelineModule {
      * @return current processing step
      */
     public ProcessingStep currentProcessingStep() {
-        return pipelineTaskOperations().pipelineTask(taskId()).getProcessingStep();
+        return pipelineTaskDataOperations().processingStep(pipelineTask);
     }
 
     /**
@@ -177,7 +175,7 @@ public abstract class PipelineModule {
     public abstract boolean processTask() throws Exception;
 
     /**
-     * Update the PipelineTask.summaryMetrics.
+     * Update the PipelineTask.pipelineTaskMetrics.
      * <p>
      * This default implementation adds a single category ("ALL") with the overall execution time.
      * <p>
@@ -187,10 +185,10 @@ public abstract class PipelineModule {
      */
     public void updateMetrics(PipelineTask pipelineTask, Map<String, Metric> threadMetrics,
         long overallExecTimeMillis) {
-        List<PipelineTaskMetrics> taskMetrics = new ArrayList<>();
-        PipelineTaskMetrics m = new PipelineTaskMetrics("All", overallExecTimeMillis, Units.TIME);
+        List<PipelineTaskMetric> taskMetrics = new ArrayList<>();
+        PipelineTaskMetric m = new PipelineTaskMetric("All", overallExecTimeMillis, Units.TIME);
         taskMetrics.add(m);
-        pipelineTask.setSummaryMetrics(taskMetrics);
+        pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask, taskMetrics);
     }
 
     public abstract String getModuleName();
@@ -228,16 +226,19 @@ public abstract class PipelineModule {
     protected abstract List<RunMode> restartModes();
 
     protected void logTaskInfo(PipelineInstance instance, PipelineTask task) {
-        log.debug("[" + getModuleName() + "]instance id = " + instance.getId());
-        log.debug("[" + getModuleName() + "]instance node id = " + task.getId());
-        log.debug(
-            "[" + getModuleName() + "]instance node uow = " + task.uowTaskInstance().briefState());
+        log.debug("[{}]instance id = {}", getModuleName(), instance.getId());
+        log.debug("[{}]instance node id = {}", getModuleName(), task);
+        log.debug("[{}]instance node uow = {}", getModuleName(), task.getUnitOfWork().briefState());
     }
 
-    // TODO Make protected so it's not in the public API
+    // TODO Make the following protected so they're not in the public API
     // The unit test that uses this method can define its own PipelineModule to mock this field.
     public PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    public PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
     }
 
     // Run modes:
@@ -263,10 +264,6 @@ public abstract class PipelineModule {
     protected void resubmit() {
     }
 
-    /** Defines what it means to resume monitoring. The default action is to do nothing. */
-    protected void resumeMonitoring() {
-    }
-
     /**
      * Defines the standard run mode. The default action is to do nothing, so you'll definitely want
      * to override this method if you want your module to do something useful.
@@ -278,7 +275,6 @@ public abstract class PipelineModule {
         RESTART_FROM_BEGINNING(PipelineModule::restartFromBeginning),
         RESUME_CURRENT_STEP(PipelineModule::resumeCurrentStep),
         RESUBMIT(PipelineModule::resubmit),
-        RESUME_MONITORING(PipelineModule::resumeMonitoring),
         STANDARD(PipelineModule::runStandard);
 
         private Consumer<PipelineModule> taskAction;

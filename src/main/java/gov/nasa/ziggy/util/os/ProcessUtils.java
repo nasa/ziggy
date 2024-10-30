@@ -155,7 +155,7 @@ public class ProcessUtils {
         String[] commandArray = new String[commandList.size()];
         commandList.toArray(commandArray);
         try {
-            log.info("Executing java process with command line \"" + cmd + "\".");
+            log.info("Executing Java process with command line {}", cmd);
             Process process = Runtime.getRuntime().exec(commandArray);
             BufferedReader errors = new BufferedReader(
                 new InputStreamReader(process.getErrorStream(), ZiggyFileUtils.ZIGGY_CHARSET_NAME));

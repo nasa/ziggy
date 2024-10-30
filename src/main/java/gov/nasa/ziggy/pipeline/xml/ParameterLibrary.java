@@ -10,10 +10,11 @@ import java.util.List;
 import org.apache.commons.configuration2.ImmutableConfiguration;
 
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.BuildInfo;
+import gov.nasa.ziggy.util.BuildInfo.BuildType;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -53,7 +54,7 @@ public class ParameterLibrary implements HasXmlSchemaFilename {
 
     public ParameterLibrary() {
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
-        release = config.getString(PropertyName.ZIGGY_VERSION.property());
+        release = new BuildInfo(BuildType.PIPELINE).getSoftwareVersion();
         databaseUrl = config.getString(HIBERNATE_URL.property(), "");
         databaseUser = config.getString(HIBERNATE_USERNAME.property(), "");
         overrideOnly = false;

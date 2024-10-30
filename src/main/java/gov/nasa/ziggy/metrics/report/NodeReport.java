@@ -16,8 +16,9 @@ import com.lowagie.text.pdf.PdfPTable;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 
 public class NodeReport extends Report {
@@ -27,6 +28,7 @@ public class NodeReport extends Report {
     private Map<String, TopNList> categoryTopTen;
     private Map<String, Units> categoryUnits;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
     public NodeReport(PdfRenderer pdfRenderer) {
         super(pdfRenderer);
@@ -44,11 +46,11 @@ public class NodeReport extends Report {
 
         orderedCategoryNames = new LinkedList<>();
 
-        Map<PipelineTask, List<PipelineTaskMetrics>> taskMetricsByTask = pipelineTaskOperations()
+        Map<PipelineTask, List<PipelineTaskMetric>> taskMetricsByTask = pipelineTaskDataOperations()
             .taskMetricsByTask(node);
 
         for (PipelineTask task : taskMetricsByTask.keySet()) {
-            for (PipelineTaskMetrics taskMetric : taskMetricsByTask.get(task)) {
+            for (PipelineTaskMetric taskMetric : taskMetricsByTask.get(task)) {
                 String category = taskMetric.getCategory();
 
                 categoryUnits.put(category, taskMetric.getUnits());
@@ -75,7 +77,7 @@ public class NodeReport extends Report {
                     categoryTopTen.put(category, topTen);
                 }
 
-                topTen.add(value, "ID: " + task.getId());
+                topTen.add(value, "ID: " + task);
 
                 List<PipelineTaskMetricValue> valueList = categoryMetrics.get(category);
 
@@ -84,21 +86,21 @@ public class NodeReport extends Report {
                     categoryMetrics.put(category, valueList);
                 }
 
-                valueList.add(new PipelineTaskMetricValue(task.getId(), value));
+                valueList.add(new PipelineTaskMetricValue(task, value));
             }
         }
 
         DefaultCategoryDataset categoryTaskDataset = new DefaultCategoryDataset();
 
-        log.info("summary report");
+        log.info("Summary report");
 
         for (String category : orderedCategoryNames) {
-            log.info("processing category: " + category);
+            log.info("Processing category {}", category);
 
             if (categoryIsTime(category)) {
                 List<PipelineTaskMetricValue> values = categoryMetrics.get(category);
                 for (PipelineTaskMetricValue value : values) {
-                    Long taskId = value.getPipelineTaskId();
+                    Long taskId = value.getPipelineTask().getId();
                     Long valueMillis = value.getMetricValue();
                     double valueMins = valueMillis / (1000.0 * 60);
                     categoryTaskDataset.addValue(valueMins, category, taskId);
@@ -113,7 +115,7 @@ public class NodeReport extends Report {
 
         pdfRenderer.newPage();
 
-        // task breakdown table
+        // Task breakdown table
         pdfRenderer.printText("Wall Time Breakdown by Task and Category", PdfRenderer.h1Font);
         pdfRenderer.println();
 
@@ -179,6 +181,10 @@ public class NodeReport extends Report {
         return pipelineTaskOperations;
     }
 
+    PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
+    }
+
     /**
      * Container for the ID of a {@link PipelineTask} and a metric value.
      *
@@ -186,16 +192,16 @@ public class NodeReport extends Report {
      */
     private static class PipelineTaskMetricValue {
 
-        private final long pipelineTaskId;
+        private final PipelineTask pipelineTask;
         private final long metricValue;
 
-        public PipelineTaskMetricValue(long pipelineTaskId, long metricValue) {
-            this.pipelineTaskId = pipelineTaskId;
+        public PipelineTaskMetricValue(PipelineTask pipelineTask, long metricValue) {
+            this.pipelineTask = pipelineTask;
             this.metricValue = metricValue;
         }
 
-        public long getPipelineTaskId() {
-            return pipelineTaskId;
+        public PipelineTask getPipelineTask() {
+            return pipelineTask;
         }
 
         public long getMetricValue() {

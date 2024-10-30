@@ -181,7 +181,7 @@ public class DataReceiptOperationsTest {
                     .merge(new PipelineInstanceNode(dataReceiptNode, dataReceiptModule));
                 instance1.addPipelineInstanceNode(instanceNode1);
                 instance1 = new PipelineInstanceCrud().merge(instance1);
-                PipelineTask task1 = new PipelineTask(instance1, instanceNode1);
+                PipelineTask task1 = new PipelineTask(instance1, instanceNode1, null);
                 task1 = new PipelineTaskCrud().merge(task1);
                 instanceNode1.addPipelineTask(task1);
                 instanceNode1 = new PipelineInstanceNodeCrud().merge(instanceNode1);

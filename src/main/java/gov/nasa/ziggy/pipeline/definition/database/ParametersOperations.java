@@ -35,18 +35,6 @@ public class ParametersOperations extends DatabaseOperations {
     private PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
     private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
 
-    public void save(ParameterSet parameterSet) {
-        performTransaction(() -> parameterSetCrud.persist(parameterSet));
-    }
-
-    public ParameterSet rename(ParameterSet parameterSet, String newName) {
-        return performTransaction(() -> parameterSetCrud.rename(parameterSet, newName));
-    }
-
-    public void delete(ParameterSet parameterSet) {
-        performTransaction(() -> parameterSetCrud.remove(parameterSet));
-    }
-
     /**
      * Populates the {@link Set} of {@link ParameterSet} instances for a pipeline instance or a
      * pipeline instance node, using the {@link Set} of {@link String} instances that represent the
@@ -108,8 +96,7 @@ public class ParametersOperations extends DatabaseOperations {
         // is -- not what we wanted to know (we want to compare to the version actually in the
         // database). Hence, retrieve the parameter set in one transaction and merge in another.
 
-        ParameterSet databaseParameterSet = parameterSet(parameterSetName);
-        return updateParameterSet(databaseParameterSet, newParameters, false);
+        return updateParameterSet(parameterSet(parameterSetName), newParameters, false);
     }
 
     /**
@@ -123,8 +110,7 @@ public class ParametersOperations extends DatabaseOperations {
      */
     public ParameterSet updateParameterSet(ParameterSet parameterSet, ParameterSet newParameters,
         boolean forceSave) {
-        return updateParameterSet(parameterSet, newParameters.getParameters(),
-            parameterSet.getDescription(), forceSave);
+        return updateParameterSet(parameterSet, newParameters.getParameters(), forceSave);
     }
 
     /**
@@ -137,23 +123,11 @@ public class ParametersOperations extends DatabaseOperations {
      * returned.
      */
     public ParameterSet updateParameterSet(ParameterSet parameterSet, Set<Parameter> newParameters,
-        String newDescription, boolean forceSave) {
-
-        String currentDescription = parameterSet.getDescription();
-
-        boolean descriptionChanged = false;
-        if (currentDescription == null) {
-            if (newDescription != null) {
-                descriptionChanged = true;
-            }
-        } else if (!currentDescription.equals(newDescription)) {
-            descriptionChanged = true;
-        }
+        boolean forceSave) {
 
         if (!Parameter.identicalParameters(parameterSet.getParameters(), newParameters)
-            || descriptionChanged || forceSave) {
+            || forceSave) {
             parameterSet.setParameters(newParameters);
-            parameterSet.setDescription(newDescription);
             return performTransaction(() -> parameterSetCrud().merge(parameterSet));
         }
         return parameterSet;

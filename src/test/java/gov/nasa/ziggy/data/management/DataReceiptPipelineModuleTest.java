@@ -49,10 +49,10 @@ import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
-import gov.nasa.ziggy.pipeline.definition.database.ModelCrud;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.database.ModelCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
@@ -195,7 +195,7 @@ public class DataReceiptPipelineModuleTest {
         // Populate the importer files
         constructFilesForImport(dataImporterPath, true);
 
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(singleUow);
 
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
@@ -304,7 +304,7 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(dataSubdirUow);
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(dataSubdirUow);
 
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
@@ -391,7 +391,7 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(singleUow);
 
         // Generate data and model importers that will throw IOExceptions at opportune moments
         Path dataReceiptExceptionPath = dataImporterPath.resolve(Paths.get("sector-0002", "mda",
@@ -641,7 +641,7 @@ public class DataReceiptPipelineModuleTest {
 
         // Set up the pipeline module to return the single unit of work task and the appropriate
         // families of model and data types
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(singleUow);
         Mockito.when(pipelineTask.getId()).thenReturn(101L);
 
         // Perform the import
@@ -658,7 +658,7 @@ public class DataReceiptPipelineModuleTest {
             Files.delete(dataImporterPath);
         }
         Files.createDirectories(dataImporterPath);
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(singleUow);
         constructDataReceiptDefinition();
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
@@ -675,7 +675,7 @@ public class DataReceiptPipelineModuleTest {
         constructFilesForImport(dataImporterPath, true);
         Files.delete(dataImporterPath.resolve("data-importer-manifest.xml"));
 
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(singleUow);
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(singleUow);
         constructDataReceiptDefinition();
         // Perform the import
         DataReceiptModuleForTest module = new DataReceiptModuleForTest(pipelineTask,
@@ -868,7 +868,7 @@ public class DataReceiptPipelineModuleTest {
             Collection<Path> failedImports) {
             for (Path file : successfulImports) {
                 successfulImportsDataAccountability
-                    .add(new DatastoreProducerConsumer(pipelineTask.getId(), file.toString()));
+                    .add(new DatastoreProducerConsumer(pipelineTask, file));
             }
             for (Path file : failedImports) {
                 failedImportsDataAccountability.add(new FailedImport(pipelineTask, file));

@@ -3,15 +3,12 @@ package gov.nasa.ziggy.ui.instances;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import javax.swing.SwingUtilities;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
 import gov.nasa.ziggy.services.messages.RunningPipelinesCheckRequest;
-import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.InstanceUpdateMessage;
 
@@ -32,7 +29,6 @@ public class InstancesTasksPanelAutoRefresh implements Runnable {
     private ScheduledThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(1);
     private final InstancesTable instancesTable;
     private final TasksTableModel tasksTableModel;
-    private final TaskStatusSummaryPanel taskStatusSummaryPanel;
 
     // Used to ensure that when an instance completes, a message is sent to the
     // worker looking for queued instances; once that message is sent, it's not sent
@@ -44,17 +40,9 @@ public class InstancesTasksPanelAutoRefresh implements Runnable {
     private boolean priorInstancesRemaining;
 
     public InstancesTasksPanelAutoRefresh(InstancesTable instancesTable,
-        TasksTableModel tasksTableModel, TaskStatusSummaryPanel taskStatusSummaryPanel) {
+        TasksTableModel tasksTableModel) {
         this.instancesTable = instancesTable;
         this.tasksTableModel = tasksTableModel;
-        this.taskStatusSummaryPanel = taskStatusSummaryPanel;
-
-        // Whenever a worker status message comes through, update the display. This will
-        // include both the status message that is sent on worker startup and the one sent
-        // on worker shutdown.
-        ZiggyMessenger.subscribe(WorkerStatusMessage.class, message -> {
-            updatePanel();
-        });
     }
 
     @Override
@@ -64,16 +52,12 @@ public class InstancesTasksPanelAutoRefresh implements Runnable {
     }
 
     /**
-     * Asks the instance and task tables to update themselves. Updates task scoreboard in the event
-     * dispatch thread.
+     * Asks the instance and task tables to update themselves.
      */
     private void updatePanel() {
         instancesTable.loadFromDatabase();
         tasksTableModel.loadFromDatabase();
-        updateInstanceState(instancesTable.getStateOfInstanceWithMaxid());
-        SwingUtilities.invokeLater(() -> {
-            taskStatusSummaryPanel.update(tasksTableModel);
-        });
+        updateInstanceState(instancesTable.getStateOfInstanceWithMaxId());
     }
 
     /**

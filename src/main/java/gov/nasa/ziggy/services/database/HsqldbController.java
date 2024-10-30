@@ -54,6 +54,13 @@ public class HsqldbController extends DatabaseController {
 
     private static final Logger log = LoggerFactory.getLogger(HsqldbController.class);
 
+    /**
+     * This is the maximum number of dynamically-created expressions sent to the database. There
+     * doesn't seem to be a hard limit in HSQLDB, so pick the PostgreSQL value of 32,767. A setting
+     * of 95% of this values leaves plenty of room for other expressions in the query.
+     */
+    private static final int MAX_EXPRESSIONS = (int) (32767 * 0.95);
+
     private static final String SCHEMA_CREATE_FILE = "ddl.hsqldb-create.sql";
     private static final String SCHEMA_DROP_FILE = "ddl.hsqldb-drop.sql";
     private static final String DRIVER_CLASS_NAME = "org.hsqldb.jdbc.JDBCDriver";
@@ -171,7 +178,7 @@ public class HsqldbController extends DatabaseController {
     private void createInitTable() throws SQLException {
         try (Statement stmt = sqlRunner().connection().createStatement()) {
             String sqlString = String.format(CREATE_INIT_TABLE_SQL, INIT_TABLE_NAME);
-            log.debug("Executing SQL: {}", sqlString);
+            log.debug("Executing SQL {}", sqlString);
             stmt.executeUpdate(sqlString);
             stmt.getConnection().commit();
         }
@@ -180,7 +187,7 @@ public class HsqldbController extends DatabaseController {
     private void updateInitTable() throws SQLException {
         try (Statement stmt = sqlRunner().connection().createStatement()) {
             String sqlString = String.format(INSERT_INIT_TABLE_SQL, INIT_TABLE_NAME, new Date());
-            log.debug("Executing SQL: {}", sqlString);
+            log.debug("Executing SQL {}", sqlString);
             stmt.executeUpdate(sqlString);
             stmt.getConnection().commit();
         }
@@ -228,7 +235,7 @@ public class HsqldbController extends DatabaseController {
 
         if (tableCount > 0) {
             try {
-                log.debug("Executing script: {}", SCHEMA_DROP_FILE);
+                log.debug("Executing script {}", SCHEMA_DROP_FILE);
                 executeScript(SCHEMA_DROP_FILE, true);
             } catch (Exception e) {
                 throw new PipelineException("Drop script failed: " + e.getMessage(), e);
@@ -246,7 +253,7 @@ public class HsqldbController extends DatabaseController {
         String sqlString = String.format(TABLE_COUNT, INIT_TABLE_NAME);
         try (Statement stmt = sqlRunner().connection().createStatement();
             ResultSet rs = stmt.executeQuery(sqlString)) {
-            log.debug("Executing SQL: {}", sqlString);
+            log.debug("Executing SQL {}", sqlString);
 
             if (rs.next()) {
                 log.debug("{} -> {}", rs.getStatement().toString(), rs.getLong(1));
@@ -267,7 +274,7 @@ public class HsqldbController extends DatabaseController {
 
         try (Statement stmt = sqlRunner().connection().createStatement();
             ResultSet rs = stmt.executeQuery(sqlString)) {
-            log.debug("Executing SQL: {}", sqlString);
+            log.debug("Executing SQL {}", sqlString);
             while (rs.next()) {
                 String tableName = rs.getString(1);
                 tableNames.add(tableName);
@@ -283,7 +290,7 @@ public class HsqldbController extends DatabaseController {
         String tableName = tableNameMixedCase.trim().toUpperCase();
         String sqlString = String.format(TABLE_EXISTS, tableName);
 
-        log.debug("Executing SQL: {}", sqlString);
+        log.debug("Executing SQL {}", sqlString);
         try (Statement stmt = sqlRunner().connection().createStatement();
             ResultSet rs = stmt.executeQuery(sqlString)) {
             if (rs.next()) {
@@ -323,7 +330,7 @@ public class HsqldbController extends DatabaseController {
         }
 
         CommandLine supervisorStatusCommand = hsqldbCommand(WrapperCommand.START);
-        log.debug("Command line: " + supervisorStatusCommand.toString());
+        log.debug("supervisorStatusCommand={}", supervisorStatusCommand.toString());
         int exitStatus = ExternalProcess.simpleExternalProcess(supervisorStatusCommand)
             .exceptionOnFailure()
             .execute();
@@ -342,7 +349,7 @@ public class HsqldbController extends DatabaseController {
         }
 
         CommandLine supervisorStopCommand = hsqldbCommand(WrapperCommand.STOP);
-        log.debug("Command line: " + supervisorStopCommand.toString());
+        log.debug("supervisorStopCommand={}", supervisorStopCommand.toString());
         return ExternalProcess.simpleExternalProcess(supervisorStopCommand).execute(true);
     }
 
@@ -353,7 +360,7 @@ public class HsqldbController extends DatabaseController {
         }
 
         CommandLine supervisorStatusCommand = hsqldbCommand(WrapperCommand.STATUS);
-        log.debug("Command line: " + supervisorStatusCommand);
+        log.debug("supervisorStatusCommand={}", supervisorStatusCommand);
         return ExternalProcess.simpleExternalProcess(supervisorStatusCommand).execute();
     }
 
@@ -394,5 +401,10 @@ public class HsqldbController extends DatabaseController {
         server.setDatabaseName(0, dbName());
         server.setDatabasePath(0, dataDir().resolve(dbName()).toString());
         server.start();
+    }
+
+    @Override
+    public int maxExpressions() {
+        return MAX_EXPRESSIONS;
     }
 }

@@ -26,15 +26,15 @@ public class SubtaskDirectoryIteratorTest {
     @Test
     public void test() throws IOException {
         File taskDir = Files.createTempDir();
-        File subTaskDir = new File(taskDir, "st-0");
-        subTaskDir.mkdirs();
-        subTaskDir = new File(taskDir, "st-3");
-        subTaskDir.mkdirs();
-        subTaskDir = new File(taskDir, "st-200");
-        subTaskDir.mkdirs();
+        File subtaskDir = new File(taskDir, "st-0");
+        subtaskDir.mkdirs();
+        subtaskDir = new File(taskDir, "st-3");
+        subtaskDir.mkdirs();
+        subtaskDir = new File(taskDir, "st-200");
+        subtaskDir.mkdirs();
         SubtaskDirectoryIterator it = new SubtaskDirectoryIterator(taskDir);
 
-        assertEquals(it.numSubTasks(), 3);
+        assertEquals(it.numSubtasks(), 3);
         assertEquals(-1, it.getCurrentIndex());
         assertTrue(it.hasNext());
         GroupSubtaskDirectory p = it.next();

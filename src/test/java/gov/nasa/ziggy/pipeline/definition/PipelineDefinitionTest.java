@@ -112,7 +112,8 @@ public class PipelineDefinitionTest {
         pipelineDefinition1.populateXmlFields();
         marshaller.marshal(pipelineDefinition1, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), ZiggyFileUtils.ZIGGY_CHARSET);
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(),
+            ZiggyFileUtils.ZIGGY_CHARSET);
 
         List<String> pipelineContents = pipelineContent(xmlContent,
             "<pipeline name=\"pipeline 1\" description=\"first pipeline\" "

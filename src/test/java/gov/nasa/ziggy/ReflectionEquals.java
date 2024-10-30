@@ -79,7 +79,7 @@ public class ReflectionEquals {
             return;
         }
 
-        log.debug("comparing: " + message);
+        log.debug("Comparing {}", message);
 
         if (expectedObject == actualObject) {
             // same object, must be equal!
@@ -233,7 +233,7 @@ public class ReflectionEquals {
             getterMethod.setAccessible(true);
             return getterMethod.invoke(object);
         } catch (Exception e) {
-            log.debug("No getter method found for field: " + field.getName());
+            log.debug("No getter method found for field {}", field.getName());
         }
 
         // then try isX
@@ -242,7 +242,7 @@ public class ReflectionEquals {
             getterMethod.setAccessible(true);
             return getterMethod.invoke(object);
         } catch (Exception e) {
-            log.debug("No getter method found for field: " + field.getName());
+            log.debug("No getter method found for field {}", field.getName());
         }
 
         return field.get(object);

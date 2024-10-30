@@ -2,7 +2,7 @@ package gov.nasa.ziggy.pipeline.definition.database;
 
 import java.util.List;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +32,7 @@ public interface HasExternalIdCrud<T extends HasExternalId> extends AbstractCrud
      */
     default T retrieveByExternalId(int externalId) {
         Logger log = LoggerFactory.getLogger(HasExternalIdCrud.class);
-        log.info(getClass().getSimpleName() + " retrieving for externalId " + externalId);
+        log.info("{} retrieving for externalId {}", getClass().getSimpleName(), externalId);
 
         ZiggyQuery<T, T> query = createZiggyQuery(componentClass());
         query.column(getExternalIdFieldName()).in(externalId);
@@ -45,7 +45,7 @@ public interface HasExternalIdCrud<T extends HasExternalId> extends AbstractCrud
      */
     default T retrieveByMaxExternalId() {
         Logger log = LoggerFactory.getLogger(HasExternalIdCrud.class);
-        log.info(getClass().getSimpleName() + " retrieving for max externalId");
+        log.info("{} retrieving for max externalId", getClass().getSimpleName());
         ZiggyQuery<T, T> query = createZiggyQuery(componentClass());
         query.column(getExternalIdFieldName()).in(retrieveMaxExternalId());
         return finalize(uniqueResult(query));

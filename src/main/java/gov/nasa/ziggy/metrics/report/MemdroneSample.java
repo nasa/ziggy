@@ -52,7 +52,7 @@ public class MemdroneSample {
         String[] elements = memdroneLogLine.split("\\s+");
 
         if (elements.length != 9) {
-            log.warn("Parse error, num elements != 11 : " + memdroneLogLine);
+            log.warn("Parse error, {} elements != 9", memdroneLogLine);
             return false;
         }
         String timestampString = elements[0] + " " + // day of week
@@ -68,7 +68,7 @@ public class MemdroneSample {
             timestampMillis = parseDate(timestampString);
             memoryKilobytes = Integer.parseInt(elements[7]);
         } catch (ParseException | NumberFormatException e) {
-            log.warn("Parse error: " + e);
+            log.warn("Parse error {}", e);
             return false;
         }
         return true;

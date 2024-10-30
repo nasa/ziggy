@@ -24,6 +24,7 @@ public class TaskDirectoryManager {
 
     private final Path taskDataDir;
     private final PipelineTask pipelineTask;
+    private Path taskDir;
 
     public TaskDirectoryManager(PipelineTask pipelineTask) {
         taskDataDir = DirectoryProperties.taskDataDir();
@@ -31,23 +32,21 @@ public class TaskDirectoryManager {
     }
 
     public Path taskDir() {
-        return taskDir(pipelineTask.taskBaseName());
-    }
-
-    private Path taskDir(String taskBaseName) {
-        return taskDataDir.resolve(taskBaseName);
+        if (taskDir == null) {
+            taskDir = taskDataDir.resolve(pipelineTask.taskBaseName());
+        }
+        return taskDir;
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public synchronized Path allocateTaskDir(boolean cleanExisting) {
 
         if (Files.isDirectory(taskDir()) && cleanExisting) {
-            log.info(
-                "Working directory for name=" + pipelineTask.getId() + " already exists, deleting");
+            log.info("Working directory for task {} already exists, deleting", pipelineTask);
             ZiggyFileUtils.deleteDirectoryTree(taskDir());
         }
 
-        log.info("Creating task working dir: " + taskDir().toString());
+        log.info("Creating task working dir {}", taskDir().toString());
         try {
             Files.createDirectories(taskDir());
         } catch (IOException e) {

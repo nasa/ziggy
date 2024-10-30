@@ -97,15 +97,15 @@ public class Hdf5ModuleInterface {
         if (nOpen == 1) {
             log.info("No unclosed HDF5 objects detected");
         } else {
-            log.warn("Number of unclosed HDF5 objects detected: " + (nOpen - 1));
-            log.warn("Number of unclosed groups: "
-                + H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_GROUP));
-            log.warn("Number of unclosed datasets: "
-                + H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_DATASET));
-            log.warn("Number of unclosed datatypes: "
-                + H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_DATATYPE));
-            log.warn("Number of unclosed attributes: "
-                + H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_ATTR));
+            log.warn("Detected {} unclosed HDF5 objects", (nOpen - 1));
+            log.warn("    {} unclosed groups",
+                H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_GROUP));
+            log.warn("    {} unclosed datasets",
+                H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_DATASET));
+            log.warn("    {} unclosed datatypes",
+                H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_DATATYPE));
+            log.warn("    {} unclosed attributes",
+                H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_ATTR));
         }
     }
 

@@ -18,6 +18,8 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -35,6 +37,8 @@ public class PipelineReportGenerator {
 
     private ParametersOperations parametersOperations = new ParametersOperations();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
     private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
@@ -102,7 +106,7 @@ public class PipelineReportGenerator {
         report.append("Instance Name: " + instance.getName() + nl);
         report.append("Instance Priority: " + instance.getPriority() + nl);
         report.append("Instance State: " + instance.getState() + nl);
-        List<String> instanceSoftwareRevisions = pipelineInstanceOperations()
+        List<String> instanceSoftwareRevisions = pipelineTaskDataOperations()
             .distinctSoftwareRevisions(instance);
         report.append("Instance Software Revisions: " + instanceSoftwareRevisions + nl);
         report.append(nl);
@@ -126,7 +130,7 @@ public class PipelineReportGenerator {
 
         for (PipelineInstanceNode node : pipelineNodes) {
             PipelineModuleDefinition module = node.getPipelineModuleDefinition();
-            TaskCounts instanceNodeCounts = pipelineInstanceNodeOperations().taskCounts(node);
+            TaskCounts instanceNodeCounts = pipelineTaskDisplayDataOperations().taskCounts(node);
 
             appendModule(nl, report, module);
 
@@ -134,7 +138,7 @@ public class PipelineReportGenerator {
                 + instanceNodeCounts.getTaskCount() + "/"
                 + instanceNodeCounts.getTotalCounts().getCompletedTaskCount() + "/"
                 + instanceNodeCounts.getTotalCounts().getFailedTaskCount() + nl);
-            List<String> nodeSoftwareRevisions = pipelineInstanceNodeOperations()
+            List<String> nodeSoftwareRevisions = pipelineTaskDataOperations()
                 .distinctSoftwareRevisions(node);
             report.append(
                 FOUR_SPACE_INDENT + "Software Revisions for node:" + nodeSoftwareRevisions + nl);
@@ -219,6 +223,14 @@ public class PipelineReportGenerator {
 
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
+    }
+
+    PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 
     PipelineInstanceOperations pipelineInstanceOperations() {

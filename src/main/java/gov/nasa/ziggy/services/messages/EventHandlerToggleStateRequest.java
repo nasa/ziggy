@@ -25,7 +25,7 @@ public class EventHandlerToggleStateRequest extends PipelineMessage {
      * private, which in turn forces the user to verify privileges before the request is sent.
      */
     public static void requestEventHandlerToggle(String handlerName) {
-        log.debug("Sending toggle request for event handler \"" + handlerName + "\"");
+        log.debug("Sending toggle request for event handler {}", handlerName);
         ZiggyMessenger.publish(new EventHandlerToggleStateRequest(handlerName));
     }
 

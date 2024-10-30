@@ -9,12 +9,14 @@ import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -54,11 +56,11 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
 
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(ViewEditParameterSetsPanel.class);
-    private static final long serialVersionUID = 20240614L;
+    private static final long serialVersionUID = 20241002L;
+    private static final String TYPE = "ParameterSet";
 
     private String defaultParamLibImportExportPath;
 
-    private final ParametersOperations parametersOperations = new ParametersOperations();
     private final ParameterImportExportOperations parameterImportExportOperations = new ParameterImportExportOperations();
 
     public ViewEditParameterSetsPanel(RowModel rowModel, ZiggyTreeModel<ParameterSet> treeModel) {
@@ -69,6 +71,10 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
             ziggyTable.setPreferredColumnWidth(column, ParameterSetsRowModel.COLUMN_WIDTHS[column]);
         }
 
+        ziggyTable.getTable()
+            .getSelectionModel()
+            .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+
         ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
         ZiggyMessenger.subscribe(ParametersChangedMessage.class, this::invalidateModel);
     }
@@ -78,7 +84,7 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
      * for parameter sets needs the tree model in its constructor.
      */
     public static ViewEditParameterSetsPanel newInstance() {
-        ZiggyTreeModel<ParameterSet> treeModel = new ZiggyTreeModel<>(ParameterSet.class,
+        ZiggyTreeModel<ParameterSet> treeModel = new ZiggyTreeModel<>(TYPE,
             () -> new ParametersOperations().parameterSets());
         ParameterSetsRowModel rowModel = new ParameterSetsRowModel();
         return new ViewEditParameterSetsPanel(rowModel, treeModel);
@@ -96,6 +102,12 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
                 ZiggySwingUtils.createButton(EXPORT, this::exportParameterLibrary)));
         buttons.addAll(super.buttons());
         return buttons;
+    }
+
+    @Override
+    protected void updateActionState(Map<OptionalViewEditFunction, Action> actionByFunction) {
+        actionByFunction.get(OptionalViewEditFunction.EDIT)
+            .setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
     }
 
     private void report(ActionEvent evt) {
@@ -209,23 +221,12 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
     }
 
     @Override
-    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
-        return Set.of(OptionalViewEditFunction.DELETE, OptionalViewEditFunction.COPY,
-            OptionalViewEditFunction.RENAME);
-    }
-
-    @Override
     public void refresh() {
         try {
             ziggyTable.loadFromDatabase();
         } catch (Exception e) {
             MessageUtils.showError(this, e);
         }
-    }
-
-    @Override
-    protected void create() {
-        throw new UnsupportedOperationException("Create not supported");
     }
 
     @Override
@@ -244,121 +245,12 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
     }
 
     @Override
-    protected void copy(int row) {
-
-        String newParameterSetName = readParameterSetName(
-            "Enter the name for the new parameter set", "New parameter set");
-        if (newParameterSetName == null) {
-            return;
-        }
-
-        ParameterSet newParameterSet = ziggyTable.getContentAtViewRow(row).newInstance();
-        newParameterSet.setName(newParameterSetName);
-
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                parametersOperations().save(newParameterSet);
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    get(); // check for exception
-                    ziggyTable.loadFromDatabase();
-                } catch (Exception e) {
-                    MessageUtils.showError(ViewEditParameterSetsPanel.this, e);
-                }
-            }
-        }.execute();
-    }
-
-    @Override
-    protected void rename(int row) {
-
-        String newParameterSetName = readParameterSetName(
-            "Enter the new name for this parameter set", "Rename parameter set");
-        if (newParameterSetName == null) {
-            return;
-        }
-
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                parametersOperations().rename(ziggyTable.getContentAtViewRow(row),
-                    newParameterSetName);
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    get(); // check for exception
-                    ziggyTable.loadFromDatabase();
-                } catch (Exception e) {
-                    MessageUtils.showError(ViewEditParameterSetsPanel.this, e);
-                }
-            }
-        }.execute();
-    }
-
-    @Override
-    protected void delete(int row) {
-
-        ParameterSet selectedParameterSet = ziggyTable.getContentAtViewRow(row);
-
-        int choice = JOptionPane.showConfirmDialog(this,
-            "Are you sure you want to delete parameter set '" + selectedParameterSet.getName()
-                + "'?");
-        if (choice != JOptionPane.YES_OPTION) {
-            return;
-        }
-
-        new SwingWorker<Void, Void>() {
-
-            @Override
-            protected Void doInBackground() throws Exception {
-                parametersOperations().delete(selectedParameterSet);
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    get(); // check for exception
-                    ziggyTable.loadFromDatabase();
-                } catch (Exception e) {
-                    MessageUtils.showError(ViewEditParameterSetsPanel.this, e);
-                }
-            }
-        }.execute();
-    }
-
-    private String readParameterSetName(String message, String title) {
-        while (true) {
-            String parameterSetName = JOptionPane.showInputDialog(
-                SwingUtilities.getWindowAncestor(this), message, title, JOptionPane.PLAIN_MESSAGE);
-            if (parameterSetName == null) {
-                return null;
-            }
-            if (parameterSetName.isBlank()) {
-                MessageUtils.showError(this, "Please enter a parameter set name");
-            } else if (parametersOperations().parameterSet(parameterSetName) != null) {
-                MessageUtils.showError(this,
-                    parameterSetName + " already exists; please enter a unique parameter set name");
-            } else {
-                return parameterSetName;
-            }
-        }
+    protected String getType() {
+        return TYPE;
     }
 
     private ParameterImportExportOperations parameterImportExportOperations() {
         return parameterImportExportOperations;
-    }
-
-    private ParametersOperations parametersOperations() {
-        return parametersOperations;
     }
 
     /**

@@ -6,13 +6,19 @@ import java.awt.event.ActionEvent;
 import java.text.SimpleDateFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.GroupLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.SwingWorker;
 import javax.swing.table.AbstractTableModel;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gov.nasa.ziggy.services.alert.Alert;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.messages.AlertMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
@@ -28,7 +34,9 @@ import gov.nasa.ziggy.util.dispmod.ModelContentClass;
  * @author Bill Wohler
  */
 public class AlertsStatusPanel extends JPanel {
-    private static final long serialVersionUID = 20230822L;
+    private static final long serialVersionUID = 20240924L;
+
+    private static final Logger log = LoggerFactory.getLogger(AlertsStatusPanel.class);
 
     private AlertsTableModel alertsTableModel;
 
@@ -70,7 +78,7 @@ public class AlertsStatusPanel extends JPanel {
     private static class AlertsTableModel extends AbstractTableModel
         implements ModelContentClass<AlertMessage> {
 
-        private static final long serialVersionUID = 20230822L;
+        private static final long serialVersionUID = 20240924L;
 
         private static final int MAX_ALERTS = 1000;
         private static final String WARNING_MESSAGE = "WARN level alerts present";
@@ -95,23 +103,47 @@ public class AlertsStatusPanel extends JPanel {
         }
 
         public void addAlertMessage(AlertMessage msg) {
-            if (alertMessages.size() >= MAX_ALERTS) {
-                // Remove oldest message from bottom.
-                alertMessages.remove(alertMessages.size() - 1);
-            }
+            new SwingWorker<Void, Void>() {
 
-            // Insert new message at top.
-            alertMessages.add(0, msg);
+                @Override
+                protected Void doInBackground() throws Exception {
+                    if (alertMessages.size() >= MAX_ALERTS) {
+                        // Remove oldest message from bottom.
+                        alertMessages.remove(alertMessages.size() - 1);
+                    }
 
-            fireTableRowsInserted(alertMessages.size() - 1, alertMessages.size() - 1);
+                    // Insert new message at top.
+                    alertMessages.add(0, msg);
+                    return null;
+                }
 
-            String severity = msg.getAlertData().getSeverity();
-            Indicator alertIndicator = StatusPanel.ContentItem.ALERTS.menuItem();
-            if (severity.equals("WARNING")) {
-                alertIndicator.setState(Indicator.State.WARNING, WARNING_MESSAGE);
-            } else if (severity.equals("ERROR") || severity.equals("INFRASTRUCTURE")) {
-                alertIndicator.setState(Indicator.State.ERROR, ERROR_MESSAGE);
-            }
+                @Override
+                protected void done() {
+                    try {
+                        get(); // check for exception
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Could not load pipeline module definitions", e);
+                    }
+
+                    // Remember that we inserted the new message at the top.
+                    fireTableRowsInserted(0, 0);
+
+                    Severity severity = msg.getAlertData().getSeverity();
+                    Indicator alertIndicator = StatusPanel.ContentItem.ALERTS.menuItem();
+
+                    // If the state is already set to ERROR, it's already as bad as it'll get.
+                    // In particular, don't change the state from ERROR to WARNING.
+                    if (alertIndicator.getState() == Indicator.State.ERROR) {
+                        return;
+                    }
+
+                    if (severity == Severity.WARNING) {
+                        alertIndicator.setState(Indicator.State.WARNING, WARNING_MESSAGE);
+                    } else if (severity == Severity.ERROR || severity == Severity.INFRASTRUCTURE) {
+                        alertIndicator.setState(Indicator.State.ERROR, ERROR_MESSAGE);
+                    }
+                }
+            }.execute();
         }
 
         @Override
@@ -122,7 +154,7 @@ public class AlertsStatusPanel extends JPanel {
                 case 0 -> formatter.format(alert.getTimestamp());
                 case 1 -> alert.getSourceComponent();
                 case 2 -> HostNameUtils.callerHostNameOrLocalhost(alert.getProcessHost());
-                case 3 -> alert.getSourceTaskId();
+                case 3 -> alert.getSourceTask();
                 case 4 -> alert.getSeverity();
                 case 5 -> alert.getMessage();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);

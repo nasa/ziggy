@@ -35,34 +35,34 @@ public class SubtaskAllocator {
         }
     }
 
-    public boolean markSubtaskComplete(int subTaskIndex) {
-        boolean found = markSubtaskNeedsNoFurtherProcessing(subTaskIndex);
-        subtaskCompleted[subTaskIndex] = true;
+    public boolean markSubtaskComplete(int subtaskIndex) {
+        boolean found = markSubtaskNeedsNoFurtherProcessing(subtaskIndex);
+        subtaskCompleted[subtaskIndex] = true;
         return found;
     }
 
-    public boolean markSubtaskLocked(int subTaskIndex) {
-        return markSubtaskNeedsNoFurtherProcessing(subTaskIndex);
+    public boolean markSubtaskLocked(int subtaskIndex) {
+        return markSubtaskNeedsNoFurtherProcessing(subtaskIndex);
     }
 
-    private boolean markSubtaskNeedsNoFurtherProcessing(int subTaskIndex) {
+    private boolean markSubtaskNeedsNoFurtherProcessing(int subtaskIndex) {
         boolean found = false;
         for (int i = 0; i < currentPoolProcessing.size(); i++) {
-            if (currentPoolProcessing.get(i) == subTaskIndex) {
+            if (currentPoolProcessing.get(i) == subtaskIndex) {
                 found = true;
                 currentPoolProcessing.remove(i);
-                log.debug("removing subtaskIndex: " + subTaskIndex);
+                log.debug("Removing subtaskIndex {}", subtaskIndex);
             }
         }
         if (!found) {
-            log.warn("failed to remove subtaskIndex: " + subTaskIndex);
+            log.warn("Failed to remove subtaskIndex {}", subtaskIndex);
             return false;
         }
         return true;
     }
 
     /**
-     * Return the next sub-task available for processing
+     * Return the next subtask available for processing
      *
      * @return
      */

@@ -9,7 +9,6 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,6 +31,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.TextualReportDialog;
@@ -84,15 +84,10 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         nameText = new JLabel(pipelineInstance.getName());
 
         JLabel start = boldLabel("Start:");
-        JLabel startText = new JLabel(pipelineInstance.getStartProcessingTime().toString());
-
-        JLabel end = boldLabel("End:");
-        Date endProcessingTime = pipelineInstance.getEndProcessingTime();
-        JLabel endText = new JLabel(
-            endProcessingTime.getTime() == 0 ? "-" : endProcessingTime.toString());
+        JLabel startText = new JLabel(pipelineInstance.getCreated().toString());
 
         JLabel total = boldLabel("Total:");
-        JLabel totalText = new JLabel(pipelineInstance.elapsedTime());
+        JLabel totalText = new JLabel(pipelineInstance.getExecutionClock().toString());
 
         JLabel pipelineParametersGroup = boldLabel("Pipeline parameter sets", LabelType.HEADING1);
         ParameterSetViewPanel pipelineParameterSetsPanel = new ParameterSetViewPanel(
@@ -116,14 +111,12 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
                     .addComponent(id)
                     .addComponent(name)
                     .addComponent(start)
-                    .addComponent(end)
                     .addComponent(total))
                 .addPreferredGap(ComponentPlacement.RELATED)
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(idText)
                     .addComponent(nameText)
                     .addComponent(startText)
-                    .addComponent(endText)
                     .addComponent(totalText)))
             .addComponent(pipelineParametersGroup)
             .addComponent(pipelineParameterSetsPanel)
@@ -141,8 +134,6 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
             .addPreferredGap(ComponentPlacement.RELATED)
             .addGroup(
                 dataPanelLayout.createParallelGroup().addComponent(start).addComponent(startText))
-            .addPreferredGap(ComponentPlacement.RELATED)
-            .addGroup(dataPanelLayout.createParallelGroup().addComponent(end).addComponent(endText))
             .addPreferredGap(ComponentPlacement.RELATED)
             .addGroup(
                 dataPanelLayout.createParallelGroup().addComponent(total).addComponent(totalText))
@@ -229,6 +220,7 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         private Map<PipelineInstanceNode, TaskCounts> nodeTaskCounts = new HashMap<>();
 
         private final PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
+        private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
         public InstanceModulesTableModel(PipelineInstance instance) {
             if (instance == null) {
@@ -238,7 +230,7 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
             pipelineInstanceNodes = pipelineInstanceNodeOperations()
                 .pipelineInstanceNodes(instance);
             for (PipelineInstanceNode node : pipelineInstanceNodes) {
-                nodeTaskCounts.put(node, pipelineInstanceNodeOperations().taskCounts(node));
+                nodeTaskCounts.put(node, pipelineTaskDisplayDataOperations().taskCounts(node));
             }
         }
 
@@ -284,6 +276,10 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
 
         private PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
             return pipelineInstanceNodeOperations;
+        }
+
+        private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+            return pipelineTaskDisplayDataOperations;
         }
     }
 }

@@ -71,12 +71,12 @@ public class MetricsChartPanel extends ChartPanel {
 
     public void addMetric(String name, Collection<MetricValue> metricList, int binSizeMillis) {
         if (metricList == null) {
-            log.error("sampleList is null");
+            log.error("Parameter metricList is null");
             return;
         }
 
         if (metricList.size() == 0) {
-            log.error("sampleList is empty");
+            log.error("Parameter metricList is empty");
             return;
         }
 
@@ -101,7 +101,7 @@ public class MetricsChartPanel extends ChartPanel {
             samples.bin(binSizeMillis);
         }
 
-        log.debug("adding series[" + name + "] to dataset, #samples = " + samples.size());
+        log.debug("Adding series[{}] to dataset, {} samples", name, samples.size());
         dataset.addSeries(samples.asTimeSeries(name));
     }
 }

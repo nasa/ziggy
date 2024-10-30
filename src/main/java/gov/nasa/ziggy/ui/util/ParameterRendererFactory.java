@@ -17,9 +17,9 @@ import gov.nasa.ziggy.ui.util.collections.ArrayTableCellRenderer;
 public class ParameterRendererFactory implements PropertyRendererFactory {
 
     /**
-     * Returns an appropriate {@link TableCellRenderer} for a {@link Parameter}. for arrays,
-     * the {@link ArrayTableCellRenderer} is returned. For scalar values, the default renderers from
-     * the {@link PropertyRendererRegistry} are used.
+     * Returns an appropriate {@link TableCellRenderer} for a {@link Parameter}. for arrays, the
+     * {@link ArrayTableCellRenderer} is returned. For scalar values, the default renderers from the
+     * {@link PropertyRendererRegistry} are used.
      */
     @Override
     public TableCellRenderer createTableCellRenderer(Property property) {

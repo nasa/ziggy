@@ -1,0 +1,40 @@
+Job 20255559.pbspl1.nas.nasa.gov started on Wed Aug 07 12:00:12 PDT 2024
+The job requested the following resources:
+    ncpus=1
+    place=scatter:excl
+    walltime=00:30:00
+
+PBS set the following environment variables:
+        FORT_BUFFERED = 1
+                   TZ = PST8PDT
+
+On r137i4n6:
+SLF4J(I): Connected with provider of type [org.apache.logging.slf4j.SLF4JServiceProvider]
+=>> PBS: job killed: walltime 1818 exceeded limit 1800
+Exception in thread "Thread-1" java.lang.IllegalMonitorStateException
+	at java.base/java.util.concurrent.locks.ReentrantReadWriteLock$Sync.tryRelease(ReentrantReadWriteLock.java:372)
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.release(AbstractQueuedSynchronizer.java:1007)
+	at java.base/java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock.unlock(ReentrantReadWriteLock.java:1147)
+	at gov.nasa.ziggy.util.io.LockManager.releaseWriteLockInternal(LockManager.java:243)
+	at gov.nasa.ziggy.util.io.LockManager.releaseWriteLock(LockManager.java:135)
+	at gov.nasa.ziggy.util.io.LockManager.releaseAllLocks(LockManager.java:44)
+	at gov.nasa.ziggy.util.io.LockManager.lambda$new$0(LockManager.java:31)
+	at gov.nasa.ziggy.util.ZiggyShutdownHook.lambda$addShutdownHook$0(ZiggyShutdownHook.java:44)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+
+____________________________________________________________________
+Job Resource Usage Summary for 20255559.pbspl1.nas.nasa.gov
+
+    CPU Time Used            : 02:30:11
+    Real Memory Used         : 19276372kb
+    Walltime Used            : 00:30:29
+    Exit Status              : 271
+
+    Number of CPUs Requested : 1
+    Walltime Requested       : 00:30:00
+
+    Execution Queue          : low
+    Charged To               : s1007
+
+    Job Stopped              : Wed Aug  7 12:30:55 2024
+____________________________________________________________________

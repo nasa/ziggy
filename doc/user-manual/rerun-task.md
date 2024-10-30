@@ -34,10 +34,6 @@ This tells Ziggy to try to pick up where it left off, in effect to force the pro
 
 Generally the case where you'd use this is the one we're in now: some subtasks ran, others didn't, the task made it to `WAITING_TO_STORE` and then halted. Selecting this option will cause Ziggy to advance to `STORING`, at which point it will store the results from the 3 successful subtasks and abandon efforts to get results from the failed one.
 
-#### Resume Monitoring
-
-In somewhat unusual cases, it may happen that the monitoring subsystem will lose track of what's going on with one or more tasks. In this case, you may see signs that execution is progressing, but the console doesn't show any updates. In this case, the `Resume monitoring` option tells the monitoring subsystem to try to reconnect with the running task.
-
 ### Restarting Multiple Tasks
 
 If you have a bunch of tasks for a given node, it may be that some will fail while others don't, and you want to restart all the failed tasks. There are two ways to do this.
@@ -54,7 +50,7 @@ Why not?
 
 If the subtask had failed because of a real problem, we would be able to fix the problem and resubmit the task, or restart from the beginning. But what actually happened is that we set a module parameter that told `permuter` to throw an exception in subtask 0.
 
-If we re-run the task, it will re-run with the same values for all parameters (except for the remote execution parameters, but we're not using those at all for this example). This means that the `throw exception subtask 0 parameter` will still be true, and subtask 0 will fail again.
+If we re-run the task, it will re-run with the same values for all parameters. This means that the `throw exception subtask 0 parameter` will still be true, and subtask 0 will fail again.
 
 In real life, it's possible that you'll encounter a situation like this one, in which a task fails and the only way to get it to run successfully is to change the values of some module parameters. In that case, you won't be able to re-run because re-run doesn't let you change the parameters. In that case, you'll need to change the parameters and use the pipelines panel to start a new pipeline instance. In the more common cases (software bug that had to be fixed, failure due to some sort of hardware problem, etc.), re-running a task offers the possibility of getting failed subtasks to run to completion. For example, in this case we could simulate "fixing" the problem updating the code to ignore the `throw exception subtask 0 parameter`.
 

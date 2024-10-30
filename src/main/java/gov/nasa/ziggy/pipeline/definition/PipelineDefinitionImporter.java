@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,27 +77,27 @@ public class PipelineDefinitionImporter {
         List<PipelineDefinition> pipelineDefinitions = new ArrayList<>();
         List<PipelineModuleDefinition> pipelineModuleDefinitions = new ArrayList<>();
         for (File sourceFile : files) {
-            log.info("Unmarshalling pipeline configuration from: " + sourceFile + "...");
+            log.info("Unmarshalling pipeline configuration from {}", sourceFile);
             PipelineDefinitionFile pipelineDefinitionFile = xmlManager.unmarshal(sourceFile);
             pipelineDefinitions.addAll(pipelineDefinitionFile.getPipelines());
             pipelineModuleDefinitions.addAll(pipelineDefinitionFile.getModules());
-            log.info("Unmarshalling pipeline configuration from: " + sourceFile + "...done");
+            log.info("Unmarshalling pipeline configuration from {}...done", sourceFile);
         }
         List<String> pipelineModuleNames = pipelineModuleDefinitions.stream()
             .map(PipelineModuleDefinition::getName)
             .collect(Collectors.toList());
 
-        log.debug("Importing Module Definitions...");
+        log.debug("Importing module definitions");
         Map<PipelineModuleDefinition, PipelineModuleExecutionResources> resourcesByModule = importModules(
             pipelineModuleDefinitions);
-        log.debug("Importing Module Definitions...done");
+        log.debug("Importing module definitions...done");
 
-        log.debug("Importing Pipeline Definitions");
+        log.debug("Importing pipeline definitions");
         Map<PipelineDefinition, Set<PipelineDefinitionNodeExecutionResources>> resourcesByPipelineDefinition = importPipelines(
             pipelineDefinitions, pipelineModuleNames);
-        log.debug("DONE importing pipeline configuration");
+        log.debug("Importing pipeline definitions...done");
         if (!dryRun) {
-            log.debug("Persisting module and pipeline definitions...");
+            log.debug("Persisting module and pipeline definitions");
             pipelineImportOperations().persistDefinitions(resourcesByModule,
                 resourcesByPipelineDefinition);
             log.debug("Persisting module and pipeline definitions...done");
@@ -186,26 +186,26 @@ public class PipelineDefinitionImporter {
             Map<String, PipelineDefinitionNode> nodesByName = new HashMap<>();
 
             if (nodes.isEmpty()) {
-                log.error("Pipeline " + pipelineName + " has no nodes");
+                log.error("Pipeline {} has no nodes", pipelineName);
             }
             for (PipelineDefinitionNode node : nodes) {
                 String childNodeIds = node.getChildNodeNames() != null ? node.getChildNodeNames()
                     : "";
-                log.info("Adding node " + node.getModuleName() + " for pipeline " + pipelineName
-                    + " with child node(s) " + childNodeIds);
+                log.info("Adding node {} for pipeline {} with child node(s) {}",
+                    node.getModuleName(), pipelineName, childNodeIds);
                 nodesByName.put(node.getModuleName(), node);
             }
 
             String rootNodeString = newPipelineDefinition.getRootNodeNames();
             if (rootNodeString != null) {
-                log.info("Pipeline " + pipelineName + " root node names: " + rootNodeString);
+                log.info("Pipeline {} root node names are {}", pipelineName, rootNodeString);
             } else {
-                log.error("Pipeline " + pipelineName + " root node names string is null");
+                log.error("Pipeline {} root node names string is null", pipelineName);
             }
 
             // pipeline-level parameters
-            log.info("Parameter sets for pipeline " + pipelineName + ": "
-                + newPipelineDefinition.parameterSetNamesFromXml().toString());
+            log.info("Parameter sets for pipeline {} are {}", pipelineName,
+                newPipelineDefinition.parameterSetNamesFromXml().toString());
             Set<String> missingParameterSets = ZiggyCollectionUtils.elementsNotInSuperset(
                 existingParameterSetNames, newPipelineDefinition.parameterSetNamesFromXml());
             if (!CollectionUtils.isEmpty(missingParameterSets)) {
@@ -250,8 +250,8 @@ public class PipelineDefinitionImporter {
             xmlNode.setPipelineName(pipelineName);
 
             // Module-level parameters
-            log.info("Parameter sets for node " + nodeName + ": "
-                + xmlNode.getXmlParameterSetNames().toString());
+            log.info("Parameter sets for node {} are {}", nodeName,
+                xmlNode.getXmlParameterSetNames().toString());
             Set<String> missingParameterSets = ZiggyCollectionUtils.elementsNotInSuperset(
                 existingParameterSetNames, xmlNode.getXmlParameterSetNames());
             if (!CollectionUtils.isEmpty(missingParameterSets)) {

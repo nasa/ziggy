@@ -1,9 +1,9 @@
 package gov.nasa.ziggy.ui.util;
 
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW_SYMBOL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CANCEL;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.OK;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DELETE_SYMBOL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW_SYMBOL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.OK;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.boldLabel;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
@@ -47,6 +47,8 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 public class GroupsDialog extends javax.swing.JDialog {
     private static final Logger log = LoggerFactory.getLogger(GroupsDialog.class);
 
+    private String type;
+
     private JCheckBox defaultCheckBox;
     private JTextField newGroupTextField;
     private JList<Group> groupsList;
@@ -55,8 +57,9 @@ public class GroupsDialog extends javax.swing.JDialog {
 
     private final GroupOperations groupOperations = new GroupOperations();
 
-    public GroupsDialog(Window owner) {
+    public GroupsDialog(Window owner, String type) {
         super(owner, DEFAULT_MODALITY_TYPE);
+        this.type = type;
         buildComponent();
         setLocationRelativeTo(owner);
 
@@ -81,7 +84,7 @@ public class GroupsDialog extends javax.swing.JDialog {
 
         groupsListModel = new GenericListModel<>();
         ArrayList<Group> groups = new ArrayList<>();
-        groups.add(new Group(ZiggyGuiConstants.LOADING));
+        groups.add(new Group(ZiggyGuiConstants.LOADING, ZiggyGuiConstants.LOADING));
         groupsListModel.setList(groups);
         groupsList = new JList<>(groupsListModel);
         groupsList.addListSelectionListener(this::groupsListValueChanged);
@@ -136,7 +139,7 @@ public class GroupsDialog extends javax.swing.JDialog {
         }
 
         List<Group> currentList = groupsListModel.getList();
-        Group newGroup = new Group(groupName);
+        Group newGroup = new Group(groupName, type);
         if (currentList.contains(newGroup)) {
             MessageUtils.showError(this, "A group by that name already exists");
             return;
@@ -211,7 +214,7 @@ public class GroupsDialog extends javax.swing.JDialog {
         new SwingWorker<List<Group>, Void>() {
             @Override
             protected List<Group> doInBackground() throws Exception {
-                return groupOperations().groups();
+                return groupOperations().groups(type);
             }
 
             @Override
@@ -242,8 +245,8 @@ public class GroupsDialog extends javax.swing.JDialog {
         return groupOperations;
     }
 
-    public static Group selectGroup(Component owner) {
-        GroupsDialog editor = new GroupsDialog(SwingUtilities.getWindowAncestor(owner));
+    public static Group selectGroup(Component owner, String type) {
+        GroupsDialog editor = new GroupsDialog(SwingUtilities.getWindowAncestor(owner), type);
         editor.setVisible(true);
 
         if (editor.isCancelled) {
@@ -256,6 +259,6 @@ public class GroupsDialog extends javax.swing.JDialog {
     }
 
     public static void main(String[] args) {
-        ZiggySwingUtils.displayTestDialog(new GroupsDialog((JFrame) null));
+        ZiggySwingUtils.displayTestDialog(new GroupsDialog((JFrame) null, "Group Type"));
     }
 }

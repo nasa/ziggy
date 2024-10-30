@@ -42,12 +42,12 @@ public abstract class AbstractSysInfo implements SysInfo {
 
     protected void parse(Collection<String> sysInfo) {
         for (String line : sysInfo) {
-            log.debug("line = " + line);
+            log.debug("line={}", line);
 
             if (line != null && line.trim().length() > 0) {
                 String[] tokens = line.split(":");
                 if (tokens.length < 2) {
-                    log.debug("ignoring line with two few tokens: " + line);
+                    log.debug("Ignoring line with two few tokens: {}", line);
                     continue;
                 }
                 put(tokens[0].trim(), tokens[1].trim());

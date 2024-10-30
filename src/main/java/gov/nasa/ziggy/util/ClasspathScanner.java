@@ -72,7 +72,7 @@ public class ClasspathScanner {
      * a JAR scan) for annotated classes.
      */
     public void scanForClasses() {
-        log.debug("ClasspathScanner: Scanning class path for matching classes");
+        log.debug("Scanning class path for matching classes");
 
         visitedClassPathElements = new HashSet<>();
         Set<String> classPathElements = classPathToScan;
@@ -96,7 +96,7 @@ public class ClasspathScanner {
                 File classPathElementFile = new File(classPathElement);
                 if (classPathElementFile.exists()) {
                     if (classPathElementFile.isDirectory()) {
-                        log.debug("Scanning directory {}" + classPathElementFile);
+                        log.debug("Scanning directory {}", classPathElementFile);
                         scanDirectory(classPathElementFile, classPathElementFile);
                     } else if (classPathElementFile.getName().endsWith(".jar")) {
                         if (matchesJarFilter(classPathElementFile.getName())) {
@@ -129,7 +129,7 @@ public class ClasspathScanner {
                     String fullyQualifiedName = convertPathToPackageName(relativePath);
                     if (matchesPackageFilter(fullyQualifiedName)
                         && fullyQualifiedName.endsWith(".class")) {
-                        log.debug("Processing file={}", file.getName());
+                        log.debug("Processing {}", file.getName());
                         FileInputStream fis;
                         try {
                             fis = new FileInputStream(file);
@@ -161,7 +161,7 @@ public class ClasspathScanner {
                 if (mainAttrs != null) {
                     String manifestClassPath = mainAttrs.getValue(Attributes.Name.CLASS_PATH);
                     if (manifestClassPath != null) {
-                        log.debug("Found MANIFEST ClassPath={}", manifestClassPath);
+                        log.debug("Found MANIFEST, ClassPath={}", manifestClassPath);
 
                         String classPathRelativeDir = jarFile.getParentFile().getAbsolutePath();
                         String[] classPathEntries = manifestClassPath.split("\\s+");
@@ -184,7 +184,7 @@ public class ClasspathScanner {
                 String fullyQualifiedName = convertPathToPackageName(entry.getName());
                 if (matchesPackageFilter(fullyQualifiedName)
                     && fullyQualifiedName.endsWith(".class")) {
-                    log.debug("Processing entry={}", entry);
+                    log.debug("Processing entry {}", entry);
                     processFile(jar.getInputStream(entry));
                 }
             }
@@ -224,11 +224,11 @@ public class ClasspathScanner {
         ClassLoader classLoader = getClass().getClassLoader();
 
         if (classLoader instanceof URLClassLoader) {
-            log.debug("classLoader={} instanceof URLClassLoader", classLoader);
+            log.debug("Class loader {} instanceof URLClassLoader", classLoader);
             URL[] urls = ((URLClassLoader) classLoader).getURLs();
             for (URL url : urls) {
                 String filename = url.getFile();
-                log.debug("Adding url={}", filename);
+                log.debug("Adding URL {}", filename);
                 classPath.add(filename);
             }
         } else {
@@ -238,7 +238,7 @@ public class ClasspathScanner {
                 File.pathSeparator);
             while (st.hasMoreTokens()) {
                 String filename = st.nextToken();
-                log.debug("Adding file={}", filename);
+                log.debug("Adding {}", filename);
                 classPath.add(filename);
             }
         }

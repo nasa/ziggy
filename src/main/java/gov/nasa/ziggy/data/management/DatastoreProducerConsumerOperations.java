@@ -21,10 +21,10 @@ public class DatastoreProducerConsumerOperations extends DatabaseOperations {
     private DatastoreProducerConsumerCrud datastoreProducerConsumerCrud = new DatastoreProducerConsumerCrud();
     private PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
 
-    public Set<String> filesConsumedByTasks(Collection<Long> consumerIds,
+    public Set<String> filesConsumedByTasks(Collection<PipelineTask> consumers,
         Collection<String> filenames) {
         return performTransaction(() -> datastoreProducerConsumerCrud()
-            .retrieveFilesConsumedByTasks(consumerIds, filenames));
+            .retrieveFilesConsumedByTasks(consumers, filenames));
     }
 
     public void createOrUpdateProducer(PipelineTask pipelineTask, Collection<Path> files) {

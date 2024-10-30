@@ -61,7 +61,7 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public void processClass(ClassFile classFile) {
         if (isClassAnnotated(classFile)) {
-            // log.debug("Found annotated class: " + className);
+            // log.debug("Found annotated class {}", className);
             try {
                 detectedClasses.add(Class.forName(classFile.getName()));
             } catch (ClassNotFoundException e) {
@@ -79,7 +79,7 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
 //        if (cf.getName().endsWith(".package-info")) {
 //            int idx = cf.getName().indexOf(".package-info");
 //            String pkgName = cf.getName().substring(0, idx);
-//            log.info("found package: " + pkgName);
+//            log.info("Found package ", pkgName);
 //            packages.add(pkgName);
 //            continue;
 //        }
@@ -89,18 +89,18 @@ public class AnnotatedPojoList implements ClasspathScannerListener {
         if (visible != null) {
             boolean isEntity = visible.getAnnotation(Entity.class.getName()) != null;
             if (isEntity) {
-                log.debug("found @Entity: " + classFile.getName());
+                log.debug("Found @Entity {}", classFile.getName());
                 return true;
             }
             boolean isEmbeddable = visible.getAnnotation(Embeddable.class.getName()) != null;
             if (isEmbeddable) {
-                log.debug("found @Embeddable: " + classFile.getName());
+                log.debug("Found @Embeddable {}", classFile.getName());
                 return true;
             }
             boolean isEmbeddableSuperclass = visible
                 .getAnnotation(MappedSuperclass.class.getName()) != null;
             if (isEmbeddableSuperclass) {
-                log.debug("found @MappedSuperclass: " + classFile.getName());
+                log.debug("Found @MappedSuperclass {}", classFile.getName());
                 return true;
             }
         }

@@ -1,9 +1,7 @@
 package gov.nasa.ziggy.ui.pipeline;
 
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DELETE;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DIALOG;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.EDIT;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createMenuItem;
 
@@ -79,11 +77,9 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
 
     private void buildComponent() {
         JPanel toolBar = ZiggySwingUtils.createButtonPanel(ButtonPanelContext.TOOL_BAR,
-            createButton(NEW, "Add a new parameter set.", this::add),
             createButton(EDIT, "Edit this parameter set.", this::editParamValues));
 
-        contextMenu = ZiggySwingUtils.createPopupMenu(createMenuItem(EDIT + DIALOG, this::edit),
-            createMenuItem(DELETE, this::delete));
+        contextMenu = ZiggySwingUtils.createPopupMenu(createMenuItem(EDIT + DIALOG, this::edit));
         paramSetMapTableModel = new ParameterSetNamesTableModel(moduleParameterSetByName,
             pipelineParameterSetByName);
         ziggyTable = new ZiggyTable<>(paramSetMapTableModel);
@@ -121,28 +117,6 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
                 }
             }
         });
-    }
-
-    private void add(ActionEvent evt) {
-
-        ParameterSet newParameterSet = ParameterSetSelectorDialog
-            .selectParameterSet(SwingUtilities.getWindowAncestor(this));
-
-        if (newParameterSet != null) {
-
-            if (moduleParameterSetByName.containsKey(newParameterSet.getName())) {
-                MessageUtils.showError(this, "A parameter set with name " + newParameterSet.getName()
-                    + " already exists, use 'select' to change the existing instance");
-            } else {
-                moduleParameterSetByName.put(newParameterSet.getName(), newParameterSet);
-
-                if (mapListener != null) {
-                    mapListener.notifyMapChanged(this);
-                }
-
-                paramSetMapTableModel.update(moduleParameterSetByName, pipelineParameterSetByName);
-            }
-        }
     }
 
     private void editParamValues(ActionEvent evt) {
@@ -194,18 +168,6 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
                 }
             }
         }.execute();
-    }
-
-    private void delete(ActionEvent evt) {
-        String parameterSetName = ziggyTable.getContentAtViewRow(selectedModelIndex)
-            .getAssignedName();
-        moduleParameterSetByName.remove(parameterSetName);
-
-        if (mapListener != null) {
-            mapListener.notifyMapChanged(this);
-        }
-
-        paramSetMapTableModel.update(moduleParameterSetByName, pipelineParameterSetByName);
     }
 
     public ParameterSetMapEditorListener getMapListener() {

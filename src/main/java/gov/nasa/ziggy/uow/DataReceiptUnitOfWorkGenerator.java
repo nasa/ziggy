@@ -58,8 +58,8 @@ public class DataReceiptUnitOfWorkGenerator extends DirectoryUnitOfWorkGenerator
         // will be the only unit of work.
         if (directoryContainsManifest(rootDirectory())) {
             UnitOfWork uow = new UnitOfWork();
-            uow.addParameter(new Parameter(DIRECTORY_PARAMETER_NAME,
-                rootDirectory().toString(), ZiggyDataType.ZIGGY_STRING));
+            uow.addParameter(new Parameter(DIRECTORY_PARAMETER_NAME, rootDirectory().toString(),
+                ZiggyDataType.ZIGGY_STRING));
             unitsOfWork.add(uow);
         } else {
 

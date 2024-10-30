@@ -10,7 +10,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 public class SimpleTaskRenderer implements PipelineTaskRenderer {
     @Override
     public String renderTask(PipelineTask task) {
-        return task.uowTaskInstance().briefState();
+        return task.getUnitOfWork().briefState();
     }
 
     @Override

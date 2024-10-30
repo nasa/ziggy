@@ -93,7 +93,8 @@ public class PipelineModuleDefinitionTest {
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         marshaller.marshal(module1, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), ZiggyFileUtils.ZIGGY_CHARSET);
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(),
+            ZiggyFileUtils.ZIGGY_CHARSET);
         assertContains(xmlContent, module1XmlString);
 
         marshaller.marshal(module2, xmlFile);

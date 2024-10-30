@@ -65,7 +65,7 @@ public class ZiggyStringUtils {
     public static String[] convertStringArray(String input) {
         checkNotNull(input, "input");
 
-        log.debug("convertStringArray got " + input);
+        log.debug("input={}", input);
         StringTokenizer st = new StringTokenizer(input, ",");
         String[] results = new String[st.countTokens()];
         int i = 0;

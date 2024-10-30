@@ -5,11 +5,14 @@ import java.util.Date;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.event.Level;
 
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.messages.AlertMessage;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.ManyToOne;
 
 /**
  * Contains alert data. Shared by {@link Alert} (used to store alert data in the database) and
@@ -19,43 +22,43 @@ import jakarta.persistence.Embeddable;
  */
 @Embeddable
 public class Alert implements Serializable {
+
+    public enum Severity {
+        INFRASTRUCTURE, ERROR, WARNING;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Alert.class);
 
-    private static final long serialVersionUID = 20230511L;
+    private static final long serialVersionUID = 20240925L;
 
     private static final int MAX_MESSAGE_LENGTH = 4000;
 
     private Date timestamp;
-    private String sourceComponent = null;
-    private long sourceTaskId = -1;
-    private String processName = null;
-    private String processHost = null;
+    private String sourceComponent;
+
+    /** The source task is null when this object is deserialized. */
+    @ManyToOne
+    private PipelineTask sourceTask;
+
+    private String processName;
+    private String processHost;
     private long processId = -1;
-    private String severity = Level.ERROR.toString();
+
+    @Enumerated(EnumType.STRING)
+    private Severity severity = Severity.ERROR;
+
     @Column(nullable = true, length = MAX_MESSAGE_LENGTH)
-    private String message = null;
+    private String message;
 
-    public Alert() {
+    // For Hibernate.
+    Alert() {
     }
 
-    public Alert(Date timestamp, String sourceComponent, long sourceTaskId, String processName,
-        String processHost, long processId, String message) {
+    public Alert(Date timestamp, String sourceComponent, PipelineTask sourceTask,
+        String processName, String processHost, long processId, Severity severity, String message) {
         this.timestamp = timestamp;
         this.sourceComponent = sourceComponent;
-        this.sourceTaskId = sourceTaskId;
-        this.processName = processName;
-        this.processHost = processHost;
-        this.processId = processId;
-        this.message = message;
-
-        validateMessageLength();
-    }
-
-    public Alert(Date timestamp, String sourceComponent, long sourceTaskId, String processName,
-        String processHost, long processId, String severity, String message) {
-        this.timestamp = timestamp;
-        this.sourceComponent = sourceComponent;
-        this.sourceTaskId = sourceTaskId;
+        this.sourceTask = sourceTask;
         this.processName = processName;
         this.processHost = processHost;
         this.processId = processId;
@@ -71,8 +74,8 @@ public class Alert implements Serializable {
             log.warn("Alert message is NULL");
         } else if (message.length() > MAX_MESSAGE_LENGTH) {
             message = message.substring(0, MAX_MESSAGE_LENGTH - 4) + "...";
-            log.warn("Alert message length (" + message.length() + ") is too long, max = "
-                + MAX_MESSAGE_LENGTH + ", truncated");
+            log.warn("Alert message length ({}) is too long, max is {}, truncated",
+                message.length(), MAX_MESSAGE_LENGTH);
         }
     }
 
@@ -100,12 +103,12 @@ public class Alert implements Serializable {
         this.sourceComponent = sourceComponent;
     }
 
-    public long getSourceTaskId() {
-        return sourceTaskId;
+    public PipelineTask getSourceTask() {
+        return sourceTask;
     }
 
-    public void setSourceTaskId(long sourceTaskId) {
-        this.sourceTaskId = sourceTaskId;
+    public void setSourceTask(PipelineTask sourceTask) {
+        this.sourceTask = sourceTask;
     }
 
     public Date getTimestamp() {
@@ -132,15 +135,11 @@ public class Alert implements Serializable {
         this.message = message;
     }
 
-    public String getSeverity() {
+    public Severity getSeverity() {
         return severity;
     }
 
-    public void setSeverity(Level severity) {
-        this.severity = severity.toString();
-    }
-
-    public void setSeverity(String severity) {
+    public void setSeverity(Severity severity) {
         this.severity = severity;
     }
 }

@@ -14,26 +14,25 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 
 /**
- * Group identifier for {@link PipelineDefinition}s, {@link PipelineModuleDefinition}s, and
- * {@link ParameterSet}s.
- * <p>
- * Groups are used in the console to organize these entities into folders since their numbers can
- * grow large over the course of the mission.
+ * Groups are used in the console to organize items into folders since their numbers can grow large
+ * over the course of the mission.
  * <p>
  * The names associated with a {@link Group} are represented as element collections with eager
  * fetching because we generally need all of the names whenever we access a group.
  *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 @Entity
-@Table(name = "ziggy_Group", uniqueConstraints = { @UniqueConstraint(columnNames = { "name" }) })
+@Table(name = "ziggy_Group",
+    uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "type" }) })
 
 public class Group {
-    public static final Group DEFAULT = new Group();
+    public static final String DEFAULT_NAME = "<Default Group>";
+    public static final Group DEFAULT = new Group(DEFAULT_NAME, null);
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_Group_generator")
@@ -43,38 +42,26 @@ public class Group {
 
     private String name;
 
+    private String type;
+
     @ManyToOne
-    private Group parentGroup;
-
-    private String description;
+    private Group parent;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "ziggy_Group_pipelineDefinitionNames")
-    private Set<String> pipelineDefinitionNames = new HashSet<>();
+    @JoinTable(name = "ziggy_Group_children")
+    private Set<Group> children = new HashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "ziggy_Group_pipelineModuleNames")
-    private Set<String> pipelineModuleNames = new HashSet<>();
+    @JoinTable(name = "ziggy_Group_items")
+    private Set<String> items = new HashSet<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "ziggy_Group_parameterSetNames")
-    private Set<String> parameterSetNames = new HashSet<>();
-
-    /** Contains whichever of the above is correct for the current use-case. */
-    @Transient
-    private Set<String> memberNames;
-
+    // For Hibernate.
     Group() {
     }
 
-    public Group(String name) {
+    public Group(String name, String type) {
         this.name = name;
-    }
-
-    public Group(Group group) {
-        name = group.name;
-        description = group.description;
-        parentGroup = group.parentGroup;
+        this.type = type;
     }
 
     public String getName() {
@@ -88,62 +75,41 @@ public class Group {
         this.name = name;
     }
 
-    public String getDescription() {
-        return description;
+    public String getType() {
+        return type;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setType(String type) {
+        this.type = type;
     }
 
-    @Override
-    public String toString() {
-        return name;
+    public Group getParent() {
+        return parent;
     }
 
-    public Group getParentGroup() {
-        return parentGroup;
+    public void setParent(Group parentGroup) {
+        parent = parentGroup;
     }
 
-    public void setParentGroup(Group parentGroup) {
-        this.parentGroup = parentGroup;
+    public Set<Group> getChildren() {
+        return children;
     }
 
-    public Set<String> getPipelineDefinitionNames() {
-        return pipelineDefinitionNames;
+    public void setChildren(Set<Group> children) {
+        this.children = children;
     }
 
-    public void setPipelineDefinitionNames(Set<String> pipelineDefinitionNames) {
-        this.pipelineDefinitionNames = pipelineDefinitionNames;
+    public Set<String> getItems() {
+        return items;
     }
 
-    public Set<String> getPipelineModuleNames() {
-        return pipelineModuleNames;
-    }
-
-    public void setPipelineModuleNames(Set<String> pipelineModuleNames) {
-        this.pipelineModuleNames = pipelineModuleNames;
-    }
-
-    public Set<String> getParameterSetNames() {
-        return parameterSetNames;
-    }
-
-    public void setParameterSetNames(Set<String> parameterSetNames) {
-        this.parameterSetNames = parameterSetNames;
-    }
-
-    public Set<String> getMemberNames() {
-        return memberNames;
-    }
-
-    public void setMemberNames(Set<String> memberNames) {
-        this.memberNames = memberNames;
+    public void setItems(Set<String> items) {
+        this.items = items;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name);
+        return Objects.hash(name, type);
     }
 
     @Override
@@ -154,10 +120,12 @@ public class Group {
         if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final Group other = (Group) obj;
-        if (!Objects.equals(name, other.name)) {
-            return false;
-        }
-        return true;
+        Group other = (Group) obj;
+        return Objects.equals(name, other.name) && Objects.equals(type, other.type);
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 }

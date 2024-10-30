@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition;
 
+import java.io.Serializable;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -17,7 +18,7 @@ import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
  * @author PT
  * @author Bill Wohler
  */
-public enum ProcessingStep {
+public enum ProcessingStep implements Serializable {
 
     INITIALIZING(PipelineModule::initializingTaskAction, Counts::incrementInitializingTaskCount),
     WAITING_TO_RUN(PipelineModule::waitingToRunTaskAction, Counts::incrementWaitingToRunTaskCount),
@@ -48,6 +49,11 @@ public enum ProcessingStep {
 
     public boolean isInfrastructureStep() {
         return this == INITIALIZING || this == WAITING_TO_RUN || this == COMPLETE;
+    }
+
+    public boolean isPreExecutionStep() {
+        return this == INITIALIZING || this == WAITING_TO_RUN || this == MARSHALING
+            || this == QUEUED || this == SUBMITTING;
     }
 
     public static Set<ProcessingStep> processingSteps() {

@@ -26,7 +26,8 @@ public class DatabaseMetricsValueSource implements MetricsValueSource {
         Map<MetricType, Collection<MetricValue>> rv = Maps
             .newHashMapWithExpectedSize(selectedMetricTypes.size());
         for (MetricType type : selectedMetricTypes) {
-            List<MetricValue> values = metricsOperations().metricValues(type, windowStart, windowEnd);
+            List<MetricValue> values = metricsOperations().metricValues(type, windowStart,
+                windowEnd);
             rv.put(type, values);
         }
         return rv;

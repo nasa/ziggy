@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Paths;
 import java.util.Objects;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.lang3.StringUtils;
@@ -16,7 +16,6 @@ import gov.nasa.ziggy.module.SubtaskServer.ResponseType;
 import gov.nasa.ziggy.module.hdf5.Hdf5ModuleInterface;
 import gov.nasa.ziggy.module.io.AlgorithmErrorReturn;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
-import gov.nasa.ziggy.module.remote.TimestampFile;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.LockManager;
@@ -44,18 +43,18 @@ public class SubtaskMaster implements Runnable {
 
     int threadNumber = -1;
     private final String node;
-    private final Semaphore complete;
+    private final CountDownLatch countdownLatch;
     private final String binaryName;
     private final String taskDir;
     private final int timeoutSecs;
     private final String jobId;
     private final String jobName;
 
-    public SubtaskMaster(int threadNumber, String node, Semaphore complete, String binaryName,
-        String taskDir, int timeoutSecs) {
+    public SubtaskMaster(int threadNumber, String node, CountDownLatch countdownLatch,
+        String binaryName, String taskDir, int timeoutSecs) {
         this.threadNumber = threadNumber;
         this.node = node;
-        this.complete = complete;
+        this.countdownLatch = countdownLatch;
         this.binaryName = binaryName;
         this.taskDir = taskDir;
         this.timeoutSecs = timeoutSecs;
@@ -64,8 +63,7 @@ public class SubtaskMaster implements Runnable {
         if (!StringUtils.isBlank(fullJobId)) {
             jobId = fullJobId.split("\\.")[0];
             jobName = System.getenv("PBS_JOBNAME");
-            log.info(
-                "job ID: " + jobId + ", job name: " + jobName + ", thread number: " + threadNumber);
+            log.info("jobId={}, jobName={}, threadNumber={}", jobId, jobName, threadNumber);
         } else {
             jobId = "none";
             jobName = "none";
@@ -77,12 +75,12 @@ public class SubtaskMaster implements Runnable {
     public void run() {
         try {
             processSubtasks();
-            log.info("Node: " + node + "[" + threadNumber
-                + "]: No more subtasks to process, thread exiting");
+            log.info("Node: {}[{}]: No more subtasks to process, thread exiting", node,
+                threadNumber);
         } catch (Exception e) {
             log.error("Exception thrown in SubtaskMaster", e);
         } finally {
-            complete.release();
+            countdownLatch.countDown();
         }
     }
 
@@ -103,7 +101,7 @@ public class SubtaskMaster implements Runnable {
             response = subtaskClient.nextSubtask();
 
             if (response == null) {
-                log.error("Null response from SubtaskClient, exiting.");
+                log.error("Null response from SubtaskClient, exiting");
                 break;
             }
             if (response.status.equals(ResponseType.NO_MORE)) {
@@ -111,13 +109,13 @@ public class SubtaskMaster implements Runnable {
                 break;
             }
             if (!response.successful()) {
-                log.error("Unsuccessful response from SubtaskClient, exiting.");
-                log.error("Response content: {}", response.toString());
+                log.error("Unsuccessful response from SubtaskClient, exiting");
+                log.error("Response is {}", response.toString());
                 break;
             }
             subtaskIndex = response.subtaskIndex;
 
-            log.debug(threadNumber + ": Processing sub-task: " + subtaskIndex);
+            log.debug("threadNumber={}, subtaskIndex={}", threadNumber, subtaskIndex);
 
             File subtaskDir = SubtaskUtils.subtaskDirectory(Paths.get(taskDir), subtaskIndex)
                 .toFile();
@@ -129,8 +127,8 @@ public class SubtaskMaster implements Runnable {
                     SubtaskUtils.putLogStreamIdentifier(subtaskDir);
                     if (!checkSubtaskState(subtaskDir)) {
                         executeSubtask(subtaskDir, threadNumber, subtaskIndex);
-                        subtaskClient.reportSubtaskComplete(subtaskIndex);
                     }
+                    subtaskClient.reportSubtaskComplete(subtaskIndex);
                 } else {
                     subtaskClient.reportSubtaskLocked(subtaskIndex);
                 }
@@ -141,6 +139,10 @@ public class SubtaskMaster implements Runnable {
                 // here to prevent same. The higher-level monitoring will manage any
                 // cases in which a subtask's processing failed.
                 logException(subtaskIndex, e);
+
+                // Also, tell the server and allocator not to bother trying again with
+                // this subtask.
+                subtaskClient.reportSubtaskComplete(subtaskIndex);
             } finally {
                 SubtaskUtils.putLogStreamIdentifier((String) null);
                 if (lockFileObtained) {
@@ -171,31 +173,30 @@ public class SubtaskMaster implements Runnable {
     private boolean checkSubtaskState(File subtaskDir) {
         AlgorithmStateFiles previousAlgorithmState = algorithmStateFiles(subtaskDir);
 
-        if (!previousAlgorithmState.subtaskStateExists()) {
+        if (!previousAlgorithmState.stateExists()) {
             // no previous run exists
-            log.info("No previous algorithm state file found in " + subtaskDir.getName()
-                + ", executing this subtask");
+            log.info("No previous algorithm state file found in {}, executing this subtask",
+                subtaskDir.getName());
             return false;
         }
 
         if (previousAlgorithmState.isComplete()) {
-            log.info("subtask algorithm state = COMPLETE, skipping subtask" + subtaskDir.getName());
+            log.info("Subtask algorithm state COMPLETE, skipping subtask{}", subtaskDir.getName());
             return true;
         }
 
         if (previousAlgorithmState.isFailed()) {
-            log.info(".FAILED state detected in directory " + subtaskDir.getName());
+            log.info(".FAILED state detected in directory {}", subtaskDir.getName());
             return true;
         }
 
         if (previousAlgorithmState.isProcessing()) {
-            log.info(".PROCESSING state detected in directory " + subtaskDir.getName());
+            log.info(".PROCESSING state detected in directory {}", subtaskDir.getName());
             return true;
         }
 
-        log.info(
-            "Unexpected subtask algorithm state = " + previousAlgorithmState.currentSubtaskState()
-                + ", restarting subtask " + subtaskDir.getName());
+        log.info("Unexpected subtask algorithm state {}, restarting subtask {}",
+            previousAlgorithmState.currentAlgorithmState(), subtaskDir.getName());
         return false;
     }
 
@@ -212,18 +213,18 @@ public class SubtaskMaster implements Runnable {
             + ".node." + node;
         try {
             new File(subtaskDir, jobInfoFileName).createNewFile();
-            TimestampFile.create(subtaskDir, TimestampFile.Event.SUB_TASK_START);
+            TimestampFile.create(subtaskDir, TimestampFile.Event.SUBTASK_START);
 
             SubtaskExecutor subtaskExecutor = subtaskExecutor(subtaskIndex);
 
-            log.info("START subtask: " + subtaskIndex + " on " + node + "[" + threadNumber + "]");
+            log.info("START subtask {} on {}[{}]", subtaskIndex, node, threadNumber);
             retCode = subtaskExecutor.execAlgorithm();
-            log.info("FINISH subtask " + subtaskIndex + " on " + node + ", rc: " + retCode);
+            log.info("FINISH subtask {} on {} (retCode={})", subtaskIndex, node, retCode);
         } catch (IOException e) {
             throw new UncheckedIOException(
                 "Unable to create file " + new File(subtaskDir, jobInfoFileName).toString(), e);
         } finally {
-            TimestampFile.create(subtaskDir, TimestampFile.Event.SUB_TASK_FINISH);
+            TimestampFile.create(subtaskDir, TimestampFile.Event.SUBTASK_FINISH);
         }
 
         if (retCode != 0) {
@@ -269,7 +270,7 @@ public class SubtaskMaster implements Runnable {
      * support testing.
      */
     void logException(int subtaskIndex, Exception e) {
-        log.error("Error occurred during processing of subtask " + subtaskIndex, e);
+        log.error("Error occurred during processing of subtask {}", subtaskIndex, e);
     }
 
     /** Writes the algorithm stack trace, if any, to the algorithm log. */

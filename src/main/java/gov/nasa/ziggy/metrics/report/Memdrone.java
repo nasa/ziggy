@@ -165,12 +165,11 @@ public class Memdrone {
         Path memdronePath = latestMemdronePath();
         commandLine.addArgument(memdronePath.toString());
         if (watchdogMap.containsKey(nameRoot)) {
-            log.info("Memdrone for module " + binaryName + ", instance " + instanceId
-                + " already running");
+            log.info("Memdrone for module {}, instance {} already running", binaryName, instanceId);
             return;
         }
 
-        log.info("Starting memdrone for module " + binaryName + " in instance " + instanceId);
+        log.info("Starting memdrone for module {} in instance {}", binaryName, instanceId);
         ExternalProcess memdroneProcess = ExternalProcess.simpleExternalProcess(commandLine);
         memdroneProcess.execute(false);
         watchdogMap.put(nameRoot, memdroneProcess.getWatchdog());
@@ -181,13 +180,13 @@ public class Memdrone {
      */
     public void stopMemdrone() {
         if (watchdogMap.containsKey(nameRoot)) {
-            log.info("Stopping memdrone for module " + binaryName + " in instance " + instanceId);
+            log.info("Stopping memdrone for module {} in instance {}", binaryName, instanceId);
             watchdogMap.get(nameRoot).destroyProcess();
             log.info("Memdrone stopped");
             watchdogMap.remove(nameRoot);
         } else {
-            log.info("No memdrone script was running for module " + binaryName + " in instance "
-                + instanceId);
+            log.info("No memdrone script was running for module {} in instance {}", binaryName,
+                instanceId);
         }
     }
 
@@ -239,19 +238,19 @@ public class Memdrone {
         justification = SpotBugsUtils.DESERIALIZATION_JUSTIFICATION)
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
-    public Map<String, String> subTasksByPid() {
+    public Map<String, String> subtasksByPid() {
         Path cacheFile = latestMemdronePath().resolve(PID_MAP_CACHE_FILENAME);
-        Map<String, String> pidToSubTask = null;
+        Map<String, String> pidToSubtask = null;
 
         if (Files.exists(cacheFile)) {
-            log.info("Using pid cache file");
+            log.info("Using PID cache file {}", cacheFile);
             try (ObjectInputStream ois = new ObjectInputStream(
                 new BufferedInputStream(new FileInputStream(cacheFile.toFile())))) {
                 @SuppressWarnings("unchecked")
                 Map<String, String> obj = (Map<String, String>) ois.readObject();
-                pidToSubTask = obj;
+                pidToSubtask = obj;
 
-                log.debug("pid cache: " + obj);
+                log.debug("PID cache {}", obj);
             } catch (IOException e) {
                 throw new UncheckedIOException(
                     "IOException occurred reading from " + cacheFile.toString(), e);
@@ -261,11 +260,11 @@ public class Memdrone {
                 throw new AssertionError(e);
             }
         } else { // no cache
-            log.info("Creating pid cache file");
-            pidToSubTask = createPidMapCache();
+            log.info("Creating PID cache file");
+            pidToSubtask = createPidMapCache();
         }
 
-        return pidToSubTask;
+        return pidToSubtask;
     }
 
     /**
@@ -281,10 +280,10 @@ public class Memdrone {
             .listFiles((FileFilter) f -> f.getName().startsWith("memdrone-") && f.isFile());
 
         if (memdroneLogs != null) {
-            log.info("Number of memdrone-* files found: " + memdroneLogs.length);
+            log.info("Found {} memdrone-* files", memdroneLogs.length);
 
             for (File memdroneLog : memdroneLogs) {
-                log.info("Processing: " + memdroneLog);
+                log.info("Processing {}", memdroneLog);
 
                 String filename = memdroneLog.getName();
                 String host = filename.substring(filename.indexOf("-") + 1, filename.indexOf("."));
@@ -318,9 +317,9 @@ public class Memdrone {
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public Map<String, String> createPidMapCache() {
         Path cacheFile = latestMemdronePath().resolve(PID_MAP_CACHE_FILENAME);
-        Map<String, String> pidToSubTask = new HashMap<>();
+        Map<String, String> pidToSubtask = new HashMap<>();
 
-        log.info("cacheFile: " + cacheFile);
+        log.info("cacheFile={}", cacheFile);
 
         Pattern taskPattern = Pattern
             .compile(binaryName + "-" + Long.toString(instanceId) + "-" + "\\d+");
@@ -331,22 +330,22 @@ public class Memdrone {
             .listFiles((FileFilter) f -> taskPattern.matcher(f.getName()).matches());
         if (taskDirs != null) {
             for (File taskDir : taskDirs) {
-                log.info("Processing task " + taskDir.getName());
+                log.info("Processing task {}", taskDir.getName());
                 Matcher taskMatcher = taskPattern.matcher(taskDir.getName());
                 taskMatcher.matches();
                 String taskDirName = taskDir.getName();
                 taskDirName = taskDirName.substring(taskDirName.lastIndexOf("-") + 1);
 
                 // Find the subtask directories and loop over them.
-                File[] subTaskDirs = taskDir
+                File[] subtaskDirs = taskDir
                     .listFiles((FileFilter) f -> f.getName().contains("st-") && f.isDirectory());
-                if (subTaskDirs != null) {
-                    for (File subTaskDir : subTaskDirs) {
-                        String subTaskId = taskDirName + "/" + subTaskDir.getName();
-                        log.debug("processing subTaskId: " + subTaskId);
+                if (subtaskDirs != null) {
+                    for (File subtaskDir : subtaskDirs) {
+                        String subtaskId = taskDirName + "/" + subtaskDir.getName();
+                        log.debug("Processing subtaskId {}", subtaskId);
 
                         // Get the contents of the PID filename and populate the map
-                        File pidsFile = new File(subTaskDir,
+                        File pidsFile = new File(subtaskDir,
                             MatlabJavaInitialization.MATLAB_PIDS_FILENAME);
                         if (pidsFile.exists()) {
                             String hostPid;
@@ -358,7 +357,7 @@ public class Memdrone {
                                     "Unable to read from file " + pidsFile.toString(), e);
                             }
 
-                            pidToSubTask.put(hostPid, subTaskId);
+                            pidToSubtask.put(hostPid, subtaskId);
                         }
                     }
                 }
@@ -369,12 +368,12 @@ public class Memdrone {
 
             ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(
                 new FileOutputStream(cacheFile.toAbsolutePath().toString())))) {
-            oos.writeObject(pidToSubTask);
+            oos.writeObject(pidToSubtask);
             oos.flush();
         } catch (IOException e) {
             throw new UncheckedIOException("Unable to write to file " + cacheFile.toString(), e);
         }
-        return pidToSubTask;
+        return pidToSubtask;
     }
 
     private Date date() {

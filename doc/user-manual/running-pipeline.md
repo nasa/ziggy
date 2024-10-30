@@ -30,6 +30,7 @@ dump-system-properties   gov.nasa.ziggy.services.config.DumpSystemProperties
 execsql                  gov.nasa.ziggy.services.database.SqlRunner
 export-parameters        gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli
 export-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
+generate-build-info      gov.nasa.ziggy.util.BuildInfo
 generate-manifest        gov.nasa.ziggy.data.management.Manifest
 hsqlgui                  org.hsqldb.util.DatabaseManagerSwing
 import-datastore-config  gov.nasa.ziggy.data.management.DatastoreConfigurationImporter
@@ -38,10 +39,13 @@ import-parameters        gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExpor
 import-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
 metrics                  gov.nasa.ziggy.metrics.report.MetricsCli
 perf-report              gov.nasa.ziggy.metrics.report.PerformanceReport
-$
+update-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
+$ 
 ```
 
 You can view more help with `ziggy --help` and even more help with `perldoc ziggy`.
+
+Since there are a lot of commands, sub-commands, and options, we've created a bash completions file for the `ziggy` program so you can press the `TAB` key while entering the `ziggy` program to display the available commands and options. If you want to use it, run `. $ZIGGY_ROOT/etc/ziggy.bash-completion`. That's a dot at the front; it's the same mechanism that you would use to re-read your `.bashrc` file.
 
 If you should happen to write some Java to manage your pipeline and want to use the `ziggy` program to run it, please refer to the article on [Creating Ziggy Nicknames](nicknames.md).
 
@@ -104,7 +108,7 @@ That said: if your cluster initialization fails because of a problem in the XML,
 
 If the failure was in the import of the contents of the pipeline-defining XML files, there's an alternative to using `ziggy cluster init`. Specifically, you can use other ziggy commands that import the XML files without performing initialization.
 
-If you look at the list of ziggy nicknames in the top screen shot, there are 3 that will be helpful here: `import-parameters`, `import-types`, and `import-pipelines`. These do what they say: import the parameter library, data type definition, and pipeline definition files, respectively.
+If you look at the list of ziggy nicknames in the top screen shot, there are 3 that will be helpful here: `import-parameters`, `import-datastore-config`, and `import-pipelines`. These do what they say: import the parameter library, data type definition, and pipeline definition files, respectively.
 
 Important note: if you decide to manually import the XML files, **you must do so in the order shown above:** parameters, then data types, then the pipeline definitions. This is because some items can't import correctly unless other items that they depend upon have already been pulled in.
 

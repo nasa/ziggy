@@ -112,10 +112,6 @@ public class PipelineDefinitionNodeOperations extends DatabaseOperations {
             () -> pipelineDefinitionNodeCrud().retrieveParameterSetNames(pipelineDefinitionNode));
     }
 
-    public void delete(PipelineDefinitionNode pipelineNode) {
-        performTransaction(() -> pipelineDefinitionCrud().remove(pipelineNode));
-    }
-
     public Set<DataFileType> inputDataFileTypes(PipelineDefinitionNode pipelineDefinitionNode) {
         return performTransaction(
             () -> pipelineDefinitionNodeCrud().retrieveInputDataFileTypes(pipelineDefinitionNode));

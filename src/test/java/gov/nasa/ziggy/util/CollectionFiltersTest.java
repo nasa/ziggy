@@ -22,8 +22,9 @@ public class CollectionFiltersTest {
 
     @Test
     public void testFilterToSet() {
-        Set<Object> set = Set.of(new Object(), new Date(), Double.valueOf(1.0), Integer.valueOf(1));
-        assertEquals(Set.of(new Date()), CollectionFilters.filterToSet(set, Date.class));
+        Set<Object> set = Set.of(new Object(), new Date(1000L), Double.valueOf(1.0),
+            Integer.valueOf(1));
+        assertEquals(Set.of(new Date(1000L)), CollectionFilters.filterToSet(set, Date.class));
         assertEquals(Set.of(Double.valueOf(1.0), Integer.valueOf(1)),
             CollectionFilters.filterToSet(set, Number.class));
     }

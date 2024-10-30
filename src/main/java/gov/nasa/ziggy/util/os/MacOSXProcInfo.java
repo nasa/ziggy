@@ -37,12 +37,12 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
     @Override
     protected void parse(Collection<String> commandOutput) {
         for (String line : commandOutput) {
-            log.debug("line = " + line);
+            log.debug("line={}", line);
 
             if (line != null && line.trim().length() > 0) {
                 String[] tokens = line.trim().split("\\s+");
                 if (tokens.length < 2) {
-                    log.debug("ignoring line with two few tokens: " + line);
+                    log.debug("Ignoring line with two few tokens: {}", line);
                     continue;
                 }
                 put("Pid", tokens[0]);
@@ -64,19 +64,19 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
         List<Long> childPids = new LinkedList<>();
 
         for (String line : commandOutput) {
-            log.debug("line = " + line);
+            log.debug("line={}", line);
 
             if (line != null && line.trim().length() > 0) {
                 String[] tokens = line.trim().split("\\s+");
                 if (tokens.length < 2) {
-                    log.debug("ignoring line with two few tokens: " + line);
+                    log.debug("Ignoring line with two few tokens: {}", line);
                     continue;
                 }
                 if (Long.parseLong(tokens[1]) == currentPid
                     && (name == null || tokens[2].endsWith(name))) {
                     // found a match
                     long pid = Long.parseLong(tokens[0]);
-                    log.info("Found child process, pid=" + pid + ", name=" + tokens[2]);
+                    log.info("Found child process, pid={}, name={}", pid, tokens[2]);
                     childPids.add(pid);
                 }
             }

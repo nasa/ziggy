@@ -2,29 +2,37 @@ package gov.nasa.ziggy.module.remote;
 
 import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.TaskConfiguration;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.RemoteJob;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.services.database.SingleThreadExecutor;
@@ -39,9 +47,14 @@ public class RemoteExecutorTest {
     private GenericRemoteExecutor executor;
     private PipelineTask pipelineTask;
     private PipelineTaskOperations pipelineTaskOperations;
+    private PipelineTaskDataOperations pipelineTaskDataOperations;
     private TaskConfiguration taskConfigurationManager;
     private PipelineInstance pipelineInstance;
+    private QstatParser qstatParser;
     private static Future<Void> futureVoid;
+    private RemoteJob completeRemoteJob;
+    private RemoteJob incompleteRemoteJob;
+    private RemoteJobInformation incompleteRemoteJobInformation;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -67,9 +80,11 @@ public class RemoteExecutorTest {
         pipelineTask = mock(PipelineTask.class);
         pipelineInstance = mock(PipelineInstance.class);
         pipelineTaskOperations = mock(PipelineTaskOperations.class);
+        pipelineTaskDataOperations = mock(PipelineTaskDataOperations.class);
         taskConfigurationManager = mock(TaskConfiguration.class);
         executor = new GenericRemoteExecutor(pipelineTask);
         futureVoid = mock(Future.class);
+        qstatParser = mock(QstatParser.class);
 
         when(pipelineTask.getPipelineInstanceId()).thenReturn(10L);
         when(pipelineTask.getModuleName()).thenReturn("modulename");
@@ -80,11 +95,19 @@ public class RemoteExecutorTest {
                 .thenReturn(new PipelineDefinitionNode());
         when(pipelineTaskOperations.pipelineInstance(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(pipelineInstance);
+        SubtaskCounts subtaskCounts = new SubtaskCounts(500, 400, 0);
+        when(pipelineTaskDataOperations.subtaskCounts(pipelineTask)).thenReturn(subtaskCounts);
         when(pipelineInstance.getId()).thenReturn(10L);
         when(taskConfigurationManager.getSubtaskCount()).thenReturn(500);
-        when(pipelineTask.getTotalSubtaskCount()).thenReturn(500);
-        when(pipelineTask.getCompletedSubtaskCount()).thenReturn(400);
         when(futureVoid.get()).thenReturn(null);
+        completeRemoteJob = new RemoteJob();
+        completeRemoteJob.setFinished(true);
+        completeRemoteJob.setJobId(1234567L);
+        incompleteRemoteJob = new RemoteJob();
+        incompleteRemoteJob.setFinished(false);
+        incompleteRemoteJob.setJobId(1234568L);
+        incompleteRemoteJobInformation = new RemoteJobInformation("test1", "test2");
+        incompleteRemoteJobInformation.setJobId(1234568L);
     }
 
     @After
@@ -105,21 +128,12 @@ public class RemoteExecutorTest {
         GenericRemoteExecutor gExecutor = executor;
         assertEquals(500, gExecutor.totalSubtaskCount);
         checkPbsParameterValues(remoteExecutionConfigurationForPipelineTask(),
-            gExecutor.pbsParameters);
-        assertEquals(RemoteNodeDescriptor.BROADWELL, gExecutor.pbsParameters.getArchitecture());
+            gExecutor.getPbsParameters());
+        assertEquals(RemoteNodeDescriptor.BROADWELL,
+            gExecutor.getPbsParameters().getArchitecture());
 
         // The correct calls should have occurred.
         assertEquals(pipelineTask, gExecutor.pipelineTask());
-        StateFile stateFile = gExecutor.stateFile();
-        assertEquals(10L, stateFile.getPipelineInstanceId());
-        assertEquals(50L, stateFile.getPipelineTaskId());
-        assertEquals(500, stateFile.getNumTotal());
-        assertEquals(0, stateFile.getNumFailed());
-        assertEquals(0, stateFile.getNumComplete());
-
-        checkStateFileValues(gExecutor.pbsParameters, stateFile);
-
-        assertEquals(stateFile, gExecutor.monitoredStateFile);
     }
 
     @Test
@@ -136,23 +150,47 @@ public class RemoteExecutorTest {
         GenericRemoteExecutor gExecutor = executor;
         assertEquals(100, gExecutor.totalSubtaskCount);
         checkPbsParameterValues(remoteExecutionConfigurationFromDatabase(),
-            gExecutor.pbsParameters);
-        assertEquals(RemoteNodeDescriptor.ROME, gExecutor.pbsParameters.getArchitecture());
+            gExecutor.getPbsParameters());
+        assertEquals(RemoteNodeDescriptor.ROME, gExecutor.getPbsParameters().getArchitecture());
 
         // The correct calls should have occurred, including that
         // the state file gets the full number of subtasks and no information about failed
         // or complete (that has to be generated at runtime by the remote job itself).
         assertEquals(pipelineTask, gExecutor.pipelineTask());
-        StateFile stateFile = gExecutor.stateFile();
-        assertEquals(10L, stateFile.getPipelineInstanceId());
-        assertEquals(50L, stateFile.getPipelineTaskId());
-        assertEquals(500, stateFile.getNumTotal());
-        assertEquals(0, stateFile.getNumFailed());
-        assertEquals(0, stateFile.getNumComplete());
+    }
 
-        checkStateFileValues(gExecutor.pbsParameters, stateFile);
+    @Test
+    public void testResumeMonitoringNoRemoteJobs() {
+        Mockito.when(pipelineTaskDataOperations.remoteJobs(pipelineTask))
+            .thenReturn(new HashSet<>());
+        RemoteExecutor remoteExecutor = new GenericRemoteExecutor(pipelineTask);
+        assertFalse(remoteExecutor.resumeMonitoring());
+        assertTrue(CollectionUtils.isEmpty(remoteExecutor.getRemoteJobsInformation()));
+    }
 
-        assertEquals(stateFile, gExecutor.monitoredStateFile);
+    @Test
+    public void testResumeMonitoringNoIncompleteRemoteJobs() {
+        Mockito.when(pipelineTaskDataOperations.remoteJobs(pipelineTask))
+            .thenReturn(Set.of(completeRemoteJob));
+        RemoteExecutor remoteExecutor = new GenericRemoteExecutor(pipelineTask);
+        assertFalse(remoteExecutor.resumeMonitoring());
+        assertTrue(CollectionUtils.isEmpty(remoteExecutor.getRemoteJobsInformation()));
+    }
+
+    @Test
+    public void testResumeMonitoring() {
+        Mockito.when(pipelineTaskDataOperations.remoteJobs(pipelineTask))
+            .thenReturn(Set.of(completeRemoteJob, incompleteRemoteJob));
+        Mockito.when(qstatParser.remoteJobInformation(incompleteRemoteJob))
+            .thenReturn(incompleteRemoteJobInformation);
+        RemoteExecutor remoteExecutor = new GenericRemoteExecutor(pipelineTask);
+        assertTrue(remoteExecutor.resumeMonitoring());
+        assertFalse(CollectionUtils.isEmpty(remoteExecutor.getRemoteJobsInformation()));
+        RemoteJobInformation remoteJobInformation = remoteExecutor.getRemoteJobsInformation()
+            .get(0);
+        assertEquals("test1", remoteJobInformation.getLogFile());
+        assertEquals("test2", remoteJobInformation.getJobName());
+        assertEquals(1234568L, remoteJobInformation.getJobId());
     }
 
     private void checkPbsParameterValues(
@@ -161,16 +199,7 @@ public class RemoteExecutorTest {
         assertEquals(executionResources.getQueueName(), pParameters.getQueueName());
         assertEquals(executionResources.getMinCoresPerNode(), pParameters.getMinCoresPerNode());
         assertEquals(executionResources.getMinGigsPerNode(), pParameters.getMinGigsPerNode(), 1e-3);
-        assertEquals(executionResources.getMaxNodes(), pParameters.getRequestedNodeCount());
-    }
-
-    private void checkStateFileValues(PbsParameters pParameters, StateFile stateFile) {
-        assertEquals(pParameters.getArchitecture().getNodeName(),
-            stateFile.getRemoteNodeArchitecture());
-        assertEquals(pParameters.getQueueName(), stateFile.getQueueName());
-        assertEquals(pParameters.getMinGigsPerNode(), stateFile.getMinGigsPerNode(), 1e-3);
-        assertEquals(pParameters.getMinCoresPerNode(), stateFile.getMinCoresPerNode());
-        assertEquals(pParameters.getRequestedNodeCount(), stateFile.getRequestedNodeCount());
+        assertEquals(2, pParameters.getRequestedNodeCount());
     }
 
     // Parameters that come from the PipelineTask
@@ -212,8 +241,6 @@ public class RemoteExecutorTest {
     private class GenericRemoteExecutor extends RemoteExecutor {
 
         int totalSubtaskCount;
-        PbsParameters pbsParameters;
-        StateFile monitoredStateFile;
 
         public GenericRemoteExecutor(PipelineTask pipelineTask) {
             super(pipelineTask);
@@ -223,31 +250,37 @@ public class RemoteExecutorTest {
             return pipelineTask;
         }
 
-        public StateFile stateFile() {
-            return getStateFile();
-        }
-
         @Override
         public PbsParameters generatePbsParameters(
             PipelineDefinitionNodeExecutionResources remoteParameters, int totalSubtaskCount) {
             this.totalSubtaskCount = totalSubtaskCount;
-            pbsParameters = remoteParameters.pbsParametersInstance();
+            PbsParameters pbsParameters = remoteParameters.pbsParametersInstance();
+            pbsParameters.populateResourceParameters(remoteParameters, totalSubtaskCount);
             return pbsParameters;
         }
 
         @Override
-        public void addToMonitor(StateFile stateFile) {
-            monitoredStateFile = stateFile;
+        public void addToMonitor() {
         }
 
         @Override
-        protected void submitForExecution(StateFile stateFile) {
-            addToMonitor(stateFile);
+        protected void submitForExecution() {
+            addToMonitor();
         }
 
         @Override
         protected PipelineTaskOperations pipelineTaskOperations() {
             return pipelineTaskOperations;
+        }
+
+        @Override
+        protected PipelineTaskDataOperations pipelineTaskDataOperations() {
+            return pipelineTaskDataOperations;
+        }
+
+        @Override
+        protected QstatParser qstatParser() {
+            return qstatParser;
         }
     }
 }

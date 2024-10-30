@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.module.remote.nas;
 
-import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.RemoteExecutor;
 import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
@@ -41,7 +40,7 @@ public class NasExecutor extends RemoteExecutor {
     }
 
     @Override
-    protected void submitForExecution(StateFile stateFile) {
-        submitToPbsInternal(stateFile, pipelineTask, algorithmLogDir(), taskDataDir());
+    protected void submitForExecution() {
+        submitToPbsInternal(pipelineTask);
     }
 }

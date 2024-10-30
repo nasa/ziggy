@@ -32,6 +32,7 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
     private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
     private PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
     private ParametersOperations parametersOperations = new ParametersOperations();
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
     /** returns the next pipeline instance nodes for execution. */
     public List<PipelineInstanceNode> nextPipelineInstanceNodes(long pipelineInstanceNodeId) {
@@ -84,13 +85,10 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
 
     public PipelineInstanceNodeInformation pipelineInstanceNodeInformation(
         long pipelineInstanceNodeId) {
-        return performTransaction(() -> {
-            PipelineInstanceNode instanceNode = pipelineInstanceNodeCrud()
-                .retrieve(pipelineInstanceNodeId);
-            TaskCounts taskCounts = new TaskCounts(
-                pipelineTaskCrud().retrieveTasksForInstanceNode(instanceNode));
-            return new PipelineInstanceNodeInformation(instanceNode, taskCounts);
-        });
+        PipelineInstanceNode instanceNode = performTransaction(
+            () -> pipelineInstanceNodeCrud().retrieve(pipelineInstanceNodeId));
+        TaskCounts taskCounts = pipelineTaskDisplayDataOperations().taskCounts(instanceNode);
+        return new PipelineInstanceNodeInformation(instanceNode, taskCounts);
     }
 
     public PipelineInstanceNode bindParameterSets(PipelineDefinitionNode definitionNode,
@@ -114,26 +112,6 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
             databaseNode.getPipelineTasks().addAll(pipelineTasks);
             pipelineInstanceNodeCrud().merge(databaseNode);
         });
-    }
-
-    public List<String> distinctSoftwareRevisions(PipelineInstanceNode pipelineInstanceNode) {
-        return performTransaction(
-            () -> pipelineTaskCrud().distinctSoftwareRevisions(pipelineInstanceNode));
-    }
-
-    /**
-     * Returns a {@link TaskCounts} instance for a given {@link PipelineInstanceNode}.
-     */
-    public TaskCounts taskCounts(PipelineInstanceNode pipelineInstanceNode) {
-        return performTransaction(() -> new TaskCounts(
-            pipelineTaskCrud().retrieveTasksForInstanceNode(pipelineInstanceNode)));
-    }
-
-    /**
-     * Returns a {@link TaskCounts} instance for the given list of {@link PipelineInstanceNode}s.
-     */
-    public TaskCounts taskCounts(List<PipelineInstanceNode> pipelineInstanceNodes) {
-        return performTransaction(() -> new TaskCounts(pipelineTasks(pipelineInstanceNodes)));
     }
 
     public PipelineInstance pipelineInstance(PipelineInstanceNode pipelineInstanceNode) {
@@ -178,6 +156,10 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
 
     PipelineTaskCrud pipelineTaskCrud() {
         return pipelineTaskCrud;
+    }
+
+    PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 
     PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud() {

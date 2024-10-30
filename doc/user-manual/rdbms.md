@@ -108,7 +108,7 @@ You'll need to make several changes:
 This amounts to manually importing into the database the XML files that define the pipeline, parameters, and data types. Fortunately, there are ziggy commands you can use for all of these actions:
 
 - The command `ziggy import-parameters` allows you to read in the parameter library files.
-- The command `ziggy import-types` allows you to read in the data file type definitions.
+- The command `ziggy import-datastore-config` allows you to read in the data file type definitions and the definition of the datastore layout. 
 - The command `ziggy import-pipelines` allows you to read in the pipeline definitions.
 
 All of the commands listed above will allow you to get help to know the exact syntax, order of arguments, etc. For more information on the ziggy program, take a look at [the article on running the cluster](running-pipeline.md). Most importantly: **Be sure to run the commands in the order shown above**, and specifically **be sure to run import-pipelines last!**

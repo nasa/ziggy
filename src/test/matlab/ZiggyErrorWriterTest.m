@@ -8,7 +8,7 @@ classdef ZiggyErrorWriterTest < matlab.unittest.TestCase
 properties (GetAccess = 'public', SetAccess = 'private')
     origDir    = [];
     taskDir    = [];
-    subTaskDir = [];
+    subtaskDir = [];
     tempDir    = [];
 end % properties
 
@@ -21,10 +21,10 @@ methods (TestMethodSetup)
         obj.tempDir = tempdir();
         obj.taskDir = fullfile(obj.tempDir, 'cal-50-100');
         mkdir(obj.taskDir);
-        obj.subTaskDir = fullfile(obj.taskDir, 'st-0');
-        mkdir(obj.subTaskDir);
+        obj.subtaskDir = fullfile(obj.taskDir, 'st-0');
+        mkdir(obj.subtaskDir);
         obj.origDir = pwd;
-        cd(obj.subTaskDir);
+        cd(obj.subtaskDir);
     end
     
 end % TestMethodSetup methods
@@ -36,7 +36,7 @@ methods (TestMethodTeardown)
     % cd back to the original dir and delete the temp dirs
     function delete_temp_directories(obj) 
         cd(obj.origDir);
-        rmdir(obj.subTaskDir);
+        rmdir(obj.subtaskDir);
         rmdir(obj.taskDir);
     end
     
@@ -61,7 +61,7 @@ methods % general methods -- used as part of the error generation
     function perform_error_file_checks(obj, expectedFileName, highestCaller, ...
             highestCallerLineNumber)
         
-        expectedFile = fullfile(obj.subTaskDir, expectedFileName);
+        expectedFile = fullfile(obj.subtaskDir, expectedFileName);
         obj.verifyEqual( exist(expectedFile, 'file'), 2, ...
             'Error file does not exist in sub task directory!' );
         h = hdf5ConverterClass();

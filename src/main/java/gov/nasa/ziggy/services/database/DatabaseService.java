@@ -29,7 +29,7 @@ public abstract class DatabaseService {
 
         if (!DatabaseService.usingLocalService.get()) {
             throw new PipelineException(
-                "A transaction was started but the " + "DatabaseService was not included.");
+                "A transaction was started but the DatabaseService was not included");
         }
 
         if (instance != null) {

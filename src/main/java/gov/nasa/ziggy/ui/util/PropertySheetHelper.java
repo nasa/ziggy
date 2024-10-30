@@ -14,8 +14,8 @@ import gov.nasa.ziggy.ui.util.collections.ArrayTableCellRenderer;
  * Helper methods for working with L2fprod's {@link PropertySheetPanel}.
  * <p>
  * Note: if and when additional public static populatePropertySheet methods are added, the
- * {@link Parameter#readFromObject(Object)} and {@link Parameter#writeToObject(Object)}
- * must also be modified to support whatever class is used as the argument to the new method.
+ * {@link Parameter#readFromObject(Object)} and {@link Parameter#writeToObject(Object)} must also be
+ * modified to support whatever class is used as the argument to the new method.
  *
  * @author Todd Klaus
  * @author PT
@@ -33,8 +33,7 @@ public class PropertySheetHelper {
      */
     public static void populatePropertySheet(ParameterSet parameterSet,
         PropertySheetPanel propertySheetPanel) throws Exception {
-        propertySheetPanel
-            .setProperties(parameterSet.getParameters().toArray(new Parameter[0]));
+        propertySheetPanel.setProperties(parameterSet.getParameters().toArray(new Parameter[0]));
         propertySheetPanel.setRendererFactory(new ParameterRendererFactory());
         propertySheetPanel.setEditorFactory(new ParameterEditorFactory());
     }

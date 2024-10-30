@@ -12,7 +12,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +28,6 @@ import org.mockito.Mockito;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
-import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
@@ -45,7 +43,7 @@ public class SubtaskExecutorTest {
     // at the present time.
     private File rootDir;
     private File taskDir;
-    private File subTaskDir;
+    private File subtaskDir;
     private SubtaskExecutor externalProcessExecutor;
     private ExternalProcess externalProcess;
     private TaskConfiguration taskConfigurationManager = new TaskConfiguration();
@@ -87,8 +85,8 @@ public class SubtaskExecutorTest {
 
         rootDir = directoryRule.directory().toFile();
         taskDir = new File(rootDir, "10-20-pa");
-        subTaskDir = new File(taskDir, "st-0");
-        subTaskDir.mkdirs();
+        subtaskDir = new File(taskDir, "st-0");
+        subtaskDir.mkdirs();
         buildDir = new File(pipelineHomeDirPropertyRule.getValue());
         binDir = new File(buildDir, "bin");
         binDir.mkdirs();
@@ -96,14 +94,6 @@ public class SubtaskExecutorTest {
         paFile.createNewFile();
 
         new File(resultsDirPropertyRule.getValue()).mkdirs();
-
-        // Create the state file directory
-        Files.createDirectories(DirectoryProperties.stateFilesDir());
-
-        // Create the state file
-        StateFile stateFile = new StateFile("pa", 10, 20);
-        stateFile.setPfeArrivalTimeMillis(System.currentTimeMillis());
-        stateFile.persist();
     }
 
     @Test
@@ -143,7 +133,7 @@ public class SubtaskExecutorTest {
         }
 
         // If this is a Mac, test the binaryFile + ".app" functionality
-        if (OperatingSystemType.getInstance() == OperatingSystemType.MAC_OS_X) {
+        if (OperatingSystemType.newInstance() == OperatingSystemType.MAC_OS_X) {
             File calFile = new File(binDir, "cal.app");
             calFile = new File(calFile, "Contents");
             calFile = new File(calFile, "MacOS");
@@ -193,7 +183,7 @@ public class SubtaskExecutorTest {
         Mockito.when(externalProcess.execute()).thenReturn(0);
         int retCode = externalProcessExecutor.runInputsOutputsCommand(PipelineInputsSample.class);
         CommandLine commandLine = externalProcessExecutor.commandLine();
-        Mockito.verify(externalProcess).setWorkingDirectory(subTaskDir);
+        Mockito.verify(externalProcess).setWorkingDirectory(subtaskDir);
         String cmdString = commandLine.toString();
         String expectedCommandString = """
             [/path/to/ziggy/build/bin/ziggy, --verbose,\s\
@@ -234,7 +224,7 @@ public class SubtaskExecutorTest {
             .runInputsOutputsCommand(PipelineInputsSample.class);
         int retCode = externalProcessExecutor.execAlgorithmInternal();
         assertEquals(1, retCode);
-        assertTrue(new File(subTaskDir, ".FAILED").exists());
+        assertTrue(new File(subtaskDir, ".FAILED").exists());
         Mockito.verify(externalProcessExecutor, Mockito.never())
             .runCommandline(ArgumentMatchers.anyList(), ArgumentMatchers.any(String.class));
     }
@@ -250,7 +240,7 @@ public class SubtaskExecutorTest {
         cmdLineArgs.add("dummyArg2");
         int retCode = externalProcessExecutor.runCommandline(cmdLineArgs, "a");
         CommandLine commandLine = externalProcessExecutor.commandLine();
-        Mockito.verify(externalProcess).setWorkingDirectory(subTaskDir);
+        Mockito.verify(externalProcess).setWorkingDirectory(subtaskDir);
         Mockito.verify(externalProcess).setCommandLine(commandLine);
         Mockito.verify(externalProcess).setEnvironment(ArgumentMatchers.anyMap());
         String cmdString = commandLine.toString();

@@ -38,6 +38,7 @@ public class RuntimeObjectFactory extends DatabaseOperations {
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
     private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
     /**
      * Creates {@link PipelineInstanceNode} instances for the initial
@@ -149,10 +150,10 @@ public class RuntimeObjectFactory extends DatabaseOperations {
         PipelineInstance instance, List<UnitOfWork> unitsOfWork) {
         List<PipelineTask> pipelineTasks = new ArrayList<>();
         for (UnitOfWork unitOfWork : unitsOfWork) {
-            PipelineTask pipelineTask = new PipelineTask(instance, instanceNode);
-            pipelineTask.setProcessingStep(ProcessingStep.WAITING_TO_RUN);
-            pipelineTask.setUowTaskParameters(unitOfWork.getParameters());
+            PipelineTask pipelineTask = new PipelineTask(instance, instanceNode, unitOfWork);
             pipelineTask = pipelineTaskOperations().merge(pipelineTask);
+            pipelineTaskDataOperations().createPipelineTaskData(pipelineTask,
+                ProcessingStep.WAITING_TO_RUN);
             pipelineTasks.add(pipelineTask);
         }
         pipelineInstanceNodeOperations().addPipelineTasks(instanceNode, pipelineTasks);
@@ -185,5 +186,9 @@ public class RuntimeObjectFactory extends DatabaseOperations {
 
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
     }
 }

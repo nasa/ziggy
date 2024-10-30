@@ -3,9 +3,7 @@ package gov.nasa.ziggy.ui.datastore;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.SwingUtilities;
@@ -50,11 +48,6 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
     }
 
     @Override
-    protected void create() {
-        throw new UnsupportedOperationException("Create not supported");
-    }
-
-    @Override
     protected void edit(int row) {
         DatastoreRegexp regexp = ziggyTable.getContentAtViewRow(row);
 
@@ -64,16 +57,6 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
         if (!dialog.isCancelled()) {
             ziggyTable.loadFromDatabase();
         }
-    }
-
-    @Override
-    protected void delete(int row) {
-        throw new UnsupportedOperationException("Delete not supported");
-    }
-
-    @Override
-    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
-        return new HashSet<>();
     }
 
     public static class RegexpTableModel extends AbstractZiggyTableModel<DatastoreRegexp>
@@ -86,6 +69,26 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
         private List<DatastoreRegexp> datastoreRegexps = new ArrayList<>();
 
         private final DatastoreOperations datastoreOperations = new DatastoreOperations();
+
+        @Override
+        public void loadFromDatabase() {
+            new SwingWorker<List<DatastoreRegexp>, Void>() {
+                @Override
+                protected List<DatastoreRegexp> doInBackground() throws Exception {
+                    return datastoreOperations().datastoreRegexps();
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        datastoreRegexps = get();
+                        fireTableDataChanged();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Could not retrieve datastore regexps", e);
+                    }
+                }
+            }.execute();
+        }
 
         @Override
         public int getRowCount() {
@@ -119,26 +122,6 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
                 case 3 -> regexp.getExclude();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
             };
-        }
-
-        @Override
-        public void loadFromDatabase() {
-            new SwingWorker<List<DatastoreRegexp>, Void>() {
-                @Override
-                protected List<DatastoreRegexp> doInBackground() throws Exception {
-                    return datastoreOperations().datastoreRegexps();
-                }
-
-                @Override
-                protected void done() {
-                    try {
-                        datastoreRegexps = get();
-                        fireTableDataChanged();
-                    } catch (InterruptedException | ExecutionException e) {
-                        log.error("Could not retrieve datastore regexps", e);
-                    }
-                }
-            }.execute();
         }
 
         @Override

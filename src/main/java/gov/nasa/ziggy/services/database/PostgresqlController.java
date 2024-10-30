@@ -34,6 +34,13 @@ public class PostgresqlController extends DatabaseController {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseController.class);
 
+    /**
+     * This is the maximum number of dynamically-created expressions sent to the database. This
+     * limit is 32,767 in Postgresql. A setting of 95% of this value leaves plenty of room for other
+     * expressions in the query.
+     */
+    private static final int MAX_EXPRESSIONS = (int) (32767 * 0.95);
+
     private static final String PG_CTL = "pg_ctl";
     private static final String INITDB = "initdb";
     private static final String CREATEDB = "createdb";
@@ -98,7 +105,7 @@ public class PostgresqlController extends DatabaseController {
             createCommand.addArgument("-p");
             createCommand.addArgument(Integer.toString(port()));
             createCommand.addArgument(dbName());
-            log.debug("Command line: " + createCommand.toString());
+            log.debug("createCommand={}", createCommand.toString());
             if (ExternalProcess.simpleExternalProcess(createCommand).execute(true) != 0) {
                 throw new PipelineException("Unable to create database " + dbName());
             }
@@ -111,7 +118,7 @@ public class PostgresqlController extends DatabaseController {
             schemaCommand.addArgument("-f");
             schemaCommand.addArgument(
                 DirectoryProperties.databaseSchemaDir().resolve(SCHEMA_CREATE_FILE).toString());
-            log.debug("Command line: " + schemaCommand.toString());
+            log.debug("schemaCommand={}", schemaCommand.toString());
             ExternalProcess.simpleExternalProcess(schemaCommand).exceptionOnFailure().execute(true);
 
             File[] extraFiles = DirectoryProperties.databaseSchemaDir()
@@ -122,7 +129,7 @@ public class PostgresqlController extends DatabaseController {
                 CommandLine extraSchemaCommand = psqlCommand();
                 extraSchemaCommand.addArgument("-f");
                 extraSchemaCommand.addArgument(extraFile.getAbsolutePath());
-                log.debug("Command line: " + extraSchemaCommand.toString());
+                log.debug("extraSchemaCommand={}", extraSchemaCommand.toString());
                 ExternalProcess.simpleExternalProcess(extraSchemaCommand)
                     .exceptionOnFailure()
                     .execute(true);
@@ -143,7 +150,7 @@ public class PostgresqlController extends DatabaseController {
         CommandLine commandLine = new CommandLine(commandStringWithPath(INITDB));
         commandLine.addArgument("-D");
         commandLine.addArgument(dataDir().toString());
-        log.debug("Command line: " + commandLine.toString());
+        log.debug("commandLine={}", commandLine.toString());
         int retCode = ExternalProcess.simpleExternalProcess(commandLine).execute(true);
         if (retCode != 0) {
             throw new PipelineException("Database initialization failed");
@@ -163,7 +170,7 @@ public class PostgresqlController extends DatabaseController {
 
         // Append to the postgresql.conf file an optional inclusion of the user's
         // config file and a setting of the lock file directory.
-        log.info("Creating configuration file in " + dataDir().toString());
+        log.info("Creating configuration file in {}", dataDir().toString());
         Path configPath = dataDir().resolve(CONFIG_FILE_NAME);
 
         try {
@@ -180,9 +187,10 @@ public class PostgresqlController extends DatabaseController {
                 confFileContents
                     .append("include '" + DirectoryProperties.databaseConfFile() + "'" + newline);
             }
-            Files.write(configPath, confFileContents.toString().getBytes(ZiggyFileUtils.ZIGGY_CHARSET),
+            Files.write(configPath,
+                confFileContents.toString().getBytes(ZiggyFileUtils.ZIGGY_CHARSET),
                 StandardOpenOption.APPEND);
-            log.info("Creating configuration file in " + dataDir().toString() + "...done");
+            log.info("Creating configuration file in {}...done", dataDir().toString());
         } catch (IOException e) {
             throw new UncheckedIOException("Unable to write to file " + configPath.toString(), e);
         }
@@ -194,7 +202,7 @@ public class PostgresqlController extends DatabaseController {
         schemaCommand.addArgument("-f");
         schemaCommand.addArgument(
             DirectoryProperties.databaseSchemaDir().resolve(SCHEMA_DROP_FILE).toString());
-        log.debug("Command line: " + schemaCommand.toString());
+        log.debug("schemaCommand={}", schemaCommand.toString());
         ExternalProcess.simpleExternalProcess(schemaCommand).exceptionOnFailure().execute(true);
     }
 
@@ -216,7 +224,7 @@ public class PostgresqlController extends DatabaseController {
         startCommand.addArgument("start");
         startCommand.addArgument("-l");
         startCommand.addArgument(logFile().toString());
-        log.debug("Command line: " + startCommand.toString());
+        log.debug("startCommand={}", startCommand.toString());
         int status = ExternalProcess.simpleExternalProcess(startCommand)
             .exceptionOnFailure()
             .execute();
@@ -240,7 +248,7 @@ public class PostgresqlController extends DatabaseController {
         stopCommand.addArgument("-m");
         stopCommand.addArgument("fast");
         stopCommand.addArgument("stop");
-        log.debug("Command line: " + stopCommand.toString());
+        log.debug("stopCommand={}", stopCommand.toString());
         return ExternalProcess.simpleExternalProcess(stopCommand).execute(true);
     }
 
@@ -252,7 +260,7 @@ public class PostgresqlController extends DatabaseController {
 
         CommandLine commandLine = pgctlCommandLine(true, true);
         commandLine.addArgument("status");
-        log.debug("Command line: " + commandLine.toString());
+        log.debug("commandLine={}", commandLine.toString());
         return ExternalProcess.simpleExternalProcess(commandLine).execute(true);
     }
 
@@ -263,7 +271,7 @@ public class PostgresqlController extends DatabaseController {
         }
 
         CommandLine dbQueryCommand = psqlCommand().addArgument("--command").addArgument("");
-        log.debug("Command line: " + dbQueryCommand.toString());
+        log.debug("dbQueryCommand={}", dbQueryCommand.toString());
 
         return ExternalProcess.simpleExternalProcess(dbQueryCommand).execute(true) == 0;
     }
@@ -312,5 +320,10 @@ public class PostgresqlController extends DatabaseController {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    @Override
+    public int maxExpressions() {
+        return MAX_EXPRESSIONS;
     }
 }

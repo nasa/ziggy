@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
@@ -29,6 +30,8 @@ import gov.nasa.ziggy.util.ZiggyShutdownHook;
 public class LocalAlgorithmExecutor extends AlgorithmExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(LocalAlgorithmExecutor.class);
+
+    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
 
     public LocalAlgorithmExecutor(PipelineTask pipelineTask) {
         super(pipelineTask);
@@ -51,20 +54,18 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
     }
 
     @Override
-    protected void addToMonitor(StateFile stateFile) {
-        ZiggyMessenger.publish(new MonitorAlgorithmRequest(stateFile, algorithmType()));
+    protected void addToMonitor() {
+        ZiggyMessenger.publish(new MonitorAlgorithmRequest(pipelineTask, workingDir()));
     }
 
     @Override
-    protected void submitForExecution(StateFile stateFile) {
+    protected void submitForExecution() {
 
-        stateFile.setPbsSubmitTimeMillis(System.currentTimeMillis());
-        stateFile.persist();
-        addToMonitor(stateFile);
+        addToMonitor();
 
         CommandLine cmdLine = algorithmCommandLine();
 
-        pipelineTaskOperations().setLocalExecution(pipelineTask.getId());
+        pipelineTaskDataOperations().updateAlgorithmType(pipelineTask, AlgorithmType.LOCAL);
 
         // Start the external process -- note that it will cause execution to block until
         // the algorithm has completed or failed.
@@ -79,11 +80,9 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
         // as having failed
         if (exitCode != 0) {
             if (!ZiggyShutdownHook.shutdownInProgress()) {
-                throw new PipelineException(
-                    "Local processing of task " + pipelineTask.getId() + " failed");
+                throw new PipelineException("Local processing of task " + pipelineTask + " failed");
             }
-            log.error(
-                "Task " + pipelineTask.getId() + " processing incomplete due to worker shutdown");
+            log.error("Task {} processing incomplete due to worker shutdown", pipelineTask);
         }
     }
 
@@ -113,5 +112,22 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
     @Override
     public AlgorithmType algorithmType() {
         return AlgorithmType.LOCAL;
+    }
+
+    @Override
+    protected String activeCores() {
+        return "1";
+    }
+
+    @Override
+    protected String wallTime() {
+        return Integer.toString(pipelineModuleDefinitionOperations()
+            .pipelineModuleExecutionResources(pipelineModuleDefinitionOperations()
+                .pipelineModuleDefinition(pipelineTask.getModuleName()))
+            .getExeTimeoutSeconds());
+    }
+
+    PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
+        return pipelineModuleDefinitionOperations;
     }
 }

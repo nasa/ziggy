@@ -23,8 +23,7 @@ public class MetricsOperations extends DatabaseOperations {
         return performTransaction(() -> metricsCrud().retrieveAllMetricTypes());
     }
 
-    public List<MetricValue> metricValues(MetricType metricType, Date start,
-        Date end) {
+    public List<MetricValue> metricValues(MetricType metricType, Date start, Date end) {
         return performTransaction(() -> metricsCrud().metricValues(metricType, start, end));
     }
 

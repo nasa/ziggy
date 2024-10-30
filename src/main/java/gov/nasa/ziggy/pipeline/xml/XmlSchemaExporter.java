@@ -87,10 +87,10 @@ public class XmlSchemaExporter {
             destinationDirectory = Paths.get(xmlDir, "xml").toString();
             new File(destinationDirectory).mkdirs();
             for (Class<? extends HasXmlSchemaFilename> clazz : XmlSchemaExporter.schemaClasses()) {
-                log.info("Generating XML schema for class " + clazz.getName() + "...");
+                log.info("Generating XML schema for class {}", clazz.getName());
                 JAXBContext context = JAXBContext.newInstance(clazz);
                 context.generateSchema(new PipelineDefinitionSchemaResolver(clazz));
-                log.info("Generating XML schema for class " + clazz.getName() + "...done");
+                log.info("Generating XML schema for class {}...done", clazz.getName());
             }
         } catch (IOException | JAXBException e) {
             log.error("Unable to generate schema", e);

@@ -11,7 +11,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**
  * General utilities for unit and integration tests.
@@ -32,15 +31,6 @@ public class ZiggyUnitTestUtils {
     // The items below perform Hibernate initialization of lazy-loaded elements of a database
     // object. This is necessary because we need to be able to compare the objects with the
     // expected objects, and that comparison necessarily includes lazy-loaded bits.
-
-    // Initialization for database items that are specific to a particular execution of the
-    // pipeline:
-    // pipeline tasks, instances, instance nodes
-    public static void initializePipelineTask(PipelineTask pt) {
-        Hibernate.initialize(pt.getExecLog());
-        Hibernate.initialize(pt.getSummaryMetrics());
-        Hibernate.initialize(pt.getRemoteJobs());
-    }
 
     public static void initializePipelineInstance(PipelineInstance pipelineInstance) {
         Hibernate.initialize(pipelineInstance.getRootNodes());

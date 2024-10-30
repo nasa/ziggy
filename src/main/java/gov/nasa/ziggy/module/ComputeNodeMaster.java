@@ -34,34 +34,33 @@
 
 package gov.nasa.ziggy.module;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import gov.nasa.ziggy.module.StateFile.State;
-import gov.nasa.ziggy.module.remote.TimestampFile;
+import gov.nasa.ziggy.module.AlgorithmStateFiles.AlgorithmState;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.HostNameUtils;
-import gov.nasa.ziggy.util.TimeFormatter;
-import gov.nasa.ziggy.util.io.LockManager;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Acts as a controller for a single-node remote job and associated subtasks running on the node.
@@ -78,24 +77,18 @@ import gov.nasa.ziggy.util.io.LockManager;
  * @author Todd Klaus
  * @author PT
  */
-public class ComputeNodeMaster implements Runnable {
+public class ComputeNodeMaster {
 
     private static final Logger log = LoggerFactory.getLogger(ComputeNodeMaster.class);
-
-    private static final long SLEEP_INTERVAL_MILLIS = 10000;
 
     private final String workingDir;
     private int coresPerNode;
 
-    private final StateFile stateFile;
     private final File taskDir;
-    private final File stateFileLockFile;
     private String nodeName = "<unknown>";
-    private TaskMonitor monitor;
 
     private SubtaskServer subtaskServer;
-    private Semaphore subtaskMasterSemaphore;
-    private CountDownLatch monitoringLatch = new CountDownLatch(1);
+    private CountDownLatch subtaskMasterCountdownLatch;
     private ExecutorService threadPool;
 
     private Set<SubtaskMaster> subtaskMasters = new HashSet<>();
@@ -106,209 +99,107 @@ public class ComputeNodeMaster implements Runnable {
         this.workingDir = workingDir;
 
         log.info("RemoteTaskMaster START");
-        log.info(" workingDir = " + workingDir);
+        log.info(" workingDir = {}", workingDir);
+
+        // Tell anyone who cares that this task is no longer queued.
+        new AlgorithmStateFiles(new File(workingDir)).updateCurrentState(AlgorithmState.PROCESSING);
 
         nodeName = HostNameUtils.shortHostName();
 
-        stateFile = StateFile.of(Paths.get(workingDir)).newStateFileFromDiskFile();
         taskDir = new File(workingDir);
-        stateFileLockFile = stateFile.lockFile();
     }
 
     /**
-     * Initializes the {@link ComputeNodeMaster}. Specifically, it locates the file that carries the
-     * node name of the node with the {@link SubtaskServer} and starts new threads for the
-     * {@link SubtaskMaster} instances. For the node that is going to host the {@link SubtaskServer}
-     * instance it also starts the server, updates the {@link StateFile}, creates symlinks, and
-     * creates task-start timestamps.
-     * <p>
-     * The {@link #initialize()} method returns a boolean that indicates whether monitoring is
-     * required. This returns true if there are unprocessed subtasks and false if all subtasks are
-     * actually processed.
+     * Initializes the {@link ComputeNodeMaster}. A number of timestamp files are created if needed
+     * in the task directory; a {@link SubtaskServer} instance is created in for the node; a
+     * collection of {@link SubtaskMaster} instances are started.
      */
-    public boolean initialize() {
+    public void initialize() {
 
-        log.info("Starting ComputeNodeMaster ({})",
-            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
+        log.info("Starting ComputeNodeMaster ({}, {})", BuildInfo.ziggyVersion(),
+            BuildInfo.pipelineVersion());
         ZiggyConfiguration.logJvmProperties();
 
-        // It's possible that this node isn't starting until all of the subtasks are
-        // complete! In that case, it should just exit without doing anything else.
-        monitor = new TaskMonitor(stateFile, taskDir);
-        monitor.updateState();
-        if (monitor.allSubtasksProcessed()) {
-            StateFile updatedStateFile = new StateFile(stateFile);
-            updatedStateFile.setState(StateFile.State.COMPLETE);
-            StateFile.updateStateFile(stateFile, updatedStateFile);
-            log.info("All subtasks processed, ComputeNodeMaster exiting");
-            return false;
-        }
+        coresPerNode = activeCoresFromFile();
 
-        coresPerNode = stateFile.getActiveCoresPerNode();
-
-        updateStateFile();
         subtaskServer().start();
         createTimestamps();
 
-        log.info("Starting " + coresPerNode + " subtask masters");
+        log.info("Starting {} subtask masters", coresPerNode);
         startSubtaskMasters();
-        return true;
-    }
-
-    /**
-     * Moves the state file for this task from QUEUED to PROCESSING.
-     *
-     * @throws IOException if unable to release write lock on state file.
-     */
-    private void updateStateFile() {
-
-        // NB: If there are multiple jobs associated with a single task, this update only
-        // needs to be performed if this job is the first to start
-        boolean stateFileLockObtained = getWriteLockWithoutBlocking(stateFileLockFile);
-        try {
-            StateFile previousStateFile = new StateFile(stateFile);
-            if (stateFileLockObtained
-                && previousStateFile.getState().equals(StateFile.State.QUEUED)) {
-                stateFile.setState(StateFile.State.PROCESSING);
-                log.info("Updating state: " + previousStateFile + " -> " + stateFile);
-
-                if (!StateFile.updateStateFile(previousStateFile, stateFile)) {
-                    log.error("Failed to update state file: " + previousStateFile);
-                }
-            } else {
-                log.info("State file already moved to PROCESSING state, not modifying state file");
-                stateFile.setState(StateFile.State.PROCESSING);
-            }
-        } finally {
-            if (stateFileLockObtained) {
-                releaseWriteLock(stateFileLockFile);
-            }
-        }
     }
 
     private void createTimestamps() {
-        long arriveTime = stateFile.getPfeArrivalTimeMillis() != StateFile.INVALID_VALUE
-            ? stateFile.getPfeArrivalTimeMillis()
-            : System.currentTimeMillis();
-        long submitTime = stateFile.getPbsSubmitTimeMillis();
+        long arriveTime = System.currentTimeMillis();
 
-        TimestampFile.create(taskDir, TimestampFile.Event.ARRIVE_PFE, arriveTime);
-        TimestampFile.create(taskDir, TimestampFile.Event.QUEUED_PBS, submitTime);
-        TimestampFile.create(taskDir, TimestampFile.Event.PBS_JOB_START);
+        TimestampFile.create(taskDir, TimestampFile.Event.ARRIVE_COMPUTE_NODES, arriveTime);
+        TimestampFile.create(taskDir, TimestampFile.Event.START);
+    }
+
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private int activeCoresFromFile() {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+            new FileInputStream(
+                taskDir.toPath().resolve(AlgorithmExecutor.ACTIVE_CORES_FILE_NAME).toFile()),
+            ZiggyFileUtils.ZIGGY_CHARSET))) {
+            String fileText = reader.readLine();
+            return Integer.parseInt(fileText);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
      * Starts the {@link SubtaskMaster} instances in the threads of a thread pool, one thread per
-     * active cores on this node. A {@link Semaphore} is used to track the number of
+     * active cores on this node. A {@link CountDownLatch} is used to track the number of
      * {@link SubtaskMaster} instances currently running.
      */
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     private void startSubtaskMasters() {
 
-        int timeoutSecs = (int) TimeFormatter
-            .timeStringHhMmSsToTimeInSeconds(stateFile.getRequestedWallTime());
-        subtaskMasterSemaphore = new Semaphore(coresPerNode);
+        int timeoutSecs = wallTimeFromFile();
+        subtaskMasterCountdownLatch = new CountDownLatch(coresPerNode);
         threadPool = subtaskMasterThreadPool();
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SubtaskMaster[%d]")
             .build();
+        String executableName = ZiggyConfiguration.getInstance()
+            .getString(PropertyName.ZIGGY_ALGORITHM_NAME.property());
         for (int i = 0; i < coresPerNode; i++) {
-            try {
-                subtaskMasterSemaphore.acquire();
-            } catch (InterruptedException e) {
-                // This can never occur. The number of permits is equal to the number of threads,
-                // thus there is no need to wait for a permit to become available.
-                throw new AssertionError(e);
-            }
-            SubtaskMaster subtaskMaster = new SubtaskMaster(i, nodeName, subtaskMasterSemaphore,
-                stateFile.getExecutableName(), workingDir, timeoutSecs);
+            SubtaskMaster subtaskMaster = new SubtaskMaster(i, nodeName,
+                subtaskMasterCountdownLatch, executableName, workingDir, timeoutSecs);
             subtaskMasters.add(subtaskMaster);
             threadPool.submit(subtaskMaster, threadFactory);
         }
     }
 
-    /**
-     * Performs periodic checks of subtask processing status. This is accomplished by using a
-     * {@link ScheduledThreadPoolExecutor} to check processing at the desired intervals. Execution
-     * of the {@link TaskMonitor} thread will block until the monitoring checks determine that
-     * processing is completed, at which time the thread resumes execution.
-     * <p>
-     * The specific conditions under which the monitor will resume execution of the current thread
-     * are as follows:
-     * <ol>
-     * <li>All of the {@link SubtaskMaster} threads have completed.
-     * <li>All of the subtasks are either completed or failed.
-     * </ol>
-     */
-    @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
-    public void monitor() {
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    private int wallTimeFromFile() {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+            new FileInputStream(
+                taskDir.toPath().resolve(AlgorithmExecutor.WALL_TIME_FILE_NAME).toFile()),
+            ZiggyFileUtils.ZIGGY_CHARSET))) {
+            String fileText = reader.readLine();
+            return Integer.parseInt(fileText);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
-        log.info("Waiting for subtasks to complete");
-
-        ScheduledThreadPoolExecutor monitoringThreadPool = new ScheduledThreadPoolExecutor(1);
-        monitoringThreadPool.scheduleAtFixedRate(this, 0L, SLEEP_INTERVAL_MILLIS,
-            TimeUnit.MILLISECONDS);
+    public void awaitSubtaskMastersComplete() {
         try {
-            monitoringLatch.await();
+            subtaskMasterCountdownLatch.await();
         } catch (InterruptedException e) {
-            // If the ComputeNodeMaster main thread is interrupted, it means that the entire
-            // ComputeNodeMaster is shutting down. We can simply allow it to shut down and don't
-            // need to do anything further.
+            Thread.currentThread().interrupt();
         }
-        monitoringThreadPool.shutdownNow();
-    }
-
-    @Override
-    public void run() {
-
-        if (monitoringLatch.getCount() == 0) {
-            return;
-        }
-
-        // If the subtask server has failed, then we
-        // don't need to do any finalization, just exit and start the process of all subtask
-        // master threads stopping.
-        if (!subtaskServer().isListenerRunning()) {
-            log.error("ComputeNodeMaster: error exit");
-            endMonitoring();
-            return;
-        }
-
-        // Do state checks and updates
-        boolean allSubtasksProcessed = monitor.allSubtasksProcessed();
-        monitor.updateState();
-
-        // If all the subtasks are either completed or failed, exit monitoring
-        // immediately
-        if (allSubtasksProcessed) {
-            log.info("All subtasks complete");
-            endMonitoring();
-            return;
-        }
-
-        // If all RemoteSubtaskMasters are done we can exit monitoring
-        if (allPermitsAvailable()) {
-            endMonitoring();
-        }
-    }
-
-    /**
-     * Ends monitoring. This is accomplished by decrementing the {@link CountDownLatch} that the
-     * main thread is waiting for.
-     */
-    private synchronized void endMonitoring() {
-        monitoringLatch.countDown();
     }
 
     /**
      * If monitoring ended with successful completion of the job, create a timestamp for the
-     * completion time in the task directory and mark the task's {@link StateFile} as done.
+     * completion time in the task directory.
      */
     public void finish() {
 
-        TimestampFile.create(taskDir, TimestampFile.Event.PBS_JOB_FINISH);
-        if (monitor.allSubtasksProcessed()) {
-            monitor.markStateFileDone();
-        }
+        TimestampFile.create(taskDir, TimestampFile.Event.FINISH);
         log.info("ComputeNodeMaster: Done");
     }
 
@@ -323,38 +214,8 @@ public class ComputeNodeMaster implements Runnable {
         subtaskServer().shutdown();
     }
 
-    // The following getter methods are intended for testing purposes only. They do not expose any
-    // of the ComputeNodeMaster's private objects to callers. In some cases it is necessary for
-    // the methods to be public, as they are used by tests in other packages.
-    public long getCountDownLatchCount() {
-        return monitoringLatch.getCount();
-    }
-
-    public int getSemaphorePermits() {
-        if (subtaskMasterSemaphore == null) {
-            return -1;
-        }
-        return subtaskMasterSemaphore.availablePermits();
-    }
-
     int subtaskMastersCount() {
         return subtaskMasters.size();
-    }
-
-    State getStateFileState() {
-        return stateFile.getState();
-    }
-
-    int getStateFileNumComplete() {
-        return stateFile.getNumComplete();
-    }
-
-    int getStateFileNumFailed() {
-        return stateFile.getNumFailed();
-    }
-
-    int getStateFileNumTotal() {
-        return stateFile.getNumTotal();
     }
 
     /**
@@ -366,31 +227,6 @@ public class ComputeNodeMaster implements Runnable {
             inputsHandler = TaskConfiguration.deserialize(taskDir);
         }
         return inputsHandler;
-    }
-
-    /**
-     * Attempts to obtain the lock file for the task's state file, but does not block if it cannot
-     * obtain it. Broken out as a separate method to support testing.
-     *
-     * @return true if lock obtained, false otherwise.
-     */
-    boolean getWriteLockWithoutBlocking(File lockFile) {
-        return LockManager.getWriteLockWithoutBlocking(lockFile);
-    }
-
-    /**
-     * Releases the write lock on a file. Broken out as a separate method to support testing.
-     */
-    void releaseWriteLock(File lockFile) {
-        LockManager.releaseWriteLock(lockFile);
-    }
-
-    /**
-     * Determines whether all permits are available for the {@link Semaphore} that works with the
-     * {@link SubtaskMaster} instances. Broken out as a separate method to support testing.
-     */
-    boolean allPermitsAvailable() {
-        return subtaskMasterSemaphore.availablePermits() == coresPerNode;
     }
 
     /**
@@ -424,10 +260,9 @@ public class ComputeNodeMaster implements Runnable {
         ComputeNodeMaster computeNodeMaster = null;
 
         // Startup: constructor and initialization
-        boolean monitoringRequired = false;
         try {
             computeNodeMaster = new ComputeNodeMaster(workingDir);
-            monitoringRequired = computeNodeMaster.initialize();
+            computeNodeMaster.initialize();
         } catch (Exception e) {
 
             // Any exception that occurs in the constructor or initialization is
@@ -439,11 +274,8 @@ public class ComputeNodeMaster implements Runnable {
             System.exit(1);
         }
 
-        // Monitoring: wait for subtasks to finish, subtask masters to finish, or exceptions
-        // to be thrown
-        if (monitoringRequired) {
-            computeNodeMaster.monitor();
-        }
+        // Wait for the subtask masters to finish.
+        computeNodeMaster.awaitSubtaskMastersComplete();
 
         // Wrap-up: finalize and clean up
         computeNodeMaster.finish();

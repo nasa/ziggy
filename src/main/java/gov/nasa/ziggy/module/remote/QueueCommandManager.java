@@ -3,22 +3,17 @@ package gov.nasa.ziggy.module.remote;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.module.StateFile;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob.RemoteJobQstatInfo;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -29,11 +24,11 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 /**
  * Executes batch commands and parses the text output from those commands.
  * <p>
- * Subclasses of the {@link QueueCommandManager} class support the {@link QstatMonitor} class by
+ * Subclasses of the {@link QueueCommandManager} class support the {@link QstatParser} class by
  * obtaining job information that is only available in text output from the qstat shell command. The
  * command is executed, its text results captured, and the text is parsed to obtain the desired
- * information for {@link QstatMonitor}. Information such as job IDs, job exit status, etc., can
- * thus be obtained.
+ * information for {@link QstatParser}. Information such as job IDs, job exit status, etc., can thus
+ * be obtained.
  * <p>
  * Additionally, class instances can execute the qdel shell command to delete queued or running jobs
  * from the batch system. This allows the operator to terminate jobs via the pipeline user interface
@@ -63,13 +58,17 @@ public abstract class QueueCommandManager {
 
     private static final Pattern EXIT_STATUS_PATTERN = Pattern
         .compile("\\s*Exit_status = (-?[0-9]+)");
-    private static final Pattern EXIT_COMMENT_PATTERN = Pattern.compile("\\s*comment = (.+)");
     public static final String DEFAULT_LOCAL_CLASS = "gov.nasa.ziggy.module.remote.QueueLocalCommandManager";
     public static final String SELECT = "Resource_List.select";
     public static final String WALLTIME = "resources_used.walltime";
+    public static final String JOBNAME = "Job_Name";
+    public static final String OUTPUT_PATH = "Output_Path";
     public static final Pattern SELECT_PATTERN = Pattern
         .compile("\\s*" + SELECT + " = ([0-9]+):model=(\\S+)");
     public static final Pattern WALLTIME_PATTERN = Pattern.compile("\\s*" + WALLTIME + " = (\\S+)");
+    public static final Pattern JOBNAME_PATTERN = Pattern.compile("\\s*" + JOBNAME + " = (\\S+)");
+    public static final Pattern OUTPUT_PATH_PATTERN = Pattern
+        .compile("\\s*" + OUTPUT_PATH + " = [^:]+:(\\S+)");
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static QueueCommandManager newInstance() {
@@ -145,32 +144,6 @@ public abstract class QueueCommandManager {
     }
 
     /**
-     * Gets the qstat output line for a collection of jobs using their job IDs.
-     *
-     * @param jobIds IDs of jobs.
-     * @return Map from the job names (not IDs) to the qstat line for each job.
-     */
-    public Map<String, String> getQstatInfoByJobNameMap(Collection<Long> jobIds) {
-
-        Map<String, String> qstatInfoByJobName = new HashMap<>();
-
-        // construct the qstat arguments
-        String qstatArgs = qstatArgsWithJobIds("-x", jobIds);
-
-        // run the command
-        List<String> qstatOutput = qstat(qstatArgs);
-
-        // skip the first 3 lines of the output and then parse 1 line per job
-        for (int i = 3; i < qstatOutput.size(); i++) {
-            String line = qstatOutput.get(i);
-            String jobName = line.split("\\s+")[NAME_INDEX];
-            qstatInfoByJobName.put(jobName, line);
-        }
-
-        return qstatInfoByJobName;
-    }
-
-    /**
      * Gets the exit status for a job.
      *
      * @param jobId ID number of the job
@@ -198,7 +171,7 @@ public abstract class QueueCommandManager {
         RemoteJobQstatInfo remoteJobQstatInfo = new RemoteJobQstatInfo();
         String qstatArgs = "-xf " + jobId;
         List<String> qstatOutput = qstat(qstatArgs, SELECT, WALLTIME);
-        log.debug("job " + jobId + "qstat lines: " + qstatOutput.toString());
+        log.debug("job {}, qstat lines {}", jobId, qstatOutput.toString());
         String selectLine = null;
         String walltimeLine = null;
 
@@ -227,6 +200,22 @@ public abstract class QueueCommandManager {
         return remoteJobQstatInfo;
     }
 
+    public RemoteJobInformation remoteJobInformation(RemoteJob remoteJob) {
+        String qstatArgs = "-xf " + remoteJob.getJobId();
+        List<String> qstatOutput = qstat(qstatArgs, JOBNAME, OUTPUT_PATH);
+        log.debug("job {}, qstat lines {}", remoteJob.getJobId(), qstatOutput.toString());
+        Matcher m = JOBNAME_PATTERN.matcher(qstatOutput.get(0));
+        String jobName = m.matches() ? m.group(1) : null;
+        m = OUTPUT_PATH_PATTERN.matcher(qstatOutput.get(1));
+        String logFile = m.matches() ? m.group(1) : null;
+        if (StringUtils.isBlank(jobName) || StringUtils.isBlank(logFile)) {
+            return null;
+        }
+        RemoteJobInformation remoteJobInformation = new RemoteJobInformation(logFile, jobName);
+        remoteJobInformation.setJobId(remoteJob.getJobId());
+        return remoteJobInformation;
+    }
+
     /**
      * Matches a string to a pattern and returns a single specified group.
      *
@@ -242,80 +231,9 @@ public abstract class QueueCommandManager {
         return null;
     }
 
-    /**
-     * Gets the exit comment for a job.
-     *
-     * @param jobId ID number for the job
-     * @return exit comment, can be null if no job with the specified ID can be found
-     */
-    public String exitComment(long jobId) {
-        String qstatArgs = "-xf " + jobId;
-        List<String> qstatOutput = qstat(qstatArgs, "comment");
-        if (qstatOutput != null && !qstatOutput.isEmpty()) {
-            String exitCommentString = qstatOutput.get(0);
-            if (!StringUtils.isBlank(exitCommentString)) {
-                return matchAndReturn(EXIT_COMMENT_PATTERN, exitCommentString, 1);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Issues the delete command for all selected pipeline tasks.
-     *
-     * @param pipelineTasks selected pipeline tasks.
-     */
-    public int deleteJobsForPipelineTasks(List<PipelineTask> pipelineTasks) {
-        String qdelArgs = qdelArgsForPipelineTasks(pipelineTasks);
-        return qdel(qdelArgs);
-    }
-
     public int deleteJobsByJobId(Collection<Long> jobIds) {
         String qdelArgs = qdelArgsForJobIds(jobIds);
         return qdel(qdelArgs);
-    }
-
-    /** Issues the delete command for a single task, based on its state file. */
-    public int deleteJobsForStateFile(StateFile stateFile) {
-
-        // Add the task to monitoring.
-        QstatMonitor monitor = new QstatMonitor(this);
-        monitor.addToMonitoring(stateFile);
-        monitor.update();
-
-        // Get the job IDs.
-        Set<Long> jobIds = monitor.allIncompleteJobIds(stateFile);
-        if (!CollectionUtils.isEmpty(jobIds)) {
-            return qdel(qdelArgsForJobIds(jobIds));
-        }
-        return 0;
-    }
-
-    /**
-     * Generates the qdel command string.
-     *
-     * @param pipelineTasks pipeline tasks selected for deletion.
-     * @return Command string for deletion using qdel.
-     */
-    private String qdelArgsForPipelineTasks(List<PipelineTask> pipelineTasks) {
-
-        // obtain the job IDs for each task. This is accomplished via the
-        // QstatMonitor
-        QstatMonitor monitor = new QstatMonitor(this);
-        for (PipelineTask task : pipelineTasks) {
-            monitor.addToMonitoring(task);
-        }
-        monitor.update();
-
-        // Get the job IDs.
-        Set<Long> allJobIds = new HashSet<>();
-        for (PipelineTask task : pipelineTasks) {
-            Set<Long> jobIds = monitor.allIncompleteJobIds(task);
-            if (jobIds != null) {
-                allJobIds.addAll(jobIds);
-            }
-        }
-        return qdelArgsForJobIds(allJobIds);
     }
 
     private String qdelArgsForJobIds(Collection<Long> jobIds) {
@@ -327,10 +245,6 @@ public abstract class QueueCommandManager {
             qdelCommand.append(jobId).append(" ");
         }
         return qdelCommand.toString();
-    }
-
-    private List<String> qstat(String commandOptions) {
-        return qstat(commandOptions, (String[]) null);
     }
 
     /**

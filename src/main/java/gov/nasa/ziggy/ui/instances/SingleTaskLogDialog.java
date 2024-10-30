@@ -4,6 +4,7 @@ import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CLOSE;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REFRESH;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.TO_BOTTOM;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.TO_TOP;
+import static gov.nasa.ziggy.ui.util.HtmlBuilder.htmlBuilder;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 
 import java.awt.BorderLayout;
@@ -27,7 +28,8 @@ import javax.swing.SwingWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.logging.TaskLogInformation;
 import gov.nasa.ziggy.services.messages.SingleTaskLogMessage;
@@ -56,7 +58,8 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
 
     private final UUID uuid = UUID.randomUUID();
 
-    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
+    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
     public SingleTaskLogDialog(Window owner, TaskLogInformation taskLogInformation) {
 
@@ -142,10 +145,11 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
             protected String doInBackground() throws Exception {
 
                 // Retrieve the task from the database
-                PipelineTask task = pipelineTaskOperations()
-                    .pipelineTask(taskLogInformation.getTaskId());
-                log.debug("selected task id = " + task.getId());
-                taskLogLabel.setText(task.taskLabelText());
+                PipelineTaskDisplayData task = pipelineTaskDisplayDataOperations()
+                    .pipelineTaskDisplayData(
+                        pipelineTaskOperations().pipelineTask(taskLogInformation.getTaskId()));
+                log.debug("Selected task ID is {}", task.getPipelineTaskId());
+                taskLogLabel.setText(taskLabelText(task));
 
                 // Request the log contents from the supervisor
                 taskLogMessageCountdownLatch = new CountDownLatch(1);
@@ -164,6 +168,26 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
                 String taskLogContents = currentMessage.taskLogContents();
                 currentMessage = null;
                 return taskLogContents;
+            }
+
+            /** Returns the label for a task that is used in some UI displays. */
+            private String taskLabelText(PipelineTaskDisplayData pipelineTaskDisplayData) {
+                return htmlBuilder().appendBold("ID: ")
+                    .append(pipelineTaskDisplayData.getPipelineInstanceId())
+                    .append(":")
+                    .append(pipelineTaskDisplayData.getPipelineTaskId())
+                    .appendBold(" WORKER: ")
+                    .append(pipelineTaskDisplayData.getWorkerName())
+                    .appendBold(" TASK: ")
+                    .append(pipelineTaskDisplayData.getModuleName())
+                    .append(" [")
+                    .append(pipelineTaskDisplayData.getBriefState())
+                    .append("] ")
+                    .appendBoldColor(pipelineTaskDisplayData.getDisplayProcessingStep(),
+                        pipelineTaskDisplayData.isError() ? "red" : "green")
+                    .append(" ")
+                    .appendItalic(pipelineTaskDisplayData.getExecutionClock().toString())
+                    .toString();
             }
 
             @Override
@@ -192,5 +216,9 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
 
     private PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 }

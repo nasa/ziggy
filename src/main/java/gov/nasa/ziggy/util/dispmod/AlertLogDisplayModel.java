@@ -34,7 +34,7 @@ public class AlertLogDisplayModel extends DisplayModel {
 
         return switch (columnIndex) {
             case 0 -> alert.getSourceComponent();
-            case 1 -> alert.getSourceTaskId();
+            case 1 -> alert.getSourceTask();
             case 2 -> alert.getSeverity();
             case 3 -> alert.getMessage();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);

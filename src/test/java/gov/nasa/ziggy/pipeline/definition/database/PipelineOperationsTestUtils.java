@@ -2,9 +2,12 @@ package gov.nasa.ziggy.pipeline.definition.database;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.mockito.Mockito;
 
@@ -14,10 +17,15 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
-import gov.nasa.ziggy.pipeline.definition.TaskCounts;
-import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
+import gov.nasa.ziggy.pipeline.definition.RemoteJob;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.util.ZiggyCollectionUtils;
 
 /**
@@ -34,7 +42,8 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
     private List<PipelineInstance> pipelineInstances;
     private List<PipelineInstanceNode> pipelineInstanceNodes;
     private List<PipelineTask> pipelineTasks;
-    private PipelineTask task1, task2;
+    private List<PipelineTaskData> pipelineTaskDataList;
+    private List<PipelineTaskDisplayData> pipelineTaskDisplayData;
 
     /**
      * Generates and persists a pipeline definition with a single module and two tasks. Its name is
@@ -94,20 +103,14 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
                 () -> new PipelineModuleDefinitionCrud().merge(pipelineModuleDefinitions.get(0))));
 
             // Persist the pipeline tasks and update the pipeline instance node.
-            task1 = new PipelineTask(pipelineInstances.get(0), pipelineInstanceNodes.get(0));
-            task2 = new PipelineTask(pipelineInstances.get(0), pipelineInstanceNodes.get(0));
-            pipelineTasks = performTransaction(() -> {
-                PipelineTask mergedTask1 = new PipelineTaskCrud().merge(task1);
-                PipelineTask mergedTask2 = new PipelineTaskCrud().merge(task2);
-                return List.of(mergedTask1, mergedTask2);
-            });
-            pipelineInstanceNodes.get(0).addPipelineTask(pipelineTasks.get(0));
-            pipelineInstanceNodes.get(0).addPipelineTask(pipelineTasks.get(1));
-            pipelineInstanceNodes = ZiggyCollectionUtils.mutableListOf(performTransaction(
-                () -> new PipelineInstanceNodeCrud().merge(pipelineInstanceNodes.get(0))));
+            List<UnitOfWork> unitsOfWork = List.of(new UnitOfWork("brief0"),
+                new UnitOfWork("brief1"));
+            pipelineTasks = new RuntimeObjectFactory().newPipelineTasks(
+                pipelineInstanceNodes.get(0), pipelineInstances.get(0), unitsOfWork);
+            pipelineTaskDataList = new TestOperations().createPipelineTaskData(pipelineTasks);
         } else {
-            task1 = new PipelineTask(pipelineInstance, instanceNode);
-            task2 = new PipelineTask(pipelineInstance, instanceNode);
+            PipelineTask task1 = new PipelineTask(pipelineInstance, instanceNode, null);
+            PipelineTask task2 = new PipelineTask(pipelineInstance, instanceNode, null);
             pipelineModuleDefinitions = ZiggyCollectionUtils.mutableListOf(moduleDefinition);
             pipelineDefinitions = ZiggyCollectionUtils.mutableListOf(pipelineDefinition);
             pipelineDefinitionNodes = List.of(definitionNode);
@@ -120,6 +123,67 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
             instanceNode.addPipelineTask(task1);
             instanceNode.addPipelineTask(task2);
         }
+    }
+
+    public void testPipelineTaskDisplayData(
+        List<PipelineTaskDisplayData> pipelineTaskDisplayDataList) {
+        for (PipelineTaskDisplayData pipelineTaskDisplayData : pipelineTaskDisplayDataList) {
+            testPipelineTaskDisplayData(pipelineTaskDisplayData);
+        }
+    }
+
+    public void testPipelineTaskDisplayData(PipelineTaskDisplayData pipelineTaskDisplayData) {
+        // Does this object belong to our instance?
+        assertEquals((long) pipelineInstance().getId(),
+            pipelineTaskDisplayData.getPipelineInstanceId());
+
+        // Does this object belong to one of our tasks?
+        PipelineTask pipelineTask = null;
+        for (PipelineTask task : pipelineTasks) {
+            if (task.getId().longValue() == pipelineTaskDisplayData.getPipelineTaskId()) {
+                pipelineTask = task;
+                break;
+            }
+        }
+        assertNotNull(pipelineTask);
+
+        // Does this object belong to one of our task data objects?
+        PipelineTaskData pipelineTaskData = null;
+        for (PipelineTaskData taskData : pipelineTaskDataList) {
+            if (taskData.getPipelineTask().equals(pipelineTaskDisplayData.getPipelineTask())) {
+                pipelineTaskData = taskData;
+                break;
+            }
+        }
+        assertNotNull(pipelineTaskData);
+
+        // Carry on, using our saved pipeline tasks and pipeline task data.
+        assertEquals(pipelineTask.getCreated(), pipelineTaskDisplayData.getCreated());
+        assertEquals(pipelineTask.getModuleName(), pipelineTaskDisplayData.getModuleName());
+        assertEquals(pipelineTask.getUnitOfWork().briefState(),
+            pipelineTaskDisplayData.getBriefState());
+
+        assertEquals(pipelineTaskData.getZiggySoftwareRevision(),
+            pipelineTaskDisplayData.getZiggySoftwareRevision());
+        assertEquals(pipelineTaskData.getPipelineSoftwareRevision(),
+            pipelineTaskDisplayData.getPipelineSoftwareRevision());
+        assertEquals("host" + pipelineTask.getId() + ":" + pipelineTask.getId(),
+            pipelineTaskDisplayData.getWorkerName());
+        assertEquals(pipelineTaskData.getProcessingStep(),
+            pipelineTaskDisplayData.getProcessingStep());
+        assertEquals(pipelineTaskData.isError(), pipelineTaskDisplayData.isError());
+        assertEquals(pipelineTaskData.getTotalSubtaskCount(),
+            pipelineTaskDisplayData.getTotalSubtaskCount());
+        assertEquals(pipelineTaskData.getCompletedSubtaskCount(),
+            pipelineTaskDisplayData.getCompletedSubtaskCount());
+        assertEquals(pipelineTaskData.getFailedSubtaskCount(),
+            pipelineTaskDisplayData.getFailedSubtaskCount());
+        assertEquals(pipelineTaskData.getFailureCount(), pipelineTaskDisplayData.getFailureCount());
+        assertEquals(pipelineTaskData.getExecutionClock().toString(),
+            pipelineTaskDisplayData.getExecutionClock().toString());
+        assertEquals(pipelineTaskData.getPipelineTaskMetrics(),
+            pipelineTaskDisplayData.getPipelineTaskMetrics());
+        assertEquals(pipelineTaskData.getRemoteJobs(), pipelineTaskDisplayData.getRemoteJobs());
     }
 
     /**
@@ -311,15 +375,54 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         ProcessingStep processingStep, boolean error) {
         PipelineInstanceNode pipelineInstanceNode = new PipelineInstanceNode();
         pipelineInstanceNode.setPipelineModuleDefinition(new PipelineModuleDefinition(moduleName));
-        PipelineTask pipelineTask = Mockito.spy(new PipelineTask(null, pipelineInstanceNode));
+        PipelineTask pipelineTask = Mockito.spy(new PipelineTask(null, pipelineInstanceNode, null));
         Mockito.doReturn(id).when(pipelineTask).getId();
 
-        pipelineTask.setTotalSubtaskCount(attributeSeed);
-        pipelineTask.setCompletedSubtaskCount(attributeSeed - (int) (0.1 * attributeSeed));
-        pipelineTask.setFailedSubtaskCount((int) (0.1 * attributeSeed));
-        pipelineTask.setProcessingStep(processingStep);
-        pipelineTask.setError(error);
+        SubtaskCounts subtaskCounts = new SubtaskCounts(attributeSeed,
+            attributeSeed - (int) (0.1 * attributeSeed), (int) (0.1 * attributeSeed));
+        Mockito.when(Mockito.spy(new PipelineTaskDataOperations()).subtaskCounts(pipelineTask))
+            .thenReturn(subtaskCounts);
+        // pipelineTask.setProcessingStep(processingStep);
+        // pipelineTask.setError(error);
         return pipelineTask;
+    }
+
+    public void setUpFivePipelineTaskDisplayData() {
+        pipelineTaskDisplayData = new ArrayList<>();
+        pipelineTaskDisplayData
+            .add(pipelineTaskDisplayData("module1", 1L, 10, ProcessingStep.INITIALIZING));
+        pipelineTaskDisplayData
+            .add(pipelineTaskDisplayData("module2", 2L, 20, ProcessingStep.WAITING_TO_RUN));
+        pipelineTaskDisplayData
+            .add(pipelineTaskDisplayData("module3", 3L, 30, ProcessingStep.EXECUTING));
+        pipelineTaskDisplayData
+            .add(pipelineTaskDisplayData("module4", 4L, 40, ProcessingStep.EXECUTING, true));
+        pipelineTaskDisplayData
+            .add(pipelineTaskDisplayData("module5", 5L, 50, ProcessingStep.COMPLETE));
+    }
+
+    private PipelineTaskDisplayData pipelineTaskDisplayData(String moduleName, Long id,
+        int attributeSeed, ProcessingStep processingStep) {
+        return pipelineTaskDisplayData(moduleName, id, attributeSeed, processingStep, false);
+    }
+
+    private PipelineTaskDisplayData pipelineTaskDisplayData(String moduleName, Long id,
+        int attributeSeed, ProcessingStep processingStep, boolean error) {
+        PipelineInstanceNode pipelineInstanceNode = new PipelineInstanceNode();
+        pipelineInstanceNode.setPipelineModuleDefinition(new PipelineModuleDefinition(moduleName));
+        UnitOfWork unitOfWork = new UnitOfWork(moduleName);
+        PipelineTask pipelineTask = Mockito
+            .spy(new PipelineTask(null, pipelineInstanceNode, unitOfWork));
+        Mockito.doReturn(id).when(pipelineTask).getId();
+
+        PipelineTaskData pipelineTaskData = new PipelineTaskData(pipelineTask);
+        pipelineTaskData.setProcessingStep(processingStep);
+        pipelineTaskData.setTotalSubtaskCount(attributeSeed);
+        pipelineTaskData.setCompletedSubtaskCount(attributeSeed - (int) (0.1 * attributeSeed));
+        pipelineTaskData.setFailedSubtaskCount((int) (0.1 * attributeSeed));
+        pipelineTaskData.setError(error);
+
+        return new PipelineTaskDisplayData(pipelineTaskData);
     }
 
     public List<PipelineModuleDefinition> getPipelineModuleDefinitions() {
@@ -344,6 +447,10 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
 
     public List<PipelineTask> getPipelineTasks() {
         return pipelineTasks;
+    }
+
+    public List<PipelineTaskDisplayData> getPipelineTaskDisplayData() {
+        return pipelineTaskDisplayData;
     }
 
     // Special-case getters for situations in which there is one and only one element
@@ -375,23 +482,37 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         return pipelineInstanceNodes.get(0);
     }
 
-    public static void testTaskCounts(int taskCount, int waitingToRunTaskCount,
-        int completedTaskCount, int failedTaskCount, TaskCounts counts) {
-        assertEquals(taskCount, counts.getTaskCount());
-        assertEquals(waitingToRunTaskCount, counts.getTotalCounts().getWaitingToRunTaskCount());
-        assertEquals(completedTaskCount, counts.getTotalCounts().getCompletedTaskCount());
-        assertEquals(failedTaskCount, counts.getTotalCounts().getFailedTaskCount());
-    }
+    private static class TestOperations extends DatabaseOperations {
+        PipelineTaskDataCrud pipelineTaskDataCrud = new PipelineTaskDataCrud();
 
-    public static void testCounts(int waitingToRunTaskCount, int processingTaskCount,
-        int completedTaskCount, int failedTaskCount, int totalSubtaskCount,
-        int completedSubtaskCount, int failedSubtaskCount, Counts counts) {
-        assertEquals(waitingToRunTaskCount, counts.getWaitingToRunTaskCount());
-        assertEquals(processingTaskCount, counts.getProcessingTaskCount());
-        assertEquals(completedTaskCount, counts.getCompletedTaskCount());
-        assertEquals(failedTaskCount, counts.getFailedTaskCount());
-        assertEquals(totalSubtaskCount, counts.getTotalSubtaskCount());
-        assertEquals(completedSubtaskCount, counts.getCompletedSubtaskCount());
-        assertEquals(failedSubtaskCount, counts.getFailedSubtaskCount());
+        private List<PipelineTaskData> createPipelineTaskData(List<PipelineTask> pipelineTasks) {
+            List<PipelineTaskData> pipelineTaskDataList = new ArrayList<>();
+
+            for (PipelineTask pipelineTask : pipelineTasks) {
+                PipelineTaskData pipelineTaskData = pipelineTaskDataCrud
+                    .retrievePipelineTaskData(pipelineTask);
+
+                pipelineTaskData.setPipelineTaskMetrics(
+                    createPipelineTaskMetrics(pipelineTask.getModuleName()));
+                pipelineTaskData.setRemoteJobs(createRemoteJobs(pipelineTask));
+                pipelineTaskData.setZiggySoftwareRevision("ziggy software revision 1");
+                pipelineTaskData.setPipelineSoftwareRevision("pipeline software revision 1");
+                pipelineTaskData.setWorkerHost("host" + pipelineTask.getId());
+                pipelineTaskData.setWorkerThread(pipelineTask.getId().intValue());
+
+                pipelineTaskDataList.add(pipelineTaskDataCrud.merge(pipelineTaskData));
+            }
+
+            return pipelineTaskDataList;
+        }
+
+        private List<PipelineTaskMetric> createPipelineTaskMetrics(String moduleName) {
+            return new ArrayList<>(List.of(new PipelineTaskMetric(moduleName, 42, Units.TIME)));
+        }
+
+        private Set<RemoteJob> createRemoteJobs(PipelineTask pipelineTask) {
+            return new HashSet<>(Set.of(new RemoteJob(10 * pipelineTask.getId()),
+                new RemoteJob(20 * pipelineTask.getId())));
+        }
     }
 }

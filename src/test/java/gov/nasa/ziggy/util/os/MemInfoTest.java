@@ -12,7 +12,7 @@ import org.junit.Test;
 public class MemInfoTest {
     @Test
     public void test() throws Exception {
-        MemInfo memInfo = OperatingSystemType.getInstance().getMemInfo();
+        MemInfo memInfo = OperatingSystemType.newInstance().getMemInfo();
 
         long totalMemory = memInfo.getTotalMemoryKB();
         long freeMemory = memInfo.getFreeMemoryKB();

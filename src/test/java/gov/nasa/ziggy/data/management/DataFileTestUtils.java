@@ -21,7 +21,7 @@ public class DataFileTestUtils {
         private double dvalue;
 
         /**
-         * Since the populateSubTaskInputs() method can do anything, we'll just have it set the
+         * Since the populateSubtaskInputs() method can do anything, we'll just have it set the
          * dvalue
          */
         public void populateSubtaskInputs() {

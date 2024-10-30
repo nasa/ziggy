@@ -35,10 +35,6 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
         query.column(UniqueNameVersionPipelineComponent_.NAME).in(name);
         query.column(UniqueNameVersionPipelineComponent_.VERSION).in(versionQuery);
         U result = uniqueResult(query);
-        if (result == null) {
-            return null;
-        }
-
         return result;
     }
 
@@ -46,8 +42,7 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
         ZiggyQuery<U, U> query = createZiggyQuery(componentClass());
         query.column(UniqueNameVersionPipelineComponent_.NAME).in(name);
         query.column(UniqueNameVersionPipelineComponent_.VERSION).in(version);
-        U result = uniqueResult(query);
-        return result;
+        return uniqueResult(query);
     }
 
     /**
@@ -56,8 +51,7 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
     public List<U> retrieveAllVersionsForName(String name) {
         ZiggyQuery<U, U> query = createZiggyQuery(componentClass());
         query.column(UniqueNameVersionPipelineComponent_.NAME).in(name);
-        List<U> results = list(query);
-        return results;
+        return list(query);
     }
 
     /**
@@ -94,52 +88,6 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
         ZiggyQuery<U, Long> query = createZiggyQuery(componentClass(), Long.class);
         query.column(UniqueNameVersionPipelineComponent_.NAME).in(component.getName()).count();
         return uniqueResult(query) > 0;
-    }
-
-    /**
-     * Renames an unlocked instance. Locked instances are not allowed to be renamed.
-     * <p>
-     * The new name must not be a name that is already in use in the database. Because the object is
-     * saved to a new name, its version is set to zero and its lock status is set to unlocked.
-     *
-     * @return the merged instance, which should be used in lieu of {@code pipelineComponent}
-     */
-    public final U rename(U pipelineComponent, String newName) {
-        String oldName = pipelineComponent.getName();
-
-        if (pipelineComponent.getVersion() > 0 || pipelineComponent.isLocked()) {
-            throw new PipelineException("Unable to change name of "
-                + componentNameForExceptionMessages() + " from " + oldName + " to " + newName
-                + " as " + oldName + " is locked or its version is greater than zero");
-        }
-
-        // If the name is changed, the new name isn't allowed to conflict with
-        // any existing pipeline definition names.
-        if (!newName.equals(oldName) && retrieveLatestVersionForName(newName) != null) {
-            throw new PipelineException("Unable to change name of "
-                + componentNameForExceptionMessages() + " from " + oldName + " to " + newName
-                + " due to conflict with existing definition in database");
-        }
-
-        pipelineComponent.setName(newName);
-        return super.merge(pipelineComponent);
-    }
-
-    /**
-     * Removes an unlocked instance. Locked instances are not allowed to be deleted.
-     */
-    @Override
-    public final void remove(Object o) {
-        if (o instanceof UniqueNameVersionPipelineComponent) {
-            UniqueNameVersionPipelineComponent<?> pipelineComponent = (UniqueNameVersionPipelineComponent<?>) o;
-            if (pipelineComponent.getVersion() > 0 || pipelineComponent.isLocked()) {
-                throw new PipelineException("Unable to remove "
-                    + componentNameForExceptionMessages() + " as " + pipelineComponent.getName()
-                    + " is locked or its version is greater than zero");
-            }
-        }
-
-        super.remove(o);
     }
 
     /**

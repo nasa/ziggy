@@ -1,22 +1,17 @@
 package gov.nasa.ziggy.ui.util.table;
 
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.COPY;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DELETE;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DIALOG;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.EDIT;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REFRESH;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.RENAME;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.VIEW;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createMenuItem;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,11 +28,12 @@ import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.TableModel;
+import javax.swing.tree.TreePath;
 
 import org.netbeans.swing.etable.ETable;
+import org.netbeans.swing.outline.Outline;
 import org.netbeans.swing.outline.RowModel;
 
-import gov.nasa.ziggy.pipeline.definition.UniqueNameVersionPipelineComponent;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
@@ -46,34 +42,23 @@ import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
  * Provides a framework for a Swing panel that includes a table and a button panel. The panel allows
- * the user to edit the objects that are displayed in the table, create new objects, delete objects
- * (unless they are locked), and to refresh the table contents.
+ * the user to edit the objects that are displayed in the table and to refresh the table contents.
  * <p>
- * Subclasses of {@link AbstractViewEditPanel} provide a context menu that includes options to
- * create a new object, edit an object, or delete an object. They also all include buttons to
- * refresh the display and to create a new object. In addition, there are three optional actions
- * that the panel can provide: copying an object, renaming an object, and assigning an object to a
- * group. The selection of optional functions is controlled by the
- * {@link #optionalViewEditFunctions()} method, which returns a {@link Set} of instances of
- * {@link OptionalViewEditFunction}:
- * <ol>
- * <li>A subclass will support copying table objects if the {@link #optionalViewEditFunctions()}
- * returns a {@link Set} that includes {@link OptionalViewEditFunction#COPY}. In addition, the
- * {@link #copy(int)} method must be overridden. A copy option will be added to the context menu.
- * <li>A subclass will support renaming table objects if the {@link #optionalViewEditFunctions()}
- * returns a {@link Set} that includes {@link OptionalViewEditFunction#RENAME}. In addition, the
- * {@link #rename(int)} method must be overridden. A rename option will be added to the context
- * menu.
- * </ol>
+ * Subclasses of {@link AbstractViewEditPanel} provide a context menu that includes options to view
+ * or edit an object. They also all include buttons to refresh the display. In addition, the panel
+ * can provide an optional action to assign an object to a group. The selection of optional
+ * functions is controlled by the {@link #optionalViewEditFunctions()} method, which returns a
+ * {@link Set} of instances of {@link OptionalViewEditFunction}:
  *
  * @author Todd Klaus
  * @author PT
+ * @author Bill Wohler
  */
 @SuppressWarnings("serial")
 public abstract class AbstractViewEditPanel<T> extends JPanel {
 
     public enum OptionalViewEditFunction {
-        REFRESH, NEW, VIEW, EDIT, COPY, RENAME, DELETE;
+        REFRESH, VIEW, EDIT;
 
         @Override
         public String toString() {
@@ -102,8 +87,7 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
     /**
      * Obtain the table from the {@code ZiggyTable} and set some general things.
      * <p>
-     * In particular, tables are set up with {@link ListSelectionModel#SINGLE_SELECTION} since
-     * almost none of the Ziggy tables are set up to work with multiple selections. The selection
+     * Tables are set up with {@link ListSelectionModel#SINGLE_SELECTION} by default. The selection
      * model can be updated if necessary.
      */
     private ETable getTable(ZiggyTable<T> ziggyTable) {
@@ -127,18 +111,6 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
             public void actionPerformed(ActionEvent evt) {
                 try {
                     refresh();
-                } catch (Exception e) {
-                    MessageUtils
-                        .showError(SwingUtilities.getWindowAncestor(AbstractViewEditPanel.this), e);
-                }
-            }
-        });
-
-        panelActions.put(OptionalViewEditFunction.NEW, new AbstractAction(NEW, null) {
-            @Override
-            public void actionPerformed(ActionEvent evt) {
-                try {
-                    create();
                 } catch (Exception e) {
                     MessageUtils
                         .showError(SwingUtilities.getWindowAncestor(AbstractViewEditPanel.this), e);
@@ -170,52 +142,13 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
             }
         });
 
-        panelActions.put(OptionalViewEditFunction.COPY, new AbstractAction(COPY, null) {
-            @Override
-            public void actionPerformed(ActionEvent evt) {
-                try {
-                    copy(selectedModelRow);
-                } catch (Exception e) {
-                    MessageUtils
-                        .showError(SwingUtilities.getWindowAncestor(AbstractViewEditPanel.this), e);
-                }
-            }
-        });
-
-        panelActions.put(OptionalViewEditFunction.RENAME, new AbstractAction(RENAME, null) {
-            @Override
-            public void actionPerformed(ActionEvent evt) {
-                try {
-                    rename(selectedModelRow);
-                } catch (Exception e) {
-                    MessageUtils
-                        .showError(SwingUtilities.getWindowAncestor(AbstractViewEditPanel.this), e);
-                }
-            }
-        });
-
-        panelActions.put(OptionalViewEditFunction.DELETE, new AbstractAction(DELETE, null) {
-            @Override
-            public void actionPerformed(ActionEvent evt) {
-                try {
-                    delete(selectedModelRow);
-                } catch (Exception e) {
-                    MessageUtils
-                        .showError(SwingUtilities.getWindowAncestor(AbstractViewEditPanel.this), e);
-                }
-            }
-        });
-
         return panelActions;
     }
 
     private JPanel getButtonPanel() {
         if (buttonPanel == null) {
             buttonPanel = ZiggySwingUtils.createButtonPanel(ButtonPanelContext.TOOL_BAR, null,
-                createButton(getActionByFunction().get(OptionalViewEditFunction.REFRESH)),
-                optionalViewEditFunctions().contains(OptionalViewEditFunction.NEW)
-                    ? createButton(getActionByFunction().get(OptionalViewEditFunction.NEW))
-                    : null);
+                createButton(getActionByFunction().get(OptionalViewEditFunction.REFRESH)));
         }
         for (JButton button : buttons()) {
             ZiggySwingUtils.addButtonsToPanel(buttonPanel, button);
@@ -238,86 +171,58 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
     }
 
     protected JScrollPane getScrollPane() {
-        JScrollPane scrollPane = new JScrollPane(table);
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent evt) {
-                tableMouseClicked(evt);
-            }
-        });
-        setComponentPopupMenu(table, getPopupMenu());
-        return scrollPane;
-    }
-
-    private void tableMouseClicked(MouseEvent evt) {
-        int tableRow = table.rowAtPoint(evt.getPoint());
-        selectedModelRow = table.convertRowIndexToModel(tableRow);
-        if (evt.getClickCount() == 2) {
-            try {
-                edit(selectedModelRow);
-            } catch (Exception e) {
-                MessageUtils.showError(SwingUtilities.getWindowAncestor(this), e);
+        // Remove the existing table mouse listener as it clears the selection with Control-Click on
+        // the Mac rather than preserving the selection before it displays a menu. Perform selection
+        // ourselves using ZiggySwingUtils.adjustSelection().
+        for (MouseListener l : table.getMouseListeners()) {
+            if (l.getClass().getName().equals("javax.swing.plaf.basic.BasicTableUI$Handler")) {
+                table.removeMouseListener(l);
             }
         }
-    }
-
-    /**
-     * Set the popup menu on the table.
-     */
-    private void setComponentPopupMenu(final Component parent, final JPopupMenu menu) {
-
-        parent.addMouseListener(new java.awt.event.MouseAdapter() {
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
-            public void mousePressed(java.awt.event.MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    ZiggySwingUtils.adjustSelection(table, e);
-                    selectedModelRow = table.convertRowIndexToModel(table.getSelectedRow());
-                    T contentAtViewRow = ziggyTable.getContentAtViewRow(selectedModelRow);
-                    if (contentAtViewRow != null) {
-                        if (contentAtViewRow instanceof UniqueNameVersionPipelineComponent) {
-                            disableActionsWhenInUse(contentAtViewRow);
-                        }
-                        menu.show(parent, e.getX(), e.getY());
-                    }
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                ZiggySwingUtils.adjustSelection(table, evt);
+
+                updateActionState(actionByFunction);
+
+                if (evt.isPopupTrigger()) {
+                    displayPopupMenu(evt);
+                } else if (table instanceof Outline) {
+                    toggleExpansionState((Outline) table, evt);
                 }
             }
 
-            private void disableActionsWhenInUse(T contentAtViewRow) {
-                UniqueNameVersionPipelineComponent<?> pipelineComponent = (UniqueNameVersionPipelineComponent<?>) contentAtViewRow;
-                boolean inUse = pipelineComponent.getVersion() > 0 || pipelineComponent.isLocked();
-                updateAction(OptionalViewEditFunction.RENAME, inUse);
-                updateAction(OptionalViewEditFunction.DELETE, inUse);
-            }
-
-            private void updateAction(OptionalViewEditFunction function, boolean locked) {
-                Action action = getActionByFunction().get(function);
-                action.setEnabled(!locked);
-
-                // If we have a function that needs to end in "ed", then we'll do something
-                // different.
-                action.putValue(Action.SHORT_DESCRIPTION,
-                    locked
-                        ? "Components used in a pipeline run can not be "
-                            + function.toString().toLowerCase() + "d"
-                        : "");
+            @Override
+            public void mouseClicked(MouseEvent evt) {
+                selectAndEditRow(evt);
             }
         });
+
+        return new JScrollPane(table);
+    }
+
+    /**
+     * Updates the actions used in the buttons or context menu items. It is called any time the
+     * selection changes.
+     */
+    protected void updateActionState(Map<OptionalViewEditFunction, Action> actionByFunction) {
+    }
+
+    private void displayPopupMenu(java.awt.event.MouseEvent evt) {
+        selectedModelRow = table.convertRowIndexToModel(table.getSelectedRow());
+        T contentAtViewRow = ziggyTable.getContentAtViewRow(selectedModelRow);
+        if (contentAtViewRow != null) {
+            getPopupMenu().show(table, evt.getX(), evt.getY());
+        }
     }
 
     private JPopupMenu getPopupMenu() {
 
         JPopupMenu popupMenu = new JPopupMenu();
-        addOptionalMenuItem(popupMenu, OptionalViewEditFunction.NEW,
-            menuItem(OptionalViewEditFunction.NEW));
         addOptionalMenuItem(popupMenu, OptionalViewEditFunction.VIEW,
             menuItem(OptionalViewEditFunction.VIEW));
         popupMenu.add(menuItem(OptionalViewEditFunction.EDIT));
-        addOptionalMenuItem(popupMenu, OptionalViewEditFunction.COPY,
-            menuItem(OptionalViewEditFunction.COPY));
-        addOptionalMenuItem(popupMenu, OptionalViewEditFunction.RENAME,
-            menuItem(OptionalViewEditFunction.RENAME));
-        addOptionalMenuItem(popupMenu, OptionalViewEditFunction.DELETE,
-            menuItem(OptionalViewEditFunction.DELETE));
 
         for (JMenuItem menuItem : menuItems()) {
             popupMenu.add(menuItem);
@@ -332,8 +237,12 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
         }
     }
 
+    /**
+     * Returns a list of the {@link OptionalViewEditFunction}s that the panel supports. By default,
+     * none are provided.
+     */
     protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
-        return Set.of(OptionalViewEditFunction.DELETE, OptionalViewEditFunction.NEW);
+        return Set.of();
     }
 
     private JMenuItem menuItem(OptionalViewEditFunction function) {
@@ -351,23 +260,40 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
         return new ArrayList<>();
     }
 
-    protected abstract void refresh();
+    private void toggleExpansionState(Outline outline, java.awt.event.MouseEvent evt) {
+        TreePath treePath = outline.getClosestPathForLocation(evt.getPoint().x, evt.getPoint().y);
+        if (outline.isExpanded(treePath)) {
+            outline.collapsePath(treePath);
+        } else {
+            outline.expandPath(treePath);
+        }
+    }
 
-    protected abstract void create();
+    private void selectAndEditRow(MouseEvent evt) {
+        int tableRow = table.rowAtPoint(evt.getPoint());
+        selectedModelRow = table.convertRowIndexToModel(tableRow);
+        if (evt.getClickCount() == 2) {
+            try {
+                if (ziggyTable.getContentAtViewRow(selectedModelRow) != null) {
+                    edit(selectedModelRow);
+                }
+            } catch (Exception e) {
+                MessageUtils.showError(SwingUtilities.getWindowAncestor(this), e);
+            }
+        }
+    }
+
+    protected abstract void refresh();
 
     protected void view(int row) {
     }
 
     protected abstract void edit(int row);
 
-    protected void copy(int row) {
-    }
-
-    protected void rename(int row) {
-    }
-
-    protected abstract void delete(int row);
-
+    /**
+     * Returns a map of {@link Action} by {@link OptionalViewEditFunction}, which can be used to
+     * enable or disable buttons or menu items, for example.
+     */
     private Map<OptionalViewEditFunction, Action> getActionByFunction() {
         return actionByFunction;
     }

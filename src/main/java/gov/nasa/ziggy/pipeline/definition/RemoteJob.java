@@ -28,7 +28,7 @@ import jakarta.persistence.Embeddable;
  */
 
 @Embeddable
-public class RemoteJob {
+public class RemoteJob implements Comparable<RemoteJob> {
 
     private long jobId;
     private double costEstimate;
@@ -80,6 +80,11 @@ public class RemoteJob {
         }
         RemoteJob other = (RemoteJob) obj;
         return jobId == other.jobId;
+    }
+
+    @Override
+    public int compareTo(RemoteJob otherRemoteJob) {
+        return (int) (jobId - otherRemoteJob.jobId);
     }
 
     /**

@@ -1,0 +1,128 @@
+# ziggy completion                                      -*- shell-script -*-
+#
+# To add Bash completion for the ziggy command, run ". $ZIGGY_ROOT/etc/ziggy.bash-completion".
+
+_ziggy() {
+    local cur prev commands options
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    # Complete Ziggy nicknames and their commands or options.
+    case $prev in
+        ziggy)
+            nicknames=$(ziggy | tail -n +2 | awk '{print $1}')
+            COMPREPLY=($(compgen -W "${nicknames}" -- ${cur}))
+            return;;
+    
+        cluster)
+            commands="init start stop status console version -h --help"
+            COMPREPLY=($(compgen -W "${commands}" -- ${cur}))
+            return;;
+
+        compute-node-master)
+            return;;
+
+        console)
+            if [ ${COMP_CWORD} -eq 2 ]; then
+                commands="config display halt log restart start version"
+                COMPREPLY=($(compgen -W "${commands}" -- ${cur}))
+            fi
+            return;;
+
+        dump-system-properties)
+            return;;
+
+        execsql)
+            return;;
+
+        export-parameters | export-pipelines | import-parameters | import-pipelines)
+            options="-dryrun -nodb"
+            COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+            return;;
+
+        generate-manifest)
+            return;;
+
+        hsqlgui)
+            options="--help --driver --url --user --password --urlid --rcfile --dir --script --noexit"
+            COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+            return;;
+
+        import-datastore-config)
+            return;;
+
+        import-events)
+            return;;
+
+        metrics)
+            commands="available dump report"
+            COMPREPLY=($(compgen -W "${commands}" -- ${cur}))
+            return;;
+
+        perf-report)
+            options="-force -id -nodes -taskdir"
+            COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+            return;;
+
+        update-pipelines)
+            options="-dryrun"
+            COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+            return;;
+    esac
+
+    # Complete sub-command options.
+    case "${COMP_WORDS[1]}" in
+        cluster)
+            case "${COMP_WORDS[2]}" in
+                init)
+                    options="-f --force"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+                start)
+                    options="console --workerCount --workerHeapSize"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+            esac;;
+        console)
+            case "${prev}" in
+                --configType)
+                    options="data-model-registry instance pipeline pipeline-nodes"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+                --displayType)
+                    options="alerts errors full statistics statistics-detailed"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+                --restartMode)
+                    options="restart-from-beginning resume-current-step resubmit"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+            esac
+            case "${COMP_WORDS[2]}" in
+                config)
+                    options="--configType --instance --pipeline"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+                display)
+                    options="--displayType --instance --task"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+                halt)
+                    options="--instance --task"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+                log)
+                    options="--task --errors"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+                restart)
+                    options="--restartMode --instance --task"
+                    COMPREPLY=($(compgen -W "${options}" -- ${cur}))
+                    return;;
+            esac;;
+    esac
+}
+    
+complete -F _ziggy ziggy
+
+

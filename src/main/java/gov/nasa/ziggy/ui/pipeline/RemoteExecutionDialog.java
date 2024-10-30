@@ -164,7 +164,7 @@ public class RemoteExecutionDialog extends JDialog {
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
         closeButton = createButton(CLOSE, htmlBuilder("Close this dialog box.").appendBreak()
             .append(
-                "Your remote parameter changes won't be saved until you hit Save on the edit pipeline dialog.")
+                "Your remote parameter changes won't be saved until you press the Save button on the edit pipeline dialog.")
             .toString(), this::close);
         getContentPane().add(
             createButtonPanel(closeButton, createButton(CANCEL,
@@ -994,16 +994,16 @@ public class RemoteExecutionDialog extends JDialog {
 
     private int textToInt(ValidityTestingFormattedTextField field) {
         try {
-            return Integer.parseInt(field.getText());
-        } catch (NumberFormatException e) {
+            return NumberFormat.getInstance().parse(field.getText()).intValue();
+        } catch (ParseException e) {
             return 0;
         }
     }
 
     private double textToDouble(ValidityTestingFormattedTextField field) {
         try {
-            return Double.parseDouble(field.getText());
-        } catch (NumberFormatException e) {
+            return NumberFormat.getInstance().parse(field.getText()).doubleValue();
+        } catch (ParseException e) {
             return 0.0;
         }
     }

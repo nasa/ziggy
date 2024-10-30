@@ -29,8 +29,8 @@ public class PipelineInstanceFilter {
     private Set<PipelineInstance.State> states;
 
     /**
-     * Pass if PipelineInstance.startProcessingTime is within ageDays days of the time the query is
-     * ran. If 0, startProcessingTime is not included in the where clause.
+     * Pass if "PipelineInstance.created" is within ageDays days of the time the query is ran. If 0,
+     * "created" is not included in the where clause.
      */
     private int ageDays = DEFAULT_AGE;
 

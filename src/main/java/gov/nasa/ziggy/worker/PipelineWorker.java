@@ -34,6 +34,7 @@
 
 package gov.nasa.ziggy.worker;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -41,12 +42,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.logging.TaskLog;
+import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
-import gov.nasa.ziggy.services.messages.KillTasksRequest;
-import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
+import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 import gov.nasa.ziggy.services.messaging.HeartbeatManager;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
@@ -71,6 +74,7 @@ import gov.nasa.ziggy.util.ZiggyShutdownHook;
  * tasks.
  *
  * @author PT
+ * @author Bill Wohler
  */
 public class PipelineWorker extends AbstractPipelineProcess {
 
@@ -82,12 +86,14 @@ public class PipelineWorker extends AbstractPipelineProcess {
     public static final long FINAL_MESSAGE_LATCH_WAIT_MILLIS = 5000;
 
     private int workerId;
-    private long taskId;
+    private PipelineTask pipelineTask;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
-    public PipelineWorker(String name, int workerId) {
+    public PipelineWorker(String name, PipelineTask pipelineTask, int workerId) {
         super(name + " " + Integer.toString(workerId));
         this.workerId = workerId;
+        this.pipelineTask = pipelineTask;
     }
 
     /**
@@ -102,9 +108,10 @@ public class PipelineWorker extends AbstractPipelineProcess {
         RunMode runMode = RunMode.valueOf(args[2]);
 
         // Construct the WorkerProcess instance
-        PipelineWorker workerProcess = new PipelineWorker(NAME, workerId);
+        PipelineWorker workerProcess = new PipelineWorker(NAME,
+            new PipelineTaskOperations().pipelineTask(taskId), workerId);
         workerProcess.initialize();
-        workerProcess.processTask(taskId, runMode);
+        workerProcess.processTask(runMode);
         log.info("Worker exiting with status 0");
         SystemProxy.exit(0);
     }
@@ -113,15 +120,14 @@ public class PipelineWorker extends AbstractPipelineProcess {
      * Main processing method. Instantiates the {@link ZiggyRmiClient} and {@link TaskExecutor}
      * instances, then starts the {@link TaskExecutor#executeTask()} method.
      */
-    private void processTask(long taskId, RunMode runMode) {
+    private void processTask(RunMode runMode) {
 
-        this.taskId = taskId;
         TaskLog.endConsoleLogging();
-        pipelineTaskOperations().incrementPipelineTaskLogIndex(taskId);
+        pipelineTaskDataOperations().incrementTaskLogIndex(pipelineTask);
         log.info("Process {} instance {} starting", NAME, workerId);
 
         // Initialize an instance of TaskExecutor
-        TaskExecutor taskRequestExecutor = new TaskExecutor(workerId, taskId, runMode);
+        TaskExecutor taskRequestExecutor = new TaskExecutor(workerId, pipelineTask, runMode);
         addProcessStatusReporter(taskRequestExecutor);
 
         // Initialize the ProcessHeartbeatManager for this process.
@@ -135,6 +141,7 @@ public class PipelineWorker extends AbstractPipelineProcess {
 
             // Note that we need to wait for the final status message to get sent
             // before we reset the ZiggyRmiClient.
+            log.debug("Executing worker shutdown hook");
             CountDownLatch latch = new CountDownLatch(1);
             ZiggyMessenger.publish(taskRequestExecutor.statusMessage(true), latch);
             try {
@@ -147,6 +154,11 @@ public class PipelineWorker extends AbstractPipelineProcess {
 
         // Subscribe to messages as needed.
         subscribe();
+
+        // Check for a halt request on the task.
+        if (pipelineTaskDataOperations().haltRequested(pipelineTask)) {
+            haltTask(new HaltTasksRequest(List.of(pipelineTask)));
+        }
 
         // Start the TaskExecutor
         taskRequestExecutor.executeTask();
@@ -173,36 +185,36 @@ public class PipelineWorker extends AbstractPipelineProcess {
             killWorker();
         });
 
-        // When a kill-tasks request comes in, honor it if appropriate.
-        ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
-            killTasks(message);
+        // When a halt-tasks request comes in, honor it if appropriate.
+        ZiggyMessenger.subscribe(HaltTasksRequest.class, message -> {
+            haltTask(message);
         });
     }
 
     /**
-     * Determines whether a {@link KillTasksRequest} wants to kill the task in this worker, and if
+     * Determines whether a {@link HaltTasksRequest} wants to halt the task in this worker, and if
      * so sends the desired confirmation method and exits.
      * <p>
      * Default axis (package-only) for unit tests.
      *
      * @param message
      */
-    void killTasks(KillTasksRequest message) {
-        if (message.getTaskIds().contains(taskId)) {
-            sendKilledTaskMessage(message, taskId);
+    void haltTask(HaltTasksRequest message) {
+        if (message.getPipelineTasks().contains(pipelineTask)) {
+            sendTaskHaltedMessage(message, pipelineTask);
             killWorker();
         }
     }
 
     /**
-     * Sends the {@link KilledTaskMessage} confirming that the task was in this worker and has been
-     * killed.
+     * Sends the {@link TaskHaltedMessage} confirming that the task was in this worker and has been
+     * halted.
      * <p>
      * Default access (package-only) for unit tests.
      */
-    void sendKilledTaskMessage(KillTasksRequest message, long taskId) {
+    void sendTaskHaltedMessage(HaltTasksRequest message, PipelineTask pipelineTask) {
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        ZiggyMessenger.publish(new KilledTaskMessage(message, taskId), countDownLatch);
+        ZiggyMessenger.publish(new TaskHaltedMessage(pipelineTask), countDownLatch);
         try {
             countDownLatch.await(FINAL_MESSAGE_LATCH_WAIT_MILLIS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -212,9 +224,9 @@ public class PipelineWorker extends AbstractPipelineProcess {
 
     /**
      * Kills the worker by calling {@link System#exit(int)}. This method is called when the worker
-     * receives a {@link KillTasksRequest} message from the supervisor, and the task processed in
+     * receives a {@link HaltTasksRequest} message from the supervisor, and the task processed in
      * this worker is one of the ones that is to be killed. Because the worker is a standalone
-     * process, and because each worker processes one and only one task, this approach (killing the
+     * process, and because each worker processes one and only one task, this approach (halting the
      * task by killing the worker) is the easiest and most robust way to ensure that the task is
      * stopped.
      * <p>
@@ -225,11 +237,11 @@ public class PipelineWorker extends AbstractPipelineProcess {
     }
 
     /** For testing only. */
-    void setTaskId(long taskId) {
-        this.taskId = taskId;
-    }
-
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
     }
 }

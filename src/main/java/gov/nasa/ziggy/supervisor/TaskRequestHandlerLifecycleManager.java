@@ -13,10 +13,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.messages.KillTasksRequest;
-import gov.nasa.ziggy.services.messages.KilledTaskMessage;
+import gov.nasa.ziggy.services.messages.HaltTasksRequest;
+import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
 import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
@@ -38,6 +40,7 @@ import gov.nasa.ziggy.worker.WorkerResources;
  * one instance should be constructed and stored in {@link PipelineSupervisor}.
  *
  * @author PT
+ * @author Bill Wohler
  */
 public class TaskRequestHandlerLifecycleManager extends Thread {
 
@@ -64,7 +67,8 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     private List<List<TaskRequestHandler>> taskRequestHandlers = new ArrayList<>();
     private final boolean storeTaskRequestHandlers;
 
-    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private final PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
     private TaskRequestHandlerLifecycleManager() {
         this(false);
@@ -75,12 +79,12 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
 
         // Subscribe to task request messages.
         ZiggyMessenger.subscribe(TaskRequest.class, message -> {
-            taskRequestQueue.put(message);
+            handleTaskRequestAction(message);
         });
 
         // Subscribe to kill tasks messages.
-        ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
-            killQueuedTasksAction(message);
+        ZiggyMessenger.subscribe(HaltTasksRequest.class, message -> {
+            haltQueuedTasksAction(message);
         });
 
         // Subscribe to requests for the current worker resources. This allows the
@@ -104,51 +108,64 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
         instance.start();
     }
 
+    // Package scoped to facilitate testing.
+    void handleTaskRequestAction(TaskRequest taskRequest) {
+        if (pipelineTaskDataOperations().haltRequested(taskRequest.getPipelineTask())) {
+            publishTaskHaltedMessage(taskRequest.getPipelineTask());
+            return;
+        }
+        taskRequestQueue.put(taskRequest);
+    }
+
     /**
      * Performs the deletion of queued tasks. This consists of removing the task requests from the
-     * task request queue and setting the error flag of the removed tasks. The IDs of all tasks
-     * listed in the {@link KillTasksRequest} are added to the supervisor's list of killed task IDs.
-     * This avoids the need to capture the IDs from the worker, the supervisor, and the batch
-     * queues.
+     * task request queue and setting the error flag of the removed tasks. The tasks listed in the
+     * {@link HaltTasksRequest} are added to the supervisor's list of halted tasks. This avoids the
+     * need to capture the tasks from the worker, the supervisor, and the batch queues.
      * <p>
      * This method is package scoped to facilitate testing.
      */
-    void killQueuedTasksAction(KillTasksRequest request) {
-        List<Long> taskIds = request.getTaskIds();
+    void haltQueuedTasksAction(HaltTasksRequest request) {
+        List<PipelineTask> pipelineTasks = request.getPipelineTasks();
 
         // Locate the tasks that are queued and which are in the kill request.
-        log.info("Halting queued tasks: {}", taskIds);
-        List<TaskRequest> tasksForDeletion = new ArrayList<>();
-        Set<Long> taskIdsForDeletion = new HashSet<>();
+        log.info("Halting queued tasks: {}", pipelineTasks);
+        List<TaskRequest> taskRequestsForDeletion = new ArrayList<>();
+        Set<PipelineTask> tasksForDeletion = new HashSet<>();
         for (TaskRequest taskRequest : taskRequestQueue) {
-            if (taskIds.contains(taskRequest.getTaskId())) {
-                tasksForDeletion.add(taskRequest);
-                taskIdsForDeletion.add(taskRequest.getTaskId());
+            PipelineTask pipelineTask = taskRequest.getPipelineTask();
+            if (pipelineTasks.contains(pipelineTask)) {
+                taskRequestsForDeletion.add(taskRequest);
+                tasksForDeletion.add(pipelineTask);
             }
         }
 
         // Take the selected tasks out of the queue.
-        taskRequestQueue.removeAll(tasksForDeletion);
+        taskRequestQueue.removeAll(taskRequestsForDeletion);
 
         // Removing a task from the queue is easy, so we can just assume this was successful
         // and publish the success messages.
-        for (TaskRequest taskRequest : tasksForDeletion) {
-            publishKilledTaskMessage(request, taskRequest.getTaskId());
+        for (TaskRequest taskRequest : taskRequestsForDeletion) {
+            publishTaskHaltedMessage(taskRequest.getPipelineTask());
         }
     }
 
     /**
-     * Publishes the {@link KilledTaskMessage}.
+     * Publishes the {@link TaskHaltedMessage}.
      */
     // TODO Inline
     // This requires that the ZiggyMessenger.publish() call can be verified by Mockito.
     // The KillTaskMessage.timeSent field makes it difficult.
-    void publishKilledTaskMessage(KillTasksRequest request, long taskId) {
-        ZiggyMessenger.publish(new KilledTaskMessage(request, taskId));
+    void publishTaskHaltedMessage(PipelineTask pipelineTask) {
+        ZiggyMessenger.publish(new TaskHaltedMessage(pipelineTask));
     }
 
     protected PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    protected PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
     }
 
     protected AlertService alertService() {
@@ -207,10 +224,10 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                     workerResources.humanReadableHeapSize().toString());
                 taskRequestThreadPool = Executors.newFixedThreadPool(workerCount);
                 List<TaskRequestHandler> handlers = new ArrayList<>();
-                for (int i = 0; i < workerCount; i++) {
-                    log.info("Starting worker # {} of {}", i + 1, workerCount);
-                    TaskRequestHandler handler = new TaskRequestHandler(i + 1, workerCount,
-                        heapSizeMb, taskRequestQueue, pipelineDefinitionNodeId,
+                for (int i = 1; i <= workerCount; i++) {
+                    log.info("Starting worker {} of {}", i, workerCount);
+                    TaskRequestHandler handler = new TaskRequestHandler(i, workerCount, heapSizeMb,
+                        taskRequestQueue, pipelineDefinitionNodeId,
                         taskRequestThreadCountdownLatch);
                     taskRequestThreadPool.submit(handler);
                     handlers.add(handler);
@@ -247,7 +264,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
      */
     WorkerResources workerResources(TaskRequest taskRequest) {
         WorkerResources databaseResources = pipelineTaskOperations()
-            .workerResourcesForTask(taskRequest.getTaskId());
+            .workerResourcesForTask(taskRequest.getPipelineTask());
         Integer compositeWorkerCount = databaseResources.getMaxWorkerCount() != null
             ? databaseResources.getMaxWorkerCount()
             : PipelineSupervisor.defaultResources().getMaxWorkerCount();

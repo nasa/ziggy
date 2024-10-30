@@ -240,8 +240,8 @@ public class ZiggyCppPojo {
                 fileListBuilder.append(file.getName());
                 fileListBuilder.append(" ");
             }
-            log.info("List of C/C++ files in directory " + sourceFilePaths + ": "
-                + fileListBuilder.toString());
+            log.info("List of C/C++ files in directory {}: {}", sourceFilePaths,
+                fileListBuilder.toString());
         }
     }
 
@@ -490,7 +490,7 @@ public class ZiggyCppPojo {
      */
     public void action() {
 
-        log.info(String.format("%s.action()\n", this.getClass().getSimpleName()));
+        log.info("{}.action()", this.getClass().getSimpleName());
 
         // compile the source files
         compileAction();
@@ -505,7 +505,7 @@ public class ZiggyCppPojo {
 
         File objDir = objDir();
         if (!objDir.exists()) {
-            log.info("mkdir: " + objDir.getAbsolutePath());
+            log.info("Creating directory {}", objDir.getAbsolutePath());
             objDir.mkdirs();
         }
 
@@ -551,7 +551,7 @@ public class ZiggyCppPojo {
             destDir = libDir();
         }
         if (!destDir.exists()) {
-            log.info("mkdir: " + destDir.getAbsolutePath());
+            log.info("Creating directory {}", destDir.getAbsolutePath());
             destDir.mkdirs();
         }
         try {

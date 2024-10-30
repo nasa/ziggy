@@ -66,7 +66,7 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
 
                 if (ppid == currentPid && (name == null || name.equals(processName))) {
                     // found a match
-                    log.info("Found child process, pid=" + pid + ", name=" + processName);
+                    log.info("Found child process, pid={}, name={}", pid, processName);
                     childPids.add(pid);
                 }
             } catch (Exception e) {

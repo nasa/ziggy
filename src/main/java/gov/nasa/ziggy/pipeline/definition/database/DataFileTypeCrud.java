@@ -57,12 +57,12 @@ public class DataFileTypeCrud extends AbstractCrud<DataFileType> {
             .collect(Collectors.toList());
         if (validInstances.size() < collection.size()) {
             int invalidInstanceCount = collection.size() - validInstances.size();
-            log.info("Removed " + invalidInstanceCount + " from collection of objects to create");
+            log.info("Removed {} from collection of objects to create", invalidInstanceCount);
         }
         createdInstances.addAll(validInstances);
-        log.info("Creating " + createdInstances.size() + " instances of DataFileType in database");
+        log.info("Creating {} instances of DataFileType in database", createdInstances.size());
         super.persist(createdInstances);
-        log.info("Created " + createdInstances.size() + " instances of DataFileType in database");
+        log.info("Created {} instances of DataFileType in database", createdInstances.size());
     }
 
     public DataFileType retrieveByName(String name) {

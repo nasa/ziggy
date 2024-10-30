@@ -256,7 +256,7 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
     @Override
     public void action() {
 
-        log.info(String.format("%s.action()\n", this.getClass().getSimpleName()));
+        log.info("{}.action()", this.getClass().getSimpleName());
 
         // Start by performing the compilation
         compileAction();

@@ -26,7 +26,7 @@ public class AlgorithmErrorReturn implements Persistable {
     }
 
     public void logStackTrace() {
-        log.error("Algorithm Stack Trace: msg=" + message + ", id=" + identifier);
+        log.error("Algorithm stack trace for msg={}, id={}", message, identifier);
 
         for (AlgorithmStack stackFrame : stack) {
             stackFrame.logStackTrace();
@@ -65,8 +65,7 @@ public class AlgorithmErrorReturn implements Persistable {
         private int line;
 
         public void logStackTrace() {
-            log.error(
-                "    Algorithm Stack Trace:    file=" + file + ", name=" + name + ", line=" + line);
+            log.error("    Algorithm stack trace:    file={}, name={}, line={}", file, name, line);
         }
     }
 }

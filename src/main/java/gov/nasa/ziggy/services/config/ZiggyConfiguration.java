@@ -6,13 +6,9 @@ import static gov.nasa.ziggy.services.config.PropertyName.SUN_BOOT_LIBRARY_PATH;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_CONFIG_PATH;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Enumeration;
 
 import org.apache.commons.configuration2.CompositeConfiguration;
 import org.apache.commons.configuration2.Configuration;
@@ -40,7 +36,6 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
  * @author Bill Wohler
  */
 public class ZiggyConfiguration {
-    private static final String BUILD_CONFIGURATION = "ziggy-build.properties";
 
     private static final Logger log = LoggerFactory.getLogger(ZiggyConfiguration.class);
 
@@ -105,7 +100,6 @@ public class ZiggyConfiguration {
             loadPipelineConfiguration(config);
         }
         loadZiggyConfiguration(config);
-        loadBuildConfiguration(config);
 
         return config;
     }
@@ -166,28 +160,6 @@ public class ZiggyConfiguration {
             log.warn("Ziggy configuration in {} not found", ziggyConfigPath);
         } else {
             loadConfiguration(config, ziggyConfigPath.toFile());
-        }
-    }
-
-    /**
-     * Loads the build configuration from the {@value #BUILD_CONFIGURATION} file(s).
-     *
-     * @param config the non-{@code null} target composite configuration
-     */
-    private static void loadBuildConfiguration(CompositeConfiguration config) {
-        try {
-            Enumeration<URL> buildUrl = ZiggyConfiguration.class.getClassLoader()
-                .getResources(BUILD_CONFIGURATION);
-            if (buildUrl.hasMoreElements()) {
-                while (buildUrl.hasMoreElements()) {
-                    loadConfiguration(config, new File(buildUrl.nextElement().getPath()));
-                }
-            } else {
-                log.warn("Could not locate build information in {}", BUILD_CONFIGURATION);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(
-                "Unable to load configuration from " + BUILD_CONFIGURATION, e);
         }
     }
 

@@ -63,16 +63,17 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.services.alert.AlertLog;
 import gov.nasa.ziggy.services.alert.AlertLogOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.services.config.PropertyName;
-import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
@@ -80,6 +81,7 @@ import gov.nasa.ziggy.ui.util.TaskHalter;
 import gov.nasa.ziggy.ui.util.TaskRestarter;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.dispmod.AlertLogDisplayModel;
@@ -162,6 +164,8 @@ public class ZiggyConsole {
     private final PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
     private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private final PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+    private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
     @AcceptableCatchBlock(rationale = Rationale.USAGE)
     @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
@@ -340,8 +344,7 @@ public class ZiggyConsole {
                 case LOG -> log();
                 case RESTART -> restart(cmdLine);
                 case START -> start(commands);
-                case VERSION -> System.out.println(ZiggyConfiguration.getInstance()
-                    .getString(PropertyName.ZIGGY_VERSION.property()));
+                case VERSION -> System.out.println(BuildInfo.ziggyVersion());
             }
         } catch (Throwable e) {
             exception = e;
@@ -454,7 +457,7 @@ public class ZiggyConsole {
 
     private void display(CommandLine cmdLine) {
         PipelineInstance instance = null;
-        PipelineTask task = null;
+        PipelineTaskDisplayData task = null;
         if (cmdLine.hasOption(INSTANCE_OPTION)) {
             instance = pipelineInstance(cmdLine.getOptionValue(INSTANCE_OPTION));
         } else if (cmdLine.hasOption(TASK_OPTION)) {
@@ -503,12 +506,13 @@ public class ZiggyConsole {
         return instance;
     }
 
-    private PipelineTask pipelineTask(String taskOption) {
+    private PipelineTaskDisplayData pipelineTask(String taskOption) {
         return pipelineTask(parseId(taskOption));
     }
 
-    private PipelineTask pipelineTask(long id) {
-        PipelineTask task = pipelineTaskOperations().pipelineTask(id);
+    private PipelineTaskDisplayData pipelineTask(long id) {
+        PipelineTaskDisplayData task = pipelineTaskDisplayDataOperations()
+            .pipelineTaskDisplayData(pipelineTaskOperations().pipelineTask(id));
         if (task == null) {
             throw new PipelineException("No task found with ID " + id);
         }
@@ -535,16 +539,17 @@ public class ZiggyConsole {
     }
 
     private boolean displayAlert(PipelineInstance instance) {
-        List<AlertLog> alerts = alertLogOperations().alertLogs(instance.getId());
+        List<AlertLog> alerts = alertLogOperations().alertLogs(instance);
         AlertLogDisplayModel alertLogDisplayModel = new AlertLogDisplayModel(alerts);
         alertLogDisplayModel.print(System.out, "Alerts");
         return true;
     }
 
     private boolean displayErrors(PipelineInstance instance) {
-        List<PipelineTask> tasks = pipelineTaskOperations().erroredPipelineTasks(instance);
+        List<PipelineTaskDisplayData> tasks = pipelineTaskDisplayDataOperations()
+            .pipelineTaskDisplayData(pipelineTaskDataOperations().erroredPipelineTasks(instance));
 
-        for (PipelineTask task : tasks) {
+        for (PipelineTaskDisplayData task : tasks) {
             TasksDisplayModel tasksDisplayModel = new TasksDisplayModel(task);
             tasksDisplayModel.print(System.out, "Task Summary");
         }
@@ -552,7 +557,8 @@ public class ZiggyConsole {
     }
 
     private boolean displayStatistics(PipelineInstance instance) {
-        List<PipelineTask> tasks = pipelineTaskOperations().pipelineTasks(instance);
+        List<PipelineTaskDisplayData> tasks = pipelineTaskDisplayDataOperations()
+            .pipelineTaskDisplayData(instance);
         List<String> orderedModuleNames = displayTaskSummary(instance, false).getModuleNames();
 
         PipelineStatsDisplayModel pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks,
@@ -583,7 +589,8 @@ public class ZiggyConsole {
     }
 
     private TaskCounts displayTaskSummary(PipelineInstance instance, boolean full) {
-        List<PipelineTask> tasks = pipelineTaskOperations().pipelineTasks(instance);
+        List<PipelineTaskDisplayData> tasks = pipelineTaskDisplayDataOperations()
+            .pipelineTaskDisplayData(instance);
         TaskSummaryDisplayModel taskSummaryDisplayModel = new TaskSummaryDisplayModel(
             new TaskCounts(tasks));
         taskSummaryDisplayModel.print(System.out, "Instance Task Summary");
@@ -614,15 +621,17 @@ public class ZiggyConsole {
         if (cmdLine.hasOption(INSTANCE_OPTION)) {
             pipelineInstance = pipelineInstance(cmdLine.getOptionValue(INSTANCE_OPTION));
         } else {
-            PipelineTask pipelineTask = pipelineTask(taskIds.get(0));
-            pipelineInstance = pipelineTaskOperations().pipelineInstance(pipelineTask);
+            pipelineInstance = pipelineTaskOperations().pipelineInstance(taskIds.get(0));
         }
 
         System.out.println("Halting task(s) "
             + taskIds.stream().map(Object::toString).collect(Collectors.joining(", "))
             + " in instance " + pipelineInstance.getId());
         CountDownLatch messageSentLatch = startZiggyClient();
-        new TaskHalter().haltTasks(pipelineInstance, taskIds);
+        new TaskHalter().haltTasks(pipelineInstance,
+            taskIds.stream()
+                .map(id -> pipelineTaskOperations().pipelineTask(id))
+                .collect(Collectors.toList()));
         messageSentLatch.countDown();
     }
 
@@ -666,8 +675,7 @@ public class ZiggyConsole {
         if (cmdLine.hasOption(INSTANCE_OPTION)) {
             pipelineInstance = pipelineInstance(cmdLine.getOptionValue(INSTANCE_OPTION));
         } else {
-            PipelineTask pipelineTask = pipelineTask(taskIds.get(0));
-            pipelineInstance = pipelineTaskOperations().pipelineInstance(pipelineTask);
+            pipelineInstance = pipelineTaskOperations().pipelineInstance(taskIds.get(0));
         }
 
         // Get the run mode, using Restart from beginning if none provided.
@@ -678,7 +686,10 @@ public class ZiggyConsole {
 
         // Create two latches to wait for the restart messages.
         CountDownLatch clientStillNeededLatch = startZiggyClient(2);
-        new TaskRestarter().restartTasks(pipelineInstance, taskIds, runMode,
+        List<PipelineTask> pipelineTasks = taskIds.stream()
+            .map(id -> pipelineTaskOperations().pipelineTask(id))
+            .collect(Collectors.toList());
+        new TaskRestarter().restartTasks(pipelineInstance, pipelineTasks, runMode,
             clientStillNeededLatch);
     }
 
@@ -762,5 +773,13 @@ public class ZiggyConsole {
 
     private PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    private PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
+    }
+
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 }

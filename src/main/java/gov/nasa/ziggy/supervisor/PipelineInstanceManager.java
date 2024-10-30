@@ -79,18 +79,9 @@ public class PipelineInstanceManager {
         }
         String startNodeName = triggerRequest.getStartNodeName();
         String endNodeName = triggerRequest.getEndNodeName();
-        String startString, endString;
-        if (!StringUtils.isBlank(startNodeName)) {
-            startString = "start node: " + startNodeName;
-        } else {
-            startString = "start node not set";
-        }
-        if (!StringUtils.isBlank(endNodeName)) {
-            endString = "end node: " + endNodeName;
-        } else {
-            endString = "end node not set";
-        }
-        log.info("PipelineInstanceManager.initialize: " + startString + ", " + endString);
+        log.info("start node is {}, end node is {}",
+            StringUtils.isBlank(startNodeName) ? "not set" : startNodeName,
+            StringUtils.isBlank(endNodeName) ? "not set" : endNodeName);
         repeatIntervalMillis = triggerRequest.getRepeatIntervalSeconds() * 1000;
         pipeline = pipelineDefinitionOperations()
             .lockAndReturnLatestPipelineDefinition(triggerRequest.getPipelineName());
@@ -205,19 +196,13 @@ public class PipelineInstanceManager {
                     loopStatus.setInstanceCompleted(false);
             }
             if (loopStatus.keepLooping()) {
-                log.info("Current pipeline instance " + currentInstanceId
-                    + " still running, next instance start delayed");
+                log.info("Current pipeline instance {} still running, next instance start delayed",
+                    currentInstanceId);
                 Thread.sleep(checkAgainIntervalMillis);
             } else {
-                String loopMessage;
-                if (loopStatus.instanceCompleted()) {
-                    loopMessage = "Current pipeline instance " + currentInstanceId
-                        + " completed, next instance starting";
-                } else {
-                    loopMessage = "Current pipeline instance " + currentInstanceId
-                        + " errored, next instance canceled";
-                }
-                log.info(loopMessage);
+                log.info("Current pipeline instance {} {}, next instance {}", currentInstanceId,
+                    loopStatus.instanceCompleted() ? "completed" : "errored",
+                    loopStatus.instanceCompleted() ? "starting" : "canceled");
             }
         }
         return loopStatus.instanceCompleted();

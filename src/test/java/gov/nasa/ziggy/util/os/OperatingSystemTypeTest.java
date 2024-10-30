@@ -9,7 +9,7 @@ import org.junit.Test;
  * @author Miles Cote
  */
 public class OperatingSystemTypeTest {
-    private final OperatingSystemType operatingSystemType = OperatingSystemType.getInstance();
+    private final OperatingSystemType operatingSystemType = OperatingSystemType.newInstance();
 
     @Test
     public void testGetName() {
@@ -63,13 +63,13 @@ public class OperatingSystemTypeTest {
         assertEquals(OperatingSystemType.DEFAULT, OperatingSystemType.byName(""));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testByNameWithNullName() {
         OperatingSystemType.byName(null);
     }
 
     @Test
     public void testGetInstance() {
-        assertNotNull(OperatingSystemType.getInstance());
+        assertNotNull(OperatingSystemType.newInstance());
     }
 }

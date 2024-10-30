@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.services.messages;
 
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
 
@@ -9,18 +10,19 @@ import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
  * killed previously, take it out of that list.
  *
  * @author PT
+ * @author Bill Wohler
  */
 public class RemoveTaskFromKilledTasksMessage extends PipelineMessage {
 
-    private static final long serialVersionUID = 20231018L;
+    private static final long serialVersionUID = 20240905L;
 
-    private final long taskId;
+    private final PipelineTask pipelineTask;
 
-    public RemoveTaskFromKilledTasksMessage(long taskId) {
-        this.taskId = taskId;
+    public RemoveTaskFromKilledTasksMessage(PipelineTask pipelineTask) {
+        this.pipelineTask = pipelineTask;
     }
 
-    public long getTaskId() {
-        return taskId;
+    public PipelineTask getPipelineTask() {
+        return pipelineTask;
     }
 }

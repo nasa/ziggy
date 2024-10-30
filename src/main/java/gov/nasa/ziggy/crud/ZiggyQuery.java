@@ -7,10 +7,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-
-import com.google.common.collect.Lists;
 
 import gov.nasa.ziggy.module.PipelineException;
 import jakarta.persistence.criteria.AbstractQuery;
@@ -78,9 +76,6 @@ public class ZiggyQuery<T, R> {
 
     // AbstractQuery allows this to be either CriteriaQuery or Subquery, as needed.
     private AbstractQuery<R> jpaQuery;
-
-    /** For testing only. */
-    private List<List<Object>> queryChunks = new ArrayList<>();
 
     /** Constructor for {@link CriteriaQuery} instances. */
     ZiggyQuery(Class<T> databaseClass, Class<R> returnClass, AbstractCrud<?> crud) {
@@ -241,27 +236,6 @@ public class ZiggyQuery<T, R> {
         predicates
             .add(attribute != null ? builder.in((Path<? extends Y>) root.get(attribute), values)
                 : builder.in(root.get(columnName), values));
-        return this;
-    }
-
-    /**
-     * Performs the action of the {@link #in(Collection)} method, but performs the query in chunks.
-     * This allows queries in which the collection of values is too large for a single query. The
-     * number of values in a chunk is set by the {@link AbstractCrud#MAX_EXPRESSIONS} constant.
-     */
-    @SuppressWarnings("unchecked")
-    public <Y> ZiggyQuery<T, R> chunkedIn(Collection<Y> values) {
-        checkState(hasScalarAttribute(), "a column has not been defined");
-        List<Y> valuesList = new ArrayList<>(values);
-        Predicate criterion = builder.disjunction();
-        for (List<Y> valuesSubset : Lists.partition(valuesList, maxExpressions())) {
-            queryChunks.add((List<Object>) valuesSubset);
-            criterion = builder.or(criterion,
-                attribute != null
-                    ? builder.in((Path<? extends Y>) root.get(attribute), valuesSubset)
-                    : builder.in(root.get(columnName), valuesSubset));
-        }
-        predicates.add(criterion);
         return this;
     }
 
@@ -578,19 +552,5 @@ public class ZiggyQuery<T, R> {
             throw new PipelineException("Subquery cannot be cast to CriteriaQuery");
         }
         return (CriteriaQuery<R>) jpaQuery;
-    }
-
-    /**
-     * Maximum expressions allowed in each chunk of {@link #chunkedIn(Collection)}. Broken out into
-     * a package-private method so that tests can reduce this value to something small enough to
-     * exercise in test.
-     */
-    int maxExpressions() {
-        return AbstractCrud.MAX_EXPRESSIONS;
-    }
-
-    /** For testing only. */
-    List<List<Object>> queryChunks() {
-        return queryChunks;
     }
 }

@@ -17,9 +17,9 @@ import com.google.common.collect.Sets;
 import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
+import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
-import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
 /**
@@ -261,10 +261,10 @@ public class DataAccountabilityReportTest {
             PipelineTask task = Mockito.spy(PipelineTask.class);
             Mockito.doReturn(pipelineTaskId).when(task).getId();
 
-            UnitOfWork uowt = new UnitOfWork();
-            uowt.addParameter(new Parameter(UnitOfWork.BRIEF_STATE_PARAMETER_NAME,
+            UnitOfWork unitOfWork = new UnitOfWork();
+            unitOfWork.addParameter(new Parameter(UnitOfWork.BRIEF_STATE_PARAMETER_NAME,
                 "Stub taskId = " + pipelineTaskId, ZiggyDataType.ZIGGY_STRING));
-            task.setUowTaskParameters(uowt.getParameters());
+            Mockito.doReturn(unitOfWork).when(task).getUnitOfWork();
 
             return task;
         }

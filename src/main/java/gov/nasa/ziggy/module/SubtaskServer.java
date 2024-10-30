@@ -10,7 +10,7 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
- * Serves sub-tasks to clients using {@link SubtaskAllocator}. Clients should use
+ * Serves subtasks to clients using {@link SubtaskAllocator}. Clients should use
  * {@link SubtaskClient} to communicate with an instance of this class.
  *
  * @author Todd Klaus
@@ -135,9 +135,9 @@ public class SubtaskServer implements Runnable {
             this.status = status;
         }
 
-        public Response(ResponseType status, int subTaskIndex) {
+        public Response(ResponseType status, int subtaskIndex) {
             this.status = status;
-            subtaskIndex = subTaskIndex;
+            this.subtaskIndex = subtaskIndex;
         }
 
         public boolean successful() {
@@ -149,7 +149,7 @@ public class SubtaskServer implements Runnable {
             StringBuilder sb = new StringBuilder();
             sb.append("Response [status=");
             sb.append(status);
-            sb.append(", subTaskIndex=");
+            sb.append(", subtaskIndex=");
             sb.append(subtaskIndex);
             sb.append("]");
 
@@ -176,7 +176,7 @@ public class SubtaskServer implements Runnable {
                 // Retrieve the next request, or block until one is provided.
                 Request request = requestQueue.take();
 
-                log.debug("listen[server,before]: request: " + request);
+                log.debug("listen[server,before] request={}", request);
 
                 Response response = null;
 
@@ -185,7 +185,7 @@ public class SubtaskServer implements Runnable {
                 if (type == RequestType.GET_NEXT) {
                     SubtaskAllocation nextSubtask = subtaskAllocator().nextSubtask();
 
-                    log.debug("Allocated: " + nextSubtask);
+                    log.debug("Allocated {}", nextSubtask);
 
                     ResponseType status = nextSubtask.getStatus();
                     int subtaskIndex = nextSubtask.getSubtaskIndex();
@@ -201,10 +201,10 @@ public class SubtaskServer implements Runnable {
                     subtaskAllocator().markSubtaskLocked(request.subtaskIndex);
                     response = new Response(ResponseType.OK);
                 } else {
-                    log.error("Unknown command: " + type);
+                    log.error("Unknown command {}", type);
                 }
 
-                log.debug("listen[server,after], response: " + response);
+                log.debug("listen[server,after] response={}", response);
 
                 // Send the response back to the client.
                 request.client.submitResponse(response);

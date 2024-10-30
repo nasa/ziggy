@@ -3,6 +3,7 @@ package gov.nasa.ziggy.supervisor;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doReturn;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,9 +11,11 @@ import java.util.List;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.FlakyTestCategory;
 import gov.nasa.ziggy.module.ModuleFatalProcessingException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
@@ -56,11 +59,11 @@ public class PipelineInstanceManagerTest {
         pipelineDefinitionOperations = Mockito.mock(PipelineDefinitionOperations.class);
         pipelineInstanceManager = Mockito.spy(PipelineInstanceManager.class);
         pipelineInstanceOperations = Mockito.mock(PipelineInstanceOperations.class);
-        Mockito.when(pipelineInstanceManager.pipelineInstanceOperations())
-            .thenReturn(pipelineInstanceOperations);
-        Mockito.when(pipelineInstanceManager.pipelineExecutor()).thenReturn(pipelineExecutor);
-        Mockito.when(pipelineInstanceManager.pipelineDefinitionOperations())
-            .thenReturn(pipelineDefinitionOperations);
+        doReturn(pipelineInstanceOperations).when(pipelineInstanceManager)
+            .pipelineInstanceOperations();
+        doReturn(pipelineExecutor).when(pipelineInstanceManager).pipelineExecutor();
+        doReturn(pipelineDefinitionOperations).when(pipelineInstanceManager)
+            .pipelineDefinitionOperations();
 
         // Mock some other stuff
         pipelineDefinition = Mockito.mock(PipelineDefinition.class);
@@ -331,9 +334,10 @@ public class PipelineInstanceManagerTest {
     }
 
     /**
-     * Tests that the requested wait for the 2nd pipeline run, and the requested wait for
-     * completeion of a not-yet-finished pipeline run, work as expected
+     * Tests that the requested wait for the 2nd pipeline run, and the requested wait for completion
+     * of a not-yet-finished pipeline run, work as expected
      */
+    @Category(FlakyTestCategory.class)
     @Test
     public void testWaiting() {
         StartPipelineRequest wftr = new StartPipelineRequest(PIPELINE_NAME, INSTANCE_NAME,
@@ -365,6 +369,6 @@ public class PipelineInstanceManagerTest {
         long dt = completeTimeMillis - startTimeMillis;
 
         // Make the interval long enough to tolerate some overhead time
-        assertTrue(dt > 85 && dt <= 105);
+        assertTrue("Complete time was" + dt + " milliseconds", dt > 85 && dt <= 105);
     }
 }

@@ -16,7 +16,7 @@ public class CpuInfoTest {
 
     @Test
     public void test() throws Exception {
-        CpuInfo cpuInfo = OperatingSystemType.getInstance().getCpuInfo();
+        CpuInfo cpuInfo = OperatingSystemType.newInstance().getCpuInfo();
 
         int numCores = cpuInfo.getNumCores();
 

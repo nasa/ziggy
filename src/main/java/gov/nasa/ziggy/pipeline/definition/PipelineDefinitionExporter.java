@@ -39,7 +39,7 @@ public class PipelineDefinitionExporter {
                 "destinationPath exists and is a directory: " + destinationFile);
         }
 
-        log.info("Exporting " + pipelines.size() + " pipelines to: " + destinationFile);
+        log.info("Exporting {} pipelines to: {}", pipelines.size(), destinationFile);
 
         PipelineDefinitionFile pipelineDefinitionFile = new PipelineDefinitionFile();
         populatePiplineDefinitionFile(pipelines, pipelineDefinitionFile);

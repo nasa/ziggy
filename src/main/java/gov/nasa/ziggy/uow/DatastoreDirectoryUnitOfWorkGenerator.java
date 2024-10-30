@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.datastore.DataFileType;
@@ -79,7 +79,7 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
         // Generate the UOWs from the BriefStatePathInformation instances.
         List<UnitOfWork> unitsOfWork = new ArrayList<>();
         for (UowPathInformation unitOfWorkPathInformation : unitsOfWorkPathInformation) {
-            UnitOfWork uow = new UnitOfWork();
+            UnitOfWork uow = new UnitOfWork(unitOfWorkPathInformation.getBriefState());
 
             // Populate the UOW parameters for the datastore paths used by this UOW.
             populateDirectoryParameters(uow, unitOfWorkPathInformation);
@@ -91,7 +91,6 @@ public class DatastoreDirectoryUnitOfWorkGenerator extends DirectoryUnitOfWorkGe
                 uow.addParameter(new Parameter(regexpEntry.getKey(), regexpEntry.getValue(),
                     ZiggyDataType.ZIGGY_STRING));
             }
-            uow.setBriefState(unitOfWorkPathInformation.getBriefState());
             unitsOfWork.add(uow);
         }
         return unitsOfWork;

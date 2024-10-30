@@ -51,9 +51,9 @@ class ZiggyStack:
         self.line = traceback.tb_lineno
         
 '''
-Writes a Ziggy-formatted HDF5 file to the sub-task directory. The user supplies an optional
+Writes a Ziggy-formatted HDF5 file to the subtask directory. The user supplies an optional
 "sequence number," which defaults to zero. The result is a file named "<csci-name>-error-<seq-num>.h5"
-The worker later reads this and adds its contents to the log for the sub-task. 
+The worker later reads this and adds its contents to the log for the subtask.
 The standard pattern for writing a pipeline algorithm call in Python is the following:
 
     try:
@@ -61,7 +61,7 @@ The standard pattern for writing a pipeline algorithm call in Python is the foll
     except:
         ZiggyErrorWriter()
         
-When multiple inputs per sub-task are used, the sequence number of the current input should be
+When multiple inputs per subtask are used, the sequence number of the current input should be
 supplied as an argument to the ZiggyErrorWriter constructor. 
 
 @author PT

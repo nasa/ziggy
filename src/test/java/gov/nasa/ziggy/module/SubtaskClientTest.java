@@ -14,6 +14,7 @@ import java.util.concurrent.Future;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.module.SubtaskServer.Request;
@@ -37,7 +38,8 @@ public class SubtaskClientTest {
 
     @Before
     public void setUp() {
-        subtaskClient = new SubtaskClient();
+        subtaskClient = Mockito.spy(SubtaskClient.class);
+        Mockito.when(subtaskClient.tryAgainWaitTimeMillis()).thenReturn(0L);
         threadPool = Executors.newSingleThreadExecutor();
         requestQueue = SubtaskServer.getRequestQueue();
     }

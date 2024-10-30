@@ -72,6 +72,7 @@ import gov.nasa.ziggy.services.messages.ShutdownMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
@@ -197,8 +198,7 @@ public class ClusterController {
 
     public static void main(String[] args) {
 
-        log.info("Ziggy cluster (version {})",
-            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
+        log.info("Ziggy cluster (version {})", BuildInfo.ziggyVersion());
 
         // Define all the command options.
         Options options = new Options()
@@ -297,8 +297,7 @@ public class ClusterController {
         }
 
         if (commands.contains(VERSION_COMMAND)) {
-            System.out.println(
-                ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
+            System.out.println(BuildInfo.ziggyVersion());
         }
     }
 
@@ -373,7 +372,7 @@ public class ClusterController {
                 name) -> (name.startsWith(PARAM_LIBRARY_PREFIX) && name.endsWith(XML_SUFFIX)));
         Arrays.sort(parameterFiles, Comparator.comparing(File::getName));
 
-        log.info("Importing datastore configuration from directory " + pipelineDefsDir.toString());
+        log.info("Importing datastore configuration from directory {}", pipelineDefsDir.toString());
         File[] dataTypeFiles = pipelineDefsDir.toFile()
             .listFiles((FilenameFilter) (dir,
                 name) -> (name.startsWith(TYPE_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));

@@ -47,12 +47,12 @@ public class MatlabReport extends Report {
 
         DefaultPieDataset functionBreakdownDataset = new DefaultPieDataset();
 
-        log.info("breakdown report");
+        log.info("Breakdown report");
 
         for (String metricName : matlabFunctionStats.keySet()) {
             String label = shortMetricName(metricName);
 
-            log.info("processing metric: " + label);
+            log.info("Processing metric {}", label);
 
             DescriptiveStatistics functionStats = matlabFunctionStats.get(metricName);
             double functionTime = functionStats.getSum();
@@ -75,7 +75,7 @@ public class MatlabReport extends Report {
 
         HumanReadableStatistics values = millisToHumanReadable(matlabStats);
         JFreeChart execHistogram = generateHistogram("MATLAB Controller Run Time",
-            "Time (" + values.getUnit() + ")", "Sub-Tasks", values.getValues(), 100);
+            "Time (" + values.getUnit() + ")", "Subtasks", values.getValues(), 100);
 
         if (execHistogram != null) {
             pdfRenderer.printChart(execHistogram, CHART3_WIDTH, CHART3_HEIGHT);
@@ -99,22 +99,22 @@ public class MatlabReport extends Report {
         TopNList topTen = new TopNList(10);
 
         for (File taskDir : taskDirs) {
-            log.info("Processing: " + taskDir);
+            log.info("Processing {}", taskDir);
 
             Memdrone memdrone = new Memdrone(moduleName, instanceId);
             Map<String, DescriptiveStatistics> taskStats = memdrone.statsByPid();
-            Map<String, String> pidMap = memdrone.subTasksByPid();
+            Map<String, String> pidMap = memdrone.subtasksByPid();
 
             Set<String> pids = taskStats.keySet();
             for (String pid : pids) {
-                String subTaskName = pidMap.get(pid);
-                if (subTaskName == null) {
-                    subTaskName = "?:" + pid;
+                String subtaskName = pidMap.get(pid);
+                if (subtaskName == null) {
+                    subtaskName = "?:" + pid;
                 }
 
                 double max = taskStats.get(pid).getMax();
                 memoryStats.addValue(max);
-                topTen.add((long) max, subTaskName);
+                topTen.add((long) max, subtaskName);
             }
         }
 

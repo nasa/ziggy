@@ -13,9 +13,9 @@ task generateHsqldbCreateScript(type: JavaExec, dependsOn: copyLibs) {
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
     classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
-    jvmArgs "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
-        "-Djava.library.path=$outsideDir/lib",
-        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    jvmArgs "-Dhibernate.connection.url=jdbc:hsqldb:mem:test",
+        "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
+        "-Djava.library.path=$outsideDir/lib"
     args "--create", "--output=$buildDir/schema/ddl.hsqldb-create.sql"
 
     logging.captureStandardOutput LogLevel.INFO
@@ -23,6 +23,7 @@ task generateHsqldbCreateScript(type: JavaExec, dependsOn: copyLibs) {
 }
 
 test.dependsOn generateHsqldbCreateScript
+integrationTest.dependsOn generateHsqldbCreateScript
 assemble.dependsOn generateHsqldbCreateScript
 
 task generateHsqldbDropScript(type: JavaExec, dependsOn: copyLibs) {
@@ -32,9 +33,9 @@ task generateHsqldbDropScript(type: JavaExec, dependsOn: copyLibs) {
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
     classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
-    jvmArgs "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
-        "-Djava.library.path=$outsideDir/lib",
-        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    jvmArgs "-Dhibernate.connection.url=jdbc:hsqldb:mem:test",
+        "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
+        "-Djava.library.path=$outsideDir/lib"
     args "--drop", "--output=$buildDir/schema/ddl.hsqldb-drop.sql"
 
     logging.captureStandardOutput LogLevel.INFO
@@ -42,6 +43,7 @@ task generateHsqldbDropScript(type: JavaExec, dependsOn: copyLibs) {
 }
 
 test.dependsOn generateHsqldbDropScript
+integrationTest.dependsOn generateHsqldbDropScript
 assemble.dependsOn generateHsqldbDropScript
 
 task generatePostgresqlCreateScript(type: JavaExec, dependsOn: copyLibs) {
@@ -51,9 +53,9 @@ task generatePostgresqlCreateScript(type: JavaExec, dependsOn: copyLibs) {
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
     classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
-    jvmArgs "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
-        "-Djava.library.path=$outsideDir/lib",
-        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    jvmArgs "-Dhibernate.connection.url=jdbc:hsqldb:mem:test",
+        "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
+        "-Djava.library.path=$outsideDir/lib"
     args "--create", "--output=$buildDir/schema/ddl.postgresql-create.sql"
 
     logging.captureStandardOutput LogLevel.INFO
@@ -69,9 +71,9 @@ task generatePostgresqlDropScript(type: JavaExec, dependsOn: copyLibs) {
 
     mainClass.set("gov.nasa.ziggy.services.database.ZiggySchemaExport")
     classpath fileTree(dir: "$buildDir/libs", include: "*.jar")
-    jvmArgs  "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
-        "-Djava.library.path=$outsideDir/lib",
-        "-Dhibernate.connection.url=jdbc:hsqldb:mem:test"
+    jvmArgs  "-Dhibernate.connection.url=jdbc:hsqldb:mem:test",
+        "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
+        "-Djava.library.path=$outsideDir/lib"
     args "--drop", "--output=$buildDir/schema/ddl.postgresql-drop.sql"
 
     logging.captureStandardOutput LogLevel.INFO

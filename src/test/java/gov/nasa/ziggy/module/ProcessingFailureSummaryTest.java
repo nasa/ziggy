@@ -30,12 +30,12 @@ public class ProcessingFailureSummaryTest {
     public void setup() {
 
         taskDir = directoryRule.directory().toFile();
-        File subTaskDir = new File(taskDir, "st-0");
-        subTaskDir.mkdirs();
-        subTaskDir = new File(taskDir, "st-3");
-        subTaskDir.mkdirs();
-        subTaskDir = new File(taskDir, "st-200");
-        subTaskDir.mkdirs();
+        File subtaskDir = new File(taskDir, "st-0");
+        subtaskDir.mkdirs();
+        subtaskDir = new File(taskDir, "st-3");
+        subtaskDir.mkdirs();
+        subtaskDir = new File(taskDir, "st-200");
+        subtaskDir.mkdirs();
     }
 
     /**
@@ -47,7 +47,7 @@ public class ProcessingFailureSummaryTest {
         ProcessingFailureSummary p = new ProcessingFailureSummary(moduleName, taskDir);
         assertTrue(p.isAllTasksSucceeded());
         assertFalse(p.isAllTasksFailed());
-        assertEquals(0, p.getFailedSubTaskDirs().size());
+        assertEquals(0, p.getFailedSubtaskDirs().size());
     }
 
     /**
@@ -62,13 +62,13 @@ public class ProcessingFailureSummaryTest {
         ProcessingFailureSummary p = new ProcessingFailureSummary(moduleName, taskDir);
         assertFalse(p.isAllTasksSucceeded());
         assertFalse(p.isAllTasksFailed());
-        assertEquals(2, p.getFailedSubTaskDirs().size());
-        assertEquals("st-3", p.getFailedSubTaskDirs().get(0));
-        assertEquals("st-200", p.getFailedSubTaskDirs().get(1));
+        assertEquals(2, p.getFailedSubtaskDirs().size());
+        assertEquals("st-3", p.getFailedSubtaskDirs().get(0));
+        assertEquals("st-200", p.getFailedSubtaskDirs().get(1));
     }
 
     /**
-     * Test case with all sub-tasks errored.
+     * Test case with all subtasks errored.
      *
      * @throws IOException
      */
@@ -80,9 +80,9 @@ public class ProcessingFailureSummaryTest {
         ProcessingFailureSummary p = new ProcessingFailureSummary(moduleName, taskDir);
         assertFalse(p.isAllTasksSucceeded());
         assertTrue(p.isAllTasksFailed());
-        assertEquals(3, p.getFailedSubTaskDirs().size());
-        assertEquals("st-0", p.getFailedSubTaskDirs().get(0));
-        assertEquals("st-3", p.getFailedSubTaskDirs().get(1));
-        assertEquals("st-200", p.getFailedSubTaskDirs().get(2));
+        assertEquals(3, p.getFailedSubtaskDirs().size());
+        assertEquals("st-0", p.getFailedSubtaskDirs().get(0));
+        assertEquals("st-3", p.getFailedSubtaskDirs().get(1));
+        assertEquals("st-200", p.getFailedSubtaskDirs().get(2));
     }
 }

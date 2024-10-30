@@ -6,33 +6,38 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.process.StatusMessage;
 
 /**
  * Informs recipients of the status of a worker process.
  *
  * @author PT
+ * @author Bill Wohler
  */
 public class WorkerStatusMessage extends StatusMessage implements Comparable<WorkerStatusMessage> {
-    private static final long serialVersionUID = 20230522L;
+    private static final long serialVersionUID = 20240909L;
 
     public static Logger log = LoggerFactory.getLogger(WorkerStatusMessage.class);
 
     private final int workerNumber;
     private final String state;
     private final String instanceId;
-    private final String taskId;
+    private final PipelineTask pipelineTask;
     private final String module;
     private final String moduleUow;
     private final long processingStartTime;
     private final boolean lastMessageFromWorker;
 
-    public WorkerStatusMessage(int workerNumber, String state, String instanceId, String taskId,
-        String module, String moduleUow, long processingStartTime, boolean lastMessageFromWorker) {
+    // Cached value of database lookup.
+
+    public WorkerStatusMessage(int workerNumber, String state, String instanceId,
+        PipelineTask pipelineTask, String module, String moduleUow, long processingStartTime,
+        boolean lastMessageFromWorker) {
         this.workerNumber = workerNumber;
         this.state = state;
         this.instanceId = instanceId;
-        this.taskId = taskId;
+        this.pipelineTask = pipelineTask;
         this.module = module;
         this.moduleUow = moduleUow;
         this.processingStartTime = processingStartTime;
@@ -67,12 +72,12 @@ public class WorkerStatusMessage extends StatusMessage implements Comparable<Wor
     @Override
     public String briefStatus() {
         return "WS:" + super.briefStatus() + "(" + workerNumber + "):" + "[" + state + ":"
-            + instanceId + "-" + taskId + ":" + module + "{" + moduleUow + "}:since "
+            + instanceId + "-" + pipelineTask.getId() + ":" + module + "{" + moduleUow + "}:since "
             + new Date(processingStartTime) + "]";
     }
 
-    public String getTaskId() {
-        return taskId;
+    public PipelineTask getPipelineTask() {
+        return pipelineTask;
     }
 
     public String getInstanceId() {
@@ -87,7 +92,7 @@ public class WorkerStatusMessage extends StatusMessage implements Comparable<Wor
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        return prime * result + Objects.hash(taskId);
+        return prime * result + Objects.hash(pipelineTask);
     }
 
     @Override
@@ -99,11 +104,11 @@ public class WorkerStatusMessage extends StatusMessage implements Comparable<Wor
             return false;
         }
         WorkerStatusMessage other = (WorkerStatusMessage) obj;
-        return Objects.equals(taskId, other.taskId);
+        return Objects.equals(pipelineTask, other.pipelineTask);
     }
 
     @Override
     public int compareTo(WorkerStatusMessage o) {
-        return (int) (Long.parseLong(taskId) - Long.parseLong(o.taskId));
+        return pipelineTask.compareTo(o.pipelineTask);
     }
 }

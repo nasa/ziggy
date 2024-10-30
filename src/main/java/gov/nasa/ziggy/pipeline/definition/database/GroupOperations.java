@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Set;
 
 import gov.nasa.ziggy.pipeline.definition.Group;
-import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
 /**
@@ -36,16 +35,16 @@ public class GroupOperations extends DatabaseOperations {
         });
     }
 
+    public Group group(String name, String type) {
+        return performTransaction(() -> groupCrud.retrieve(name, type));
+    }
+
     public List<Group> groups() {
         return performTransaction(() -> groupCrud.retrieveAll());
     }
 
-    public List<Group> groupsForClass(Class<? extends Groupable> clazz) {
-        return performTransaction(() -> groupCrud.retrieveAll(clazz));
-    }
-
-    public Group groupForName(String name, Class<? extends Groupable> clazz) {
-        return performTransaction(() -> groupCrud.retrieveGroupByName(name, clazz));
+    public List<Group> groups(String type) {
+        return performTransaction(() -> groupCrud.retrieveAll(type));
     }
 
     public void delete(Group group) {

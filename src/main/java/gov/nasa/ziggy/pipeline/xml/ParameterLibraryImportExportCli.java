@@ -80,7 +80,7 @@ public class ParameterLibraryImportExportCli {
         List<ParameterSetDescriptor> results = null;
 
         for (String filename : filenames) {
-            log.debug("Importing: " + filename);
+            log.debug("Importing {}", filename);
             if (importLib) {
                 results = paramOps.importParameterLibrary(filename, null, paramIoMode);
             } else {

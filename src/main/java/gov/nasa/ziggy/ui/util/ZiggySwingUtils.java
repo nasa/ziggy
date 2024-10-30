@@ -17,6 +17,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,8 +45,10 @@ import org.netbeans.swing.etable.ETable;
 
 import com.jgoodies.looks.plastic.theme.SkyBluer;
 
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.ui.util.table.TableMouseListener;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
  * A handful of Swing-related utilities.
@@ -426,22 +429,53 @@ public class ZiggySwingUtils {
     }
 
     /**
-     * Adjust the selection. Useful for popup triggers; for some reason the right mouse button
-     * doesn't modify the selection by default.
+     * Adjust the selection. This works better than the default table selection handler in two ways.
+     * It selects the row under the mouse if it isn't already when popping up a menu. It also avoids
+     * clearing the selection when showing the popup menu with Control-Click on the Mac. A table
+     * that supports multiple selection will want to run the following to remove the default table
+     * selection handler and call this method instead from {@code mousePressed()}.
+     *
+     * <pre>
+     * for (MouseListener l : tasksTable.getTable().getMouseListeners()) {
+     *     if (l.getClass().getName().equals("javax.swing.plaf.basic.BasicTableUI$Handler")) {
+     *         tasksTable.getTable().removeMouseListener(l);
+     *     }
+     * }
+     * </pre>
      * <p>
      * If the mouse is over a row that is already selected, then do not adjust the selection since
      * the leads to surprising behavior; otherwise, update the selection normally.
      *
-     * @param e the mouse event
+     * @param evt the mouse event
      */
-    public static void adjustSelection(JTable table, MouseEvent e) {
-        int row = table.rowAtPoint(e.getPoint());
-        if (table.isRowSelected(row)) {
+    public static void adjustSelection(JTable table, MouseEvent evt) {
+        int row = table.rowAtPoint(evt.getPoint());
+        if (evt.isPopupTrigger() && table.isRowSelected(row)) {
             return;
         }
 
-        int column = table.columnAtPoint(e.getPoint());
-        table.changeSelection(row, column, e.isControlDown(), e.isShiftDown());
+        int column = table.columnAtPoint(evt.getPoint());
+        table.changeSelection(row, column,
+            OperatingSystemType.newInstance() == OperatingSystemType.MAC_OS_X ? evt.isMetaDown()
+                : evt.isControlDown(),
+            evt.isShiftDown());
+    }
+
+    /**
+     * Waits for the EDT thread to process current events before proceeding. This is useful to
+     * separate methods such as {@code clearSelection()} that effectively call their listeners with
+     * {@code invokeLater()} and return immediately and code that changes the model.
+     */
+    public static void flushEventDispatchThread() {
+        try {
+            SwingUtilities.invokeAndWait(() -> {
+            });
+        } catch (InvocationTargetException e) {
+            throw new PipelineException("Error waiting for EDT to clear", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PipelineException("Error waiting for EDT to clear", e);
+        }
     }
 
     /**

@@ -12,7 +12,7 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
 /**
  * This class manages zero-length files whose names are used to represent the state of an executing
- * algorithm. These files are stored in the subtask working directory.
+ * algorithm. These files are stored in the task and subtask working directories.
  *
  * @author Todd Klaus
  * @author PT
@@ -22,7 +22,7 @@ public class AlgorithmStateFiles {
 
     private static final String HAS_OUTPUTS = "HAS_OUTPUTS";
 
-    public enum SubtaskState {
+    public enum AlgorithmState {
         // State in which no AlgorithmStateFile is present. Rather than return an actual
         // null, when queried about the subtask state we can return SubtaskState.NULL .
         NULL {
@@ -59,9 +59,9 @@ public class AlgorithmStateFiles {
     private final File outputsFlag;
 
     public AlgorithmStateFiles(File workingDir) {
-        processingFlag = new File(workingDir, "." + SubtaskState.PROCESSING.toString());
-        completeFlag = new File(workingDir, "." + SubtaskState.COMPLETE.toString());
-        failedFlag = new File(workingDir, "." + SubtaskState.FAILED.toString());
+        processingFlag = new File(workingDir, "." + AlgorithmState.PROCESSING.toString());
+        completeFlag = new File(workingDir, "." + AlgorithmState.COMPLETE.toString());
+        failedFlag = new File(workingDir, "." + AlgorithmState.FAILED.toString());
         outputsFlag = new File(workingDir, "." + HAS_OUTPUTS);
     }
 
@@ -81,7 +81,7 @@ public class AlgorithmStateFiles {
 
     /**
      * Removes any "stale" state flags. A stale state flag is one from a previous processing attempt
-     * that will cause the pipeline to either miscount the task/ sub-task, or do the wrong thing
+     * that will cause the pipeline to either miscount the task/ subtask, or do the wrong thing
      * with it. COMPLETED states are never stale, because they finished and don't need to be
      * restarted. FAILED and PROCESSING flags are stale, because they indicate incomplete prior
      * execution but can prevent the current execution attempt from starting.
@@ -91,7 +91,7 @@ public class AlgorithmStateFiles {
      * the preceding run.
      */
     public void clearStaleState() {
-        if (!currentSubtaskState().equals(SubtaskState.COMPLETE)) {
+        if (!currentAlgorithmState().equals(AlgorithmState.COMPLETE)) {
             outputsFlag.delete();
         }
         processingFlag.delete();
@@ -99,7 +99,7 @@ public class AlgorithmStateFiles {
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    public void updateCurrentState(SubtaskState newState) {
+    public void updateCurrentState(AlgorithmState newState) {
         clearState();
 
         try {
@@ -135,27 +135,27 @@ public class AlgorithmStateFiles {
         }
     }
 
-    public SubtaskState currentSubtaskState() {
-        SubtaskState current = SubtaskState.NULL;
+    public AlgorithmState currentAlgorithmState() {
+        AlgorithmState current = AlgorithmState.NULL;
 
         if (processingFlag.exists()) {
-            current = SubtaskState.PROCESSING;
+            current = AlgorithmState.PROCESSING;
         }
         if (completeFlag.exists()) {
-            if (current != SubtaskState.NULL) {
+            if (current != AlgorithmState.NULL) {
                 log.warn("Duplicate algorithm state files found!");
                 return null;
             }
-            current = SubtaskState.COMPLETE;
+            current = AlgorithmState.COMPLETE;
         }
         if (failedFlag.exists()) {
-            if (current != SubtaskState.NULL) {
+            if (current != AlgorithmState.NULL) {
                 log.warn("Duplicate algorithm state files found!");
                 return null;
             }
-            current = SubtaskState.FAILED;
+            current = AlgorithmState.FAILED;
         }
-        log.debug("current state: " + current);
+        log.debug("current={}", current);
         return current;
     }
 
@@ -164,20 +164,20 @@ public class AlgorithmStateFiles {
      *
      * @return
      */
-    public boolean subtaskStateExists() {
+    public boolean stateExists() {
         return completeFlag.exists() || processingFlag.exists() || failedFlag.exists();
     }
 
     public boolean isProcessing() {
-        return currentSubtaskState() == SubtaskState.PROCESSING;
+        return currentAlgorithmState() == AlgorithmState.PROCESSING;
     }
 
     public boolean isComplete() {
-        return currentSubtaskState() == SubtaskState.COMPLETE;
+        return currentAlgorithmState() == AlgorithmState.COMPLETE;
     }
 
     public boolean isFailed() {
-        return currentSubtaskState() == SubtaskState.FAILED;
+        return currentAlgorithmState() == AlgorithmState.FAILED;
     }
 
     /**

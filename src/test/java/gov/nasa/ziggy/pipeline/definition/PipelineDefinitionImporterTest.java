@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.pipeline.definition;
 
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
+import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HOME_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -16,7 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,6 +61,10 @@ public class PipelineDefinitionImporterTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
+        DirectoryProperties.ziggyCodeBuildDir().toString());
+
+    @Rule
+    public ZiggyPropertyRule pipelineHomeDirPropertyRule = new ZiggyPropertyRule(PIPELINE_HOME_DIR,
         DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Before

@@ -45,7 +45,7 @@ source $python_env/bin/activate
 pip3 install h5py Pillow numpy
 
 # Get the location of the environment's site packages directory
-site_pkgs=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+site_pkgs=$(python3 -c "from sysconfig import get_path; print(get_path('purelib'))")
 
 # Copy the pipeline major_tom package to the site-packages location.
 cp -r $ziggy_root/sample-pipeline/src/main/python/major_tom $site_pkgs
@@ -53,5 +53,8 @@ cp -r $ziggy_root/sample-pipeline/src/main/python/major_tom $site_pkgs
 # Copy the Ziggy components to the site-packages location.
 cp -r $ziggy_root/src/main/python/hdf5mi $site_pkgs
 cp -r $ziggy_root/src/main/python/zigutils $site_pkgs
+
+# Generate version information.
+$ZIGGY_HOME/bin/ziggy generate-build-info --home $sample_home
 
 exit 0

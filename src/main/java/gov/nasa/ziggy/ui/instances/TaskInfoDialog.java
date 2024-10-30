@@ -16,7 +16,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.DisplayModel;
@@ -28,9 +28,9 @@ import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
  */
 @SuppressWarnings("serial")
 public class TaskInfoDialog extends javax.swing.JDialog {
-    private PipelineTask pipelineTask;
+    private PipelineTaskDisplayData pipelineTask;
 
-    public TaskInfoDialog(Window owner, PipelineTask pipelineTask) {
+    public TaskInfoDialog(Window owner, PipelineTaskDisplayData pipelineTask) {
         super(owner);
         this.pipelineTask = pipelineTask;
 
@@ -54,7 +54,7 @@ public class TaskInfoDialog extends javax.swing.JDialog {
 
     private JPanel createDataPanel() {
         JLabel idLabel = boldLabel("ID:");
-        JLabel idTextField = new JLabel(pipelineTask.getId() + "");
+        JLabel idTextField = new JLabel(Long.toString(pipelineTask.getPipelineTaskId()));
 
         JLabel stateLabel = boldLabel("Processing step:");
         JLabel stateTextField = new JLabel(HtmlBuilder.htmlBuilder()
@@ -63,28 +63,26 @@ public class TaskInfoDialog extends javax.swing.JDialog {
             .toString());
 
         JLabel moduleLabel = boldLabel("Module:");
-        JLabel moduleTextField = new JLabel(pipelineTask.getModuleName() + "");
+        JLabel moduleTextField = new JLabel(pipelineTask.getModuleName());
 
         JLabel uowLabel = boldLabel("Unit of work:");
-        JLabel uowTextField = new JLabel(pipelineTask.uowTaskInstance().briefState());
+        JLabel uowTextField = new JLabel(pipelineTask.getBriefState());
 
         JLabel workerLabel = boldLabel("Worker:");
         JLabel workerTextField = new JLabel(pipelineTask.getWorkerName());
         JLabel workerHelpLabel = new JLabel("(host:thread)");
 
-        JLabel startLabel = boldLabel("Started:");
-        JLabel startTextField = new JLabel(
-            DisplayModel.formatDate(pipelineTask.getStartProcessingTime()));
-
-        JLabel endLabel = boldLabel("Completed:");
-        JLabel endTextField = new JLabel(
-            DisplayModel.formatDate(pipelineTask.getEndProcessingTime()));
-
         JLabel createdLabel = boldLabel("Created:");
         JLabel createdTextField = new JLabel(DisplayModel.formatDate(pipelineTask.getCreated()));
 
-        JLabel revisionLabel = boldLabel("Software revision:");
-        JLabel revisionTextField = new JLabel(pipelineTask.getSoftwareRevision());
+        JLabel durationLabel = boldLabel("Duration:");
+        JLabel durationTextField = new JLabel(pipelineTask.getExecutionClock().toString());
+
+        JLabel ziggyRevisionLabel = boldLabel("Ziggy software revision:");
+        JLabel ziggyRevisionTextField = new JLabel(pipelineTask.getZiggySoftwareRevision());
+
+        JLabel pipelineRevisionLabel = boldLabel("Pipeline software revision:");
+        JLabel pipelineRevisionTextField = new JLabel(pipelineTask.getPipelineSoftwareRevision());
 
         JLabel failureCountLabel = boldLabel("Failure count:");
         JLabel failureCountTextField = new JLabel(Integer.toString(pipelineTask.getFailureCount()));
@@ -108,10 +106,10 @@ public class TaskInfoDialog extends javax.swing.JDialog {
                         .addComponent(moduleLabel)
                         .addComponent(uowLabel)
                         .addComponent(workerLabel)
-                        .addComponent(startLabel)
-                        .addComponent(endLabel)
+                        .addComponent(durationLabel)
                         .addComponent(createdLabel)
-                        .addComponent(revisionLabel)
+                        .addComponent(ziggyRevisionLabel)
+                        .addComponent(pipelineRevisionLabel)
                         .addComponent(failureCountLabel))
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addGroup(dataPanelLayout.createParallelGroup()
@@ -122,10 +120,10 @@ public class TaskInfoDialog extends javax.swing.JDialog {
                         .addGroup(dataPanelLayout.createSequentialGroup()
                             .addComponent(workerTextField)
                             .addComponent(workerHelpLabel))
-                        .addComponent(startTextField)
-                        .addComponent(endTextField)
+                        .addComponent(durationTextField)
                         .addComponent(createdTextField)
-                        .addComponent(revisionTextField)
+                        .addComponent(ziggyRevisionTextField)
+                        .addComponent(pipelineRevisionTextField)
                         .addComponent(failureCountTextField)))
                 .addComponent(processingBreakdownTableScrollPane)));
 
@@ -147,17 +145,17 @@ public class TaskInfoDialog extends javax.swing.JDialog {
                 .addComponent(workerTextField)
                 .addComponent(workerHelpLabel))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(startLabel)
-                .addComponent(startTextField))
-            .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(endLabel)
-                .addComponent(endTextField))
+                .addComponent(durationLabel)
+                .addComponent(durationTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
                 .addComponent(createdLabel)
                 .addComponent(createdTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(revisionLabel)
-                .addComponent(revisionTextField))
+                .addComponent(ziggyRevisionLabel)
+                .addComponent(ziggyRevisionTextField))
+            .addGroup(dataPanelLayout.createParallelGroup()
+                .addComponent(pipelineRevisionLabel)
+                .addComponent(pipelineRevisionTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
                 .addComponent(failureCountLabel)
                 .addComponent(failureCountTextField))
@@ -173,7 +171,7 @@ public class TaskInfoDialog extends javax.swing.JDialog {
         return new ZiggyTable<>(processingBreakdownTableModel);
     }
 
-    public static void showTaskInfoDialog(Window owner, PipelineTask pipelineTask) {
+    public static void showTaskInfoDialog(Window owner, PipelineTaskDisplayData pipelineTask) {
         new TaskInfoDialog(owner, pipelineTask).setVisible(true);
     }
 }

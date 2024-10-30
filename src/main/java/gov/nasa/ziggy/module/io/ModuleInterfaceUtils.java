@@ -43,7 +43,7 @@ public class ModuleInterfaceUtils {
             return;
         }
         String companionXmlFile = xmlFileName(moduleName);
-        log.info("Writing companion xml file \"" + companionXmlFile + "\".");
+        log.info("Writing companion xml file {}", companionXmlFile);
         StringBuilder validationErrors = new StringBuilder();
         try {
             JAXBContext jaxbContext = JAXBContext.newInstance(inputs.getClass());
@@ -130,7 +130,7 @@ public class ModuleInterfaceUtils {
     private static void deleteErrorFile(File errorFileToDelete) {
         boolean deleted = errorFileToDelete.delete();
         if (!deleted) {
-            log.error("Failed to delete errorFile=" + errorFileToDelete);
+            log.error("Failed to delete errorFile {}", errorFileToDelete);
         }
     }
 
@@ -143,7 +143,7 @@ public class ModuleInterfaceUtils {
     }
 
     /**
-     * Returns the name of the sub-task outputs file for a given module and sequence number.
+     * Returns the name of the subtask outputs file for a given module and sequence number.
      */
     public static String outputsFileName(String moduleName) {
         return moduleName + "-outputs." + BIN_FILE_TYPE;
@@ -159,14 +159,14 @@ public class ModuleInterfaceUtils {
     }
 
     /**
-     * Returns the name of the sub-task error file for a given module and sequence number.
+     * Returns the name of the subtask error file for a given module and sequence number.
      */
     public static String errorFileName(String moduleName) {
         return moduleName + "-error." + BIN_FILE_TYPE;
     }
 
     /**
-     * Returns the name of the sub-task XML companion file for a given module and sequence number.
+     * Returns the name of the subtask XML companion file for a given module and sequence number.
      */
     public static String xmlFileName(String moduleName) {
         return moduleName + "-digest.xml";

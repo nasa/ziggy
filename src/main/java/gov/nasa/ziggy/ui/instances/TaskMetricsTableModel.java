@@ -4,7 +4,7 @@ import java.util.List;
 
 import javax.swing.table.AbstractTableModel;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
@@ -19,13 +19,13 @@ public class TaskMetricsTableModel extends AbstractTableModel
     private TaskMetricsDisplayModel taskMetricsDisplayModel;
     private boolean completedTasksOnly;
 
-    public TaskMetricsTableModel(List<PipelineTask> tasks, List<String> orderedModuleNames,
-        boolean completedTasksOnly) {
+    public TaskMetricsTableModel(List<PipelineTaskDisplayData> tasks,
+        List<String> orderedModuleNames, boolean completedTasksOnly) {
         this.completedTasksOnly = completedTasksOnly;
         update(tasks, orderedModuleNames);
     }
 
-    public void update(List<PipelineTask> tasks, List<String> orderedModuleNames) {
+    public void update(List<PipelineTaskDisplayData> tasks, List<String> orderedModuleNames) {
         taskMetricsDisplayModel = new TaskMetricsDisplayModel(tasks, orderedModuleNames,
             completedTasksOnly);
         fireTableDataChanged();

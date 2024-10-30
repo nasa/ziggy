@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.module;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 
 /**
  * Categories used by the pipeline in various contexts.

@@ -24,7 +24,7 @@ import gov.nasa.ziggy.module.SubtaskDirectoryIterator.GroupSubtaskDirectory;
  */
 public class SubtaskDirectoryIterator implements Iterator<GroupSubtaskDirectory> {
     private static final Logger log = LoggerFactory.getLogger(SubtaskDirectoryIterator.class);
-    private static final Pattern SUB_TASK_PATTERN = Pattern.compile("st-([0-9]+)");
+    private static final Pattern SUBTASK_PATTERN = Pattern.compile("st-([0-9]+)");
 
     private final Iterator<GroupSubtaskDirectory> dirIterator;
     private final LinkedList<GroupSubtaskDirectory> directoryList;
@@ -33,8 +33,8 @@ public class SubtaskDirectoryIterator implements Iterator<GroupSubtaskDirectory>
     public SubtaskDirectoryIterator(File taskDirectory) {
         directoryList = new LinkedList<>();
         buildDirectoryList(taskDirectory);
-        log.debug("Number of subtask directories detected in task directory "
-            + taskDirectory.toString() + ": " + directoryList.size());
+        log.debug("Detected {} subtask directories in task directory {}", taskDirectory.toString(),
+            directoryList.size());
         dirIterator = directoryList.iterator();
     }
 
@@ -45,7 +45,7 @@ public class SubtaskDirectoryIterator implements Iterator<GroupSubtaskDirectory>
             File groupDir = file.getParentFile();
             File subtaskDir = file;
             directoryList.add(new GroupSubtaskDirectory(groupDir, subtaskDir));
-            log.debug("Adding: " + file);
+            log.debug("Adding {}", file);
         }
     }
 
@@ -78,7 +78,7 @@ public class SubtaskDirectoryIterator implements Iterator<GroupSubtaskDirectory>
     }
 
     private int subtaskNumber(String name) {
-        Matcher matcher = SUB_TASK_PATTERN.matcher(name);
+        Matcher matcher = SUBTASK_PATTERN.matcher(name);
         int number = -1;
         if (matcher.matches()) {
             number = Integer.parseInt(matcher.group(1));
@@ -90,7 +90,7 @@ public class SubtaskDirectoryIterator implements Iterator<GroupSubtaskDirectory>
         return currentIndex;
     }
 
-    public int numSubTasks() {
+    public int numSubtasks() {
         return directoryList.size();
     }
 

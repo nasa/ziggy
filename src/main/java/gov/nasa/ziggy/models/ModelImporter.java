@@ -82,10 +82,10 @@ public class ModelImporter {
      */
     public void importModels(List<Path> files) {
 
-        log.info("Importing models...");
+        log.info("Importing models");
         if (modelTypesToImport.isEmpty()) {
             modelTypesToImport.addAll(modelTypes());
-            log.info("Retrieved " + modelTypesToImport.size() + " model types from database");
+            log.info("Retrieved {} model types from database", modelTypesToImport.size());
         }
 
         Map<ModelType, Map<String, Path>> modelFilesByModelType = new HashMap<>();
@@ -111,7 +111,7 @@ public class ModelImporter {
         long unlockedModelRegistryId = mergeRegistryAndReturnUnlockedId(modelRegistry);
         log.info("Update of model registry complete");
         log.info("Importing models...done");
-        log.info("Current unlocked model registry ID == " + unlockedModelRegistryId);
+        log.info("Current unlocked model registry ID is {}", unlockedModelRegistryId);
     }
 
     /**
@@ -179,8 +179,8 @@ public class ModelImporter {
         Set<String> modelVersions = new TreeSet<>(modelFilesByVersionId.keySet());
         for (String version : modelVersions) {
             createModel(modelRegistry, modelType, modelDir, modelFilesByVersionId.get(version));
-            log.info(modelFilesByVersionId.size() + " models of type " + modelType.getType()
-                + " added to datastore");
+            log.info("Added {} models of type {} to datastore", modelFilesByVersionId.size(),
+                modelType.getType());
         }
     }
 
@@ -209,7 +209,7 @@ public class ModelImporter {
                 currentModelRegistryMetadata);
             modelMetadata.setDataReceiptTaskId(dataReceiptTaskId);
         } catch (Exception e) {
-            log.error("Unable to create model metadata for file " + modelFile);
+            log.error("Unable to create model metadata for file {}", modelFile);
             failedImports.add(dataImportPath.relativize(modelFile));
             return;
         }
@@ -219,7 +219,7 @@ public class ModelImporter {
         try {
             move(modelFile, destinationFile);
         } catch (Exception e) {
-            log.error("Unable to import file " + modelFile + " into datastore");
+            log.error("Unable to import file {} into datastore", modelFile);
             failedImports.add(dataImportPath.relativize(modelFile));
             return;
         }
@@ -227,8 +227,8 @@ public class ModelImporter {
         // If all that worked, then we can update the model registry
         persistModelMetadata(modelMetadata);
         modelRegistry.updateModelMetadata(modelMetadata);
-        log.info("Imported file " + modelFile + " to models directory as "
-            + modelMetadata.getDatastoreFileName() + " of type " + modelType.getType());
+        log.info("Imported file {} to models directory as {} of type {}", modelFile,
+            modelMetadata.getDatastoreFileName(), modelType.getType());
         successfulImports.add(datastoreRoot.relativize(destinationFile));
     }
 

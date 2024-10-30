@@ -29,13 +29,11 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
-import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
-import javax.swing.tree.AbstractLayoutCache;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreeNode;
@@ -51,7 +49,6 @@ import org.netbeans.swing.outline.RowModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.models.DatabaseModel;
@@ -116,7 +113,7 @@ public class ZiggyTable<T> {
     private WrappingCellRenderer wrappingCellRenderer = new WrappingCellRenderer();
     private DateCellRenderer dateCellRenderer = new DateCellRenderer();
     private Map<String, Boolean> expansionState;
-    private boolean defaultGroupExpansionState;
+    private boolean defaultGroupExpansionState = true;
     private TableModel tableModel;
     private ZiggyTreeModel<?> treeModel;
     private final Class<T> modelContentsClass;
@@ -147,8 +144,6 @@ public class ZiggyTable<T> {
         checkArgument(rowModel instanceof ModelContentClass,
             "ZiggyTable rowModel must implement ModelContentClass");
         modelContentsClass = ((ModelContentClass<T>) rowModel).tableModelContentClass();
-        checkArgument(Groupable.class.isAssignableFrom(modelContentsClass),
-            "ZiggyTable model content class must extend Groupable");
         this.treeModel = treeModel;
 
         table = new ZiggyOutline();
@@ -164,19 +159,22 @@ public class ZiggyTable<T> {
 
             @Override
             public void treeStructureChanged(TreeModelEvent evt) {
-                log.debug("thread={}, event={}", Thread.currentThread().getName(), evt);
-                if (expansionState == null) {
-                    // This is the first load of the model.
-                    return;
-                }
-                applyExpansionState(treeModel.getGroupNodes(), expansionState);
+                log.debug(
+                    "thread={}, event={}, rootNode={}, defaultGroupNode={}, expansionState={}",
+                    Thread.currentThread().getName(), evt, treeModel.getRootNode(),
+                    treeModel.getDefaultGroupNode(), expansionState);
 
-                Outline outline = (Outline) table;
-                if (defaultGroupExpansionState) {
-                    outline.expandPath(new TreePath(treeModel.getDefaultGroupNode().getPath()));
-                } else {
-                    outline.collapsePath(new TreePath(treeModel.getDefaultGroupNode().getPath()));
+                if (treeModel.getDefaultGroupNode() != null) {
+                    Outline outline = (Outline) table;
+                    TreePath treePath = new TreePath(treeModel.getDefaultGroupNode().getPath());
+                    if (defaultGroupExpansionState) {
+                        outline.expandPath(treePath);
+                    } else {
+                        outline.collapsePath(treePath);
+                    }
                 }
+
+                applyExpansionState(treeModel.getGroupNodes(), expansionState);
             }
 
             @Override
@@ -232,9 +230,9 @@ public class ZiggyTable<T> {
         if (table instanceof Outline) {
             expansionState = currentExpansionState(treeModel);
             if (treeModel.getDefaultGroupNode() != null) {
-                // Null until the model has been loaded yet.
-                defaultGroupExpansionState = ((Outline) table).getLayoutCache()
-                    .isExpanded(new TreePath(treeModel.getDefaultGroupNode()));
+                // Null until the model has been loaded.
+                defaultGroupExpansionState = ((Outline) table)
+                    .isExpanded(new TreePath(treeModel.getDefaultGroupNode().getPath()));
             }
 
             treeModel.loadFromDatabase();
@@ -263,11 +261,10 @@ public class ZiggyTable<T> {
 
         Map<String, Boolean> expansionState = new HashMap<>();
         Outline outline = (Outline) table;
-        AbstractLayoutCache layoutCache = outline.getLayoutCache();
 
         for (String groupName : groupNodes.keySet()) {
             DefaultMutableTreeNode node = groupNodes.get(groupName);
-            boolean isExpanded = layoutCache.isExpanded(new TreePath(node.getPath()));
+            boolean isExpanded = outline.isExpanded(new TreePath(node.getPath()));
 
             expansionState.put(groupName, isExpanded);
         }
@@ -282,6 +279,10 @@ public class ZiggyTable<T> {
     private void applyExpansionState(Map<String, DefaultMutableTreeNode> groupNodes,
         Map<String, Boolean> expansionState) {
         checkState(table instanceof Outline, "table must be an Outline");
+
+        if (expansionState == null) {
+            return;
+        }
 
         Outline outline = (Outline) table;
 
@@ -397,12 +398,6 @@ public class ZiggyTable<T> {
         }
         return table instanceof Outline ? getOutlineContentAtModelRow(viewIndex)
             : getTableContentAtModelRow(modelIndex);
-    }
-
-    public void fireTableDataChanged() {
-        if (tableModel instanceof AbstractTableModel) {
-            ((AbstractTableModel) tableModel).fireTableDataChanged();
-        }
     }
 
     /**
@@ -612,7 +607,7 @@ public class ZiggyTable<T> {
      *
      * @author PT
      */
-    class ZiggyETable extends ETable {
+    private class ZiggyETable extends ETable {
 
         private static final long serialVersionUID = 20230511L;
 
@@ -635,7 +630,7 @@ public class ZiggyTable<T> {
      *
      * @author PT
      */
-    class ZiggyOutline extends Outline {
+    private class ZiggyOutline extends Outline {
 
         private static final long serialVersionUID = 20230511L;
 

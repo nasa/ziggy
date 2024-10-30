@@ -15,6 +15,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -31,14 +32,15 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.metrics.MetricsDumper;
 import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.module.AlgorithmMonitor;
-import gov.nasa.ziggy.module.StateFile;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -48,17 +50,18 @@ import gov.nasa.ziggy.services.events.ZiggyEventHandler.ZiggyEventHandlerInfoFor
 import gov.nasa.ziggy.services.events.ZiggyEventOperations;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.EventHandlerRequest;
+import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
-import gov.nasa.ziggy.services.messages.KillTasksRequest;
-import gov.nasa.ziggy.services.messages.KilledTaskMessage;
 import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
 import gov.nasa.ziggy.services.messages.RestartTasksRequest;
 import gov.nasa.ziggy.services.messages.SingleTaskLogMessage;
 import gov.nasa.ziggy.services.messages.SingleTaskLogRequest;
 import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
+import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationRequest;
+import gov.nasa.ziggy.services.messages.UpdateProcessingStepMessage;
 import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
 import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.ZiggyEventHandlerInfoMessage;
@@ -81,6 +84,7 @@ import hdf.hdf5lib.H5;
  *
  * @author Todd Klaus
  * @author PT
+ * @author Bill Wohler
  */
 public class PipelineSupervisor extends AbstractPipelineProcess {
 
@@ -93,27 +97,29 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     private static final Set<ZiggyEventHandler> ziggyEventHandlers = ConcurrentHashMap.newKeySet();
 
-    // Global list of task IDs that have been killed by the TaskRequestHandlerLifecycleManager,
+    // Global list of tasks that have been killed by the TaskRequestHandlerLifecycleManager,
     // a PipelineWorker, or the delete command of a remote system's batch scheduler.
-    private static final Set<Long> killedTaskIds = ConcurrentHashMap.newKeySet();
+    private static final Set<PipelineTask> haltedTasks = ConcurrentHashMap.newKeySet();
 
     private static WorkerResources defaultResources;
 
     private ScheduledExecutorService heartbeatExecutor;
-    private QueueCommandManager queueCommandManager;
+    private QueueCommandManager queueCommandManager = QueueCommandManager.newInstance();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private PipelineExecutor pipelineExecutor = new PipelineExecutor();
     private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
     private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
+    private AlgorithmMonitor algorithmMonitor;
 
     public PipelineSupervisor(int workerCount, int workerHeapSize) {
         super(NAME);
         checkArgument(workerCount > 0, "Worker count must be positive");
         checkArgument(workerHeapSize > 0, "Worker heap size must be positive");
         defaultResources = new WorkerResources(workerCount, workerHeapSize);
-        log.debug("Starting pipeline supervisor with " + workerCount + " workers and "
-            + workerHeapSize + " MB max heap");
+        log.debug("Starting pipeline supervisor with {} workers and {} MB max heap", workerCount,
+            workerHeapSize);
     }
 
     public PipelineSupervisor(boolean messaging, boolean database) {
@@ -138,7 +144,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
             H5.loadH5Lib();
 
-            log.info("Subscribing to messages...");
+            log.info("Subscribing to messages");
             subscribe();
             StartPipelineRequestManager.start();
             log.info("Subscribing to messages...done");
@@ -162,27 +168,30 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                     HeartbeatMessage.heartbeatIntervalMillis(), TimeUnit.MILLISECONDS);
             }
             ZiggyShutdownHook.addShutdownHook(() -> {
-                log.info("Shutting down heartbeat executor...");
+                log.info("Shutting down heartbeat executor");
                 heartbeatExecutor.shutdownNow();
                 log.info("Shutting down heartbeat executor...done");
             });
 
+            // Start the algorithm monitor.
+            log.info("Starting algorithm monitor");
+            algorithmMonitor = new AlgorithmMonitor();
+            log.info("starting algorithm monitor...done");
+
             // Start the task request handler lifecycle manager.
-            log.info("Starting task request handler lifecycle manager...");
+            log.info("Starting task request handler lifecycle manager");
             TaskRequestHandlerLifecycleManager.initializeInstance();
             log.info("Starting task request handler lifecycle manager...done");
 
-            log.info("Starting metrics dumper thread...");
+            log.info("Starting metrics dumper thread");
             MetricsDumper metricsDumper = new MetricsDumper(
                 AbstractPipelineProcess.getProcessInfo().getPid());
             Thread metricsDumperThread = new Thread(metricsDumper, "MetricsDumper");
             metricsDumperThread.setDaemon(true);
             metricsDumperThread.start();
+            log.info("Starting metrics dumper thread...done");
 
-            log.info("Starting algorithm monitor threads...");
-            AlgorithmMonitor.initialize();
-
-            log.info("Loading event handlers...");
+            log.info("Loading event handlers");
             ziggyEventHandlers.addAll(ziggyEventOperations().eventHandlers());
             for (ZiggyEventHandler handler : ziggyEventHandlers) {
                 if (handler.isEnableOnClusterStart()) {
@@ -232,7 +241,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         });
         ZiggyMessenger.subscribe(TaskLogInformationRequest.class, message -> {
             ZiggyMessenger.publish(new TaskLogInformationMessage(message,
-                TaskLog.searchForLogFiles(message.getTaskId())));
+                TaskLog.searchForLogFiles(message.getPipelineTask())));
         });
         ZiggyMessenger.subscribe(SingleTaskLogRequest.class, message -> {
             ZiggyMessenger.publish(new SingleTaskLogMessage(message, taskLogContents(message)));
@@ -240,17 +249,20 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         ZiggyMessenger.subscribe(WorkerResourcesRequest.class, message -> {
             ZiggyMessenger.publish(new WorkerResourcesMessage(defaultResources, null));
         });
-        ZiggyMessenger.subscribe(KillTasksRequest.class, message -> {
-            killRemoteTasks(message);
+        ZiggyMessenger.subscribe(HaltTasksRequest.class, message -> {
+            haltRemoteTasks(message);
         });
         ZiggyMessenger.subscribe(RemoveTaskFromKilledTasksMessage.class, message -> {
-            killedTaskIds.remove(message.getTaskId());
+            haltedTasks.remove(message.getPipelineTask());
         });
-        ZiggyMessenger.subscribe(KilledTaskMessage.class, message -> {
-            handleKilledTaskMessage(message);
+        ZiggyMessenger.subscribe(TaskHaltedMessage.class, message -> {
+            handleTaskHaltedMessage(message);
         });
         ZiggyMessenger.subscribe(RestartTasksRequest.class, message -> {
             restartTasks(message);
+        });
+        ZiggyMessenger.subscribe(UpdateProcessingStepMessage.class, message -> {
+            updateProcessingStep(message);
         });
     }
 
@@ -258,13 +270,13 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     private String taskLogContents(SingleTaskLogRequest request) {
         File taskLogFile = new File(request.getTaskLogInformation().getFullPath());
         String stepLogContents = "<Request timed-out!>";
-        log.info("Reading task log: " + taskLogFile);
+        log.info("Reading task log {}", taskLogFile);
 
         Charset defaultCharset = null;
         StringBuilder fileContents = new StringBuilder(1024 * 4);
         try {
             fileContents.append(FileUtils.readFileToString(taskLogFile, defaultCharset));
-            log.info("Returning task log (" + fileContents.length() + " chars): " + taskLogFile);
+            log.info("Returning task log {} ({} chars) ", taskLogFile, fileContents.length());
             stepLogContents = fileContents.toString();
         } catch (IOException e) {
             throw new UncheckedIOException("Unable to read file " + taskLogFile.toString(), e);
@@ -273,31 +285,34 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     }
 
     /**
-     * Kills tasks that run remotely. The {@link AlgorithmManager} for remote jobs is queried for
-     * the {@link StateFile} instances of all the tasks it's monitoring. If there are any such, it
-     * uses the PBS qdel command to delete all such tasks from PBS.
+     * Kills tasks that run remotely. The {@link AlgorithmManager} is queried for remote jobs of all
+     * the tasks it's monitoring. If there are any such, it uses the PBS qdel command to delete all
+     * such tasks from PBS.
      * <p>
      * Package scoped for unit testing.
      */
-    void killRemoteTasks(KillTasksRequest message) {
-        Collection<StateFile> stateFiles = remoteTaskStateFiles();
-        if (CollectionUtils.isEmpty(stateFiles)) {
+    void haltRemoteTasks(HaltTasksRequest message) {
+        Map<PipelineTask, List<Long>> jobIdsByTask = jobIdsByTask(message.getPipelineTasks());
+        if (jobIdsByTask.isEmpty()) {
             return;
         }
-        for (StateFile stateFile : stateFiles) {
-            if (message.getTaskIds().contains(stateFile.getPipelineTaskId())
-                && getQueueCommandManager().deleteJobsForStateFile(stateFile) == 0) {
-                publishKilledTaskMessage(message, stateFile.getPipelineTaskId());
+        for (PipelineTask pipelineTask : message.getPipelineTasks()) {
+            List<Long> jobIds = jobIdsByTask.get(pipelineTask);
+            if (CollectionUtils.isEmpty(jobIds)) {
+                continue;
+            }
+            if (queueCommandManager().deleteJobsByJobId(jobIds) == 0) {
+                publishTaskHaltedMessage(pipelineTask);
             }
         }
     }
 
-    /** Sends killed-task message. */
+    /** Sends task-halted message. */
     // TODO Inline
     // This requires that the ZiggyMessenger.publish() call can be verified by Mockito.
     // The KillTaskMessage.timeSent field makes it difficult.
-    void publishKilledTaskMessage(KillTasksRequest message, long taskId) {
-        ZiggyMessenger.publish(new KilledTaskMessage(message, taskId));
+    void publishTaskHaltedMessage(PipelineTask pipelineTask) {
+        ZiggyMessenger.publish(new TaskHaltedMessage(pipelineTask));
     }
 
     /**
@@ -311,15 +326,15 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
      * <p>
      * Package scoped for unit testing.
      */
-    void handleKilledTaskMessage(KilledTaskMessage message) {
-        killedTaskIds.add(message.getTaskId());
+    void handleTaskHaltedMessage(TaskHaltedMessage message) {
+        haltedTasks.add(message.getPipelineTask());
 
         // Issue an alert.
-        alertService().generateAndBroadcastAlert("PI", message.getTaskId(),
-            AlertService.Severity.ERROR, "Task " + message.getTaskId() + " halted");
+        alertService().generateAndBroadcastAlert("PI", message.getPipelineTask(), Severity.ERROR,
+            "Task " + message.getPipelineTask().getId() + " halted");
 
         // Set the task's error flag.
-        pipelineTaskOperations().taskErrored(message.getTaskId());
+        pipelineTaskDataOperations().taskErrored(message.getPipelineTask());
     }
 
     /**
@@ -328,14 +343,20 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
      * resubmit, the resubmit counts on the tasks must be reset to zero.
      */
     void restartTasks(RestartTasksRequest message) {
-        List<PipelineTask> tasksToResubmit = pipelineTaskOperations()
-            .prepareTasksForManualResubmit(message.getPipelineTaskIds());
+        Collection<PipelineTask> tasksToResubmit = message.getPipelineTasks();
+        pipelineTaskDataOperations().prepareTasksForManualResubmit(tasksToResubmit);
         pipelineExecutor().restartFailedTasks(tasksToResubmit, message.isDoTransitionOnly(),
             message.getRunMode());
 
         // Invalidate the models since restarting a task changes other states in the
         // consoles.
         ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
+    }
+
+    /** Perform pipeline task processing steps serially to avoid race conditions */
+    private synchronized void updateProcessingStep(UpdateProcessingStepMessage message) {
+        pipelineTaskDataOperations().updateProcessingStep(message.getPipelineTask(),
+            message.getProcessingStep());
     }
 
     public static CommandLine supervisorCommand(WrapperCommand cmd, int workerCount,
@@ -396,28 +417,24 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             .collect(Collectors.toSet());
     }
 
-    public static boolean taskOnKilledTaskList(long taskId) {
-        return killedTaskIds.contains(taskId);
+    public static boolean taskOnHaltedTaskList(PipelineTask pipelineTask) {
+        return haltedTasks.contains(pipelineTask);
     }
 
-    public static void removeTaskFromKilledTaskList(long taskId) {
-        killedTaskIds.remove(taskId);
+    public static void removeTaskFromHaltedTaskList(PipelineTask pipelineTask) {
+        haltedTasks.remove(pipelineTask);
     }
 
     public static WorkerResources defaultResources() {
         return defaultResources;
     }
 
-    // Package scoped for testing purposes.
-    Collection<StateFile> remoteTaskStateFiles() {
-        return AlgorithmMonitor.remoteTaskStateFiles();
+    Map<PipelineTask, List<Long>> jobIdsByTask(Collection<PipelineTask> pipelineTasks) {
+        return algorithmMonitor.jobIdsByTaskId(pipelineTasks);
     }
 
     // Package scoped for testing purposes.
-    QueueCommandManager getQueueCommandManager() {
-        if (queueCommandManager == null) {
-            queueCommandManager = QueueCommandManager.newInstance();
-        }
+    QueueCommandManager queueCommandManager() {
         return queueCommandManager;
     }
 
@@ -427,6 +444,10 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
     }
 
     PipelineInstanceOperations pipelineInstanceOperations() {

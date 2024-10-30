@@ -69,7 +69,7 @@ public class SqlRunner implements Closeable {
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private Connection connect() {
-        log.info("Connecting to: {}", connectInfo);
+        log.info("Connecting to {}", connectInfo);
         try {
             Class.forName(connectInfo.getDriverName());
             cachedConnection = DriverManager.getConnection(connectInfo.getUrl(),
@@ -179,7 +179,7 @@ public class SqlRunner implements Closeable {
                 cachedConnection.close();
                 cachedConnection = null;
             } catch (SQLException e) {
-                log.warn("Could not close database connection: " + e.getMessage(), e);
+                log.warn("Could not close database connection: {}", e.getMessage(), e);
             }
         }
     }

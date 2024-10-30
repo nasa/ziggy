@@ -37,18 +37,18 @@ public class MemdroneLog {
     public MemdroneLog(File memdroneLogFile) {
         if (!memdroneLogFile.exists()) {
             throw new PipelineException(
-                "Specified memdrone file does not exist: " + memdroneLogFile);
+                "Specified memdrone file " + memdroneLogFile + " does not exist");
         }
 
         if (!memdroneLogFile.isFile()) {
             throw new PipelineException(
-                "Specified memdrone file is not a regular file: " + memdroneLogFile);
+                "Specified memdrone file " + memdroneLogFile + " is not a regular file");
         }
 
         try {
             input = new FileInputStream(memdroneLogFile);
         } catch (FileNotFoundException e) {
-            throw new UncheckedIOException("File " + memdroneLogFile.toString() + " not found", e);
+            throw new UncheckedIOException("File " + memdroneLogFile + " not found", e);
         }
         this.memdroneLogFile = memdroneLogFile;
         parse();
@@ -61,7 +61,7 @@ public class MemdroneLog {
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void parse() {
-        log.info("Parse started");
+        log.info("Parsing");
 
         logContents = new HashMap<>();
 
@@ -87,9 +87,9 @@ public class MemdroneLog {
                 "IOException occurred reading from " + memdroneLogFile.toString(), e);
         }
 
-        log.info("Parse complete");
-        log.info("lineCount: " + lineCount);
-        log.info("skipCount: " + skipCount);
+        log.info("Parsing...done");
+        log.info("lineCount = {}", lineCount);
+        log.info("skipCount = {}", skipCount);
     }
 
     public Map<String, DescriptiveStatistics> getLogContents() {

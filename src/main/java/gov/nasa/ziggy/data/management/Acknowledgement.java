@@ -22,8 +22,8 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -141,8 +141,8 @@ public class Acknowledgement implements HasXmlSchemaFilename {
         if (!Files.exists(acknowledgementPath)) {
             return false;
         }
-        ValidatingXmlManager<Acknowledgement> xmlManager;
-        xmlManager = new ValidatingXmlManager<>(Acknowledgement.class);
+        ValidatingXmlManager<Acknowledgement> xmlManager = new ValidatingXmlManager<>(
+            Acknowledgement.class);
         Acknowledgement ack = xmlManager.unmarshal(acknowledgementPath.toFile());
         return ack.transferStatus.equals(DataReceiptStatus.VALID);
     }
@@ -171,12 +171,12 @@ public class Acknowledgement implements HasXmlSchemaFilename {
      *
      * @param manifest {@link Manifest} file to be acknowledged.
      * @param dir Location of the files referenced in the manifest.
-     * @param taskId ID of the {@link PipelineTask} that is performing the manifest validation.
+     * @param pipelineTask {@link PipelineTask} that is performing the manifest validation.
      * @return {@link Acknowledgement} that includes validation status of all files referenced in
      * the manifest.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    public static Acknowledgement of(Manifest manifest, Path dir, long taskId) {
+    public static Acknowledgement of(Manifest manifest, Path dir, PipelineTask pipelineTask) {
 
         Acknowledgement acknowledgement = new Acknowledgement(manifest.getChecksumType());
         acknowledgement.setDatasetId(manifest.getDatasetId());
@@ -211,8 +211,8 @@ public class Acknowledgement implements HasXmlSchemaFilename {
                     // failures.
                     if (validationFailures == 0) {
                         AlertService.getInstance()
-                            .generateAndBroadcastAlert("Data Receipt", taskId, Severity.WARNING,
-                                "File validation errors encountered");
+                            .generateAndBroadcastAlert("Data Receipt", pipelineTask,
+                                Severity.WARNING, "File validation errors encountered");
                     }
                     validationFailures++;
 
@@ -221,7 +221,7 @@ public class Acknowledgement implements HasXmlSchemaFilename {
                     // which files failed prior to termination.
                     if (validationFailures >= maxValidationFailures) {
                         AlertService.getInstance()
-                            .generateAndBroadcastAlert("Data Receipt", taskId, Severity.ERROR,
+                            .generateAndBroadcastAlert("Data Receipt", pipelineTask, Severity.ERROR,
                                 "Exceeded " + maxValidationFailures + ", terminating");
                         break;
                     }

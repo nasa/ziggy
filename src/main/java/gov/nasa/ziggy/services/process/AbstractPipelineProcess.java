@@ -9,6 +9,7 @@ import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.os.ProcessUtils;
 
 /**
@@ -59,8 +60,7 @@ public abstract class AbstractPipelineProcess {
 
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
 
-        log.info("Starting process {} ({})", processInfo,
-            config.getString(PropertyName.ZIGGY_VERSION.property()));
+        log.info("Starting process {} ({})", processInfo, BuildInfo.ziggyVersion());
         ZiggyConfiguration.logJvmProperties();
 
         if (initDatabaseService) {

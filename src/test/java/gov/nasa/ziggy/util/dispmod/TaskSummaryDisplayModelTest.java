@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 
@@ -15,8 +15,9 @@ public class TaskSummaryDisplayModelTest {
     @Test
     public void test() {
         PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
-        pipelineOperationsTestUtils.setUpFivePipelineTasks();
-        List<PipelineTask> pipelineTasks = pipelineOperationsTestUtils.getPipelineTasks();
+        pipelineOperationsTestUtils.setUpFivePipelineTaskDisplayData();
+        List<PipelineTaskDisplayData> pipelineTasks = pipelineOperationsTestUtils
+            .getPipelineTaskDisplayData();
         TaskCounts taskCounts = new TaskCounts(pipelineTasks);
         TaskSummaryDisplayModel model = new TaskSummaryDisplayModel(taskCounts);
         assertEquals(6, model.getColumnCount());

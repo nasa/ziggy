@@ -55,8 +55,7 @@ public class InstancesTasksPanel extends javax.swing.JPanel {
                 layout.createParallelGroup().addComponent(instancesPanel).addComponent(tasksPanel));
 
             InstancesTasksPanelAutoRefresh instancesTasksPanelAutoRefresh = new InstancesTasksPanelAutoRefresh(
-                instancesPanel.instancesTable(), tasksPanel.tasksTableModel(),
-                tasksPanel.taskStatusSummaryPanel());
+                instancesPanel.instancesTable(), tasksPanel.tasksTableModel());
             instancesTasksPanelAutoRefresh.start();
             return instancesTasksPanelAutoRefresh;
         } catch (Exception e) {

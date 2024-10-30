@@ -34,7 +34,7 @@ public class StatusMessageBroadcaster {
     }
 
     public synchronized void addStatusReporter(final StatusReporter reporter) {
-        log.info("Adding a status reporter of class " + reporter.getClass().getName());
+        log.info("Adding a status reporter of class {}", reporter.getClass().getName());
         reporters.add(reporter);
     }
 

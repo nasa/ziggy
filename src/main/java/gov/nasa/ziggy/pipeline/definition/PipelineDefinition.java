@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 import org.slf4j.Logger;
@@ -53,8 +53,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 @Entity
 @Table(name = "ziggy_PipelineDefinition",
     uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "version" }) })
-public class PipelineDefinition extends UniqueNameVersionPipelineComponent<PipelineDefinition>
-    implements Groupable {
+public class PipelineDefinition extends UniqueNameVersionPipelineComponent<PipelineDefinition> {
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineDefinition.class);
 
@@ -205,6 +204,7 @@ public class PipelineDefinition extends UniqueNameVersionPipelineComponent<Pipel
         this.description = description;
     }
 
+    @Override
     public Long getId() {
         return id;
     }

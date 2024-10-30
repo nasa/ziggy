@@ -11,7 +11,6 @@ import javax.swing.SwingWorker;
 import com.google.common.collect.Sets;
 
 import gov.nasa.ziggy.pipeline.definition.Group;
-import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.pipeline.definition.database.GroupOperations;
 
 /**
@@ -20,7 +19,7 @@ import gov.nasa.ziggy.pipeline.definition.database.GroupOperations;
  * @author PT
  * @author Bill Wohler
  */
-public class GroupInformation<T extends Groupable> {
+public class GroupInformation<T> {
 
     private Map<String, T> objectByName;
     private Map<Group, List<T>> objectsByGroup;
@@ -33,8 +32,8 @@ public class GroupInformation<T extends Groupable> {
      * Creates a {@code GroupInformation} object. This makes a database call so it should be
      * performed in {@link SwingWorker#doInBackground()}.
      */
-    public GroupInformation(Class<T> clazz, List<T> allObjects) {
-        List<Group> allGroups = groupOperations().groupsForClass(clazz);
+    public GroupInformation(String type, List<T> allObjects) {
+        List<Group> allGroups = groupOperations().groups(type);
 
         objectByName = createObjectByName(allObjects);
         objectsByGroup = createObjectsByGroup(allGroups, objectByName);
@@ -46,7 +45,7 @@ public class GroupInformation<T extends Groupable> {
     private Map<String, T> createObjectByName(List<T> allObjects) {
         Map<String, T> objectsByName = new HashMap<>();
         for (T object : allObjects) {
-            objectsByName.put(object.getName(), object);
+            objectsByName.put(object.toString(), object);
         }
         return objectsByName;
     }
@@ -58,11 +57,11 @@ public class GroupInformation<T extends Groupable> {
         for (Group group : allGroups) {
 
             // Does this group contain any of the objects we're interested in today?
-            Sets.SetView<String> objectsThisGroup = Sets.intersection(group.getMemberNames(),
+            Sets.SetView<String> items = Sets.intersection(group.getItems(),
                 objectByName.keySet());
-            if (!objectsThisGroup.isEmpty()) {
+            if (!items.isEmpty()) {
                 List<T> objects = new ArrayList<>();
-                for (String objectName : objectsThisGroup) {
+                for (String objectName : items) {
                     objects.add(objectByName.get(objectName));
                 }
                 groups.put(group, objects);

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -190,23 +190,25 @@ public class RuntimeObjectFactoryTest {
         assertNotNull(pipelineTask);
         assertEquals(pipelineInstance.getId().longValue(), pipelineTask.getPipelineInstanceId());
         assertEquals(definitionNode.getModuleName(), pipelineTask.getModuleName());
-        UnitOfWork taskUow = pipelineTask.uowTaskInstance();
+        UnitOfWork taskUow = pipelineTask.getUnitOfWork();
         Set<Parameter> parameters = taskUow.getParameters();
         assertFalse(CollectionUtils.isEmpty(parameters));
         Parameter parameter = parameters.iterator().next();
         assertEquals("bauhaus", parameter.getName());
         assertEquals(1, parameters.size());
+        assertEquals(pipelineTask.getUnitOfWork().getParameters(), taskUow.getParameters());
 
         pipelineTask = pipelineTasksById.get(4L);
         assertNotNull(pipelineTask);
         assertEquals(pipelineInstance.getId().longValue(), pipelineTask.getPipelineInstanceId());
         assertEquals(definitionNode.getModuleName(), pipelineTask.getModuleName());
-        taskUow = pipelineTask.uowTaskInstance();
+        taskUow = pipelineTask.getUnitOfWork();
         parameters = taskUow.getParameters();
         assertFalse(CollectionUtils.isEmpty(parameters));
         parameter = parameters.iterator().next();
         assertEquals("duran", parameter.getName());
         assertEquals(1, parameters.size());
+        assertEquals(pipelineTask.getUnitOfWork().getParameters(), taskUow.getParameters());
 
         // In addition to the 2 tasks created here, there were already 2 in the
         // database from PipelineOperationsTestUtils.

@@ -46,7 +46,7 @@ public class InstanceMetricsReport {
 
     /**
      * Top-level directory that contains the task files. Assumes that this directory contains all of
-     * the task directories, which in turn contain all of the sub-task directories
+     * the task directories, which in turn contain all of the subtask directories
      */
     private File rootDirectory = null;
 
@@ -66,9 +66,9 @@ public class InstanceMetricsReport {
     private final TopNList instanceTopNList = new TopNList(TOP_N_INSTANCE);
 
     // Map<taskDirName,List<execTime>> - Complete list of exec times, by sky group
-    private final Map<String, List<Double>> subTaskExecTimesByTask = new HashMap<>();
+    private final Map<String, List<Double>> subtaskExecTimesByTask = new HashMap<>();
 
-    private final List<Double> subTaskExecTimes = new ArrayList<>(200000);
+    private final List<Double> subtaskExecTimes = new ArrayList<>(200000);
 
     private PdfRenderer instancePdfRenderer;
     private PdfRenderer taskPdfRenderer;
@@ -76,7 +76,7 @@ public class InstanceMetricsReport {
     public InstanceMetricsReport(File rootDirectory) {
         if (rootDirectory == null || !rootDirectory.isDirectory()) {
             throw new IllegalArgumentException(
-                "rootDirectory does not exist or is not a directory: " + rootDirectory);
+                "rootDirectory " + rootDirectory + " does not exist or is not a directory ");
         }
         this.rootDirectory = rootDirectory;
     }
@@ -94,13 +94,13 @@ public class InstanceMetricsReport {
 
         parseFiles();
 
-        log.info("Instance Metrics");
+        log.info("Instance metrics");
         dump(instanceMetrics);
 
-        dumpTopTen(instancePdfRenderer, "Top " + TOP_N_INSTANCE + " for instance: ",
+        dumpTopTen(instancePdfRenderer, "Top " + TOP_N_INSTANCE + " for instance ",
             instanceTopNList);
 
-        JFreeChart histogram = generateHistogram("instance", subTaskExecTimes);
+        JFreeChart histogram = generateHistogram("instance", subtaskExecTimes);
 
         if (histogram != null) {
 //            chart2Png(histogram,
@@ -124,7 +124,7 @@ public class InstanceMetricsReport {
             .listFiles((FileFilter) f -> f.getName().contains("-matlab-") && f.isDirectory());
 
         for (File taskDir : taskDirs) {
-            log.info("Processing: " + taskDir);
+            log.info("Processing {}", taskDir);
 
             String taskDirName = taskDir.getName();
             Map<String, Metric> taskMetrics = taskMetricsMap.get(taskDirName);
@@ -140,19 +140,19 @@ public class InstanceMetricsReport {
                     && pathname.isDirectory());
 
             if (subtaskDirs == null) {
-                log.info("No sub-task directories found");
+                log.info("No subtask directories found");
                 return;
             }
-            log.info("Found " + subtaskDirs.length + " sub-task directories");
+            log.info("Found {} subtask directories", subtaskDirs.length);
 
-            for (File subTaskDir : subtaskDirs) {
-                File subTaskMetricsFile = new File(subTaskDir, METRICS_FILE_NAME);
+            for (File subtaskDir : subtaskDirs) {
+                File subtaskMetricsFile = new File(subtaskDir, METRICS_FILE_NAME);
 
-                if (subTaskMetricsFile.exists()) {
-                    Map<String, Metric> subTaskMetrics = Metric
-                        .loadMetricsFromSerializedFile(subTaskMetricsFile);
+                if (subtaskMetricsFile.exists()) {
+                    Map<String, Metric> subtaskMetrics = Metric
+                        .loadMetricsFromSerializedFile(subtaskMetricsFile);
 
-                    for (Metric metric : subTaskMetrics.values()) {
+                    for (Metric metric : subtaskMetrics.values()) {
                         // merge this metric into the instance metrics
                         merge(metric, instanceMetrics);
                         // merge this metric into the task metrics
@@ -162,21 +162,21 @@ public class InstanceMetricsReport {
                             IntervalMetric totalTimeMetric = (IntervalMetric) metric;
                             int execTime = (int) totalTimeMetric.getAverage();
                             instanceTopNList.add(execTime,
-                                taskDirName + "/" + subTaskDir.getName());
-                            taskTopNList.add(execTime, taskDirName + "/" + subTaskDir.getName());
+                                taskDirName + "/" + subtaskDir.getName());
+                            taskTopNList.add(execTime, taskDirName + "/" + subtaskDir.getName());
                             addExecTime(taskDirName, totalTimeMetric.getAverage());
                         }
                     }
                 } else {
-                    log.warn("No metrics file found in: " + subTaskDir);
+                    log.warn("No metrics file found in {}", subtaskDir);
                 }
             }
 
-            log.info("Metrics for: " + taskDirName);
-            dumpTopTen(taskPdfRenderer, "Top " + TOP_N_TASKS + " for task: " + taskDirName,
+            log.info("Metrics for {}", taskDirName);
+            dumpTopTen(taskPdfRenderer, "Top " + TOP_N_TASKS + " for task " + taskDirName,
                 taskTopNList);
 
-            List<Double> taskExecTimes = subTaskExecTimesByTask.get(taskDirName);
+            List<Double> taskExecTimes = subtaskExecTimesByTask.get(taskDirName);
             JFreeChart histogram = generateHistogram(taskDirName, taskExecTimes);
 
             if (histogram != null) {
@@ -191,15 +191,15 @@ public class InstanceMetricsReport {
     }
 
     private void addExecTime(String taskDirName, double execTime) {
-        List<Double> timesForTask = subTaskExecTimesByTask.get(taskDirName);
+        List<Double> timesForTask = subtaskExecTimesByTask.get(taskDirName);
         if (timesForTask == null) {
             timesForTask = new ArrayList<>(5000);
-            subTaskExecTimesByTask.put(taskDirName, timesForTask);
+            subtaskExecTimesByTask.put(taskDirName, timesForTask);
         }
 
         double timeHours = execTime / 1000.0 / 3600.0; // convert to hours
         timesForTask.add(timeHours);
-        subTaskExecTimes.add(timeHours);
+        subtaskExecTimes.add(timeHours);
     }
 
     private double[] listToArray(List<Double> list) {
@@ -229,7 +229,7 @@ public class InstanceMetricsReport {
         dataset.addSeries("execTime", values, NUM_BINS);
 
         JFreeChart chart = ChartFactory.createHistogram("Algorithm Run-time (" + label + ")",
-            "execTime (hours)", "Number of Sub-tasks", dataset, PlotOrientation.VERTICAL, true,
+            "execTime (hours)", "Number of Subtasks", dataset, PlotOrientation.VERTICAL, true,
             true, false);
         XYPlot plot = (XYPlot) chart.getPlot();
         plot.setDomainPannable(true);
@@ -249,10 +249,10 @@ public class InstanceMetricsReport {
     private JFreeChart generateBoxAndWhiskers() {
         DefaultBoxAndWhiskerCategoryDataset dataset = new DefaultBoxAndWhiskerCategoryDataset();
 
-        Set<String> taskNames = subTaskExecTimesByTask.keySet();
+        Set<String> taskNames = subtaskExecTimesByTask.keySet();
         for (String taskName : taskNames) {
-            log.info("taskDirName = " + taskName);
-            List<Double> execTimesForTask = subTaskExecTimesByTask.get(taskName);
+            log.info("taskDirName={}", taskName);
+            List<Double> execTimesForTask = subtaskExecTimesByTask.get(taskName);
             dataset.add(BoxAndWhiskerCalculator.calculateBoxAndWhiskerStatistics(execTimesForTask),
                 taskName, taskName);
         }
@@ -279,7 +279,7 @@ public class InstanceMetricsReport {
 
     private void dump(Map<String, Metric> metrics) {
         for (Metric metric : metrics.values()) {
-            log.info(metric.getName() + ": " + metric.toString());
+            log.info("{}: {}", metric.getName(), metric.toString());
         }
     }
 

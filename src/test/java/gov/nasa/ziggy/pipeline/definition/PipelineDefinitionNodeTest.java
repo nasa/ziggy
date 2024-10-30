@@ -83,7 +83,8 @@ public class PipelineDefinitionNodeTest {
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         marshaller.marshal(node, xmlFile);
         assertTrue(xmlFile.exists());
-        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(), ZiggyFileUtils.ZIGGY_CHARSET);
+        List<String> xmlContent = Files.readAllLines(xmlFile.toPath(),
+            ZiggyFileUtils.ZIGGY_CHARSET);
         assertEquals(9, xmlContent.size());
         List<String> nodeContent = nodeContent(xmlContent,
             "<node heapSizeMb=\"2\" moduleName=\"module 1\" "

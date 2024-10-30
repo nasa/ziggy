@@ -145,6 +145,13 @@ public class ZiggyArrayUtils {
             String componentType = loopObject.getClass().getComponentType().getName();
             if (componentType.startsWith("[")) {
                 Object[] arrayObject = (Object[]) loopObject;
+
+                // Handle a zero-length array.
+                if (arrayObject == null || arrayObject.length == 0) {
+                    arrayDimensionList.add(0L);
+                    isArray = false;
+                    continue;
+                }
                 loopObject = arrayObject[0];
                 isArray = true;
             } else {

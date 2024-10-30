@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
@@ -61,7 +61,7 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         List<DatastoreProducerConsumer> datastoreProducerConsumers = retrieveOrCreate(pipelineTask,
             datastoreNames(datastoreFiles));
         for (DatastoreProducerConsumer datastoreProducerConsumer : datastoreProducerConsumers) {
-            datastoreProducerConsumer.setProducer(pipelineTask.getId());
+            datastoreProducerConsumer.setProducer(pipelineTask);
             merge(datastoreProducerConsumer);
         }
     }
@@ -72,8 +72,8 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
     }
 
     /** Retrieves the set of names of datastore files consumed by a specified pipeline task. */
-    public Set<String> retrieveFilesConsumedByTask(long taskId) {
-        return retrieveFilesConsumedByTasks(Set.of(taskId), null);
+    public Set<String> retrieveFilesConsumedByTask(PipelineTask pipelineTask) {
+        return retrieveFilesConsumedByTasks(Set.of(pipelineTask), null);
     }
 
     /**
@@ -82,16 +82,27 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
      * filenames collection will be included in the return; otherwise, all filenames that have a
      * consumer from the collection of consumer IDs will be included.
      */
-    public Set<String> retrieveFilesConsumedByTasks(Collection<Long> consumerIds,
+    public Set<String> retrieveFilesConsumedByTasks(Collection<PipelineTask> consumers,
         Collection<String> filenames) {
+
+        if (CollectionUtils.isEmpty(filenames)) {
+            return new HashSet<>(list(filesConsumedByTasksQuery(consumers)));
+        }
+        return new HashSet<>(chunkedQuery(new ArrayList<>(filenames),
+            chunk -> list(
+                filesConsumedByTasksQuery(consumers).column(DatastoreProducerConsumer_.filename)
+                    .in(chunk))));
+    }
+
+    private ZiggyQuery<DatastoreProducerConsumer, String> filesConsumedByTasksQuery(
+        Collection<PipelineTask> consumers) {
+
         ZiggyQuery<DatastoreProducerConsumer, String> query = createZiggyQuery(
             DatastoreProducerConsumer.class, String.class);
         query.select(DatastoreProducerConsumer_.filename).distinct(true);
-        if (!CollectionUtils.isEmpty(filenames)) {
-            query.column(DatastoreProducerConsumer_.filename).chunkedIn(filenames);
-        }
-        addConsumerIdPredicates(query, consumerIds);
-        return new HashSet<>(list(query));
+        addConsumerIdPredicates(query,
+            consumers.stream().map(PipelineTask::getId).collect(Collectors.toList()));
+        return query;
     }
 
     /**
@@ -139,18 +150,21 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         Set<String> producedFileDatastoreNames = datastoreNames(producedFiles);
 
         // Find the unique set of pipeline tasks that produced the output files.
-        ZiggyQuery<DatastoreProducerConsumer, Long> producerQuery = createZiggyQuery(
-            DatastoreProducerConsumer.class, Long.class);
-        producerQuery.column(DatastoreProducerConsumer_.filename)
-            .chunkedIn(producedFileDatastoreNames);
-        producerQuery.column(DatastoreProducerConsumer_.producerId).select().distinct(true);
+        List<Long> producerIds = chunkedQuery(new ArrayList<>(producedFileDatastoreNames),
+            chunk -> list(createZiggyQuery(DatastoreProducerConsumer.class, Long.class)
+                .column(DatastoreProducerConsumer_.filename)
+                .in(chunk)
+                .column(DatastoreProducerConsumer_.producerId)
+                .select()
+                .distinct(true)));
 
         // Find and return the files that were consumed by the tasks that produced the
         // outputs.
         ZiggyQuery<DatastoreProducerConsumer, String> query = createZiggyQuery(
-            DatastoreProducerConsumer.class, String.class);
-        query.column(DatastoreProducerConsumer_.filename).select();
-        addConsumerIdPredicates(query, list(producerQuery));
+            DatastoreProducerConsumer.class, String.class)
+                .column(DatastoreProducerConsumer_.filename)
+                .select();
+        addConsumerIdPredicates(query, producerIds);
         return list(query);
     }
 
@@ -160,13 +174,12 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
             return;
         }
         List<DatastoreProducerConsumer> dpcs = retrieveOrCreate(null, datastoreNames);
-        dpcs.stream().forEach(s -> addConsumer(s, pipelineTask.getId()));
+        dpcs.stream().forEach(s -> addConsumer(s, pipelineTask));
     }
 
     /**
      * Adds a non-producing consumer to each of a set of datastore files. A non-producing consumer
-     * is a consumer that failed to produce results from processing. It is indicated by the negative
-     * of the task ID.
+     * is a consumer that failed to produce results from processing.
      */
     public void addNonProducingConsumer(PipelineTask pipelineTask, Set<String> datastoreNames) {
         if (datastoreNames == null || datastoreNames.isEmpty()) {
@@ -174,16 +187,25 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         }
         List<DatastoreProducerConsumer> datastoreProducerConsumers = retrieveOrCreate(null,
             datastoreNames);
-        datastoreProducerConsumers.stream().forEach(dpc -> addConsumer(dpc, -pipelineTask.getId()));
+        datastoreProducerConsumers.stream()
+            .forEach(dpc -> addNonProducingConsumer(dpc, pipelineTask));
     }
 
     /**
-     * Adds a consumer ID and updates or creates a {@link DatastoreProducerConsumer} instance.
-     * Implemented as a private method so that a stream forEach operation can apply it.
+     * Adds a consumer to the given {@link DatastoreProducerConsumer} instance.
      */
     private void addConsumer(DatastoreProducerConsumer datastoreProducerConsumer,
-        long pipelineTaskId) {
-        datastoreProducerConsumer.addConsumer(pipelineTaskId);
+        PipelineTask pipelineTask) {
+        datastoreProducerConsumer.addConsumer(pipelineTask);
+        merge(datastoreProducerConsumer);
+    }
+
+    /**
+     * Adds a consumer to the given {@link DatastoreProducerConsumer} instance.
+     */
+    private void addNonProducingConsumer(DatastoreProducerConsumer datastoreProducerConsumer,
+        PipelineTask pipelineTask) {
+        datastoreProducerConsumer.addNonProducingConsumer(pipelineTask);
         merge(datastoreProducerConsumer);
     }
 
@@ -199,29 +221,29 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
      * @param pipelineTask Producer task for constructed entries, if null a value of zero will be
      * used for the producer ID of constructed entries
      * @param filenames Names of datastore files to be located in the database table of
-     * {@link DatastoreProducerConsumer} instances. Must be mutable.
+     * {@link DatastoreProducerConsumer} instances.
      * @return A {@link List} of {@link DatastoreProducerConsumer} instances, with the database
-     * versions for files that have database entries and new instances for those that do not.
+     * versions for files that have database entries and new instances for those that do not
      */
     protected List<DatastoreProducerConsumer> retrieveOrCreate(PipelineTask pipelineTask,
         Set<String> filenames) {
 
-        Set<String> allFilenames = new HashSet<>(filenames);
         // Start by finding all the files that already have entries.
-        ZiggyQuery<DatastoreProducerConsumer, DatastoreProducerConsumer> query = createZiggyQuery(
-            DatastoreProducerConsumer.class);
-        query.column(DatastoreProducerConsumer_.filename).chunkedIn(allFilenames);
-        List<DatastoreProducerConsumer> datastoreProducerConsumers = list(query);
+        Set<String> allFilenames = new HashSet<>(filenames);
+        List<DatastoreProducerConsumer> datastoreProducerConsumers = chunkedQuery(
+            new ArrayList<>(allFilenames),
+            chunk -> list(createZiggyQuery(DatastoreProducerConsumer.class)
+                .column(DatastoreProducerConsumer_.filename)
+                .in(chunk)));
 
         List<String> locatedFilenames = datastoreProducerConsumers.stream()
             .map(DatastoreProducerConsumer::getFilename)
             .collect(Collectors.toList());
 
-        // For all the filenames that lack entries, construct DatastoreProducerConsumer instances
-        long producerId = pipelineTask != null ? pipelineTask.getId() : 0;
+        // For all the filenames that lack entries, construct DatastoreProducerConsumer instances.
         allFilenames.removeAll(locatedFilenames);
         for (String filename : allFilenames) {
-            DatastoreProducerConsumer instance = new DatastoreProducerConsumer(producerId,
+            DatastoreProducerConsumer instance = new DatastoreProducerConsumer(pipelineTask,
                 filename);
             persist(instance);
             datastoreProducerConsumers.add(instance);
@@ -276,15 +298,12 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
         Map<String, Path> datastoreFileByName = datastoreFiles.stream()
             .collect(Collectors.toMap(Path::toString, Function.identity()));
         Set<String> datastoreNames = new HashSet<>(datastoreFileByName.keySet());
-        if (datastoreNames.iterator().hasNext()) {
-        }
 
-        // There doesn't seem to be a better way to do this.
-        datastoreNames
-            .removeAll(list(createZiggyQuery(DatastoreProducerConsumer.class, String.class)
+        datastoreNames.removeAll(chunkedQuery(new ArrayList<>(datastoreNames),
+            chunk -> list(createZiggyQuery(DatastoreProducerConsumer.class, String.class)
                 .column(DatastoreProducerConsumer_.filename)
-                .chunkedIn(datastoreNames)
-                .select()));
+                .in(chunk)
+                .select())));
         return datastoreNames.stream().map(datastoreFileByName::get).collect(Collectors.toSet());
     }
 

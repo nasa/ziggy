@@ -32,10 +32,10 @@ public class WorkerMemoryManager {
     private int availableMegaBytes;
 
     public WorkerMemoryManager() {
-        MemInfo memInfo = OperatingSystemType.getInstance().getMemInfo();
+        MemInfo memInfo = OperatingSystemType.newInstance().getMemInfo();
         long physicalMemoryMegaBytes = memInfo.getTotalMemoryKB() / KILO;
 
-        log.info("physicalMemoryMegaBytes: " + physicalMemoryMegaBytes);
+        log.info("physicalMemoryMegaBytes={}", physicalMemoryMegaBytes);
 
         availableMegaBytes = (int) physicalMemoryMegaBytes;
         long jvmMaxHeapMegaBytes = Runtime.getRuntime().maxMemory() / (KILO * KILO);
@@ -47,8 +47,7 @@ public class WorkerMemoryManager {
          */
 
         if (jvmMaxHeapMegaBytes < physicalMemoryMegaBytes / 2) {
-            log.info("JVM max heap size set to jvmMaxHeapMegaBytes: " + jvmMaxHeapMegaBytes);
-
+            log.info("JVM max heap size set to {}", jvmMaxHeapMegaBytes);
             availableMegaBytes -= jvmMaxHeapMegaBytes;
         } else {
             /*
@@ -60,8 +59,8 @@ public class WorkerMemoryManager {
             long jvmInUseMegaBytes = Runtime.getRuntime().totalMemory() / (KILO * KILO);
 
             if (jvmInUseMegaBytes < physicalMemoryMegaBytes / 2) {
-                log.info("JVM max heap size not available, using in-use bytes: jvmInUseMegaBytes: "
-                    + jvmInUseMegaBytes);
+                log.info("JVM max heap size not available, using in-use heap {}",
+                    jvmInUseMegaBytes);
                 availableMegaBytes -= jvmInUseMegaBytes;
             } else {
                 log.info("JVM heap size not available, not accounted for in pool");
@@ -80,11 +79,10 @@ public class WorkerMemoryManager {
     private void initSemaphore() {
         memorySemaphore = new Semaphore(availableMegaBytes, true);
 
-        log.info("availableMegaBytes in memory manager pool: " + availableMegaBytes);
+        log.info("Memory manager pool has {} MB", availableMegaBytes);
     }
 
     /**
-     * @param megaBytes
      * @see java.util.concurrent.Semaphore#acquire(int)
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
@@ -96,8 +94,7 @@ public class WorkerMemoryManager {
 
         try {
             memorySemaphore.acquire(megaBytes);
-            log.info(
-                megaBytes + " megabytes acquired, new pool size: " + availableMemoryMegaBytes());
+            log.info("Acquired {} MB, new pool size is {}", megaBytes, availableMemoryMegaBytes());
         } catch (InterruptedException ignored) {
             // If we got here, it means that a worker thread was waiting for Java heap to become
             // available but that thread was interrupted. It is therefore no longer waiting for
@@ -106,22 +103,18 @@ public class WorkerMemoryManager {
         }
     }
 
-    /**
-     * @param megaBytes
-     */
     private void logAcquirePrediction(int megaBytes) {
         int numAvailPermits = memorySemaphore.availablePermits();
         if (numAvailPermits < megaBytes) {
-            log.info("Requesting " + megaBytes + " megabytes from pool, but only " + numAvailPermits
-                + " megabytes available, " + memorySemaphore.getQueueLength()
-                + " threads already waiting (will probably block)...");
+            log.info(
+                "Requesting {} MB from pool, but only {} MB available, {} threads already waiting (will probably block)",
+                megaBytes, numAvailPermits, memorySemaphore.getQueueLength());
         } else {
-            log.info("Requesting " + megaBytes + " megabytes from pool (probably won't block)...");
+            log.info("Requesting {} MB from pool (probably won't block)", megaBytes);
         }
     }
 
     /**
-     * @param megaBytes
      * @see java.util.concurrent.Semaphore#release(int)
      */
     public void releaseMemoryMegaBytes(int megaBytes) {
@@ -129,11 +122,11 @@ public class WorkerMemoryManager {
             return;
         }
 
-        log.info("Releasing " + megaBytes + " megabytes from pool...");
+        log.info("Releasing {} MB from pool", megaBytes);
 
         memorySemaphore.release(megaBytes);
 
-        log.info(megaBytes + " megabytes released, new pool size: " + availableMemoryMegaBytes());
+        log.info("Released {} MB, new pool size is {} MB", megaBytes, availableMemoryMegaBytes());
     }
 
     /**

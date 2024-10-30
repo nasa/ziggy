@@ -12,6 +12,7 @@ import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -40,10 +41,12 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
  * stored in the database
  *
  * @author Todd Klaus
+ * @author PT
+ * @author Bill Wohler
  */
 @Entity
 @Table(name = "ziggy_PipelineInstance")
-public class PipelineInstance implements PipelineExecutionTime {
+public class PipelineInstance {
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(PipelineInstance.class);
 
@@ -114,18 +117,14 @@ public class PipelineInstance implements PipelineExecutionTime {
      */
     private String name;
 
-    /** Timestamp that processing started on this pipeline instance */
-    private Date startProcessingTime = new Date(0);
-
-    /** Timestamp that processing ended (successfully) on this pipeline instance */
-    private Date endProcessingTime = new Date(0);
-
-    private long currentExecutionStartTimeMillis = -1;
-
-    private long priorProcessingExecutionTimeMillis;
-
     @ManyToOne
     private PipelineDefinition pipelineDefinition;
+
+    private Date created = new Date();
+
+    /** Elapsed execution time for the instance. */
+    @Embedded
+    private ExecutionClock executionClock = new ExecutionClock();
 
     @Enumerated(EnumType.STRING)
     private State state = State.INITIALIZED;
@@ -179,20 +178,20 @@ public class PipelineInstance implements PipelineExecutionTime {
         pipelineDefinition = pipeline;
     }
 
-    public State getState() {
-        return state;
-    }
-
-    public void setState(State state) {
-        this.state = state;
-    }
-
     public Long getId() {
         return id;
     }
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public PipelineDefinition getPipelineDefinition() {
@@ -203,37 +202,36 @@ public class PipelineInstance implements PipelineExecutionTime {
         pipelineDefinition = pipeline;
     }
 
+    public Date getCreated() {
+        return created;
+    }
+
+    public ExecutionClock getExecutionClock() {
+        return executionClock;
+    }
+
+    public void startExecutionClock() {
+        executionClock.start();
+    }
+
+    public void stopExecutionClock() {
+        executionClock.stop();
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void setState(State state) {
+        this.state = state;
+    }
+
     public Priority getPriority() {
         return priority;
     }
 
     public void setPriority(Priority priority) {
         this.priority = priority;
-    }
-
-    @Override
-    public String toString() {
-        return ReflectionToStringBuilder.toString(this);
-    }
-
-    @Override
-    public Date getEndProcessingTime() {
-        return endProcessingTime;
-    }
-
-    @Override
-    public void setEndProcessingTime(Date endProcessingTime) {
-        this.endProcessingTime = endProcessingTime;
-    }
-
-    @Override
-    public Date getStartProcessingTime() {
-        return startProcessingTime;
-    }
-
-    @Override
-    public void setStartProcessingTime(Date startProcessingTime) {
-        this.startProcessingTime = startProcessingTime;
     }
 
     public List<PipelineInstanceNode> getRootNodes() {
@@ -260,23 +258,6 @@ public class PipelineInstance implements PipelineExecutionTime {
         pipelineInstanceNodes.add(pipelineInstanceNode);
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null || getClass() != obj.getClass()) {
-            return false;
-        }
-        PipelineInstance other = (PipelineInstance) obj;
-        return Objects.equals(id, other.id);
-    }
-
     public Set<ParameterSet> getParameterSets() {
         return parameterSets;
     }
@@ -287,14 +268,6 @@ public class PipelineInstance implements PipelineExecutionTime {
 
     public void addParameterSet(ParameterSet parameterSet) {
         parameterSets.add(parameterSet);
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public PipelineInstanceNode getStartNode() {
@@ -328,23 +301,46 @@ public class PipelineInstance implements PipelineExecutionTime {
         return modelMetadata.getModelDescription();
     }
 
-    @Override
-    public void setPriorProcessingExecutionTimeMillis(long priorProcessingExecutionTimeMillis) {
-        this.priorProcessingExecutionTimeMillis = priorProcessingExecutionTimeMillis;
+    /** Generate a hash code for mutable fields in addition to the ID. */
+    public int totalHashCode() {
+        return Objects.hash(executionClock, id, state);
+    }
+
+    /**
+     * Returns true if the given object is equal to this object considering mutable fields in
+     * addition to the ID.
+     */
+    public boolean totalEquals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        PipelineInstance other = (PipelineInstance) obj;
+        return Objects.equals(executionClock, other.executionClock) && Objects.equals(id, other.id)
+            && state == other.state;
     }
 
     @Override
-    public long getPriorProcessingExecutionTimeMillis() {
-        return priorProcessingExecutionTimeMillis;
+    public int hashCode() {
+        return Objects.hash(id);
     }
 
     @Override
-    public void setCurrentExecutionStartTimeMillis(long currentExecutionStartTimeMillis) {
-        this.currentExecutionStartTimeMillis = currentExecutionStartTimeMillis;
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        PipelineInstance other = (PipelineInstance) obj;
+        return Objects.equals(id, other.id);
     }
 
     @Override
-    public long getCurrentExecutionStartTimeMillis() {
-        return currentExecutionStartTimeMillis;
+    public String toString() {
+        return ReflectionToStringBuilder.toString(this);
     }
 }

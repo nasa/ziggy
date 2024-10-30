@@ -33,6 +33,9 @@ import jakarta.persistence.Table;
  * {@link ModelRegistry} of the current versions of all models that is provided to a
  * {@link PipelineInstance} when the instance is created, and which can be exposed by the instance
  * report.
+ * <p>
+ * A non-producing consumer is a consumer that failed to produce results from processing. It is
+ * indicated by the negative of the task ID.
  *
  * @author PT
  */
@@ -61,14 +64,22 @@ public class DatastoreProducerConsumer {
     public DatastoreProducerConsumer() {
     }
 
-    public DatastoreProducerConsumer(long producerId, String filename) {
+    public DatastoreProducerConsumer(PipelineTask producerPipelineTask, Path datastoreFile) {
+        this(producerPipelineTask, datastoreFile.toString());
+    }
+
+    public DatastoreProducerConsumer(PipelineTask producerPipelineTask, String filename) {
+        this(toProducerId(producerPipelineTask), filename);
+    }
+
+    private DatastoreProducerConsumer(long producerId, String filename) {
         checkNotNull(filename, "filename");
         this.filename = filename;
         this.producerId = producerId;
     }
 
-    public DatastoreProducerConsumer(PipelineTask pipelineTask, Path datastoreFile) {
-        this(pipelineTask.getId(), datastoreFile.toString());
+    private static long toProducerId(PipelineTask producerPipelineTask) {
+        return producerPipelineTask != null ? producerPipelineTask.getId() : 0;
     }
 
     public void setFilename(String filename) {
@@ -83,8 +94,8 @@ public class DatastoreProducerConsumer {
         return producerId;
     }
 
-    public void setProducer(long producer) {
-        producerId = producer;
+    public void setProducer(PipelineTask producer) {
+        producerId = toProducerId(producer);
     }
 
     public Set<Long> getConsumers() {
@@ -97,11 +108,19 @@ public class DatastoreProducerConsumer {
         return consumers.stream().map(Math::abs).collect(Collectors.toSet());
     }
 
-    public void setConsumers(Set<Long> consumers) {
-        this.consumers.addAll(consumers);
+    public void addConsumer(PipelineTask consumingPipelineTask) {
+        addConsumer(toProducerId(consumingPipelineTask));
     }
 
-    public void addConsumer(long consumer) {
+    /**
+     * Adds the given consumer to this object. A non-producing consumer is a consumer that failed to
+     * produce results from processing.
+     */
+    public void addNonProducingConsumer(PipelineTask consumingPipelineTask) {
+        addConsumer(-toProducerId(consumingPipelineTask));
+    }
+
+    private void addConsumer(long consumer) {
         consumers.add(consumer);
     }
 

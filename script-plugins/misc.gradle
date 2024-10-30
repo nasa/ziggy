@@ -1,9 +1,6 @@
 // Show all dependencies.
 task allDeps(type: DependencyReportTask) {}
 
-// Generate the Ziggy version information.
-import gov.nasa.ziggy.buildutil.ZiggyVersionGenerator
-
 def gitVersion = new ByteArrayOutputStream()
 exec {
     commandLine "git", "rev-parse", "HEAD"
@@ -11,14 +8,16 @@ exec {
 }
 gitVersion = gitVersion.toString().trim()
 
-task ziggyVersion(type: ZiggyVersionGenerator) {
+task ziggyVersion(type: JavaExec) {
     inputs.property "ziggyVersion", gitVersion
+    outputs.file "$buildDir/etc/ziggy-build.properties"
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "gov.nasa.ziggy.util.BuildInfo"
+    args = ["--prefix", "ziggy", "--home", "$buildDir"]
 }
 
-processResources.dependsOn ziggyVersion
-compileTestJava.dependsOn processResources
-integrationTest.dependsOn processResources
-sourcesJar.dependsOn processResources
+integrationTest.dependsOn ziggyVersion
+assemble.dependsOn ziggyVersion
 
 clean.doFirst() {
     File supervisorPidFile = new File("$buildDir/bin/supervisor.pid");

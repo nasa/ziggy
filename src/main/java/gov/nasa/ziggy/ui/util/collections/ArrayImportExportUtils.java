@@ -41,7 +41,7 @@ public class ArrayImportExportUtils {
         try {
             reader = new BufferedReader(
                 new InputStreamReader(new FileInputStream(file), ZiggyFileUtils.ZIGGY_CHARSET));
-            log.info("Importing array from: " + file.getName());
+            log.info("Importing array from {}", file.getName());
 
             String oneLine = null;
 
@@ -60,7 +60,7 @@ public class ArrayImportExportUtils {
     }
 
     public static void exportArray(File file, List<String> values) throws IOException {
-        log.info("Exporting array to: " + file.getName());
+        log.info("Exporting array to {}", file.getName());
 
         try (BufferedWriter writer = new BufferedWriter(
             new OutputStreamWriter(new FileOutputStream(file), ZiggyFileUtils.ZIGGY_CHARSET));) {

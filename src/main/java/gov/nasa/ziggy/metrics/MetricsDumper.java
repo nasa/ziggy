@@ -86,7 +86,8 @@ public class MetricsDumper implements Runnable {
             FileOutputStream fout = new FileOutputStream(metricsFile, true /* append mode */);
             BufferedOutputStream bout = new BufferedOutputStream(fout, BUF_SIZE_BYTES);
             countOut = new CountingOutputStream(bout);
-            printWriter = new PrintWriter(new OutputStreamWriter(countOut, ZiggyFileUtils.ZIGGY_CHARSET));
+            printWriter = new PrintWriter(
+                new OutputStreamWriter(countOut, ZiggyFileUtils.ZIGGY_CHARSET));
         } catch (IOException e) {
             throw new UncheckedIOException("IOException occurred on file " + metricsFile.toString(),
                 e);

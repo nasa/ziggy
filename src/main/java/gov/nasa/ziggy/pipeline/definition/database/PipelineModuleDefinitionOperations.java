@@ -41,14 +41,6 @@ public class PipelineModuleDefinitionOperations extends DatabaseOperations {
         return performTransaction(() -> pipelineModuleDefinitionCrud().merge(module));
     }
 
-    public PipelineModuleDefinition rename(PipelineModuleDefinition module, String newName) {
-        return performTransaction(() -> pipelineModuleDefinitionCrud().rename(module, newName));
-    }
-
-    public void delete(PipelineModuleDefinition module) {
-        performTransaction(() -> pipelineModuleDefinitionCrud().remove(module));
-    }
-
     public PipelineModuleExecutionResources pipelineModuleExecutionResources(
         PipelineModuleDefinition module) {
         return performTransaction(

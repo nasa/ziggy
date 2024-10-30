@@ -444,40 +444,6 @@ public class PipelineDefinitionCrudTest {
     }
 
     @Test
-    public void testEditPipelineDefinitionDeleteAllNodes() throws Exception {
-        // Create
-        populateObjects();
-
-        // Retrieve & Edit
-        testOperations.deleteAllNodes(TEST_PIPELINE_NAME_1);
-
-        // Retrieve
-        PipelineDefinition actualPipelineDef = testOperations
-            .pipelineDefinition(TEST_PIPELINE_NAME_1);
-
-        PipelineDefinition expectedPipelineDef = createPipelineDefinition();
-        editPipelineDefDeleteAllNodes(expectedPipelineDef);
-        setOptimisticLockValue(expectedPipelineDef, 1);
-
-        comparer.excludeField(".*\\.id");
-
-        comparer.assertEquals("PipelineDefinition", expectedPipelineDef, actualPipelineDef);
-
-        assertEquals("PipelineDefinitionNode count", 0, pipelineNodeCount());
-        assertEquals("PipelineModuleDefinition count", 3, pipelineModuleDefinitionCount());
-        assertEquals("ParameterSet count", 1, pipelineModuleParamSetCount());
-    }
-
-    /**
-     * simulate modifications made by a user delete all nodes
-     *
-     * @param pipelineDef
-     */
-    private void editPipelineDefDeleteAllNodes(PipelineDefinition pipelineDef) {
-        pipelineDefinitionCrud.deleteAllPipelineNodes(pipelineDef);
-    }
-
-    @Test
     public void testRetrievePipelineDefinitionNamesInUse() throws Exception {
         // No pipeline definitions at all. Should be empty.
         assertEquals(0, pipelineDefinitionCrud.retrievePipelineDefinitionNamesInUse().size());
@@ -607,15 +573,6 @@ public class PipelineDefinitionCrudTest {
                 PipelineDefinition pipelineDefinition = new PipelineDefinitionCrud()
                     .retrieveLatestVersionForName(pipelineDefinitionName);
                 editPipelineDefDeleteLastNode(pipelineDefinition);
-                new PipelineDefinitionCrud().merge(pipelineDefinition);
-            });
-        }
-
-        public void deleteAllNodes(String pipelineDefinitionName) {
-            performTransaction(() -> {
-                PipelineDefinition pipelineDefinition = new PipelineDefinitionCrud()
-                    .retrieveLatestVersionForName(pipelineDefinitionName);
-                editPipelineDefDeleteAllNodes(pipelineDefinition);
                 new PipelineDefinitionCrud().merge(pipelineDefinition);
             });
         }

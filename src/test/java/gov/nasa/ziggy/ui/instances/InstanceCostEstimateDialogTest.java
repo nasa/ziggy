@@ -9,13 +9,13 @@ import java.util.List;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 
 public class InstanceCostEstimateDialogTest {
 
     @Test
     public void testInstanceCost() {
-        List<PipelineTask> pipelineTasks = List.of(createPipelineTask(0.000123));
+        List<PipelineTaskDisplayData> pipelineTasks = List.of(createPipelineTask(0.000123));
         assertEquals("0.0001", instanceCost(pipelineTasks));
         pipelineTasks = List.of(createPipelineTask(1.00123));
         assertEquals("1.001", instanceCost(pipelineTasks));
@@ -27,8 +27,8 @@ public class InstanceCostEstimateDialogTest {
         assertEquals("1001.2", instanceCost(pipelineTasks));
     }
 
-    private PipelineTask createPipelineTask(double costEstimate) {
-        PipelineTask pipelineTask = mock(PipelineTask.class);
+    private PipelineTaskDisplayData createPipelineTask(double costEstimate) {
+        PipelineTaskDisplayData pipelineTask = mock(PipelineTaskDisplayData.class);
         Mockito.when(pipelineTask.costEstimate()).thenReturn(costEstimate);
         return pipelineTask;
     }

@@ -51,7 +51,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -533,8 +533,9 @@ public class DatastoreConfigurationImporter {
         List<String> databaseDataFileTypeNames = datastoreOperations().dataFileTypeNames();
         for (DataFileType typeXb : importedDataFileTypes) {
             if (databaseDataFileTypeNames.contains(typeXb.getName())) {
-                log.warn("Not importing data file type definition \"{}\""
-                    + " due to presence of existing type with same name", typeXb.getName());
+                log.warn(
+                    "Not importing data file type definition {} due to presence of existing type with same name",
+                    typeXb.getName());
                 dataFileTypesNotImported.add(typeXb);
                 continue;
             }
@@ -562,14 +563,13 @@ public class DatastoreConfigurationImporter {
             try {
                 modelTypeXb.validate();
             } catch (Exception e) {
-                log.warn("Unable to validate model type definition " + modelTypeXb.getType(), e);
+                log.warn("Unable to validate model type definition {}", modelTypeXb.getType(), e);
                 modelTypesNotImported.add(modelTypeXb);
                 continue;
             }
             if (databaseModelTypes.contains(modelTypeXb.getType())) {
                 log.warn(
-                    "Not importing model type definition \"{}\""
-                        + " due to presence of existing type with same name",
+                    "Not importing model type definition {} due to presence of existing type with same name",
                     modelTypeXb.getType());
                 modelTypesNotImported.add(modelTypeXb);
                 continue;

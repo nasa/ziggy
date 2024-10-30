@@ -1,0 +1,26 @@
+Job 20255559.pbspl1.nas.nasa.gov started on Wed Aug 07 12:00:12 PDT 2024
+The job requested the following resources:
+    ncpus=1
+    place=scatter:excl
+    walltime=00:30:00
+
+PBS set the following environment variables:
+        FORT_BUFFERED = 1
+                   TZ = PST8PDT
+
+____________________________________________________________________
+Job Resource Usage Summary for 20255559.pbspl1.nas.nasa.gov
+
+    CPU Time Used            : 02:30:11
+    Real Memory Used         : 19276372kb
+    Walltime Used            : 00:30:29
+    Exit Status              : 0
+
+    Number of CPUs Requested : 1
+    Walltime Requested       : 00:30:00
+
+    Execution Queue          : low
+    Charged To               : s1007
+
+    Job Stopped              : Wed Aug  7 12:30:55 2024
+____________________________________________________________________

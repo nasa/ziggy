@@ -31,13 +31,13 @@ import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.metrics.ValueMetric;
-import gov.nasa.ziggy.module.remote.TimestampFile;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics.Units;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -90,7 +90,7 @@ public class ExternalProcessPipelineModule extends PipelineModule {
     @Override
     public List<RunMode> restartModes() {
         return List.of(RunMode.RESTART_FROM_BEGINNING, RunMode.RESUBMIT,
-            RunMode.RESUME_CURRENT_STEP, RunMode.RESUME_MONITORING);
+            RunMode.RESUME_CURRENT_STEP);
     }
 
     protected File getTaskDir() {
@@ -138,11 +138,11 @@ public class ExternalProcessPipelineModule extends PipelineModule {
             // Set the next step, whatever it might be.
             incrementProcessingStep();
 
-            // If there are sub-task inputs, then we can go on to the next step.
+            // If there are subtask inputs, then we can go on to the next step.
             successful = true;
         } else {
 
-            // If there are no sub-task inputs, we should stop processing.
+            // If there are no subtask inputs, we should stop processing.
             successful = false;
             checkHaltRequest(ProcessingStep.MARSHALING);
         }
@@ -158,7 +158,7 @@ public class ExternalProcessPipelineModule extends PipelineModule {
         File taskWorkingDirectory) {
         pipelineInputs().copyDatastoreFilesToTaskDirectory(taskConfiguration,
             taskWorkingDirectory.toPath());
-        pipelineTaskOperations().updateSubtaskCounts(pipelineTask().getId(),
+        pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask,
             taskConfiguration.getSubtaskCount(), 0, 0);
     }
 
@@ -211,7 +211,7 @@ public class ExternalProcessPipelineModule extends PipelineModule {
         checkHaltRequest(ProcessingStep.EXECUTING);
         doneLooping = true;
         processingSuccessful = false;
-        log.info("Resubmitting {} algorithm to remote system", ProcessingStep.EXECUTING);
+        log.info("Resubmitting {} algorithm to remote system...done", ProcessingStep.EXECUTING);
     }
 
     /**
@@ -240,19 +240,19 @@ public class ExternalProcessPipelineModule extends PipelineModule {
 
             // add metrics for "RemoteWorker", "PleiadesQueue", "Matlab",
             // "PendingReceive"
-            long remoteWorkerTime = timestampFileElapsedTimeMillis(TimestampFile.Event.ARRIVE_PFE,
-                TimestampFile.Event.QUEUED_PBS);
-            long pleiadesQueueTime = timestampFileElapsedTimeMillis(TimestampFile.Event.QUEUED_PBS,
-                TimestampFile.Event.PBS_JOB_START);
-            long pleiadesWallTime = timestampFileElapsedTimeMillis(
-                TimestampFile.Event.PBS_JOB_START, TimestampFile.Event.PBS_JOB_FINISH);
+            long remoteWorkerTime = timestampFileElapsedTimeMillis(
+                TimestampFile.Event.ARRIVE_COMPUTE_NODES, TimestampFile.Event.QUEUED);
+            long pleiadesQueueTime = timestampFileElapsedTimeMillis(TimestampFile.Event.QUEUED,
+                TimestampFile.Event.START);
+            long pleiadesWallTime = timestampFileElapsedTimeMillis(TimestampFile.Event.START,
+                TimestampFile.Event.FINISH);
             long pendingReceiveTime = startTransferTime
-                - timestampFileTimestamp(TimestampFile.Event.PBS_JOB_FINISH);
+                - timestampFileTimestamp(TimestampFile.Event.FINISH);
 
-            log.info("remoteWorkerTime = " + remoteWorkerTime);
-            log.info("pleiadesQueueTime = " + pleiadesQueueTime);
-            log.info("pleiadesWallTime = " + pleiadesWallTime);
-            log.info("pendingReceiveTime = " + pendingReceiveTime);
+            log.info("remoteWorkerTime = {}", remoteWorkerTime);
+            log.info("pleiadesQueueTime = {}", pleiadesQueueTime);
+            log.info("pleiadesWallTime = {}", pleiadesWallTime);
+            log.info("pendingReceiveTime = {}", pendingReceiveTime);
 
             valueMetricAddValue(REMOTE_WORKER_WAIT_METRIC, remoteWorkerTime);
             valueMetricAddValue(PLEIADES_QUEUE_METRIC, pleiadesQueueTime);
@@ -262,9 +262,9 @@ public class ExternalProcessPipelineModule extends PipelineModule {
         ProcessingFailureSummary failureSummary = processingFailureSummary();
         boolean abandonPersisting = false;
         if (!failureSummary.isAllTasksSucceeded() && !failureSummary.isAllTasksFailed()) {
-            log.info("Sub-task failures occurred. List of sub-task failures follows:");
-            for (String failedSubTask : failureSummary.getFailedSubTaskDirs()) {
-                log.info("    " + failedSubTask);
+            log.info("Subtask failures occurred. List of subtask failures follows:");
+            for (String failedSubtask : failureSummary.getFailedSubtaskDirs()) {
+                log.info("    {}", failedSubtask);
             }
             ImmutableConfiguration config = ZiggyConfiguration.getInstance();
             boolean allowPartialTasks = config
@@ -272,11 +272,11 @@ public class ExternalProcessPipelineModule extends PipelineModule {
             abandonPersisting = !allowPartialTasks;
         }
         if (failureSummary.isAllTasksFailed()) {
-            log.info("All sub-tasks failed in processing, abandoning storage of results");
+            log.info("All subtasks failed in processing, abandoning storage of results");
             abandonPersisting = true;
         }
         if (abandonPersisting) {
-            throw new PipelineException("Unable to persist due to sub-task failures");
+            throw new PipelineException("Unable to persist due to subtask failures");
         }
 
         IntervalMetric.measure(STORE_OUTPUTS_METRIC, () -> {
@@ -321,7 +321,7 @@ public class ExternalProcessPipelineModule extends PipelineModule {
                 log.warn("Input file {} produced no output", inputFile.toString());
             }
             AlertService.getInstance()
-                .generateAndBroadcastAlert("Algorithm", taskId(), AlertService.Severity.WARNING,
+                .generateAndBroadcastAlert("Algorithm", pipelineTask(), Severity.WARNING,
                     inputFiles.getFilesWithoutOutputs()
                         + " input files produced no output, see log for details");
         }
@@ -370,7 +370,7 @@ public class ExternalProcessPipelineModule extends PipelineModule {
 
     @Override
     protected void restartFromBeginning() {
-        pipelineTaskOperations().updateProcessingStep(taskId(), processingSteps().get(0));
+        pipelineTaskDataOperations().updateProcessingStep(pipelineTask, processingSteps().get(0));
         processingMainLoop();
     }
 
@@ -381,13 +381,8 @@ public class ExternalProcessPipelineModule extends PipelineModule {
 
     @Override
     protected void resubmit() {
-        pipelineTaskOperations().updateProcessingStep(taskId(), ProcessingStep.SUBMITTING);
+        pipelineTaskDataOperations().updateProcessingStep(pipelineTask, ProcessingStep.SUBMITTING);
         processingMainLoop();
-    }
-
-    @Override
-    protected void resumeMonitoring() {
-        algorithmManager().getExecutor().resumeMonitoring();
     }
 
     @Override
@@ -403,19 +398,19 @@ public class ExternalProcessPipelineModule extends PipelineModule {
             throw new PipelineException("processTask called with incorrect pipeline task");
         }
 
-        List<PipelineTaskMetrics> summaryMetrics = pipelineTaskOperations()
-            .summaryMetrics(pipelineTask);
+        List<PipelineTaskMetric> pipelineTaskMetrics = pipelineTaskDataOperations()
+            .pipelineTaskMetrics(pipelineTask);
 
         log.debug("Thread Metrics:");
         for (String threadMetricName : threadMetrics.keySet()) {
-            log.debug("TM: " + threadMetricName + ": "
-                + threadMetrics.get(threadMetricName).getLogString());
+            log.debug("TM: {}: {}", threadMetricName,
+                threadMetrics.get(threadMetricName).getLogString());
         }
 
         // cross-reference existing summary metrics by category
-        Map<String, PipelineTaskMetrics> summaryMetricsByCategory = new HashMap<>();
-        for (PipelineTaskMetrics summaryMetric : summaryMetrics) {
-            summaryMetricsByCategory.put(summaryMetric.getCategory(), summaryMetric);
+        Map<String, PipelineTaskMetric> pipelineTaskMetricByCategory = new HashMap<>();
+        for (PipelineTaskMetric pipelineTaskMetric : pipelineTaskMetrics) {
+            pipelineTaskMetricByCategory.put(pipelineTaskMetric.getCategory(), pipelineTaskMetric);
         }
 
         String[] categories;
@@ -444,16 +439,15 @@ public class ExternalProcessPipelineModule extends PipelineModule {
                 ValueMetric iMetric = (ValueMetric) metric;
                 totalTime = iMetric.getSum();
             } else {
-                log.info("Module did not provide metric with name = " + metricName);
+                log.info("Module did not provide metric with name = {}", metricName);
             }
 
-            log.info("TaskID={}, category={}, time(ms)={}", pipelineTask.getId(), category,
-                totalTime);
+            log.info("TaskID={}, category={}, time(ms)={}", pipelineTask, category, totalTime);
 
-            PipelineTaskMetrics m = summaryMetricsByCategory.get(category);
+            PipelineTaskMetric m = pipelineTaskMetricByCategory.get(category);
             if (m == null) {
-                m = new PipelineTaskMetrics(category, totalTime, unit);
-                summaryMetrics.add(m);
+                m = new PipelineTaskMetric(category, totalTime, unit);
+                pipelineTaskMetrics.add(m);
             }
 
             // don't overwrite the existing value if no value was recorded for
@@ -463,8 +457,8 @@ public class ExternalProcessPipelineModule extends PipelineModule {
                 m.setValue(totalTime);
             }
         }
-        pipelineTask.setSummaryMetrics(summaryMetrics);
-        pipelineTaskOperations().merge(pipelineTask);
+
+        pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask, pipelineTaskMetrics);
     }
 
     /**
@@ -491,7 +485,7 @@ public class ExternalProcessPipelineModule extends PipelineModule {
     }
 
     long timestampFileTimestamp(TimestampFile.Event event) {
-        return TimestampFile.timestamp(getTaskDir(), event);
+        return TimestampFile.timestamp(getTaskDir(), event, false);
     }
 
     ValueMetric valueMetricAddValue(String name, long value) {

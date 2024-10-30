@@ -39,10 +39,10 @@ import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
@@ -128,7 +128,7 @@ public class DatastoreFileManager {
         List<DataFileType> allFilesAllSubtasksDataFileTypes = new ArrayList<>(dataFileTypes);
         allFilesAllSubtasksDataFileTypes.removeAll(filePerSubtaskDataFileTypes);
 
-        UnitOfWork uow = pipelineTask.uowTaskInstance();
+        UnitOfWork uow = pipelineTask.getUnitOfWork();
 
         // Generate sets of DataFilesForDataFileType instances. These provide the necessary
         // information for mapping files in the datastore into the files needed by each
@@ -248,13 +248,12 @@ public class DatastoreFileManager {
                     .collect(Collectors.toSet());
 
                 // Find the consumers that correspond to the definition node of the current task.
-                List<Long> consumersWithMatchingPipelineNode = pipelineTaskOperations()
-                    .taskIdsForPipelineDefinitionNode(pipelineTask);
+                List<PipelineTask> consumersWithMatchingPipelineNode = pipelineTaskOperations()
+                    .tasksForPipelineDefinitionNode(pipelineTask);
 
                 // Obtain the Set of datastore files that are in the relativizedFilePaths collection
                 // and which have a consumer that matches the pipeline definition node of the
-                // current
-                // pipeline task.
+                // current pipeline task.
                 Set<String> namesOfFilesAlreadyProcessed = datastoreProducerConsumerOperations()
                     .filesConsumedByTasks(consumersWithMatchingPipelineNode, relativizedFilePaths);
 

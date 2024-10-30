@@ -278,9 +278,6 @@ public enum PropertyName {
     /** Allows the user to specify a working directory other than user.dir. For testing only. */
     ZIGGY_TEST_WORKING_DIR("ziggy.test.working.dir"),
 
-    /** The current Ziggy version as determined by {@code git describe}. */
-    ZIGGY_VERSION("ziggy.version"),
-
     /** Allow persisting to continue although one or more subtasks failed. */
     ALLOW_PARTIAL_TASKS("ziggy.worker.allowPartialTasks"),
 

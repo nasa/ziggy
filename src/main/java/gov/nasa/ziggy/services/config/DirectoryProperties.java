@@ -18,7 +18,6 @@ public class DirectoryProperties {
     private static final String TASK_LOG_FILES_RELATIVE_PATH = "ziggy";
     private static final String CLI_LOG_FILES_RELATIVE_PATH = "cli";
     private static final String PBS_LOG_FILES_RELATIVE_PATH = "pbs";
-    private static final String STATE_FILES_RELATIVE_PATH = "state";
     private static final String ALGORITHM_LOG_FILES_RELATIVE_PATH = "algorithms";
     private static final String DATABASE_LOG_FILES_RELATIVE_PATH = "db";
     private static final String SUPERVISOR_LOG_FILES_RELATIVE_PATH = "supervisor";
@@ -71,11 +70,6 @@ public class DirectoryProperties {
     public static Path pbsLogDir() {
         return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
             .resolve(PBS_LOG_FILES_RELATIVE_PATH);
-    }
-
-    public static Path stateFilesDir() {
-        return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
-            .resolve(STATE_FILES_RELATIVE_PATH);
     }
 
     public static Path algorithmLogsDir() {

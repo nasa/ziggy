@@ -137,7 +137,7 @@ public class NasQueueTimeMetrics {
             Set<ArchitectureQueueTimeMetrics> allMetrics = parseQsCsv(qsResultsDestination,
                 directorate);
             for (ArchitectureQueueTimeMetrics metrics : allMetrics) {
-                log.info("Architecture string: " + metrics.archName);
+                log.info("Architecture string {}", metrics.archName);
                 RemoteNodeDescriptor descriptor = remoteNodeNameMap.get(metrics.archName);
                 if (descriptor != null) {
                     queueDepthMap.put(descriptor, metrics.runoutTime);
@@ -165,8 +165,8 @@ public class NasQueueTimeMetrics {
         CSVFormat format = CSVFormat.Builder.create(CSVFormat.EXCEL)
             .setRecordSeparator("\n")
             .build();
-        try (CSVParser parser = format.parse(
-            new InputStreamReader(new FileInputStream(new File(file)), ZiggyFileUtils.ZIGGY_CHARSET))) {
+        try (CSVParser parser = format.parse(new InputStreamReader(
+            new FileInputStream(new File(file)), ZiggyFileUtils.ZIGGY_CHARSET))) {
             List<CSVRecord> csvRecords = parser.getRecords();
             CSVRecord divisionsRecord = csvRecords.get(0);
             List<String> divisions = new ArrayList<>();

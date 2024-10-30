@@ -51,7 +51,7 @@ public class DataReceiptExternalDefinitionTest {
     @Before
     public void setUp() {
         pipelineTask = Mockito.mock(PipelineTask.class);
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(new UnitOfWork());
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(new UnitOfWork());
         module = new TestDataReceiptPipelineModule(pipelineTask, RunMode.STANDARD);
         module = Mockito.spy(module);
         Mockito.doNothing().when(module).incrementProcessingStep();

@@ -33,32 +33,28 @@ public class MetricsReaperThread extends Thread {
     @AcceptableCatchBlock(rationale = Rationale.SYSTEM_EXIT)
     public void run() {
         try {
-            log.info("MetricsReaperThread: STARTED");
+            log.info("Starting MetricsReaperThread");
 
             ImmutableConfiguration config = ZiggyConfiguration.getInstance();
             checkIntervalMillis = config.getInt(CHECK_INTERVAL_MINS_PROP,
                 DEFAULT_CHECK_INTERVAL_MINS) * 60 * 1000;
             maxRows = config.getInt(MAX_ROWS_PROP, DEFAULT_MAX_ROWS);
 
-            log.info("MetricsReaperThread: maxRows = " + maxRows);
-            log.info("MetricsReaperThread: checkIntervalMillis = " + checkIntervalMillis);
+            log.info("maxRows={}, checkIntervalMillis={}", maxRows, checkIntervalMillis);
 
             while (true) {
                 long now = System.currentTimeMillis();
                 if (now - lastCheck > checkIntervalMillis) {
-                    log.info("MetricsReaperThread: woke up to check rowCount");
-
+                    log.info("Checking rowCount");
                     metricsOperations().deleteOldMetrics(maxRows);
-
                     lastCheck = now;
-
-                    log.info("MetricsReaperThread: check complete");
+                    log.info("Checking rowCount...done");
                 }
 
                 Thread.sleep(1000);
             }
         } catch (Throwable t) {
-            log.error("MetricsReaperThread: caught: ", t);
+            log.error("Caught exception", t);
             System.exit(-1);
         }
     }

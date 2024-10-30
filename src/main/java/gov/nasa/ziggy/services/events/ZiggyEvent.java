@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.Set;
 
+import gov.nasa.ziggy.util.SystemProxy;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -47,7 +48,7 @@ public class ZiggyEvent {
         this.eventHandlerName = eventHandlerName;
         this.pipelineName = pipelineName;
         this.eventLabels = eventLabels;
-        eventTime = new Date();
+        eventTime = new Date(SystemProxy.currentTimeMillis());
         pipelineInstanceId = pipelineInstance;
     }
 
@@ -55,48 +56,24 @@ public class ZiggyEvent {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public String getEventHandlerName() {
         return eventHandlerName;
-    }
-
-    public void setEventHandlerName(String eventHandlerName) {
-        this.eventHandlerName = eventHandlerName;
     }
 
     public String getPipelineName() {
         return pipelineName;
     }
 
-    public void setPipelineName(String pipelineName) {
-        this.pipelineName = pipelineName;
-    }
-
     public Date getEventTime() {
         return eventTime;
-    }
-
-    public void setEventTime(Date eventTime) {
-        this.eventTime = eventTime;
     }
 
     public long getPipelineInstanceId() {
         return pipelineInstanceId;
     }
 
-    public void setPipelineInstanceId(long pipelineInstance) {
-        pipelineInstanceId = pipelineInstance;
-    }
-
     public Set<String> getEventLabels() {
         return eventLabels;
-    }
-
-    public void setEventLabels(Set<String> eventLabels) {
-        this.eventLabels = eventLabels;
     }
 
     @Override
@@ -114,5 +91,12 @@ public class ZiggyEvent {
         }
         ZiggyEvent other = (ZiggyEvent) obj;
         return Objects.equals(id, other.id);
+    }
+
+    @Override
+    public String toString() {
+        return "eventHandlerName=" + eventHandlerName + ", pipelineName=" + pipelineName
+            + ", eventTime=" + eventTime + ", pipelineInstanceId=" + pipelineInstanceId
+            + ", eventLabels=" + eventLabels;
     }
 }

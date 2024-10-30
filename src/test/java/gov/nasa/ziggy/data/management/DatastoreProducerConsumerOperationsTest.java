@@ -143,7 +143,7 @@ public class DatastoreProducerConsumerOperationsTest {
             new HashSet<>(Set.of(PATH_2.toString(), PATH_3.toString())));
 
         // Retrieve the files that have the relevant pipeline task as consumer.
-        Set<String> files = testOperations.filesConsumedByTask(31L);
+        Set<String> files = testOperations.filesConsumedByTask(consumer1);
         assertEquals(2, files.size());
         assertTrue(files.contains(PATH_1.toString()));
         assertTrue(files.contains(PATH_3.toString()));
@@ -156,22 +156,31 @@ public class DatastoreProducerConsumerOperationsTest {
         datastoreProducerConsumerOperations.createOrUpdateProducer(pipelineTask,
             List.of(PATH_1, PATH_2, PATH_3));
 
-        // Add comsumers.
-        Mockito.when(pipelineTask.getId()).thenReturn(100L);
-        datastoreProducerConsumerOperations.addConsumer(pipelineTask, Set.of(PATH_1.toString()));
-        Mockito.when(pipelineTask.getId()).thenReturn(110L);
-        datastoreProducerConsumerOperations.addConsumer(pipelineTask, Set.of(PATH_3.toString()));
-        Mockito.when(pipelineTask.getId()).thenReturn(120L);
-        datastoreProducerConsumerOperations.addConsumer(pipelineTask, Set.of(PATH_2.toString()));
+        // Add consumers.
+        PipelineTask pipelineTask100 = Mockito.mock(PipelineTask.class);
+        Mockito.when(pipelineTask100.getId()).thenReturn(100L);
+        datastoreProducerConsumerOperations.addConsumer(pipelineTask100, Set.of(PATH_1.toString()));
+        PipelineTask pipelineTask110 = Mockito.mock(PipelineTask.class);
+        Mockito.when(pipelineTask110.getId()).thenReturn(110L);
+        datastoreProducerConsumerOperations.addConsumer(pipelineTask110, Set.of(PATH_3.toString()));
+        PipelineTask pipelineTask120 = Mockito.mock(PipelineTask.class);
+        Mockito.when(pipelineTask120.getId()).thenReturn(120L);
+        datastoreProducerConsumerOperations.addConsumer(pipelineTask120, Set.of(PATH_2.toString()));
 
-        Set<String> filenames = testOperations.filesConsumedByTasks(Set.of(100L, 105L), null);
+        PipelineTask pipelineTask105 = Mockito.mock(PipelineTask.class);
+        Mockito.when(pipelineTask105.getId()).thenReturn(105L);
+
+        Set<String> filenames = testOperations
+            .filesConsumedByTasks(Set.of(pipelineTask100, pipelineTask105), null);
         assertTrue(filenames.contains(PATH_1.toString()));
         assertEquals(1, filenames.size());
-        filenames = testOperations.filesConsumedByTasks(Set.of(100L, 105L, 110L), null);
+        filenames = testOperations
+            .filesConsumedByTasks(Set.of(pipelineTask100, pipelineTask105, pipelineTask110), null);
         assertTrue(filenames.contains(PATH_1.toString()));
         assertTrue(filenames.contains(PATH_3.toString()));
         assertEquals(2, filenames.size());
-        filenames = testOperations.filesConsumedByTasks(Set.of(100L, 105L, 110L),
+        filenames = testOperations.filesConsumedByTasks(
+            Set.of(pipelineTask100, pipelineTask105, pipelineTask110),
             Set.of(PATH_2.toString(), PATH_3.toString()));
         assertTrue(filenames.contains(PATH_3.toString()));
         assertEquals(1, filenames.size());
@@ -223,14 +232,15 @@ public class DatastoreProducerConsumerOperationsTest {
                 () -> new DatastoreProducerConsumerCrud().retrieveProducers(files));
         }
 
-        public Set<String> filesConsumedByTask(long taskId) {
-            return performTransaction(
-                () -> new DatastoreProducerConsumerCrud().retrieveFilesConsumedByTask(taskId));
+        public Set<String> filesConsumedByTask(PipelineTask pipelineTask) {
+            return performTransaction(() -> new DatastoreProducerConsumerCrud()
+                .retrieveFilesConsumedByTask(pipelineTask));
         }
 
-        public Set<String> filesConsumedByTasks(Set<Long> taskIds, Collection<String> filenames) {
+        public Set<String> filesConsumedByTasks(Set<PipelineTask> pipelineTasks,
+            Collection<String> filenames) {
             return performTransaction(() -> new DatastoreProducerConsumerCrud()
-                .retrieveFilesConsumedByTasks(taskIds, filenames));
+                .retrieveFilesConsumedByTasks(pipelineTasks, filenames));
         }
     }
 }

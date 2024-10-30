@@ -104,19 +104,20 @@ public abstract class Metric implements Serializable {
      */
     public static void log() {
         long now = System.currentTimeMillis();
-        metricsLogger.info("SNAPSHOT-START@" + now);
+        metricsLogger.info("SNAPSHOT-START@{}", now);
 
         Iterator<String> it = Metric.metricsIterator();
         logWithIterator(it);
 
-        metricsLogger.info("SNAPSHOT-END@" + now);
+        metricsLogger.info("SNAPSHOT-END@{}", now);
     }
 
     /**
      * Dump all metrics to stdout
      */
     public static void dump() {
-        Metric.dump(new PrintWriter(new OutputStreamWriter(System.out, ZiggyFileUtils.ZIGGY_CHARSET)));
+        Metric.dump(
+            new PrintWriter(new OutputStreamWriter(System.out, ZiggyFileUtils.ZIGGY_CHARSET)));
     }
 
     /**
@@ -197,13 +198,13 @@ public abstract class Metric implements Serializable {
         for (String metricName : metricsToMerge.keySet()) {
             Metric metricToMerge = metricsToMerge.get(metricName);
 
-            log.debug("merge: metricToMerge=" + metricToMerge);
+            log.debug("metricToMerge={}", metricToMerge);
 
             Metric existingGlobalMetric = globalMetrics.get(metricName);
             if (existingGlobalMetric != null) {
-                log.debug("merge: existingGlobalMetric(BEFORE)=" + existingGlobalMetric);
+                log.debug("existingGlobalMetric(BEFORE)={}", existingGlobalMetric);
                 existingGlobalMetric.merge(metricToMerge);
-                log.debug("merge: existingGlobalMetric(AFTER)=" + existingGlobalMetric);
+                log.debug("existingGlobalMetric(AFTER)={}", existingGlobalMetric);
             } else {
                 log.debug("No existingGlobalMetric exists, adding");
                 globalMetrics.put(metricName, metricToMerge.makeCopy());
@@ -212,9 +213,9 @@ public abstract class Metric implements Serializable {
             if (Metric.threadMetricsEnabled()) {
                 Metric existingThreadMetric = Metric.getThreadMetric(metricName);
                 if (existingThreadMetric != null) {
-                    log.debug("merge: existingThreadMetric(BEFORE)=" + existingThreadMetric);
+                    log.debug("existingThreadMetric(BEFORE)={}", existingThreadMetric);
                     existingThreadMetric.merge(metricToMerge);
-                    log.debug("merge: existingThreadMetric(AFTER)=" + existingThreadMetric);
+                    log.debug("existingThreadMetric(AFTER)={}", existingThreadMetric);
                 } else {
                     log.debug("No existingThreadMetric exists, adding");
                     Metric.addNewThreadMetric(metricToMerge.makeCopy());
@@ -361,12 +362,12 @@ public abstract class Metric implements Serializable {
      */
     protected static void log(String prefix) {
         long now = System.currentTimeMillis();
-        metricsLogger.info("SNAPSHOT-START@" + now);
+        metricsLogger.info("SNAPSHOT-START@{}", now);
 
         Iterator<String> it = Metric.metricsIterator(prefix);
         logWithIterator(it);
 
-        metricsLogger.info("SNAPSHOT-END@" + now);
+        metricsLogger.info("SNAPSHOT-END@{}", now);
     }
 
     /**
@@ -376,14 +377,14 @@ public abstract class Metric implements Serializable {
      */
     protected static void log(List<String> prefixes) {
         long now = System.currentTimeMillis();
-        metricsLogger.info("SNAPSHOT-START@" + now);
+        metricsLogger.info("SNAPSHOT-START@{}", now);
 
         for (String prefix : prefixes) {
             Iterator<String> it = Metric.metricsIterator(prefix);
             logWithIterator(it);
         }
 
-        metricsLogger.info("SNAPSHOT-END@" + now);
+        metricsLogger.info("SNAPSHOT-END@{}", now);
     }
 
     /**
@@ -395,7 +396,7 @@ public abstract class Metric implements Serializable {
         while (it.hasNext()) {
             String name = it.next();
             Metric metric = Metric.getGlobalMetric(name);
-            metricsLogger.debug(metric.getName() + ":" + metric.getLogString());
+            metricsLogger.debug("{}:{}", metric.getName(), metric.getLogString());
         }
     }
 
@@ -432,7 +433,7 @@ public abstract class Metric implements Serializable {
 
         @Override
         public void remove() {
-            throw new UnsupportedOperationException("this is a read-only iterator");
+            throw new UnsupportedOperationException("This is a read-only iterator");
         }
 
         @Override

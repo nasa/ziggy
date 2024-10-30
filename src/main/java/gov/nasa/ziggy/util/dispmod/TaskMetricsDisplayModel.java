@@ -12,12 +12,12 @@ import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import gov.nasa.ziggy.metrics.TaskMetrics;
 import gov.nasa.ziggy.metrics.TimeAndPercentile;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 
 /**
  * Display a table containing a row for each pipeline module and a column for each category defined
- * in PipelineTask.summaryMetrics.
+ * in PipelineTask.pipelineTaskMetrics.
  * <p>
  * The cells of the table contain the total time spent on each category for all tasks for the
  * pipeline module and the percentage of the total processing time for all of the tasks.
@@ -32,29 +32,30 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
     private boolean completedTasksOnly = false;
 
-    public TaskMetricsDisplayModel(List<PipelineTask> tasks, List<String> orderedModuleNames) {
+    public TaskMetricsDisplayModel(List<PipelineTaskDisplayData> tasks,
+        List<String> orderedModuleNames) {
         this(tasks, orderedModuleNames, true);
     }
 
-    public TaskMetricsDisplayModel(List<PipelineTask> tasks, List<String> orderedModuleNames,
-        boolean completedTasksOnly) {
+    public TaskMetricsDisplayModel(List<PipelineTaskDisplayData> tasks,
+        List<String> orderedModuleNames, boolean completedTasksOnly) {
         this.completedTasksOnly = completedTasksOnly;
 
         update(tasks, orderedModuleNames);
     }
 
-    private void update(List<PipelineTask> tasks, List<String> orderedModuleNames) {
+    private void update(List<PipelineTaskDisplayData> tasks, List<String> orderedModuleNames) {
         categorySummariesByModule = new LinkedList<>();
         seenCategories = new ArrayList<>();
 
-        Map<String, List<PipelineTask>> tasksByModule = new HashMap<>();
+        Map<String, List<PipelineTaskDisplayData>> tasksByModule = new HashMap<>();
 
         // partition the tasks by module
-        for (PipelineTask task : tasks) {
+        for (PipelineTaskDisplayData task : tasks) {
             if (!completedTasksOnly || task.getProcessingStep() == ProcessingStep.COMPLETE) {
                 String moduleName = task.getModuleName();
 
-                List<PipelineTask> taskListForModule = tasksByModule.get(moduleName);
+                List<PipelineTaskDisplayData> taskListForModule = tasksByModule.get(moduleName);
                 if (taskListForModule == null) {
                     taskListForModule = new LinkedList<>();
                     tasksByModule.put(moduleName, taskListForModule);
@@ -66,7 +67,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
         // for each module, aggregate the summary metrics by category
         // and build a list of categories
         for (String moduleName : orderedModuleNames) {
-            List<PipelineTask> taskListForModule = tasksByModule.get(moduleName);
+            List<PipelineTaskDisplayData> taskListForModule = tasksByModule.get(moduleName);
             TaskMetrics taskMetrics = new TaskMetrics(taskListForModule);
             taskMetrics.calculate();
             categorySummariesByModule.add(new ModuleTaskMetrics(moduleName, taskMetrics));

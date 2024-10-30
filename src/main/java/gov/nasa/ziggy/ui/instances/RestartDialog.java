@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
@@ -42,7 +42,7 @@ public class RestartDialog extends javax.swing.JDialog {
     private boolean cancelled;
 
     public RestartDialog(Window owner,
-        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
+        Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
 
         super(owner, DEFAULT_MODALITY_TYPE);
 
@@ -50,12 +50,12 @@ public class RestartDialog extends javax.swing.JDialog {
         setLocationRelativeTo(owner);
     }
 
-    private void buildComponent(Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
+    private void buildComponent(
+        Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
 
         setTitle("Restart failed tasks");
 
-        getContentPane().add(createDataPanel(supportedRunModesByPipelineTask),
-            BorderLayout.CENTER);
+        getContentPane().add(createDataPanel(supportedRunModesByPipelineTask), BorderLayout.CENTER);
         getContentPane().add(ZiggySwingUtils.createButtonPanel(createButton(RESTART, this::restart),
             createButton(CANCEL, this::cancel)), BorderLayout.SOUTH);
 
@@ -63,12 +63,12 @@ public class RestartDialog extends javax.swing.JDialog {
     }
 
     private JScrollPane createDataPanel(
-        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
+        Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
         return new JScrollPane(createRestartTable(supportedRunModesByPipelineTask));
     }
 
     private JTable createRestartTable(
-        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
+        Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
 
         restartTableModel = new RestartTableModel(supportedRunModesByPipelineTask);
 
@@ -107,14 +107,15 @@ public class RestartDialog extends javax.swing.JDialog {
         setVisible(false);
     }
 
-    // TODO Return Map<PipelineTask, RunMode> and delete this comment
+    // TODO Return Map<PipelineTaskDisplayData, RunMode> and delete this comment
     // Note that the restartAttrs variable is clobbered during the loop and the last task wins.
     // Given that what eventually happens is that each task gets its own restart message, and
     // the restart message includes the restart mode, the right thing to do is probably to
-    // change the logic such that a Map<PipelineTask, RunMode> is returned and then passed to
-    // the PipelineExecutorProxy. That way we can be sure that we’re doing the right thing.
+    // change the logic such that a Map<PipelineTaskDisplayData, RunMode> is returned and then
+    // passed to the PipelineExecutorProxy. That way we can be sure that we’re doing the right
+    // thing.
     public static RunMode restartTasks(Window owner,
-        Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
+        Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
 
         RestartDialog dialog = new RestartDialog(owner, supportedRunModesByPipelineTask);
         dialog.cancelled = false;
@@ -127,14 +128,14 @@ public class RestartDialog extends javax.swing.JDialog {
         RestartAttributes restartAttrs = null;
         Map<String, RestartAttributes> moduleMap = dialog.restartTableModel.getModuleMap();
 
-        for (PipelineTask failedTask : supportedRunModesByPipelineTask.keySet()) {
+        for (PipelineTaskDisplayData failedTask : supportedRunModesByPipelineTask.keySet()) {
             String key = RestartAttributes.key(failedTask.getModuleName(),
                 failedTask.getProcessingStep());
 
             restartAttrs = moduleMap.get(key);
 
-            log.info("Set task " + failedTask.getId() + " restartMode to "
-                + restartAttrs.getSelectedRestartMode());
+            log.info("Set task {} restartMode to {}", failedTask.getPipelineTaskId(),
+                restartAttrs.getSelectedRestartMode());
         }
         return restartAttrs.getSelectedRestartMode();
     }
@@ -145,10 +146,11 @@ public class RestartDialog extends javax.swing.JDialog {
         private final List<RestartAttributes> moduleList;
         private final Map<String, RestartAttributes> moduleMap;
 
-        public RestartTableModel(Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask) {
+        public RestartTableModel(
+            Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
             moduleMap = new HashMap<>();
 
-            for (PipelineTask task : supportedRunModesByPipelineTask.keySet()) {
+            for (PipelineTaskDisplayData task : supportedRunModesByPipelineTask.keySet()) {
                 String moduleName = task.getModuleName();
                 ProcessingStep processingStep = task.getProcessingStep();
                 String key = RestartAttributes.key(moduleName, processingStep);
@@ -169,7 +171,7 @@ public class RestartDialog extends javax.swing.JDialog {
 
             moduleList = new LinkedList<>(moduleMap.values());
 
-            log.debug("moduleList.size() = " + moduleList.size());
+            log.debug("moduleList.size()={}", moduleList.size());
         }
 
         @Override
@@ -179,7 +181,7 @@ public class RestartDialog extends javax.swing.JDialog {
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            log.debug("getValueAt(r=" + rowIndex + ", c=" + columnIndex + ")");
+            log.debug("rowIndex={}, columnIndex={}", rowIndex, columnIndex);
 
             RestartAttributes restartGroup = moduleList.get(rowIndex);
 
@@ -218,8 +220,7 @@ public class RestartDialog extends javax.swing.JDialog {
 
         @Override
         public void setValueAt(Object value, int rowIndex, int columnIndex) {
-            log.debug(
-                "setValueAt(r=" + rowIndex + ", c=" + columnIndex + ", value-=" + value + ")");
+            log.debug("rowIndex={}, columnIndex={}, value={}", rowIndex, columnIndex, value);
 
             if (columnIndex != 3) {
                 throw new IllegalArgumentException("read-only columnIndex = " + columnIndex);

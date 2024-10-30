@@ -31,12 +31,12 @@ public class MacOSXMemInfo extends AbstractMemInfo {
     @Override
     protected void parse(Collection<String> topOutput) {
         for (String line : topOutput) {
-            log.debug("line = " + line);
+            log.debug("line={}", line);
 
             if (line != null && line.trim().length() > 0) {
                 String[] tokens = line.trim().split("\\s+");
                 if (tokens.length < 2) {
-                    log.debug("ignoring line with two few tokens: " + line);
+                    log.debug("Ignoring line with two few tokens: {}", line);
                     continue;
                 }
                 String field = tokens[0].trim().toLowerCase();

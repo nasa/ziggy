@@ -29,6 +29,7 @@ import gov.nasa.ziggy.module.ComputeNodeMaster;
 import gov.nasa.ziggy.module.LocalAlgorithmExecutor;
 import gov.nasa.ziggy.module.remote.Qsub;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 
@@ -98,14 +99,16 @@ public class TaskLog {
 
     public static final String CLI_APPENDER_NAME = "cli";
 
+    private static PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+
     /**
      * Locates all the log files for a given pipeline task.
      */
-    public static Set<TaskLogInformation> searchForLogFiles(long taskId) {
+    public static Set<TaskLogInformation> searchForLogFiles(PipelineTask pipelineTask) {
         Set<TaskLogInformation> taskLogInfoSet = new TreeSet<>();
 
         for (LogType logType : LogType.values()) {
-            for (File taskLogFile : searchForLogFilesOfType(logType, taskId)) {
+            for (File taskLogFile : searchForLogFilesOfType(logType, pipelineTask)) {
                 taskLogInfoSet.add(new TaskLogInformation(taskLogFile));
             }
         }
@@ -127,14 +130,14 @@ public class TaskLog {
         return "-D" + PropertyName.ZIGGY_LOG_FILE.property() + "="
             + DirectoryProperties.algorithmLogsDir()
                 .toAbsolutePath()
-                .resolve(pipelineTask.logFilename(jobIndex))
+                .resolve(pipelineTaskDataOperations.logFilename(pipelineTask, jobIndex))
                 .toString();
     }
 
     /** Returns the ziggy.algorithmName Java property for use with {@link ComputeNodeMaster}. */
     public static String algorithmNameSystemProperty(PipelineTask pipelineTask) {
         return "-D" + PropertyName.ZIGGY_ALGORITHM_NAME.property() + "="
-            + pipelineTask.getModuleName();
+            + pipelineTask.getExecutableName();
     }
 
     public static String ziggyLogFileSystemProperty(PipelineTask pipelineTask) {
@@ -146,23 +149,24 @@ public class TaskLog {
         return "-D" + PropertyName.ZIGGY_LOG_FILE.property() + "="
             + DirectoryProperties.taskLogDir()
                 .toAbsolutePath()
-                .resolve(pipelineTask.logFilename(LOCAL_LOG_FILE_JOB_INDEX))
+                .resolve(
+                    pipelineTaskDataOperations.logFilename(pipelineTask, LOCAL_LOG_FILE_JOB_INDEX))
                 .toString();
     }
 
     /**
      * Locates all the log files of a given type for a given pipeline task.
      */
-    private static File[] searchForLogFilesOfType(LogType logType, long taskId) {
-        log.debug("Searching directory " + logType.logDir().toString() + " for log files");
+    private static File[] searchForLogFilesOfType(LogType logType, PipelineTask pipelineTask) {
+        log.debug("Searching directory {} for log files", logType.logDir().toString());
         if (!Files.exists(logType.logDir()) || !Files.isDirectory(logType.logDir())) {
             return new File[0];
         }
         return logType.logDir().toFile().listFiles((FilenameFilter) (dir, name) -> {
             Matcher matcher = TaskLogInformation.LOG_FILE_NAME_PATTERN.matcher(name);
             if (matcher.matches()) {
-                return Long
-                    .parseLong(matcher.group(TaskLogInformation.TASK_ID_GROUP_NUMBER)) == taskId;
+                return Long.parseLong(
+                    matcher.group(TaskLogInformation.TASK_ID_GROUP_NUMBER)) == pipelineTask.getId();
             }
             return false;
         });
@@ -204,5 +208,10 @@ public class TaskLog {
             .withFileName(taskLogFile.getAbsolutePath())
             .setName(taskLogFile.getName())
             .setLayout(cliLayout());
+    }
+
+    static void setPipelineTaskDataOperations(
+        PipelineTaskDataOperations pipelineTaskDataOperations) {
+        TaskLog.pipelineTaskDataOperations = pipelineTaskDataOperations;
     }
 }

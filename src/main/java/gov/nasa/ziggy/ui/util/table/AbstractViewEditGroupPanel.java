@@ -17,11 +17,10 @@ import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.netbeans.swing.outline.RowModel;
 
 import gov.nasa.ziggy.pipeline.definition.Group;
-import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.pipeline.definition.database.GroupOperations;
 import gov.nasa.ziggy.ui.util.GroupInformation;
 import gov.nasa.ziggy.ui.util.GroupsDialog;
@@ -29,19 +28,14 @@ import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
 
 /**
- * Extension of {@link AbstractViewEditPanel} for classes of objects that extend {@link Groupable},
- * and hence need some mechanism by which their groups can be configured.
- * <p>
- * The addition of this class was necessary because I couldn't figure out a way to explain to the
- * parent class that when we're using the grouping methods in {@link Groupable}; but otherwise, it
- * might or might not.
+ * Extension of {@link AbstractViewEditPanel} that allows for the grouping of objects and for
+ * viewing in a tree control.
  *
  * @author PT
  */
-public abstract class AbstractViewEditGroupPanel<T extends Groupable>
-    extends AbstractViewEditPanel<T> {
+public abstract class AbstractViewEditGroupPanel<T> extends AbstractViewEditPanel<T> {
 
-    private static final long serialVersionUID = 20240614L;
+    private static final long serialVersionUID = 20241004L;
 
     private final GroupOperations groupOperations = new GroupOperations();
 
@@ -88,11 +82,13 @@ public abstract class AbstractViewEditGroupPanel<T extends Groupable>
         });
     }
 
+    protected abstract String getType();
+
     /**
      * Assign objects in the table to a selected {@link Group}.
      */
-    protected void group() {
-        Group group = GroupsDialog.selectGroup(this);
+    private void group() {
+        Group group = GroupsDialog.selectGroup(this, getType());
         if (group == null) {
             return;
         }
@@ -127,31 +123,28 @@ public abstract class AbstractViewEditGroupPanel<T extends Groupable>
      * Updates information in the new group and the groups that formerly held the objects in
      * question.
      */
-    @SuppressWarnings("unchecked")
     private void updateGroups(List<T> objects, Group group) {
         if (CollectionUtils.isEmpty(objects)) {
             return;
         }
 
-        Group databaseGroup = groupOperations().groupForName(group.getName(),
-            objects.get(0).getClass());
-        GroupInformation<T> groupInformation = new GroupInformation<>(
-            (Class<T>) objects.get(0).getClass(), objects);
+        Group databaseGroup = groupOperations().group(group.getName(), group.getType());
+        GroupInformation<T> groupInformation = new GroupInformation<>(getType(), objects);
         for (T object : objects) {
-            Set<String> memberNames = groupInformation.getGroupByObject()
-                .get(object)
-                .getMemberNames();
-            if (!CollectionUtils.isEmpty(memberNames)) {
-                memberNames.remove(object.getName());
+            Set<String> items = groupInformation.getGroupByObject().get(object).getItems();
+            if (!CollectionUtils.isEmpty(items)) {
+                items.remove(object.toString());
             }
             if (databaseGroup != Group.DEFAULT) {
-                databaseGroup.getMemberNames().add(object.getName());
+                databaseGroup.getItems().add(object.toString());
             }
         }
         if (databaseGroup != Group.DEFAULT) {
             groupOperations().merge(databaseGroup);
         }
-        groupOperations().merge(groupInformation.getObjectsByGroup().keySet());
+        Set<Group> groups = groupInformation.getObjectsByGroup().keySet();
+        groups.remove(databaseGroup); // avoid merging stale information
+        groupOperations().merge(groups);
     }
 
     private GroupOperations groupOperations() {

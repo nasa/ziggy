@@ -297,7 +297,7 @@ public class ZiggyCppMex extends DefaultTask {
         Project project = getProject();
         if (project.hasProperty(MATLAB_PATH_PROJECT_PROPERTY)) {
             matlabPath = project.findProperty(MATLAB_PATH_PROJECT_PROPERTY).toString();
-            log.info("MATLAB path set from project extra property: " + matlabPath);
+            log.info("MATLAB path set from project extra property {}", matlabPath);
         }
         if (matlabPath == null) {
             String systemPath = System.getenv("PATH");
@@ -307,7 +307,7 @@ public class ZiggyCppMex extends DefaultTask {
                     String pathLower = path.toLowerCase();
                     if (pathLower.contains("matlab") && path.endsWith("bin")) {
                         matlabPath = path.substring(0, path.length() - 4);
-                        log.info("MATLAB path set from PATH environment variable: " + matlabPath);
+                        log.info("MATLAB path set from PATH environment variable {}", matlabPath);
                         break;
                     }
                 }
@@ -317,7 +317,7 @@ public class ZiggyCppMex extends DefaultTask {
             String matlabHome = System.getenv(MATLAB_PATH_ENV_VAR);
             if (matlabHome != null) {
                 matlabPath = matlabHome;
-                log.info("MATLAB path set from MATLAB_HOME environment variable: " + matlabPath);
+                log.info("MATLAB path set from MATLAB_HOME environment variable {}", matlabPath);
             }
         }
         if (matlabPath == null) {

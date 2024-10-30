@@ -23,7 +23,9 @@ import org.netbeans.swing.etable.ETable;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
@@ -40,7 +42,8 @@ public class InstanceCostEstimateDialog extends JDialog {
 
     private static final long serialVersionUID = 20240614L;
 
-    private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+    private final PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+    private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
     public InstanceCostEstimateDialog(Window owner, PipelineInstance pipelineInstance) {
         super(owner, DEFAULT_MODALITY_TYPE);
@@ -71,17 +74,18 @@ public class InstanceCostEstimateDialog extends JDialog {
         JLabel state = boldLabel("State:");
         JLabel stateText = new JLabel(pipelineInstance.getState().toString());
 
-        List<PipelineTask> pipelineTasksInInstance = pipelineInstanceOperations()
-            .updateJobs(pipelineInstance);
+        pipelineTaskDataOperations().updateJobs(pipelineInstance);
+        List<PipelineTaskDisplayData> pipelineTaskDataInInstance = pipelineTaskDisplayDataOperations()
+            .pipelineTaskDisplayData(pipelineInstance);
 
         JLabel cost = boldLabel("Cost estimate:");
-        JLabel costText = new JLabel(instanceCost(pipelineTasksInInstance));
+        JLabel costText = new JLabel(instanceCost(pipelineTaskDataInInstance));
 
         JLabel tasks = boldLabel("Pipeline tasks", LabelType.HEADING);
         tasks.setToolTipText("Displays estimated cost of tasks in the selected pipeline instance.");
 
         ZiggyTable<PipelineTask> ziggyTable = new ZiggyTable<>(
-            new TaskCostEstimateTableModel(pipelineTasksInInstance));
+            new TaskCostEstimateTableModel(pipelineTaskDataInInstance));
 
         ETable taskTable = ziggyTable.getTable();
         taskTable.setCellSelectionEnabled(false);
@@ -129,9 +133,9 @@ public class InstanceCostEstimateDialog extends JDialog {
         setVisible(false);
     }
 
-    static String instanceCost(List<PipelineTask> pipelineTasksInInstance) {
+    static String instanceCost(List<PipelineTaskDisplayData> pipelineTasksInInstance) {
         double totalCost = 0;
-        for (PipelineTask task : pipelineTasksInInstance) {
+        for (PipelineTaskDisplayData task : pipelineTasksInInstance) {
             totalCost += task.costEstimate();
         }
         return formatCost(totalCost);
@@ -152,8 +156,12 @@ public class InstanceCostEstimateDialog extends JDialog {
         return new DecimalFormat(format).format(cost);
     }
 
-    private PipelineInstanceOperations pipelineInstanceOperations() {
-        return pipelineInstanceOperations;
+    private PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
+    }
+
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 
     private static class TaskCostEstimateTableModel extends AbstractTableModel
@@ -164,9 +172,9 @@ public class InstanceCostEstimateDialog extends JDialog {
         private static final String[] COLUMN_NAMES = { "ID", "Module", "UOW", "Status",
             "Cost estimate" };
 
-        private final List<PipelineTask> pipelineTasks;
+        private final List<PipelineTaskDisplayData> pipelineTasks;
 
-        public TaskCostEstimateTableModel(List<PipelineTask> pipelineTasks) {
+        public TaskCostEstimateTableModel(List<PipelineTaskDisplayData> pipelineTasks) {
             this.pipelineTasks = pipelineTasks;
         }
 
@@ -187,11 +195,11 @@ public class InstanceCostEstimateDialog extends JDialog {
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            PipelineTask task = pipelineTasks.get(rowIndex);
+            PipelineTaskDisplayData task = pipelineTasks.get(rowIndex);
             return switch (columnIndex) {
-                case 0 -> task.getId();
+                case 0 -> task.getPipelineTaskId();
                 case 1 -> task.getModuleName();
-                case 2 -> task.uowTaskInstance().briefState();
+                case 2 -> task.getBriefState();
                 case 3 -> task.getDisplayProcessingStep();
                 case 4 -> formatCost(task.costEstimate());
                 default -> throw new IllegalArgumentException(

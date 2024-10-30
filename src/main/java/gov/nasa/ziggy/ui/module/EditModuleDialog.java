@@ -9,15 +9,10 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.DefaultComboBoxModel;
+import javax.swing.BorderFactory;
 import javax.swing.GroupLayout;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -29,13 +24,10 @@ import javax.swing.SwingWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
-import gov.nasa.ziggy.ui.util.ClasspathUtils;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 
 /**
@@ -43,14 +35,12 @@ import gov.nasa.ziggy.ui.util.MessageUtils;
  * @author Bill Wohler
  */
 public class EditModuleDialog extends javax.swing.JDialog {
-    private static final long serialVersionUID = 20240614L;
+    private static final long serialVersionUID = 20241002L;
     private static final Logger log = LoggerFactory.getLogger(EditModuleDialog.class);
 
     private PipelineModuleDefinition module;
     private PipelineModuleExecutionResources executionResources;
 
-    private JTextArea descText;
-    private JComboBox<ClassWrapper<PipelineModule>> implementingClassComboBox;
     private JTextField exeTimeoutText;
     private JTextField minMemoryText;
 
@@ -83,15 +73,15 @@ public class EditModuleDialog extends javax.swing.JDialog {
         JLabel nameText = new JLabel(module.getName());
 
         JLabel desc = boldLabel("Description");
-        descText = new JTextArea();
-        descText.setRows(4);
+        JTextArea descText = new JTextArea(module.getDescription());
         descText.setLineWrap(true);
         descText.setWrapStyleWord(true);
-        descText.setText(module.getDescription());
+        descText.setEditable(false);
         JScrollPane descScrollPane = new JScrollPane(descText);
+        descScrollPane.setBorder(BorderFactory.createEmptyBorder());
 
         JLabel implementingClass = boldLabel("Implementing class");
-        implementingClassComboBox = createImplementingClassComboBox();
+        JLabel implementingClassText = new JLabel(module.getPipelineModuleClass().toString());
 
         JLabel exeTimeout = boldLabel("Executable timeout (seconds)");
         exeTimeoutText = new JTextField(ZiggyGuiConstants.LOADING);
@@ -112,8 +102,7 @@ public class EditModuleDialog extends javax.swing.JDialog {
             .addComponent(desc)
             .addComponent(descScrollPane)
             .addComponent(implementingClass)
-            .addComponent(implementingClassComboBox, GroupLayout.PREFERRED_SIZE,
-                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addComponent(implementingClassText)
             .addComponent(exeTimeout)
             .addComponent(exeTimeoutText, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
                 GroupLayout.PREFERRED_SIZE)
@@ -129,8 +118,7 @@ public class EditModuleDialog extends javax.swing.JDialog {
             .addComponent(descScrollPane)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(implementingClass)
-            .addComponent(implementingClassComboBox, GroupLayout.PREFERRED_SIZE,
-                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addComponent(implementingClassText)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(exeTimeout)
             .addComponent(exeTimeoutText, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
@@ -142,63 +130,12 @@ public class EditModuleDialog extends javax.swing.JDialog {
         return dataPanel;
     }
 
-    private JComboBox<ClassWrapper<PipelineModule>> createImplementingClassComboBox() {
-
-        DefaultComboBoxModel<ClassWrapper<PipelineModule>> implementingClassComboBoxModel = new DefaultComboBoxModel<>();
-        JComboBox<ClassWrapper<PipelineModule>> implementingClassComboBox = new JComboBox<>(
-            implementingClassComboBoxModel);
-
-        try {
-            Set<Class<? extends PipelineModule>> detectedClasses = ClasspathUtils
-                .scanFully(PipelineModule.class);
-            List<ClassWrapper<PipelineModule>> wrapperList = new LinkedList<>();
-
-            for (Class<? extends PipelineModule> clazz : detectedClasses) {
-                try {
-                    wrapperList.add(new ClassWrapper<>(clazz));
-                } catch (Exception ignore) {
-                }
-            }
-
-            Collections.sort(wrapperList);
-
-            int selectedIndex = -1;
-            int index = 0;
-
-            for (ClassWrapper<PipelineModule> classWrapper : wrapperList) {
-                implementingClassComboBoxModel.addElement(classWrapper);
-
-                ClassWrapper<PipelineModule> implementingClass = module.getPipelineModuleClass();
-                if (implementingClass != null
-                    && classWrapper.getClazz().equals(implementingClass.getClazz())) {
-                    selectedIndex = index;
-                }
-                index++;
-            }
-
-            if (selectedIndex != -1) {
-                implementingClassComboBox.setSelectedIndex(selectedIndex);
-            }
-        } catch (Exception e) {
-            MessageUtils.showError(this, e);
-        }
-        return implementingClassComboBox;
-    }
-
     private void save(ActionEvent evt) {
 
         new SwingWorker<Void, Void>() {
 
             @Override
             protected Void doInBackground() throws Exception {
-                @SuppressWarnings("unchecked")
-                ClassWrapper<PipelineModule> selectedImplementingClass = (ClassWrapper<PipelineModule>) implementingClassComboBox
-                    .getSelectedItem();
-
-                module.setDescription(descText.getText());
-                module.setPipelineModuleClass(selectedImplementingClass);
-                module = pipelineModuleDefinitionOperations().merge(module);
-
                 executionResources.setExeTimeoutSeconds(toInt(exeTimeoutText.getText(), 0));
                 executionResources.setMinMemoryMegabytes(toInt(minMemoryText.getText(), 0));
                 executionResources = pipelineModuleDefinitionOperations().merge(executionResources);

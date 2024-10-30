@@ -37,8 +37,7 @@ import jakarta.xml.bind.annotation.XmlElement;
 @Entity
 @Table(name = "ziggy_ParameterSet",
     uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "version" }) })
-public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSet>
-    implements Groupable {
+public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSet> {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_ParameterSet_generator")
     @SequenceGenerator(name = "ziggy_ParameterSet_generator", initialValue = 1,

@@ -2,7 +2,7 @@
 
 [[Previous]](nicknames.md)
 [[Up]](dusty-corners.md)
-[[Next]](contact-us.md)
+[[Next]](version-tracking.md)
 
 ## Advanced Unit of Work Configurations
 
@@ -69,4 +69,4 @@ Fortunately, the `year` and `doy` parts of the `fileNameRegexp` will respect the
 
 [[Previous]](nicknames.md)
 [[Up]](dusty-corners.md)
-[[Next]](contact-us.md)
+[[Next]](version-tracking.md)

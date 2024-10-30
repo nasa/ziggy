@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.pipeline.definition.database;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -10,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.crud.ZiggyQuery;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions;
@@ -57,41 +55,6 @@ public class PipelineDefinitionCrud
         query.column(PipelineDefinition_.LOCKED).in(true);
         query.distinct(true);
         return list(query);
-    }
-
-    public void deletePipeline(PipelineDefinition pipelineDefinition) {
-        if (pipelineDefinition.getVersion() > 0 || pipelineDefinition.isLocked()) {
-            throw new PipelineException("Unable to remove " + componentNameForExceptionMessages()
-                + " as " + pipelineDefinition.getName()
-                + " is locked or its version is greater than zero");
-        }
-
-        // Must delete the nodes before deleting the pipeline because the cascade rules do not
-        // include delete (having Cascade.ALL would cause errors in the console when manually
-        // deleting individual nodes).
-        deleteNodes(pipelineDefinition.getRootNodes());
-        remove(pipelineDefinition);
-    }
-
-    /**
-     * Delete all of the nodes in a pipeline and clear the rootNodes List.
-     */
-    public void deleteAllPipelineNodes(PipelineDefinition pipelineDefinition) {
-        List<PipelineDefinitionNode> rootNodes = pipelineDefinition.getRootNodes();
-        deleteNodes(rootNodes);
-        pipelineDefinition.setRootNodes(Collections.emptyList());
-    }
-
-    /**
-     * Recursively delete all of the nodes in a pipeline.
-     *
-     * @param rootNodes
-     */
-    private void deleteNodes(List<PipelineDefinitionNode> nodes) {
-        for (PipelineDefinitionNode node : nodes) {
-            deleteNodes(node.getNextNodes());
-            remove(node);
-        }
     }
 
     public boolean processingModeExistsInDatabase(String pipelineName) {

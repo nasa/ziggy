@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -169,7 +169,7 @@ public class PipelineTaskCrudTest {
             instance.addPipelineInstanceNode(new PipelineInstanceCrud().merge(instanceNode));
 
             for (int i = 0; i < taskCount; i++) {
-                PipelineTask task = new PipelineTask(instance, instanceNode);
+                PipelineTask task = new PipelineTask(instance, instanceNode, null);
                 instanceNode.addPipelineTask(new PipelineTaskCrud().merge(task));
             }
             instanceNode = new PipelineInstanceNodeCrud().merge(instanceNode);
@@ -207,10 +207,6 @@ public class PipelineTaskCrudTest {
 
         @Override
         protected void resubmit() {
-        }
-
-        @Override
-        protected void resumeMonitoring() {
         }
 
         @Override

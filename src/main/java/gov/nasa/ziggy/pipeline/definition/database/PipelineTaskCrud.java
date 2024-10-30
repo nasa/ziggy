@@ -18,11 +18,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance_;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
-import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
-import gov.nasa.ziggy.pipeline.definition.RemoteJob;
-import gov.nasa.ziggy.pipeline.definition.TaskExecutionLog;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.metamodel.SetAttribute;
@@ -52,27 +48,6 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
 
     public PipelineTask retrieve(long id) {
         return uniqueResult(createZiggyQuery(PipelineTask.class).column(PipelineTask_.id).in(id));
-    }
-
-    public Set<RemoteJob> retrieveRemoteJobs(long id) {
-        ZiggyQuery<PipelineTask, RemoteJob> query = createZiggyQuery(PipelineTask.class,
-            RemoteJob.class);
-        query.column(PipelineTask_.id).in(id);
-        return new HashSet<>(list(query.column(PipelineTask_.remoteJobs).select()));
-    }
-
-    public List<TaskExecutionLog> retrieveExecLogs(long id) {
-        ZiggyQuery<PipelineTask, TaskExecutionLog> query = createZiggyQuery(PipelineTask.class,
-            TaskExecutionLog.class);
-        query.column(PipelineTask_.id).in(id);
-        return list(query.column(PipelineTask_.execLog).select());
-    }
-
-    public List<PipelineTaskMetrics> retrievePipelineTaskMetrics(long id) {
-        ZiggyQuery<PipelineTask, PipelineTaskMetrics> query = createZiggyQuery(PipelineTask.class,
-            PipelineTaskMetrics.class);
-        query.column(PipelineTask_.id).in(id);
-        return list(query.column(PipelineTask_.summaryMetrics).select());
     }
 
     /**
@@ -156,43 +131,13 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     /**
      * Retrieve all {@link PipelineTask}s that have a specific {@link PipelineDefinitionNode}.
      */
-    public List<Long> retrieveIdsForPipelineDefinitionNode(
+    public List<PipelineTask> retrieveTasksForPipelineDefinitionNode(
         PipelineDefinitionNode pipelineDefinitionNode) {
 
-        ZiggyQuery<PipelineInstanceNode, Long> query = createZiggyQuery(PipelineInstanceNode.class,
-            Long.class);
+        ZiggyQuery<PipelineInstanceNode, PipelineTask> query = createZiggyQuery(
+            PipelineInstanceNode.class, PipelineTask.class);
         query.column(PipelineInstanceNode_.pipelineDefinitionNode).in(pipelineDefinitionNode);
-        Join<PipelineInstanceNode, PipelineTask> taskJoin = query
-            .column(PipelineInstanceNode_.pipelineTasks)
-            .join();
-        query.select(taskJoin.get(PipelineTask_.id));
-        return list(query);
-    }
-
-    /**
-     * Retrieves all {@link PipelineTask}s for the specified {@link PipelineInstance} and the
-     * specified {@link ProcessingStep}s.
-     */
-    public List<PipelineTask> retrieveAll(PipelineInstance pipelineInstance,
-        Set<ProcessingStep> processingSteps) {
-
-        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.pipelineInstanceId).in(pipelineInstance.getId());
-        query.column(PipelineTask_.processingStep).in(processingSteps);
-        query.column(PipelineTask_.id).ascendingOrder();
-
-        return list(query);
-    }
-
-    /**
-     * Retrieve all {@link PipelineTask}s for the specified {@link PipelineInstance} with errors.
-     */
-    public List<PipelineTask> retrieveErroredTasks(PipelineInstance instance) {
-        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.pipelineInstanceId).in(instance.getId());
-        query.column(PipelineTask_.error).in(true);
-        query.column(PipelineTask_.id).ascendingOrder();
-
+        query.column(PipelineInstanceNode_.pipelineTasks).select();
         return list(query);
     }
 
@@ -206,13 +151,13 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
         if (pipelineTaskIds.isEmpty()) {
             return new ArrayList<>();
         }
-        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.id).chunkedIn(pipelineTaskIds);
-        query.column(PipelineTask_.id).ascendingOrder();
-        return list(query);
+        return chunkedQuery(new ArrayList<>(pipelineTaskIds),
+            chunk -> list(createZiggyQuery(PipelineTask.class).column(PipelineTask_.id)
+                .ascendingOrder()
+                .in(chunk)));
     }
 
-    private List<Long> taskIdsForPipelineInstanceNode(PipelineInstanceNode node) {
+    List<Long> taskIdsForPipelineInstanceNode(PipelineInstanceNode node) {
         return taskIdsForPipelineInstanceNode(node.getId());
     }
 
@@ -225,45 +170,6 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
             .join();
         taskIdsQuery.select(joinTable.get(PipelineTask_.id));
         return list(taskIdsQuery);
-    }
-
-    /**
-     * Retrieve the list of distinct softwareRevisions for the specified node. Used for reporting
-     */
-    public List<String> distinctSoftwareRevisions(PipelineInstanceNode node) {
-        ZiggyQuery<PipelineTask, String> query = createZiggyQuery(PipelineTask.class, String.class);
-        query.column(PipelineTask_.id).in(taskIdsForPipelineInstanceNode(node));
-        query.column(PipelineTask_.softwareRevision).select();
-        query.column(PipelineTask_.softwareRevision).ascendingOrder();
-        query.distinct(true);
-
-        return list(query);
-    }
-
-    /**
-     * Retrieve the list of distinct softwareRevisions for the specified pipeline instance. Used for
-     * reporting
-     */
-    public List<String> distinctSoftwareRevisions(PipelineInstance instance) {
-        ZiggyQuery<PipelineTask, String> query = createZiggyQuery(PipelineTask.class, String.class);
-        query.column(PipelineTask_.pipelineInstanceId).in(instance.getId());
-        query.column(PipelineTask_.softwareRevision).select();
-        query.column(PipelineTask_.softwareRevision).ascendingOrder();
-        query.distinct(true);
-
-        return list(query);
-    }
-
-    /**
-     * Locates tasks that have "stale" states, i.e., tasks that were in process when the cluster was
-     * shut down.
-     */
-    public List<PipelineTask> retrieveTasksWithStaleStates() {
-        ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.processingStep).in(ProcessingStep.processingSteps());
-        query.column(PipelineTask_.error).in(false);
-        query.distinct(true);
-        return list(query);
     }
 
     @Override
@@ -341,6 +247,10 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     public Set<ModelType> retrieveModelTypes(PipelineTask pipelineTask) {
         return definitionNodeSetQuery(PipelineDefinitionNode_.modelTypes, ModelType.class,
             pipelineTask);
+    }
+
+    public PipelineInstance retrievePipelineInstance(long pipelineTaskId) {
+        return retrievePipelineInstance(retrieve(pipelineTaskId));
     }
 
     public PipelineInstance retrievePipelineInstance(PipelineTask pipelineTask) {

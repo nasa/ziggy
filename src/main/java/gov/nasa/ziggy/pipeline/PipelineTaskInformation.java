@@ -100,7 +100,7 @@ public class PipelineTaskInformation {
      */
     private static synchronized void generateSubtaskInformation(PipelineDefinitionNode node) {
 
-        log.debug("Generating subtask information for node " + node.getModuleName());
+        log.debug("Generating subtask information for node {}", node.getModuleName());
         PipelineDefinition pipelineDefinition = instancePipelineDefinitionOperations()
             .pipelineDefinition(node.getPipelineName());
 
@@ -123,14 +123,14 @@ public class PipelineTaskInformation {
         ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = instance.unitOfWorkGenerator(node);
 
         // Generate the units of work.
-        List<UnitOfWork> tasks = instance.unitsOfWork(unitOfWorkGenerator, instanceNode,
+        List<UnitOfWork> unitsOfWork = instance.unitsOfWork(unitOfWorkGenerator, instanceNode,
             pipelineInstance);
 
         // Generate the subtask information for all tasks
         List<SubtaskInformation> subtaskInformationList = new LinkedList<>();
-        for (UnitOfWork task : tasks) {
-            PipelineTask pipelineTask = instance.pipelineTask(pipelineInstance, instanceNode, task);
-            pipelineTask.setUowTaskParameters(task.getParameters());
+        for (UnitOfWork unitOfWork : unitsOfWork) {
+            PipelineTask pipelineTask = instance.pipelineTask(pipelineInstance, instanceNode,
+                unitOfWork);
             SubtaskInformation subtaskInformation = instance.subtaskInformation(moduleDefinition,
                 pipelineTask, node);
             subtaskInformationList.add(subtaskInformation);
@@ -163,9 +163,7 @@ public class PipelineTaskInformation {
      */
     PipelineTask pipelineTask(PipelineInstance instance, PipelineInstanceNode instanceNode,
         UnitOfWork uow) {
-        PipelineTask pipelineTask = new PipelineTask(instance, instanceNode);
-        pipelineTask.setUowTaskParameters(uow.getParameters());
-        return pipelineTask;
+        return new PipelineTask(instance, instanceNode, uow);
     }
 
     /**

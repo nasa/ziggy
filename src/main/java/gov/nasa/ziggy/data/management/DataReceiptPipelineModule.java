@@ -27,8 +27,8 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
@@ -86,7 +86,7 @@ public class DataReceiptPipelineModule extends PipelineModule {
         // Get the top-level DR directory and the datastore root directory
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
         dataReceiptDir = config.getString(PropertyName.DATA_RECEIPT_DIR.property());
-        UnitOfWork uow = pipelineTask.uowTaskInstance();
+        UnitOfWork uow = pipelineTask.getUnitOfWork();
         dataReceiptTopLevelPath = Paths.get(dataReceiptDir).toAbsolutePath();
         dataImportPathForTask = dataImportPathForTask(uow);
     }
@@ -111,9 +111,9 @@ public class DataReceiptPipelineModule extends PipelineModule {
         }
 
         if (!containsNonHiddenFiles) {
-            log.warn("Directory " + dataImportPathForTask.toString()
-                + " contains no files, skipping DR");
-            alertService().generateAndBroadcastAlert("DR", pipelineTask.getId(), Severity.WARNING,
+            log.warn("Directory {} contains no files, skipping DR",
+                dataImportPathForTask.toString());
+            alertService().generateAndBroadcastAlert("DR", pipelineTask, Severity.WARNING,
                 "Directory " + dataImportPathForTask.toString() + " contains no files");
             return true;
         }

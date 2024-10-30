@@ -20,8 +20,7 @@ public class MetricsCrud extends AbstractCrud<MetricType> {
         return list(createZiggyQuery(MetricType.class));
     }
 
-    public List<MetricValue> metricValues(MetricType metricType, Date start,
-        Date end) {
+    public List<MetricValue> metricValues(MetricType metricType, Date start, Date end) {
         ZiggyQuery<MetricValue, MetricValue> query = createZiggyQuery(MetricValue.class);
         query.column(MetricValue_.timestamp).between(start, end).ascendingOrder();
         query.column(MetricValue_.metricType).in(metricType);
@@ -42,7 +41,7 @@ public class MetricsCrud extends AbstractCrud<MetricType> {
     }
 
     public long deleteOldMetrics(int maxRows) {
-        log.info("Preparing to delete old rows from PI_METRIC_VALUE.  maxRows = " + maxRows);
+        log.info("Preparing to delete old rows from PI_METRIC_VALUE, maxRows={}", maxRows);
 
         long rowCount = 0;
         long numRowsOverLimit = 0;
@@ -52,10 +51,10 @@ public class MetricsCrud extends AbstractCrud<MetricType> {
             rowCount = retrieveMetricValueRowCount();
             numRowsOverLimit = rowCount - maxRows;
 
-            log.info("rowCount = " + rowCount);
+            log.info("rowCount={}", rowCount);
 
             if (numRowsOverLimit > 0) {
-                log.info("numRowsOverLimit = " + numRowsOverLimit);
+                log.info("numRowsOverLimit={}", numRowsOverLimit);
 
                 long minId = retrieveMinimumId();
                 long idToDelete = minId + numRowsOverLimit - 1;
@@ -65,8 +64,7 @@ public class MetricsCrud extends AbstractCrud<MetricType> {
                 query.where(builder.lessThanOrEqualTo(root.get("id"), idToDelete));
                 int numUpdatedThisChunk = executeUpdate(query);
 
-                log.info(
-                    "deleted " + numUpdatedThisChunk + " rows (where id <= " + idToDelete + ")");
+                log.info("Deleted {} rows (where id <= {})", numUpdatedThisChunk, idToDelete);
 
                 numUpdated += numUpdatedThisChunk;
             } else {
@@ -74,7 +72,7 @@ public class MetricsCrud extends AbstractCrud<MetricType> {
             }
         } while (numRowsOverLimit > 0);
 
-        log.info("deleted a total of " + numUpdated + " rows.");
+        log.info("Deleted a total of {} rows.", numUpdated);
 
         return numUpdated;
     }

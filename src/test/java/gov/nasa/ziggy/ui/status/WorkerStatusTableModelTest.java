@@ -3,7 +3,9 @@ package gov.nasa.ziggy.ui.status;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
 import java.util.Iterator;
 
@@ -11,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.ui.status.WorkerStatusPanel.WorkerStatusTableModel;
 
@@ -18,17 +21,25 @@ import gov.nasa.ziggy.ui.status.WorkerStatusPanel.WorkerStatusTableModel;
  * Unit tests for {@link WorkerStatusTableModel} class.
  *
  * @author PT
+ * @author Bill Wohler
  */
 public class WorkerStatusTableModelTest {
 
     private WorkerStatusTableModel tableModel;
+    private PipelineTask pipelineTask2;
+    private PipelineTask pipelineTask3;
 
     @Before
     public void setUp() {
 
         // Set up a table model that doesn't try to redraw the (non existent) table.
-        tableModel = Mockito.spy(WorkerStatusTableModel.class);
+        tableModel = spy(WorkerStatusTableModel.class);
         Mockito.doNothing().when(tableModel).redrawTable();
+
+        pipelineTask2 = spy(PipelineTask.class);
+        when(pipelineTask2.getId()).thenReturn(2L);
+        pipelineTask3 = spy(PipelineTask.class);
+        when(pipelineTask3.getId()).thenReturn(3L);
     }
 
     @Test
@@ -39,8 +50,8 @@ public class WorkerStatusTableModelTest {
         assertTrue(tableModel.messageSet().isEmpty());
 
         // Add a not-final-message message.
-        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", "3", "dummy",
-            "single", 1234L, false);
+        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", pipelineTask3,
+            "dummy", "single", 1234L, false);
         tableModel.updateModel(message);
 
         // There should be a message in the Map and in the Set.
@@ -58,13 +69,13 @@ public class WorkerStatusTableModelTest {
     public void testReplaceMessage() {
 
         // Add a not-final-message message.
-        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", "3", "dummy",
-            "single", 1234L, false);
+        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", pipelineTask3,
+            "dummy", "single", 1234L, false);
         tableModel.updateModel(message);
 
         // Add another message for the same task
-        message = new WorkerStatusMessage(1, "more awesome", "2", "3", "dummy", "single", 5678L,
-            false);
+        message = new WorkerStatusMessage(1, "more awesome", "2", pipelineTask3, "dummy", "single",
+            5678L, false);
         tableModel.updateModel(message);
 
         // There should be a message in the Map and in the Set.
@@ -89,13 +100,13 @@ public class WorkerStatusTableModelTest {
     public void testFinalMessage() {
 
         // Add a not-final-message message.
-        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", "3", "dummy",
-            "single", 1234L, false);
+        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", pipelineTask3,
+            "dummy", "single", 1234L, false);
         tableModel.updateModel(message);
 
         // Send a final message for the same task.
-        message = new WorkerStatusMessage(1, "more awesome", "2", "3", "dummy", "single", 5678L,
-            true);
+        message = new WorkerStatusMessage(1, "more awesome", "2", pipelineTask3, "dummy", "single",
+            5678L, true);
         tableModel.updateModel(message);
 
         // The model should now be empty.
@@ -110,12 +121,13 @@ public class WorkerStatusTableModelTest {
     public void testMessageOrdering() {
 
         // Add a not-final-message message.
-        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", "3", "dummy",
-            "single", 1234L, false);
+        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", pipelineTask3,
+            "dummy", "single", 1234L, false);
         tableModel.updateModel(message);
 
         // Add a message for a task with a lower number.
-        message = new WorkerStatusMessage(1, "awesome", "2", "2", "dummy", "single", 1234L, false);
+        message = new WorkerStatusMessage(1, "awesome", "2", pipelineTask2, "dummy", "single",
+            1234L, false);
         tableModel.updateModel(message);
 
         // There should be 2 messages in the model.
@@ -125,17 +137,17 @@ public class WorkerStatusTableModelTest {
         // The second message to be added should be first when iterating over the model.
         Iterator<WorkerStatusMessage> messageIterator = tableModel.messageSet().iterator();
         message = messageIterator.next();
-        assertEquals("2", message.getTaskId());
+        assertEquals(pipelineTask2, message.getPipelineTask());
         message = messageIterator.next();
-        assertEquals("3", message.getTaskId());
+        assertEquals(pipelineTask3, message.getPipelineTask());
     }
 
     @Test
     public void testMessageOutdating() {
 
         // Add a not-final-message message.
-        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", "3", "dummy",
-            "single", 1234L, false);
+        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", pipelineTask3,
+            "dummy", "single", 1234L, false);
         tableModel.updateModel(message);
 
         // On the first call, the message should be marked as outdated.
@@ -156,8 +168,8 @@ public class WorkerStatusTableModelTest {
     public void testMessageLifeCycle() {
 
         // Add a not-final-message message.
-        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", "3", "dummy",
-            "single", 1234L, false);
+        WorkerStatusMessage message = new WorkerStatusMessage(1, "awesome", "2", pipelineTask3,
+            "dummy", "single", 1234L, false);
         tableModel.updateModel(message);
 
         assertEquals(1, tableModel.statusMessages().size());
@@ -172,8 +184,8 @@ public class WorkerStatusTableModelTest {
         Mockito.verify(tableModel, times(1)).redrawTable();
 
         // Send a new message from the same task.
-        message = new WorkerStatusMessage(1, "more awesome", "2", "3", "dummy", "single", 1234L,
-            false);
+        message = new WorkerStatusMessage(1, "more awesome", "2", pipelineTask3, "dummy", "single",
+            1234L, false);
         tableModel.updateModel(message);
         assertEquals(1, tableModel.statusMessages().size());
         assertTrue(tableModel.statusMessages().get(message));
@@ -188,8 +200,8 @@ public class WorkerStatusTableModelTest {
         Mockito.verify(tableModel, times(2)).redrawTable();
 
         // Send a final message.
-        message = new WorkerStatusMessage(1, "more awesome", "2", "3", "dummy", "single", 1234L,
-            true);
+        message = new WorkerStatusMessage(1, "more awesome", "2", pipelineTask3, "dummy", "single",
+            1234L, true);
         tableModel.updateModel(message);
         assertTrue(tableModel.statusMessages().isEmpty());
         Mockito.verify(tableModel, times(3)).redrawTable();

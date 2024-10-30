@@ -200,7 +200,7 @@ public class DatastoreDirectoryPipelineInputsTest {
             .pipelineDefinitionNodeOperations();
         List<UnitOfWork> uows = PipelineExecutor.generateUnitsOfWork(uowGenerator,
             pipelineInstanceNode);
-        Mockito.when(pipelineTask.uowTaskInstance()).thenReturn(uows.get(0));
+        Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(uows.get(0));
 
         // Construct mocked DatastoreFileManager.
         datastoreFileManager = Mockito.mock(DatastoreFileManager.class);

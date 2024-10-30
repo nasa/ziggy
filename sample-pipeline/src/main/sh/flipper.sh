@@ -39,7 +39,7 @@ trap 'deactivate' EXIT
 source $SAMPLE_PIPELINE_PYTHON_ENV/bin/activate
 
 # Get the location of the environment's site packages directory
-SITE_PKGS=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+SITE_PKGS=$(python3 -c "from sysconfig import get_path; print(get_path('purelib'))")
 
 # Use the environment's Python to run the flipper Python script
 python3 $SITE_PKGS/major_tom/flipper.py

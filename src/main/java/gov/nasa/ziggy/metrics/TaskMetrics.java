@@ -5,10 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetrics;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
-import gov.nasa.ziggy.util.dispmod.DisplayModel;
 
 /**
  * Compute the time spent on the specified category for a list of tasks and the percentage of the
@@ -18,13 +17,13 @@ import gov.nasa.ziggy.util.dispmod.DisplayModel;
  */
 public class TaskMetrics {
     private final Map<String, TimeAndPercentile> categoryMetrics = new HashMap<>();
-    private final List<PipelineTask> pipelineTasks;
+    private final List<PipelineTaskDisplayData> pipelineTasks;
     private TimeAndPercentile unallocatedTime = null;
     private long totalProcessingTimeMillis;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
-    public TaskMetrics(List<PipelineTask> tasks) {
-        pipelineTasks = tasks;
+    public TaskMetrics(List<PipelineTaskDisplayData> taskListForModule) {
+        pipelineTasks = taskListForModule;
     }
 
     public void calculate() {
@@ -32,13 +31,11 @@ public class TaskMetrics {
         Map<String, Long> allocatedTimeByCategory = new HashMap<>();
 
         if (pipelineTasks != null) {
-            for (PipelineTask task : pipelineTasks) {
-                totalProcessingTimeMillis += DisplayModel.getProcessingMillis(
-                    task.getStartProcessingTime(), task.getEndProcessingTime());
+            for (PipelineTaskDisplayData task : pipelineTasks) {
+                totalProcessingTimeMillis += task.getExecutionClock().totalExecutionTime();
 
-                List<PipelineTaskMetrics> summaryMetrics = pipelineTaskOperations()
-                    .summaryMetrics(task);
-                for (PipelineTaskMetrics metrics : summaryMetrics) {
+                List<PipelineTaskMetric> pipelineTaskMetrics = task.getPipelineTaskMetrics();
+                for (PipelineTaskMetric metrics : pipelineTaskMetrics) {
                     String category = metrics.getCategory();
                     Long categoryTimeMillis = allocatedTimeByCategory.get(category);
                     if (categoryTimeMillis == null) {
@@ -81,6 +78,10 @@ public class TaskMetrics {
         return totalProcessingTimeMillis;
     }
 
+    PipelineTaskOperations pipelineTaskOperations() {
+        return pipelineTaskOperations;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(categoryMetrics, totalProcessingTimeMillis, unallocatedTime);
@@ -98,9 +99,5 @@ public class TaskMetrics {
         return Objects.equals(categoryMetrics, other.categoryMetrics)
             && totalProcessingTimeMillis == other.totalProcessingTimeMillis
             && Objects.equals(unallocatedTime, other.unallocatedTime);
-    }
-
-    PipelineTaskOperations pipelineTaskOperations() {
-        return pipelineTaskOperations;
     }
 }

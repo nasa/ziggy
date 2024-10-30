@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +24,8 @@ import gov.nasa.ziggy.models.ModelImporter;
 import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -132,7 +132,7 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
 
     /** Generates acknowledgement and returns true if transfer status is VALID. */
     private boolean acknowledgeManifest() {
-        acknowledgement = Acknowledgement.of(manifest, dataImportPath, pipelineTask.getId());
+        acknowledgement = Acknowledgement.of(manifest, dataImportPath, pipelineTask);
 
         // Write the acknowledgement to the directory.
         acknowledgement.write(dataImportPath);
@@ -175,7 +175,8 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
         // be the set of all names in the manifest)
         List<String> namesOfValidFiles = acknowledgement.namesOfValidFiles();
 
-        Map<Path, Path> regularFilesInDirTree = ZiggyFileUtils.regularFilesInDirTree(dataImportPath);
+        Map<Path, Path> regularFilesInDirTree = ZiggyFileUtils
+            .regularFilesInDirTree(dataImportPath);
         List<String> filenamesInDirTree = regularFilesInDirTree.keySet()
             .stream()
             .map(Path::toString)
@@ -283,7 +284,7 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
                 move(file, destinationFile);
                 successfulImports.add(datastoreRoot.relativize(destinationFile));
             } catch (IOException e) {
-                log.error("Failed to import file " + file.toString(), e);
+                log.error("Failed to import file {}", file.toString(), e);
                 exceptionCount++;
                 failedImports.add(datastoreRoot.relativize(destinationFile));
             }
@@ -333,8 +334,8 @@ public class DatastoreDirectoryDataReceiptDefinition implements DataReceiptDefin
                 failedImports.addAll(importer.getFailedImports());
                 log.warn("{} out of {} model files failed to import", importer.getFailedImports(),
                     modelFilesForImport.size());
-                alertService().generateAndBroadcastAlert("Data Receipt (DR)", pipelineTask.getId(),
-                    AlertService.Severity.WARNING, "Failed to import " + importer.getFailedImports()
+                alertService().generateAndBroadcastAlert("Data Receipt (DR)", pipelineTask,
+                    Severity.WARNING, "Failed to import " + importer.getFailedImports()
                         + " model files (out of " + modelFilesForImport.size() + ")");
             }
         }

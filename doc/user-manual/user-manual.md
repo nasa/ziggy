@@ -138,7 +138,9 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
        19.6. [Advanced Unit of Work Configurations](advanced-uow.md)
 
-       <!-- 19.7. [Customizing Ziggy](customizing-ziggy.md) -->
+       19.7. [Software Version Tracking](version-tracking.md)
+
+       <!-- 19.8. [Customizing Ziggy](customizing-ziggy.md) -->
 
 20. [Contact Us](contact-us.md)
 

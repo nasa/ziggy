@@ -86,6 +86,10 @@ public abstract class DisplayModel {
 
     public static double getProcessingHours(Date start, Date end) {
         double processingMillis = getProcessingMillis(start, end);
+        return getProcessingHours(processingMillis);
+    }
+
+    public static double getProcessingHours(double processingMillis) {
         return processingMillis / (1000.0 * 60.0 * 60.0);
     }
 

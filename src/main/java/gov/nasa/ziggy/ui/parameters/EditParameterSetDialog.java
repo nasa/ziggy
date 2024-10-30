@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import javax.swing.BorderFactory;
 import javax.swing.GroupLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -42,7 +43,6 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
     private final ParameterSet parameterSet;
     private Set<Parameter> currentParams;
     private PropertySheetPanel paramsPropPanel;
-    private JTextArea descriptionTextArea;
 
     private boolean cancelled;
     private boolean isNew;
@@ -80,8 +80,10 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
         JLabel versionTextField = new JLabel(Integer.toString(parameterSet.getVersion()));
 
         JLabel description = boldLabel("Description");
-        descriptionTextArea = new JTextArea(parameterSet.getDescription());
+        JTextArea descriptionTextArea = new JTextArea(parameterSet.getDescription());
+        descriptionTextArea.setEditable(false);
         JScrollPane descriptionScrollPane = new JScrollPane(descriptionTextArea);
+        descriptionScrollPane.setBorder(BorderFactory.createEmptyBorder());
 
         JPanel buttonPanel = ZiggySwingUtils.createButtonPanel(ButtonPanelContext.TOOL_BAR,
             ZiggySwingUtils.createButton(RESTORE_DEFAULTS, this::defaults));
@@ -134,8 +136,7 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
             @Override
             protected Void doInBackground() throws Exception {
                 paramsPropPanel.writeToObject(currentParams);
-                parametersOperations().updateParameterSet(parameterSet, currentParams,
-                    descriptionTextArea.getText(), isNew);
+                parametersOperations().updateParameterSet(parameterSet, currentParams, isNew);
                 return null;
             }
 

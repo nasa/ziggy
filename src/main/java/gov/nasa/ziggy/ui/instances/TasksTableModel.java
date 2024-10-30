@@ -1,9 +1,10 @@
 package gov.nasa.ziggy.ui.instances;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.swing.SwingWorker;
 
@@ -11,15 +12,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.models.DatabaseModel;
+import gov.nasa.ziggy.ui.util.table.TableUpdater;
 import gov.nasa.ziggy.util.dispmod.TasksDisplayModel;
 
 @SuppressWarnings("serial")
-public class TasksTableModel extends AbstractZiggyTableModel<PipelineTask>
+public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplayData>
     implements DatabaseModel {
 
     private static final Logger log = LoggerFactory.getLogger(TasksTableModel.class);
@@ -27,98 +32,51 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTask>
     /** Preferred column widths. */
     public static final int[] COLUMN_WIDTHS = TasksDisplayModel.COLUMN_WIDTHS;
 
+    private long pipelineInstanceId;
     private PipelineInstance pipelineInstance;
-    private List<PipelineTask> tasks = new LinkedList<>();
-
-    // Used to store member values when the instance is TEMPORARILY set to null
-    private List<PipelineTask> stashedTasks;
-    long instanceIdForStashedTaskInfo = -1L;
-
+    private List<TaskTimeInfo> tasks = new LinkedList<>();
     private TasksDisplayModel tasksDisplayModel = new TasksDisplayModel();
 
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
-
-    private enum UpdateMode {
-        SAME_INSTANCE, REPLACE_TEMP_NULL, FULL_UPDATE
-    }
-
-    public TasksTableModel() {
-        stashedTasks = tasks;
-    }
+    private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
+    private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
 
     @Override
     public void loadFromDatabase() {
-        loadFromDatabase(true);
-    }
-
-    public void loadFromDatabase(boolean forceUpdate) {
-        new SwingWorker<Void, Void>() {
+        new SwingWorker<TableUpdater, Void>() {
             @Override
-            protected Void doInBackground() throws Exception {
-                if (pipelineInstance == null) {
-                    tasks = new LinkedList<>();
-                } else {
-                    UpdateMode updateMode = getUpdateMode(forceUpdate);
-                    switch (updateMode) {
-                        case SAME_INSTANCE:
-                            break;
-                        case REPLACE_TEMP_NULL:
-                            tasks = stashedTasks;
-                            break;
-                        case FULL_UPDATE:
-                            tasks = pipelineTaskOperations().pipelineTasks(pipelineInstance, true);
-                            break;
-                        default:
-                            throw new IllegalStateException(
-                                "Unsupported update mode " + updateMode.toString());
+            protected TableUpdater doInBackground() throws Exception {
+                List<PipelineTaskDisplayData> pipelineTaskDisplayData;
+                if (pipelineInstanceId > 0) {
+                    if (pipelineInstance == null
+                        || pipelineInstance.getId() != pipelineInstanceId) {
+                        pipelineInstance = pipelineInstanceOperations()
+                            .pipelineInstance(pipelineInstanceId);
                     }
+                    pipelineTaskDisplayData = pipelineTaskDisplayDataOperations()
+                        .pipelineTaskDisplayData(pipelineInstance);
+                } else {
+                    pipelineInstance = null;
+                    pipelineTaskDisplayData = new LinkedList<>();
                 }
-                return null;
+                tasksDisplayModel.update(pipelineTaskDisplayData);
+                List<TaskTimeInfo> oldTasks = tasks;
+                tasks = pipelineTaskDisplayData.stream()
+                    .map(TaskTimeInfo::new)
+                    .collect(Collectors.toList());
+                return new TableUpdater(oldTasks, tasks);
             }
 
             @Override
             protected void done() {
                 try {
-                    get(); // check for exception
-                    tasksDisplayModel = new TasksDisplayModel(tasks);
-                    fireTableDataChanged();
+                    get().updateTable(TasksTableModel.this);
+                    ZiggyMessenger.publish(new TasksUpdatedMessage(TasksTableModel.this), false);
                 } catch (InterruptedException | ExecutionException e) {
                     log.error("Could not load pipeline tasks or attributes", e);
                 }
             }
         }.execute();
-    }
-
-    /**
-     * Determines the update mode to use when refreshing task and task attribute information. This
-     * depends on the values of the current instance, the last instance, the stashed instance, and
-     * the forceUpdate flag:
-     * <ol>
-     * <li>If the current instance is the same as the last instance, no update is needed.
-     * <li>If the last instance was null, but the current instance matches the stashed instance, we
-     * can refresh the task information from the stashed information.
-     * <li>If the current instance is different from the last non-null instance (which is either the
-     * last instance or the stashed instance), a full update is needed.
-     * <li>If the fullUpdate flag is true, then a full update is needed regardless of these other
-     * considerations.
-     * </ol>
-     */
-    private UpdateMode getUpdateMode(boolean forceUpdate) {
-
-        UpdateMode updateMode = UpdateMode.FULL_UPDATE;
-
-        if (tasks.isEmpty() && instanceIdForStashedTaskInfo == pipelineInstance.getId()) {
-            updateMode = UpdateMode.REPLACE_TEMP_NULL;
-        } else if (!tasks.isEmpty() && instanceIdForStashedTaskInfo == pipelineInstance.getId()) {
-            updateMode = UpdateMode.SAME_INSTANCE;
-        } else if (instanceIdForStashedTaskInfo != pipelineInstance.getId()) {
-            updateMode = UpdateMode.FULL_UPDATE;
-        }
-
-        if (forceUpdate) {
-            updateMode = UpdateMode.FULL_UPDATE;
-        }
-        return updateMode;
     }
 
     @Override
@@ -141,76 +99,79 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTask>
         return tasksDisplayModel.getColumnName(column);
     }
 
+    @Override
+    public PipelineTaskDisplayData getContentAtRow(int row) {
+        return tasks.get(row).getPipelineTaskDisplayData();
+    }
+
+    @Override
+    public Class<PipelineTaskDisplayData> tableModelContentClass() {
+        return PipelineTaskDisplayData.class;
+    }
+
     public PipelineInstance getPipelineInstance() {
         return pipelineInstance;
     }
 
-    /**
-     * Sets the pipeline instance and determines whether it is a genuinely new instance. A genuinely
-     * new instance is one that is different from the current instance (if that instance is
-     * non-null), or different from the stashed instance (if the current instance is null). This
-     * information is used to decide what to do about the selected row in the tasks table.
-     */
-    public boolean updatePipelineInstance(PipelineInstance pipelineInstance) {
-        boolean genuinelyNewInstance = true;
-        if (this.pipelineInstance == null
-            && pipelineInstance.getId() == instanceIdForStashedTaskInfo) {
-            genuinelyNewInstance = false;
+    public void updatePipelineInstanceId(long instanceId) {
+        if (instanceId == pipelineInstanceId) {
+            return;
         }
-        if (this.pipelineInstance != null && this.pipelineInstance.equals(pipelineInstance)) {
-            genuinelyNewInstance = false;
-        }
-        setPipelineInstance(pipelineInstance);
-        return genuinelyNewInstance;
-    }
-
-    public void setPipelineInstance(PipelineInstance pipelineInstance) {
-
-        // Stash current pipeline instance information. Don't bother to do this if the
-        // current pipeline instance is null, as we want to stash the most recent non-null
-        // state (i.e., if we get 10 updates to null in a row, we still want the stashed
-        // information to be from the non-null update that came before those 10 null updates).
-        if (pipelineInstance != null) {
-            stashTaskInfo();
-        }
-        this.pipelineInstance = pipelineInstance;
-    }
-
-    public List<Integer> getModelIndicesOfTasks(List<Long> taskIds) {
-        List<Integer> modelIndices = new ArrayList<>();
-        for (int i = 0; i < tasks.size(); i++) {
-            if (taskIds.contains(tasks.get(i).getId())) {
-                modelIndices.add(i);
-            }
-        }
-        return modelIndices;
-    }
-
-    /**
-     * Stores the current task information state and the current instance ID. This makes it possible
-     * to use stashed information to update the object when a new pipeline instance is supplied but
-     * the new instance ID is the same as the last non-null instance ID.
-     */
-    private void stashTaskInfo() {
-        stashedTasks = tasks;
-        instanceIdForStashedTaskInfo = pipelineInstance != null ? pipelineInstance.getId() : -1L;
+        pipelineInstanceId = instanceId;
+        loadFromDatabase();
     }
 
     public TaskCounts getTaskStates() {
         return tasksDisplayModel.getTaskCounts();
     }
 
-    @Override
-    public PipelineTask getContentAtRow(int row) {
-        return tasks.get(row);
-    }
-
-    @Override
-    public Class<PipelineTask> tableModelContentClass() {
-        return PipelineTask.class;
-    }
-
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
+    }
+
+    PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
+    }
+
+    private static class TaskTimeInfo {
+        private PipelineTaskDisplayData pipelineTaskDisplayData;
+        private String time;
+
+        public TaskTimeInfo(PipelineTaskDisplayData pipelineTaskDisplayData) {
+            this.pipelineTaskDisplayData = pipelineTaskDisplayData;
+            time = getPipelineTaskDisplayData().getExecutionClock().toString();
+        }
+
+        public PipelineTaskDisplayData getPipelineTaskDisplayData() {
+            return pipelineTaskDisplayData;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(pipelineTaskDisplayData, time);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            TaskTimeInfo other = (TaskTimeInfo) obj;
+            return Objects.equals(pipelineTaskDisplayData, other.pipelineTaskDisplayData)
+                && Objects.equals(time, other.time);
+        }
+
+        @Override
+        public String toString() {
+            return "pipelineTask=" + getPipelineTaskDisplayData().toString() + "("
+                + getPipelineTaskDisplayData().getProcessingStep() + "), time=" + time;
+        }
     }
 }

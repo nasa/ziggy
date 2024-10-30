@@ -30,14 +30,14 @@ public abstract class PipelineInputsOutputsUtils implements Persistable {
     private static final String SERIALIZED_OUTPUTS_TYPE_FILE = ".output-types.ser";
 
     /**
-     * Returns the task directory. Assumes that the working directory is the sub-task directory.
+     * Returns the task directory. Assumes that the working directory is the subtask directory.
      */
     public static Path taskDir() {
         return DirectoryProperties.workingDir().getParent();
     }
 
     /**
-     * Returns the module executable name. Assumes that the working directory is the sub-task
+     * Returns the module executable name. Assumes that the working directory is the subtask
      * directory.
      */
     public static String moduleName() {
@@ -45,15 +45,11 @@ public abstract class PipelineInputsOutputsUtils implements Persistable {
     }
 
     public static String moduleName(Path taskDir) {
-        String taskDirString = taskDir.getFileName().toString();
-        PipelineTask.TaskBaseNameMatcher m = new PipelineTask.TaskBaseNameMatcher(taskDirString);
-        return m.moduleName();
+        return new PipelineTask.TaskBaseNameMatcher(taskDir.getFileName().toString()).moduleName();
     }
 
     public static long taskId(Path taskDir) {
-        String taskDirString = taskDir.getFileName().toString();
-        PipelineTask.TaskBaseNameMatcher m = new PipelineTask.TaskBaseNameMatcher(taskDirString);
-        return m.taskId();
+        return new PipelineTask.TaskBaseNameMatcher(taskDir.getFileName().toString()).taskId();
     }
 
     /**

@@ -34,7 +34,6 @@ import gov.nasa.ziggy.ui.module.ViewEditModuleLibraryPanel;
 import gov.nasa.ziggy.ui.parameters.ViewEditParameterSetsPanel;
 import gov.nasa.ziggy.ui.pipeline.ViewEditPipelinesPanel;
 import gov.nasa.ziggy.ui.status.StatusPanel;
-import gov.nasa.ziggy.ui.util.ViewEditKeyValuePairPanel;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
@@ -65,8 +64,7 @@ public class ZiggyConsolePanel extends JSplitPane {
         DATA_RECEIPT("Data Receipt", DataReceiptPanel::new),
         EVENT_HANDLERS("Event Definitions", ZiggyEventHandlerPanel::new),
         MODULE_LIBRARY("Module Library", ViewEditModuleLibraryPanel::new),
-        METRILYZER("Metrilyzer", false, true, MetrilyzerPanel::new),
-        GENERAL("General", false, true, ViewEditKeyValuePairPanel::new);
+        METRILYZER("Metrilyzer", false, true, MetrilyzerPanel::new);
 
         private String label;
         private boolean visible;

@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.Group;
-import gov.nasa.ziggy.pipeline.definition.Groupable;
 import gov.nasa.ziggy.ui.util.GroupInformation;
 
 /**
@@ -35,24 +34,22 @@ import gov.nasa.ziggy.ui.util.GroupInformation;
  * @author PT
  * @author Bill Wohler
  */
-public class ZiggyTreeModel<T extends Groupable> extends DefaultTreeModel {
+public class ZiggyTreeModel<T> extends DefaultTreeModel {
 
     private static final long serialVersionUID = 20240614L;
     private static final Logger log = LoggerFactory.getLogger(ZiggyTreeModel.class);
-
-    private static final String DEFAULT_GROUP_NAME = "<Default Group>";
 
     private final DefaultMutableTreeNode rootNode;
     private DefaultMutableTreeNode defaultGroupNode;
     private Map<String, DefaultMutableTreeNode> groupNodes;
 
     private Supplier<List<T>> items;
-    private Class<T> modelClass;
+    private String type;
 
-    public ZiggyTreeModel(Class<T> modelClass, Supplier<List<T>> items) {
+    public ZiggyTreeModel(String type, Supplier<List<T>> items) {
         super(new DefaultMutableTreeNode(""));
         rootNode = (DefaultMutableTreeNode) getRoot();
-        this.modelClass = modelClass;
+        this.type = type;
         this.items = items;
     }
 
@@ -62,8 +59,8 @@ public class ZiggyTreeModel<T extends Groupable> extends DefaultTreeModel {
             @Override
             protected GroupInformation<T> doInBackground() throws Exception {
                 // Obtain information on the groups for this component class.
-                log.debug("Loading {} items", modelClass);
-                return new GroupInformation<>(modelClass, items.get());
+                log.debug("Loading {} items", type);
+                return new GroupInformation<>(type, items.get());
             }
 
             @Override
@@ -71,12 +68,12 @@ public class ZiggyTreeModel<T extends Groupable> extends DefaultTreeModel {
                 GroupInformation<T> groupInformation;
                 try {
                     groupInformation = get();
-                    log.debug("Loading {} items...done", modelClass);
+                    log.debug("Loading {} items...done", type);
 
                     // Add the default group.
-                    log.debug("Updating tree model for {}", modelClass);
+                    log.debug("Updating tree model for {}", type);
                     rootNode.removeAllChildren();
-                    defaultGroupNode = new DefaultMutableTreeNode(DEFAULT_GROUP_NAME);
+                    defaultGroupNode = new DefaultMutableTreeNode(Group.DEFAULT_NAME);
                     insertNodeInto(defaultGroupNode, rootNode, rootNode.getChildCount());
 
                     Collections.sort(groupInformation.getObjectsInDefaultGroup(),
@@ -111,9 +108,9 @@ public class ZiggyTreeModel<T extends Groupable> extends DefaultTreeModel {
 
                     reload();
 
-                    log.debug("Updating tree model for {}...done", modelClass);
+                    log.debug("Updating tree model for {}...done", type);
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Could not retrieve model data for {}", modelClass, e);
+                    log.error("Could not retrieve model data for {}", type, e);
                 }
             }
         }.execute();

@@ -62,7 +62,7 @@ public class PipelineInstanceCrud extends AbstractCrud<PipelineInstance> {
     public List<PipelineInstance> retrieve(Date startDate, Date endDate) {
         ZiggyQuery<PipelineInstance, PipelineInstance> query = createZiggyQuery(
             PipelineInstance.class);
-        query.column(PipelineInstance_.startProcessingTime).between(startDate, endDate);
+        query.column(PipelineInstance_.created).between(startDate, endDate);
         return list(query);
     }
 
@@ -107,7 +107,7 @@ public class PipelineInstanceCrud extends AbstractCrud<PipelineInstance> {
         query.where(builder.in(root.get("id"), Set.of(id))).set(root.get("name"), newName);
         int rowsUpdated = executeUpdate(query);
 
-        log.info("Updated instance name, rowsUpdated=" + rowsUpdated);
+        log.info("Updated instance name, rowsUpdated={}", rowsUpdated);
     }
 
     /**
@@ -140,13 +140,13 @@ public class PipelineInstanceCrud extends AbstractCrud<PipelineInstance> {
             Date startTime = new Date(
                 System.currentTimeMillis() - filter.getAgeDays() * MILLIS_PER_DAY);
             query.where(query.getBuilder()
-                .greaterThan(query.getRoot().get("startProcessingTime"), startTime));
+                .greaterThan(query.getRoot().get(PipelineInstance_.created), startTime));
         }
 
         // If the user wants to filter by pipeline instance name, apply that now.
         if (!StringUtils.isBlank(filter.getNameContains())) {
-            query.where(
-                query.getBuilder().like(query.getRoot().get("name"), filter.getNameContains()));
+            query.where(query.getBuilder()
+                .like(query.getRoot().get(PipelineInstance_.name), filter.getNameContains()));
         }
         query.column(PipelineInstance_.id).ascendingOrder();
         return query;

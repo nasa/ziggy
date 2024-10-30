@@ -32,7 +32,8 @@ import javax.swing.table.AbstractTableModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.logging.TaskLogInformation;
 import gov.nasa.ziggy.services.messages.TaskLogInformationMessage;
@@ -72,11 +73,12 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
 
     private final UUID uuid = UUID.randomUUID();
 
+    private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
-    public TaskLogInformationDialog(Window owner, PipelineTask pipelineTask) {
+    public TaskLogInformationDialog(Window owner, long taskId) {
         super(owner, DEFAULT_MODALITY_TYPE);
-        taskId = pipelineTask.getId();
+        this.taskId = taskId;
 
         // Subscribe to TaskLogInformationMessage instances, since this panel needs to
         // get access to those messages.
@@ -186,7 +188,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                 int row = taskLogTable.rowAtPoint(evt.getPoint());
                 if (evt.getClickCount() == 2 && row != -1) {
                     TaskLogInformation logInfo = taskLogTableModel.taskLogInformation(row);
-                    log.info("Obtaining log file: " + logInfo.getFilename());
+                    log.info("Obtaining log file {}", logInfo.getFilename());
                     try {
                         new SingleTaskLogDialog(TaskLogInformationDialog.this, logInfo)
                             .setVisible(true);
@@ -218,22 +220,23 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
             protected Set<TaskLogInformation> doInBackground() throws Exception {
 
                 // Get the pipeline task up-to-date information from the database.
-                PipelineTask task = pipelineTaskOperations().pipelineTask(taskId);
-                log.debug("selected task id = " + taskId);
+                PipelineTaskDisplayData task = pipelineTaskDisplayDataOperations()
+                    .pipelineTaskDisplayData(pipelineTaskOperations().pipelineTask(taskId));
+                log.debug("Selected task ID is {}", taskId);
                 instanceText.setText(Long.toString(task.getPipelineInstanceId()));
                 workerText.setText(task.getWorkerName());
                 moduleText.setText(task.getModuleName());
-                uowText.setText(task.uowTaskInstance().briefState());
+                uowText.setText(task.getBriefState());
                 processingStepText.setText(HtmlBuilder.htmlBuilder()
                     .appendBoldColor(task.getDisplayProcessingStep(),
                         task.isError() ? "red" : "green")
                     .toString());
-                elapsedTimeText.setText(task.elapsedTime());
+                elapsedTimeText.setText(task.getExecutionClock().toString());
 
                 // Request the task log information.
                 taskInfoRequestCountdownLatch = new CountDownLatch(1);
-                TaskLogInformationRequest.requestTaskLogInformation(TaskLogInformationDialog.this,
-                    task);
+                ZiggyMessenger.publish(new TaskLogInformationRequest(TaskLogInformationDialog.this,
+                    task.getPipelineTask()));
 
                 // Wait for the task log to be delivered, but don't wait too long.
                 if (!taskInfoRequestCountdownLatch.await(LOG_CONTENT_TIMEOUT_MILLIS,
@@ -242,13 +245,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                     return null;
                 }
 
-                // Strip the TaskLogInformation out of the message and send the message
-                // itself to Davy Jones' locker.
-                Set<TaskLogInformation> updatedTaskLogInformation = currentMessage
-                    .taskLogInformation();
-                currentMessage = null;
-
-                return updatedTaskLogInformation;
+                return currentMessage.taskLogInformation();
             }
 
             @Override
@@ -273,6 +270,10 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
 
     private PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 
     private static class TaskLogInformationTableModel extends AbstractTableModel {

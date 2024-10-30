@@ -26,9 +26,10 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.EventHandlerToggleStateRequest;
 import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
@@ -178,8 +179,10 @@ public class ZiggyEventHandler implements Runnable {
             // don't want the event handler infrastructure itself to fail as a result. For
             // this reason, we catch Exception here (to include both runtime exceptions and
             // unexpected checked exceptions), and then stop this particular event handler.
-            log.error("ZiggyEventHandler " + name + " disabled due to exception", e);
-            alertService().generateAndBroadcastAlert("Event handler " + name, 0, Severity.WARNING,
+            // TODO Use AlertService.DEFAULT_TASK here instead?
+            log.error("ZiggyEventHandler {} disabled due to exception", name, e);
+            alertService().generateAndBroadcastAlert("Event handler " + name,
+                new PipelineTask(null, null, null), Severity.WARNING,
                 "Event handler shut down due to exception");
             stop();
         }
@@ -226,11 +229,10 @@ public class ZiggyEventHandler implements Runnable {
      */
     private void startPipeline(ReadyFile readyFile) {
 
-        log.info("Event handler " + name + " detected event");
-        log.info(
-            "Event name \"" + readyFile.getName() + "\" has " + readyFile.labelCount() + " labels");
-        log.debug("Event handler labels: " + readyFile.labels());
-        log.info("Event handler " + name + " starting pipeline " + pipelineName + "...");
+        log.info("Event handler {} detected event", name);
+        log.info("Event {} has {} labels", readyFile.getName(), readyFile.labelCount());
+        log.debug("Event handler labels are {}", readyFile.labels());
+        log.info("Event handler {} starting pipeline {}", name, pipelineName);
 
         // Create a new pipeline instance that includes the event handler labels.
         PipelineDefinition pipelineDefinition = pipelineDefinitionOperations()
@@ -240,14 +242,14 @@ public class ZiggyEventHandler implements Runnable {
         ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
         ziggyEventOperations().newZiggyEvent(name, pipelineName, pipelineInstance.getId(),
             readyFile.getLabels());
-        log.info("Event handler " + name + " starting pipeline " + pipelineName + "...done");
+        log.info("Event handler {} starting pipeline {}...done", name, pipelineName);
     }
 
     /**
      * Toggles the state of the {@link ZiggyEventHandler} from enabled to disabled or vice-versa.
      */
     public void toggleStatus() {
-        log.debug("Toggling state of event handler \"" + name + "\"");
+        log.debug("Toggling state of event handler {}", name);
         if (watcherThread == null) { // indicates disabled
             start();
         } else {

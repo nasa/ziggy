@@ -9,8 +9,9 @@ import java.io.UnsupportedEncodingException;
 import java.util.List;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -27,7 +28,8 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
  */
 public class InstanceReporter {
 
-    private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     public File report(PipelineInstance instance, File outputDir) {
@@ -39,14 +41,16 @@ public class InstanceReporter {
         File reportFile = new File(outputDir, "instance-" + instance.getId() + "-report.txt");
         reportFile.delete();
 
-        try (PrintStream printStream = new PrintStream(reportFile, ZiggyFileUtils.ZIGGY_CHARSET_NAME)) {
+        try (PrintStream printStream = new PrintStream(reportFile,
+            ZiggyFileUtils.ZIGGY_CHARSET_NAME)) {
             printStream.print("state: " + instance.getState() + "\n\n");
 
             InstancesDisplayModel instancesDisplayModel = new InstancesDisplayModel(instance);
             instancesDisplayModel.print(printStream, "Instance Summary");
             printStream.println();
 
-            List<PipelineTask> tasks = pipelineTaskOperations().pipelineTasks(instance);
+            List<PipelineTaskDisplayData> tasks = pipelineTaskDisplayDataOperations()
+                .pipelineTaskDisplayData(instance);
 
             TaskSummaryDisplayModel taskSummaryDisplayModel = new TaskSummaryDisplayModel(
                 new TaskCounts(tasks));
@@ -74,5 +78,9 @@ public class InstanceReporter {
 
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 }

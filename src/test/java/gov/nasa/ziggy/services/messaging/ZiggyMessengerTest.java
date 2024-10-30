@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +26,8 @@ import gov.nasa.ziggy.services.messaging.MessagingTestUtils.Message2;
  */
 public class ZiggyMessengerTest {
 
-    private final List<String> stringsFromMessages = new ArrayList<>();
-
-    @After
-    public void tearDown() {
-        stringsFromMessages.clear();
+    @Before
+    public void setUp() {
         ZiggyMessenger.reset();
     }
 
@@ -97,6 +94,8 @@ public class ZiggyMessengerTest {
     @Test
     public void testTakeAction() {
         log.info("Start");
+        List<String> stringsFromMessages = new ArrayList<>();
+
         ZiggyMessenger.setStoreMessages(true);
 
         ZiggyMessenger.subscribe(Message1.class, message -> {

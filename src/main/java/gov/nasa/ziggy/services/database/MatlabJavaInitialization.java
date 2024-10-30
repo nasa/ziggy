@@ -23,6 +23,7 @@ import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
@@ -75,10 +76,10 @@ public class MatlabJavaInitialization {
             String log4jConfigFile = config
                 .getString(PropertyName.LOG4J2_CONFIGURATION_FILE.property());
 
-            log.info(PropertyName.LOG4J2_CONFIGURATION_FILE + " = " + log4jConfigFile);
+            log.info("{}={}", PropertyName.LOG4J2_CONFIGURATION_FILE, log4jConfigFile);
 
             if (log4jConfigFile != null) {
-                log.info("Log4j initialized with DOMConfigurator from: " + log4jConfigFile);
+                log.info("Log4j initialized with DOMConfigurator from {}", log4jConfigFile);
                 // TODO Evaluate setting of log4j property
                 // If ZiggyConfiguration.getInstance() is called before we get there, this
                 // statement will have no effect. Consider rearchitecting so that this property
@@ -94,11 +95,12 @@ public class MatlabJavaInitialization {
             }
         }
 
-        log.info("Software Version: {}", config.getString(PropertyName.ZIGGY_VERSION.property()));
+        log.info("Ziggy software version is {}", BuildInfo.ziggyVersion());
+        log.info("Pipeline software version is {}", BuildInfo.pipelineVersion());
         ZiggyConfiguration.logJvmProperties();
 
-        long pid = OperatingSystemType.getInstance().getProcInfo().getPid();
-        log.info("process ID: " + pid);
+        long pid = OperatingSystemType.newInstance().getProcInfo().getPid();
+        log.info("Process ID is {}", pid);
         recordPid(pid);
 
         initialized = true;

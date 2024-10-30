@@ -36,15 +36,16 @@ import gov.nasa.ziggy.data.datastore.DatastoreFileManager.InputFiles;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample1;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
-import gov.nasa.ziggy.module.remote.TimestampFile.Event;
+import gov.nasa.ziggy.module.TimestampFile.Event;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
@@ -68,6 +69,7 @@ public class ExternalProcessPipelineModuleTest {
     private DatastoreFileManager datastoreFileManager;
     private DatastoreProducerConsumerOperations datastoreProducerConsumerOperations;
     private PipelineTaskOperations pipelineTaskOperations;
+    private PipelineTaskDataOperations pipelineTaskDataOperations;
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
@@ -102,6 +104,7 @@ public class ExternalProcessPipelineModuleTest {
         when(pipelineTaskOperations
             .pipelineModuleDefinition(ArgumentMatchers.any(PipelineTask.class)))
                 .thenReturn(pipelineModuleDefinition);
+        pipelineTaskDataOperations = Mockito.mock(PipelineTaskDataOperations.class);
 
         when(pipelineTask.taskBaseName()).thenReturn("50-100-test");
         when(pipelineModuleDefinition.getInputsClass())
@@ -137,6 +140,7 @@ public class ExternalProcessPipelineModuleTest {
         doReturn(datastoreProducerConsumerOperations).when(pipelineModule)
             .datastoreProducerConsumerOperations();
         doReturn(pipelineTaskOperations).when(pipelineModule).pipelineTaskOperations();
+        doReturn(pipelineTaskDataOperations).when(pipelineModule).pipelineTaskDataOperations();
         doReturn(pipelineTask).when(pipelineModule).pipelineTask();
         doReturn(taskConfiguration).when(pipelineModule).taskConfiguration();
         doReturn(datastoreFileManager).when(pipelineModule).datastoreFileManager();
@@ -190,7 +194,7 @@ public class ExternalProcessPipelineModuleTest {
      */
     @Test
     public void testConstructor() {
-        assertEquals(100L, pipelineModule.taskId());
+        assertEquals(100L, pipelineModule.pipelineTask().getId().longValue());
         assertEquals(50L, pipelineModule.instanceId());
         assertNotNull(pipelineModule.algorithmManager());
         assertTrue(pipelineModule.pipelineInputs() instanceof PipelineInputsSample);
@@ -207,8 +211,7 @@ public class ExternalProcessPipelineModuleTest {
         doReturn(ProcessingStep.MARSHALING).when(pipelineModule).currentProcessingStep();
         pipelineModule.marshalingTaskAction();
 
-        verify(pipelineModule).copyFilesToTaskDirectory(eq(taskConfiguration),
-            eq(taskDir));
+        verify(pipelineModule).copyFilesToTaskDirectory(eq(taskConfiguration), eq(taskDir));
         verify(taskConfiguration).serialize(eq(taskDir));
         verify(pipelineModule).incrementProcessingStep();
         assertFalse(pipelineModule.getDoneLooping());
@@ -226,8 +229,7 @@ public class ExternalProcessPipelineModuleTest {
         when(taskConfiguration.getSubtaskCount()).thenReturn(0);
         pipelineModule.marshalingTaskAction();
 
-        verify(pipelineModule).copyFilesToTaskDirectory(eq(taskConfiguration),
-            eq(taskDir));
+        verify(pipelineModule).copyFilesToTaskDirectory(eq(taskConfiguration), eq(taskDir));
         verify(taskConfiguration, never()).serialize(eq(taskDir));
         verify(pipelineModule, never()).incrementProcessingStep();
         assertTrue(pipelineModule.getDoneLooping());
@@ -289,7 +291,6 @@ public class ExternalProcessPipelineModuleTest {
         when(failureSummary.isAllTasksFailed()).thenReturn(false);
         doReturn(0L).when(pipelineModule)
             .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
-        doReturn(0L).when(pipelineModule).timestampFileTimestamp(any(Event.class));
         doReturn(failureSummary).when(pipelineModule).processingFailureSummary();
 
         // the local version performs relatively limited activities
@@ -655,7 +656,7 @@ public class ExternalProcessPipelineModuleTest {
 
         PipelineException exception = assertThrows(PipelineException.class,
             () -> pipelineModule.processingMainLoop());
-        assertEquals("Unable to persist due to sub-task failures", exception.getMessage());
+        assertEquals("Unable to persist due to subtask failures", exception.getMessage());
         verify(pipelineModule, never()).marshalingTaskAction();
         verify(pipelineModule, never()).submittingTaskAction();
         verify(pipelineModule, never()).queuedTaskAction();
@@ -716,7 +717,7 @@ public class ExternalProcessPipelineModuleTest {
         verify(pipelineModule, never()).executingTaskAction();
         verify(pipelineModule, never()).waitingToStoreTaskAction();
         verify(pipelineModule, never()).storingTaskAction();
-        verify(pipelineTaskOperations).updateProcessingStep(eq(100L),
+        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.SUBMITTING));
     }
 
@@ -730,7 +731,7 @@ public class ExternalProcessPipelineModuleTest {
             ProcessingStep.STORING, ProcessingStep.STORING).when(pipelineModule)
                 .currentProcessingStep();
         pipelineModule.processTask();
-        verify(pipelineTaskOperations).updateProcessingStep(eq(100L),
+        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.SUBMITTING));
         assertFalse(pipelineModule.isProcessingSuccessful());
         verify(pipelineModule).processingMainLoop();
@@ -740,7 +741,8 @@ public class ExternalProcessPipelineModuleTest {
         verify(pipelineModule, never()).executingTaskAction();
         verify(pipelineModule, never()).waitingToStoreTaskAction();
         verify(pipelineModule, never()).storingTaskAction();
-        verify(pipelineTaskOperations).updateProcessingStep(eq(100L), any(ProcessingStep.class));
+        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
+            any(ProcessingStep.class));
     }
 
     /** Tests a resubmit for a remote execution task. */
@@ -754,7 +756,7 @@ public class ExternalProcessPipelineModuleTest {
                 .currentProcessingStep();
         when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
         pipelineModule.processTask();
-        verify(pipelineTaskOperations).updateProcessingStep(eq(100L),
+        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.SUBMITTING));
         assertFalse(pipelineModule.isProcessingSuccessful());
         verify(pipelineModule).processingMainLoop();
@@ -764,21 +766,6 @@ public class ExternalProcessPipelineModuleTest {
         verify(pipelineModule, never()).executingTaskAction();
         verify(pipelineModule, never()).waitingToStoreTaskAction();
         verify(pipelineModule, never()).storingTaskAction();
-    }
-
-    @Test
-    public void testResumeMonitoring() {
-        configurePipelineModule(RunMode.RESUME_MONITORING);
-        doReturn(ProcessingStep.EXECUTING, ProcessingStep.EXECUTING,
-            ProcessingStep.WAITING_TO_STORE, ProcessingStep.WAITING_TO_STORE,
-            ProcessingStep.STORING, ProcessingStep.STORING).when(pipelineModule)
-                .currentProcessingStep();
-        pipelineModule.processTask();
-        assertFalse(pipelineModule.isProcessingSuccessful());
-        verify(algorithmExecutor).resumeMonitoring();
-        verify(pipelineModule, never()).processingMainLoop();
-        verify(pipelineModule, never()).incrementProcessingStep();
-        verify(pipelineModule, never()).currentProcessingStep();
     }
 
     /** Test resumption of the marshaling step. */
@@ -802,7 +789,7 @@ public class ExternalProcessPipelineModuleTest {
         verify(pipelineModule, never()).executingTaskAction();
         verify(pipelineModule, never()).waitingToStoreTaskAction();
         verify(pipelineModule, never()).storingTaskAction();
-        verify(pipelineTaskOperations).updateProcessingStep(eq(100L),
+        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.SUBMITTING));
     }
 
@@ -823,7 +810,7 @@ public class ExternalProcessPipelineModuleTest {
         verify(pipelineModule).executingTaskAction();
         verify(pipelineModule, never()).waitingToStoreTaskAction();
         verify(pipelineModule, never()).storingTaskAction();
-        verify(pipelineTaskOperations, never()).updateProcessingStep(eq(100L),
+        verify(pipelineTaskDataOperations, never()).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.EXECUTING));
     }
 
@@ -847,7 +834,8 @@ public class ExternalProcessPipelineModuleTest {
         verify(pipelineModule).waitingToStoreTaskAction();
         verify(pipelineModule).storingTaskAction();
         // TODO Replace with another verification?
-        verify(pipelineTaskOperations).updateProcessingStep(eq(100L), eq(ProcessingStep.STORING));
+        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
+            eq(ProcessingStep.STORING));
     }
 
     @Test

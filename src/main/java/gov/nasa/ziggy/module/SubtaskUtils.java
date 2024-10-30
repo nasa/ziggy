@@ -68,6 +68,8 @@ public class SubtaskUtils {
     }
 
     public static void clearStaleAlgorithmStates(File taskDir) {
+        log.info("Removing stale PROCESSING state from task directory");
+        new AlgorithmStateFiles(taskDir).clearStaleState();
         log.info("Finding and clearing stale PROCESSING or FAILED subtask states");
         SubtaskDirectoryIterator it = new SubtaskDirectoryIterator(taskDir);
         while (it.hasNext()) {

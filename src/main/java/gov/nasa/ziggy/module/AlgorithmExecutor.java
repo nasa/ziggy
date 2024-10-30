@@ -1,5 +1,10 @@
 package gov.nasa.ziggy.module;
 
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
@@ -13,10 +18,13 @@ import gov.nasa.ziggy.module.remote.PbsParameters;
 import gov.nasa.ziggy.module.remote.SupportedRemoteClusters;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
-import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;;
 
 /**
  * Superclass for algorithm execution. This includes local execution via the
@@ -32,25 +40,32 @@ public abstract class AlgorithmExecutor {
     public static final String ZIGGY_PROGRAM = "ziggy";
 
     protected static final String NODE_MASTER_NAME = "compute-node-master";
+    public static final String ACTIVE_CORES_FILE_NAME = ".activeCoresPerNode";
+    public static final String WALL_TIME_FILE_NAME = ".requestedWallTimeSeconds";
 
     protected final PipelineTask pipelineTask;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
-    private StateFile stateFile;
+    private PbsParameters pbsParameters;
 
     /**
      * Returns a new instance of the appropriate {@link AlgorithmExecutor} subclass.
      */
     public static final AlgorithmExecutor newInstance(PipelineTask pipelineTask) {
-        return newInstance(pipelineTask, new PipelineTaskOperations());
+        return newInstance(pipelineTask, new PipelineTaskOperations(),
+            new PipelineTaskDataOperations());
     }
 
     /**
      * Version of {@link #newInstance(PipelineTask)} that accepts a user-supplied
      * {@link PipelineTaskOperations} instances. Allows these classes to be mocked for testing.
+     *
+     * @param pipelineTaskDataOperations2
      */
     static final AlgorithmExecutor newInstance(PipelineTask pipelineTask,
-        PipelineTaskOperations pipelineTaskOperations) {
+        PipelineTaskOperations pipelineTaskOperations,
+        PipelineTaskDataOperations pipelineTaskDataOperations) {
 
         if (pipelineTask == null) {
             log.debug("Pipeline task is null, returning LocalAlgorithmExecutor instance");
@@ -67,15 +82,15 @@ public abstract class AlgorithmExecutor {
             log.debug("Remote execution not selected, returning LocalAlgorithmExecutor instance");
             return new LocalAlgorithmExecutor(pipelineTask);
         }
-        log.debug("Total subtasks " + pipelineTask.getTotalSubtaskCount());
-        log.debug("Completed subtasks " + pipelineTask.getCompletedSubtaskCount());
-        int subtasksToRun = pipelineTask.getTotalSubtaskCount()
-            - pipelineTask.getCompletedSubtaskCount();
+        SubtaskCounts subtaskCounts = pipelineTaskDataOperations.subtaskCounts(pipelineTask);
+        log.debug("Total subtasks {}", subtaskCounts.getTotalSubtaskCount());
+        log.debug("Completed subtasks {}", subtaskCounts.getCompletedSubtaskCount());
+        int subtasksToRun = subtaskCounts.getTotalSubtaskCount()
+            - subtaskCounts.getCompletedSubtaskCount();
         if (subtasksToRun < remoteParams.getMinSubtasksForRemoteExecution()) {
-            log.info("Number subtasks to run (" + subtasksToRun
-                + ") less than min subtasks for remote execution ("
-                + remoteParams.getMinSubtasksForRemoteExecution() + ")");
-            log.info("Executing task " + pipelineTask.getId() + " locally");
+            log.info("Number subtasks to run ({}) less than min subtasks for remote execution ({})",
+                subtasksToRun, remoteParams.getMinSubtasksForRemoteExecution());
+            log.info("Executing task {} locally", pipelineTask);
             return new LocalAlgorithmExecutor(pipelineTask);
         }
         return newRemoteInstance(pipelineTask);
@@ -114,45 +129,44 @@ public abstract class AlgorithmExecutor {
     public void submitAlgorithm(TaskConfiguration inputsHandler) {
 
         prepareToSubmitAlgorithm(inputsHandler);
+        writeActiveCoresFile();
+        writeWallTimeFile();
 
         IntervalMetric.measure(PipelineMetrics.SEND_METRIC, () -> {
-            log.info("Submitting task for execution (taskId=" + pipelineTask.getId() + ")");
+            log.info("Submitting task for execution (taskId={})", pipelineTask);
 
             Files.createDirectories(algorithmLogDir());
-            Files.createDirectories(DirectoryProperties.stateFilesDir());
             Files.createDirectories(taskDataDir());
             SubtaskUtils.clearStaleAlgorithmStates(
                 new TaskDirectoryManager(pipelineTask).taskDir().toFile());
 
-            log.info("Start remote monitoring (taskId=" + pipelineTask.getId() + ")");
-            submitForExecution(stateFile);
+            log.info("Start remote monitoring (taskId={})", pipelineTask);
+            submitForExecution();
+            writeQueuedTimestampFile();
             return null;
         });
     }
 
     private void prepareToSubmitAlgorithm(TaskConfiguration inputsHandler) {
-        // execute the external process on a remote host
-        int numSubtasks;
-        PbsParameters pbsParameters = null;
 
         PipelineDefinitionNodeExecutionResources executionResources = pipelineTaskOperations()
             .executionResources(pipelineTask);
-
+        int numSubtasks;
         // Initial submission: this is indicated by a non-null task configuration manager
         if (inputsHandler != null) { // indicates initial submission
-            log.info("Processing initial submission of task " + pipelineTask.getId());
+            log.info("Processing initial submission of task {}", pipelineTask);
             numSubtasks = inputsHandler.getSubtaskCount();
+            pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask, numSubtasks, -1, -1);
 
             pbsParameters = generatePbsParameters(executionResources, numSubtasks);
 
             // Resubmission: this is indicated by a null task configuration manager, which
             // means that subtask counts are available in the database
-        } else
-
-        {
-            log.info("Processing resubmission of task " + pipelineTask.getId());
-            numSubtasks = pipelineTask.getTotalSubtaskCount();
-            int numCompletedSubtasks = pipelineTask.getCompletedSubtaskCount();
+        } else {
+            log.info("Processing resubmission of task {}", pipelineTask);
+            SubtaskCounts subtaskCounts = pipelineTaskDataOperations().subtaskCounts(pipelineTask);
+            numSubtasks = subtaskCounts.getTotalSubtaskCount();
+            int numCompletedSubtasks = subtaskCounts.getCompletedSubtaskCount();
 
             // Scale the total subtasks to get to the number that still need to be processed
             double subtaskCountScaleFactor = (double) (numSubtasks - numCompletedSubtasks)
@@ -162,23 +176,24 @@ public abstract class AlgorithmExecutor {
             pbsParameters = generatePbsParameters(executionResources,
                 (int) (numSubtasks * subtaskCountScaleFactor));
         }
-
-        stateFile = StateFile.generateStateFile(pipelineTask, pbsParameters, numSubtasks);
     }
 
-    /**
-     * Resubmit the pipeline task to the appropriate {@link AlgorithmMonitor}. This is used in the
-     * case where the supervisor has been stopped and restarted but tasks are still running (usually
-     * remotely). This notifies the monitor that there are tasks that it should be looking out for.
-     */
-    public void resumeMonitoring() {
-        prepareToSubmitAlgorithm(null);
-        addToMonitor(stateFile);
+    /** Writes the number of active cores per node to a file in the task directory. */
+    private void writeActiveCoresFile() {
+        writeActiveCoresFile(workingDir(), activeCores());
     }
 
-    protected abstract void addToMonitor(StateFile stateFile);
+    private void writeWallTimeFile() {
+        writeWallTimeFile(workingDir(), wallTime());
+    }
 
-    protected abstract void submitForExecution(StateFile stateFile);
+    protected abstract void addToMonitor();
+
+    protected abstract void submitForExecution();
+
+    protected abstract String activeCores();
+
+    protected abstract String wallTime();
 
     /**
      * Generates an updated instance of {@link PbsParameters}. The method is abstract because each
@@ -200,22 +215,47 @@ public abstract class AlgorithmExecutor {
         return taskDataDir().resolve(pipelineTask.taskBaseName());
     }
 
+    protected void writeQueuedTimestampFile() {
+        TimestampFile.create(workingDir().toFile(), TimestampFile.Event.QUEUED);
+    }
+
     public abstract AlgorithmType algorithmType();
 
     protected PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
     }
 
-    public StateFile getStateFile() {
-        return stateFile;
+    public PbsParameters getPbsParameters() {
+        return pbsParameters;
     }
 
-    public enum AlgorithmType {
-        /** local execution only */
-        LOCAL,
+    protected PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
+    }
 
-        /** Pleiades execution (database server is inside NAS enclave) */
-        REMOTE
+    // Broken out for use in ComputeNodeMaster unit tests.
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    static void writeActiveCoresFile(Path taskDir, String activeCoresPerNode) {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+            new FileOutputStream(taskDir.resolve(ACTIVE_CORES_FILE_NAME).toFile()),
+            ZiggyFileUtils.ZIGGY_CHARSET))) {
+            writer.write(activeCoresPerNode);
+            writer.newLine();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
+    // Broken out for use in ComputeNodeMaster unit tests.
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    static void writeWallTimeFile(Path taskDir, String wallTime) {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+            new FileOutputStream(taskDir.resolve(WALL_TIME_FILE_NAME).toFile()),
+            ZiggyFileUtils.ZIGGY_CHARSET))) {
+            writer.write(wallTime);
+            writer.newLine();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

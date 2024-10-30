@@ -32,9 +32,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     }
 
     /**
-     * Construct with a new instance
-     *
-     * @param clazz
+     * Creates a {@code ClassWrapper} for the given type.
      */
     public ClassWrapper(Class<? extends T> clazz) {
         this.clazz = clazz.getName();
@@ -42,11 +40,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     }
 
     /**
-     * Construct from an existing instance
-     *
-     * @param <E>
-     * @param instance
-     * @throws PipelineException
+     * Creates a {@code ClassWrapper} for the class of the given instance.
      */
     public <E extends T> ClassWrapper(E instance) {
         clazz = instance.getClass().getName();
@@ -54,9 +48,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     }
 
     /**
-     * Copy constructor
-     *
-     * @param otherClassWrapper
+     * Creates a copy of the given {@code ClassWrapper}.
      */
     public ClassWrapper(ClassWrapper<T> otherClassWrapper) {
         clazz = otherClassWrapper.clazz;
@@ -79,7 +71,7 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
     }
 
     /**
-     * Returns a constructor with a particular signature
+     * Returns a constructor with a particular signature.
      */
     @SuppressWarnings("unchecked")
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
@@ -111,9 +103,6 @@ public class ClassWrapper<T> implements Comparable<ClassWrapper<T>> {
         return unmangledClassName;
     }
 
-    /**
-     * @return the className
-     */
     public String getClassName() {
         return clazz;
     }

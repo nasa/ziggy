@@ -1,13 +1,20 @@
 package gov.nasa.ziggy.crud;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.collections.ListChunkIterator;
+import com.google.common.collect.Lists;
+
+import gov.nasa.ziggy.services.database.DatabaseController;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -26,14 +33,7 @@ import jakarta.persistence.criteria.CriteriaUpdate;
  */
 public abstract class AbstractCrud<U> implements AbstractCrudInterface<U> {
 
-    /**
-     * This is the maximum number of dynamically-created expressions sent to the database. This
-     * limit is 1000 in Oracle. A setting of 950 leaves plenty of room for other expressions in the
-     * query.
-     *
-     * @see ListChunkIterator
-     */
-    public static final int MAX_EXPRESSIONS = 950;
+    private static final Logger log = LoggerFactory.getLogger(AbstractCrud.class);
 
     private DatabaseService databaseService;
 
@@ -184,6 +184,48 @@ public abstract class AbstractCrud<U> implements AbstractCrudInterface<U> {
         return getSession()
             .createQuery(query.constructSelectClause().constructWhereClause().getCriteriaQuery())
             .getResultList();
+    }
+
+    /**
+     * Performs a query in which the query must be broken into multiple discrete queries due to
+     * database query language limitations, the results of which are then combined and returned.
+     * <p>
+     * For example:
+     *
+     * <pre>
+     * chunkedQuery(pipelineTaskIds,
+     *     chunk -> list(createZiggyQuery(PipelineTask.class).column(PipelineTask_.id)
+     *         .ascendingOrder()
+     *         .in(chunk)));
+     * </pre>
+     *
+     * The variable constraintsCollection is the collection of objects of class T that constrain the
+     * query and queryWithRestraints is a method that returns a query that applies the constraints.
+     *
+     * @param <T> class of the objects in the list that constrain the query
+     * @param <R> class of the objects in the list returned by the query
+     * @param source the list of elements of type T to use in the query
+     * @param query returns a list of results of type R based upon the collection of type T
+     * @return list of type R
+     */
+    protected <T, R> List<R> chunkedQuery(List<T> source, Function<List<T>, List<R>> query) {
+        if (source.isEmpty()) {
+            return Collections.emptyList();
+        }
+        int maxExpressions = maxExpressions();
+        List<R> results = new ArrayList<>(maxExpressions * 2);
+        for (List<T> chunk : Lists.partition(source, maxExpressions)) {
+            log.info("Created chunk of size {}", chunk.size());
+            results.addAll(query.apply(chunk));
+        }
+        return results;
+    }
+
+    /**
+     * Maximum expressions allowed in a query.
+     */
+    int maxExpressions() {
+        return DatabaseController.newInstance().maxExpressions();
     }
 
     /**

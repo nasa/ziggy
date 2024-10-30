@@ -18,8 +18,8 @@ import javax.swing.SwingWorker;
 import javax.swing.table.AbstractTableModel;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
@@ -40,10 +40,10 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
     private final PipelineInstance pipelineInstance;
     private TaskMetricsTableModel processingBreakdownTableModel;
     private PipelineStatsTableModel processingTimeTableModel;
-    private List<PipelineTask> tasks;
+    private List<PipelineTaskDisplayData> tasks;
     private ArrayList<String> orderedModuleNames;
 
-    private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
     public InstanceStatsDialog(Window owner, PipelineInstance instance) {
         super(owner, DEFAULT_MODALITY_TYPE);
@@ -57,10 +57,10 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
     }
 
     private void loadFromDatabase() {
-        tasks = pipelineTaskOperations().pipelineTasks(pipelineInstance, true);
+        tasks = pipelineTaskDisplayDataOperations().pipelineTaskDisplayData(pipelineInstance);
         orderedModuleNames = new ArrayList<>();
 
-        for (PipelineTask task : tasks) {
+        for (PipelineTaskDisplayData task : tasks) {
             String moduleName = task.getModuleName();
             if (!orderedModuleNames.contains(moduleName)) {
                 orderedModuleNames.add(moduleName);
@@ -138,8 +138,8 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
         setVisible(false);
     }
 
-    private PipelineTaskOperations pipelineTaskOperations() {
-        return pipelineTaskOperations;
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 
     private static class PipelineStatsTableModel extends AbstractTableModel
@@ -147,11 +147,12 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
 
         private PipelineStatsDisplayModel pipelineStatsDisplayModel;
 
-        public PipelineStatsTableModel(List<PipelineTask> tasks, List<String> orderedModuleNames) {
+        public PipelineStatsTableModel(List<PipelineTaskDisplayData> tasks,
+            List<String> orderedModuleNames) {
             update(tasks, orderedModuleNames);
         }
 
-        public void update(List<PipelineTask> tasks, List<String> orderedModuleNames) {
+        public void update(List<PipelineTaskDisplayData> tasks, List<String> orderedModuleNames) {
             pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks, orderedModuleNames);
             fireTableDataChanged();
         }

@@ -29,6 +29,9 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 public class SubtaskClient {
     private static final Logger log = LoggerFactory.getLogger(SubtaskClient.class);
 
+    // How long should the client wait after a TRY_AGAIN response?
+    public static final long TRY_AGAIN_WAIT_TIME_MILLIS = 2000L;
+
     // The SubtaskClient only handles one request / response at a time, hence the
     // ArrayBlockingQueue needs only one entry.
     private final ArrayBlockingQueue<Response> responseQueue = new ArrayBlockingQueue<>(1);
@@ -38,22 +41,23 @@ public class SubtaskClient {
     }
 
     /**
-     * Client method to report that a sub-task has completed.
+     * Client method to report that a subtask has completed.
      */
-    public Response reportSubtaskComplete(int subTaskIndex) {
-        return request(RequestType.REPORT_DONE, subTaskIndex);
+    public Response reportSubtaskComplete(int subtaskIndex) {
+        return request(RequestType.REPORT_DONE, subtaskIndex);
     }
 
     /**
-     * Client method to report that a sub-task is locked by another compute node.
+     * Client method to report that a subtask is locked by another compute node.
      */
-    public Response reportSubtaskLocked(int subTaskIndex) {
-        return request(RequestType.REPORT_LOCKED, subTaskIndex);
+    public Response reportSubtaskLocked(int subtaskIndex) {
+        return request(RequestType.REPORT_LOCKED, subtaskIndex);
     }
 
     /**
      * Get the next subtask for processing.
      */
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public Response nextSubtask() {
         Response response = null;
 
@@ -62,8 +66,13 @@ public class SubtaskClient {
             if (response == null || response.status != ResponseType.TRY_AGAIN) {
                 break;
             }
+            try {
+                Thread.sleep(tryAgainWaitTimeMillis());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
-        log.debug("getNextSubTask: Got a response: " + response);
+        log.debug("getNextSubtask: Got a response: {}", response);
         return response;
     }
 
@@ -94,7 +103,7 @@ public class SubtaskClient {
      */
     private Response request(RequestType command, int subtaskIndex) {
 
-        log.debug("Sending request " + command + " with subtaskIndex " + subtaskIndex);
+        log.debug("Sending request {} with subtaskIndex {}", command, subtaskIndex);
         send(command, subtaskIndex);
         return receive();
     }
@@ -103,9 +112,9 @@ public class SubtaskClient {
      * Sends a request to the {@link SubtaskServer}. This is acomplished by creating a new instance
      * of {@link Request}, which is then put onto the server's {@link ArrayBlockingQueue}.
      */
-    private void send(RequestType command, int subTaskIndex) {
+    private void send(RequestType command, int subtaskIndex) {
         log.debug("Connected to subtask server, sending request");
-        Request request = new Request(command, subTaskIndex, this);
+        Request request = new Request(command, subtaskIndex, this);
         SubtaskServer.submitRequest(request);
     }
 
@@ -123,5 +132,9 @@ public class SubtaskClient {
             // of shutting down, so we can simply return null and exit.
             return null;
         }
+    }
+
+    long tryAgainWaitTimeMillis() {
+        return TRY_AGAIN_WAIT_TIME_MILLIS;
     }
 }

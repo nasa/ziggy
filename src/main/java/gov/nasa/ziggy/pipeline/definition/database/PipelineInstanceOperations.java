@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.pipeline.definition.database;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -24,6 +23,7 @@ public class PipelineInstanceOperations extends DatabaseOperations {
     private PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
     private PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
     private PipelineDefinitionCrud pipelineDefinitionCrud = new PipelineDefinitionCrud();
     private ParametersOperations parametersOperations = new ParametersOperations();
@@ -44,11 +44,6 @@ public class PipelineInstanceOperations extends DatabaseOperations {
             pipelineInstance.setState(PipelineInstance.State.ERRORS_STALLED);
             pipelineInstanceCrud().merge(pipelineInstance);
         });
-    }
-
-    public List<String> distinctSoftwareRevisions(PipelineInstance pipelineInstance) {
-        return performTransaction(
-            () -> pipelineTaskCrud().distinctSoftwareRevisions(pipelineInstance));
     }
 
     /** Merges a pipeline instance and returns the merged instance. */
@@ -81,41 +76,11 @@ public class PipelineInstanceOperations extends DatabaseOperations {
     }
 
     /**
-     * Updates all of the {@link PipelineTask} instances associated with a particular
-     * {@link PipelineInstance} and returns them as a List.
-     */
-    public List<PipelineTask> updateJobs(PipelineInstance pipelineInstance) {
-        List<PipelineTask> tasks = performTransaction(
-            () -> pipelineTaskCrud().retrieveTasksForInstance(pipelineInstance));
-        List<PipelineTask> updatedTasks = new ArrayList<>();
-        for (PipelineTask task : tasks) {
-            updatedTasks.add(pipelineTaskOperations().updateJobs(task));
-        }
-        return updatedTasks;
-    }
-
-    /**
      * Returns a {@link TaskCounts} instance for a given {@link PipelineInstance}.
      */
     public TaskCounts taskCounts(PipelineInstance pipelineInstance) {
-        return performTransaction(
-            () -> new TaskCounts(pipelineTaskCrud().retrieveTasksForInstance(pipelineInstance)));
-    }
-
-    /**
-     * Determines whether all pipeline instances have completed execution. This means that all nodes
-     * have tasks that submitted and all tasks for all nodes are either complete or errored.
-     */
-    public boolean allInstanceNodesExecutionComplete(PipelineInstance pipelineInstance) {
-        List<PipelineInstanceNode> instanceNodes = new PipelineInstanceNodeCrud()
-            .retrieveAll(pipelineInstance);
-        for (PipelineInstanceNode node : instanceNodes) {
-            if (!new TaskCounts(pipelineTaskCrud().retrieveTasksForInstanceNode(node))
-                .isPipelineTasksExecutionComplete()) {
-                return false;
-            }
-        }
-        return true;
+        return performTransaction(() -> new TaskCounts(
+            pipelineTaskDisplayDataOperations().pipelineTaskDisplayData(pipelineInstance)));
     }
 
     public void addRootNode(PipelineInstance instance, PipelineInstanceNode pipelineInstanceNode) {
@@ -184,6 +149,10 @@ public class PipelineInstanceOperations extends DatabaseOperations {
 
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 
     PipelineDefinitionCrud pipelineDefinitionCrud() {

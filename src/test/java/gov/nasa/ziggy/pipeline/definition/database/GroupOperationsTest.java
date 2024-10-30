@@ -11,8 +11,6 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.Group;
-import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 
 /**
  * Unit tests for {@link GroupOperations}.
@@ -21,9 +19,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
  */
 public class GroupOperationsTest {
 
-    // TODO Fix per ZIGGY-431
-    // These tests, like the code they are testing, are non-sensical to me. If you ask for groups
-    // for PipelineDefinition and there are none, you should get none.
+    private static final String PARAMETER_SET = "ParameterSet";
+    private static final String PIPELINE_DEFINITION = "PipelineDefinition";
 
     private GroupOperations groupOperations = new GroupOperations();
 
@@ -33,18 +30,17 @@ public class GroupOperationsTest {
     @Test
     public void testPersist() {
         Group group1 = createGroup1();
-        assertEquals(group1, groupOperations.groupForName("group1", ParameterSet.class));
+        assertEquals(group1, groupOperations.group("group1", PARAMETER_SET));
     }
 
     @Test
     public void testMerge() {
         Group group1 = createGroup1();
-        assertEquals(group1, groupOperations.groupForName("group1", ParameterSet.class));
+        assertEquals(group1, groupOperations.group("group1", PARAMETER_SET));
 
         group1.setName("newGroup");
         groupOperations.merge(group1);
-        assertEquals("newGroup",
-            groupOperations.groupForName("newGroup", ParameterSet.class).getName());
+        assertEquals("newGroup", groupOperations.group("newGroup", PARAMETER_SET).getName());
     }
 
     @Test
@@ -78,52 +74,50 @@ public class GroupOperationsTest {
     }
 
     @Test
-    public void testGroupsForClass() {
+    public void testGroupsForType() {
         Group group1 = createGroup1();
-        List<Group> groups = groupOperations.groupsForClass(ParameterSet.class);
+        List<Group> groups = groupOperations.groups(PARAMETER_SET);
         assertEquals(1, groups.size());
         assertEquals(group1, groups.get(0));
-        assertEquals(Set.of("parameterSet1"), groups.get(0).getMemberNames());
+        assertEquals(Set.of("parameterSet1"), groups.get(0).getItems());
 
-        groups = groupOperations.groupsForClass(PipelineDefinition.class);
-        assertEquals(1, groups.size());
-        assertEquals(group1, groups.get(0));
-        assertEquals(Set.of(), groups.get(0).getMemberNames());
+        groups = groupOperations.groups(PIPELINE_DEFINITION);
+        assertEquals(0, groups.size());
     }
 
     @Test
     public void testGroupForName() {
-        assertTrue(groupOperations.groupForName(null, ParameterSet.class) == Group.DEFAULT);
+        assertTrue(groupOperations.group(null, PARAMETER_SET) == Group.DEFAULT);
 
-        assertTrue(groupOperations.groupForName("  ", ParameterSet.class) == Group.DEFAULT);
+        assertTrue(groupOperations.group("  ", PARAMETER_SET) == Group.DEFAULT);
 
         createGroup1();
-        Group group = groupOperations.groupForName("group1", ParameterSet.class);
-        assertEquals(Set.of("parameterSet1"), group.getMemberNames());
+        Group group = groupOperations.group("group1", PARAMETER_SET);
+        assertEquals(Set.of("parameterSet1"), group.getItems());
 
-        group = groupOperations.groupForName("group1", PipelineDefinition.class);
-        assertEquals(Set.of(), group.getMemberNames());
+        assertTrue(groupOperations.group("group1", PIPELINE_DEFINITION) == Group.DEFAULT);
+        assertTrue(groupOperations.group("group2", PARAMETER_SET) == Group.DEFAULT);
     }
 
     @Test
     public void testDelete() {
         Group group1 = createGroup1();
-        assertEquals(group1, groupOperations.groupForName("group1", ParameterSet.class));
+        assertEquals(group1, groupOperations.group("group1", PARAMETER_SET));
 
         groupOperations.delete(group1);
         assertEquals(0, groupOperations.groups().size());
     }
 
     private Group createGroup1() {
-        Group group1 = new Group("group1");
-        group1.getParameterSetNames().add("parameterSet1");
+        Group group1 = new Group("group1", PARAMETER_SET);
+        group1.getItems().add("parameterSet1");
         groupOperations.persist(group1);
         return group1;
     }
 
     private Group createGroup2() {
-        Group group2 = new Group("group2");
-        group2.getPipelineDefinitionNames().add("pipeline1");
+        Group group2 = new Group("group2", PIPELINE_DEFINITION);
+        group2.getItems().add("pipeline1");
         groupOperations.persist(group2);
         return group2;
     }

@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.util.os;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static gov.nasa.ziggy.services.config.PropertyName.OPERATING_SYSTEM;
 import static gov.nasa.ziggy.services.config.PropertyName.SUN_ARCH_DATA_MODEL;
 
@@ -79,9 +80,7 @@ public enum OperatingSystemType {
     }
 
     public static final OperatingSystemType byName(String name) {
-        if (name == null) {
-            throw new IllegalArgumentException("name cannot be null.");
-        }
+        checkNotNull(name, "name");
 
         for (OperatingSystemType type : OperatingSystemType.values()) {
             if (type != OperatingSystemType.DEFAULT
@@ -90,14 +89,12 @@ public enum OperatingSystemType {
             }
         }
 
-        log.warn(name + ": unrecognized operating system, using default type");
+        log.warn("Unrecognized operating system {}, using default type", name);
         return OperatingSystemType.DEFAULT;
     }
 
     public static final OperatingSystemType byType(String name) {
-        if (name == null) {
-            throw new IllegalArgumentException("name cannot be null.");
-        }
+        checkNotNull(name, "name");
 
         for (OperatingSystemType type : OperatingSystemType.values()) {
             if (type.toString().equalsIgnoreCase(name.trim().replace(' ', '_'))) {
@@ -105,11 +102,11 @@ public enum OperatingSystemType {
             }
         }
 
-        log.warn(name + ": unrecognized operating system, using default type");
+        log.warn("Unrecognized operating system {}, using default type", name);
         return OperatingSystemType.DEFAULT;
     }
 
-    public static final OperatingSystemType getInstance() {
+    public static final OperatingSystemType newInstance() {
         return OperatingSystemType
             .byType(ZiggyConfiguration.getInstance().getString(OPERATING_SYSTEM.property()));
     }

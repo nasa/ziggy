@@ -42,8 +42,8 @@ public class QsubLog {
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public void log(String qsubCommandLine) {
-        try (BufferedWriter bw = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(logFile, true), ZiggyFileUtils.ZIGGY_CHARSET))) {
+        try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+            new FileOutputStream(logFile, true), ZiggyFileUtils.ZIGGY_CHARSET))) {
             // append to existing file if it exists
             bw.write(qsubCommandLine + "\n");
         } catch (IOException e) {

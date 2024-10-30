@@ -4,6 +4,49 @@
 
 These are the release notes for Ziggy. In the change log below, we'll refer to our internal Jira key for our benefit. If the item is associated with a resolved GitHub issue or pull request, we'll add a link to that. Changes that are incompatible with previous versions are marked below. While the major version is 0, we will be making breaking changes when bumping the minor number. However, once we hit version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v0.7.0: Halloween release
+
+This release is coming out just before Halloween, and it's full of tricks and treats. Behind the scenes, we continued to buy down decades of technical debt. Are we finally getting close to paying off that loan? By eliminating the StateFile API (ZIGGY-465) and fixing ZIGGY-432, ZIGGY-454, and ZIGGY-478, the pipeline no longer stalls or crashes for mysterious reasons. We fixed a few UI annoyances like collapsing tree controls and Control-Click not working as expected on the Mac.
+
+## New Features
+
+1. Rename sub-task to subtask (ZIGGY-79)
+1. Use log4j2 conventions and features (ZIGGY-82)
+1. Provide means for clients/algorithms to add their software version to Ziggy's data accountability (ZIGGY-430)
+1. Fix Group design (ZIGGY-431)
+1. Refactor PipelineTask (ZIGGY-433)
+1. Limit console to operations (ZIGGY-441)
+1. Add PipelineInstanceIdOperations methods to PipelineInstanceOperations (ZIGGY-445)
+1. Support copying files to task directory without datastore (ZIGGY-446)
+1. Retrieve DatastoreRegexps from the database by name (ZIGGY-447)
+1. Locate consumed files used to produce a file (ZIGGY-448)
+1. Ensure importer can add and update module and pipeline definitions (ZIGGY-452)
+1. Write HDF5 files usable by Zowie (ZIGGY-455)
+1. Eliminate the need for programmatic appenders (ZIGGY-456)
+1. TaskMonitor doesn't change processing step from QUEUED to EXECUTING (ZIGGY-457)
+1. Add parameter retrieval to PipelineTaskOperations (ZIGGY-460)
+1. Check for new vs existing files in datastore (ZIGGY-461)
+1. Eliminate StateFile API (ZIGGY-465)
+
+## Bug Fixes
+
+1. Double-click resize is lost when table auto-update occurs (ZIGGY-297)
+1. Collapsing Parameter Library and Pipelines tree controls (ZIGGY-360)
+1. Can't halt SUBMITTED tasks (ZIGGY-424)
+1. Resume monitoring can't be stopped (ZIGGY-425)
+1. Race condition in pipeline workers (ZIGGY-432)
+1. Ziggy C++ Mex build tools set incorrect install name (ZIGGY-444)
+1. Warning alert clears error alert status (ZIGGY-450)
+1. Python distutils module removed from Python 3.12 (ZIGGY-451)
+1. Local processing crashes sporadically (ZIGGY-454)
+1. ZiggyQuery chunkedIn doesn't work (ZIGGY-462)
+1. Remote execution dialog can't parse numbers with commas (ZIGGY-463)
+1. Parameter API populates empty arrays (ZIGGY-468)
+1. Module parameter sets in HDF5 have incorrect field order values (ZIGGY-469)
+1. Worker never exits when subtask errors (ZIGGY-478)
+1. Control-Click clears selection on the Mac (ZIGGY-479)
+1. Exceptions when using pipeline instance filters (ZIGGY-489)
+
 # v0.6.0: You never have to wonder what Ae 4 / 3 / 0 means again
 
 We fixed a confusing aspect of the user interface and a ton of bugs while we continued to buy down decades of technical debt. You can now halt tasks or instances from the command-line interface (CLI). We improved pipeline definitions by making datastore definitions more flexible and providing for user-specified data receipt unit of work (UOW) generators.

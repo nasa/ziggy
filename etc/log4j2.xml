@@ -45,6 +45,9 @@
     <!-- Can specify an AppenderRef, but then add additivity="false" to the parameters
 	 to avoid duplicate log messages if that appender is found in Root. -->
     <Logger name="gov.nasa.ziggy.services.database" level="info"/>
+    <Logger name="gov.nasa.ziggy.services.logging.WriterLogOutputStream" level="info" additivity="false">
+        <AppenderRef ref="algorithm"/>
+    </Logger>
     <Logger name="gov.nasa.ziggy.services.messaging" level="info"/>
     <Logger name="gov.nasa.ziggy.ui" level="info"/>
     <Logger name="gov.nasa.ziggy.ui.ClusterController" level="info"/>
@@ -52,10 +55,6 @@
     <Logger name="gov.nasa.ziggy.util.ClasspathScanner" level="info"/>
     <Logger name="gov.nasa.ziggy" level="info"/>
     <Logger name="org.hibernate" level="warn"/>
-    <Logger name="gov.nasa.ziggy.services.logging.WriterLogOutputStream"
-    	level="info" additivity="false">
-    	<AppenderRef ref="algorithm"/>
-    </Logger>
 
     <!--
         To view the stack trace whenever DatabaseTransactionFactory.performTransaction is called, uncomment the following.
@@ -63,7 +62,8 @@
     -->
 
     <!--
-        To view SQL, uncomment the following and add the following VM arguments to your run configuration in Eclipse.
+        To view SQL, uncomment the following, set the console's ThresholdFilter level to "DEBUG",
+        and add the following VM arguments to your run configuration in Eclipse.
         -Dlog4j2.configurationFile=etc/log4j2.xml -Dhibernate.show_sql=true -Dhibernate.format_sql=true -Dhibernate.use_sql_comments=true
         <Logger name="org.hibernate.SQL" level="debug"/>
     -->

@@ -102,7 +102,7 @@ public class PerformanceReport {
                 "Unable to create directory " + outputPath.getParent().toString(), e);
         }
 
-        log.info("Writing report to {}...", outputPath.toString());
+        log.info("Writing report to {}", outputPath.toString());
 
         PdfRenderer pdfRenderer = new PdfRenderer(outputPath.toFile(), false);
 
@@ -149,7 +149,7 @@ public class PerformanceReport {
             throw new PipelineException("Invalid node range: " + nodes);
         }
 
-        log.info("processing nodes " + startNode + " to " + endNode);
+        log.info("Processing nodes {} to {}", startNode, endNode);
 
         return instanceNodes.subList(startNode, endNode + 1);
     }
@@ -175,14 +175,14 @@ public class PerformanceReport {
 
         pdfRenderer.newPage();
 
-        log.info("category report");
+        log.info("Category report");
 
         List<String> orderedCategoryNames = nodeReport.getOrderedCategoryNames();
         Map<String, DescriptiveStatistics> categoryStats = nodeReport.getCategoryStats();
         Map<String, TopNList> topTen = nodeReport.getCategoryTopTen();
 
         for (String category : orderedCategoryNames) {
-            log.info("processing category: " + category);
+            log.info("Processing category {}", category);
 
             boolean isTime = nodeReport.categoryIsTime(category);
             CategoryReport categoryReport = new CategoryReport(category, pdfRenderer, isTime);

@@ -25,18 +25,20 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.database.RuntimeObjectFactory;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
-import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.alert.AlertService.Severity;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
@@ -65,6 +67,8 @@ public class PipelineExecutor {
     private static Map<Long, Set<String>> instanceEventLabels = new HashMap<>();
 
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
     private ModelOperations modelOperations = new ModelOperations();
@@ -180,7 +184,7 @@ public class PipelineExecutor {
         log.info("Restarting {} tasks for instance node {} ({})", tasks.size(), node.getId(),
             node.getModuleName());
 
-        pipelineInstanceNodeOperations().taskCounts(node);
+        pipelineTaskDisplayDataOperations().taskCounts(node);
         logInstanceNodeCounts(node, "initial");
 
         // Loop over tasks and prepare for restart, including sending the task request message.
@@ -195,7 +199,7 @@ public class PipelineExecutor {
     }
 
     private void logInstanceNodeCounts(PipelineInstanceNode node, String initialOrFinal) {
-        TaskCounts instanceNodeCounts = pipelineInstanceNodeOperations().taskCounts(node);
+        TaskCounts instanceNodeCounts = pipelineTaskDisplayDataOperations().taskCounts(node);
         log.info("node={}: {}", initialOrFinal, instanceNodeCounts);
     }
 
@@ -204,37 +208,20 @@ public class PipelineExecutor {
      */
     private void restartFailedTask(PipelineTask task, boolean doTransitionOnly,
         RunMode restartMode) {
-        boolean okayToRestart = false;
-        if (task.isError() || task.getProcessingStep() == ProcessingStep.COMPLETE
-            && task.getFailedSubtaskCount() > 0) {
-            okayToRestart = true;
+
+        pipelineTaskDataOperations().prepareTaskForRestart(task);
+        removeTaskFromKilledTaskList(task);
+        if (restartMode != RunMode.RESUME_CURRENT_STEP) {
+            pipelineTaskDataOperations().updateProcessingStep(task, ProcessingStep.WAITING_TO_RUN);
         }
-
-        ProcessingStep oldProcessingStep = task.getProcessingStep();
-        if (!okayToRestart) {
-            log.warn("Task {} is on step {} {} errors, not restarting", task.getId(),
-                oldProcessingStep, task.isError() ? "with" : "without");
-            return;
-        }
-
-        // Retrieve the task so that it can be modified in the database using the Hibernate
-        // infrastructure
-        PipelineTask databaseTask = pipelineTaskOperations().pipelineTask(task.getId());
-        log.info("Restarting task {} on step {} {} errors", databaseTask.getId(), oldProcessingStep,
-            task.isError() ? "with" : "without");
-
-        PipelineTask mergedTask = pipelineTaskOperations().clearError(task.getId());
-        mergedTask = pipelineTaskOperations().updateProcessingStep(mergedTask,
-            ProcessingStep.WAITING_TO_RUN);
-        removeTaskFromKilledTaskList(mergedTask.getId());
 
         // Send the task message to the supervisor.
-        sendTaskRequestMessage(mergedTask, Priority.HIGHEST, doTransitionOnly, restartMode);
+        sendTaskRequestMessage(task, Priority.HIGHEST, doTransitionOnly, restartMode);
     }
 
     /** Replace with dummy method in unit testing. */
-    public void removeTaskFromKilledTaskList(long taskId) {
-        ZiggyMessenger.publish(new RemoveTaskFromKilledTasksMessage(taskId));
+    public void removeTaskFromKilledTaskList(PipelineTask pipelineTask) {
+        ZiggyMessenger.publish(new RemoveTaskFromKilledTasksMessage(pipelineTask));
     }
 
     /**
@@ -262,12 +249,12 @@ public class PipelineExecutor {
         List<UnitOfWork> unitsOfWork = new ArrayList<>();
         unitsOfWork = generateUnitsOfWork(unitOfWorkGenerator.newInstance(), instanceNode,
             instance);
-        log.info("Generated " + unitsOfWork.size() + " tasks for pipeline definition node "
-            + instanceNode.getModuleName());
+        log.info("Generated {} tasks for pipeline definition node {}", unitsOfWork.size(),
+            instanceNode.getModuleName());
 
         if (unitsOfWork.isEmpty()) {
             AlertService.getInstance()
-                .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK_ID, Severity.ERROR,
+                .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK, Severity.ERROR,
                     "No tasks generated for " + instanceNode.getModuleName());
             pipelineInstanceOperations().setInstanceToErrorsStalledState(instance);
             throw new PipelineException("Task generation did not generate any tasks!  UOW class: "
@@ -305,12 +292,12 @@ public class PipelineExecutor {
             return;
         }
 
-        log.debug("Generating worker task message for task=" + task.getId() + ", module="
-            + task.getModuleName());
+        log.debug("Generating worker task message for task {}, module {}", task,
+            task.getModuleName());
 
         TaskRequest taskRequest = new TaskRequest(task.getPipelineInstanceId(),
             pipelineTaskOperations().pipelineInstanceNodeId(task),
-            pipelineTaskOperations().pipelineDefinitionNode(task).getId(), task.getId(), priority,
+            pipelineTaskOperations().pipelineDefinitionNode(task).getId(), task, priority,
             doTransitionOnly, runMode);
 
         ZiggyMessenger.publish(taskRequest);
@@ -329,7 +316,7 @@ public class PipelineExecutor {
      */
     public static List<UnitOfWork> generateUnitsOfWork(UnitOfWorkGenerator uowGenerator,
         PipelineInstanceNode pipelineInstanceNode, PipelineInstance instance) {
-        log.debug("Generating UOWs...");
+        log.debug("Generating UOWs");
         // Produce the tasks.
         Set<String> eventLabels = instance != null ? instanceEventLabels.get(instance.getId())
             : null;
@@ -349,6 +336,14 @@ public class PipelineExecutor {
 
     public PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
+    }
+
+    PipelineTaskDataOperations pipelineTaskDataOperations() {
+        return pipelineTaskDataOperations;
+    }
+
+    PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations() {
+        return pipelineTaskDisplayDataOperations;
     }
 
     ModelOperations modelOperations() {

@@ -3,6 +3,8 @@ package gov.nasa.ziggy.services.logging;
 import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,6 +23,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -32,6 +35,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -61,8 +65,8 @@ public class TaskLogTest {
     private static final int NEXT_JOB_INDEX = 11;
 
     private File algorithmLog1;
-
     private Long timestamp;
+    private PipelineTaskDataOperations pipelineTaskDataOperations;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -77,6 +81,12 @@ public class TaskLogTest {
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
         .around(resultsDirPropertyRule);
 
+    @Before
+    public void setUp() {
+        pipelineTaskDataOperations = spy(PipelineTaskDataOperations.class);
+        TaskLog.setPipelineTaskDataOperations(pipelineTaskDataOperations);
+    }
+
     @After
     public void teardown() throws InterruptedException, URISyntaxException, IOException {
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
@@ -86,8 +96,9 @@ public class TaskLogTest {
     @Test
     public void testTaskLog() throws IOException {
         createAndPopulateZiggyTaskLog(INSTANCE_ID, TASK_ID, STEP_INDEX_0, TEST_LOG_MESSAGE_1);
+        PipelineTask pipelineTask = createPipelineTask(INSTANCE_ID, TASK_ID);
         File expectedTaskLogFile1 = DirectoryProperties.taskLogDir()
-            .resolve(createPipelineTask(INSTANCE_ID, TASK_ID, STEP_INDEX_0).logFilename(0))
+            .resolve(pipelineTaskDataOperations.logFilename(pipelineTask, 0, STEP_INDEX_0))
             .toFile();
         assertTrue("log file exists", expectedTaskLogFile1.exists());
 
@@ -100,8 +111,9 @@ public class TaskLogTest {
     @Test
     public void testTaskLogEnum() {
         createAndPopulateZiggyTaskLog(INSTANCE_ID, TASK_ID, STEP_INDEX_0, TEST_LOG_MESSAGE_1);
+        PipelineTask pipelineTask = createPipelineTask(INSTANCE_ID, TASK_ID);
         File expectedTaskLogFile1 = DirectoryProperties.taskLogDir()
-            .resolve(createPipelineTask(INSTANCE_ID, TASK_ID, STEP_INDEX_0).logFilename(0))
+            .resolve(pipelineTaskDataOperations.logFilename(pipelineTask, 0, STEP_INDEX_0))
             .toFile();
         Matcher matcher = TaskLogInformation.LOG_FILE_NAME_PATTERN
             .matcher(expectedTaskLogFile1.getName());
@@ -113,8 +125,9 @@ public class TaskLogTest {
 
     @Test
     public void testAlgorithmLogEnum() {
-        PipelineTask task = createPipelineTask(INSTANCE_ID, TASK_ID, STEP_INDEX_4);
-        String algorithmLogFilename = task.logFilename(JOB_INDEX);
+        PipelineTask task = createPipelineTask(INSTANCE_ID, TASK_ID);
+        String algorithmLogFilename = pipelineTaskDataOperations.logFilename(task, JOB_INDEX,
+            STEP_INDEX_4);
 
         Matcher matcher = TaskLogInformation.LOG_FILE_NAME_PATTERN.matcher(algorithmLogFilename);
         assertTrue(matcher.matches());
@@ -144,7 +157,9 @@ public class TaskLogTest {
             "extremely_long_test_message");
 
         // Try to get TaskLogInformation for each of the created files
-        Set<TaskLogInformation> taskLogInformationSet = TaskLog.searchForLogFiles(TASK_ID);
+        PipelineTask pipelineTask = spy(PipelineTask.class);
+        doReturn(TASK_ID).when(pipelineTask).getId();
+        Set<TaskLogInformation> taskLogInformationSet = TaskLog.searchForLogFiles(pipelineTask);
 
         // Check values in the TaskLogInformation instances.
         assertEquals(4, taskLogInformationSet.size());
@@ -160,8 +175,9 @@ public class TaskLogTest {
 
         // Create a log file for the algorithm
         createAndPopulateAlgorithmTaskLog(INSTANCE_ID, TASK_ID, STEP_INDEX_1, TEST_LOG_MESSAGE_1);
+        PipelineTask pipelineTask = createPipelineTask(INSTANCE_ID, TASK_ID);
         algorithmLog1 = DirectoryProperties.algorithmLogsDir()
-            .resolve(createPipelineTask(INSTANCE_ID, TASK_ID, STEP_INDEX_1).logFilename(0))
+            .resolve(pipelineTaskDataOperations.logFilename(pipelineTask, 0, STEP_INDEX_1))
             .toFile();
         assertTrue("log file exists", algorithmLog1.exists());
 
@@ -219,6 +235,14 @@ public class TaskLogTest {
 
     private void createAndPopulateZiggyTaskLog(long instanceId, long taskId, int stepIndex,
         String message) {
+
+        PipelineTask pipelineTask = createPipelineTask(instanceId, taskId);
+        Mockito
+            .doReturn(pipelineTaskDataOperations.logFilename(pipelineTask,
+                TaskLog.LOCAL_LOG_FILE_JOB_INDEX, stepIndex))
+            .when(pipelineTaskDataOperations)
+            .logFilename(pipelineTask, TaskLog.LOCAL_LOG_FILE_JOB_INDEX);
+
         CommandLine commandLine = new CommandLine(DirectoryProperties.ziggyHomeDir()
             .getParent()
             .resolve("src")
@@ -227,8 +251,7 @@ public class TaskLogTest {
             .resolve("ziggy.pl")
             .toString());
         commandLine.addArgument("--verbose");
-        commandLine.addArgument(
-            TaskLog.ziggyLogFileSystemProperty(createPipelineTask(instanceId, taskId, stepIndex)));
+        commandLine.addArgument(TaskLog.ziggyLogFileSystemProperty(pipelineTask));
         commandLine.addArgument("-D" + PropertyName.LOG4J2_CONFIGURATION_FILE.property() + "="
             + LOG4J_CONFIG_PATH.toAbsolutePath().toString());
         commandLine.addArgument("--class=" + TaskLogCreator.class.getName());
@@ -252,6 +275,13 @@ public class TaskLogTest {
     private void createAndPopulateAlgorithmTaskLog(long instanceId, long taskId, int stepIndex,
         String message) {
 
+        PipelineTask pipelineTask = createPipelineTask(instanceId, taskId);
+        Mockito
+            .doReturn(pipelineTaskDataOperations.logFilename(pipelineTask,
+                TaskLog.LOCAL_LOG_FILE_JOB_INDEX, stepIndex))
+            .when(pipelineTaskDataOperations)
+            .logFilename(pipelineTask, TaskLog.LOCAL_LOG_FILE_JOB_INDEX);
+
         CommandLine commandLine = new CommandLine(DirectoryProperties.ziggyHomeDir()
             .getParent()
             .resolve("src")
@@ -259,8 +289,7 @@ public class TaskLogTest {
             .resolve("perl")
             .resolve("ziggy.pl")
             .toString());
-        commandLine.addArgument(TaskLog
-            .algorithmLogFileSystemProperty(createPipelineTask(instanceId, taskId, stepIndex)));
+        commandLine.addArgument(TaskLog.algorithmLogFileSystemProperty(pipelineTask));
         commandLine.addArgument("-D" + PropertyName.LOG4J2_CONFIGURATION_FILE.property() + "="
             + LOG4J_CONFIG_PATH.toAbsolutePath().toString());
         commandLine.addArgument("--class=" + TaskLogCreator.class.getName());
@@ -281,21 +310,21 @@ public class TaskLogTest {
         externalProcess.execute();
     }
 
-    private PipelineTask createPipelineTask(long instanceId, long taskId, int stepIndex) {
+    private PipelineTask createPipelineTask(long instanceId, long taskId) {
         PipelineInstance instance = new PipelineInstance();
         instance.setId(instanceId);
         PipelineModuleDefinition module = new PipelineModuleDefinition("testexename");
-        PipelineTask task = Mockito
-            .spy(new PipelineTask(instance, new PipelineInstanceNode(null, module)));
+        PipelineTask task = spy(
+            new PipelineTask(instance, new PipelineInstanceNode(null, module), null));
         Mockito.doReturn(taskId).when(task).getId();
-        task.setTaskLogIndex(stepIndex);
         return task;
     }
 
     private File createAlgorithmTaskLog(long instanceId, long taskId, int jobIndex, int stepIndex)
         throws IOException {
-        PipelineTask task = createPipelineTask(instanceId, taskId, stepIndex);
-        String algorithmLogFilename = task.logFilename(jobIndex);
+        PipelineTask task = createPipelineTask(instanceId, taskId);
+        String algorithmLogFilename = pipelineTaskDataOperations.logFilename(task, jobIndex,
+            stepIndex);
         Files.createDirectories(DirectoryProperties.algorithmLogsDir());
         File algorithmLogFile = DirectoryProperties.algorithmLogsDir()
             .resolve(algorithmLogFilename)

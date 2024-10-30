@@ -8,20 +8,22 @@ import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**
  * Requests that the supervisor add a new task to its task queue.
  *
  * @author Todd Klaus
  * @author PT
+ * @author Bill Wohler
  */
 public class TaskRequest extends PipelineMessage implements Comparable<TaskRequest> {
-    private static final long serialVersionUID = 20230511L;
+    private static final long serialVersionUID = 20240909L;
 
     private final long instanceId;
     private final long instanceNodeId;
     private final long pipelineDefinitionNodeId;
-    private final long taskId;
+    private final PipelineTask pipelineTask;
     private final Priority priority;
     private final RunMode runMode;
 
@@ -32,11 +34,11 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
     private final boolean doTransitionOnly;
 
     public TaskRequest(long instanceId, long instanceNodeId, long pipelineDefinitionNodeId,
-        long taskId, Priority priority, boolean doTransitionOnly, RunMode runMode) {
+        PipelineTask pipelineTask, Priority priority, boolean doTransitionOnly, RunMode runMode) {
         this.instanceId = instanceId;
         this.instanceNodeId = instanceNodeId;
         this.pipelineDefinitionNodeId = pipelineDefinitionNodeId;
-        this.taskId = taskId;
+        this.pipelineTask = pipelineTask;
         this.doTransitionOnly = doTransitionOnly;
         this.priority = priority;
         this.runMode = checkNotNull(runMode, "runMode");
@@ -46,20 +48,16 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
         return instanceId;
     }
 
+    public long getInstanceNodeId() {
+        return instanceNodeId;
+    }
+
     public long getPipelineDefinitionNodeId() {
         return pipelineDefinitionNodeId;
     }
 
-    public long getTaskId() {
-        return taskId;
-    }
-
-    public boolean isDoTransitionOnly() {
-        return doTransitionOnly;
-    }
-
-    public long getInstanceNodeId() {
-        return instanceNodeId;
+    public PipelineTask getPipelineTask() {
+        return pipelineTask;
     }
 
     public Priority getPriority() {
@@ -70,11 +68,15 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
         return runMode;
     }
 
+    public boolean isDoTransitionOnly() {
+        return doTransitionOnly;
+    }
+
     @Override
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        return prime * result + Objects.hash(pipelineDefinitionNodeId, priority, taskId);
+        return prime * result + Objects.hash(pipelineDefinitionNodeId, pipelineTask, priority);
     }
 
     @Override
@@ -87,7 +89,7 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
         }
         TaskRequest other = (TaskRequest) obj;
         return pipelineDefinitionNodeId == other.pipelineDefinitionNodeId
-            && priority == other.priority && taskId == other.taskId;
+            && Objects.equals(pipelineTask, other.pipelineTask) && priority == other.priority;
     }
 
     /**
@@ -112,7 +114,7 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
         if (priority != o.getPriority()) {
             return priority.compareTo(o.getPriority());
         }
-        return (int) (taskId - o.getTaskId());
+        return pipelineTask.compareTo(o.pipelineTask);
     }
 
     @Override

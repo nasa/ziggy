@@ -9,6 +9,8 @@ import org.mockito.Mockito;
 import gov.nasa.ziggy.module.remote.nas.NasExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 
 /**
@@ -42,7 +44,8 @@ public class AlgorithmExecutorTest {
             .when(
                 pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(new PipelineDefinitionNodeExecutionResources("dummy", "dummy"));
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations,
+            new PipelineTaskDataOperations());
         assertTrue(executor instanceof LocalAlgorithmExecutor);
     }
 
@@ -59,7 +62,8 @@ public class AlgorithmExecutorTest {
             .when(
                 pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(executionResources);
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations,
+            new PipelineTaskDataOperations());
         assertTrue(executor instanceof LocalAlgorithmExecutor);
     }
 
@@ -78,9 +82,12 @@ public class AlgorithmExecutorTest {
             .when(
                 pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(executionResources);
-        Mockito.when(task.getTotalSubtaskCount()).thenReturn(100);
-        Mockito.when(task.getCompletedSubtaskCount()).thenReturn(99);
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
+        PipelineTaskDataOperations pipelineTaskDataOperations = Mockito
+            .mock(PipelineTaskDataOperations.class);
+        SubtaskCounts subtaskCounts = new SubtaskCounts(100, 99, 0);
+        Mockito.when(pipelineTaskDataOperations.subtaskCounts(task)).thenReturn(subtaskCounts);
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations,
+            pipelineTaskDataOperations);
         assertTrue(executor instanceof LocalAlgorithmExecutor);
     }
 
@@ -99,9 +106,12 @@ public class AlgorithmExecutorTest {
             .when(
                 pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(executionResources);
-        Mockito.when(task.getTotalSubtaskCount()).thenReturn(100);
-        Mockito.when(task.getCompletedSubtaskCount()).thenReturn(90);
-        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations);
+        PipelineTaskDataOperations pipelineTaskDataOperations = Mockito
+            .mock(PipelineTaskDataOperations.class);
+        SubtaskCounts subtaskCounts = new SubtaskCounts(100, 90, 0);
+        Mockito.when(pipelineTaskDataOperations.subtaskCounts(task)).thenReturn(subtaskCounts);
+        AlgorithmExecutor executor = AlgorithmExecutor.newInstance(task, pipelineTaskOperations,
+            pipelineTaskDataOperations);
         assertTrue(executor instanceof NasExecutor);
     }
 }

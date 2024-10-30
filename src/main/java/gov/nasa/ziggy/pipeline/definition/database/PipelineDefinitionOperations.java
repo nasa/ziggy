@@ -116,14 +116,6 @@ public class PipelineDefinitionOperations extends DatabaseOperations {
         return performTransaction(() -> pipelineDefinitionCrud().merge(pipeline));
     }
 
-    public PipelineDefinition rename(PipelineDefinition pipeline, String newName) {
-        return performTransaction(() -> pipelineDefinitionCrud().rename(pipeline, newName));
-    }
-
-    public void delete(PipelineDefinition pipeline) {
-        performTransaction(() -> pipelineDefinitionCrud().deletePipeline(pipeline));
-    }
-
     public void lock(PipelineDefinition pipelineDefinition) {
         performTransaction(() -> {
             PipelineDefinition databaseDefinition = pipelineDefinitionCrud()

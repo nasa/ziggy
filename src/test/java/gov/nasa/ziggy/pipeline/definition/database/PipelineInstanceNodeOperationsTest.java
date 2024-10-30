@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,7 +24,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.TaskCountsTest;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.uow.UnitOfWork;
 
 /** Unit tests for {@link PipelineInstanceNodeOperations}. */
 public class PipelineInstanceNodeOperationsTest {
@@ -37,6 +39,8 @@ public class PipelineInstanceNodeOperationsTest {
     private PipelineInstanceNode pipelineInstanceNode;
     private PipelineInstanceNode newInstanceNode;
     private PipelineTaskOperations pipelineTaskOperations;
+    private PipelineTaskDataOperations pipelineTaskDataOperations;
+    private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations;
     private PipelineInstanceOperations pipelineInstanceOperations;
 
     @Rule
@@ -47,6 +51,8 @@ public class PipelineInstanceNodeOperationsTest {
         pipelineInstanceNodeOperations = Mockito.spy(PipelineInstanceNodeOperations.class);
         testOperations = new TestOperations();
         pipelineTaskOperations = new PipelineTaskOperations();
+        pipelineTaskDataOperations = new PipelineTaskDataOperations();
+        pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
         pipelineInstanceOperations = new PipelineInstanceOperations();
     }
 
@@ -89,59 +95,56 @@ public class PipelineInstanceNodeOperationsTest {
 
         // Mark the first 2 tasks as complete and check that all the correct states are
         // generated. Then create 2 new pipeline tasks in the second instance node.
-        pipelineTaskOperations.updateProcessingStep(task1, ProcessingStep.COMPLETE);
-        PipelineTask updatedTask = pipelineTaskOperations.updateProcessingStep(task2,
-            ProcessingStep.COMPLETE);
+        pipelineTaskDataOperations.updateProcessingStep(task1, ProcessingStep.COMPLETE);
+        pipelineTaskDataOperations.updateProcessingStep(task2, ProcessingStep.COMPLETE);
         PipelineInstance pipelineInstance = pipelineInstanceOperations
-            .pipelineInstance(updatedTask.getPipelineInstanceId());
+            .pipelineInstance(task1.getPipelineInstanceId());
         assertEquals(PipelineInstance.State.PROCESSING, pipelineInstance.getState());
         TaskCounts counts = pipelineInstanceOperations.taskCounts(pipelineInstance);
-        PipelineOperationsTestUtils.testTaskCounts(2, 0, 2, 0, counts);
+        TaskCountsTest.testTaskCounts(2, 0, 2, 0, counts);
         counts = pipelineInstanceOperations.taskCounts(pipelineInstance);
-        PipelineOperationsTestUtils.testTaskCounts(2, 0, 2, 0, counts);
-        assertTrue(pipelineInstance.getCurrentExecutionStartTimeMillis() > 0);
+        TaskCountsTest.testTaskCounts(2, 0, 2, 0, counts);
+        assertTrue(pipelineInstance.getExecutionClock().isRunning());
 
-        task3 = new PipelineTask(pipelineInstance, newInstanceNode);
-        task4 = new PipelineTask(pipelineInstance, newInstanceNode);
-        List<PipelineTask> pipelineTasks = testOperations.mergePipelineTasks(List.of(task3, task4));
-        for (PipelineTask pipelineTask : pipelineTasks) {
-            newInstanceNode.addPipelineTask(pipelineTask);
-        }
-        newInstanceNode = testOperations.merge(newInstanceNode);
+        List<UnitOfWork> unitsOfWork = List.of(new UnitOfWork("brief3"), new UnitOfWork("brief4"));
+        List<PipelineTask> pipelineTasks = testOperations
+            .mergePipelineTasks(new RuntimeObjectFactory().newPipelineTasks(newInstanceNode,
+                pipelineInstance, unitsOfWork));
+
         task3 = pipelineTasks.get(0);
         task4 = pipelineTasks.get(1);
 
         counts = pipelineInstanceOperations.taskCounts(pipelineInstance);
-        PipelineOperationsTestUtils.testTaskCounts(4, 2, 2, 0, counts);
+        TaskCountsTest.testTaskCounts(4, 2, 2, 0, counts);
 
-        counts = pipelineInstanceNodeOperations.taskCounts(newInstanceNode);
-        PipelineOperationsTestUtils.testTaskCounts(2, 2, 0, 0, counts);
+        counts = pipelineTaskDisplayDataOperations.taskCounts(newInstanceNode);
+        TaskCountsTest.testTaskCounts(2, 2, 0, 0, counts);
 
         // Move the new tasks to the EXECUTING step.
-        pipelineTaskOperations.updateProcessingStep(task3, ProcessingStep.EXECUTING);
-        updatedTask = pipelineTaskOperations.updateProcessingStep(task4, ProcessingStep.EXECUTING);
+        pipelineTaskDataOperations.updateProcessingStep(task3, ProcessingStep.EXECUTING);
+        pipelineTaskDataOperations.updateProcessingStep(task4, ProcessingStep.EXECUTING);
         pipelineInstance = pipelineInstanceOperations
-            .pipelineInstance(updatedTask.getPipelineInstanceId());
+            .pipelineInstance(task3.getPipelineInstanceId());
         assertEquals(PipelineInstance.State.PROCESSING, pipelineInstance.getState());
         counts = pipelineInstanceOperations.taskCounts(pipelineInstance);
-        PipelineOperationsTestUtils.testTaskCounts(4, 0, 2, 0, counts);
-        counts = pipelineInstanceNodeOperations
-            .taskCounts(pipelineTaskOperations.pipelineInstanceNode(updatedTask));
-        PipelineOperationsTestUtils.testTaskCounts(2, 0, 0, 0, counts);
-        assertTrue(pipelineInstance.getCurrentExecutionStartTimeMillis() > 0);
+        TaskCountsTest.testTaskCounts(4, 0, 2, 0, counts);
+        counts = pipelineTaskDisplayDataOperations
+            .taskCounts(pipelineTaskOperations.pipelineInstanceNode(task3));
+        TaskCountsTest.testTaskCounts(2, 0, 0, 0, counts);
+        assertTrue(pipelineInstance.getExecutionClock().isRunning());
 
         // Move the tasks to COMPLETED.
-        pipelineTaskOperations.updateProcessingStep(task3, ProcessingStep.COMPLETE);
-        updatedTask = pipelineTaskOperations.updateProcessingStep(task4, ProcessingStep.COMPLETE);
+        pipelineTaskDataOperations.updateProcessingStep(task3, ProcessingStep.COMPLETE);
+        pipelineTaskDataOperations.updateProcessingStep(task4, ProcessingStep.COMPLETE);
         pipelineInstance = pipelineInstanceOperations
-            .pipelineInstance(updatedTask.getPipelineInstanceId());
+            .pipelineInstance(task4.getPipelineInstanceId());
         assertEquals(PipelineInstance.State.COMPLETED, pipelineInstance.getState());
         counts = pipelineInstanceOperations.taskCounts(pipelineInstance);
-        PipelineOperationsTestUtils.testTaskCounts(4, 0, 4, 0, counts);
-        counts = pipelineInstanceNodeOperations
-            .taskCounts(pipelineTaskOperations.pipelineInstanceNode(updatedTask));
-        PipelineOperationsTestUtils.testTaskCounts(2, 0, 2, 0, counts);
-        assertTrue(pipelineInstance.getCurrentExecutionStartTimeMillis() <= 0);
+        TaskCountsTest.testTaskCounts(4, 0, 4, 0, counts);
+        counts = pipelineTaskDisplayDataOperations
+            .taskCounts(pipelineTaskOperations.pipelineInstanceNode(task4));
+        TaskCountsTest.testTaskCounts(2, 0, 2, 0, counts);
+        assertFalse(pipelineInstance.getExecutionClock().isRunning());
     }
 
     @Test
@@ -234,16 +237,15 @@ public class PipelineInstanceNodeOperationsTest {
         pipelineOperationsTestUtils.setUpSingleModulePipeline();
         assertEquals(1, pipelineOperationsTestUtils.getPipelineInstanceNodes().size());
 
-        TaskCounts taskCounts = pipelineInstanceNodeOperations
+        TaskCounts taskCounts = pipelineTaskDisplayDataOperations
             .taskCounts(pipelineOperationsTestUtils.getPipelineInstanceNodes().get(0));
         assertEquals(1, taskCounts.getModuleNames().size());
         assertEquals("module1", taskCounts.getModuleNames().get(0));
         assertEquals(1, taskCounts.getModuleCounts().size());
-        PipelineOperationsTestUtils.testTaskCounts(2, 2, 0, 0, taskCounts);
-        PipelineOperationsTestUtils.testCounts(2, 0, 0, 0, 0, 0, 0,
-            taskCounts.getModuleCounts().get("module1"));
+        TaskCountsTest.testTaskCounts(2, 2, 0, 0, taskCounts);
+        TaskCountsTest.testCounts(2, 0, 0, 0, 0, 0, 0, taskCounts.getModuleCounts().get("module1"));
 
-        taskCounts = pipelineInstanceNodeOperations
+        taskCounts = pipelineTaskDisplayDataOperations
             .taskCounts(pipelineOperationsTestUtils.getPipelineInstanceNodes());
     }
 

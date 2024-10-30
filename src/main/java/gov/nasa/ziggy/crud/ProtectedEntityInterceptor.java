@@ -22,7 +22,7 @@ public class ProtectedEntityInterceptor implements Interceptor {
     private static final List<String> allowedPrefixes = new CopyOnWriteArrayList<>();
 
     public static void addAllowedPrefix(String prefix) {
-        log.info("Adding allowed prefix for flushed classes: " + prefix);
+        log.info("Adding allowed prefix {} for flushed classes", prefix);
         allowedPrefixes.add(prefix);
     }
 

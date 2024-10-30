@@ -52,6 +52,7 @@ import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.util.Requestor;
+import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.worker.WorkerResources;
 
@@ -118,8 +119,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
 
     public static void launch() {
         try {
-            log.info("Starting Ziggy Console ({})",
-                ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_VERSION.property()));
+            log.info("Starting Ziggy Console ({})", BuildInfo.ziggyVersion());
 
             ZiggyConfiguration.logJvmProperties();
 
@@ -189,8 +189,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
                     .append(
                         "Ziggy, a portable, scalable infrastructure for science data processing pipelines")
                     .append("<br/><br/>Software version: ")
-                    .append(ZiggyConfiguration.getInstance()
-                        .getString(PropertyName.ZIGGY_VERSION.property()))
+                    .append(BuildInfo.ziggyVersion())
                     .append("<br/>URL: ")
                     .append("https://github.com/nasa/ziggy")
                     .toString();
@@ -311,7 +310,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         try {
             return getImage(new File(imageLocation).toURI().toURL());
         } catch (MalformedURLException e) {
-            log.warn("Bad URL formed from " + imageLocation, e);
+            log.warn("Bad URL formed from {}", imageLocation, e);
             return null;
         }
     }
@@ -321,7 +320,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         try {
             image = ImageIO.read(url);
         } catch (IOException e) {
-            log.warn("Unable to load image from file " + url.toString(), e);
+            log.warn("Unable to load image from file {}", url.toString(), e);
         }
         return image;
     }

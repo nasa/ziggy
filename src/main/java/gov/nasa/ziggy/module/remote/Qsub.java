@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
@@ -64,15 +66,23 @@ public class Qsub {
     private Qsub() {
     }
 
-    public int[] submitMultipleJobsForTask() {
-        int[] returnCodes = new int[numNodes];
+    /**
+     * Generates and executes the PBS commands that insert jobs into the job queue.
+     *
+     * @return A {@link Map} in which the keys are {@link RemoteJobInformation} instances, one for
+     * each submitted job, and the values are the return codes from the PBS commands.
+     */
+    public Map<RemoteJobInformation, Integer> submitJobsForTask() {
+        Map<RemoteJobInformation, Integer> pbsStatusByJobInformation = new HashMap<>();
         for (int iJob = 0; iJob < numNodes; iJob++) {
-            returnCodes[iJob] = submit1Job(iJob);
+            RemoteJobInformation remoteJobInformation = new RemoteJobInformation(pbsLogFile(iJob),
+                fullJobName(iJob));
+            pbsStatusByJobInformation.put(remoteJobInformation, submitJobForTask(iJob));
         }
-        return returnCodes;
+        return pbsStatusByJobInformation;
     }
 
-    private int submit1Job(int jobIndex) {
+    private int submitJobForTask(int jobIndex) {
 
         CommandLine commandLine = new CommandLine("/PBS/bin/qsub");
         commandLine.addArgument("-N");
@@ -101,12 +111,12 @@ public class Qsub {
 
         commandLine.addArgument(ziggyProgram);
         commandLine.addArgument(taskDir);
-        log.info("commandLine: " + commandLine);
+        log.info("commandLine={}", commandLine);
         for (String arg : commandLine.getArguments()) {
-            log.info("arg: " + arg);
+            log.info("arg={}", arg);
         }
 
-        log.info("Running PBS command: " + commandLine);
+        log.info("Running PBS command: {}", commandLine);
         return runCommandLine(commandLine, QSUB_TIMEOUT_SECS);
     }
 
@@ -146,16 +156,6 @@ public class Qsub {
         systemProperties.add(TaskLog.algorithmNameSystemProperty(pipelineTask));
         return systemProperties;
     }
-//    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-//    private String algorithmLogFile(int jobIndex) {
-//        File nasLogFile = new File(nasLogDir, pipelineTask.logFilename(jobIndex));
-//        try {
-//            return nasLogFile.getCanonicalPath();
-//        } catch (IOException e) {
-//            throw new UncheckedIOException("Unable to get path to file " + nasLogFile.toString(),
-//                e);
-//        }
-//    }
 
     private String resourceOptions(boolean multiNodeJob) {
         int numNodesInCall = 1;
@@ -224,8 +224,8 @@ public class Qsub {
             unsetParameters.add("pipelineTask");
         }
         if (!unsetParameters.isEmpty()) {
-            log.error("Qsub missing required parameters: ["
-                + StringUtils.join(unsetParameters.iterator(), ",") + "]");
+            log.error("Qsub missing required parameters [{}]",
+                StringUtils.join(unsetParameters.iterator(), ","));
             throw new IllegalStateException("Qsub missing required parameters");
         }
     }

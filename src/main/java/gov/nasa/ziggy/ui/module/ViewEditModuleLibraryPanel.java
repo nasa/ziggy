@@ -3,10 +3,8 @@ package gov.nasa.ziggy.ui.module;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
@@ -34,8 +32,6 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
     private static final Logger log = LoggerFactory.getLogger(ViewEditModuleLibraryPanel.class);
 
-    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
-
     public ViewEditModuleLibraryPanel() {
         super(new ModuleLibraryTableModel());
 
@@ -49,12 +45,6 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
     }
 
     @Override
-    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
-        return Set.of(OptionalViewEditFunction.DELETE, OptionalViewEditFunction.NEW,
-            OptionalViewEditFunction.RENAME);
-    }
-
-    @Override
     protected void refresh() {
         try {
             ziggyTable.loadFromDatabase();
@@ -64,101 +54,8 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
     }
 
     @Override
-    protected void create() {
-
-        String newModuleName = readModuleName("Enter the name for the new module definition",
-            "New pipeline module definition");
-        if (newModuleName == null) {
-            return;
-        }
-
-        showEditDialog(new PipelineModuleDefinition(newModuleName));
-    }
-
-    @Override
     protected void edit(int row) {
         showEditDialog(ziggyTable.getContentAtViewRow(row));
-    }
-
-    @Override
-    protected void rename(int row) {
-
-        String newModuleName = readModuleName("Enter the new name for this module definition",
-            "Rename module definition");
-        if (newModuleName == null) {
-            return;
-        }
-
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                pipelineModuleDefinitionOperations().rename(ziggyTable.getContentAtViewRow(row),
-                    newModuleName);
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    get(); // check for exception
-                    ziggyTable.loadFromDatabase();
-                } catch (InterruptedException | ExecutionException e) {
-                    MessageUtils.showError(ViewEditModuleLibraryPanel.this, e);
-                }
-            }
-        }.execute();
-    }
-
-    @Override
-    protected void delete(int row) {
-
-        PipelineModuleDefinition module = ziggyTable.getContentAtViewRow(row);
-
-        int choice = JOptionPane.showConfirmDialog(this,
-            "Are you sure you want to delete module '" + module.getName() + "'?");
-        if (choice != JOptionPane.YES_OPTION) {
-            return;
-        }
-
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                pipelineModuleDefinitionOperations().delete(module);
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    get(); // check for exception
-                    ziggyTable.loadFromDatabase();
-                } catch (InterruptedException | ExecutionException e) {
-                    MessageUtils.showError(ViewEditModuleLibraryPanel.this, e);
-                }
-
-                super.done();
-            }
-        }.execute();
-    }
-
-    private String readModuleName(String message, String title) {
-        while (true) {
-            String moduleName = JOptionPane.showInputDialog(SwingUtilities.getWindowAncestor(this),
-                message, title, JOptionPane.PLAIN_MESSAGE);
-            if (moduleName == null) {
-                return null;
-            }
-
-            if (moduleName.isBlank()) {
-                MessageUtils.showError(this, "Please enter a module name");
-            } else if (pipelineModuleDefinitionOperations()
-                .pipelineModuleDefinition(moduleName) != null) {
-                MessageUtils.showError(this,
-                    moduleName + " already exists; please enter a unique module name");
-            } else {
-                return moduleName;
-            }
-        }
     }
 
     private void showEditDialog(PipelineModuleDefinition module) {
@@ -175,10 +72,6 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
         } catch (Exception e) {
             MessageUtils.showError(this, e);
         }
-    }
-
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
-        return pipelineModuleDefinitionOperations;
     }
 
     private static class ModuleLibraryTableModel

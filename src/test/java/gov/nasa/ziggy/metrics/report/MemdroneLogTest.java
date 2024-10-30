@@ -22,7 +22,6 @@ import gov.nasa.ziggy.IntegrationTestCategory;
 /**
  * @author Todd Klaus
  */
-@Category(IntegrationTestCategory.class)
 public class MemdroneLogTest {
     private static final Logger log = LoggerFactory.getLogger(MemdroneLogTest.class);
 
@@ -34,6 +33,7 @@ public class MemdroneLogTest {
     private static final int[] expectedSampleCounts = { 109003, 21253, 17881, 1, 42567, 25968,
         15783, 209673, 85938, 10369, 1, 1, 13542 };
 
+    @Category(IntegrationTestCategory.class)
     @Test
     public void testParse() throws Exception {
         File memdroneFile = new File(MEMDRONE_LOG_PATH);
@@ -45,7 +45,7 @@ public class MemdroneLogTest {
         assertEquals("numKeys", expectedPids.length, processIds.size());
 
         for (String pid : processIds) {
-            log.info("pid: " + pid + ", N=" + contents.get(pid).getN());
+            log.info("pid={}, N={}", pid, contents.get(pid).getN());
         }
 
         for (int i = 0; i < expectedPids.length; i++) {

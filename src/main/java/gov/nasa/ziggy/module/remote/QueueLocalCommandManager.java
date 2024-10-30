@@ -50,7 +50,7 @@ public class QueueLocalCommandManager extends QueueCommandManager {
     @Override
     protected int qdel(String qdelArgs) {
         ExternalProcess p = ExternalProcess.simpleExternalProcess(QDEL + qdelArgs);
-        log.info("Executing command: " + qdelArgs);
+        log.info("Executing command {}", qdelArgs);
         return p.run(false, 0);
     }
 }
