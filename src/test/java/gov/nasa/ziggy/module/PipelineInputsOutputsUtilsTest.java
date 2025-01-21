@@ -115,4 +115,11 @@ public class PipelineInputsOutputsUtilsTest {
         assertEquals(7, outputsForTest.getIntValue());
         assertEquals(12.5F, outputsForTest.getFloatValue(), 1e-6);
     }
+
+    @Test
+    public void testIdsAndModuleNameFromTaskDir() {
+        assertEquals(1L, PipelineInputsOutputsUtils.instanceId(taskDir));
+        assertEquals(2L, PipelineInputsOutputsUtils.taskId(taskDir));
+        assertEquals("pa", PipelineInputsOutputsUtils.moduleName(taskDir));
+    }
 }

@@ -118,8 +118,7 @@ public class ZiggyMessenger {
     }
 
     private void publishMessage(Message message) {
-        CountDownLatch latch = messageCountdownLatches.get(message.getPipelineMessage());
-        messageCountdownLatches.remove(message.getPipelineMessage());
+        CountDownLatch latch = messageCountdownLatches.remove(message.getPipelineMessage());
         if (ZiggyRmiClient.isInitialized() && message.isBroadcastOverRmi()) {
             log.debug("Sending message {}", message);
             ZiggyRmiClient.send(message.getPipelineMessage(), latch);

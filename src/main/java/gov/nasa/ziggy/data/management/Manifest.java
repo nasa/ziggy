@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2025 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -50,6 +50,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
@@ -103,8 +109,17 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @Table(name = "ziggy_Manifest")
 public class Manifest implements HasXmlSchemaFilename {
 
-    private static final String SCHEMA_FILENAME = "manifest.xsd";
     public static final String FILENAME_SUFFIX = "-manifest.xml";
+
+    /**
+     * Defines the checksum type used for both {@link Manifest} and {@link Acknowledgement}
+     * instances.
+     */
+    public static final ChecksumType CHECKSUM_TYPE = ChecksumType.SHA1;
+
+    private static final String SCHEMA_FILENAME = "manifest.xsd";
+
+    private static final String HELP_OPTION = "help";
 
     // Thread pool for checksum calculations
     static ExecutorService checksumThreadPool = Executors
@@ -114,12 +129,6 @@ public class Manifest implements HasXmlSchemaFilename {
     static {
         ZiggyShutdownHook.addShutdownHook(() -> checksumThreadPool.shutdownNow());
     }
-
-    /**
-     * Defines the checksum type used for both {@link Manifest} and {@link Acknowledgement}
-     * instances.
-     */
-    public static final ChecksumType CHECKSUM_TYPE = ChecksumType.SHA1;
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_Manifest_generator")
@@ -159,17 +168,73 @@ public class Manifest implements HasXmlSchemaFilename {
     @XmlElement(required = true, name = "file")
     private List<ManifestEntry> manifestEntries = new ArrayList<>();
 
-    @Override
-    public String getXmlSchemaFilename() {
-        return SCHEMA_FILENAME;
+    /**
+     * Simple utility for manually generating a manifest from the contents of a directory. First
+     * argument is the desired filename (including path, if not in the working directory). Second
+     * argument is the dataset ID. Third argument is the path to go to for the files that get
+     * manifested; if this is left out, the working directory will be used.
+     */
+    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = """
+        User must be able to specify location of files for manifest generation;
+        files in the specified directory get size and checksum computed,
+        hence no security risk to allowing the user to specify any dir they want.""")
+    public static void main(String[] args) {
+
+        // Define all the command options.
+        Options options = new Options()
+            .addOption(Option.builder("h").longOpt(HELP_OPTION).desc("Show this help").build());
+
+        org.apache.commons.cli.CommandLine cmdLine = null;
+        try {
+            cmdLine = new DefaultParser().parse(options, args);
+        } catch (ParseException e) {
+            usageAndExit(options, e.getMessage());
+        }
+
+        if (cmdLine.hasOption(HELP_OPTION)) {
+            usageAndExit(options, "");
+        }
+        if (cmdLine.getArgList().size() < 2) {
+            usageAndExit(options, "Not enough arguments");
+        }
+        if (cmdLine.getArgList().size() > 3) {
+            usageAndExit(options, "Too many arguments");
+        }
+
+        String manifestName = cmdLine.getArgList().get(0);
+        long datasetId = -1;
+        try {
+            datasetId = Long.parseLong(cmdLine.getArgList().get(1));
+        } catch (NumberFormatException e) {
+            usageAndExit(options, cmdLine.getArgList().get(1) + " is not a number");
+        }
+        String userDir = ZiggyConfiguration.getInstance()
+            .getString(PropertyName.WORKING_DIR.property());
+        String manifestDir = userDir;
+        if (cmdLine.getArgList().size() > 2) {
+            manifestDir = cmdLine.getArgList().get(2);
+        }
+
+        try {
+            Manifest manifest = Manifest.generateManifest(Paths.get(manifestDir), datasetId);
+            manifest.setName(manifestName);
+            manifest.write(Paths.get(userDir));
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
+        }
+        System.exit(0);
     }
 
-    public Map<String, ManifestEntry> fileNameToManifestEntry() {
-        Map<String, ManifestEntry> fileNameToManifestFile = new HashMap<>();
-        for (ManifestEntry entry : manifestEntries) {
-            fileNameToManifestFile.put(entry.getName(), entry);
+    private static void usageAndExit(Options options, String message) {
+        if (message != null) {
+            System.err.println(message);
         }
-        return fileNameToManifestFile;
+        new HelpFormatter().printHelp("Manifest [options] manifest-name dataset-id [manifest-dir]",
+            "Options:", options, "\nDefault manifest-dir is "
+                + ZiggyConfiguration.getInstance().getString(PropertyName.WORKING_DIR.property()));
+
+        System.exit(1);
     }
 
     /**
@@ -257,28 +322,17 @@ public class Manifest implements HasXmlSchemaFilename {
         return manifest;
     }
 
-    /**
-     * Simple utility for manually generating a manifest from the contents of a directory. First
-     * argument is the desired filename (including path, if not in the working directory). Second
-     * argument is the dataset ID. Third argument is the path to go to for the files that get
-     * manifested; if this is left out, the working directory will be used.
-     */
-    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = """
-        User must be able to specify location of files for manifest generation;
-        files in the specified directory get size and checksum computed,
-        hence no security risk to allowing the user to specify any dir they want.""")
-    public static void main(String[] args) {
-        String manifestName = args[0];
-        long datasetId = Long.parseLong(args[1]);
-        String userDir = ZiggyConfiguration.getInstance()
-            .getString(PropertyName.WORKING_DIR.property());
-        String manifestDir = userDir;
-        if (args.length > 2) {
-            manifestDir = args[2];
+    @Override
+    public String getXmlSchemaFilename() {
+        return SCHEMA_FILENAME;
+    }
+
+    public Map<String, ManifestEntry> fileNameToManifestEntry() {
+        Map<String, ManifestEntry> fileNameToManifestFile = new HashMap<>();
+        for (ManifestEntry entry : manifestEntries) {
+            fileNameToManifestFile.put(entry.getName(), entry);
         }
-        Manifest manifest = Manifest.generateManifest(Paths.get(manifestDir), datasetId);
-        manifest.setName(manifestName);
-        manifest.write(Paths.get(userDir));
+        return fileNameToManifestFile;
     }
 
     public Long getId() {

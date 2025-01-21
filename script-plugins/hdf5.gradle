@@ -27,7 +27,7 @@ task buildHdf5() {
         }
         exec {
             workingDir hdf5
-            commandLine "sh", "-c", "./configure --with-zlib=/usr --prefix=$outsideDir --enable-threadsafe --with-pthread=/usr --enable-unsupported --enable-java"
+            commandLine "sh", "-c", "./configure --with-zlib=/usr --prefix=$outsideDir --enable-threadsafe --with-pthread=/usr --enable-unsupported --enable-java --with-java-prefix=$System.env.JAVA_HOME"
         }
         exec {
             workingDir hdf5

@@ -80,9 +80,8 @@ function initialize_pipeline_configuration( csciNamesToSkip )
         if (ziggyHomeDir(end) == filesep)
             ziggyHomeDir = ziggyHomeDir(1:end-1) ;
         end
-        ziggyCodeDir = fileparts(ziggyHomeDir) ;
-        ziggyConfigDir = fullfile(ziggyCodeDir, 'config') ;
-        log4jConfigFile = fullfile(ziggyConfigDir,'/log4j2.xml') ;
+        log4jConfigFile = fullfile(ziggyHomeDir, 'etc', ...
+            'log4j2.xml') ;
         if (exist(log4jConfigFile, 'file'))
             disp(['Setting log4j2 configuration file to ' log4jConfigFile]);
             java.lang.System.setProperty('log4j2.configurationFile', log4jConfigFile);

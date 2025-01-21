@@ -113,6 +113,9 @@ dependencies {
 
 tasks.withType(JavaCompile) {
     options.deprecation = true
+
+    // Suppresses "Note: Hibernate JPA 2 Static-Metamodel Generator 6.2.32.Final" output
+    logging.captureStandardError LogLevel.INFO
 }
 
 // Add additional artifacts for publishing (see script-utils/publish.gradle).

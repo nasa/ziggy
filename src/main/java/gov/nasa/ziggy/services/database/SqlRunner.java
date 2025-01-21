@@ -27,11 +27,12 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
- * Simple class that loads SQL from a file and executes it using JDBC
+ * Simple class that loads SQL from a file and executes it using JDBC.
  *
  * @author Todd Klaus
  * @author Bill Wohler
  */
+// TODO Replace SqlRunner with SqlTool
 public class SqlRunner implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(SqlRunner.class);
 
@@ -87,8 +88,8 @@ public class SqlRunner implements Closeable {
     }
 
     @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
-        This class is used only by unit tests and the sample pipeline.
-        As long as it is not used by production databases, this class
+        This class is used only by unit tests and "ziggy cluster init".
+        As long as it is not accessible by random internet users, this class
         cannot result in damage from SQL injection.
         """)
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
@@ -101,8 +102,8 @@ public class SqlRunner implements Closeable {
     }
 
     @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
-        This class is used only by unit tests and the sample pipeline.
-        As long as it is not used by production databases, this class
+        This class is used only by unit tests and "ziggy cluster init".
+        As long as it is not accessible by random internet users, this class
         cannot result in damage from SQL injection.
         """)
     private String[] loadSql(File path) throws FileNotFoundException, IOException {
@@ -125,8 +126,8 @@ public class SqlRunner implements Closeable {
     }
 
     @SuppressFBWarnings(value = "SQL_INJECTION_JDBC", justification = """
-        This class is used only by unit tests and the sample pipeline.
-        As long as it is not used by production databases, this class
+        This class is used only by unit tests and "ziggy cluster init".
+        As long as it is not accessible by random internet users, this class
         cannot result in damage from SQL injection.
         """)
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)

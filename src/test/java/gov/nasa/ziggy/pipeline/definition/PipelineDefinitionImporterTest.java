@@ -197,6 +197,20 @@ public class PipelineDefinitionImporterTest {
         assertFalse(definition.isLocked());
         assertEquals(0, definition.getVersion());
 
+        List<PipelineDefinitionNode> pipelineDefinitionNodes = new PipelineDefinitionOperations()
+            .rootNodes(definition);
+        PipelineDefinitionNode pipelineDefinitionNode = pipelineDefinitionNodes.get(0);
+        assertEquals("level0", pipelineDefinitionNode.getModuleName());
+        assertEquals("genuinely-new", pipelineDefinitionNode.getPipelineName());
+        assertEquals(1, pipelineDefinitionNodes.size());
+
+        definition = definitionByName.get("hyperion");
+        pipelineDefinitionNodes = new PipelineDefinitionOperations().rootNodes(definition);
+        pipelineDefinitionNode = pipelineDefinitionNodes.get(0);
+        assertEquals("level1", pipelineDefinitionNode.getModuleName());
+        assertEquals("hyperion", pipelineDefinitionNode.getPipelineName());
+        assertEquals(1, pipelineDefinitionNodes.size());
+
         List<PipelineModuleDefinition> moduleDefinitions = moduleOps.allPipelineModuleDefinitions();
         assertEquals(3, moduleDefinitions.size());
         Map<String, PipelineModuleDefinition> moduleByName = new HashMap<>();
@@ -256,6 +270,20 @@ public class PipelineDefinitionImporterTest {
         verifyGenuinelyNewPipeline(definition);
         assertFalse(definition.isLocked());
         assertEquals(0, definition.getVersion());
+
+        List<PipelineDefinitionNode> pipelineDefinitionNodes = new PipelineDefinitionOperations()
+            .rootNodes(definition);
+        PipelineDefinitionNode pipelineDefinitionNode = pipelineDefinitionNodes.get(0);
+        assertEquals("level0", pipelineDefinitionNode.getModuleName());
+        assertEquals("genuinely-new", pipelineDefinitionNode.getPipelineName());
+        assertEquals(1, pipelineDefinitionNodes.size());
+
+        definition = definitionByName.get("hyperion");
+        pipelineDefinitionNodes = new PipelineDefinitionOperations().rootNodes(definition);
+        pipelineDefinitionNode = pipelineDefinitionNodes.get(0);
+        assertEquals("level1", pipelineDefinitionNode.getModuleName());
+        assertEquals("hyperion", pipelineDefinitionNode.getPipelineName());
+        assertEquals(1, pipelineDefinitionNodes.size());
 
         moduleDefinitions = moduleOps.pipelineModuleDefinitions();
         assertEquals(3, moduleDefinitions.size());

@@ -89,6 +89,7 @@ public class PipelineDefinitionNodeOperations extends DatabaseOperations {
             copy.setModuleName(original.getModuleName());
             copy.setHeapSizeMb(original.getHeapSizeMb());
             copy.setMaxWorkerCount(original.getMaxWorkerCount());
+            copy.setPipelineName(original.getPipelineName());
 
             // For the collections, we want to ensure that the new node's collections are
             // distinct from the original, in case the original is not in the database and

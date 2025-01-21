@@ -156,6 +156,10 @@ public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVer
                 continue;
             }
 
+            if (field.getAnnotation(jakarta.persistence.Transient.class) != null) {
+                continue;
+            }
+
             // If the newContentInstance was not imported from a file, we need to preserve
             // the new instance's optimistic lock value. If it was imported from a file,
             // we need to keep the optimistic lock value of this instance when all the rest of the

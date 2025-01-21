@@ -6,7 +6,7 @@ use strict;
 use Data::Dumper;
 use File::Basename;
 use File::Spec;
-use Getopt::Long qw(:config pass_through);
+use Getopt::Long qw(:config no_auto_abbrev no_ignore_case_always pass_through prefix=--);
 use Getopt::Long qw(HelpMessage);
 
 my @options = qw{
@@ -176,6 +176,9 @@ sub getUserOptions {
                 $isNameFound = 1;
                 $class = $1;
                 next;
+            } elsif (/^--$/) {
+                # GetOptions doesn't remove the -- option that signals the end of the options list.
+                next;
             }
         }
 
@@ -226,7 +229,8 @@ sub getProperties {
             my $value = $3;
             $key =~ s/\\(.)/$1/g;
             $value =~ s/\\(.)/$1/g;
-            $properties{$key} = $value;
+            $properties{$key} = $value
+                if (!exists($properties{$key}));
         }
     }
 

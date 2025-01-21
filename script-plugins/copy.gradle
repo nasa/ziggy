@@ -21,6 +21,14 @@ task copyMatlab(type: Copy) {
 
 assemble.dependsOn copyMatlab
 
+task copyPython(type: Copy) {
+    from("src/main/python")
+    include("**/*")
+    into "$buildDir/src/main/python"
+}
+
+assemble.dependsOn copyPython
+
 task copyEtc(type: Copy) {
     from("$projectDir/etc")
     into "$buildDir/etc"

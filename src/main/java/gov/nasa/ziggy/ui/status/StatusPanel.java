@@ -44,6 +44,7 @@ public class StatusPanel extends javax.swing.JPanel {
 
     private static final String WARNING_MESSAGE = "One or more tasks failed but execution continues";
     private static final String ERROR_MESSAGE = "One or more tasks failed, execution halted";
+    private static final String TRANSITION_MESSAGE = "Transition to next pipeline module failed, execution halted";
 
     // To add new panels:
     // 1. Add the item to this enum in the order that it should appear. The text is used in
@@ -128,6 +129,9 @@ public class StatusPanel extends javax.swing.JPanel {
                 break;
             case ERRORS_STALLED:
                 instancesIndicator.setState(Indicator.State.ERROR, ERROR_MESSAGE);
+                break;
+            case TRANSITION_FAILED:
+                instancesIndicator.setState(Indicator.State.ERROR, TRANSITION_MESSAGE);
                 break;
             default:
                 throw new IllegalStateException(

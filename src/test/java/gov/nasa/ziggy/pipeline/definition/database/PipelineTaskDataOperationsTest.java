@@ -136,6 +136,14 @@ public class PipelineTaskDataOperationsTest {
     }
 
     @Test
+    public void testPipelineSoftwareRevision() {
+        assertEquals("pipeline software revision 1", pipelineTaskDataOperations
+            .pipelineSoftwareRevision(pipelineOperationsTestUtils.getPipelineTasks().get(0)));
+        assertEquals("pipeline software revision 1", pipelineTaskDataOperations
+            .pipelineSoftwareRevision(pipelineOperationsTestUtils.getPipelineTasks().get(1)));
+    }
+
+    @Test
     public void testPrepareTasksForManualResubmit() {
         PipelineTask pipelineTask = pipelineOperationsTestUtils.getPipelineTasks().get(0);
         pipelineTaskDataOperations

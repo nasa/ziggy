@@ -26,6 +26,7 @@ import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCountsTest;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
 /** Unit tests for {@link PipelineInstanceNodeOperations}. */
@@ -247,6 +248,60 @@ public class PipelineInstanceNodeOperationsTest {
 
         taskCounts = pipelineTaskDisplayDataOperations
             .taskCounts(pipelineOperationsTestUtils.getPipelineInstanceNodes());
+    }
+
+    /**
+     * Test that when a pipeline instance node is set to a transition-failed state, the appropriate
+     * state changes for the instance node and its parent instance occur; then do the same for when
+     * the transition-failed state is removed.
+     */
+    @Test
+    public void testTransitionFailureAndRestart() {
+
+        // Set up a pipeline with multiple instance nodes.
+        PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
+        testUtils.setUpFourModulePipelineWithInstanceNodes();
+        PipelineInstance pipelineInstance = testUtils.pipelineInstance();
+        PipelineInstanceNode rootNode = pipelineInstanceOperations.rootNodes(pipelineInstance)
+            .get(0);
+
+        // Add a pipeline task to the first instance node.
+        List<PipelineTask> pipelineTasks = new RuntimeObjectFactory().newPipelineTasks(rootNode,
+            pipelineInstance, new SingleUnitOfWorkGenerator().generateUnitsOfWork(rootNode));
+        PipelineTask pipelineTask = pipelineTasks.get(0);
+
+        // Set the pipeline task state to executing.
+        pipelineTaskDataOperations.updateProcessingStep(pipelineTask, ProcessingStep.EXECUTING);
+        assertEquals(PipelineInstance.State.PROCESSING,
+            pipelineInstanceOperations.pipelineInstance(pipelineInstance.getId()).getState());
+
+        // Move the task to completed.
+        pipelineTaskDataOperations.updateProcessingStep(pipelineTask, ProcessingStep.COMPLETE);
+        assertEquals(PipelineInstance.State.PROCESSING,
+            pipelineInstanceOperations.pipelineInstance(pipelineInstance.getId()).getState());
+        assertFalse(pipelineInstanceNodeOperations.pipelineInstanceNode(rootNode.getId())
+            .isTransitionFailed());
+
+        // Move the instance node to transition failed.
+        pipelineInstanceNodeOperations.markInstanceNodeTransitionFailed(rootNode);
+        assertEquals(PipelineInstance.State.TRANSITION_FAILED,
+            pipelineInstanceOperations.pipelineInstance(pipelineInstance.getId()).getState());
+        PipelineInstanceNode nodeFromDatabase = pipelineInstanceNodeOperations
+            .pipelineInstanceNode(rootNode.getId());
+        assertTrue(nodeFromDatabase.isTransitionFailed());
+        assertFalse(nodeFromDatabase.isTransitionComplete());
+        assertEquals(ProcessingStep.COMPLETE,
+            pipelineTaskDataOperations.processingStep(pipelineTask));
+
+        // Retry the transition.
+        pipelineInstanceNodeOperations.clearTransitionFailedState(rootNode);
+        nodeFromDatabase = pipelineInstanceNodeOperations.pipelineInstanceNode(rootNode.getId());
+        assertFalse(nodeFromDatabase.isTransitionFailed());
+        assertFalse(nodeFromDatabase.isTransitionComplete());
+        assertEquals(ProcessingStep.COMPLETE,
+            pipelineTaskDataOperations.processingStep(pipelineTask));
+        assertEquals(PipelineInstance.State.PROCESSING,
+            pipelineInstanceOperations.pipelineInstance(pipelineInstance.getId()).getState());
     }
 
     private class TestOperations extends DatabaseOperations {

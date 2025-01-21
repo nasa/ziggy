@@ -17,6 +17,7 @@ import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.module.remote.RemoteJobInformation;
 import gov.nasa.ziggy.pipeline.definition.ExecutionClock;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
@@ -28,6 +29,8 @@ import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskExecutionLog;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.services.messages.PipelineInstanceFinishedMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 
 /**
  * {@link DatabaseOperations} class to access fields from the {@link PipelineTaskData} table.
@@ -147,42 +150,54 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
     }
 
     private PipelineInstance updateInstanceState(PipelineTask pipelineTask) {
+        PipelineInstance newPipelineInstance = null;
+        try {
+            newPipelineInstance = performTransaction(() -> {
+                PipelineInstance pipelineInstance = pipelineTaskCrud()
+                    .retrievePipelineInstance(pipelineTask);
 
-        return performTransaction(() -> {
-            PipelineInstance pipelineInstance = pipelineTaskCrud()
-                .retrievePipelineInstance(pipelineTask);
+                TaskCounts instanceNodeCounts = pipelineTaskDisplayDataOperations
+                    .taskCounts(pipelineTaskCrud().retrievePipelineInstanceNode(pipelineTask));
 
-            TaskCounts instanceNodeCounts = pipelineTaskDisplayDataOperations
-                .taskCounts(pipelineTaskCrud().retrievePipelineInstanceNode(pipelineTask));
+                State state = PipelineInstance.State.INITIALIZED;
+                if (allInstanceNodesExecutionComplete(pipelineInstance)) {
 
-            PipelineInstance.State state = PipelineInstance.State.INITIALIZED;
-            if (allInstanceNodesExecutionComplete(pipelineInstance)) {
+                    // If all the instance nodes are done, we can set the instance state to
+                    // either completed or stalled.
+                    state = instanceNodeCounts.isPipelineTasksComplete()
+                        ? PipelineInstance.State.COMPLETED
+                        : PipelineInstance.State.ERRORS_STALLED;
+                } else if (instanceNodeCounts.isPipelineTasksExecutionComplete()) {
 
-                // If all the instance nodes are done, we can set the instance state to
-                // either completed or stalled.
-                state = instanceNodeCounts.isPipelineTasksComplete()
-                    ? PipelineInstance.State.COMPLETED
-                    : PipelineInstance.State.ERRORS_STALLED;
-            } else if (instanceNodeCounts.isPipelineTasksExecutionComplete()) {
+                    // If the current node is done, then the state is either stalled or processing.
+                    state = instanceNodeCounts.isPipelineTasksComplete()
+                        ? PipelineInstance.State.PROCESSING
+                        : PipelineInstance.State.ERRORS_STALLED;
+                } else {
 
-                // If the current node is done, then the state is either stalled or processing.
-                state = instanceNodeCounts.isPipelineTasksComplete()
-                    ? PipelineInstance.State.PROCESSING
-                    : PipelineInstance.State.ERRORS_STALLED;
-            } else {
+                    // If the current instance node is still grinding away, then the state is either
+                    // errors running or processing
+                    state = instanceNodeCounts.getTotalCounts().getFailedTaskCount() == 0
+                        ? PipelineInstance.State.PROCESSING
+                        : PipelineInstance.State.ERRORS_RUNNING;
+                }
 
-                // If the current instance node is still grinding away, then the state is either
-                // errors running or processing
-                state = instanceNodeCounts.getTotalCounts().getFailedTaskCount() == 0
-                    ? PipelineInstance.State.PROCESSING
-                    : PipelineInstance.State.ERRORS_RUNNING;
+                state.setExecutionClockState(pipelineInstance);
+                pipelineInstance.setState(state);
+
+                return pipelineInstanceCrud().merge(pipelineInstance);
+            });
+        } finally {
+            if (newPipelineInstance != null) {
+                State state = newPipelineInstance.getState();
+                if (state == State.COMPLETED || state == State.TRANSITION_FAILED
+                    || state == State.ERRORS_STALLED) {
+                    ZiggyMessenger.publish(new PipelineInstanceFinishedMessage());
+                }
             }
+        }
 
-            state.setExecutionClockState(pipelineInstance);
-            pipelineInstance.setState(state);
-
-            return pipelineInstanceCrud().merge(pipelineInstance);
-        });
+        return newPipelineInstance;
     }
 
     /**
@@ -244,6 +259,11 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
                 .retrievePipelineTaskData(pipelineTask);
             pipelineTaskData.setPipelineSoftwareRevision(softwareRevision);
         });
+    }
+
+    public String pipelineSoftwareRevision(PipelineTask pipelineTask) {
+        return performTransaction(
+            () -> pipelineTaskDataCrud().retrievePipelineSoftwareRevision(pipelineTask));
     }
 
     public int autoResubmitCount(PipelineTask pipelineTask) {

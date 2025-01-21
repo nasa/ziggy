@@ -4,7 +4,6 @@
 hibernate.connection.password = <your-password>
 hibernate.connection.username = sa
 pipeline.root.dir = /path/to/pipeline/directories
-ziggy.config.path = ${ziggy.home.dir}/etc/ziggy.properties
 ziggy.database.connections = 100
 ziggy.database.dir = ${ziggy.pipeline.results.dir}/db
 ziggy.database.host = localhost

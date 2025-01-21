@@ -15,14 +15,17 @@ import javax.swing.SwingWorker;
 import org.apache.commons.collections4.CollectionUtils;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.messages.RestartTasksRequest;
+import gov.nasa.ziggy.services.messages.RetryTransitionRequest;
 import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.instances.RestartDialog;
@@ -40,17 +43,19 @@ public class TaskRestarter {
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private final PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+    private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
 
     /**
      * Restarts stopped tasks with diagnostics going to stdout.
      *
      * @param pipelineInstance the pipeline instance containing the stopped tasks
-     * @param tasksToRestart the list of tasks to restart; may be null or empty to restart all
-     * stopped tasks in the instance
-     * @param runMode the run mode to use when starting the tasks; if null, the user is prompted for
-     * the mode using the non-null {@code owner}
-     * @param messageSentLatch if non-null, the latch is decremented twice after the required
-     * messages are published.
+     * @param tasksToRestart if the instance state is not TRANSITION_FAILED, the list of tasks to
+     * restart; may be null or empty to restart all stopped tasks in the instance
+     * @param runMode if the instance state is not TRANSITION_FAILED, the run mode to use when
+     * starting the tasks; if null, the user is prompted for the mode using the non-null
+     * {@code owner}
+     * @param messageSentLatch if the instance state is not TRANSITION_FAILED, if non-null, the
+     * latch is decremented twice after the required messages are published.
      */
     public void restartTasks(PipelineInstance pipelineInstance,
         Collection<PipelineTask> tasksToRestart, RunMode runMode, CountDownLatch messageSentLatch) {
@@ -80,8 +85,8 @@ public class TaskRestarter {
      * @param owner If non-null, the window for attaching dialogs; otherwise any warnings will
      * appear on stdout
      * @param pipelineInstance the pipeline instance containing the stopped tasks
-     * @param tasksToRestart the list of tasks to restart; may be null or empty to restart all
-     * stopped tasks in the instance
+     * @param tasksToRestart if the instance state is not TRANSITION_FAILED, the list of tasks to
+     * restart; may be null or empty to restart all stopped tasks in the instance
      */
     public void restartTasks(Window owner, PipelineInstance pipelineInstance,
         Collection<PipelineTask> tasksToRestart) {
@@ -94,13 +99,13 @@ public class TaskRestarter {
      * @param owner If non-null, the window for attaching dialogs; otherwise any warnings will
      * appear on stdout
      * @param pipelineInstance the pipeline instance containing the stopped tasks
-     * @param tasksToRestart the list of tasks to restart; may be null or empty to restart all
-     * stopped tasks in the instance
-     * @param runMode the run mode to use when starting the tasks; if null and {@code owner} is
-     * non-null, the user is prompted for the mode; otherwise,
-     * {@link RunMode#RESTART_FROM_BEGINNING} is used
-     * @param messageSentLatch if non-null, the latch is decremented twice after the required
-     * messages are published.
+     * @param tasksToRestart if the instance state is not TRANSITION_FAILED, the list of tasks to
+     * restart; may be null or empty to restart all stopped tasks in the instance
+     * @param runMode if the instance state is not TRANSITION_FAILED, the run mode to use when
+     * starting the tasks; if null and {@code owner} is non-null, the user is prompted for the mode;
+     * otherwise, {@link RunMode#RESTART_FROM_BEGINNING} is used
+     * @param messageSentLatch if the instance state is not TRANSITION_FAILED, if non-null, the
+     * latch is decremented twice after the required messages are published.
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void restartTasks(Window owner, PipelineInstance pipelineInstance,
@@ -110,6 +115,14 @@ public class TaskRestarter {
             return;
         }
 
+        // Rerun a failed transition if applicable. Get a fresh object to avoid stale state.
+        if (pipelineInstanceOperations().pipelineInstance(pipelineInstance.getId())
+            .getState() == State.TRANSITION_FAILED) {
+            ZiggyMessenger.publish(new RetryTransitionRequest(pipelineInstance.getId()));
+            return;
+        }
+
+        // Otherwise, restart failed tasks, if any.
         new SwingWorker<Map<PipelineTaskDisplayData, List<RunMode>>, Void>() {
             @Override
             protected Map<PipelineTaskDisplayData, List<RunMode>> doInBackground()
@@ -215,5 +228,9 @@ public class TaskRestarter {
 
     private PipelineTaskDataOperations pipelineTaskDataOperations() {
         return pipelineTaskDataOperations;
+    }
+
+    private PipelineInstanceOperations pipelineInstanceOperations() {
+        return pipelineInstanceOperations;
     }
 }

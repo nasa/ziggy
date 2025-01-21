@@ -85,7 +85,6 @@ task generateTestProg(type: Exec) {
     System.setProperty("OUTDIR", "$binDir")
 
     logging.captureStandardOutput LogLevel.INFO
-    logging.captureStandardError LogLevel.INFO
 }
 
 compileTestJava.dependsOn generateTestProg

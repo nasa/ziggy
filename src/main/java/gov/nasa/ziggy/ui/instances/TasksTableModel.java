@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import javax.swing.JTable;
 import javax.swing.SwingWorker;
 
 import org.slf4j.Logger;
@@ -36,10 +37,15 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
     private PipelineInstance pipelineInstance;
     private List<TaskTimeInfo> tasks = new LinkedList<>();
     private TasksDisplayModel tasksDisplayModel = new TasksDisplayModel();
+    private JTable table;
 
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+
+    public void setTable(JTable table) {
+        this.table = table;
+    }
 
     @Override
     public void loadFromDatabase() {
@@ -70,7 +76,9 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
             @Override
             protected void done() {
                 try {
-                    get().updateTable(TasksTableModel.this);
+                    TableUpdater tableUpdater = get();
+                    tableUpdater.updateTable(TasksTableModel.this);
+                    tableUpdater.scrollToVisible(table);
                     ZiggyMessenger.publish(new TasksUpdatedMessage(TasksTableModel.this), false);
                 } catch (InterruptedException | ExecutionException e) {
                     log.error("Could not load pipeline tasks or attributes", e);

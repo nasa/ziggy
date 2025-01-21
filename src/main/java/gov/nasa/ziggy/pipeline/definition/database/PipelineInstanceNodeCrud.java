@@ -47,6 +47,7 @@ public class PipelineInstanceNodeCrud extends AbstractCrud<PipelineInstanceNode>
             createZiggyQuery(PipelineInstanceNode.class).column(PipelineInstanceNode_.id)
                 .in(pipelineInstanceNodeId));
         node.setTransitionComplete(true);
+        node.setTransitionFailed(false);
         return merge(node);
     }
 
@@ -55,6 +56,25 @@ public class PipelineInstanceNodeCrud extends AbstractCrud<PipelineInstanceNode>
             createZiggyQuery(PipelineInstanceNode.class).column(PipelineInstanceNode_.id)
                 .in(pipelineInstanceNodeId));
         node.setTransitionComplete(false);
+        node.setTransitionFailed(false);
+        return merge(node);
+    }
+
+    public PipelineInstanceNode markTransitionFailed(long pipelineInstanceNodeId) {
+        PipelineInstanceNode node = uniqueResult(
+            createZiggyQuery(PipelineInstanceNode.class).column(PipelineInstanceNode_.id)
+                .in(pipelineInstanceNodeId));
+        node.setTransitionComplete(false);
+        node.setTransitionFailed(true);
+        return merge(node);
+    }
+
+    public PipelineInstanceNode clearTransitionFailed(long pipelineInstanceNodeId) {
+        PipelineInstanceNode node = uniqueResult(
+            createZiggyQuery(PipelineInstanceNode.class).column(PipelineInstanceNode_.id)
+                .in(pipelineInstanceNodeId));
+        node.setTransitionComplete(false);
+        node.setTransitionFailed(false);
         return merge(node);
     }
 
@@ -83,7 +103,7 @@ public class PipelineInstanceNodeCrud extends AbstractCrud<PipelineInstanceNode>
         ZiggyQuery<PipelineInstanceNode, PipelineTask> query = createZiggyQuery(
             PipelineInstanceNode.class, PipelineTask.class);
         query.column(PipelineInstanceNode_.id)
-            .in(nodes.stream().map(s -> s.getId()).collect(Collectors.toList()));
+            .in(nodes.stream().map(PipelineInstanceNode::getId).collect(Collectors.toList()));
         query.column(PipelineInstanceNode_.pipelineTasks).select();
         return list(query);
     }

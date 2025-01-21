@@ -56,6 +56,9 @@ public class PipelineInstanceNode {
     /** Indicates whether the node completed and kicked off the transition to the next node. */
     private boolean transitionComplete;
 
+    /** Indicates whether the transition to the next instance node failed. */
+    private boolean transitionFailed;
+
     @ElementCollection
     @JoinTable(name = "ziggy_PipelineInstanceNode_nextNodes")
     private List<PipelineInstanceNode> nextNodes = new ArrayList<>();
@@ -103,6 +106,10 @@ public class PipelineInstanceNode {
         return id;
     }
 
+    public boolean isPersistedToDatabase() {
+        return id != null && id.longValue() > 0;
+    }
+
     @Override
     public String toString() {
         return ReflectionToStringBuilder.toString(this);
@@ -122,6 +129,14 @@ public class PipelineInstanceNode {
 
     public void setTransitionComplete(boolean transitionComplete) {
         this.transitionComplete = transitionComplete;
+    }
+
+    public boolean isTransitionFailed() {
+        return transitionFailed;
+    }
+
+    public void setTransitionFailed(boolean transitionFailed) {
+        this.transitionFailed = transitionFailed;
     }
 
     public List<PipelineInstanceNode> getNextNodes() {

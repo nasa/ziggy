@@ -3,6 +3,7 @@ package gov.nasa.ziggy.pipeline.xml;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -73,6 +74,8 @@ public class ParameterSetDescriptorTest {
         Map<String, Parameter> descriptorParameters = ops
             .nameToTypedPropertyMap(desc.getParameterSet().getParameters());
         assertEquals(originalParameters.size(), descriptorParameters.size());
+        assertNull(desc.getParameterSet().getModuleInterfaceName());
+        assertNull(desc.getModuleInterfaceName());
         for (Map.Entry<String, Parameter> entry : originalParameters.entrySet()) {
             Parameter updatedParameter = descriptorParameters.get(entry.getKey());
             assertNotNull(updatedParameter);
@@ -82,5 +85,18 @@ public class ParameterSetDescriptorTest {
             assertEquals(originalParameter.getDataType(), updatedParameter.getDataType());
             assertEquals(originalParameter.isScalar(), updatedParameter.isScalar());
         }
+    }
+
+    @Test
+    public void testParameterUpdateModuleInterfaceName() {
+        Set<Parameter> typedProperties = new HashSet<>();
+        typedProperties.add(new Parameter("f1", "100", ZiggyDataType.ZIGGY_INT, true));
+        typedProperties.add(new Parameter("f2", "100.5, 100.6", ZiggyDataType.ZIGGY_FLOAT, false));
+        ParameterSet parameterSet = new ParameterSet();
+        parameterSet.setParameters(typedProperties);
+        parameterSet.setModuleInterfaceName("test");
+        ParameterSetDescriptor desc = new ParameterSetDescriptor(parameterSet);
+        assertEquals("test", desc.getModuleInterfaceName());
+        assertEquals("test", desc.getParameterSet().getModuleInterfaceName());
     }
 }

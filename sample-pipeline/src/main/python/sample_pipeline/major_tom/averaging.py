@@ -4,9 +4,9 @@ input/output management and exception handling.
 
 @author: PT
 '''
-from zigutils.stacktrace import ZiggyErrorWriter
-from hdf5mi.hdf5 import Hdf5ModuleInterface
-from zigutils.pidfile import write_pid_file
+from ziggytools.stacktrace import ZiggyErrorWriter
+from ziggytools.hdf5 import Hdf5ModuleInterface
+from ziggytools.pidfile import write_pid_file
 from sys import exit
 
 from major_tom import average_images
@@ -26,16 +26,16 @@ if __name__ == '__main__':
         # that are to be used in this process, as well as model names and 
         # parameters. All files are in the working directory. 
         inputs = hdf5_module_interface.read_file("averaging-inputs.h5")
-        data_files = inputs.dataFilenames
-        parameters = inputs.moduleParameters.Algorithm_Parameters
-        models = inputs.modelFilenames
+        data_files = inputs['dataFilenames']
+        parameters = inputs['moduleParameters']['Algorithm_Parameters']
+        models = inputs['modelFilenames']
 
         # Run the averaging function.
         average_images(data_files)
                 
         # Sleep for a user-specified interval. This is here just so the
         # user can watch execution run on the pipeline console.
-        time.sleep(parameters.execution_pause_seconds)
+        time.sleep(parameters['execution_pause_seconds'])
         print("Flip pipeline module completed")
         exit(0)
 

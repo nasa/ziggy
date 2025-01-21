@@ -67,6 +67,34 @@ public class MessageUtils {
             log.warn(logFormat, title, msg, e);
         }
 
+        if (parent == null) {
+            System.out.println(msg);
+            return;
+        }
+
+        JOptionPane.showMessageDialog(parent, wordWrap(msg), title != null ? title : "Error",
+            JOptionPane.ERROR_MESSAGE);
+    }
+
+    /**
+     * Displays an informational message in a dialog. Wraps the message using HTML if the message is
+     * long.
+     *
+     * @param parent the parent component for the message dialog; if null, message goes to stdout
+     * @param title the title for the message dialog
+     * @param msg the message to display
+     */
+    public static void showInfo(Component parent, String title, String msg) {
+        if (parent == null) {
+            System.out.println(msg);
+            return;
+        }
+
+        JOptionPane.showMessageDialog(parent, wordWrap(msg), title != null ? title : "Information",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private static String wordWrap(String msg) {
         // If the message is long, enclose it in some HTML that will use word-wrap.
         // Also increase the line height for readability.
         if (msg.length() >= 65) {
@@ -75,13 +103,6 @@ public class MessageUtils {
                     StringEscapeUtils.escapeHtml4(msg), "</p>")
                 .toString();
         }
-
-        if (parent == null) {
-            System.out.println(msg);
-            return;
-        }
-
-        JOptionPane.showMessageDialog(parent, msg, title != null ? title : "Error",
-            JOptionPane.ERROR_MESSAGE);
+        return msg;
     }
 }

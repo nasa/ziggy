@@ -40,7 +40,12 @@ If you have a bunch of tasks for a given node, it may be that some will fail whi
 
 The first is to select all the failed tasks from the tasks table (by shift-clicking or control-clicking), then right-click to get the context menu and run the `Restart failed tasks` command. Note that this allows you to also restart a subset of failed tasks, which you might want to do. You can select the restart mode for each task you restart this way.
 
-The other option, when you know that you want to restart all the failed tasks, is to select the instance from the instance table on the left, right-click to bring up the context menu, and run the `Restart all failed tasks` command. In this case all tasks will use the same restart mode.
+The other option, when you know that you want to restart all the failed tasks, is to select the instance from the instance table on the left, right-click to bring up the context menu, and run the `Restart` command. In this case all tasks will use the same restart mode.
+
+### Restarting Failed Transitions
+
+In the rare case that a pipeline module fails to transition to the next module, the state of the instance is set to `TRANSITION_FAILED.` If this happens to you, you can use the `Restart` command in the instance table context menu to retry the failed transition again.
+
 
 ### Note on Restarting the Failed Permuter Task
 

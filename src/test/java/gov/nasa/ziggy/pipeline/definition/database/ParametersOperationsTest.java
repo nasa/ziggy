@@ -25,6 +25,7 @@ import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
@@ -65,6 +66,13 @@ public class ParametersOperationsTest {
         setParameterSetBar(testOperations.merge(parameterSet(TEST_PARAMETERS_BAR,
             Set.of(new Parameter("p3", "105.3", ZiggyDataType.ZIGGY_FLOAT),
                 new Parameter("p4", "true", ZiggyDataType.ZIGGY_BOOLEAN)))));
+    }
+
+    public void setUpParameterSetsForPipelineOpsTestUtils() {
+        testOperations.merge(new ParameterSet("parameter1"));
+        testOperations.merge(new ParameterSet("parameter2"));
+        testOperations.merge(new ParameterSet("parameter3"));
+        testOperations.merge(new ParameterSet("parameter4"));
     }
 
     /**
@@ -254,6 +262,98 @@ public class ParametersOperationsTest {
         ParameterSet mergedParamSet = testOperations.merge(paramSet);
 
         assertEquals(0, mergedParamSet.getVersion());
+    }
+
+    @Test
+    public void testParametersPersistedPipelineInstance() {
+        PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
+        pipelineOperationsTestUtils.setUpSingleModulePipeline();
+        PipelineInstanceNode pipelineInstanceNode = pipelineOperationsTestUtils
+            .pipelineInstanceNode();
+
+        // Add the parameter sets to the database.
+        setUpParameterSetsForPipelineOpsTestUtils();
+
+        // The parameter sets aren't bound, so we don't expect any parameter sets to be returned.
+        Set<ParameterSet> parameterSets = parametersOperations
+            .parameterSets(pipelineInstanceNode);
+        assertTrue(CollectionUtils.isEmpty(parameterSets));
+
+        // Now bind the parameter sets to their database objects.
+        new PipelineInstanceOperations().bindParameterSets(
+            pipelineOperationsTestUtils.pipelineDefinition(),
+            pipelineOperationsTestUtils.pipelineInstance());
+
+        new PipelineInstanceNodeOperations().bindParameterSets(
+            pipelineOperationsTestUtils.pipelineDefinitionNode(), pipelineInstanceNode);
+
+        // Now the parameter sets should show up.
+        parameterSets = parametersOperations.parameterSets(pipelineInstanceNode);
+        assertFalse(CollectionUtils.isEmpty(parameterSets));
+        Map<String, ParameterSet> parameterSetByName = ParameterSet
+            .parameterSetByName(parameterSets);
+        Set<String> parameterSetNames = parameterSetByName.keySet();
+        assertTrue(parameterSetNames.contains("parameter1"));
+        assertTrue(parameterSetNames.contains("parameter2"));
+        assertTrue(parameterSetNames.contains("parameter3"));
+        assertTrue(parameterSetNames.contains("parameter4"));
+        assertEquals(4, parameterSetNames.size());
+
+        // Update one of the parameter sets with a new parameter.
+        ParameterSet parameter1 = parameterSetByName.get("parameter1");
+        parameter1.getParameters()
+            .add(new Parameter("parameter1", "0", ZiggyDataType.ZIGGY_INT, false));
+        testOperations.merge(parameter1);
+
+        // If we retrieve the parameter sets, the bound parameter set, and not the
+        // updated one, should appear.
+        parameterSetByName = ParameterSet
+            .parameterSetByName(parametersOperations.parameterSets(pipelineInstanceNode));
+        parameter1 = parameterSetByName.get("parameter1");
+        assertTrue(CollectionUtils.isEmpty(parameter1.getParameters()));
+    }
+
+    @Test
+    public void testParametersTransientPipelineInstance() {
+        PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
+        pipelineOperationsTestUtils.setUpSingleModulePipeline();
+
+        // Add the parameter sets to the database.
+        setUpParameterSetsForPipelineOpsTestUtils();
+
+        // Create a transient PipelineInstanceNode.
+        PipelineInstanceNode pipelineInstanceNode = new PipelineInstanceNode(
+            pipelineOperationsTestUtils.pipelineDefinitionNode(),
+            pipelineOperationsTestUtils.pipelineModuleDefinition());
+
+        // The parameter sets should be returned even without any kind of binding.
+        Set<ParameterSet> parameterSets = parametersOperations
+            .parameterSets(pipelineInstanceNode);
+        assertFalse(CollectionUtils.isEmpty(parameterSets));
+
+        Map<String, ParameterSet> parameterSetByName = ParameterSet
+            .parameterSetByName(parameterSets);
+        Set<String> parameterSetNames = parameterSetByName.keySet();
+        assertTrue(parameterSetNames.contains("parameter1"));
+        assertTrue(parameterSetNames.contains("parameter2"));
+        assertTrue(parameterSetNames.contains("parameter3"));
+        assertTrue(parameterSetNames.contains("parameter4"));
+        assertEquals(4, parameterSetNames.size());
+
+        assertTrue(CollectionUtils.isEmpty(parameterSetByName.get("parameter1").getParameters()));
+
+        // Update one of the parameter sets with a new parameter.
+        ParameterSet parameter1 = parameterSetByName.get("parameter1");
+        parameter1.getParameters()
+            .add(new Parameter("parameter1", "0", ZiggyDataType.ZIGGY_INT, false));
+        testOperations.merge(parameter1);
+
+        // When we retrieve the parameter sets now, the updated parameter1 set should be
+        // returned.
+        parameterSetByName = ParameterSet
+            .parameterSetByName(parametersOperations.parameterSets(pipelineInstanceNode));
+        parameter1 = parameterSetByName.get("parameter1");
+        assertFalse(CollectionUtils.isEmpty(parameter1.getParameters()));
     }
 
     public ParameterSet getParameterSetFoo() {

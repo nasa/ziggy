@@ -234,6 +234,54 @@ public class PbsParametersTest {
         assertEquals(50.76, aggregatedParameters.getEstimatedCost(), 1e-9);
     }
 
+    @Test
+    public void testWallTimeFromTypicalWallTime() {
+        pbsParameters();
+        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskMaxWallTimeHours(0.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.5);
+        executionResources.setMaxNodes(3);
+        pbsParameters.populateResourceParameters(executionResources, 100);
+        assertEquals("2:30:00", pbsParameters.getRequestedWallTime());
+    }
+
+    @Test
+    public void testWallTimeFromMaxTime() {
+        pbsParameters();
+        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskMaxWallTimeHours(3.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.5);
+        executionResources.setMaxNodes(3);
+        pbsParameters.populateResourceParameters(executionResources, 100);
+        assertEquals("3:30:00", pbsParameters.getRequestedWallTime());
+    }
+
+    @Test
+    public void testScaledWallTimeFromTypical() {
+        pbsParameters();
+        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskMaxWallTimeHours(0.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.5);
+        executionResources.setMaxNodes(3);
+        executionResources.setNodeSharing(false);
+        executionResources.setWallTimeScaling(true);
+        pbsParameters.populateResourceParameters(executionResources, 100);
+        assertEquals("1:15:00", pbsParameters.getRequestedWallTime());
+    }
+
+    @Test
+    public void testScaledWallTimeFromMax() {
+        pbsParameters();
+        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskMaxWallTimeHours(4.5);
+        executionResources.setSubtaskTypicalWallTimeHours(0.05);
+        executionResources.setMaxNodes(3);
+        executionResources.setNodeSharing(false);
+        executionResources.setWallTimeScaling(true);
+        pbsParameters.populateResourceParameters(executionResources, 100);
+        assertEquals("0:30:00", pbsParameters.getRequestedWallTime());
+    }
+
     private void pbsParameters() {
         pbsParameters = executionResources.pbsParametersInstance();
         pbsParameters.setMinCoresPerNode(descriptor.getMinCores());

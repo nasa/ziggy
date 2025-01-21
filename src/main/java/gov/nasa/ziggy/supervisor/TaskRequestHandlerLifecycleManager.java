@@ -3,11 +3,14 @@ package gov.nasa.ziggy.supervisor;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +21,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.messages.HaltTasksRequest;
+import gov.nasa.ziggy.services.messages.PipelineInstanceFinishedMessage;
 import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
@@ -56,7 +60,9 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     // Use a wrapper class so it can be null.
     private Long pipelineDefinitionNodeId;
 
-    private ExecutorService taskRequestThreadPool;
+    private ThreadPoolExecutor taskRequestThreadPool;
+    private Queue<TaskRequestHandler> activeTaskRequestHandlers = new ConcurrentLinkedQueue<>();
+    private int priorWorkerCount;
 
     // The current actual resources available to the current node, including defaults if
     // appropriate.
@@ -64,7 +70,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
 
     // For testing purposes, the TaskRequestDispatcher can optionally store all of the
     // task request handlers it creates, organized by thread pool instance.
-    private List<List<TaskRequestHandler>> taskRequestHandlers = new ArrayList<>();
+    private Queue<List<TaskRequestHandler>> taskRequestHandlers = new ConcurrentLinkedQueue<>();
     private final boolean storeTaskRequestHandlers;
 
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
@@ -77,22 +83,16 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     protected TaskRequestHandlerLifecycleManager(boolean storeTaskRequestHandlers) {
         this.storeTaskRequestHandlers = storeTaskRequestHandlers;
 
-        // Subscribe to task request messages.
-        ZiggyMessenger.subscribe(TaskRequest.class, message -> {
-            handleTaskRequestAction(message);
-        });
-
-        // Subscribe to kill tasks messages.
-        ZiggyMessenger.subscribe(HaltTasksRequest.class, message -> {
-            haltQueuedTasksAction(message);
-        });
+        ZiggyMessenger.subscribe(TaskRequest.class, this::handleTaskRequestAction);
+        ZiggyMessenger.subscribe(HaltTasksRequest.class, this::haltQueuedTasksAction);
+        ZiggyMessenger.subscribe(PipelineInstanceFinishedMessage.class,
+            this::handlePipelineInstanceFinishedMessage);
 
         // Subscribe to requests for the current worker resources. This allows the
         // console to find out what's currently running in the event that the console
         // starts up when a pipeline is already executing.
-        ZiggyMessenger.subscribe(WorkerResourcesRequest.class, message -> {
-            ZiggyMessenger.publish(new WorkerResourcesMessage(null, workerResources));
-        });
+        ZiggyMessenger.subscribe(WorkerResourcesRequest.class,
+            message -> ZiggyMessenger.publish(new WorkerResourcesMessage(null, workerResources)));
     }
 
     /**
@@ -147,6 +147,12 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
         // and publish the success messages.
         for (TaskRequest taskRequest : taskRequestsForDeletion) {
             publishTaskHaltedMessage(taskRequest.getPipelineTask());
+        }
+    }
+
+    void handlePipelineInstanceFinishedMessage(PipelineInstanceFinishedMessage message) {
+        while (!activeTaskRequestHandlers.isEmpty()) {
+            activeTaskRequestHandlers.remove().interrupt();
         }
     }
 
@@ -222,7 +228,20 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                 }
                 log.info("Starting {} workers with total heap size {}", workerCount,
                     workerResources.humanReadableHeapSize().toString());
-                taskRequestThreadPool = Executors.newFixedThreadPool(workerCount);
+
+                // Create thread pool if necessary; otherwise, adjust the number of threads to match
+                // the number of workers. The core pool size is initially set to one because
+                // the core pool size must always be less than or equal to the max pool size and the
+                // new worker count may be less than the previous worker count.
+                if (taskRequestThreadPool == null) {
+                    taskRequestThreadPool = (ThreadPoolExecutor) Executors
+                        .newFixedThreadPool(workerCount);
+                } else if (workerCount != priorWorkerCount) {
+                    taskRequestThreadPool.setCorePoolSize(Math.min(priorWorkerCount, workerCount));
+                    taskRequestThreadPool.setMaximumPoolSize(workerCount);
+                    taskRequestThreadPool.setCorePoolSize(workerCount);
+                }
+
                 List<TaskRequestHandler> handlers = new ArrayList<>();
                 for (int i = 1; i <= workerCount; i++) {
                     log.info("Starting worker {} of {}", i, workerCount);
@@ -230,6 +249,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                         taskRequestQueue, pipelineDefinitionNodeId,
                         taskRequestThreadCountdownLatch);
                     taskRequestThreadPool.submit(handler);
+                    activeTaskRequestHandlers.add(handler);
                     handlers.add(handler);
                 }
                 if (storeTaskRequestHandlers) {
@@ -238,7 +258,9 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
 
                 // Wait for the countdown latch to hit zero, then loop back to
                 // process tasks for some other pipeline instance node.
+                log.info("Waiting for workers to exit");
                 taskRequestThreadCountdownLatch.await();
+                log.info("Waiting for workers to exit...done");
             }
         } catch (InterruptedException e) {
             shutdown();
@@ -280,7 +302,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     }
 
     /** For testing only. */
-    List<List<TaskRequestHandler>> getTaskRequestHandlers() {
+    Queue<List<TaskRequestHandler>> getTaskRequestHandlers() {
         return taskRequestHandlers;
     }
 

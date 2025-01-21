@@ -12,9 +12,11 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -237,10 +239,22 @@ public class Mcc extends TessExecTask {
             setPosixPermissionsRecursively(executable.toPath().resolve("Contents"), "rwxr-xr--",
                 "rwxr-xr--");
         }
-        File readme = new File(outputExecutable.getParentFile(), "readme.txt");
-        if (readme.exists()) {
-            readme.renameTo(new File(outputExecutable.getParentFile(),
-                outputExecutable.getName() + "-readme.txt"));
+        renameGeneratedFile("readme.txt");
+        renameGeneratedFile("requiredMCRProducts.txt");
+    }
+
+    private void renameGeneratedFile(String filename) {
+        Path file = outputExecutable.getParentFile().toPath().resolve(filename);
+        if (Files.exists(file)) {
+            try {
+                Files.move(file, file.resolveSibling(outputExecutable.getName() + "-" + filename),
+                    StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                String message = MessageFormat.format("Failed to move \"{0}\" to \"{1}-{0}\"",
+                    filename, outputExecutable.getName());
+                log.error(message);
+                throw new GradleException(message, e);
+            }
         }
     }
 

@@ -15,6 +15,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.services.messages.PipelineInstanceFinishedMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.supervisor.TaskRequestHandler.PipelineInstanceNodeInformation;
 
 /**
@@ -81,6 +83,36 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
     public void markInstanceNodeTransitionIncomplete(long pipelineInstanceNodeId) {
         performTransaction(
             () -> pipelineInstanceNodeCrud().markTransitionIncomplete(pipelineInstanceNodeId));
+    }
+
+    /**
+     * Mark the transition from this node to the next as failed. This also requires that the
+     * pipeline instance state be set to TRANSITION_FAILED.
+     */
+    public void markInstanceNodeTransitionFailed(PipelineInstanceNode pipelineInstanceNode) {
+        try {
+            performTransaction(() -> {
+                pipelineInstanceNodeCrud().markTransitionFailed(pipelineInstanceNode.getId());
+                PipelineInstance pipelineInstance = pipelineInstanceNodeCrud()
+                    .retrievePipelineInstance(pipelineInstanceNode);
+                PipelineInstance.State.TRANSITION_FAILED.setExecutionClockState(pipelineInstance);
+                pipelineInstance.setState(PipelineInstance.State.TRANSITION_FAILED);
+                pipelineInstanceCrud().merge(pipelineInstance);
+            });
+        } finally {
+            ZiggyMessenger.publish(new PipelineInstanceFinishedMessage());
+        }
+    }
+
+    public void clearTransitionFailedState(PipelineInstanceNode pipelineInstanceNode) {
+        performTransaction(() -> {
+            pipelineInstanceNodeCrud().clearTransitionFailed(pipelineInstanceNode.getId());
+            PipelineInstance pipelineInstance = pipelineInstanceNodeCrud()
+                .retrievePipelineInstance(pipelineInstanceNode);
+            PipelineInstance.State.PROCESSING.setExecutionClockState(pipelineInstance);
+            pipelineInstance.setState(PipelineInstance.State.PROCESSING);
+            pipelineInstanceCrud().merge(pipelineInstance);
+        });
     }
 
     public PipelineInstanceNodeInformation pipelineInstanceNodeInformation(

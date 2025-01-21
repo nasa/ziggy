@@ -102,6 +102,7 @@ public class InstancesTasksPanelAutoRefresh implements Runnable {
                 break;
             case ERRORS_RUNNING:
             case ERRORS_STALLED:
+            case TRANSITION_FAILED:
                 break;
             default:
                 throw new IllegalStateException(

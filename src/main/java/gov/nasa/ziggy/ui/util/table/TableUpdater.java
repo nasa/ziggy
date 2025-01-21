@@ -1,7 +1,9 @@
 package gov.nasa.ziggy.ui.util.table;
 
+import java.awt.Rectangle;
 import java.util.List;
 
+import javax.swing.JTable;
 import javax.swing.table.AbstractTableModel;
 
 import org.slf4j.Logger;
@@ -10,11 +12,14 @@ import org.slf4j.LoggerFactory;
 /**
  * Updates or inserts table rows if the data has changed. To use, return this object from
  * {@code SwingWorker.doInBackground()} and call the {@link #updateTable(AbstractTableModel)} method
- * in {@code SwingWorker.done()}.
+ * in {@code SwingWorker.done()}. See also {@link #scrollToVisible(JTable)}.
  */
 public class TableUpdater {
 
     private static final Logger log = LoggerFactory.getLogger(TableUpdater.class);
+
+    private int previousRowCount;
+    private int currentRowCount;
 
     private List<Integer> insertedRows;
     private List<Integer> updatedRows;
@@ -32,25 +37,25 @@ public class TableUpdater {
         log.trace("previousElements={}", previousElements);
         log.trace("currentElements={}", currentElements);
 
-        int previousCount = previousElements == null ? 0 : previousElements.size();
-        int currentCount = currentElements == null ? 0 : currentElements.size();
+        previousRowCount = previousElements == null ? 0 : previousElements.size();
+        currentRowCount = currentElements == null ? 0 : currentElements.size();
 
         // Check for a change in row count.
-        if (currentCount == previousCount) {
+        if (currentRowCount == previousRowCount) {
             insertedRows = List.of();
             deletedRows = List.of();
-        } else if (currentCount > previousCount) {
-            insertedRows = List.of(previousCount, currentCount - 1);
+        } else if (currentRowCount > previousRowCount) {
+            insertedRows = List.of(previousRowCount, currentRowCount - 1);
             deletedRows = List.of();
         } else {
             insertedRows = List.of();
-            deletedRows = List.of(currentCount, previousCount - 1);
+            deletedRows = List.of(currentRowCount, previousRowCount - 1);
         }
 
         // Check for updated rows.
         int minUpdatedRow = -1;
         int maxUpdatedRow = -1;
-        for (int i = 0; i < Math.min(previousCount, currentCount); i++) {
+        for (int i = 0; i < Math.min(previousRowCount, currentRowCount); i++) {
             boolean elementsEqual = previousElements.get(i).equals(currentElements.get(i));
             if (minUpdatedRow == -1 && !elementsEqual) {
                 minUpdatedRow = i;
@@ -62,6 +67,9 @@ public class TableUpdater {
         updatedRows = minUpdatedRow == -1 ? List.of() : List.of(minUpdatedRow, maxUpdatedRow);
     }
 
+    /**
+     * Updates the table with this objects elements. Must be called on the event dispatch thread.
+     */
     public void updateTable(AbstractTableModel tableModel) {
         if (getDeletedRows().size() > 0) {
             log.debug("Deleting rows {} in {}", getDeletedRows(),
@@ -83,6 +91,31 @@ public class TableUpdater {
             for (int i = getUpdatedRows().get(0); i <= getUpdatedRows().get(1); i++) {
                 tableModel.fireTableRowsUpdated(i, i);
             }
+        }
+    }
+
+    /**
+     * Scroll to make new rows visible, but only if the last row was already visible. Must be called
+     * on the event dispatch thread.
+     *
+     * @param table the table to scroll; if null, no scrolling is attempted
+     */
+    public void scrollToVisible(JTable table) {
+        if (table == null) {
+            return;
+        }
+
+        // Note that the indices for tables are zero-based, so add or subtract one when going
+        // between table rows and row counts.
+
+        // Consider the previous row visible if more than half the row is visible (see height/2).
+        Rectangle visibleRectangle = table.getVisibleRect();
+        Rectangle previousRowRectangle = table.getCellRect(previousRowCount - 1, 0, true);
+        previousRowRectangle.setSize(previousRowRectangle.width, previousRowRectangle.height / 2);
+        boolean visible = visibleRectangle.contains(previousRowRectangle);
+
+        if (currentRowCount > previousRowCount && visible) {
+            table.scrollRectToVisible(table.getCellRect(currentRowCount - 1, 0, true));
         }
     }
 

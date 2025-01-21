@@ -32,11 +32,15 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.metrics.MetricsDumper;
 import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.module.AlgorithmMonitor;
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
@@ -52,9 +56,10 @@ import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.EventHandlerRequest;
 import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
 import gov.nasa.ziggy.services.messages.RestartTasksRequest;
+import gov.nasa.ziggy.services.messages.RetryTransitionRequest;
 import gov.nasa.ziggy.services.messages.SingleTaskLogMessage;
 import gov.nasa.ziggy.services.messages.SingleTaskLogRequest;
 import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
@@ -72,6 +77,7 @@ import gov.nasa.ziggy.services.process.AbstractPipelineProcess;
 import gov.nasa.ziggy.services.process.ExternalProcessUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.WrapperUtils;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.worker.WorkerResources;
@@ -92,7 +98,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     public static final String NAME = "Supervisor";
     private static final String SUPERVISOR_BIN_NAME = "supervisor";
-    private static final String SUPERVISOR_LOG_FILE_NAME = "supervisor.log";
     public static final int WORKER_STATUS_REPORT_INTERVAL_MILLIS_DEFAULT = 15000;
 
     private static final Set<ZiggyEventHandler> ziggyEventHandlers = ConcurrentHashMap.newKeySet();
@@ -111,6 +116,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     private PipelineExecutor pipelineExecutor = new PipelineExecutor();
     private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
     private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
+    private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
     private AlgorithmMonitor algorithmMonitor;
 
     public PipelineSupervisor(int workerCount, int workerHeapSize) {
@@ -264,6 +270,9 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         ZiggyMessenger.subscribe(UpdateProcessingStepMessage.class, message -> {
             updateProcessingStep(message);
         });
+        ZiggyMessenger.subscribe(RetryTransitionRequest.class, message -> {
+            retryTransition(message);
+        });
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
@@ -348,15 +357,48 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         pipelineExecutor().restartFailedTasks(tasksToResubmit, message.isDoTransitionOnly(),
             message.getRunMode());
 
-        // Invalidate the models since restarting a task changes other states in the
-        // consoles.
-        ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
+        ZiggyMessenger.publish(new PipelineInstanceStartedMessage());
     }
 
     /** Perform pipeline task processing steps serially to avoid race conditions */
     private synchronized void updateProcessingStep(UpdateProcessingStepMessage message) {
         pipelineTaskDataOperations().updateProcessingStep(message.getPipelineTask(),
             message.getProcessingStep());
+    }
+
+    /** Retry transition to the next instance node. Package scoped for testing. */
+    void retryTransition(RetryTransitionRequest message) {
+        PipelineInstance pipelineInstance = pipelineInstanceOperations()
+            .pipelineInstance(message.getPipelineInstanceId());
+        List<PipelineInstanceNode> pipelineInstanceNodes = pipelineInstanceOperations()
+            .instanceNodes(pipelineInstance);
+        List<PipelineInstanceNode> nodesWithFailedTransitions = pipelineInstanceNodes.stream()
+            .filter(PipelineInstanceNode::isTransitionFailed)
+            .collect(Collectors.toList());
+
+        // Throw exception if no instance nodes in transition-failed state.
+        if (nodesWithFailedTransitions.size() == 0) {
+            throw new PipelineException("No instance nodes with failed transitions in instance "
+                + message.getPipelineInstanceId());
+        }
+
+        // Throw exception if > 1 instance nodes in transition failed state.
+        if (nodesWithFailedTransitions.size() > 1) {
+            throw new PipelineException(
+                "Multiple instance nodes with failed transitions in instance"
+                    + message.getPipelineInstanceId() + ": "
+                    + nodesWithFailedTransitions.stream()
+                        .map(PipelineInstanceNode::getModuleName)
+                        .collect(Collectors.toList())
+                        .toString());
+        }
+
+        // Set the states of the instance and instance node.
+        pipelineInstanceNodeOperations()
+            .clearTransitionFailedState(nodesWithFailedTransitions.get(0));
+
+        // Try the transition again.
+        pipelineExecutor().transitionToNextInstanceNode(nodesWithFailedTransitions.get(0));
     }
 
     public static CommandLine supervisorCommand(WrapperCommand cmd, int workerCount,
@@ -367,7 +409,8 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             // Refer to supervisor.wrapper.conf for appropriate indices for the parameters specified
             // here.
             commandLine
-                .addArgument(wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME, supervisorLogFilename()))
+                .addArgument(
+                    wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME, supervisorLogFilename(true)))
                 .addArgument(wrapperParameter(WRAPPER_CLASSPATH_PROP_NAME_PREFIX, 1,
                     DirectoryProperties.ziggyHomeDir().resolve("libs").resolve("*.jar").toString()))
                 .addArgument(wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1,
@@ -375,9 +418,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
                     ExternalProcessUtils.log4jConfigString()))
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
-                    ExternalProcessUtils.ziggyLog(supervisorLogFilename())))
-                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 5,
-                    ExternalProcessUtils.jnaLibraryPath()))
+                    ExternalProcessUtils.ziggyLog(supervisorLogFilename(false))))
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 2,
                     Integer.toString(workerCount)))
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 3,
@@ -403,8 +444,9 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     /**
      * The log file name used by the supervisor.
      */
-    public static String supervisorLogFilename() {
-        return DirectoryProperties.supervisorLogDir().resolve(SUPERVISOR_LOG_FILE_NAME).toString();
+    public static String supervisorLogFilename(boolean wrapper) {
+        String filename = WrapperUtils.logFilename(SUPERVISOR_BIN_NAME, wrapper);
+        return DirectoryProperties.supervisorLogDir().resolve(filename).toString();
     }
 
     public static Set<ZiggyEventHandler> ziggyEventHandlers() {
@@ -466,9 +508,10 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         return ziggyEventOperations;
     }
 
-    /**
-     * @param args
-     */
+    PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
+        return pipelineInstanceNodeOperations;
+    }
+
     public static void main(String[] args) {
         int workerThreads = Integer.parseInt(args[0]);
         int workerHeapSize = Integer.parseInt(args[1]);

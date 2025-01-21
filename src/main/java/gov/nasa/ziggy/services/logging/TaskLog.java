@@ -93,11 +93,10 @@ public class TaskLog {
     private static final Logger log = LoggerFactory.getLogger(TaskLog.class);
 
     private static final String CONSOLE_APPENDER_NAME = "console";
+    public static final String FILE_APPENDER_NAME = "file";
 
     public static final String THREAD_NAME_KEY = "threadName";
     public static final int LOCAL_LOG_FILE_JOB_INDEX = 0;
-
-    public static final String CLI_APPENDER_NAME = "cli";
 
     private static PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
@@ -192,10 +191,10 @@ public class TaskLog {
         }
     }
 
-    private static Layout<? extends Serializable> cliLayout() {
+    private static Layout<? extends Serializable> fileLayout() {
         LoggerConfig rootConfig = rootConfig();
         Map<String, Appender> appenders = rootConfig.getAppenders();
-        return appenders.get(CLI_APPENDER_NAME).getLayout();
+        return appenders.get(FILE_APPENDER_NAME).getLayout();
     }
 
     /**
@@ -207,7 +206,7 @@ public class TaskLog {
         return FileAppender.newBuilder()
             .withFileName(taskLogFile.getAbsolutePath())
             .setName(taskLogFile.getName())
-            .setLayout(cliLayout());
+            .setLayout(fileLayout());
     }
 
     static void setPipelineTaskDataOperations(

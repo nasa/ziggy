@@ -30,7 +30,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -43,7 +42,6 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
  */
 public class PipelineTaskInformationTest {
 
-    private ParametersOperations parametersOperations = mock(ParametersOperations.class);
     private PipelineDefinitionOperations pipelineDefinitionOperations = mock(
         PipelineDefinitionOperations.class);
     private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = mock(
@@ -54,7 +52,6 @@ public class PipelineTaskInformationTest {
     private ParameterSet instanceParSet1 = new ParameterSet(instancePars1Name);
     private ParameterSet instanceParSet2 = new ParameterSet(instancePars2Name);
     private String moduleParsName = "Module Pars";
-    private ParameterSet moduleParSet = new ParameterSet(moduleParsName);
     private PipelineTask p1 = spy(PipelineTask.class);
     private PipelineTask p2 = spy(PipelineTask.class);
     private SubtaskInformation s1, s2;
@@ -67,7 +64,6 @@ public class PipelineTaskInformationTest {
     public void setup() {
 
         // Put a fully-mocked instance in place
-        when(pipelineTaskInformation.parametersOperations()).thenReturn(parametersOperations);
         when(pipelineTaskInformation.pipelineDefinitionOperations())
             .thenReturn(pipelineDefinitionOperations);
         when(pipelineTaskInformation.pipelineModuleDefinitionOperations())
@@ -93,15 +89,12 @@ public class PipelineTaskInformationTest {
             .add(new Parameter("intParam", "0", ZiggyDataType.ZIGGY_INT));
         instanceParSet2.getParameters()
             .add(new Parameter("floatParam", "0", ZiggyDataType.ZIGGY_FLOAT));
-        when(parametersOperations.parameterSet(instancePars1Name)).thenReturn(instanceParSet1);
-        when(parametersOperations.parameterSet(instancePars2Name)).thenReturn(instanceParSet2);
 
         // Set up of module-level parameters
         when(
             pipelineModuleDefinitionOperations.pipelineModuleDefinition(moduleDefinition.getName()))
                 .thenReturn(moduleDefinition);
         node.getParameterSetNames().add(moduleParsName);
-        when(parametersOperations.parameterSet(moduleParsName)).thenReturn(moduleParSet);
 
         // Set up unit of work generation
         doReturn(uowGenerator).when(pipelineTaskInformation).unitOfWorkGenerator(node);

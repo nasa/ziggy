@@ -135,12 +135,20 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
      * Returns the module interface name for the parameter set, if it is assigned; otherwise the
      * parameter set name itself is returned.
      */
-    public String getModuleInterfaceName() {
+    public String getParameterSetNameOrModuleInterfaceName() {
         return StringUtils.isEmpty(moduleInterfaceName) ? getName() : moduleInterfaceName;
+    }
+
+    public String getModuleInterfaceName() {
+        return moduleInterfaceName;
     }
 
     public void setModuleInterfaceName(String moduleInterfaceName) {
         this.moduleInterfaceName = moduleInterfaceName;
+    }
+
+    public boolean hasModuleInterfaceName() {
+        return !StringUtils.isBlank(moduleInterfaceName);
     }
 
     @Override

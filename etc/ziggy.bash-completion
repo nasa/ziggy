@@ -15,7 +15,7 @@ _ziggy() {
             return;;
     
         cluster)
-            commands="init start stop status console version -h --help"
+            commands="init start stop status console version --help"
             COMPREPLY=($(compgen -W "${commands}" -- ${cur}))
             return;;
 
@@ -32,15 +32,14 @@ _ziggy() {
         dump-system-properties)
             return;;
 
-        execsql)
-            return;;
-
         export-parameters | export-pipelines | import-parameters | import-pipelines)
             options="-dryrun -nodb"
             COMPREPLY=($(compgen -W "${options}" -- ${cur}))
             return;;
 
         generate-manifest)
+            options="--help"
+            COMPREPLY=($(compgen -W "${options}" -- ${cur}))
             return;;
 
         hsqlgui)
@@ -49,6 +48,8 @@ _ziggy() {
             return;;
 
         import-datastore-config)
+            options="--dry-run --help"
+            COMPREPLY=($(compgen -W "${options}" -- ${cur}))
             return;;
 
         import-events)

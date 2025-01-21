@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.supervisor;
 
+import static gov.nasa.ziggy.TestEventDetector.detectTestEvent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.times;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -22,7 +24,6 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.FlakyTestCategory;
-import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineModule;
@@ -80,8 +81,8 @@ public class TaskRequestHandlerLifecycleManagerTest {
     public void tearDown() throws InterruptedException {
         lifecycleManager.shutdown();
         taskRequestLoopThread.interrupt();
-        TestEventDetector.detectTestEvent(500L,
-            () -> lifecycleManager.getTaskRequestThreadPool() == null);
+        assertTrue("pool=" + lifecycleManager.getTaskRequestThreadPool(),
+            detectTestEvent(500L, () -> lifecycleManager.getTaskRequestThreadPool() == null));
         lifecycleManager = null;
         DatabaseService.reset();
     }
@@ -99,7 +100,7 @@ public class TaskRequestHandlerLifecycleManagerTest {
     @Test
     public void testStart() {
 
-        List<List<TaskRequestHandler>> allTaskRequestHandlers = lifecycleManager
+        Queue<List<TaskRequestHandler>> allTaskRequestHandlers = lifecycleManager
             .getTaskRequestHandlers();
         taskRequestLoopThread.start();
 
@@ -113,17 +114,19 @@ public class TaskRequestHandlerLifecycleManagerTest {
         // Add a task to the queue and wait for it to get handled.
         lifecycleManager.addTaskRequestToQueue(new TaskRequest(1L, 1L, -1L, pipelineTask1,
             PipelineInstance.Priority.NORMAL, false, PipelineModule.RunMode.STANDARD));
-        TestEventDetector.detectTestEvent(500L, () -> allTaskRequestHandlers.size() > 0);
+        assertTrue("size=" + allTaskRequestHandlers.size(),
+            detectTestEvent(500L, () -> allTaskRequestHandlers.size() > 0));
+
         // There should be one set of task request handlers constructed, with 1 handler in the set.
         assertEquals(1, allTaskRequestHandlers.size());
-        List<TaskRequestHandler> taskRequestHandlers = allTaskRequestHandlers.get(0);
+        List<TaskRequestHandler> taskRequestHandlers = allTaskRequestHandlers.poll();
         assertEquals(1, taskRequestHandlers.size());
         TaskRequestHandler taskRequestHandler = taskRequestHandlers.get(0);
 
         // The handler should have handled 1 task request.
 
-        TestEventDetector.detectTestEvent(500L,
-            () -> taskRequestHandler.getTaskRequests().size() > 0);
+        assertTrue("size=" + taskRequestHandler.getTaskRequests().size(),
+            detectTestEvent(500L, () -> taskRequestHandler.getTaskRequests().size() > 0));
         Set<TaskRequest> taskRequests = taskRequestHandler.getTaskRequests();
         assertEquals(1, taskRequests.size());
         TaskRequest taskRequest = taskRequests.iterator().next();
@@ -154,14 +157,14 @@ public class TaskRequestHandlerLifecycleManagerTest {
         taskRequestLoopThread.start();
         lifecycleManager.addTaskRequestToQueue(new TaskRequest(1L, 1L, -1L, pipelineTask1,
             PipelineInstance.Priority.NORMAL, false, PipelineModule.RunMode.STANDARD));
-        TestEventDetector.detectTestEvent(500L,
-            () -> lifecycleManager.getTaskRequestHandlers().size() > 0);
+        assertTrue("size=" + lifecycleManager.getTaskRequestHandlers().size(),
+            detectTestEvent(500L, () -> lifecycleManager.getTaskRequestHandlers().size() > 0));
         ExecutorService executorService = lifecycleManager.getTaskRequestThreadPool();
         lifecycleManager.shutdown();
 
         // The thread pool should be shut down and nullified.
-        assertTrue(TestEventDetector.detectTestEvent(500L,
-            () -> lifecycleManager.getTaskRequestThreadPool() == null));
+        assertTrue(
+            detectTestEvent(500L, () -> lifecycleManager.getTaskRequestThreadPool() == null));
         assertTrue(executorService.isShutdown());
     }
 
@@ -180,16 +183,17 @@ public class TaskRequestHandlerLifecycleManagerTest {
     public void testDefinitionNodeTransition() {
 
         taskRequestLoopThread.start();
-        List<List<TaskRequestHandler>> allTaskRequestHandlers = lifecycleManager
+        Queue<List<TaskRequestHandler>> allTaskRequestHandlers = lifecycleManager
             .getTaskRequestHandlers();
 
         lifecycleManager.addTaskRequestToQueue(new TaskRequest(1L, 1L, -1L, pipelineTask1,
             PipelineInstance.Priority.NORMAL, false, PipelineModule.RunMode.STANDARD));
-        TestEventDetector.detectTestEvent(500L, () -> allTaskRequestHandlers.size() > 0);
+        assertTrue("size=" + allTaskRequestHandlers.size(),
+            detectTestEvent(500L, () -> allTaskRequestHandlers.size() > 0));
 
         ExecutorService threadPool = lifecycleManager.getTaskRequestThreadPool();
-        assertTrue(TestEventDetector.detectTestEvent(500L,
-            () -> lifecycleManager.getPipelineDefinitionNodeId() == -1L));
+        assertTrue(
+            detectTestEvent(500L, () -> lifecycleManager.getPipelineDefinitionNodeId() == -1L));
 
         // Create some task requests
         TaskRequest t1 = new TaskRequest(0, 0, -2, pipelineTask1, Priority.NORMAL, false,
@@ -207,44 +211,41 @@ public class TaskRequestHandlerLifecycleManagerTest {
         lifecycleManager.addTaskRequestToQueue(t3);
 
         // Wait for all the tasks to get pulled into task request dispatchers
-        assertTrue(
-            TestEventDetector.detectTestEvent(500L, () -> lifecycleManager.taskRequestSize() == 0));
+        assertTrue(detectTestEvent(500L, () -> lifecycleManager.taskRequestSize() == 0));
 
         // The definition node ID should have changed.
-        assertTrue(TestEventDetector.detectTestEvent(500L,
-            () -> lifecycleManager.getPipelineDefinitionNodeId() != null
+        assertTrue(
+            detectTestEvent(500L, () -> lifecycleManager.getPipelineDefinitionNodeId() != null
                 && lifecycleManager.getPipelineDefinitionNodeId() == -2L));
 
-        // The thread pool executor should be different.
-        assertTrue(TestEventDetector.detectTestEvent(100L,
-            () -> threadPool != lifecycleManager.getTaskRequestThreadPool()));
+        // The thread pool executor should be the same.
+        assertTrue(
+            detectTestEvent(100L, () -> threadPool == lifecycleManager.getTaskRequestThreadPool()));
 
         // Get the ensemble of TaskRequestHandler instances.
-        assertTrue(
-            TestEventDetector.detectTestEvent(500L, () -> allTaskRequestHandlers.size() == 2));
+        assertTrue(detectTestEvent(500L, () -> allTaskRequestHandlers.size() == 2));
+
+        // The first list should have 1 handler which handled 1 task request,
+        // the first request.
+        List<TaskRequestHandler> handlers = allTaskRequestHandlers.poll();
+        assertEquals(1, handlers.size());
+        Set<TaskRequest> taskRequests = handlers.get(0).getTaskRequests();
+        assertEquals(1, taskRequests.size());
+        TaskRequest taskRequest = taskRequests.iterator().next();
+        assertEquals(-1L, taskRequest.getPipelineDefinitionNodeId());
 
         // The second list should have 2 handlers which between them handled 3 task
         // requests, the ones for pipeline definition node ID == -2.
-        List<TaskRequestHandler> handlers = allTaskRequestHandlers.get(1);
+        handlers = allTaskRequestHandlers.poll();
         assertEquals(2, handlers.size());
         final List<TaskRequestHandler> finalHandlers = new ArrayList<>(handlers);
-        assertTrue(
-            TestEventDetector.detectTestEvent(500L, () -> taskRequestCount(finalHandlers) == 3));
+        assertTrue(detectTestEvent(500L, () -> taskRequestCount(finalHandlers) == 3));
 
-        Set<TaskRequest> taskRequests = new HashSet<>(handlers.get(0).getTaskRequests());
+        taskRequests = new HashSet<>(handlers.get(0).getTaskRequests());
         taskRequests.addAll(handlers.get(1).getTaskRequests());
         assertTrue(taskRequests.contains(t1));
         assertTrue(taskRequests.contains(t2));
         assertTrue(taskRequests.contains(t3));
-
-        // The first list should have 1 handler which handled 1 task request,
-        // the first request.
-        handlers = allTaskRequestHandlers.get(0);
-        assertEquals(1, handlers.size());
-        taskRequests = handlers.get(0).getTaskRequests();
-        assertEquals(1, taskRequests.size());
-        TaskRequest taskRequest = taskRequests.iterator().next();
-        assertEquals(-1L, taskRequest.getPipelineDefinitionNodeId());
     }
 
     private int taskRequestCount(List<TaskRequestHandler> taskRequestHandlers) {
@@ -253,6 +254,55 @@ public class TaskRequestHandlerLifecycleManagerTest {
             taskRequestCount += handler.getTaskRequests().size();
         }
         return taskRequestCount;
+    }
+
+    @Test
+    public void testUpdateThreadsForSameModule() {
+
+        taskRequestLoopThread.start();
+        Queue<List<TaskRequestHandler>> allTaskRequestHandlers = lifecycleManager
+            .getTaskRequestHandlers();
+
+        lifecycleManager.addTaskRequestToQueue(new TaskRequest(1L, 1L, -1L, pipelineTask1,
+            PipelineInstance.Priority.NORMAL, false, PipelineModule.RunMode.STANDARD));
+        assertTrue("size=" + allTaskRequestHandlers.size(),
+            detectTestEvent(50L, () -> allTaskRequestHandlers.size() == 1));
+
+        // Wait for all the tasks to get pulled into task request dispatchers
+        assertTrue("size=" + lifecycleManager.taskRequestSize(),
+            detectTestEvent(50L, () -> lifecycleManager.taskRequestSize() == 0));
+
+        // Create some task requests
+        TaskRequest t1 = new TaskRequest(2L, 1L, -1L, pipelineTask1, Priority.NORMAL, false,
+            RunMode.STANDARD);
+        TaskRequest t2 = new TaskRequest(2L, 1L, -1L, pipelineTask2, Priority.NORMAL, false,
+            RunMode.STANDARD);
+        TaskRequest t3 = new TaskRequest(2L, 1L, -1L, pipelineTask3, Priority.NORMAL, false,
+            RunMode.STANDARD);
+
+        lifecycleManager.setMaxWorkers(3);
+        lifecycleManager.handlePipelineInstanceFinishedMessage(null);
+
+        // Pop the task requests into the queue
+        lifecycleManager.addTaskRequestToQueue(t1);
+        lifecycleManager.addTaskRequestToQueue(t2);
+        lifecycleManager.addTaskRequestToQueue(t3);
+
+        // Wait for all the tasks to get pulled into task request dispatchers
+        assertTrue("size=" + lifecycleManager.taskRequestSize(),
+            detectTestEvent(50L, () -> lifecycleManager.taskRequestSize() == 0));
+
+        // Get the ensemble of TaskRequestHandler instances.
+        assertTrue("size=" + allTaskRequestHandlers.size(),
+            detectTestEvent(50L, () -> allTaskRequestHandlers.size() == 2));
+
+        // The second list should have 3 handlers which between them handled 3 task
+        // requests, the ones for pipeline definition node ID == -1.
+        allTaskRequestHandlers.poll(); // discard
+        List<TaskRequestHandler> handlers = allTaskRequestHandlers.poll();
+        assertEquals(3, handlers.size());
+        assertTrue("count=" + taskRequestCount(handlers),
+            detectTestEvent(500L, () -> taskRequestCount(handlers) == 3));
     }
 
     /**
@@ -269,8 +319,7 @@ public class TaskRequestHandlerLifecycleManagerTest {
         lifecycleManager = Mockito.spy(lifecycleManager);
         // Shut off the task request handler threads so that the tasks don't instantly fly
         // out of the queue.
-        assertTrue(
-            TestEventDetector.detectTestEvent(500L, () -> lifecycleManager.taskRequestSize() == 0));
+        assertTrue(detectTestEvent(500L, () -> lifecycleManager.taskRequestSize() == 0));
 
         // Put some tasks into the queue.
         TaskRequest taskRequest = new TaskRequest(0, 0, -2, pipelineTask1, Priority.NORMAL, false,
@@ -303,8 +352,7 @@ public class TaskRequestHandlerLifecycleManagerTest {
         lifecycleManager = Mockito.spy(lifecycleManager);
         // Shut off the task request handler threads so that the tasks don't instantly fly
         // out of the queue.
-        assertTrue(
-            TestEventDetector.detectTestEvent(500L, () -> lifecycleManager.taskRequestSize() == 0));
+        assertTrue(detectTestEvent(500L, () -> lifecycleManager.taskRequestSize() == 0));
 
         // Put some tasks into the queue.
         TaskRequest taskRequest1 = new TaskRequest(0, 0, -2, pipelineTask1, Priority.NORMAL, false,

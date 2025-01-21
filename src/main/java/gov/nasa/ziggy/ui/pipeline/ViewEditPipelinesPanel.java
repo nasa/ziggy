@@ -27,7 +27,7 @@ import org.netbeans.swing.outline.RowModel;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
@@ -51,13 +51,12 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
     public ViewEditPipelinesPanel(PipelineRowModel rowModel,
         ZiggyTreeModel<PipelineDefinition> treeModel) {
         super(rowModel, treeModel, "Name");
-        buildComponent();
 
         ziggyTable.getTable()
             .getSelectionModel()
             .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+        ZiggyMessenger.subscribe(PipelineInstanceStartedMessage.class, this::invalidateModel);
     }
 
     /**
@@ -70,7 +69,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
         return new ViewEditPipelinesPanel(new PipelineRowModel(), treeModel);
     }
 
-    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+    private void invalidateModel(PipelineInstanceStartedMessage message) {
         ziggyTable.loadFromDatabase();
     }
 

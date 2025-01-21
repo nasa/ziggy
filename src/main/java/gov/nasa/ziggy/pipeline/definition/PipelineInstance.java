@@ -63,6 +63,9 @@ public class PipelineInstance {
         /** at least one failed task, no tasks can run (pipeline stalled) */
         ERRORS_STALLED(PipelineInstance::stopExecutionClock),
 
+        /** All tasks completed successfully but transition to the next pipeline instance failed. */
+        TRANSITION_FAILED(PipelineInstance::stopExecutionClock),
+
         /** all tasks completed successfully */
         COMPLETED(PipelineInstance::stopExecutionClock);
 
@@ -137,8 +140,9 @@ public class PipelineInstance {
      * of the {@link ParameterSet}, selected at launch time (typically the latest available version)
      */
     @ManyToMany
-    @JoinTable(name = "Ziggy_PipelineInstance_parameterSets")
+    @JoinTable(name = "ziggy_PipelineInstance_parameterSets")
     private Set<ParameterSet> parameterSets = new HashSet<>();
+
     /**
      * {@link ModelRegistry} in force at the time this pipeline instance was launched. For data
      * accountability

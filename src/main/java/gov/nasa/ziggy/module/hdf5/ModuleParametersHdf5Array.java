@@ -115,12 +115,12 @@ public class ModuleParametersHdf5Array extends AbstractHdf5Array {
 
     private List<Long> writeParameterSet(long fieldGroupId, ParameterSet parameterSet) {
         List<Long> subgroupIds = new ArrayList<>();
-        String moduleInterfaceName = parameterSet.getModuleInterfaceName();
+        String originalGroupName = parameterSet.getParameterSetNameOrModuleInterfaceName();
 
         // We need a group name that is acceptable as a variable name in all the
         // languages Ziggy supports; get that by replacing spaces in the parameter
         // set name with underscores
-        String groupName = moduleInterfaceName.replace(" ", "_");
+        String groupName = originalGroupName.replace(" ", "_");
 
         // create the parent group and put it at the top of the list of sub-group IDs
         long parametersInstanceGroupId = H5.H5Gcreate(fieldGroupId, groupName, H5P_DEFAULT,
@@ -130,9 +130,11 @@ public class ModuleParametersHdf5Array extends AbstractHdf5Array {
         // write the original parameter set name so it can be recovered later
         writeStringAttribute(parametersInstanceGroupId,
             Hdf5ModuleInterface.PARAMETER_SET_ORIGINAL_NAME_ATT_NAME, parameterSet.getName());
-        writeStringAttribute(parametersInstanceGroupId,
-            Hdf5ModuleInterface.PARAMETER_SET_MODULE_INTERFACE_NAME_ATT_NAME, moduleInterfaceName);
-
+        if (parameterSet.getModuleInterfaceName() != null) {
+            writeStringAttribute(parametersInstanceGroupId,
+                Hdf5ModuleInterface.PARAMETER_SET_MODULE_INTERFACE_NAME_ATT_NAME,
+                parameterSet.getModuleInterfaceName());
+        }
         // loop over parameters and, for each one, convert it to a name-value pair and
         // write it as a primitive array subgroup
         int parameterGroupCounter = 0;

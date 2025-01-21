@@ -12,6 +12,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.services.messages.PipelineInstanceFinishedMessage;
+import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 
 /**
  * Operations class for methods mainly concerned with {@link PipelineInstance}s.
@@ -39,11 +41,15 @@ public class PipelineInstanceOperations extends DatabaseOperations {
      * {@link PipelineInstanceNode} has failed in some way.
      */
     public void setInstanceToErrorsStalledState(PipelineInstance pipelineInstance) {
-        performTransaction(() -> {
-            PipelineInstance.State.ERRORS_STALLED.setExecutionClockState(pipelineInstance);
-            pipelineInstance.setState(PipelineInstance.State.ERRORS_STALLED);
-            pipelineInstanceCrud().merge(pipelineInstance);
-        });
+        try {
+            performTransaction(() -> {
+                PipelineInstance.State.ERRORS_STALLED.setExecutionClockState(pipelineInstance);
+                pipelineInstance.setState(PipelineInstance.State.ERRORS_STALLED);
+                pipelineInstanceCrud().merge(pipelineInstance);
+            });
+        } finally {
+            ZiggyMessenger.publish(new PipelineInstanceFinishedMessage());
+        }
     }
 
     /** Merges a pipeline instance and returns the merged instance. */

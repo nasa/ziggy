@@ -23,6 +23,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.logging.TaskLog;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.process.ExternalProcess;
@@ -58,6 +59,10 @@ public class TaskRequestHandler implements Runnable, Requestor {
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
 
+    private volatile Thread thread;
+    private volatile boolean blocked;
+    private volatile boolean pipelineInstanceFinished;
+
     public TaskRequestHandler(int workerId, int workerCount, int heapSizeMb,
         PriorityBlockingQueue<TaskRequest> taskRequestQueue, long pipelineDefinitionNodeId,
         CountDownLatch taskRequestThreadCountdownLatch) {
@@ -83,13 +88,16 @@ public class TaskRequestHandler implements Runnable, Requestor {
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     public void run() {
         log.debug("Starting");
+        thread = Thread.currentThread();
         try {
-            while (!Thread.currentThread().isInterrupted()) {
+            while (!thread.isInterrupted() && !pipelineInstanceFinished) {
 
                 // If execution blocks here, it will eventually unblock when either a task request
                 // becomes available, or the thread gets interrupted resulting in an
                 // InterruptedException.
+                blocked = true;
                 TaskRequest taskRequest = taskRequestQueue.take();
+                blocked = false;
 
                 // If the pipeline definition node ID has changed, it means that the next tasks
                 // in the queue belong to a different {@link PipelineDefinitionNode}. The only way
@@ -105,7 +113,7 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
                     // Also, in this case, the task has to be put back onto the queue.
                     taskRequestQueue.put(taskRequest);
-                    Thread.currentThread().interrupt();
+                    thread.interrupt();
                     continue;
                 }
 
@@ -121,13 +129,24 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
             // If we got here, then the worker threads have been instructed to shut down.
             // Set the interrupt flag so we can exit the while loop.
-            Thread.currentThread().interrupt();
+            thread.interrupt();
         } finally {
 
             // Before exiting the run() method, tell the lifecycle manager that this
             // task request handler is finished.
             taskRequestThreadCountdownLatch.countDown();
         }
+    }
+
+    /**
+     * Interrupt the current thread if it is blocked waiting for a task request. If it's currently
+     * working on a task, let it finish before exiting.
+     */
+    public void interrupt() {
+        if (blocked) {
+            thread.interrupt();
+        }
+        pipelineInstanceFinished = true;
     }
 
     private void processTaskRequest(TaskRequest taskRequest) {
@@ -142,6 +161,8 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
         ExternalProcess externalProcess = ExternalProcess
             .simpleExternalProcess(commandLine(taskRequest));
+        externalProcess.mergeWithEnvironment(
+            ExternalProcess.valueByVariableName(PropertyName.RUNTIME_ENVIRONMENT));
 
         // If execution blocks here, it will stay blocked until the worker process exits
         // (successfully or otherwise). However, if the supervisor shuts down, it will send
@@ -207,7 +228,6 @@ public class TaskRequestHandler implements Runnable, Requestor {
         TaskCounts taskCounts = nodeInformation.getTaskCounts();
         if (taskCounts.isPipelineTasksExecutionComplete()) {
             log.info("Node {} execution complete", pipelineInstanceNode.getModuleName());
-            new PipelineInstanceNodeOperations().markInstanceNodeTransitionComplete(instanceNodeId);
 
             log.info("{}", taskCounts);
             if (taskCounts.isPipelineTasksComplete()) {

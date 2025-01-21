@@ -19,15 +19,22 @@ import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests;
 import gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests.QueueDeleteCommand;
+import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.messages.HaltTasksRequest;
+import gov.nasa.ziggy.services.messages.RetryTransitionRequest;
 import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 
 /**
@@ -58,6 +65,7 @@ public class PipelineSupervisorTest {
     private PipelineTaskDataOperations pipelineTaskDataOperations = Mockito
         .mock(PipelineTaskDataOperations.class);
     private AlertService alertService = Mockito.mock(AlertService.class);
+    private PipelineExecutor pipelineExecutor = Mockito.mock(PipelineExecutor.class);
     private Map<PipelineTask, List<Long>> jobIdsByTask = new HashMap<>();
     private List<PipelineTask> tasks = new ArrayList<>();
 
@@ -73,6 +81,7 @@ public class PipelineSupervisorTest {
         Mockito.doReturn(pipelineTaskOperations).when(supervisor).pipelineTaskOperations();
         Mockito.doReturn(pipelineTaskDataOperations).when(supervisor).pipelineTaskDataOperations();
         Mockito.doReturn(jobIdsByTask).when(supervisor).jobIdsByTask(ArgumentMatchers.anyList());
+        Mockito.doReturn(pipelineExecutor).when(supervisor).pipelineExecutor();
 
         pipelineTask1 = Mockito.spy(PipelineTask.class);
         Mockito.doReturn(1L).when(pipelineTask1).getId();
@@ -179,6 +188,57 @@ public class PipelineSupervisorTest {
         Mockito.verify(alertService)
             .generateAndBroadcastAlert("PI", pipelineTask1, Severity.ERROR, "Task 1 halted");
         Mockito.verify(pipelineTaskDataOperations).taskErrored(pipelineTask1);
+    }
+
+    @Test
+    public void testRetryTransition() {
+        PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
+        testUtils.setUpSingleModulePipeline();
+        PipelineInstanceNode pipelineInstanceNode = testUtils.pipelineInstanceNode();
+        PipelineInstance pipelineInstance = testUtils.pipelineInstance();
+
+        // set the failed-transition state.
+        new PipelineInstanceNodeOperations().markInstanceNodeTransitionFailed(pipelineInstanceNode);
+
+        RetryTransitionRequest retryTransitionRequest = new RetryTransitionRequest(
+            pipelineInstance.getId());
+        supervisor.retryTransition(retryTransitionRequest);
+
+        PipelineInstanceNode nodeFromDatabase = new PipelineInstanceNodeOperations()
+            .pipelineInstanceNode(pipelineInstanceNode.getId());
+        assertFalse(nodeFromDatabase.isTransitionFailed());
+        assertFalse(nodeFromDatabase.isTransitionComplete());
+        assertEquals(PipelineInstance.State.PROCESSING,
+            new PipelineInstanceNodeOperations().pipelineInstance(pipelineInstance.getId())
+                .getState());
+
+        Mockito.verify(pipelineExecutor).transitionToNextInstanceNode(pipelineInstanceNode);
+    }
+
+    @Test(expected = PipelineException.class)
+    public void testRetryTransitionNoFailedInstances() {
+        PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
+        testUtils.setUpSingleModulePipeline();
+        PipelineInstance pipelineInstance = testUtils.pipelineInstance();
+        RetryTransitionRequest retryTransitionRequest = new RetryTransitionRequest(
+            pipelineInstance.getId());
+        supervisor.retryTransition(retryTransitionRequest);
+    }
+
+    @Test(expected = PipelineException.class)
+    public void testRetryTransitionTooManyFailedInstances() {
+        PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
+        testUtils.setUpFourModulePipelineWithInstanceNodes();
+        List<PipelineInstanceNode> pipelineInstanceNodes = testUtils.getPipelineInstanceNodes();
+        PipelineInstance pipelineInstance = testUtils.pipelineInstance();
+        PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
+        pipelineInstanceNodeOperations
+            .markInstanceNodeTransitionFailed(pipelineInstanceNodes.get(0));
+        pipelineInstanceNodeOperations
+            .markInstanceNodeTransitionFailed(pipelineInstanceNodes.get(1));
+        RetryTransitionRequest retryTransitionRequest = new RetryTransitionRequest(
+            pipelineInstance.getId());
+        supervisor.retryTransition(retryTransitionRequest);
     }
 
     public QueueCommandManagerForUnitTests queueCommandManager() {

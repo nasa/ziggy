@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messaging.HeartbeatManager.NoHeartbeatException;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
@@ -105,6 +107,13 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
 
         log.info("Starting ZiggyRmiClient instance with registry for {} on port {}", clientType,
             ZiggyRmiServer.rmiPort());
+
+        // Set the RMI server hostname, if specfied in the pipeline properties.
+        String rmiServerHostname = ZiggyConfiguration.getInstance().getString(
+            PropertyName.JAVA_RMI_SERVER_HOSTNAME.property(), null);
+        if (rmiServerHostname != null) {
+            System.setProperty("java.rmi.server.hostname", rmiServerHostname);
+        }
 
         try {
             instance = new ZiggyRmiClient(clientType);

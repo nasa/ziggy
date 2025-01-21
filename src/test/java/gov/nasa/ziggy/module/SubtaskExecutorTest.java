@@ -6,6 +6,7 @@ import static gov.nasa.ziggy.services.config.PropertyName.MCRROOT;
 import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HOME_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
+import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_LOG_FILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -75,10 +76,14 @@ public class SubtaskExecutorTest {
     public ZiggyPropertyRule resultsDirPropertyRule = new ZiggyPropertyRule(RESULTS_DIR,
         directoryRule, "results");
 
+    public ZiggyPropertyRule logFilePropertyRule = new ZiggyPropertyRule(ZIGGY_LOG_FILE,
+        directoryRule, "ziggy.log");
+
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
         .around(pipelineHomeDirPropertyRule)
-        .around(resultsDirPropertyRule);
+        .around(resultsDirPropertyRule)
+        .around(logFilePropertyRule);
 
     @Before
     public void setup() throws IOException, ConfigurationException {
@@ -100,11 +105,12 @@ public class SubtaskExecutorTest {
     public void testConstructor() throws IOException {
 
         // Basic construction
-        SubtaskExecutor e = new SubtaskExecutor.Builder().binaryName("pa")
+        SubtaskExecutor e = Mockito.spy(new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
             .timeoutSecs(1000000)
-            .build();
+            .build());
+        Mockito.doReturn("pa").when(e).moduleName();
         assertEquals("pa", e.binaryName());
         assertEquals(binDir.getCanonicalPath(), e.binaryDir().getCanonicalPath());
         assertEquals(1000000, e.timeoutSecs());
@@ -113,11 +119,12 @@ public class SubtaskExecutorTest {
 
         // with MATLAB paths defined
         moduleExeMcrrootPropertyRule.setValue("/path/to/mcr/v22");
-        e = new SubtaskExecutor.Builder().binaryName("pa")
+        e = Mockito.spy(new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
             .timeoutSecs(1000000)
-            .build();
+            .build());
+        Mockito.doReturn("pa").when(e).moduleName();
         String[] libPaths = e.libPath().split(File.pathSeparator);
 
         // NB: there's no way to mock out the OS detection from this package, and the
@@ -140,11 +147,12 @@ public class SubtaskExecutorTest {
             calFile.mkdirs();
             calFile = new File(calFile, "cal");
             calFile.createNewFile();
-            e = new SubtaskExecutor.Builder().binaryName("cal")
+            e = Mockito.spy(new SubtaskExecutor.Builder().binaryName("cal")
                 .taskDir(taskDir)
                 .subtaskIndex(0)
                 .timeoutSecs(1000000)
-                .build();
+                .build());
+            Mockito.doReturn("cal").when(e).moduleName();
             assertEquals("cal", e.binaryName());
         }
     }
@@ -166,11 +174,11 @@ public class SubtaskExecutorTest {
         String binPath = phonyBinDir1 + File.pathSeparator + phonyBinDir2 + File.pathSeparator
             + binDir3;
         moduleExeBinpathPropertyRule.setValue(binPath);
-        SubtaskExecutor e = new SubtaskExecutor.Builder().binaryName("pa")
+        SubtaskExecutor e = Mockito.spy(new SubtaskExecutor.Builder().binaryName("pa")
             .taskDir(taskDir)
             .subtaskIndex(0)
             .timeoutSecs(1000000)
-            .build();
+            .build());
         assertEquals("pa", e.binaryName());
         assertEquals(binDir3File.getCanonicalPath(), e.binaryDir().getCanonicalPath());
     }
@@ -189,6 +197,8 @@ public class SubtaskExecutorTest {
             [/path/to/ziggy/build/bin/ziggy, --verbose,\s\
             -Djava.library.path=path1:path2:/path/to/ziggy/build/lib,\s\
             -Dlog4j2.configurationFile=/path/to/ziggy/build/etc/log4j2.xml,\s\
+            -Dziggy.logFile=""" + logFilePropertyRule.getValue() + """
+            ,\s\
             --class=gov.nasa.ziggy.module.BeforeAndAfterAlgorithmExecutor,\s\
             gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample]""";
         assertEquals(expectedCommandString, cmdString);
@@ -242,7 +252,7 @@ public class SubtaskExecutorTest {
         CommandLine commandLine = externalProcessExecutor.commandLine();
         Mockito.verify(externalProcess).setWorkingDirectory(subtaskDir);
         Mockito.verify(externalProcess).setCommandLine(commandLine);
-        Mockito.verify(externalProcess).setEnvironment(ArgumentMatchers.anyMap());
+        Mockito.verify(externalProcess).mergeWithEnvironment(ArgumentMatchers.anyMap());
         String cmdString = commandLine.toString();
         assertEquals(0, retCode);
 
@@ -260,6 +270,8 @@ public class SubtaskExecutorTest {
             .timeoutSecs(1000000)
             .build();
         externalProcessExecutor = Mockito.spy(externalProcessExecutor);
+        Mockito.doReturn("pa").when(externalProcessExecutor).moduleName();
+
         Mockito.when(externalProcessExecutor.externalProcess(ArgumentMatchers.isNull(),
             ArgumentMatchers.isNull())).thenReturn(externalProcess);
         Mockito.when(externalProcessExecutor.externalProcess(ArgumentMatchers.any(Writer.class),

@@ -24,7 +24,7 @@ public class DataReceiptExternalUnitOfWorkTest {
     public ZiggyDatabaseRule ziggyDatabaseRule = new ZiggyDatabaseRule();
 
     @Rule
-    public ZiggyPropertyRule uowProertyRule = new ZiggyPropertyRule(
+    public ZiggyPropertyRule uowPropertyRule = new ZiggyPropertyRule(
         PropertyName.DATA_RECEIPT_UOW_GENERATOR_CLASS.property(),
         "gov.nasa.ziggy.data.management.DataReceiptExternalUnitOfWorkTest$TestDataReceiptUowGenerator");
 

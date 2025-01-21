@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -21,11 +22,14 @@ import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.LogOutputStream;
 import org.apache.commons.exec.PumpStreamHandler;
+import org.apache.commons.exec.environment.EnvironmentUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -191,6 +195,65 @@ public class ExternalProcess {
      */
     public void setEnvironment(Map<String, String> environment) {
         this.environment = environment;
+    }
+
+    /**
+     * Sets the environment for the external process from the existing environment and the given
+     * environment.
+     */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    public void mergeWithEnvironment(Map<String, String> environment) {
+        try {
+            this.environment = EnvironmentUtils.getProcEnvironment();
+            this.environment.putAll(environment);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to get process environment", e);
+        }
+    }
+
+    /**
+     * Returns a value by name map of the given variable list for use by
+     * {@link #setEnvironment(Map)}.
+     *
+     * @param propertyName a property whose value is of the form name=value, ..., name=value
+     * @return a value by name map of the given argument, or an empty map if the argument is null or
+     * empty
+     */
+    public static Map<String, String> valueByVariableName(PropertyName propertyName) {
+        return valueByVariableName(propertyName != null
+            ? ZiggyConfiguration.getInstance().getString(propertyName.property(), null)
+            : null);
+    }
+
+    /**
+     * Returns a value by name map of the given variable list for use by
+     * {@link #setEnvironment(Map)}.
+     *
+     * @param variableList a string of the form name=value, ..., name=value
+     * @return a value by name map of the given argument, or an empty map if the argument is null or
+     * empty
+     */
+    public static Map<String, String> valueByVariableName(String variableList) {
+
+        Map<String, String> valueByVariableName = new TreeMap<>();
+        if (StringUtils.isBlank(variableList)) {
+            return valueByVariableName;
+        }
+
+        // Break the string at the commas that separate environment variables from one another.
+        for (String variable : variableList.split(",")) {
+
+            // Break the environment variable string at the equals signs that separate the name
+            // of the environment variable from the value.
+            String[] nameValuePair = variable.split("=");
+            if (nameValuePair.length != 2) {
+                throw new IllegalArgumentException("String '" + variable
+                    + "' cannot be split into a name-value pair at an equals sign");
+            }
+            valueByVariableName.put(nameValuePair[0].trim(), nameValuePair[1].trim());
+        }
+
+        return valueByVariableName;
     }
 
     /**

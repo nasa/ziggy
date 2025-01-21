@@ -38,7 +38,7 @@ public class PipelinesStatusPanel extends javax.swing.JPanel implements Runnable
     // TODO Replace the timer with a PipelineStateChangedMessage
     private void hierarchyListener(HierarchyEvent evt) {
         JComponent component = (JComponent) evt.getSource();
-        if ((HierarchyEvent.SHOWING_CHANGED & evt.getChangeFlags()) != 0) {
+        if ((evt.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
             if (component.isShowing()) {
                 scheduledFuture = new ScheduledThreadPoolExecutor(1).scheduleWithFixedDelay(this,
                     0L, REFRESH_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);

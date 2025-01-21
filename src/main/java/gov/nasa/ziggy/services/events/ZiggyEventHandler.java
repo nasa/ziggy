@@ -32,7 +32,7 @@ import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.EventHandlerToggleStateRequest;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -239,7 +239,7 @@ public class ZiggyEventHandler implements Runnable {
             .pipelineDefinition(pipelineName);
         PipelineInstance pipelineInstance = pipelineExecutor().launch(pipelineDefinition, null,
             null, null, readyFile.getLabels());
-        ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
+        ZiggyMessenger.publish(new PipelineInstanceStartedMessage());
         ziggyEventOperations().newZiggyEvent(name, pipelineName, pipelineInstance.getId(),
             readyFile.getLabels());
         log.info("Event handler {} starting pipeline {}...done", name, pipelineName);

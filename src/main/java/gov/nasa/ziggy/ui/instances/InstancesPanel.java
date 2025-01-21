@@ -58,6 +58,7 @@ public class InstancesPanel extends JPanel {
     }
 
     public void applyFilters() {
+        instancesTable.clearSelection();
         instancesTable.loadFromDatabase();
     }
 

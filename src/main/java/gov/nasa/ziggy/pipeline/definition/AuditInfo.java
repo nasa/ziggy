@@ -4,7 +4,11 @@ import java.util.Date;
 import java.util.Objects;
 
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.util.SystemProxy;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 
@@ -19,20 +23,50 @@ import jakarta.persistence.Entity;
  *
  * @author Todd Klaus
  * @author PT
+ * @author M Rose
  */
 @Embeddable
 public class AuditInfo {
+
+    private static final Logger log = LoggerFactory.getLogger(AuditInfo.class);
+
+    /** A value to use when the user name cannot be determined. */
+    static final String UNKNOWN_USER_NAME = "unknown";
+
     private final String lastChangedUser;
     private final Date lastChangedTime;
 
+    /**
+     * Creates a new instance with  last changed time equal to the current time.
+     */
     public AuditInfo() {
-        lastChangedTime = new Date();
-        lastChangedUser = ProcessHandle.current().info().user().get();
+        this.lastChangedTime = new Date(SystemProxy.currentTimeMillis());
+        lastChangedUser = getUser();
     }
 
-    public AuditInfo(Date lastChangedTime) {
-        lastChangedUser = ProcessHandle.current().info().user().get();
-        this.lastChangedTime = lastChangedTime;
+    /**
+     * Gets the current user, or a default value if the user cannot be determined.
+     * Logs any errors while determining the user.
+     *
+     * @return the current user name, as a string, or a default value
+     */
+    private String getUser() {
+        // First try to get the user from the process handle.
+        try {
+            return getUserFromProcessHandle();
+        } catch (Throwable e) {
+            log.error("Unable to get current user from process handle", e);
+        }
+
+        // Then try the system properties.
+        try {
+            return getUserFromProperties();
+        } catch (SecurityException e) {
+            log.error("Unable to read current user name property", e);
+        }
+
+        // If all else fails, return a default value.
+        return UNKNOWN_USER_NAME;
     }
 
     /**
@@ -73,5 +107,30 @@ public class AuditInfo {
     @Override
     public String toString() {
         return ReflectionToStringBuilder.toString(this);
+    }
+
+    /**
+     * Gets the current effective user from the system process handle.
+     * Note that this throws <code>Throwable</code> rather than a specified
+     * exception, because a bug in OS X Java 17 causes a throw from the
+     * <code>info()</code> method which is not documented. Default scope
+     * for overriding during unit testing.
+     *
+     * @return the current effective user name
+     * @throws Throwable if there is an error accessing the process info
+     */
+    String getUserFromProcessHandle() throws Throwable {
+        return ProcessHandle.current().info().user().get();
+    }
+
+    /**
+     * Gets the user from the system properties. Default scope for overriding
+     * during unit testing.
+     *
+     * @return the user name
+     * @throws SecurityException if the system property cannot be accessed
+     */
+    String getUserFromProperties() throws SecurityException {
+        return System.getProperty(PropertyName.USER_NAME.property());
     }
 }

@@ -10,6 +10,7 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createMenuItem;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
+import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import java.util.Set;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -74,14 +76,20 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
     private JPanel buttonPanel;
 
     public AbstractViewEditPanel(TableModel tableModel) {
-        ziggyTable = new ZiggyTable<>(tableModel);
-        table = getTable(ziggyTable);
+        this(new ZiggyTable<>(tableModel));
     }
 
     public AbstractViewEditPanel(RowModel rowModel, ZiggyTreeModel<?> treeModel,
         String nodesColumnLabel) {
-        ziggyTable = new ZiggyTable<>(rowModel, treeModel, nodesColumnLabel);
+        this(new ZiggyTable<>(rowModel, treeModel, nodesColumnLabel));
+    }
+
+    private AbstractViewEditPanel(ZiggyTable<T> ziggyTable) {
+        this.ziggyTable = ziggyTable;
         table = getTable(ziggyTable);
+
+        buildComponent();
+        addHierarchyListener(this::hierarchyListener);
     }
 
     /**
@@ -91,16 +99,24 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
      * model can be updated if necessary.
      */
     private ETable getTable(ZiggyTable<T> ziggyTable) {
-        table = ziggyTable.getTable();
+        ETable table = ziggyTable.getTable();
         table.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         return table;
     }
 
-    protected void buildComponent() {
+    private void buildComponent() {
         setLayout(new BorderLayout());
         setPreferredSize(new Dimension(400, 300));
         add(getButtonPanel(), BorderLayout.NORTH);
         add(getScrollPane(), BorderLayout.CENTER);
+    }
+
+    // Ensure panel is current whenever it is made visible.
+    private void hierarchyListener(HierarchyEvent evt) {
+        JComponent component = (JComponent) evt.getSource();
+        if ((evt.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && component.isShowing()) {
+            refresh();
+        }
     }
 
     private Map<OptionalViewEditFunction, Action> panelActions() {

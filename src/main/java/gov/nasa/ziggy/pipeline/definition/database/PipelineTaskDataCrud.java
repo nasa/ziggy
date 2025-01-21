@@ -157,6 +157,14 @@ public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {
             .distinct(true);
     }
 
+    public String retrievePipelineSoftwareRevision(PipelineTask pipelineTask) {
+        return uniqueResult(createZiggyQuery(PipelineTaskData.class, String.class)
+            .column(PipelineTaskData_.pipelineTaskId)
+            .in(pipelineTask.getId())
+            .column(PipelineTaskData_.pipelineSoftwareRevision)
+            .select());
+    }
+
     /**
      * Retrieves the list of distinct softwareRevisions for the specified pipeline instance.
      */

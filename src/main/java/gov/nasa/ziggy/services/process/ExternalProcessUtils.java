@@ -34,11 +34,7 @@ public class ExternalProcessUtils {
      * The Java library path as a JVM argument.
      */
     public static String javaLibraryPath() {
-        return "-Djava.library.path=" + bareJavaLibraryPath();
-    }
-
-    public static String jnaLibraryPath() {
-        return "-Djna.library.path=" + bareJavaLibraryPath();
+        return "-D" + PropertyName.JAVA_LIBRARY_PATH + "=" + bareJavaLibraryPath();
     }
 
     /**

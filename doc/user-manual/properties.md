@@ -37,7 +37,7 @@ Ziggy actually uses two properties files.
 
 The pipeline properties file contains the properties that you, the pipeline user, are more likely to want to edit. This is the file that `PIPELINE_CONFIG_PATH` needs to point to. You likely seeded your file with the copy in `ZIGGY_ROOT/etc/pipeline.properties.EXAMPLE`.
 
-The other properties file is the Ziggy properties file, which is stored with the main Ziggy code, at `etc/ziggy.properties`. These are properties that you, the pipeline user, are unlikely to ever want to mess with. Ziggy finds the latter via -- yeah, you got it -- a property in the former, specifically `ziggy.config.path`.
+The other properties file is the Ziggy properties file, which is stored with the main Ziggy code, at `etc/ziggy.properties`. These are properties that you, the pipeline user, are unlikely to ever want to mess with.
 
 In a real, normal pipeline, our recommendation is to put the pipeline properties file someplace outside of the directories that are under version control. This way you can modify them to your heart's content without fear that you'll accidentally commit your changes back to the Ziggy repository. The Ziggy properties file can stay in the version-controlled directories unless you decide to modify it, in which case it, too, needs to be copied out to avoid corrupting the repository.
 
@@ -59,7 +59,7 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | hibernate.show_sql | Write generated queries to log file | false |
 | hibernate.use_sql_comments | Generate comments in generated queries | false |
 | java.home | Location of Java used by the ziggy program to override the Java on your search path (see the article on [running the cluster](running-pipeline.md) for more information on the ziggy program) | $JAVA_HOME |
-| ziggy.config.path | Location of Ziggy's configuration file | ./etc/ziggy.properties |
+| java.rmi.server.hostname | Hostname of RMI server | localhost |
 | ziggy.database.bin.dir | Location of the RDBMS executables | $PATH |
 | ziggy.database.conf.file | Location of the database configuration file; not used with a system database | "" |
 | ziggy.database.connections | Number of connections database will accept; not used with a system database | None |

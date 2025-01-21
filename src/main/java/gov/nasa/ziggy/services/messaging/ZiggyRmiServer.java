@@ -120,6 +120,22 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
     }
 
     /**
+     * Gets the background broadcast thread. Default scope for unit testing.
+     *
+     * @return the broadcast thread
+     */
+    Thread getBroadcastThread() {
+        return broadcastThread;
+    }
+
+    /**
+     * Stops the background publishing thread.
+     */
+    private void stop() {
+        broadcastThread.interrupt();
+    }
+
+    /**
      * Constructs an instance of the class and assigns it as the singleton instance. This includes
      * construction of the RMI registry.
      * <P>
@@ -145,6 +161,13 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
         }
 
         log.info("Starting RMI communications server with registry on port {}", rmiPort());
+
+        // Set the RMI server hostname, if specfied in the pipeline properties.
+        String rmiServerHostname = ZiggyConfiguration.getInstance().getString(
+            PropertyName.JAVA_RMI_SERVER_HOSTNAME.property(), null);
+        if (rmiServerHostname != null) {
+            System.setProperty("java.rmi.server.hostname", rmiServerHostname);
+        }
 
         try {
             ZiggyRmiServer serverInstance = new ZiggyRmiServer();
@@ -282,6 +305,9 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
      * Nullifies the singleton instance of the communicator.
      */
     public static void reset() {
+        if (instance != null) {
+            instance.stop();
+        }
         instance = null;
         messagesReceived.clear();
     }

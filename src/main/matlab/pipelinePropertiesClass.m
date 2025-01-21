@@ -47,8 +47,9 @@ function obj = pipelinePropertiesClass()
     
 %   get the location of the Ziggy configuration
 
-    obj.ziggyConfigPath = char(configurationObject.getString('ziggy.config.path')) ;
-    if ~isempty(obj.ziggyConfigPath) && exist(obj.ziggyConfigPath,'file') ~= 0
+    ziggyHomeDir = char(configurationObject.getString('ziggy.home.dir')) ;
+    obj.ziggyConfigPath =  append(ziggyHomeDir, '/etc/ziggy.properties');
+    if exist(obj.ziggyConfigPath,'file')
         ziggyConfigFile = File(obj.ziggyConfigPath) ;
         ziggyConfiguration = PropertiesConfiguration(ziggyConfigFile) ;
         configurationObject.addConfiguration(ziggyConfiguration) ;

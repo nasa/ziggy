@@ -1,15 +1,12 @@
 // Show all dependencies.
 task allDeps(type: DependencyReportTask) {}
 
-def gitVersion = new ByteArrayOutputStream()
-exec {
+def gitVersionProvider = providers.exec {
     commandLine "git", "rev-parse", "HEAD"
-    standardOutput = gitVersion
 }
-gitVersion = gitVersion.toString().trim()
 
 task ziggyVersion(type: JavaExec) {
-    inputs.property "ziggyVersion", gitVersion
+    inputs.property "ziggyVersion", gitVersionProvider.standardOutput.asText.get().trim()
     outputs.file "$buildDir/etc/ziggy-build.properties"
     classpath = sourceSets.main.runtimeClasspath
     mainClass = "gov.nasa.ziggy.util.BuildInfo"

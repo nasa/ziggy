@@ -1,10 +1,12 @@
 **/.gradle*
 **/__pycache__
 **/build
+*.egg-info
 *.mexmaci64
 .classpath
 .cproject
 .factorypath
+.idea
 .project
 .pydevproject
 .settings

@@ -6,6 +6,14 @@ standard. HDF5 files are read into a Python dictionary; similarly, Python dictio
 can be written to HDF5 files. The necessary metadata and organization for the HDF5
 Persistable standard can thus be applied or interpreted as necessary. 
 
+The dictionary returned from Hdf5ModuleInterface uses Python built-in data structures
+to represent all the data in the HDF5 file. Specifically: data that would be represented
+as a struct in another language will be represented here as a dictionary; data that would
+be represented as an array in another language will be represented here as a tuple (or a
+multi-dimensional tuple for multi-dimensional arrays); arrays of structs are represented
+as tuples of dictionaries. The class also requires that dictionaries that are written to
+HDF5 obey these same requirements (i.e., no numpy arrays or other funny business).
+
 This is based in large part on the MATLAB hdf5ConverterClass.
 
 @author PT
@@ -16,10 +24,9 @@ import h5py
 import numpy
 import numbers
 from numpy import int8
+from operator import mul
+from functools import reduce
 
-class StructTemplate:
-        pass
-    
 class Hdf5ModuleInterface:
     
     def __init__(self):
@@ -68,7 +75,7 @@ class Hdf5ModuleInterface:
         return type_attribute_map
     
     def set_compression_level(self, compression_level):
-        self._compression_level = int(compression_level);
+        self._compression_level = int(compression_level)
         
     def set_compression_min_elements(self, compression_min_elements):
         self._compression_min_elements = int(compression_min_elements)
@@ -92,6 +99,7 @@ class Hdf5ModuleInterface:
     def read_file(self, file_name, group_name = ""):  
         
         file = h5py.File(file_name, "r")
+        hdf5_contents = ""
         no_match = False
         if not group_name:
             hdf5_contents = self._read_groups(file)
@@ -113,7 +121,6 @@ class Hdf5ModuleInterface:
     # that group is returned, otherwise an empty string is returned. 
     def _find_group(self, group, group_name):
         
-        return_value = ""
         # if the group_name starts with the HDF5 group delimiter, lop it off
         # now
         
@@ -130,12 +137,10 @@ class Hdf5ModuleInterface:
         
         if sub_group in group and isinstance(group[sub_group], h5py.Group):
             if len(split_group_name) > 1:
-                return_value = self._find_group(sub_group, split_group_name[1])
+                return self._find_group(sub_group, split_group_name[1])
             else:
-                return_value = group[sub_group]
-                
-        return return_value
-    
+                return group[sub_group]
+
     # Reads a set of HDF5 groups into a dictionary. Note that the Persistable standard
     # for HDF5 files requires that a group have either sub-groups or a dataset but
     # never both, so it is not necessary for this method to check for datasets -- the
@@ -149,9 +154,7 @@ class Hdf5ModuleInterface:
             j = self._read_group(group[k])
             return_value.update({k : j})
             
-        q = StructTemplate()
-        q.__dict__ = return_value
-        return q
+        return return_value
     
     # Returns an ordered set of subgroups for a group. If the _preserve_field_order
     # attribute is True, the order of the keys will be the order which they were created
@@ -160,7 +163,7 @@ class Hdf5ModuleInterface:
     def _get_group_keys(self, group):
         
         group_keys = group.keys()
-        if not (self._preserve_field_order):
+        if not self._preserve_field_order:
             returned_keys = group_keys
         else:
             keys_dict = dict()
@@ -219,21 +222,28 @@ class Hdf5ModuleInterface:
     def _read_dataset(self, group):
         
         k = [*group.keys(),]
-        return_value = group[k[0]][()]
+        group_value = group[k[0]][()]
+
         if self._is_bool_array(group):
-            return_value = return_value.astype(bool)
+            group_value = group_value.astype(bool)
         
         data_type = group.attrs["DATA_TYPE"]
         if data_type == self._TYPE_ATTRIBUTE_MAP[numpy.str_]:
-            return_value = self._to_strings(return_value)
+            group_value = self._to_strings(group_value)
             
-        # special case of scalar value
-        if numpy.ndim(return_value) == 1 and len(return_value) == 1:
-            return_value = return_value[0]
-        
-        
-        return return_value
-    
+        # Unfortunately, the Python Principle of Most Surprise means that, in converting
+        # to a tuple, we need to consider 3 cases:
+        # Scalar: get the scalar out of the ndarray
+        # 1-D array: convert using tuple()
+        # >1-D array: convert using a combination of tuple() and map().
+        if numpy.ndim(group_value) == 1:
+            if len(group_value) == 1:
+                return group_value[0]
+            else:
+                return tuple(group_value)
+        else:
+            return tuple(map(tuple, group_value))
+
     # Determines whether a group's contents are a booolean array that was cast to bytes
     # for HDF5 storage
     def _is_bool_array(self, group):
@@ -247,9 +257,8 @@ class Hdf5ModuleInterface:
         for i in range(return_value.size):
             if hasattr(return_value[i], 'decode'):   
                 return_value[i] = return_value[i].decode()
-        return_value = return_value.reshape(original_shape)
-        return return_value
-    
+        return return_value.reshape(original_shape)
+
     # Reads into memory a struct of parallel arrays that was originally a struct array of
     # primitives. If _reconstitute_struct_array is true, the original struct array is 
     # rebuilt from the contents of the paralell arrays into a multi-dimensional list of
@@ -258,45 +267,59 @@ class Hdf5ModuleInterface:
         
         return_value = ""
         struct0 = self._read_groups(group)
+
+        if not self._reconstitute_struct_array:
+            return struct0
         
-        # Do we need to convert back to a struct array? In this case it will be an array
+        # Do we need to convert back to a struct array? In this case it will be a tuple
         # of dictionaries, each of which will have scalar primitive contents. Note that
         # this is a really painful thing to have to do, so should only be done if there's
         # a very good reason for it!
-        if self._reconstitute_struct_array:
-            
-            # determine the shape that's needed eventually:
-            struct0_dict = struct0.__dict__
-            fields = list(struct0_dict.keys())
-            shape = struct0_dict[fields[0]].shape
-            
-            # convert all the parallel arrays to 1-dimensional
+
+        # determine the shape that's needed eventually:
+        fields = list(struct0.keys())
+        shape = numpy.asarray(struct0[fields[0]]).shape
+
+        # convert all the parallel arrays to 1-dimensional numpy arrays
+        for field in fields:
+            struct0[field] = numpy.asarray(struct0[field]).flatten()
+
+        # construct 1-d list to hold the results
+        n_elem = len(struct0[fields[0]])
+        list_1_d = [None] * n_elem
+
+        # populate the list -- loop over elements and within that over fields
+        for i_elem in range(n_elem):
+            d = dict()
             for field in fields:
-                struct0_dict[field] = struct0_dict[field].flatten()
-            
-            # construct 1-d list to hold the results
-            n_elem = len(struct0_dict[fields[0]])
-            list_1_d = [None] * n_elem
-            
-            # populate the list -- loop over elements and within that over fields
-            for i_elem in range(n_elem):
-                d = dict()
-                for field in fields:
-                    d.update({field : struct0_dict[field][i_elem]})
-                    
-                q = StructTemplate()
-                q.__dict__ = d
-                list_1_d[i_elem] = q
-                
-            # reshape to desired n-dimensional shape
-            list_n_d = numpy.reshape(list_1_d, shape)
-            return_value = list_n_d
-            
-        else:
-            return_value = struct0
-            
-        return return_value
-    
+                d.update({field : struct0[field][i_elem]})
+
+            list_1_d[i_elem] = d
+
+        # reshape to desired n-dimensional shape
+        return self._reshape_list_as_tuple(list_1_d, shape)
+
+    # Takes a list and converts it into a nested collection of tuples. The shape of the resulting
+    # tuple is given by the shape argument.
+    def _reshape_list_as_tuple(self, list_1_d, shape):
+
+        # If the shape is 1-dimensional, return the list.
+        if len(shape) == 1:
+            r = tuple(list_1_d)
+            return r
+
+        # otherwise determine the size of the list for the current dimension. For example,
+        # if shape is [2 3 5], then we need to produce 2 list elements, each of which contains
+        # a total of 15 elements (3*5).
+        list_size = reduce(mul, shape[1:])
+
+        # Recursively build the lists that are elements of the current-dimension list.
+        r = [self._reshape_list_as_tuple(list_1_d[list_counter * list_size: (list_counter + 1) * list_size], shape[1:])
+             for list_counter in range(len(list_1_d) // list_size)]
+        rr = tuple(r)
+        return tuple(rr)
+
+
     # Reads a struct array from an HDF5 file. The resulting array is returned as an
     # n-dimensional list of dictionaries
     def _read_struct_array(self, group):
@@ -319,11 +342,8 @@ class Hdf5ModuleInterface:
             content = self._read_group(group[i_group])
             location = self._struct_array_location(i_group, array_dims)
             list_1_d[location] = content
-           
-        # reshape as needed        
-        list_n_d = numpy.reshape(list_1_d, array_dims)
         
-        return list_n_d
+        return self._reshape_list_as_tuple(list_1_d, array_dims)
     
     # Converts an array location to an index. The array location is encoded in 
     # the name of the corresponding HDF5 group, i.e., <groupName>-#-#-#-... .
@@ -351,7 +371,7 @@ class Hdf5ModuleInterface:
             
         return ind
     
-    # Writes an instance of a Python class (or a Python dictionary) to an 
+    # Writes an instance of a Python dictionary to an
     # HDF5 file. The write process supports all the functionality needed for
     # the HDF5 Persistable specification.
     def write_file(self, file_name, data_object):
@@ -363,10 +383,9 @@ class Hdf5ModuleInterface:
     # writes a scalar "struct" (in this case an object or a dictionary) to
     # an HDF5 file. 
     def _write_scalar_struct(self, data_object, group):
-        
-        if hasattr(data_object, "__dict__"):
+
+        if hasattr(data_object, '__dict__'):
             data_object = data_object.__dict__
-            
         if not isinstance(data_object, dict):
             raise ValueError("_write_scalar_struct takes a class instance or dict as argument")
         
@@ -391,13 +410,13 @@ class Hdf5ModuleInterface:
             # empty field
             if value is None or (isinstance(value, str) and len(value) == 0):
                 new_group.attrs.create("EMPTY_FIELD", numpy.array([0], dtype=numpy.int8))
-                
-            # object -- recursive call to this method
-            elif hasattr(value, "__dict__"):
-                self._write_scalar_struct(value, new_group)
-            
+
             # dictionary -- recursive call to this method
             elif isinstance(value, dict):
+                self._write_scalar_struct(value, new_group)
+
+            # object -- recursive call to this method
+            elif hasattr(value, '__dict__'):
                 self._write_scalar_struct(value, new_group)
                 
             # numeric
@@ -413,7 +432,7 @@ class Hdf5ModuleInterface:
                 self._write_string_array(np_value, new_group, k)
                 
             # object list, set or array:
-            elif self._is_dict_or_object_array(np_value):
+            elif self._is_dict_array(np_value):
                 self._write_struct_array(value, new_group, k)
                 
             # something not supported
@@ -426,15 +445,14 @@ class Hdf5ModuleInterface:
         fvalue = value.flatten()
         return all(isinstance(v, str) for v in fvalue)
     
-    # determines whether a data object is a numpy array of objects or dictionaries
-    
-    def _is_dict_or_object_array(self, value):
+    # determines whether a data object is a numpy array of dictionaries
+    def _is_dict_array(self, value):
         
         fvalue = value.flatten()
-        is_struct_array = True;
+        is_struct_array = True
         for v in fvalue:
-            is_struct = hasattr(v, "__dict__") or isinstance(v, dict)
-            is_struct_array = is_struct_array and is_struct
+            is_dict = isinstance(v, dict) or hasattr(v, '__dict__')
+            is_struct_array = is_struct_array and is_dict
         return is_struct_array
     
     # Writes a numeric array to an HDF5 group. Here we assume that the value has been
@@ -444,12 +462,12 @@ class Hdf5ModuleInterface:
         # write the type attribute
         array_dtype = str(value.dtype)
             
-        group.attrs.create("DATA_TYPE", numpy.array([self._TYPE_ATTRIBUTE_MAP[array_dtype]], \
+        group.attrs.create("DATA_TYPE", numpy.array([self._TYPE_ATTRIBUTE_MAP[array_dtype]],
                 dtype=numpy.int8))
         
         # create and write the dataset
         if self._compression_level > 0 and value.size > self._compression_min_elements:
-            group.create_dataset(name, shape=value.shape, dtype=array_dtype, data=value, \
+            group.create_dataset(name, shape=value.shape, dtype=array_dtype, data=value,
                     compression="gzip", compression_opts=self._compression_level)
         else:
             group.create_dataset(name, shape=value.shape, dtype=array_dtype, data=value)
@@ -465,12 +483,12 @@ class Hdf5ModuleInterface:
     def _write_string_array(self, value, group, name):  
         
         # write the correct type attribute
-        group.attrs.create("DATA_TYPE", numpy.array(self._TYPE_ATTRIBUTE_MAP[numpy.str_], \
+        group.attrs.create("DATA_TYPE", numpy.array(self._TYPE_ATTRIBUTE_MAP[numpy.str_],
                 dtype=numpy.int8)) 
         
         # write the array (but first it has to be converted to UTF-8)
         value = self._to_utf8(value)
-        group.create_dataset(name, shape=value.shape, dtype=h5py.string_dtype(), \
+        group.create_dataset(name, shape=value.shape, dtype=h5py.string_dtype(),
                 data=value)
         
     # Converts an array of strings in any encoding to the UTF-8 encoding desired by 
@@ -506,15 +524,14 @@ class Hdf5ModuleInterface:
             self._write_struct_as_parallel_array(value, group)
             
         else:
-            
+            npvalue = numpy.array(value)
             # write some group information
             
             group.attrs.create("STRUCT_OBJECT_ARRAY", numpy.array([0], dtype=numpy.int8))
-            group.attrs.create("STRUCT_OBJECT_ARRAY_DIMS", \
-                    numpy.array(value.shape, dtype=numpy.int64))
+            group.attrs.create("STRUCT_OBJECT_ARRAY_DIMS",
+                    numpy.array(npvalue.shape, dtype=numpy.int64))
             # make a numpy array out of the struct array, since it could be a list or something
             # like that; also flatten it but capture the original size
-            npvalue = numpy.array(value)
             original_shape = npvalue.shape
             npvalue = npvalue.flatten()
             
@@ -529,7 +546,7 @@ class Hdf5ModuleInterface:
         
         # convert the value to an array and flatten it
         fvalue = numpy.array(value).flatten()
-        sample_dict = fvalue[0];
+        sample_dict = fvalue[0]
         if hasattr(sample_dict, "__dict__"):
             sample_dict = sample_dict.__dict__
         
@@ -567,19 +584,16 @@ class Hdf5ModuleInterface:
             if len(value) == 1:
                 is_scalar = True
                 scalar_value = value[0]
+        elif isinstance(value, tuple):
+            if (len(value)) == 1:
+                is_scalar = True
+                scalar_value = value[0]
         elif isinstance(value, set):
             if len(value) == 1:
                 is_scalar = True
                 list_value = list(value)
                 scalar_value = list_value[0]
-        elif isinstance(value, numpy.array):
-            if value.ndim == 0:
-                is_scalar = True
-                scalar_value = value[()]
-            elif value.ndim == 1 and value.size == 1:
-                is_scalar = True
-                scalar_value = value[0]
-                
+
         return is_scalar, scalar_value
     
     # determines whether its argument is a number, bool, or string. It is assumed that the
@@ -607,7 +621,7 @@ class Hdf5ModuleInterface:
                 npvalue[n] = npvalue[n].__dict__
         
         # set up a new dictionary
-        pvalue = dict();
+        pvalue = dict()
         
         npvalue0 = npvalue[0]
         npvalue_shape = npvalue.shape

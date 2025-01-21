@@ -15,10 +15,15 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
 /**
@@ -41,6 +46,14 @@ public class DatastoreProducerConsumerOperationsTest {
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
+
+    public ZiggyDirectoryRule ziggyDirectoryRule = new ZiggyDirectoryRule();
+    public ZiggyPropertyRule datastoreRootRule = new ZiggyPropertyRule(
+        PropertyName.DATASTORE_ROOT_DIR, ziggyDirectoryRule, "datastore");
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule(ziggyDirectoryRule)
+        .around(datastoreRootRule);
 
     @Before
     public void setup() {
@@ -202,6 +215,30 @@ public class DatastoreProducerConsumerOperationsTest {
         datastoreProducerConsumerOperations.createOrUpdateProducer(pipelineTask, List.of(PATH_3));
         List<String> consumedFiles = datastoreProducerConsumerOperations
             .consumedFiles(Set.of(PATH_3));
+        assertTrue(consumedFiles.contains(PATH_1.toString()));
+        assertTrue(consumedFiles.contains(PATH_2.toString()));
+        assertEquals(2, consumedFiles.size());
+    }
+
+    @Test
+    public void testConsumedFilesWithAbsolutePaths() {
+
+        // Put two files into the system as produced by the sample pipeline task.
+        datastoreProducerConsumerOperations.createOrUpdateProducer(pipelineTask,
+            List.of(PATH_1, PATH_2));
+
+        // Create a consumer of the two files.
+        Mockito.when(pipelineTask.getId()).thenReturn(100L);
+        datastoreProducerConsumerOperations.addConsumer(pipelineTask,
+            Set.of(PATH_1.toString(), PATH_2.toString()));
+
+        // Create a file produced by the new task.
+        datastoreProducerConsumerOperations.createOrUpdateProducer(pipelineTask, List.of(PATH_3));
+
+        // Use the absolute path of PATH_3 and ensure that the correct consumed files are returned.
+
+        List<String> consumedFiles = datastoreProducerConsumerOperations.consumedFiles(
+            Set.of(DirectoryProperties.datastoreRootDir().toAbsolutePath().resolve(PATH_3)));
         assertTrue(consumedFiles.contains(PATH_1.toString()));
         assertTrue(consumedFiles.contains(PATH_2.toString()));
         assertEquals(2, consumedFiles.size());

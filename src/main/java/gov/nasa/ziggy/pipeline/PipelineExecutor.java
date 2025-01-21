@@ -1,5 +1,10 @@
 package gov.nasa.ziggy.pipeline;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -9,6 +14,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +51,9 @@ import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
+import gov.nasa.ziggy.util.AcceptableCatchBlock;
+import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /***
  * Encapsulates the launch and transition logic for pipelines.
@@ -62,6 +71,8 @@ import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
  */
 public class PipelineExecutor {
     private static final Logger log = LoggerFactory.getLogger(PipelineExecutor.class);
+    private static final Path MCR_CACHE_PARENT_DIR = Paths.get("/tmp");
+    private static final String MCR_CACHE_DIR_PREFIX = "mcr_cache_";
 
     /** Map from pipeline instance ID to event labels. */
     private static Map<Long, Set<String>> instanceEventLabels = new HashMap<>();
@@ -76,6 +87,10 @@ public class PipelineExecutor {
     private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
     private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
     private RuntimeObjectFactory objectFactory = new RuntimeObjectFactory();
+
+    // Fields used for debugging.
+
+    private List<TaskRequest> taskRequests = new ArrayList<>();
 
     /**
      * Launch a new {@link PipelineInstance} for this {@link PipelineDefinition} with optional
@@ -118,13 +133,22 @@ public class PipelineExecutor {
      * The transition logic generates the worker task request messages for the next module in this
      * pipeline. This method only executes if the task in question completed successfully.
      */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void transitionToNextInstanceNode(PipelineInstanceNode instanceNode) {
 
-        List<PipelineInstanceNode> nodesForLaunch = pipelineInstanceNodeOperations()
-            .nextPipelineInstanceNodes(instanceNode.getId());
+        try {
+            log.debug("Deleting MCR cache directory tree");
+            ZiggyFileUtils.deleteDirectoryTree(mcrCacheDir(instanceNode.getModuleName()), false);
+            List<PipelineInstanceNode> nodesForLaunch = pipelineInstanceNodeOperations()
+                .nextPipelineInstanceNodes(instanceNode.getId());
 
-        for (PipelineInstanceNode node : nodesForLaunch) {
-            launchNode(node);
+            for (PipelineInstanceNode node : nodesForLaunch) {
+                launchNode(node);
+            }
+            pipelineInstanceNodeOperations()
+                .markInstanceNodeTransitionComplete(instanceNode.getId());
+        } catch (RuntimeException e) {
+            pipelineInstanceNodeOperations().markInstanceNodeTransitionFailed(instanceNode);
         }
     }
 
@@ -231,24 +255,27 @@ public class PipelineExecutor {
      * @param queueName
      * @return
      */
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void launchNode(PipelineInstanceNode instanceNode) {
-        log.debug("launchNode 1: start");
         ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = unitOfWorkGenerator(
             instanceNode.getPipelineDefinitionNode());
-
-        PipelineInstance instance = pipelineInstanceNodeOperations().pipelineInstance(instanceNode);
-
-        log.debug("launchNode 2: start");
 
         if (!unitOfWorkGenerator.isInitialized()) {
             throw new PipelineException(
                 "Configuration Error: Unable to launch node because no UnitOfWorkGenerator class is defined");
         }
 
+        log.debug("Creating MCR cache directory");
+        try {
+            Files.createDirectories(mcrCacheDir(instanceNode.getModuleName()));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
         log.debug("Generating tasks");
-        List<UnitOfWork> unitsOfWork = new ArrayList<>();
-        unitsOfWork = generateUnitsOfWork(unitOfWorkGenerator.newInstance(), instanceNode,
-            instance);
+        PipelineInstance instance = pipelineInstanceNodeOperations().pipelineInstance(instanceNode);
+        List<UnitOfWork> unitsOfWork = generateUnitsOfWork(unitOfWorkGenerator.newInstance(),
+            instanceNode, instance);
         log.info("Generated {} tasks for pipeline definition node {}", unitsOfWork.size(),
             instanceNode.getModuleName());
 
@@ -259,6 +286,22 @@ public class PipelineExecutor {
             pipelineInstanceOperations().setInstanceToErrorsStalledState(instance);
             throw new PipelineException("Task generation did not generate any tasks!  UOW class: "
                 + unitOfWorkGenerator.getClassName());
+        }
+
+        // If we're retrying the transition, it's possible that some or all of the tasks that
+        // we need already exist in the database, in which case we should use them.
+        List<PipelineTask> existingTasks = pipelineInstanceNodeOperations()
+            .pipelineTasks(List.of(instanceNode));
+        if (!CollectionUtils.isEmpty(existingTasks)) {
+            log.info("Retrieved {} pre-existing tasks for module {}", existingTasks.size(),
+                instanceNode.getModuleName());
+            List<String> existingUowBriefStates = existingTasks.stream()
+                .map(s -> s.getUnitOfWork().briefState())
+                .collect(Collectors.toList());
+            unitsOfWork = unitsOfWork.stream()
+                .filter(s -> !existingUowBriefStates.contains(s.briefState()))
+                .collect(Collectors.toList());
+            launchTasks(existingTasks);
         }
         launchTasks(instanceNode, instance, unitsOfWork);
     }
@@ -274,6 +317,10 @@ public class PipelineExecutor {
         List<UnitOfWork> tasks) {
         List<PipelineTask> pipelineTasks = objectFactory.newPipelineTasks(instanceNode, instance,
             tasks);
+        launchTasks(pipelineTasks);
+    }
+
+    void launchTasks(List<PipelineTask> pipelineTasks) {
         for (PipelineTask pipelineTask : pipelineTasks) {
             sendTaskRequestMessage(pipelineTask,
                 pipelineTaskOperations().pipelineInstance(pipelineTask).getPriority(), false,
@@ -301,6 +348,9 @@ public class PipelineExecutor {
             doTransitionOnly, runMode);
 
         ZiggyMessenger.publish(taskRequest);
+        if (storeTaskRequests()) {
+            taskRequests.add(taskRequest);
+        }
     }
 
     public static List<UnitOfWork> generateUnitsOfWork(UnitOfWorkGenerator uowGenerator,
@@ -332,6 +382,11 @@ public class PipelineExecutor {
         // Now that the UOWs have their brief states properly assigned, sort them by brief state
         // and return.
         return uows.stream().sorted().collect(Collectors.toList());
+    }
+
+    /** Returns the {@link Path} for the MATLAB Compiler Runtime (MCR) cache. */
+    public static Path mcrCacheDir(String moduleName) {
+        return MCR_CACHE_PARENT_DIR.resolve(MCR_CACHE_DIR_PREFIX + moduleName);
     }
 
     public PipelineTaskOperations pipelineTaskOperations() {
@@ -374,7 +429,27 @@ public class PipelineExecutor {
         return objectFactory;
     }
 
+    /**
+     * During testing, use Mockito to return false here to avoid actually trying to publish
+     * messages.
+     */
     public boolean taskRequestEnabled() {
         return true;
+    }
+
+    /**
+     * Determines whether to store task requests during execution. In testing, use Mockito to return
+     * true when this method is called so that the task requests are stored and can be retrieved for
+     * inspection.
+     */
+    boolean storeTaskRequests() {
+        return false;
+    }
+
+    /**
+     * Returns the stored task requests that are submitted during execution. Used only in testing.
+     */
+    List<TaskRequest> getTaskRequests() {
+        return taskRequests;
     }
 }

@@ -32,6 +32,7 @@ import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.services.process.ExternalProcessUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.WrapperUtils;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 
 /**
@@ -74,7 +75,6 @@ public class HsqldbController extends DatabaseController {
     private static final String INSERT_INIT_TABLE_SQL = "insert into %s values('This database schema was automatically created on %s.')";
 
     private static final String HSQLDB_BIN_NAME = "hsqldb";
-    private static final String LOG_FILE = "hsqldb.log";
     private static final int DATABASE_SETTLE_MILLIS = 1000;
 
     /**
@@ -99,7 +99,11 @@ public class HsqldbController extends DatabaseController {
 
     @Override
     public Path logFile() {
-        return logDir().resolve(LOG_FILE);
+        return logFile(false);
+    }
+
+    private Path logFile(boolean wrapper) {
+        return logDir().resolve(WrapperUtils.logFilename(HSQLDB_BIN_NAME, wrapper));
     }
 
     @Override
@@ -329,9 +333,9 @@ public class HsqldbController extends DatabaseController {
             return 0;
         }
 
-        CommandLine supervisorStatusCommand = hsqldbCommand(WrapperCommand.START);
-        log.debug("supervisorStatusCommand={}", supervisorStatusCommand.toString());
-        int exitStatus = ExternalProcess.simpleExternalProcess(supervisorStatusCommand)
+        CommandLine commandLine = hsqldbCommand(WrapperCommand.START);
+        log.debug("commandLine={}", commandLine.toString());
+        int exitStatus = ExternalProcess.simpleExternalProcess(commandLine)
             .exceptionOnFailure()
             .execute();
         try {
@@ -348,9 +352,9 @@ public class HsqldbController extends DatabaseController {
             return 0;
         }
 
-        CommandLine supervisorStopCommand = hsqldbCommand(WrapperCommand.STOP);
-        log.debug("supervisorStopCommand={}", supervisorStopCommand.toString());
-        return ExternalProcess.simpleExternalProcess(supervisorStopCommand).execute(true);
+        CommandLine commandLine = hsqldbCommand(WrapperCommand.STOP);
+        log.debug("commandLine={}", commandLine.toString());
+        return ExternalProcess.simpleExternalProcess(commandLine).execute(true);
     }
 
     @Override
@@ -359,9 +363,9 @@ public class HsqldbController extends DatabaseController {
             return 0;
         }
 
-        CommandLine supervisorStatusCommand = hsqldbCommand(WrapperCommand.STATUS);
-        log.debug("supervisorStatusCommand={}", supervisorStatusCommand);
-        return ExternalProcess.simpleExternalProcess(supervisorStatusCommand).execute();
+        CommandLine commandLine = hsqldbCommand(WrapperCommand.STATUS);
+        log.debug("commandLine={}", commandLine);
+        return ExternalProcess.simpleExternalProcess(commandLine).execute();
     }
 
     @Override
@@ -378,7 +382,7 @@ public class HsqldbController extends DatabaseController {
             String ziggyLibDir = DirectoryProperties.ziggyLibDir().toString();
 
             commandLine
-                .addArgument(wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME, logFile().toString()))
+                .addArgument(wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME, logFile(true).toString()))
                 .addArgument(wrapperParameter(WRAPPER_CLASSPATH_PROP_NAME_PREFIX, 1,
                     DirectoryProperties.ziggyHomeDir().resolve("libs").resolve("*.jar").toString()))
                 .addArgument(
@@ -386,7 +390,7 @@ public class HsqldbController extends DatabaseController {
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
                     ExternalProcessUtils.log4jConfigString()))
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
-                    ExternalProcessUtils.ziggyLog(logFile().toString())));
+                    ExternalProcessUtils.ziggyLog(logFile(false).toString())));
         }
 
         return commandLine.addArgument(cmd.toString());

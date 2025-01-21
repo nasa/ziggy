@@ -5,6 +5,7 @@ import static hdf.hdf5lib.HDF5Constants.H5P_DEFAULT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -76,9 +77,6 @@ public class ModuleParametersHdf5ArrayTest {
         hdf5ModuleInterface.writeFile(testFile, testArticle, true);
 
         ModInterfaceTester loadArticle = new ModInterfaceTester();
-        loadArticle.setPersistableValue(null);
-        loadArticle.setPrimitiveValue(0);
-        loadArticle.setModuleParameters(new ModuleParameters());
         hdf5ModuleInterface.readFile(testFile, loadArticle, true);
         ModuleParameters m = loadArticle.getModuleParameters();
         Map<String, ParameterSet> p = m.getParameterSetsByName();
@@ -86,7 +84,9 @@ public class ModuleParametersHdf5ArrayTest {
         ParameterSet d = p.get("test default parameters");
         assertNotNull(d);
         assertEquals(d.getName(), "test default parameters");
+        assertEquals(d.getParameterSetNameOrModuleInterfaceName(), "moduleInterfaceName");
         assertEquals(d.getModuleInterfaceName(), "moduleInterfaceName");
+        assertTrue(d.hasModuleInterfaceName());
         Set<Parameter> t = d.getParameters();
         assertEquals(4, t.size());
         Map<String, Parameter> typedPropertyMap = new HashMap<>();
@@ -125,6 +125,29 @@ public class ModuleParametersHdf5ArrayTest {
             HDF5Constants.H5_INDEX_NAME);
         H5.H5Fclose(fileId);
         assertEquals("moduleInterfaceName", oname[0]);
+    }
+
+    @Test
+    public void testWriteAndReadNoModuleInterfaceName() {
+
+        File testFile = new File(workingDir, "test-file.h5");
+        ParameterSet parameterSet = testArticle.getModuleParameters()
+            .getParameterSetsByName()
+            .get("test default parameters");
+        parameterSet.setModuleInterfaceName(null);
+        Hdf5ModuleInterface hdf5ModuleInterface = new Hdf5ModuleInterface();
+        hdf5ModuleInterface.writeFile(testFile, testArticle, true);
+
+        ModInterfaceTester loadArticle = new ModInterfaceTester();
+        hdf5ModuleInterface.readFile(testFile, loadArticle, true);
+        ModuleParameters m = loadArticle.getModuleParameters();
+        Map<String, ParameterSet> p = m.getParameterSetsByName();
+        ParameterSet d = p.get("test default parameters");
+        assertNotNull(d);
+        assertEquals(d.getName(), "test default parameters");
+        assertEquals(d.getParameterSetNameOrModuleInterfaceName(), "test default parameters");
+        assertNull(d.getModuleInterfaceName());
+        assertFalse(d.hasModuleInterfaceName());
     }
 
     private ModuleParameters populateModuleParameters() {
@@ -205,16 +228,8 @@ public class ModuleParametersHdf5ArrayTest {
             return primitiveValue;
         }
 
-        public void setPrimitiveValue(int primitiveValue) {
-            this.primitiveValue = primitiveValue;
-        }
-
         public PersistableSample1 getPersistableValue() {
             return persistableValue;
-        }
-
-        public void setPersistableValue(PersistableSample1 persistableValue) {
-            this.persistableValue = persistableValue;
         }
 
         public ModuleParameters getModuleParameters() {

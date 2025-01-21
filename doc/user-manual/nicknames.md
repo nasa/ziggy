@@ -30,6 +30,8 @@ For more information, try `perldoc ziggy`.
 
 Once you've added some nicknames, you can create a symbolic link to the ziggy program and make it your own. For example, in the Science Processing Operations Center (SPOC) in TESS, we linked spocops to ziggy so that we could run `spocops import-target-list`.
 
+Note that if your program uses an option that is already used by the ziggy program, you will need to use the double dash (`--`) to signal the end of the options list. Continuing with the previous example, use `spocops import-target-list -- --dry-run` to pass `--dry-run` to your program, since this option is also understood by the ziggy program.
+
 [[Previous]](edit-pipeline.md)
 [[Up]](dusty-corners.md)
 [[Next]](advanced-uow.md)

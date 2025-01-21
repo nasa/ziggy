@@ -8,7 +8,6 @@ task buildLibZiggy(type: ZiggyCpp) {
     sourceFilePaths = ["$projectDir/src/main/cpp/libziggy"]
     includeFilePaths = ["$projectDir/src/main/cpp/libziggy"]
 
-    logging.captureStandardOutput LogLevel.INFO
     logging.captureStandardError LogLevel.INFO
 }
 
@@ -21,7 +20,7 @@ task buildLibZiggyMi(type: ZiggyCpp, dependsOn: copyHdf5Inc) {
     sourceFilePaths = ["$projectDir/src/main/cpp/libziggymi"]
     includeFilePaths = ["$projectDir/src/main/cpp/libziggymi", "$projectDir/src/main/cpp/libziggy",
                         "$buildDir/include"]
-    logging.captureStandardOutput LogLevel.INFO
+
     logging.captureStandardError LogLevel.INFO
 }
 

@@ -10,7 +10,10 @@ from sys import exc_info, stdout
 from inspect import getmodule
 from os import getcwd, sep
 from os.path import normpath
-from hdf5mi.hdf5 import Hdf5ModuleInterface # @UnresolvedImport
+if __package__ is None or __package__ == '':
+    from hdf5 import Hdf5ModuleInterface
+else:
+    from .hdf5 import Hdf5ModuleInterface
 from traceback import print_exception
 
 class ZiggyErrorReturn():
@@ -82,7 +85,7 @@ class ZiggyErrorWriter:
             seq_num = 0;
         
         # construct the error file name
-        error_file_name = module_name + "-error-" + str(seq_num) + ".h5"
+        error_file_name = module_name + "-error.h5"
         
         # get the information for the error file
         error_return = ZiggyErrorReturn()

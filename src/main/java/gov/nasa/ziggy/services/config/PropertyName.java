@@ -55,6 +55,15 @@ public enum PropertyName {
     JAVA_HOME("java.home"),
 
     /**
+     * The {@code java.library.path} system property. As it is not user-modifiable, this property
+     * should not be documented in the manual.
+     */
+    JAVA_LIBRARY_PATH("java.library.path"),
+
+    /** If specified, the RMI server hostname. */
+    JAVA_RMI_SERVER_HOSTNAME("java.rmi.server.hostname"),
+
+    /**
      * The {@code java.runtime.name} system property. As it is not user-modifiable, this property
      * should not be documented in the manual.
      */
@@ -113,9 +122,6 @@ public enum PropertyName {
 
     /** Algorithm name used in log files. */
     ZIGGY_ALGORITHM_NAME("ziggy.algorithmName"),
-
-    /** Location of the configuration properties for Ziggy. */
-    ZIGGY_CONFIG_PATH("ziggy.config.path"),
 
     /** Location of the database executables. */
     DATABASE_BIN_DIR("ziggy.database.bin.dir"),

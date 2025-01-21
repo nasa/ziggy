@@ -127,6 +127,17 @@ public class DatastoreOperationsTest {
     }
 
     @Test
+    public void testDataFileTypeRetrieval() {
+        DataFileType d1 = new DataFileType("d1", "dummy", "dummy");
+        DataFileType d2 = new DataFileType("d2", "dummy/dummy", "dummy");
+        new TestOperations().persistDataFileTypes(List.of(d1, d2));
+        DataFileType fromDatabase = new DatastoreOperations().dataFileType("d1");
+        assertEquals("d1", fromDatabase.getName());
+        assertEquals("dummy", fromDatabase.getLocation());
+        assertEquals("dummy", fromDatabase.getFileNameRegexp());
+    }
+
+    @Test
     public void testModelTypes() {
         ModelType m1 = new ModelType();
         m1.setType("m1");

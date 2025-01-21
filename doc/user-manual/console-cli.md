@@ -76,8 +76,7 @@ Request logs for the given task(s). This command is not yet implemented.
 
 **restart [--restartMode MODE] --instance ID | --task ID ...**
 
-Restart the given task(s) or all halted tasks in the given instance
-Restart tasks. Multiple `--task options` may be given. Task options can be comma-separated lists of IDs and ranges. Tasks are started with the given restart mode. The default is to restart from the beginning of the pipeline module. This command only has effect on tasks that errored out.
+Restart the given task(s) or all halted tasks or failed transitions in the given instance. Multiple `--task options` may be given. Task options can be comma-separated lists of IDs and ranges. Tasks are started with the given restart mode. The default is to restart from the beginning of the pipeline module. This command only has effect on tasks that errored out or with instances with failed transitions.
 
 ```console
 $ ziggy console restart --restartMode resubmit --task 2 --task 3,4,7-10

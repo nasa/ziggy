@@ -4,6 +4,47 @@
 
 These are the release notes for Ziggy. In the change log below, we'll refer to our internal Jira key for our benefit. If the item is associated with a resolved GitHub issue or pull request, we'll add a link to that. Changes that are incompatible with previous versions are marked below. While the major version is 0, we will be making breaking changes when bumping the minor number. However, once we hit version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v0.8.0: Polishing the cannonball
+
+This release consists of lots of little improvements. We added a tool to inject your pipeline version into your pipeline and updated the "ziggy" script so that you can override properties in ziggy.properties. We worked around a couple of issues that got in the way of running Ziggy on a Mac. We also fixed a bunch of annoying problems and improved the UI.
+
+## New Features
+
+1. Improve transition logic (ZIGGY-273)
+1. Change copyright years from 2022-2024 to 2022-2025 (ZIGGY-383)
+1. Add instanceId method to PipelineInputsOutputsUtils (ZIGGY-487)
+1. Need a way to force java.rmi.server.hostname for server and client processes (ZIGGY-492)
+1. Allow DatastoreProducerConsumerCrud method datastoreNames to handle relative and absolute paths (ZIGGY-501)
+1. Allow PipelineTaskInformation to populate PipelineInstanceNode parameter sets (ZIGGY-503)
+1. Add retriever for pipeline version information (ZIGGY-506)
+1. Update Python HDF5 and utility APIs (ZIGGY-513)
+1. Eliminate ziggy.config.path property and allow property overrides (ZIGGY-514)
+1. Add method to retrieve data file types (ZIGGY-521)
+
+## Bug Fixes
+
+1. Worker never exits when subtask errors (ZIGGY-478)
+1. Ziggy build should preclude using gcj for Java compilation (ZIGGY-481)
+1. Instances panel doesn't show new instances (ZIGGY-482)
+1. Ziggy nicknames not working (ZIGGY-483)
+1. Instance hangs upon log rotation (ZIGGY-484)
+1. Data receipt panel is empty (ZIGGY-486)
+1. Update pipeline definition doesn't set pipeline name in pipeline definition node (ZIGGY-493)
+1. Filtering instances when an instance is selected generates exception (ZIGGY-498)
+1. Setting maximum number of workers has no effect (ZIGGY-499)
+1. Fix bugs in moduleInterfaceName API (ZIGGY-504)
+1. Native library path not set correctly (ZIGGY-505)
+1. Pipeline fails if supervisor cannot introspect on the current ProcessHandle (ZIGGY-508)
+1. MATLAB fails to find log4j2 configuration (ZIGGY-509)
+1. Avoid rebuilding MATLAB binaries if nothing has changed (ZIGGY-511)
+1. Memory/thread leak in supervisor (ZIGGY-515)
+1. ziggy.pl eats command options (ZIGGY-516)
+1. Too many /tmp/mcr_cache directories (ZIGGY-517)
+1. Remote execution dialog calculates incorrect node count (ZIGGY-518)
+1. Python HDF5 API fails for 1-d array of dictionaries (ZIGGY-520)
+1. PbsParameters calculates non-physical wall time requests (ZIGGY-522)
+1. Remote execution dialog doesn't update when node sharing disabled (ZIGGY-523)
+
 # v0.7.0: Halloween release
 
 This release is coming out just before Halloween, and it's full of tricks and treats. Behind the scenes, we continued to buy down decades of technical debt. Are we finally getting close to paying off that loan? By eliminating the StateFile API (ZIGGY-465) and fixing ZIGGY-432, ZIGGY-454, and ZIGGY-478, the pipeline no longer stalls or crashes for mysterious reasons. We fixed a few UI annoyances like collapsing tree controls and Control-Click not working as expected on the Mac.

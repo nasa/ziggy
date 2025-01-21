@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
@@ -34,13 +34,10 @@ public class ViewEditModuleLibraryPanel extends AbstractViewEditPanel<PipelineMo
 
     public ViewEditModuleLibraryPanel() {
         super(new ModuleLibraryTableModel());
-
-        buildComponent();
-
-        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+        ZiggyMessenger.subscribe(PipelineInstanceStartedMessage.class, this::invalidateModel);
     }
 
-    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+    private void invalidateModel(PipelineInstanceStartedMessage message) {
         ziggyTable.loadFromDatabase();
     }
 

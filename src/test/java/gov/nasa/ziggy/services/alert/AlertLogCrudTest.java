@@ -128,7 +128,7 @@ public class AlertLogCrudTest {
     @Test
     public void testRetrieveAlertsByTask() {
         populateObjects();
-        List<AlertLog> alerts = testOperations.alertsForPipelineTasks(List.of(task5, task1));
+        List<AlertLog> alerts = alertLogOperations.alertLogs(List.of(task5, task1));
         assertEquals(4, alerts.size());
     }
 
@@ -258,10 +258,6 @@ public class AlertLogCrudTest {
             List<Severity> severities) {
             return performTransaction(
                 () -> new AlertLogCrud().retrieve(startDate, endDate, components, severities));
-        }
-
-        public List<AlertLog> alertsForPipelineTasks(List<PipelineTask> tasks) {
-            return performTransaction(() -> new AlertLogCrud().retrieveByPipelineTasks(tasks));
         }
 
         public PipelineInstance merge(PipelineInstance pipelineInstance) {

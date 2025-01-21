@@ -37,11 +37,12 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 public class InstancesControlPanel extends javax.swing.JPanel {
     private static final Logger log = LoggerFactory.getLogger(InstancesControlPanel.class);
 
-    private JCheckBox errorsStalledCheckBox;
     private JCheckBox initializedCheckBox;
     private JCheckBox processingCheckBox;
+    private JCheckBox completedCheckBox;
+    private JCheckBox errorsStalledCheckBox;
     private JCheckBox errorsRunningCheckBox;
-    private JCheckBox completeCheckBox;
+    private JCheckBox transitionFailedCheckBox;
     private JTextField ageTextField;
     private JTextField instanceNameTextField;
 
@@ -89,10 +90,10 @@ public class InstancesControlPanel extends javax.swing.JPanel {
             .setSelected(states != null && states.contains(PipelineInstance.State.PROCESSING));
         processingCheckBox.addActionListener(this::search);
 
-        completeCheckBox = new JCheckBox("Completed");
-        completeCheckBox
+        completedCheckBox = new JCheckBox("Completed");
+        completedCheckBox
             .setSelected(states != null && states.contains(PipelineInstance.State.COMPLETED));
-        completeCheckBox.addActionListener(this::search);
+        completedCheckBox.addActionListener(this::search);
 
         errorsRunningCheckBox = new JCheckBox("Errors (running)");
         errorsRunningCheckBox
@@ -103,6 +104,11 @@ public class InstancesControlPanel extends javax.swing.JPanel {
         errorsStalledCheckBox
             .setSelected(states != null && states.contains(PipelineInstance.State.ERRORS_STALLED));
         errorsStalledCheckBox.addActionListener(this::search);
+
+        transitionFailedCheckBox = new JCheckBox("Transition failed");
+        transitionFailedCheckBox.setSelected(
+            states != null && states.contains(PipelineInstance.State.TRANSITION_FAILED));
+        transitionFailedCheckBox.addActionListener(this::search);
 
         JLabel instanceNameGroup = boldLabel("Instance name", LabelType.HEADING);
         String name = filter.getNameContains();
@@ -136,11 +142,12 @@ public class InstancesControlPanel extends javax.swing.JPanel {
                 .addGroup(filtersPanelLayout.createParallelGroup()
                     .addComponent(initializedCheckBox)
                     .addComponent(processingCheckBox)
-                    .addComponent(completeCheckBox))
+                    .addComponent(completedCheckBox))
                 .addPreferredGap(ComponentPlacement.UNRELATED)
                 .addGroup(filtersPanelLayout.createParallelGroup()
                     .addComponent(errorsRunningCheckBox)
-                    .addComponent(errorsStalledCheckBox)))
+                    .addComponent(errorsStalledCheckBox)
+                    .addComponent(transitionFailedCheckBox)))
             .addComponent(instanceNameGroup)
             .addGroup(filtersPanelLayout.createSequentialGroup()
                 .addGap(ZiggyGuiConstants.INDENT)
@@ -167,10 +174,11 @@ public class InstancesControlPanel extends javax.swing.JPanel {
                 .addGroup(filtersPanelLayout.createSequentialGroup()
                     .addComponent(initializedCheckBox)
                     .addComponent(processingCheckBox)
-                    .addComponent(completeCheckBox))
+                    .addComponent(completedCheckBox))
                 .addGroup(filtersPanelLayout.createSequentialGroup()
                     .addComponent(errorsRunningCheckBox)
-                    .addComponent(errorsStalledCheckBox)))
+                    .addComponent(errorsStalledCheckBox)
+                    .addComponent(transitionFailedCheckBox)))
             .addPreferredGap(ComponentPlacement.UNRELATED)
             .addComponent(instanceNameGroup)
             .addGroup(filtersPanelLayout.createParallelGroup(Alignment.CENTER)
@@ -211,9 +219,10 @@ public class InstancesControlPanel extends javax.swing.JPanel {
         ageTextField.setText(Integer.toString(PipelineInstanceFilter.DEFAULT_AGE));
         initializedCheckBox.setSelected(false);
         processingCheckBox.setSelected(false);
-        completeCheckBox.setSelected(false);
+        completedCheckBox.setSelected(false);
         errorsRunningCheckBox.setSelected(false);
         errorsStalledCheckBox.setSelected(false);
+        transitionFailedCheckBox.setSelected(false);
         instanceNameTextField.setText("");
         updateFilter();
         if (listener != null) {
@@ -247,7 +256,7 @@ public class InstancesControlPanel extends javax.swing.JPanel {
         if (processingCheckBox.isSelected()) {
             states.add(PipelineInstance.State.PROCESSING);
         }
-        if (completeCheckBox.isSelected()) {
+        if (completedCheckBox.isSelected()) {
             states.add(PipelineInstance.State.COMPLETED);
         }
         if (errorsRunningCheckBox.isSelected()) {
@@ -255,6 +264,9 @@ public class InstancesControlPanel extends javax.swing.JPanel {
         }
         if (errorsStalledCheckBox.isSelected()) {
             states.add(PipelineInstance.State.ERRORS_STALLED);
+        }
+        if (transitionFailedCheckBox.isSelected()) {
+            states.add(PipelineInstance.State.TRANSITION_FAILED);
         }
         filter.setStates(states);
 

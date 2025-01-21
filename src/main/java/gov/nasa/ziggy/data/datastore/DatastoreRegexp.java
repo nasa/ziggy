@@ -33,7 +33,7 @@ import jakarta.xml.bind.annotation.XmlTransient;
  */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "Ziggy_DatastoreRegexp")
+@Table(name = "ziggy_DatastoreRegexp")
 public class DatastoreRegexp {
 
     @Id

@@ -10,6 +10,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.commons.exec.CommandLine;
 import org.junit.Before;
@@ -17,6 +19,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
+import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
 
@@ -25,9 +29,14 @@ public class ExternalProcessTest {
     private File exeDir;
     private File exe;
     private File workingDir;
+    private String environment = "a=b, c=d, e=f,g=h   ,  i   =   j";
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
+
+    @Rule
+    public ZiggyPropertyRule propertyRule = new ZiggyPropertyRule(
+        PropertyName.RUNTIME_ENVIRONMENT.property(), environment);
 
     @Before
     public void before() throws Exception {
@@ -47,6 +56,30 @@ public class ExternalProcessTest {
         command.addArgument(crashFlag ? "1" : "0");
         command.addArgument(touchFile ? "1" : "0");
         return command;
+    }
+
+    @Test
+    public void testValueByVariableName() {
+        assertEquals(Map.of(), ExternalProcess.valueByVariableName((String) null));
+        assertEquals(Map.of(), ExternalProcess.valueByVariableName((PropertyName) null));
+        assertEquals(Map.of(), ExternalProcess.valueByVariableName(""));
+        assertEquals(Map.of(), ExternalProcess.valueByVariableName("   "));
+
+        Map<String, String> map = new TreeMap<>();
+        map.put("a", "b");
+        map.put("c", "d");
+        map.put("e", "f");
+        map.put("g", "h");
+        map.put("i", "j");
+
+        assertEquals(map, ExternalProcess.valueByVariableName(environment));
+        assertEquals(map, ExternalProcess.valueByVariableName(PropertyName.RUNTIME_ENVIRONMENT));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testValueByVariableNameSyntaxError() {
+        // Used semicolons by mistake instead of commas.
+        ExternalProcess.valueByVariableName("a=b; c=d; e=f;g=h   ;  i   =   j");
     }
 
     @Test

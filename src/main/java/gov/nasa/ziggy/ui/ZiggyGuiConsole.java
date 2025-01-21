@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
 import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
 import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
@@ -51,8 +51,8 @@ import gov.nasa.ziggy.ui.status.StatusSummaryPanel;
 import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
-import gov.nasa.ziggy.util.Requestor;
 import gov.nasa.ziggy.util.BuildInfo;
+import gov.nasa.ziggy.util.Requestor;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.worker.WorkerResources;
 
@@ -114,7 +114,9 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         buildComponent();
 
         ZiggyMessenger.publish(new WorkerResourcesRequest());
-        ZiggyMessenger.publish(new InvalidateConsoleModelsMessage(), false);
+
+        // This message prompts the components to set their state the first time.
+        ZiggyMessenger.publish(new PipelineInstanceStartedMessage(), false);
     }
 
     public static void launch() {

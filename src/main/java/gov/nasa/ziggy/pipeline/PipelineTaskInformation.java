@@ -20,7 +20,6 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
@@ -46,7 +45,6 @@ public class PipelineTaskInformation {
 
     private static final Logger log = LoggerFactory.getLogger(PipelineTaskInformation.class);
 
-    private ParametersOperations parametersOperations = new ParametersOperations();
     private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
     private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
@@ -108,17 +106,12 @@ public class PipelineTaskInformation {
         PipelineInstance pipelineInstance = new PipelineInstance();
         pipelineInstance.setPipelineDefinition(pipelineDefinition);
 
-        // Populate the instance parameters
-        pipelineInstance
-            .setParameterSets(instanceParametersOperations().parameterSets(pipelineDefinition));
-
         // Find the pipeline definition node of interest
         PipelineModuleDefinition moduleDefinition = instancePipelineModuleDefinitionOperations()
             .pipelineModuleDefinition(node.getModuleName());
 
         // Construct a PipelineInstanceNode for this module
         PipelineInstanceNode instanceNode = new PipelineInstanceNode(node, moduleDefinition);
-        instanceNode.setParameterSets(instanceParametersOperations().parameterSets(node));
 
         ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = instance.unitOfWorkGenerator(node);
 
@@ -177,10 +170,6 @@ public class PipelineTaskInformation {
         return pipelineInputs.subtaskInformation(pipelineDefinitionNode);
     }
 
-    ParametersOperations parametersOperations() {
-        return parametersOperations;
-    }
-
     /**
      * Allows a mocked instance to be provided for unit tests.
      */
@@ -210,9 +199,5 @@ public class PipelineTaskInformation {
 
     private static synchronized PipelineModuleDefinitionOperations instancePipelineModuleDefinitionOperations() {
         return instance.pipelineModuleDefinitionOperations();
-    }
-
-    private static synchronized ParametersOperations instanceParametersOperations() {
-        return instance.parametersOperations();
     }
 }

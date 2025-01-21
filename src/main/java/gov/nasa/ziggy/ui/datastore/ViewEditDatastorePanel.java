@@ -32,10 +32,6 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
 
     public ViewEditDatastorePanel() {
         super(new RegexpTableModel());
-        buildComponent();
-
-        // An explicit refresh to show the data shouldn't be necessary, but it is.
-        refresh();
     }
 
     @Override

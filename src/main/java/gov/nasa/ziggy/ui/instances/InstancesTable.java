@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
@@ -39,7 +40,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.events.ZiggyEvent;
 import gov.nasa.ziggy.services.events.ZiggyEventOperations;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.TaskHalter;
@@ -79,15 +80,16 @@ public class InstancesTable extends JPanel {
         this.parent = parent;
         createInstancesTable(instancesFilter);
 
-        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+        ZiggyMessenger.subscribe(PipelineInstanceStartedMessage.class, this::invalidateModel);
     }
 
-    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+    private void invalidateModel(PipelineInstanceStartedMessage message) {
         instancesTableModel.loadFromDatabase();
     }
 
     private void createInstancesTable(PipelineInstanceFilter instancesFilter) {
         instancesTable = new ZiggyTable<>(instancesTableModel(instancesFilter));
+        instancesTableModel.setTable(getTable());
         instancesTable.setWrapText(false);
         for (int column = 0; column < InstancesTableModel.COLUMN_WIDTHS.length; column++) {
             instancesTable.setPreferredColumnWidth(column,
@@ -176,8 +178,7 @@ public class InstancesTable extends JPanel {
             createMenuItem("Alerts" + DIALOG, this::displayAlerts),
             createMenuItem("Performance statistics" + DIALOG, this::displayStatistics),
             createMenuItem("Estimate cost" + DIALOG, this::estimateCost),
-            ZiggySwingUtils.MENU_SEPARATOR,
-            createMenuItem("Restart all failed tasks" + DIALOG, this::restartTasks),
+            ZiggySwingUtils.MENU_SEPARATOR, createMenuItem("Restart" + DIALOG, this::restartTasks),
             ZiggySwingUtils.MENU_SEPARATOR,
             createMenuItem("Halt all incomplete tasks", this::haltTasks));
     }
@@ -256,6 +257,10 @@ public class InstancesTable extends JPanel {
         return instancesTable.getTable();
     }
 
+    public void clearSelection() {
+        getTable().getSelectionModel().clearSelection();
+    }
+
     public void loadFromDatabase() {
         try {
             instancesTableModel.loadFromDatabase();
@@ -287,12 +292,17 @@ public class InstancesTable extends JPanel {
 
         private final PipelineInstanceFilter filter;
         private List<InstanceEventInfo> instanceEventInfoList = new LinkedList<>();
+        private JTable table;
 
         private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
         private final ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
 
         public InstancesTableModel(PipelineInstanceFilter filter) {
             this.filter = filter;
+        }
+
+        public void setTable(JTable table) {
+            this.table = table;
         }
 
         @Override
@@ -326,7 +336,9 @@ public class InstancesTable extends JPanel {
                 @Override
                 protected void done() {
                     try {
-                        get().updateTable(InstancesTableModel.this);
+                        TableUpdater tableUpdater = get();
+                        tableUpdater.updateTable(InstancesTableModel.this);
+                        tableUpdater.scrollToVisible(table);
                     } catch (InterruptedException | ExecutionException e) {
                         log.error("Can't update instances table", e);
                     }

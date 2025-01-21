@@ -40,6 +40,12 @@ public class DirectoryProperties {
      */
     private static final String LIB_DIR_RELATIVE_PATH = "lib";
 
+    /**
+     * Location of the etc directory relative to either {@link PropertyName#PIPELINE_HOME_DIR} or
+     * {@link PropertyName#ZIGGY_HOME_DIR}.
+     */
+    private static final Path ETC_DIR_RELATIVE_PATH = null;
+
     private static final String BUILD = "build";
 
     private static final String TMP = "tmp";
@@ -107,6 +113,10 @@ public class DirectoryProperties {
 
     public static Path ziggyLibDir() {
         return ziggyHomeDir().resolve(LIB_DIR_RELATIVE_PATH);
+    }
+
+    public static Path ziggyEtcDir() {
+        return ziggyHomeDir().resolve(ETC_DIR_RELATIVE_PATH);
     }
 
     public static Path ziggySchemaDir() {

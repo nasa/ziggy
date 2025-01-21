@@ -407,6 +407,9 @@ public abstract class AbstractHdf5Array {
      */
     protected String readStringAttribute(long groupId, String attributeName) {
 
+        if (!H5.H5Aexists(groupId, attributeName)) {
+            return null;
+        }
         long attributeId = H5.H5Aopen(groupId, attributeName, H5P_DEFAULT);
         long dataSpaceId = H5.H5Aget_space(attributeId);
         int nDims = H5.H5Sget_simple_extent_ndims(dataSpaceId);

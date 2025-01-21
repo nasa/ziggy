@@ -45,11 +45,23 @@ public abstract class PipelineInputsOutputsUtils implements Persistable {
     }
 
     public static String moduleName(Path taskDir) {
-        return new PipelineTask.TaskBaseNameMatcher(taskDir.getFileName().toString()).moduleName();
+        return new PipelineTask.TaskBaseNameMatcher(taskDir).moduleName();
     }
 
     public static long taskId(Path taskDir) {
-        return new PipelineTask.TaskBaseNameMatcher(taskDir.getFileName().toString()).taskId();
+        return new PipelineTask.TaskBaseNameMatcher(taskDir).taskId();
+    }
+
+    public static long instanceId(Path taskDir) {
+        return new PipelineTask.TaskBaseNameMatcher(taskDir).instanceId();
+    }
+
+    public static long taskId() {
+        return new PipelineTask.TaskBaseNameMatcher(taskDir()).taskId();
+    }
+
+    public static long instanceId() {
+        return new PipelineTask.TaskBaseNameMatcher(taskDir()).instanceId();
     }
 
     /**

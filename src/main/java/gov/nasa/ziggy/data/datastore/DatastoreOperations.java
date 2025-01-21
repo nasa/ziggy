@@ -45,11 +45,15 @@ public class DatastoreOperations extends DatabaseOperations {
     }
 
     public List<String> dataFileTypeNames() {
-        return performTransaction(() -> dataFileTypeCrud.retrieveAllNames());
+        return performTransaction(() -> dataFileTypeCrud().retrieveAllNames());
     }
 
     public Map<String, DataFileType> dataFileTypeMap() {
-        return performTransaction(() -> dataFileTypeCrud.retrieveMap());
+        return performTransaction(() -> dataFileTypeCrud().retrieveMap());
+    }
+
+    public DataFileType dataFileType(String dataFileTypeName) {
+        return performTransaction(() -> dataFileTypeCrud().retrieveByName(dataFileTypeName));
     }
 
     public List<String> modelTypes() {
@@ -68,7 +72,7 @@ public class DatastoreOperations extends DatabaseOperations {
         Set<DatastoreNode> datastoreNodesToRemove, Set<DatastoreNode> datastoreNodes, Logger log) {
         performTransaction(() -> {
             log.info("Persisting to database {} DataFileType definitions", dataFileTypes.size());
-            dataFileTypeCrud.persist(dataFileTypes);
+            dataFileTypeCrud().persist(dataFileTypes);
             log.info("Persisting to database {} model definitions", modelTypes.size());
             modelCrud.persist(modelTypes);
             log.info("Persisting to database {} regexp definitions", datastoreRegexps.size());
@@ -100,5 +104,9 @@ public class DatastoreOperations extends DatabaseOperations {
 
     public DatastoreRegexp mergeDatastoreRegexp(DatastoreRegexp regexp) {
         return performTransaction(() -> datastoreRegexpCrud.merge(regexp));
+    }
+
+    DataFileTypeCrud dataFileTypeCrud() {
+        return dataFileTypeCrud;
     }
 }

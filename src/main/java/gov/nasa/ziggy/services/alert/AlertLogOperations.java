@@ -3,6 +3,7 @@ package gov.nasa.ziggy.services.alert;
 import java.util.List;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
@@ -24,6 +25,10 @@ public class AlertLogOperations extends DatabaseOperations {
     public List<AlertLog> alertLogs(long pipelineInstanceId) {
         return performTransaction(() -> alertLogCrud()
             .retrieveForPipelineInstance(pipelineInstanceCrud().retrieve(pipelineInstanceId)));
+    }
+
+    public List<AlertLog> alertLogs(List<PipelineTask> tasks) {
+        return performTransaction(() -> alertLogCrud().retrieveByPipelineTasks(tasks));
     }
 
     AlertLogCrud alertLogCrud() {

@@ -18,6 +18,7 @@ import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import jakarta.persistence.criteria.Predicate;
 
@@ -146,8 +147,16 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
             return new ArrayList<>();
         }
 
+        // Convert any absolute paths to be relative to the datastore root.
+        Set<Path> producedFilesRelativePaths = new HashSet<>();
+        for (Path path : producedFiles) {
+            producedFilesRelativePaths.add(path.isAbsolute()
+                ? DirectoryProperties.datastoreRootDir().toAbsolutePath().relativize(path)
+                : path);
+        }
+
         // Find the datastore names for the output files.
-        Set<String> producedFileDatastoreNames = datastoreNames(producedFiles);
+        Set<String> producedFileDatastoreNames = datastoreNames(producedFilesRelativePaths);
 
         // Find the unique set of pipeline tasks that produced the output files.
         List<Long> producerIds = chunkedQuery(new ArrayList<>(producedFileDatastoreNames),

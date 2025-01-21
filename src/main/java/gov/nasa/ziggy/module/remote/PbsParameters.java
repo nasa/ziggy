@@ -27,6 +27,10 @@ import gov.nasa.ziggy.util.TimeFormatter;
  */
 public class PbsParameters {
 
+    private static final Logger log = LoggerFactory.getLogger(PbsParameters.class);
+
+    private static final double WALL_TIME_ROUNDING_INTERVAL_HOURS = 0.25;
+
     private boolean enabled;
     private String requestedWallTime;
     private int requestedNodeCount;
@@ -38,8 +42,6 @@ public class PbsParameters {
     private RemoteNodeDescriptor architecture;
     private int activeCoresPerNode;
     private double estimatedCost;
-
-    private static final Logger log = LoggerFactory.getLogger(PbsParameters.class);
 
     /**
      * Populates the architecture property of the {@link PbsParameters} instance. If the
@@ -136,8 +138,7 @@ public class PbsParameters {
         int totalSubtaskCount, double subtasksPerCore) {
 
         // Start by computing the "optimal" number of nodes -- the number of nodes
-        // needed
-        // to ensure that all subtasks get processed in parallel immediately, with no
+        // needed to ensure that all subtasks get processed in parallel immediately, with no
         // subtasks needing to wait for available resources.
         computeRequestedNodeCount(totalSubtaskCount, subtasksPerCore);
 
@@ -226,13 +227,9 @@ public class PbsParameters {
     private void computeWallTimeAndQueue(
         PipelineDefinitionNodeExecutionResources executionResources, double subtasksPerCore) {
 
-        double typicalWallTimeHours = executionResources.getSubtaskTypicalWallTimeHours();
-        double bareWallTimeHours = Math.max(executionResources.getSubtaskMaxWallTimeHours(),
-            subtasksPerCore * typicalWallTimeHours);
-        if (!executionResources.isNodeSharing() && executionResources.isWallTimeScaling()) {
-            bareWallTimeHours /= minCoresPerNode;
-        }
-        double requestedWallTimeHours = 0.25 * Math.ceil(4 * bareWallTimeHours);
+        double unpaddedWallTimeHours = unpaddedWallTime(executionResources, subtasksPerCore);
+        double requestedWallTimeHours = roundToNearest(unpaddedWallTimeHours,
+            WALL_TIME_ROUNDING_INTERVAL_HOURS);
         requestedWallTime = TimeFormatter.timeInHoursToStringHhMmSs(requestedWallTimeHours);
 
         if (StringUtils.isBlank(executionResources.getQueueName())) {
@@ -266,6 +263,34 @@ public class PbsParameters {
                 queueName = descriptor.getQueueName();
             }
         }
+    }
+
+    /** Calculates the wall time required for the current task before any padding is added. */
+    private double unpaddedWallTime(PipelineDefinitionNodeExecutionResources executionResources,
+        double subtasksPerCore) {
+
+        double subtaskMaxWallTimeHours = executionResources.getSubtaskMaxWallTimeHours();
+        double wallTimeFromTypical = subtasksPerCore
+            * executionResources.getSubtaskTypicalWallTimeHours();
+
+        if (!executionResources.isNodeSharing() && executionResources.isWallTimeScaling()) {
+            // If we're using internal parallelization, we can scale down the wall time by the
+            // cores per node.
+            subtaskMaxWallTimeHours /= minCoresPerNode;
+            wallTimeFromTypical /= minCoresPerNode;
+        } else {
+            // If we're not using internal parallelization, round the times to the nearest
+            // multiple of the typical wall time.
+            subtaskMaxWallTimeHours = roundToNearest(subtaskMaxWallTimeHours,
+                executionResources.getSubtaskTypicalWallTimeHours());
+            wallTimeFromTypical = roundToNearest(wallTimeFromTypical,
+                executionResources.getSubtaskTypicalWallTimeHours());
+        }
+        return Math.max(wallTimeFromTypical, subtaskMaxWallTimeHours);
+    }
+
+    private double roundToNearest(double value, double roundingInterval) {
+        return roundingInterval * Math.ceil(value / roundingInterval);
     }
 
     /**

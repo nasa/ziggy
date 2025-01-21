@@ -14,6 +14,8 @@ import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
 import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
@@ -149,6 +151,53 @@ public class ParametersOperations extends DatabaseOperations {
             nameToTypedProperty.put(property.getName(), property);
         }
         return nameToTypedProperty;
+    }
+
+    /**
+     * Returns the module-level and pipeline-level parameter sets for a given
+     * {@link PipelineInstanceNode}.
+     */
+    public Set<ParameterSet> parameterSets(PipelineInstanceNode pipelineInstanceNode) {
+        return pipelineInstanceNode.isPersistedToDatabase()
+            ? boundParameterSets(pipelineInstanceNode)
+            : pipelineParameterSets(pipelineInstanceNode);
+    }
+
+    /**
+     * Returns the bound {@link ParameterSet}s for the given {@link PipelineInstanceNode} and its
+     * parent {@link PipelineInstance}. This can only be performed on a pipeline instance node that
+     * has been persisted to the database.
+     */
+    private Set<ParameterSet> boundParameterSets(PipelineInstanceNode pipelineInstanceNode) {
+        return performTransaction(() -> {
+            Set<ParameterSet> parameterSets = new HashSet<>();
+            parameterSets.addAll(pipelineInstanceNodeCrud().retrieve(pipelineInstanceNode.getId())
+                .getParameterSets());
+            parameterSets
+                .addAll(pipelineInstanceNodeCrud().retrievePipelineInstance(pipelineInstanceNode)
+                    .getParameterSets());
+            return parameterSets;
+        });
+    }
+
+    /**
+     * Returns the {@link ParameterSet}s for a {@link PipelineInstanceNode} that is not in the
+     * database. In this case, the parameter set names for the instance node's
+     * {@link PipelineDefinitionNode} and {@link PipelineDefinition} are used to obtain the latest
+     * versions of the named parameter sets.
+     */
+    private Set<ParameterSet> pipelineParameterSets(PipelineInstanceNode pipelineInstanceNode) {
+        return performTransaction(() -> {
+            Set<ParameterSet> parameterSets = new HashSet<>(
+                parameterSetCrud().retrieveLatestVersions(pipelineDefinitionNodeCrud()
+                    .retrieveParameterSetNames(pipelineInstanceNode.getPipelineDefinitionNode())));
+            PipelineDefinition pipelineDefinition = pipelineDefinitionCrud()
+                .retrieveLatestVersionForName(
+                    pipelineInstanceNode.getPipelineDefinitionNode().getPipelineName());
+            parameterSets.addAll(parameterSetCrud().retrieveLatestVersions(
+                pipelineDefinitionCrud().retrieveParameterSetNames(pipelineDefinition)));
+            return parameterSets;
+        });
     }
 
     PipelineInstanceNodeCrud pipelineInstanceNodeCrud() {

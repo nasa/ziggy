@@ -3,6 +3,7 @@ package gov.nasa.ziggy.pipeline.definition;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
+import java.nio.file.Path;
 import java.util.Date;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -176,6 +177,10 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
                     jobIndex = Integer.parseInt(matcher.group(JOB_INDEX_GROUP));
                 }
             }
+        }
+
+        public TaskBaseNameMatcher(Path taskDir) {
+            this(taskDir.getFileName().toString());
         }
 
         public boolean matches() {

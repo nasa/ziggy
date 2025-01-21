@@ -9,9 +9,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,8 +17,6 @@ import java.util.Map;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.environment.EnvironmentUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +25,7 @@ import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.IntervalMetricKey;
 import gov.nasa.ziggy.module.io.ModuleInterfaceUtils;
 import gov.nasa.ziggy.module.io.matlab.MatlabUtils;
+import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -59,17 +56,15 @@ public class SubtaskExecutor {
     private static final String MATLABHOME_ENV_NAME = "MATLABHOME";
     private static final String MCRROOT_ENV_NAME = "MCRROOT";
     private static final String LM_LICENSE_FILE_ENV_NAME = "LM_LICENSE_FILE";
-    private static final String PIPELINE_HOME_ENV_NAME = "PIPELINE_HOME";
     private static final String MCR_CACHE_ROOT_ENV_VAR_NAME = "MCR_CACHE_ROOT";
-    private static final String CODE_ROOT_ENV_NAME = "CODE_ROOT";
 
     private final String binaryName;
-    private final File taskDir;
     private final File workingDir;
     private final int timeoutSecs;
+    private final Path taskDir;
 
     private CommandLine commandLine;
-    private Map<String, String> environment = new HashMap<>();
+    private Map<String, String> environment;
 
     private OperatingSystemType osType = OperatingSystemType.newInstance();
 
@@ -79,8 +74,8 @@ public class SubtaskExecutor {
 
     // Constructor is private, use the builder instead.
     private SubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs) {
-        this.taskDir = taskDir;
-        workingDir = SubtaskUtils.subtaskDirectory(taskDir.toPath(), subtaskIndex).toFile();
+        this.taskDir = taskDir.toPath();
+        workingDir = SubtaskUtils.subtaskDirectory(this.taskDir, subtaskIndex).toFile();
         this.timeoutSecs = timeoutSecs;
         this.binaryName = binaryName;
     }
@@ -124,22 +119,9 @@ public class SubtaskExecutor {
         log.info("libPath = {}", libPath);
 
         // Construct the environment
-        environment.put(MCR_CACHE_ROOT_ENV_VAR_NAME,
-            Paths.get("/tmp", "mcr_cache_" + taskDir.getName()).toString());
+        environment = ExternalProcess.valueByVariableName(PropertyName.RUNTIME_ENVIRONMENT);
         environment.put("PATH", binPath);
-        environment.put(CODE_ROOT_ENV_NAME,
-            DirectoryProperties.pipelineHomeDir().getParent().toString());
-
-        // Create the MCR cache directory if needed
-        try {
-            Files.createDirectories(Paths.get(environment.get(MCR_CACHE_ROOT_ENV_VAR_NAME)));
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unable to create dir "
-                + Paths.get(environment.get(MCR_CACHE_ROOT_ENV_VAR_NAME)).toString(), e);
-        }
-
-        // Populate the environment from the properties file.
-        populateEnvironmentFromPropertiesFile();
+        log.info("Execution environment is {}", environment);
     }
 
     /**
@@ -196,49 +178,6 @@ public class SubtaskExecutor {
             binPathFile = binPathPath.toFile();
         }
         return binPathFile;
-    }
-
-    /**
-     * Populates the runtime environment from the contents of a property.
-     * <p>
-     * The property file for the pipeline can contain a String that specifies environment variables
-     * in the form "name1=value1, name2=value2", etc. This method will perform the appropriate
-     * string manipulations to convert that String to a {@link Map} of name-value pairs that can
-     * then be used by the {@link DefaultExecutor}.
-     */
-    private void populateEnvironmentFromPropertiesFile() {
-
-        ImmutableConfiguration config = ZiggyConfiguration.getInstance();
-        String environmentFromProperties = config
-            .getString(PropertyName.RUNTIME_ENVIRONMENT.property(), null);
-        if (environmentFromProperties == null) {
-            return;
-        }
-
-        // Break the string at the commas that separate environment variables from one another.
-        String[] environmentVariables = environmentFromProperties.split(",");
-
-        for (String environmentVariable : environmentVariables) {
-
-            // Break the environment variable string at the equals signs that separate the name
-            // of the environment variable from the value.
-            String[] nameValuePair = environmentVariable.split("=");
-            if (nameValuePair.length != 2) {
-                throw new IllegalArgumentException("String '" + environmentVariable
-                    + "' cannot be split into a name-value pair at an equas sign");
-            }
-            environment.put(nameValuePair[0].trim(), nameValuePair[1].trim());
-        }
-        StringBuilder sb = new StringBuilder("Environment: [");
-        for (Map.Entry<String, String> entry : environment.entrySet()) {
-            sb.append(entry.getKey());
-            sb.append("=");
-            sb.append(entry.getValue());
-            sb.append(", ");
-        }
-        sb.setLength(sb.length() - 2);
-        sb.append("]");
-        log.info("Execution environment is {}", sb.toString());
     }
 
     /**
@@ -380,6 +319,8 @@ public class SubtaskExecutor {
         String ziggyCommand = DirectoryProperties.ziggyBinDir().resolve(ZIGGY_PROGRAM).toString();
         String javaLibPathArg = ExternalProcessUtils.javaLibraryPath();
         String log4jConfig = ExternalProcessUtils.log4jConfigString();
+        String logFile = ExternalProcessUtils.ziggyLog(
+            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_LOG_FILE.property()));
 
         // Construct the class arguments for the ziggy program.
         String taskFileManagerClassName = BeforeAndAfterAlgorithmExecutor.class.getCanonicalName();
@@ -390,6 +331,7 @@ public class SubtaskExecutor {
         commandLine.addArgument("--verbose");
         commandLine.addArgument(javaLibPathArg);
         commandLine.addArgument(log4jConfig);
+        commandLine.addArgument(logFile);
 
         commandLine.addArgument("--class=" + taskFileManagerClassName);
         commandLine.addArgument(inputsOutputsClassName);
@@ -399,12 +341,7 @@ public class SubtaskExecutor {
         externalProcess.setLogStreamIdentifier(workingDir.getName());
         externalProcess.setWorkingDirectory(workingDir);
         externalProcess.setCommandLine(commandLine);
-        try {
-            externalProcess
-                .setEnvironment(mergeWithEnvironment(EnvironmentUtils.getProcEnvironment()));
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unable to get process environment ", e);
-        }
+        externalProcess.mergeWithEnvironment(environment);
 
         log.info("Executing command {}", commandLine.toString());
         return externalProcess.execute();
@@ -437,7 +374,7 @@ public class SubtaskExecutor {
 
             log.info("commandLine={}", commandLine);
 
-            Map<String, String> env = EnvironmentUtils.getProcEnvironment();
+            Map<String, String> env = new HashMap<>(environment);
 
             // make sure DISPLAY is not set, so MATLAB can't pop up windows
             // (which block the exe from exiting)
@@ -456,18 +393,18 @@ public class SubtaskExecutor {
             if (mcrRoot != null) {
                 env.put(MATLABHOME_ENV_NAME, mcrRoot);
                 env.put(MCRROOT_ENV_NAME, mcrRoot);
+                environment.put(MCR_CACHE_ROOT_ENV_VAR_NAME,
+                    PipelineExecutor.mcrCacheDir(moduleName()).toString());
             } else {
                 env.put(MATLABHOME_ENV_NAME, "");
                 env.put(MCRROOT_ENV_NAME, "");
+                environment.put(MCR_CACHE_ROOT_ENV_VAR_NAME, "");
             }
-
-            env.put(PIPELINE_HOME_ENV_NAME, DirectoryProperties.pipelineHomeDir().toString());
 
             env.put(osType.getSharedObjectPathEnvVar(), libPath);
 
             // Make sure LM_LICENSE_FILE is set to /dev/null since it otherwise
-            // may cause
-            // undesirable access to the MATLAB license server at run time
+            // may cause undesirable access to the MATLAB license server at run time
             env.put(LM_LICENSE_FILE_ENV_NAME, "/dev/null");
             int retCode = 0;
             IntervalMetricKey key = IntervalMetric.start();
@@ -476,7 +413,7 @@ public class SubtaskExecutor {
                 ExternalProcess externalProcess = externalProcess(stdOutWriter, stdErrWriter);
                 externalProcess.setLogStreamIdentifier(workingDir.getName());
                 externalProcess.setWorkingDirectory(workingDir);
-                externalProcess.setEnvironment(mergeWithEnvironment(env));
+                externalProcess.mergeWithEnvironment(env);
                 externalProcess.timeout(timeoutSecs * 1000);
                 externalProcess.setCommandLine(commandLine);
 
@@ -492,13 +429,6 @@ public class SubtaskExecutor {
             throw new UncheckedIOException(
                 "Unable to create and run command line " + commandLine.toString(), e);
         }
-    }
-
-    private Map<String, String> mergeWithEnvironment(Map<String, String> additionalEnvironment) {
-        Map<String, String> fullEnvironment = new HashMap<>(additionalEnvironment);
-        fullEnvironment.putAll(environment);
-
-        return fullEnvironment;
     }
 
     private static void markSubtaskFailed(File workingDir) {
@@ -540,6 +470,10 @@ public class SubtaskExecutor {
 
     TaskConfiguration taskConfiguration() {
         return TaskConfiguration.deserialize(workingDir.getParentFile());
+    }
+
+    String moduleName() {
+        return PipelineInputsOutputsUtils.moduleName(taskDir);
     }
 
     public static class Builder {

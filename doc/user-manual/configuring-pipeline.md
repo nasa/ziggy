@@ -60,14 +60,14 @@ In the case of the sample pipeline, the "glue" code is actually written in 2 pie
 
 ##### Python-Side "Glue" Code
 
-For the purposes of this discussion we'll use the code that calls the `permute_colors` Python function: in the Python source directory (src/main/python/major_tom), it's [permuter.py](../../sample-pipeline/src/main/python/major_tom/permuter.py). This is the Python code that performs some housekeeping and then calls the permuter function in major_tom.py.
+For the purposes of this discussion we'll use the code that calls the `permute_colors` Python function: in the Python source directory (src/main/python/sample_python/major_tom), it's [permuter.py](../../sample-pipeline/src/main/python/major_tom/permuter.py). This is the Python code that performs some housekeeping and then calls the permuter function in major_tom.py.
 
 The `permuter.py` module starts off with the usual collection of import statements:
 
 ```Python
-from zigutils.stacktrace import ZiggyErrorWriter
-from hdf5mi.hdf5 import Hdf5ModuleInterface
-from zigutils.pidfile import write_pid_file
+from ziggytools.stacktrace import ZiggyErrorWriter
+from ziggytools.hdf5 import Hdf5ModuleInterface
+from ziggytools.pidfile import write_pid_file
 from major_tom import permute_color
 ```
 
@@ -89,12 +89,12 @@ if __name__ == '__main__':
         # that are to be used in this process, as well as model names and
         # parameters. All files are in the working directory.
         inputs = hdf5_module_interface.read_file("permuter-inputs.h5")
-        data_file = inputs.dataFilenames
-        parameters = inputs.moduleParameters.Algorithm_Parameters
-        models = inputs.modelFilenames
+        data_file = inputs['dataFilenames']
+        parameters = inputs['moduleParameters']['Algorithm_Parameters']
+        models = inputs['modelFilenames']
 ```
 
-The main thing of interest here is that the HDF5 file with the inputs information is opened and read. The file name will always be the module name followed by `-inputs-0.h5`. The data object that's read from that file provides the data file names as a Python list in the `.filenames` field; all the module parameters in the `.moduleParameters` field; and the names of the models as a Python list in the `.modelFilenames` field. Note that, as described in [the article on parameter sets](module-parameters.md), the module parameter set named `Algorithm Parameters` in the parameters XML file is renamed to `Algorithm_Parameters` here.
+The main thing of interest here is that the HDF5 file with the inputs information is opened and read into a dictionary. The file name will always be the module name followed by `-inputs-0.h5`. The dictionary that's read from that file provides the data file names as a Python list in the `filenames` entry; all the module parameters in the `moduleParameters` entry; and the names of the models as a Python list in the `modelFilenames` entry. Note that, as described in [the article on parameter sets](module-parameters.md), the module parameter set named `Algorithm Parameters` in the parameters XML file is renamed to `Algorithm_Parameters` here.
 
 Next:
 
@@ -103,17 +103,17 @@ Next:
         # execution to complete without generating output.
         dir_name = os.path.basename(os.getcwd())
         if dir_name == "st-0":
-            throw_exception = parameters.throw_exception_subtask_0
+            throw_exception = parameters['throw_exception_subtask_0']
         else:
             throw_exception = False
 
         if dir_name == "st-1":
-            produce_output = parameters.produce_output_subtask_1
+            produce_output = parameters['produce_output_subtask_1']
         else:
             produce_output = True
 ```
 
-The main thing that's interesting here is that it shows how to access the individual parameters within a parameter set. You may well ask: What is this code actually doing with the parameters? Well, it's setting up to allow a demonstration of some of Ziggy's features later when we run the pipeline. For now, just focus on the fact that the parameters are subfields of the parameter struct, and that whitespace in the parameter names has been turned to underscores.
+The main thing that's interesting here is that it shows how to access the individual parameters within a parameter set. You may well ask: What is this code actually doing with the parameters? Well, it's setting up to allow a demonstration of some of Ziggy's features later when we run the pipeline. For now, just focus on the fact that the parameters are entries in the parameter dictionary, and that whitespace in the parameter names has been turned to underscores.
 
 ```python
         # Run the color permuter. The permute_color function will produce
@@ -130,7 +130,7 @@ Anyway, moving on to the last chunk of the Python-side "glue" code, we see this:
 ```python
         # Sleep for a user-specified interval. This is here just so the
         # user can watch execution run on the pipeline console.
-        time.sleep(parameters.execution_pause_seconds)
+        time.sleep(parameters['execution_pause_seconds'])
         exit(0)
 
     except Exception:

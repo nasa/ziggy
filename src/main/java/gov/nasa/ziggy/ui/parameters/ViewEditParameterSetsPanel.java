@@ -34,7 +34,7 @@ import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
 import gov.nasa.ziggy.pipeline.xml.ParameterImportExportOperations;
 import gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli.ParamIoMode;
 import gov.nasa.ziggy.pipeline.xml.ParameterSetDescriptor;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.ParametersChangedMessage;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -65,7 +65,6 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
 
     public ViewEditParameterSetsPanel(RowModel rowModel, ZiggyTreeModel<ParameterSet> treeModel) {
         super(rowModel, treeModel, "Name");
-        buildComponent();
 
         for (int column = 0; column < ParameterSetsRowModel.COLUMN_WIDTHS.length; column++) {
             ziggyTable.setPreferredColumnWidth(column, ParameterSetsRowModel.COLUMN_WIDTHS[column]);
@@ -75,7 +74,7 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
             .getSelectionModel()
             .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+        ZiggyMessenger.subscribe(PipelineInstanceStartedMessage.class, this::invalidateModel);
         ZiggyMessenger.subscribe(ParametersChangedMessage.class, this::invalidateModel);
     }
 

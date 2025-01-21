@@ -33,7 +33,7 @@ public class DataReceiptExternalDefinitionTest {
     public ZiggyDatabaseRule ziggyDatabaseRule = new ZiggyDatabaseRule();
 
     @Rule
-    public ZiggyPropertyRule uowProertyRule = new ZiggyPropertyRule(
+    public ZiggyPropertyRule uowPropertyRule = new ZiggyPropertyRule(
         PropertyName.DATA_IMPORTER_CLASS.property(),
         "gov.nasa.ziggy.data.management.ExternalDataReceiptDefinition");
 

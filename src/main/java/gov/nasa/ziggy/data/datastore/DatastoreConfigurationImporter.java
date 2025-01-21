@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2025 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -36,7 +36,6 @@ package gov.nasa.ziggy.data.datastore;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -78,7 +77,9 @@ import gov.nasa.ziggy.util.ZiggyStringUtils;
 public class DatastoreConfigurationImporter {
 
     private static final Logger log = LoggerFactory.getLogger(DatastoreConfigurationImporter.class);
-    public static final String DRY_RUN_OPTION = "dry-run";
+
+    private static final String DRY_RUN_OPTION = "dry-run";
+    private static final String HELP_OPTION = "help";
 
     private List<String> filenames;
     private boolean dryRun;
@@ -100,23 +101,31 @@ public class DatastoreConfigurationImporter {
     public static void main(String[] args) {
 
         CommandLineParser parser = new DefaultParser();
-        Options options = new Options().addOption(Option.builder("n")
-            .longOpt(DRY_RUN_OPTION)
-            .hasArg(false)
-            .desc("Parses and creates objects but does not persist to database")
-            .build());
+        Options options = new Options()
+            .addOption(Option.builder("h").longOpt(HELP_OPTION).desc("Show this help").build())
+            .addOption(Option.builder("n")
+                .longOpt(DRY_RUN_OPTION)
+                .desc("Parses and creates objects but does not persist to database")
+                .build());
 
         CommandLine cmdLine = null;
         try {
             cmdLine = parser.parse(options, args);
         } catch (ParseException e) {
-            usageAndExit(options, "", e);
+            usageAndExit(options, e.getMessage(), e);
         }
-        String[] filenames = cmdLine.getArgs();
-        boolean dryRun = cmdLine.hasOption(DRY_RUN_OPTION);
-        DatastoreConfigurationImporter importer = new DatastoreConfigurationImporter(
-            Arrays.asList(filenames), dryRun);
-        importer.importConfiguration();
+
+        if (cmdLine.hasOption(HELP_OPTION)) {
+            usageAndExit(options, null, null);
+        }
+
+        try {
+            List<String> filenames = cmdLine.getArgList();
+            boolean dryRun = cmdLine.hasOption(DRY_RUN_OPTION);
+            new DatastoreConfigurationImporter(filenames, dryRun).importConfiguration();
+        } catch (Exception e) {
+            usageAndExit(null, e.getMessage(), e);
+        }
     }
 
     private static void usageAndExit(Options options, String message, Throwable e) {
@@ -126,7 +135,7 @@ public class DatastoreConfigurationImporter {
             if (message != null) {
                 System.err.println(message);
             }
-            new HelpFormatter().printHelp("DatastoreConfigurationImporter [options]",
+            new HelpFormatter().printHelp("DatastoreConfigurationImporter [options] [files]",
                 "Import datastore configuration from XML file(s)", options, null);
         } else if (e != null) {
             log.error(message, e);

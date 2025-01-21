@@ -211,6 +211,7 @@ public class RemoteExecutionDialog extends JDialog {
         oneSubtaskCheckBox.addItemListener(this::nodeSharingCheckBoxEvent);
 
         wallTimeScalingCheckBox = new JCheckBox("Scale wall time by number of cores");
+        wallTimeScalingCheckBox.addItemListener(this::itemStateChanged);
         wallTimeScalingCheckBox.setToolTipText(
             htmlBuilder("Scales subtask wall times inversely to the number of cores per node.")
                 .appendBreak()
@@ -535,15 +536,12 @@ public class RemoteExecutionDialog extends JDialog {
     }
 
     private void itemStateChanged(ItemEvent evt) {
-        if (evt.getStateChange() == ItemEvent.SELECTED
-            || evt.getSource() == remoteExecutionEnabledCheckBox) {
-            checkFieldsAndRecalculate(null);
-        }
+        checkFieldsAndRecalculate(null);
     }
 
     // Validation is postponed until the dialog is visible.
     private void hierarchyChanged(HierarchyEvent evt) {
-        if ((HierarchyEvent.SHOWING_CHANGED & evt.getChangeFlags()) != 0 && isVisible()) {
+        if ((evt.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && isVisible()) {
             checkFieldsAndRecalculate(null);
         }
     }
@@ -647,6 +645,7 @@ public class RemoteExecutionDialog extends JDialog {
         wallTimeScalingCheckBox.setEnabled(oneSubtaskCheckBox.isSelected());
         gigsPerSubtaskField.setEnabled(!oneSubtaskCheckBox.isSelected());
         gigsPerSubtaskField.setToolTipText(gigsPerSubtaskToolTip());
+        checkFieldsAndRecalculate(null);
     }
 
     private String gigsPerSubtaskToolTip() {
@@ -915,22 +914,20 @@ public class RemoteExecutionDialog extends JDialog {
             // given.
             AlgorithmExecutor executor = AlgorithmExecutor.newRemoteInstance(null);
             PbsParameters pbsParameters = null;
-            if (taskCount != originalTaskCount) {
+            if (taskCount != originalTaskCount || subtaskCount != originalSubtaskCount) {
                 Set<PbsParameters> perTaskPbsParameters = new HashSet<>();
                 for (int i = 0; i < taskCount; i++) {
                     perTaskPbsParameters.add(executor.generatePbsParameters(currentConfiguration,
                         subtaskCount / taskCount));
                 }
                 pbsParameters = PbsParameters.aggregatePbsParameters(perTaskPbsParameters);
-            } else if (subtaskCount == originalSubtaskCount) {
+            } else {
                 Set<PbsParameters> perTaskPbsParameters = new HashSet<>();
                 for (SubtaskInformation taskInformation : tasksInformation) {
                     perTaskPbsParameters.add(executor.generatePbsParameters(currentConfiguration,
                         taskInformation.getSubtaskCount()));
                 }
                 pbsParameters = PbsParameters.aggregatePbsParameters(perTaskPbsParameters);
-            } else {
-                pbsParameters = executor.generatePbsParameters(currentConfiguration, subtaskCount);
             }
             displayPbsValues(pbsParameters);
             currentConfiguration.setOptimizer(currentOptimizer);

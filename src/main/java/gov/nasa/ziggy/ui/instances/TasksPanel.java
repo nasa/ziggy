@@ -28,7 +28,7 @@ import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.TaskHalter;
@@ -67,7 +67,7 @@ public class TasksPanel extends JPanel {
         ZiggyMessenger.subscribe(SelectedInstanceChangedMessage.class,
             this::displayTasksForInstance);
 
-        ZiggyMessenger.subscribe(InvalidateConsoleModelsMessage.class, this::invalidateModel);
+        ZiggyMessenger.subscribe(PipelineInstanceStartedMessage.class, this::invalidateModel);
     }
 
     private void displayTasksForInstance(SelectedInstanceChangedMessage message) {
@@ -81,7 +81,7 @@ public class TasksPanel extends JPanel {
         tasksTableModel.updatePipelineInstanceId(currentInstanceId);
     }
 
-    private void invalidateModel(InvalidateConsoleModelsMessage message) {
+    private void invalidateModel(PipelineInstanceStartedMessage message) {
         tasksTableModel.loadFromDatabase();
     }
 
@@ -92,6 +92,7 @@ public class TasksPanel extends JPanel {
 
         tasksTableModel = new TasksTableModel();
         tasksTable = createTasksTable(tasksTableModel);
+        tasksTableModel.setTable(tasksTable.getTable());
         JScrollPane tasksTableScrollPane = new JScrollPane(tasksTable.getTable());
         createTasksTablePopupMenu();
 

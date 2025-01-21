@@ -13,7 +13,6 @@ etc_dir="$(dirname "$PIPELINE_CONFIG_PATH")"
 sample_root="$(dirname "$etc_dir")"
 sample_home="$sample_root/build"
 python_env=$sample_home/env
-ziggy_root="$(dirname "$sample_root")"
 
 # Put the build directory next to the env directory in the directory tree.
 mkdir -p $python_env
@@ -27,6 +26,10 @@ cp -r $sample_root/data/* $data_receipt_dir
 bin_dir=$sample_home/bin
 mkdir -p $bin_dir
 bin_src_dir=$sample_root/src/main/sh
+
+# Copy the Python source to the build directory.
+mkdir -p $sample_home/src/main
+cp -r $sample_root/src/main/python $sample_home/src/main
 
 # Copy the shell scripts from src to build.
 install -m a+rx  $bin_src_dir/permuter.sh $bin_dir/permuter
@@ -42,17 +45,7 @@ trap 'deactivate' EXIT
 source $python_env/bin/activate
 
 # Build the environment with the needed packages.
-pip3 install h5py Pillow numpy
-
-# Get the location of the environment's site packages directory
-site_pkgs=$(python3 -c "from sysconfig import get_path; print(get_path('purelib'))")
-
-# Copy the pipeline major_tom package to the site-packages location.
-cp -r $ziggy_root/sample-pipeline/src/main/python/major_tom $site_pkgs
-
-# Copy the Ziggy components to the site-packages location.
-cp -r $ziggy_root/src/main/python/hdf5mi $site_pkgs
-cp -r $ziggy_root/src/main/python/zigutils $site_pkgs
+pip3 install $sample_home/src/main/python/sample_pipeline $ZIGGY_HOME/src/main/python/ziggy
 
 # Generate version information.
 $ZIGGY_HOME/bin/ziggy generate-build-info --home $sample_home

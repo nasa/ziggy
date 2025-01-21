@@ -1,5 +1,3 @@
-// The logging.captureStandard* settings squelch Hibernate's output. Use gradle --info to see it.
-
 // TODO Disable connection pooling altogether
 // While the HSQLDB memory database allows the tasks to run, it is 10
 // seconds slower then running without a connection pool. Find a
@@ -17,9 +15,6 @@ task generateHsqldbCreateScript(type: JavaExec, dependsOn: copyLibs) {
         "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
         "-Djava.library.path=$outsideDir/lib"
     args "--create", "--output=$buildDir/schema/ddl.hsqldb-create.sql"
-
-    logging.captureStandardOutput LogLevel.INFO
-    logging.captureStandardError LogLevel.INFO
 }
 
 test.dependsOn generateHsqldbCreateScript
@@ -37,9 +32,6 @@ task generateHsqldbDropScript(type: JavaExec, dependsOn: copyLibs) {
         "-Dhibernate.dialect=org.hibernate.dialect.HSQLDialect",
         "-Djava.library.path=$outsideDir/lib"
     args "--drop", "--output=$buildDir/schema/ddl.hsqldb-drop.sql"
-
-    logging.captureStandardOutput LogLevel.INFO
-    logging.captureStandardError LogLevel.INFO
 }
 
 test.dependsOn generateHsqldbDropScript
@@ -57,9 +49,6 @@ task generatePostgresqlCreateScript(type: JavaExec, dependsOn: copyLibs) {
         "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
         "-Djava.library.path=$outsideDir/lib"
     args "--create", "--output=$buildDir/schema/ddl.postgresql-create.sql"
-
-    logging.captureStandardOutput LogLevel.INFO
-    logging.captureStandardError LogLevel.INFO
 }
 
 assemble.dependsOn generatePostgresqlCreateScript
@@ -75,9 +64,6 @@ task generatePostgresqlDropScript(type: JavaExec, dependsOn: copyLibs) {
         "-Dhibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
         "-Djava.library.path=$outsideDir/lib"
     args "--drop", "--output=$buildDir/schema/ddl.postgresql-drop.sql"
-
-    logging.captureStandardOutput LogLevel.INFO
-    logging.captureStandardError LogLevel.INFO
 }
 
 assemble.dependsOn generatePostgresqlDropScript

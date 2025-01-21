@@ -11,7 +11,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
-import gov.nasa.ziggy.services.messages.InvalidateConsoleModelsMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -120,7 +120,7 @@ public class PipelineInstanceManager {
                 currentInstanceName.toString(), startNode, endNode, null);
             currentInstanceId = pipelineInstance.getId();
 
-            ZiggyMessenger.publish(new InvalidateConsoleModelsMessage());
+            ZiggyMessenger.publish(new PipelineInstanceStartedMessage());
 
             // If we're not on the last repeat, we need to wait.
             // While the counter is 0-based, messages to the user are 1-based.

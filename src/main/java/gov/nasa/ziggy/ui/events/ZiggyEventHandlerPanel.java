@@ -6,6 +6,7 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import javax.swing.GroupLayout;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
@@ -55,7 +57,16 @@ public class ZiggyEventHandlerPanel extends JPanel {
 
     public ZiggyEventHandlerPanel() {
         buildComponent();
+        addHierarchyListener(this::hierarchyListener);
         update();
+    }
+
+    // Ensure panel is current whenever it is made visible.
+    private void hierarchyListener(HierarchyEvent evt) {
+        JComponent component = (JComponent) evt.getSource();
+        if ((evt.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && component.isShowing()) {
+            refresh(null);
+        }
     }
 
     private void buildComponent() {
