@@ -1,7 +1,5 @@
 package gov.nasa.ziggy.services.events;
 
-import static gov.nasa.ziggy.XmlUtils.assertContains;
-import static gov.nasa.ziggy.XmlUtils.complexTypeContent;
 import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST_DATA;
 import static gov.nasa.ziggy.services.config.PropertyName.DATA_RECEIPT_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HOME_DIR;
@@ -11,9 +9,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,28 +22,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.mockito.Mockito;
-import org.xml.sax.SAXException;
-
-import com.google.common.collect.ImmutableList;
 
 import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.data.datastore.DatastoreConfigurationImporter;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionImporter;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
-import gov.nasa.ziggy.pipeline.xml.ParameterImportExportOperations;
-import gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli.ParamIoMode;
-import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionImporter;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -56,26 +44,24 @@ import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
-import gov.nasa.ziggy.util.io.ZiggyFileUtils;
-import jakarta.xml.bind.JAXBException;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
- * Unit tests for {@link ZiggyEventHandler}, {@link ZiggyEventStatus}, {@link ZiggyEvent}, and
- * {@link ZiggyEventHandlerFile} classes.
+ * Unit tests for {@link ZiggyEventHandler}, {@link ZiggyEventStatus}, and {@link ZiggyEvent}
+ * classes.
  *
  * @author PT
  */
 public class ZiggyEventHandlerTest {
 
     public static final String TEST_DATA_DIR = "events";
-    public static final String TEST_DATA_SRC = TEST_DATA.resolve("EventPipeline").toString();
+    public static final String TEST_DATA_SRC = TEST_DATA.toString();
 
     private Path testDataDir;
     private ZiggyEventHandler ziggyEventHandler;
     private String pipelineName = "sample";
     private Path readyIndicator1, readyIndicator2a, readyIndicator2b;
-    private PipelineDefinitionOperations pipelineDefinitionOperations = Mockito
-        .spy(PipelineDefinitionOperations.class);
+    private PipelineOperations pipelineOperations = Mockito.spy(PipelineOperations.class);
     private PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
     private ParametersOperations parametersOperations = new ParametersOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
@@ -97,9 +83,13 @@ public class ZiggyEventHandlerTest {
     public ZiggyPropertyRule dataReceiptDirPropertyRule = new ZiggyPropertyRule(DATA_RECEIPT_DIR,
         directoryRule, TEST_DATA_DIR);
 
+    public ZiggyPropertyRule datastorePropertyRule = new ZiggyPropertyRule(
+        PropertyName.DATASTORE_ROOT_DIR, directoryRule, "datastore");
+
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule(directoryRule)
-        .around(dataReceiptDirPropertyRule);
+        .around(dataReceiptDirPropertyRule)
+        .around(datastorePropertyRule);
 
     @Before
     public void setUp() throws IOException {
@@ -125,9 +115,7 @@ public class ZiggyEventHandlerTest {
         // Mock out the machinery that returns a PipelineExecutor so that we can substitute
         // our own UOW generator retrieval; for some reason the test fails when retrieving the
         // UOW for data receipt, but it works correctly in real life, so... .
-        Mockito.doReturn(pipelineDefinitionOperations)
-            .when(ziggyEventHandler)
-            .pipelineDefinitionOperations();
+        Mockito.doReturn(pipelineOperations).when(ziggyEventHandler).pipelineOperations();
         Mockito.doReturn(pipelineExecutor).when(ziggyEventHandler).pipelineExecutor();
 
         ziggyEventHandler.setPipelineName(pipelineName);
@@ -135,59 +123,14 @@ public class ZiggyEventHandlerTest {
         ziggyEventHandler.setName("test-event");
 
         // Set up the database, including with the pipeline to be used by the event handler.
-        new ParameterImportExportOperations().importParameterLibrary(
-            new File(TEST_DATA_SRC, "pl-event.xml"), null, ParamIoMode.STANDARD);
-        new DatastoreConfigurationImporter(
-            ImmutableList.of(new File(TEST_DATA_SRC, "pt-event.xml").toString()), false)
-                .importConfiguration();
-        new PipelineModuleDefinitionOperations().createDataReceiptPipelineModule();
-        new PipelineDefinitionImporter()
-            .importPipelineConfiguration(ImmutableList.of(new File(TEST_DATA_SRC, "pd-event.xml")));
+        new PipelineStepOperations().createDataReceiptPipelineStep();
+        new PipelineDefinitionImporter(List.of(Paths.get(TEST_DATA_SRC).resolve("pl-event.xml"),
+            Paths.get(TEST_DATA_SRC).resolve("pt-event.xml"),
+            Paths.get(TEST_DATA_SRC).resolve("pd-event.xml"))).importPipelineDefinitions();
 
         // Construct the PipelineSupervisor just so that we have a value set for the
         // number of workers
         new PipelineSupervisor(1, 1000);
-    }
-
-    @Test
-    public void testSchema() throws IOException {
-        Path schemaPath = Paths.get(
-            ZiggyConfiguration.getInstance().getString(ZIGGY_HOME_DIR.property()), "schema", "xml",
-            new ZiggyEventHandlerFile().getXmlSchemaFilename());
-        List<String> schemaContent = Files.readAllLines(schemaPath, ZiggyFileUtils.ZIGGY_CHARSET);
-
-        assertContains(schemaContent,
-            "<xs:element name=\"pipelineEventDefinition\" type=\"ziggyEventHandlerFile\"/>");
-
-        List<String> complexTypeContent = complexTypeContent(schemaContent,
-            "<xs:complexType name=\"ziggyEventHandlerFile\">");
-        assertContains(complexTypeContent,
-            "<xs:element name=\"pipelineEvent\" type=\"ziggyEventHandler\" minOccurs=\"0\" maxOccurs=\"unbounded\"/>");
-
-        complexTypeContent = complexTypeContent(schemaContent,
-            "<xs:complexType name=\"ziggyEventHandler\"");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"enableOnClusterStart\" type=\"xs:boolean\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"directory\" type=\"xs:string\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"pipelineName\" type=\"xs:string\" use=\"required\"/>");
-    }
-
-    @Test
-    public void testReadXml() throws InstantiationException, IllegalAccessException, SAXException,
-        JAXBException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
-        SecurityException {
-        ValidatingXmlManager<ZiggyEventHandlerFile> xmlManager = new ValidatingXmlManager<>(
-            ZiggyEventHandlerFile.class);
-        ZiggyEventHandlerFile eventFile = xmlManager
-            .unmarshal(Paths.get(TEST_DATA_SRC, "pe-test.xml").toFile());
-        assertEquals(2, eventFile.getZiggyEventHandlers().size());
-        for (ZiggyEventHandler handler : eventFile.getZiggyEventHandlers()) {
-            validateEventHandler(handler);
-        }
     }
 
     @Test
@@ -459,34 +402,6 @@ public class ZiggyEventHandlerTest {
         UnitOfWork uow = task.getUnitOfWork();
         assertEquals(directoryRule.directory().toAbsolutePath().resolve("events").toString(),
             DirectoryUnitOfWorkGenerator.directory(uow));
-    }
-
-    private void validateEventHandler(ZiggyEventHandler handler) {
-
-        switch (handler.getName()) {
-            case "data-receipt":
-                validateDataReceiptHandler(handler);
-                break;
-            case "another-event-handler":
-                validateOtherHandler(handler);
-                break;
-            default:
-                throw new PipelineException("Unknown handler " + handler.getName());
-        }
-    }
-
-    private void validateDataReceiptHandler(ZiggyEventHandler handler) {
-        assertEquals("pipeline1", handler.getPipelineName());
-        assertTrue(handler.isEnableOnClusterStart());
-        assertFalse(handler.isRunning());
-        assertEquals("/some/directory/or/other", handler.getDirectory());
-    }
-
-    private void validateOtherHandler(ZiggyEventHandler handler) {
-        assertEquals("pipeline2", handler.getPipelineName());
-        assertFalse(handler.isEnableOnClusterStart());
-        assertFalse(handler.isRunning());
-        assertEquals("/yet/another/directory", handler.getDirectory());
     }
 
     private static class TestOperations extends DatabaseOperations {

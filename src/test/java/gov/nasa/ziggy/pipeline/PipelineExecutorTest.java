@@ -16,16 +16,16 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Unit tests for {@link PipelineExecutor}.
@@ -42,8 +42,8 @@ public class PipelineExecutorTest {
 
     private PipelineExecutor pipelineExecutor;
     private PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = Mockito
-        .mock(PipelineModuleDefinitionOperations.class);
+    private PipelineStepOperations pipelineStepOperations = Mockito
+        .mock(PipelineStepOperations.class);
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
 
     private PipelineInstanceNode pipelineInstanceNode;
@@ -60,8 +60,8 @@ public class PipelineExecutorTest {
         // Set up a PipelineExecutor that can be modified by Mockito.
         pipelineExecutor = mockedExecutor();
 
-        // Set up a set of pipeline definitions that don't include any persisted tasks.
-        pipelineOperationsTestUtils.setUpFourModulePipelineWithInstanceNodes();
+        // Set up a set of pipelines that don't include any persisted tasks.
+        pipelineOperationsTestUtils.setUpFourNodePipelineWithInstanceNodes();
 
         // Get the pipeline instance node we're going to transition away from.
         pipelineInstanceNode = pipelineOperationsTestUtils.getPipelineInstanceNodes().get(0);
@@ -76,8 +76,7 @@ public class PipelineExecutorTest {
         Mockito.when(wrapper.isInitialized()).thenReturn(true);
         Mockito.when(wrapper.newInstance())
             .thenReturn(new TestUnitOfWorkGenerator(List.of("task1", "task2")));
-        Mockito
-            .when(pipelineModuleDefinitionOperations.unitOfWorkGenerator(nextNode.getModuleName()))
+        Mockito.when(pipelineStepOperations.unitOfWorkGenerator(nextNode.getPipelineStepName()))
             .thenReturn(wrapper);
     }
 
@@ -189,9 +188,7 @@ public class PipelineExecutorTest {
 
     private PipelineExecutor mockedExecutor() {
         PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
-        Mockito.doReturn(pipelineModuleDefinitionOperations)
-            .when(pipelineExecutor)
-            .pipelineModuleDefinitionOperations();
+        Mockito.doReturn(pipelineStepOperations).when(pipelineExecutor).pipelineStepOperations();
         Mockito.doReturn(true).when(pipelineExecutor).storeTaskRequests();
         return pipelineExecutor;
     }

@@ -24,15 +24,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.services.logging.ZiggyLog;
 import gov.nasa.ziggy.services.process.ExternalProcess;
-import gov.nasa.ziggy.services.process.ExternalProcessUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.WrapperUtils;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 
 /**
@@ -103,7 +102,7 @@ public class HsqldbController extends DatabaseController {
     }
 
     private Path logFile(boolean wrapper) {
-        return logDir().resolve(WrapperUtils.logFilename(HSQLDB_BIN_NAME, wrapper));
+        return logDir().resolve(ZiggyLog.logFilename(HSQLDB_BIN_NAME, wrapper));
     }
 
     @Override
@@ -124,7 +123,7 @@ public class HsqldbController extends DatabaseController {
                 throw new PipelineException("Unable to start database");
             }
 
-            log.info("Creating database");
+            log.info("Creating database...");
             executeScript(SCHEMA_CREATE_FILE, false);
 
             if (!tableExists(INIT_TABLE_NAME)) {
@@ -388,9 +387,9 @@ public class HsqldbController extends DatabaseController {
                 .addArgument(
                     wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1, ziggyLibDir))
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
-                    ExternalProcessUtils.log4jConfigString()))
+                    ZiggyLog.log4jConfigString()))
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
-                    ExternalProcessUtils.ziggyLog(logFile(false).toString())));
+                    ZiggyLog.rollingFileSystemProperty(logFile(false).toString())));
         }
 
         return commandLine.addArgument(cmd.toString());
@@ -404,6 +403,7 @@ public class HsqldbController extends DatabaseController {
         Server server = new Server();
         server.setDatabaseName(0, dbName());
         server.setDatabasePath(0, dataDir().resolve(dbName()).toString());
+        server.setPort(port());
         server.start();
     }
 

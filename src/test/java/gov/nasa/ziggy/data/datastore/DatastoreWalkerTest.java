@@ -21,9 +21,9 @@ import org.junit.rules.RuleChain;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**

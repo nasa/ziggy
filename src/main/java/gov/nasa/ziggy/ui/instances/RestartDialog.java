@@ -25,7 +25,7 @@ import javax.swing.table.TableCellEditor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
@@ -72,12 +72,12 @@ public class RestartDialog extends javax.swing.JDialog {
 
         restartTableModel = new RestartTableModel(supportedRunModesByPipelineTask);
 
-        List<RestartAttributes> modules = restartTableModel.getModuleList();
+        List<RestartAttributes> allRestartAttributes = restartTableModel.getAllRestartAttributes();
         final List<TableCellEditor> editors = new ArrayList<>();
 
-        for (RestartAttributes module : modules) {
-            editors.add(
-                new DefaultCellEditor(new JComboBox<>(new Vector<>(module.getRestartModes()))));
+        for (RestartAttributes restartAttriutes : allRestartAttributes) {
+            editors.add(new DefaultCellEditor(
+                new JComboBox<>(new Vector<>(restartAttriutes.getRestartModes()))));
         }
 
         JTable table = new JTable(restartTableModel) {
@@ -125,68 +125,71 @@ public class RestartDialog extends javax.swing.JDialog {
             return null;
         }
 
-        RestartAttributes restartAttrs = null;
-        Map<String, RestartAttributes> moduleMap = dialog.restartTableModel.getModuleMap();
+        RestartAttributes restartAttributes = null;
+        Map<String, RestartAttributes> restartAttributesByPipelineProcessingSteps = dialog.restartTableModel
+            .getRestartAttributesByPipelineProcessingSteps();
 
         for (PipelineTaskDisplayData failedTask : supportedRunModesByPipelineTask.keySet()) {
-            String key = RestartAttributes.key(failedTask.getModuleName(),
+            String key = RestartAttributes.key(failedTask.getPipelineStepName(),
                 failedTask.getProcessingStep());
 
-            restartAttrs = moduleMap.get(key);
+            restartAttributes = restartAttributesByPipelineProcessingSteps.get(key);
 
             log.info("Set task {} restartMode to {}", failedTask.getPipelineTaskId(),
-                restartAttrs.getSelectedRestartMode());
+                restartAttributes.getSelectedRestartMode());
         }
-        return restartAttrs.getSelectedRestartMode();
+        return restartAttributes.getSelectedRestartMode();
     }
 
     private static class RestartTableModel extends AbstractTableModel {
         private static final Logger log = LoggerFactory.getLogger(RestartTableModel.class);
 
-        private final List<RestartAttributes> moduleList;
-        private final Map<String, RestartAttributes> moduleMap;
+        private final List<RestartAttributes> allRestartAttributes;
+        private final Map<String, RestartAttributes> restartAttributesByPipelineProcessingSteps;
 
         public RestartTableModel(
             Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
-            moduleMap = new HashMap<>();
+            restartAttributesByPipelineProcessingSteps = new HashMap<>();
 
             for (PipelineTaskDisplayData task : supportedRunModesByPipelineTask.keySet()) {
-                String moduleName = task.getModuleName();
+                String pipelineStepName = task.getPipelineStepName();
                 ProcessingStep processingStep = task.getProcessingStep();
-                String key = RestartAttributes.key(moduleName, processingStep);
-                RestartAttributes module = moduleMap.get(key);
+                String key = RestartAttributes.key(pipelineStepName, processingStep);
+                RestartAttributes restartAttributes = restartAttributesByPipelineProcessingSteps
+                    .get(key);
 
-                if (module == null) {
+                if (restartAttributes == null) {
                     List<RunMode> supportedModes = supportedRunModesByPipelineTask.get(task);
                     RunMode selectedMode = supportedModes.get(0);
 
-                    module = new RestartAttributes(moduleName, processingStep, 1, supportedModes,
-                        selectedMode);
+                    restartAttributes = new RestartAttributes(pipelineStepName, processingStep, 1,
+                        supportedModes, selectedMode);
 
-                    moduleMap.put(key, module);
+                    restartAttributesByPipelineProcessingSteps.put(key, restartAttributes);
                 } else {
-                    module.incrementCount();
+                    restartAttributes.incrementCount();
                 }
             }
 
-            moduleList = new LinkedList<>(moduleMap.values());
+            allRestartAttributes = new LinkedList<>(
+                restartAttributesByPipelineProcessingSteps.values());
 
-            log.debug("moduleList.size()={}", moduleList.size());
+            log.debug("allRestartAttributes.size()={}", allRestartAttributes.size());
         }
 
         @Override
         public int getRowCount() {
-            return moduleList.size();
+            return allRestartAttributes.size();
         }
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             log.debug("rowIndex={}, columnIndex={}", rowIndex, columnIndex);
 
-            RestartAttributes restartGroup = moduleList.get(rowIndex);
+            RestartAttributes restartGroup = allRestartAttributes.get(rowIndex);
 
             return switch (columnIndex) {
-                case 0 -> restartGroup.getModuleName();
+                case 0 -> restartGroup.getPipelineStepName();
                 case 1 -> restartGroup.getProcessingStep();
                 case 2 -> restartGroup.getCount();
                 case 3 -> restartGroup.getSelectedRestartMode();
@@ -202,7 +205,7 @@ public class RestartDialog extends javax.swing.JDialog {
         @Override
         public String getColumnName(int column) {
             return switch (column) {
-                case 0 -> "Module";
+                case 0 -> "Node";
                 case 1 -> "Status";
                 case 2 -> "Count";
                 case 3 -> "Restart mode";
@@ -225,16 +228,16 @@ public class RestartDialog extends javax.swing.JDialog {
             if (columnIndex != 3) {
                 throw new IllegalArgumentException("read-only columnIndex = " + columnIndex);
             }
-            RestartAttributes module = moduleList.get(rowIndex);
-            module.setSelectedRestartMode((RunMode) value);
+            RestartAttributes restartAttributes = allRestartAttributes.get(rowIndex);
+            restartAttributes.setSelectedRestartMode((RunMode) value);
         }
 
-        public List<RestartAttributes> getModuleList() {
-            return moduleList;
+        public List<RestartAttributes> getAllRestartAttributes() {
+            return allRestartAttributes;
         }
 
-        public Map<String, RestartAttributes> getModuleMap() {
-            return moduleMap;
+        public Map<String, RestartAttributes> getRestartAttributesByPipelineProcessingSteps() {
+            return restartAttributesByPipelineProcessingSteps;
         }
     }
 
@@ -242,31 +245,31 @@ public class RestartDialog extends javax.swing.JDialog {
      * @author Todd Klaus
      */
     private static class RestartAttributes {
-        private final String moduleName;
+        private final String pipelineStepName;
         private final ProcessingStep processingStep;
         private int count;
         private final List<RunMode> restartModes;
         private RunMode selectedRestartMode;
 
-        public RestartAttributes(String moduleName, ProcessingStep processingStep, int count,
+        public RestartAttributes(String pipelineStepName, ProcessingStep processingStep, int count,
             List<RunMode> restartModes, RunMode selectedRestartMode) {
-            this.moduleName = moduleName;
+            this.pipelineStepName = pipelineStepName;
             this.processingStep = processingStep;
             this.count = count;
             this.restartModes = restartModes;
             this.selectedRestartMode = selectedRestartMode;
         }
 
-        public static String key(String moduleName, ProcessingStep processingStep) {
-            return moduleName + ":" + processingStep;
+        public static String key(String pipelineStepName, ProcessingStep processingStep) {
+            return pipelineStepName + ":" + processingStep;
         }
 
         public void incrementCount() {
             count++;
         }
 
-        public String getModuleName() {
-            return moduleName;
+        public String getPipelineStepName() {
+            return pipelineStepName;
         }
 
         public ProcessingStep getProcessingStep() {

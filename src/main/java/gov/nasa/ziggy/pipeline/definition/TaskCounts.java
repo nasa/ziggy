@@ -16,22 +16,22 @@ import java.util.Objects;
 public class TaskCounts {
 
     private final int taskCount;
-    private final Map<String, Counts> moduleCounts = new LinkedHashMap<>();
+    private final Map<String, Counts> pipelineStepCounts = new LinkedHashMap<>();
     private final Counts totalCounts = new Counts();
-    private List<String> moduleNames;
+    private List<String> pipelineStepNames;
 
     public TaskCounts() {
         taskCount = 0;
-        moduleNames = new ArrayList<>();
+        pipelineStepNames = new ArrayList<>();
     }
 
     public TaskCounts(List<PipelineTaskDisplayData> tasks) {
         taskCount = tasks.size();
         for (PipelineTaskDisplayData task : tasks) {
-            Counts counts = moduleCounts.get(task.getModuleName());
+            Counts counts = pipelineStepCounts.get(task.getPipelineStepName());
             if (counts == null) {
                 counts = new Counts();
-                moduleCounts.put(task.getModuleName(), counts);
+                pipelineStepCounts.put(task.getPipelineStepName(), counts);
             }
 
             if (!task.isError()) {
@@ -45,7 +45,7 @@ public class TaskCounts {
             counts.subtaskCounts.failedSubtaskCount += task.getFailedSubtaskCount();
         }
 
-        for (Counts counts : moduleCounts.values()) {
+        for (Counts counts : pipelineStepCounts.values()) {
             totalCounts.waitingToRunTaskCount += counts.getWaitingToRunTaskCount();
             totalCounts.processingTaskCount += counts.getProcessingTaskCount();
             totalCounts.completedTaskCount += counts.getCompletedTaskCount();
@@ -55,7 +55,7 @@ public class TaskCounts {
             totalCounts.subtaskCounts.failedSubtaskCount += counts.getFailedSubtaskCount();
         }
 
-        moduleNames = new ArrayList<>(moduleCounts.keySet());
+        pipelineStepNames = new ArrayList<>(pipelineStepCounts.keySet());
     }
 
     public static String subtaskCountsLabel(int completeCount, int totalCount, int failedCount) {
@@ -86,12 +86,12 @@ public class TaskCounts {
         return taskCount;
     }
 
-    public List<String> getModuleNames() {
-        return moduleNames;
+    public List<String> getPipelineStepNames() {
+        return pipelineStepNames;
     }
 
-    public Map<String, Counts> getModuleCounts() {
-        return moduleCounts;
+    public Map<String, Counts> getPipelineStepCounts() {
+        return pipelineStepCounts;
     }
 
     public Counts getTotalCounts() {
@@ -100,7 +100,7 @@ public class TaskCounts {
 
     @Override
     public int hashCode() {
-        return Objects.hash(moduleCounts, moduleNames, taskCount, totalCounts);
+        return Objects.hash(pipelineStepCounts, pipelineStepNames, taskCount, totalCounts);
     }
 
     @Override
@@ -112,9 +112,9 @@ public class TaskCounts {
             return false;
         }
         TaskCounts other = (TaskCounts) obj;
-        return Objects.equals(moduleCounts, other.moduleCounts)
-            && Objects.equals(moduleNames, other.moduleNames) && taskCount == other.taskCount
-            && Objects.equals(totalCounts, other.totalCounts);
+        return Objects.equals(pipelineStepCounts, other.pipelineStepCounts)
+            && Objects.equals(pipelineStepNames, other.pipelineStepNames)
+            && taskCount == other.taskCount && Objects.equals(totalCounts, other.totalCounts);
     }
 
     @Override
@@ -213,7 +213,7 @@ public class TaskCounts {
             if (this == obj) {
                 return true;
             }
-            if ((obj == null) || (getClass() != obj.getClass())) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
             Counts other = (Counts) obj;

@@ -20,18 +20,18 @@ import org.mockito.Mockito;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.ModelCrud;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
 /**
@@ -49,8 +49,8 @@ public class DataReceiptOperationsTest {
         .spy(DatastoreProducerConsumerCrud.class);
     private FailedImportCrud failedImportCrud = Mockito.spy(FailedImportCrud.class);
     private ModelCrud modelCrud = Mockito.spy(ModelCrud.class);
-    private PipelineModuleDefinition dataReceiptModule;
-    private PipelineDefinitionNode dataReceiptNode;
+    private PipelineStep dataReceiptStep;
+    private PipelineNode dataReceiptNode;
     private ModelRegistry modelRegistry;
     private TestOperations testOperations = new TestOperations();
 
@@ -67,10 +67,9 @@ public class DataReceiptOperationsTest {
         Mockito.when(dataReceiptOperations.failedImportCrud()).thenReturn(failedImportCrud);
         Mockito.when(dataReceiptOperations.modelCrud()).thenReturn(modelCrud);
         Mockito.when(dataReceiptOperations.pipelineInstanceCrud()).thenReturn(pipelineInstanceCrud);
-        dataReceiptModule = new PipelineModuleDefinitionOperations()
-            .createDataReceiptPipelineModule();
+        dataReceiptStep = new PipelineStepOperations().createDataReceiptPipelineStep();
         dataReceiptNode = testOperations
-            .merge(new PipelineDefinitionNode(dataReceiptModule.getName(), "dummy"));
+            .merge(new PipelineNode(dataReceiptStep.getName(), "dummy"));
 
         // The model registry should be locked because we're simulating a pipeline instance
         // that runs data receipt, hence one that has a locked model registry.
@@ -178,30 +177,30 @@ public class DataReceiptOperationsTest {
                 instance1.setModelRegistry(modelRegistry);
                 ImportFiles importFiles = new ImportFiles(instance1.getId());
                 PipelineInstanceNode instanceNode1 = new PipelineInstanceNodeCrud()
-                    .merge(new PipelineInstanceNode(dataReceiptNode, dataReceiptModule));
+                    .merge(new PipelineInstanceNode(dataReceiptNode, dataReceiptStep));
                 instance1.addPipelineInstanceNode(instanceNode1);
                 instance1 = new PipelineInstanceCrud().merge(instance1);
                 PipelineTask task1 = new PipelineTask(instance1, instanceNode1, null);
                 task1 = new PipelineTaskCrud().merge(task1);
                 instanceNode1.addPipelineTask(task1);
                 instanceNode1 = new PipelineInstanceNodeCrud().merge(instanceNode1);
+                RandomStringUtils randomStringUtils = RandomStringUtils.secure();
                 for (int fileIndex = 0; fileIndex < successfulImports; fileIndex++) {
                     importFiles
-                        .addSuccessfulFile(Paths.get(RandomStringUtils.random(10, true, true)));
+                        .addSuccessfulFile(Paths.get(randomStringUtils.next(10, true, true)));
                 }
                 datastoreProducerConsumerCrud.createOrUpdateProducer(task1,
                     importFiles.getSuccessfulImportFiles());
                 for (int fileIndex = 0; fileIndex < failedImports; fileIndex++) {
-                    importFiles.addFailedFile(Paths.get(RandomStringUtils.random(10, true, true)));
+                    importFiles.addFailedFile(Paths.get(randomStringUtils.next(10, true, true)));
                 }
                 failedImportCrud.create(task1, importFiles.getFailedImportFiles());
                 return importFiles;
             });
         }
 
-        public PipelineDefinitionNode merge(PipelineDefinitionNode pipelineDefinitionNode) {
-            return performTransaction(
-                () -> new PipelineDefinitionNodeCrud().merge(pipelineDefinitionNode));
+        public PipelineNode merge(PipelineNode pipelineNode) {
+            return performTransaction(() -> new PipelineNodeCrud().merge(pipelineNode));
         }
     }
 }

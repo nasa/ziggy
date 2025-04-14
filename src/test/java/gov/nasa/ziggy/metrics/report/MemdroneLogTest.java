@@ -25,8 +25,7 @@ import gov.nasa.ziggy.IntegrationTestCategory;
 public class MemdroneLogTest {
     private static final Logger log = LoggerFactory.getLogger(MemdroneLogTest.class);
 
-    private static final String MEMDRONE_LOG_PATH = TEST_DATA.resolve("memdrone")
-        .resolve("memdrone-r190i1n5.txt.gz")
+    private static final String MEMDRONE_LOG_PATH = TEST_DATA.resolve("memdrone-r190i1n5.txt.gz")
         .toString();
     private static final String[] expectedPids = { "62960", "62954", "54531", "89594", "62956",
         "62963", "72050", "83687", "62959", "96229", "20017", "47885", "50848" };

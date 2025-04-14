@@ -17,9 +17,9 @@ import org.netbeans.swing.outline.Outline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.ui.util.GroupInformation;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Implements a generic tree model for use with {@link Outline} for display of hierarchical tables.
@@ -59,7 +59,7 @@ public class ZiggyTreeModel<T> extends DefaultTreeModel {
             @Override
             protected GroupInformation<T> doInBackground() throws Exception {
                 // Obtain information on the groups for this component class.
-                log.debug("Loading {} items", type);
+                log.debug("Loading {} items...", type);
                 return new GroupInformation<>(type, items.get());
             }
 
@@ -71,7 +71,7 @@ public class ZiggyTreeModel<T> extends DefaultTreeModel {
                     log.debug("Loading {} items...done", type);
 
                     // Add the default group.
-                    log.debug("Updating tree model for {}", type);
+                    log.debug("Updating tree model for {}...", type);
                     rootNode.removeAllChildren();
                     defaultGroupNode = new DefaultMutableTreeNode(Group.DEFAULT_NAME);
                     insertNodeInto(defaultGroupNode, rootNode, rootNode.getChildCount());

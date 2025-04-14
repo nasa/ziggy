@@ -8,7 +8,7 @@ Created on Nov 19, 2020
 import unittest
 from ..stacktrace import ZiggyErrorReturn, ZiggyErrorWriter
 from .throwexception import ExceptionGenerator
-from ..hdf5 import Hdf5ModuleInterface
+from ..hdf5 import Hdf5AlgorithmInterface
 from tempfile import TemporaryDirectory
 from os import makedirs, chdir
 from os.path import isfile
@@ -42,9 +42,9 @@ class StackTraceTest(unittest.TestCase):
             ZiggyErrorWriter(5)
             error_file = "cal-error.h5"
             self.assertTrue(isfile(error_file))
-            hdf5_module_interface = Hdf5ModuleInterface()
-            hdf5_module_interface.set_reconstitute_struct_array(True)
-            error_file_contents = hdf5_module_interface.read_file(error_file)
+            hdf5_algorithm_interface = Hdf5AlgorithmInterface()
+            hdf5_algorithm_interface.set_reconstitute_struct_array(True)
+            error_file_contents = hdf5_algorithm_interface.read_file(error_file)
             
             # check the contents of the error file
             self.check_error(error_file_contents, "test_write_error_file", 39)           
@@ -63,9 +63,9 @@ class StackTraceTest(unittest.TestCase):
             ZiggyErrorWriter()
             error_file = "cal-error.h5"
             self.assertTrue(isfile(error_file))
-            hdf5_module_interface = Hdf5ModuleInterface()
-            hdf5_module_interface.set_reconstitute_struct_array(True)
-            error_file_contents = hdf5_module_interface.read_file(error_file)
+            hdf5_algorithm_interface = Hdf5AlgorithmInterface()
+            hdf5_algorithm_interface.set_reconstitute_struct_array(True)
+            error_file_contents = hdf5_algorithm_interface.read_file(error_file)
             
             # check the contents of the error file
             self.check_error(error_file_contents, "test_write_error_file_implicit_seqnum", 60)           
@@ -119,4 +119,3 @@ class StackTraceTest(unittest.TestCase):
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
-    

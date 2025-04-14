@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipelineDefinition>
+
+  <dataFileType name="TCE"
+                location="sector/mda/cal/pixels" 
+                fileNameRegexp="cadenceType/channel/tce.h5"
+                includeAllFilesInAllSubtasks="true"/>
+
+</pipelineDefinition>

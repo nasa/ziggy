@@ -57,20 +57,20 @@ public class ZiggyStringUtils {
         .compile("^\\s*(-?[0-9]+)\\s*-\\s*(-?[0-9]+)\\s*$");
 
     /**
-     * Convert a string to array of String
+     * Convert a comma-delimited string to a list of strings.
      *
-     * @param input
-     * @return
+     * @param input a non-null comma-delimited string
+     * @return a non-null list of strings
+     * @throws NullPointerException if the input is null
      */
-    public static String[] convertStringArray(String input) {
+    public static List<String> toList(String input) {
         checkNotNull(input, "input");
 
         log.debug("input={}", input);
         StringTokenizer st = new StringTokenizer(input, ",");
-        String[] results = new String[st.countTokens()];
-        int i = 0;
+        List<String> results = new ArrayList<>(st.countTokens());
         while (st.hasMoreTokens()) {
-            results[i++] = st.nextToken().trim();
+            results.add(st.nextToken().trim());
         }
         return results;
     }

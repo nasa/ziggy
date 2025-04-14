@@ -11,7 +11,7 @@ import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
  */
 public class TaskSummaryDisplayModel extends DisplayModel {
 
-    private static final String[] COLUMN_NAMES = { "Module", "Waiting to run", "Processing",
+    private static final String[] COLUMN_NAMES = { "Node", "Waiting to run", "Processing",
         "Completed", "Failed", "Subtasks" };
 
     private TaskCounts taskCounts = new TaskCounts();
@@ -29,14 +29,15 @@ public class TaskSummaryDisplayModel extends DisplayModel {
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        int moduleCount = taskCounts.getModuleNames().size();
-        boolean isTotalsRow = rowIndex == moduleCount;
-        String moduleName = isTotalsRow ? "" : taskCounts.getModuleNames().get(rowIndex);
+        int nodeCount = taskCounts.getPipelineStepNames().size();
+        boolean isTotalsRow = rowIndex == nodeCount;
+        String pipelineStepName = isTotalsRow ? ""
+            : taskCounts.getPipelineStepNames().get(rowIndex);
         TaskCounts.Counts counts = isTotalsRow ? taskCounts.getTotalCounts()
-            : taskCounts.getModuleCounts().get(moduleName);
+            : taskCounts.getPipelineStepCounts().get(pipelineStepName);
 
         return switch (columnIndex) {
-            case 0 -> moduleName;
+            case 0 -> pipelineStepName;
             case 1 -> counts.getWaitingToRunTaskCount();
             case 2 -> counts.getProcessingTaskCount();
             case 3 -> counts.getCompletedTaskCount();
@@ -52,7 +53,7 @@ public class TaskSummaryDisplayModel extends DisplayModel {
     }
 
     public Counts getContentAtRow(int row) {
-        return taskCounts.getModuleCounts().get(taskCounts.getModuleNames().get(row));
+        return taskCounts.getPipelineStepCounts().get(taskCounts.getPipelineStepNames().get(row));
     }
 
     @Override
@@ -63,7 +64,7 @@ public class TaskSummaryDisplayModel extends DisplayModel {
     @Override
     public int getRowCount() {
         if (taskCounts != null) {
-            return taskCounts.getModuleNames().size() + 1;
+            return taskCounts.getPipelineStepNames().size() + 1;
         }
         return 0;
     }

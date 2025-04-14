@@ -122,7 +122,7 @@ public class AlertsStatusPanel extends JPanel {
                     try {
                         get(); // check for exception
                     } catch (InterruptedException | ExecutionException e) {
-                        log.error("Could not load pipeline module definitions", e);
+                        log.error("Could not load pipeline steps", e);
                     }
 
                     // Remember that we inserted the new message at the top.

@@ -323,8 +323,8 @@ sub logFileOption {
 
     $logFileBasename = "ziggy" if $logFileBasename eq "";
     $logFileName = File::Spec->catfile($properties{'ziggy.pipeline.results.dir'}, 'logs', 'cli', $logFileBasename . '.log');
-    $logFileOption = "-Dziggy.logFile=" . $logFileName;
-    $logFileOption = "-Dziggy.logFile=/dev/null" if $logFileBasename eq "/dev/null";
+    $logFileOption = "-Dziggy.log.rolling.file=" . $logFileName;
+    $logFileOption = "-Dziggy.log.rolling.file=/dev/null" if $logFileBasename eq "/dev/null";
 
     return $logFileOption;
 }

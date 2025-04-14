@@ -15,7 +15,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
@@ -72,8 +76,7 @@ public class ZiggyFileUtilsTest {
         Path testSubdirPath = testSubdir.toPath();
         Path codeRoot = Paths
             .get(ZiggyConfiguration.getInstance().getString(PropertyName.WORKING_DIR.property()));
-        Path testSrcFile = codeRoot
-            .resolve(Paths.get("test", "data", "configuration", "pipeline-definition.xml"));
+        Path testSrcFile = codeRoot.resolve(Paths.get("test", "data", "pipeline-definition.xml"));
         Path testFile = testDir.toPath().resolve("pipeline-definition.xml");
         Files.copy(testSrcFile, testFile);
 
@@ -296,5 +299,65 @@ public class ZiggyFileUtilsTest {
     @Test(expected = IllegalArgumentException.class)
     public void testDeleteNonDirectoryFile() throws IOException {
         ZiggyFileUtils.deleteDirectoryTree(testRegularFile.toPath());
+    }
+
+    @Test
+    public void testListFiles() throws IOException {
+        Path directory = directoryRule.directory().resolve("listFiles");
+        createFiles(directory);
+        Set<Path> files = ZiggyFileUtils.listFiles(directory);
+        assertEquals(3, files.size());
+        assertTrue(files.contains(directory.resolve("foo1")));
+    }
+
+    @Test
+    public void testListFilesWithRegexp() throws IOException {
+        Path directory = directoryRule.directory().resolve("listFiles");
+        createFiles(directory);
+        assertEquals(3, ZiggyFileUtils.listFiles(directory, "foo.*").size());
+        Set<Path> files = ZiggyFileUtils.listFiles(directory, ".*1");
+        assertEquals(1, files.size());
+        assertTrue(files.contains(directory.resolve("foo1")));
+    }
+
+    @Test
+    public void testListFilesWithPatterns() throws IOException {
+        Path directory = directoryRule.directory().resolve("listFiles");
+        createFiles(directory);
+        Set<Path> files = ZiggyFileUtils.listFiles(directory, null,
+            List.of(Pattern.compile(".*1")));
+        assertEquals(2, files.size());
+        assertFalse(files.contains(directory.resolve("foo1")));
+
+        files = ZiggyFileUtils.listFiles(directory, List.of(Pattern.compile("foo.*")),
+            List.of(Pattern.compile(".*1")));
+        assertEquals(2, files.size());
+        assertFalse(files.contains(directory.resolve("foo1")));
+
+        files = ZiggyFileUtils.listFiles(directory, List.of(Pattern.compile(".*2")),
+            List.of(Pattern.compile(".*1")));
+        assertEquals(1, files.size());
+        assertTrue(files.contains(directory.resolve("foo2")));
+
+        files = ZiggyFileUtils.listFiles(directory,
+            Set.of(Pattern.compile("foo[0]"), Pattern.compile("foo[1-9]")),
+            List.of(Pattern.compile(".*1")));
+        assertEquals(2, files.size());
+        assertTrue(files.contains(directory.resolve("foo2")));
+
+        files = ZiggyFileUtils.listFiles(directory,
+            Set.of(Pattern.compile("foo0"), Pattern.compile("foo1"), Pattern.compile("foo3")),
+            List.of(Pattern.compile(".*1")));
+        assertEquals(1, files.size());
+        assertTrue(files.contains(directory.resolve("foo0")));
+    }
+
+    private void createFiles(Path directory) throws IOException {
+        Set<Path> files = new HashSet<>();
+        for (int i = 0; i < 3; i++) {
+            Path file = directory.resolve("foo" + i);
+            files.add(file);
+            FileUtils.touch(file.toFile());
+        }
     }
 }

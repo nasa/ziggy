@@ -1,0 +1,215 @@
+#! /bin/bash
+
+# Run a single Ziggy test.
+#
+# Be sure to use the "local" keyword to define variables in functions
+# to avoid name collisions (especially "expected"). However, do not
+# use the local keyword with global variables defined below in your
+# tests. If you mark them with local, then the variables become local
+# to your test, not this file. The use of these global variables
+# should be avoided in any case.
+
+# Variables
+failCount=0
+interactive=1
+testCount=0
+testDir=test/procedures
+
+# Colors
+ESC="\x1b["
+NC=$ESC"0m"
+RED=$ESC"31;01m"
+GREEN=$ESC"32;01m"
+
+usage() {
+    echo "Usage: `basename $0` [options] test"
+    echo "-h|--help             this help"
+    echo "-n|--non-interactive  suppress all prompts and sets interactive variable to 0 that scripts can use to prevent interactivity"
+
+    exit 1
+}
+
+if [ $? != 0 ]; then
+    usage;
+fi
+
+while [ "$#" -gt 1 ]; do
+    case "$1" in
+        -h|--help) usage;;
+        -n|--non-interactive) interactive=0;;
+        -*) echo "$1 is not implemented"; usage;;
+        --) shift; break;;
+        *) break;;
+    esac
+    shift
+done
+if [ $# -gt 1 ]; then
+    echo "Too many parameters"
+    usage
+fi
+
+pause() {
+    if [ $interactive = 0 ]; then
+        return
+    fi
+
+    prefix="Hit"
+    if [ -n "$1" ]; then
+        prefix="$1 and hit"
+    fi
+    suffix="continue"
+    if [ -n "$2" ]; then
+        suffix="$2"
+    fi
+    echo -ne "\n$prefix return to $suffix: "
+    read ignore
+}
+
+retrieveValue() {
+    local command=$1
+    local name=$2
+
+    echo `$command $name |
+        perl -ne '($v) = /^\S+\s+(.+?)\s+'$name'\s+!.*$/; print "$v";'`
+}
+
+pass() {
+    local message=$1
+
+    testCount=`expr $testCount + 1`
+    echo -e "$message [${GREEN}PASS${NC}]"
+}
+
+fail() {
+    local message=$1
+
+    testCount=`expr $testCount + 1`
+    failCount=`expr $failCount + 1`
+    echo -e "$message [${RED}FAIL${NC}]"
+}
+
+
+check() {
+    local command=$1
+    local name=$2
+    local value=$3
+    local min=$4
+    local max=$5
+
+    actual=`retrieveValue $command $name`
+    if [ "$value" = "$actual" ]; then
+        pass "Expect $name = $value"
+        return
+    elif [ -n "$min" -a -n "$max" ]; then
+        if expr "$actual" ">" "$min" "&" "$actual" "<" "$max" > /dev/null; then
+            pass "Expect $name between $min and $max, was $actual"
+            return
+        fi
+    else
+        # If the value is a string, ensure the result starts with the value.
+        set -- $value
+        if [ $# -gt 1 ]; then
+            case "$actual" in
+                "$value"*)
+                    pass "Expect $name = $value"
+                    return;;
+            esac
+        fi
+    fi
+    if [ -n "$min" -a -n "$max" ]; then
+        fail "Expect $name between $min and $max, was $actual"
+    else
+        fail "Expect $name = $value, was $actual"
+    fi
+}
+
+logTestResult() {
+    local result=$1
+    local expectation=$2
+
+    if [ $result -eq 0 ]; then
+        pass "Expect $expectation"
+    else
+        fail "Expect $expectation"
+    fi
+}
+
+# TODO Delete the commented-out SOFIA helper functions below once
+# their ideas have been incorporated into Ziggy helper methods.
+
+#assertTelChp() {
+#    local color=$1
+#
+#    if [ $interactive = 0 ]; then
+#        return
+#    fi
+#
+#    if [ "$color" = red -a `retrieveValue Kset_sofia OK2CmdTelChp` != N ]; then
+#        echo -e "${RED}ERROR:${NC} Make TelChp button red and restart test"
+#        exit 1
+#    fi
+#    if [ "$color" = green -a `retrieveValue Kset_sofia OK2CmdTelChp` != Y ]; then
+#        echo -e "${RED}ERROR:${NC} Make TelChp button green and restart test"
+#    fi
+#}
+
+#makeButtonGreen() {
+#    assertTelChp red
+#    Kset_sofia OK2CmdTelChp Y
+#    Kset_sofia OK2Cmd_internal Y
+#}
+
+#makeButtonRed() {
+#    sleep 2                # wait for the coord.set si.integ=0 command
+#    assertTelChp green
+#    Kset_sofia OK2CmdTelChp N
+#    Kset_sofia OK2Cmd_internal N
+#    sleep 4                # wait for the goRed commands
+#}
+
+#saveArtifact() {
+#    local path=$1
+#    local file=`basename $path`
+#
+#    if [ ! -e $TEST_DATA_DIR/$test/$file ]; then
+#        cp $path $TEST_DATA_DIR/$test
+#        echo "Saved $test/$file"
+#        return
+#    fi
+#
+#    sequence=1
+#    while [ -e $TEST_DATA_DIR/$test/$file.$sequence ]; do
+#        sequence=`expr $sequence + 1`
+#    done
+#    cp $path $TEST_DATA_DIR/$test/$file.$sequence
+#    echo "Saved $test/$file.$sequence"
+#}
+
+test=$1
+expected=$testDir/$1.out
+if [ -z "$test" ]; then
+    echo "Missing test name; choose from:"
+    find $testDir -name '*.sh' -printf '%P\n' | sed s/\.sh// | sort | column
+    exit 1
+fi
+if [ ! -e $testDir/$test.sh ]; then
+    echo "Unrecognized test $test; choose from:"
+    find $testDir -name '*.sh' -printf '%P\n' | sed s/\.sh// | sort | column
+    exit 1
+fi
+if [ ! -e $expected ]; then
+    expected=/dev/null            # first time--no expected output yet
+fi
+
+
+. $testDir/$test.sh
+$test
+
+echo ""
+if [ $failCount -gt 0 ]; then
+    echo "Failed $failCount of $testCount checks"
+elif [ $testCount -gt 0 ]; then
+    echo "Passed all $testCount checks"
+fi
+
+echo ""

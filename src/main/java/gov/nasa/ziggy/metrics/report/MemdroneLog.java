@@ -15,9 +15,9 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
@@ -61,7 +61,7 @@ public class MemdroneLog {
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void parse() {
-        log.info("Parsing");
+        log.info("Parsing...");
 
         logContents = new HashMap<>();
 

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipelineDefinition>
+
+  <!-- Parameter library definitions for the Ziggy sample pipeline. -->
+
+  <!-- This emulates a parameter set that's used by the algorithms. In this case, we're
+       telling the algorithms whether to emulate an exception that occurs in processing,
+       and whether to emulate a processing action that runs successfully but produces
+       no output. This uses Ziggy's class. Because it's the default
+       parameter class, the user doesn't need to specify any Java class for the
+       parameter set, and any combination of parameter types and parameter names can
+       be used. The tradeoff is that the user has to provide the data type for each
+       parameter, since there's no underlying Java class to define the parameter types.
+  -->
+  <parameterSet name="Algorithm Parameters">
+    <parameter name="throw exception subtask 0" value="false" type="boolean"/>
+    <parameter name="produce output subtask 1" value="true" type="boolean"/>
+    <parameter name="dummy array parameter" value="1, 2, 3" type="intarray"/>
+    <parameter name="execution pause seconds" value="5" type="int"/>
+  </parameterSet>
+
+
+</pipelineDefinition>

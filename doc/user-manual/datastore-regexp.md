@@ -22,9 +22,9 @@ If you now press `Save`, here's what you see back on the main panel:
 
 <img src="images/datastore-display-2.png" style="width:32cm;" />
 
-If you were now to run the sample pipeline, you would notice something interesting: Ziggy only creates one task for each module, and that task is the `set-1` task! What you have done by adding `set-1` as an include regexp is you've added a condition to the `dataset` DatastoreRegexp: when it sweeps through the directories to generate units of work, the `dataset` level directories need to match the `dataset` value but also match its include regexp. 
+If you were now to run the sample pipeline, you would notice something interesting: Ziggy only creates one task for each node, and that task is the `set-1` task! What you have done by adding `set-1` as an include regexp is you've added a condition to the `dataset` DatastoreRegexp: when it sweeps through the directories to generate units of work, the `dataset` level directories need to match the `dataset` value but also match its include regexp.
 
-The exclude regexp, by symmetry, does the opposite: only `dataset` level directories that do not match this regular expression can be included. Rather than setting the include to `set-1`, we could have left the include blank and set the exclude to `set-[02-9]`. 
+The exclude regexp, by symmetry, does the opposite: only `dataset` level directories that do not match this regular expression can be included. Rather than setting the include to `set-1`, we could have left the include blank and set the exclude to `set-[2-9]`. 
 
 Going back to the ludicrous example from [the Instances Panel article](instances-panel.md), we can now see how we would go about limiting the pipeline to running only tasks where `guitar` equals `reeves` and `album` equals either `outside` or `stardust`. We would go to the regular expressions panel and set the `guitar` `DatastoreRegexp` include value to `reeves`; we would then set the `album` include regexp to `outside|stardust`. 
 

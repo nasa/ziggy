@@ -12,10 +12,10 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
@@ -33,15 +33,15 @@ public class ParametersOperations extends DatabaseOperations {
     private PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
     private PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
     private ParameterSetCrud parameterSetCrud = new ParameterSetCrud();
-    private PipelineDefinitionCrud pipelineDefinitionCrud = new PipelineDefinitionCrud();
+    private PipelineCrud pipelineCrud = new PipelineCrud();
     private PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-    private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
+    private PipelineNodeCrud pipelineNodeCrud = new PipelineNodeCrud();
 
     /**
      * Populates the {@link Set} of {@link ParameterSet} instances for a pipeline instance or a
      * pipeline instance node, using the {@link Set} of {@link String} instances that represent the
-     * parameter set names from the pipeline definition or pipeline definition node. The
-     * parameterSets argument should be empty at call time.
+     * parameter set names from the pipeline or pipeline node. The parameterSets argument should be
+     * empty at call time.
      */
     public void bindParameterSets(Set<String> parameterSetNames, Set<ParameterSet> parameterSets) {
 
@@ -135,14 +135,14 @@ public class ParametersOperations extends DatabaseOperations {
         return parameterSet;
     }
 
-    public Set<ParameterSet> parameterSets(PipelineDefinition pipelineDefinition) {
-        return performTransaction(() -> new HashSet<>(parameterSetCrud().retrieveLatestVersions(
-            pipelineDefinitionCrud().retrieveParameterSetNames(pipelineDefinition))));
+    public Set<ParameterSet> parameterSets(Pipeline pipeline) {
+        return performTransaction(() -> new HashSet<>(parameterSetCrud()
+            .retrieveLatestVersions(pipelineCrud().retrieveParameterSetNames(pipeline))));
     }
 
-    public Set<ParameterSet> parameterSets(PipelineDefinitionNode pipelineDefinitionNode) {
-        return performTransaction(() -> new HashSet<>(parameterSetCrud().retrieveLatestVersions(
-            pipelineDefinitionNodeCrud().retrieveParameterSetNames(pipelineDefinitionNode))));
+    public Set<ParameterSet> parameterSets(PipelineNode pipelineNode) {
+        return performTransaction(() -> new HashSet<>(parameterSetCrud()
+            .retrieveLatestVersions(pipelineNodeCrud().retrieveParameterSetNames(pipelineNode))));
     }
 
     public Map<String, Parameter> nameToTypedPropertyMap(Set<Parameter> typedProperties) {
@@ -154,7 +154,7 @@ public class ParametersOperations extends DatabaseOperations {
     }
 
     /**
-     * Returns the module-level and pipeline-level parameter sets for a given
+     * Returns the node-level and pipeline-level parameter sets for a given
      * {@link PipelineInstanceNode}.
      */
     public Set<ParameterSet> parameterSets(PipelineInstanceNode pipelineInstanceNode) {
@@ -170,9 +170,9 @@ public class ParametersOperations extends DatabaseOperations {
      */
     private Set<ParameterSet> boundParameterSets(PipelineInstanceNode pipelineInstanceNode) {
         return performTransaction(() -> {
-            Set<ParameterSet> parameterSets = new HashSet<>();
-            parameterSets.addAll(pipelineInstanceNodeCrud().retrieve(pipelineInstanceNode.getId())
-                .getParameterSets());
+            Set<ParameterSet> parameterSets = new HashSet<>(
+                pipelineInstanceNodeCrud().retrieve(pipelineInstanceNode.getId())
+                    .getParameterSets());
             parameterSets
                 .addAll(pipelineInstanceNodeCrud().retrievePipelineInstance(pipelineInstanceNode)
                     .getParameterSets());
@@ -182,20 +182,18 @@ public class ParametersOperations extends DatabaseOperations {
 
     /**
      * Returns the {@link ParameterSet}s for a {@link PipelineInstanceNode} that is not in the
-     * database. In this case, the parameter set names for the instance node's
-     * {@link PipelineDefinitionNode} and {@link PipelineDefinition} are used to obtain the latest
-     * versions of the named parameter sets.
+     * database. In this case, the parameter set names for the instance node's {@link PipelineNode}
+     * and {@link Pipeline} are used to obtain the latest versions of the named parameter sets.
      */
     private Set<ParameterSet> pipelineParameterSets(PipelineInstanceNode pipelineInstanceNode) {
         return performTransaction(() -> {
             Set<ParameterSet> parameterSets = new HashSet<>(
-                parameterSetCrud().retrieveLatestVersions(pipelineDefinitionNodeCrud()
-                    .retrieveParameterSetNames(pipelineInstanceNode.getPipelineDefinitionNode())));
-            PipelineDefinition pipelineDefinition = pipelineDefinitionCrud()
-                .retrieveLatestVersionForName(
-                    pipelineInstanceNode.getPipelineDefinitionNode().getPipelineName());
-            parameterSets.addAll(parameterSetCrud().retrieveLatestVersions(
-                pipelineDefinitionCrud().retrieveParameterSetNames(pipelineDefinition)));
+                parameterSetCrud().retrieveLatestVersions(pipelineNodeCrud()
+                    .retrieveParameterSetNames(pipelineInstanceNode.getPipelineNode())));
+            Pipeline pipeline = pipelineCrud().retrieveLatestVersionForName(
+                pipelineInstanceNode.getPipelineNode().getPipelineName());
+            parameterSets.addAll(parameterSetCrud()
+                .retrieveLatestVersions(pipelineCrud().retrieveParameterSetNames(pipeline)));
             return parameterSets;
         });
     }
@@ -212,15 +210,15 @@ public class ParametersOperations extends DatabaseOperations {
         return parameterSetCrud;
     }
 
-    PipelineDefinitionCrud pipelineDefinitionCrud() {
-        return pipelineDefinitionCrud;
+    PipelineCrud pipelineCrud() {
+        return pipelineCrud;
     }
 
     PipelineTaskCrud pipelineTaskCrud() {
         return pipelineTaskCrud;
     }
 
-    PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
-        return pipelineDefinitionNodeCrud;
+    PipelineNodeCrud pipelineNodeCrud() {
+        return pipelineNodeCrud;
     }
 }

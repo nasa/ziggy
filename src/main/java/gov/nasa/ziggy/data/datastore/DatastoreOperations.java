@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 
 import gov.nasa.ziggy.pipeline.definition.ModelType;
@@ -26,10 +27,7 @@ public class DatastoreOperations extends DatabaseOperations {
     private ModelCrud modelCrud = new ModelCrud();
 
     public Map<String, DatastoreNode> datastoreNodesByFullPath() {
-        return performTransaction(() -> {
-            Map<String, DatastoreNode> nodes = datastoreNodeCrud.retrieveNodesByFullPath();
-            return nodes;
-        });
+        return performTransaction(() -> datastoreNodeCrud.retrieveNodesByFullPath());
     }
 
     public List<DatastoreRegexp> datastoreRegexps() {
@@ -71,22 +69,51 @@ public class DatastoreOperations extends DatabaseOperations {
         List<ModelType> modelTypes, List<DatastoreRegexp> datastoreRegexps,
         Set<DatastoreNode> datastoreNodesToRemove, Set<DatastoreNode> datastoreNodes, Logger log) {
         performTransaction(() -> {
-            log.info("Persisting to database {} DataFileType definitions", dataFileTypes.size());
-            dataFileTypeCrud().persist(dataFileTypes);
-            log.info("Persisting to database {} model definitions", modelTypes.size());
-            modelCrud.persist(modelTypes);
-            log.info("Persisting to database {} regexp definitions", datastoreRegexps.size());
-            for (DatastoreRegexp regexp : datastoreRegexps) {
-                datastoreRegexpCrud.merge(regexp);
+            if (!CollectionUtils.isEmpty(dataFileTypes)) {
+                log.info("Saving {} DataFileType definitions to database", dataFileTypes.size());
+                for (DataFileType dataFileType : dataFileTypes) {
+                    dataFileTypeCrud().merge(dataFileType);
+                }
+            } else {
+                log.info("No DataFileType definitions present in the import");
             }
-            log.info("Deleting from database {} datastore node definitions",
-                datastoreNodesToRemove.size());
-            for (DatastoreNode datastoreNodeToRemove : datastoreNodesToRemove) {
-                datastoreNodeCrud.remove(datastoreNodeToRemove);
+
+            if (!CollectionUtils.isEmpty(modelTypes)) {
+                log.info("Persisting to database {} model definitions", modelTypes.size());
+                for (ModelType modelType : modelTypes) {
+                    modelCrud.merge(modelType);
+                }
+            } else {
+                log.info("No ModelType definitions present in the import");
             }
-            log.info("Persisting to database {} datastore node definitions", datastoreNodes.size());
-            for (DatastoreNode nodeForDatabase : datastoreNodes) {
-                datastoreNodeCrud.merge(nodeForDatabase);
+
+            if (!CollectionUtils.isEmpty(datastoreRegexps)) {
+                log.info("Persisting to database {} regexp definitions", datastoreRegexps.size());
+                for (DatastoreRegexp regexp : datastoreRegexps) {
+                    datastoreRegexpCrud.merge(regexp);
+                }
+            } else {
+                log.info("No regexp definitions present in the import");
+            }
+
+            if (!CollectionUtils.isEmpty(datastoreNodesToRemove)) {
+                log.info("Deleting from database {} datastore node definitions",
+                    datastoreNodesToRemove.size());
+                for (DatastoreNode datastoreNodeToRemove : datastoreNodesToRemove) {
+                    datastoreNodeCrud.remove(datastoreNodeToRemove);
+                }
+            } else {
+                log.info("No datastore node definitions need to be deleted from database");
+            }
+
+            if (!CollectionUtils.isEmpty(datastoreNodes)) {
+                log.info("Persisting to database {} datastore node definitions",
+                    datastoreNodes.size());
+                for (DatastoreNode nodeForDatabase : datastoreNodes) {
+                    datastoreNodeCrud.merge(nodeForDatabase);
+                }
+            } else {
+                log.info("No DatastoreNode definitions present in the import");
             }
             log.info("Persist step complete");
         });

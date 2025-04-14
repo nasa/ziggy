@@ -48,7 +48,7 @@ We'll cover each command in turn.
 
 **config --configType TYPE [--instance ID | --pipeline NAME]**
 
-Display pipeline configuration. The four configuration types that can be displayed are `data-model-registry`, `instance`, `pipeline`,  and `pipeline-nodes`. The `data-model-registry` type displays the content of the known models. The `instance` type displays details for all of the pipeline instances, including parameter sets and module definitions. Use the `--instance` option to limit the display to the given instance. The `pipeline` type displays details for all of the pipeline definitions, including parameter sets and module definitions. Use the `--pipeline` option to limit the display to the given pipeline. Finally, the `pipeline-nodes` type displays a short list of the nodes for the pipeline named with the `--pipeline` option.
+Display pipeline configuration. The four configuration types that can be displayed are `data-model-registry`, `instance`, `pipeline`,  and `pipeline-nodes`. The `data-model-registry` type displays the content of the known models. The `instance` type displays details for all of the pipeline instances, including parameter sets and pipeline steps. Use the `--instance` option to limit the display to the given instance. The `pipeline` type displays details for all of the pipeline definitions, including parameter sets and pipeline steps. Use the `--pipeline` option to limit the display to the given pipeline. Finally, the `pipeline-nodes` type displays a short list of the nodes for the pipeline named with the `--pipeline` option.
 
 ```console
 $ ziggy console config --configType pipeline --pipeline sample
@@ -76,7 +76,7 @@ Request logs for the given task(s). This command is not yet implemented.
 
 **restart [--restartMode MODE] --instance ID | --task ID ...**
 
-Restart the given task(s) or all halted tasks or failed transitions in the given instance. Multiple `--task options` may be given. Task options can be comma-separated lists of IDs and ranges. Tasks are started with the given restart mode. The default is to restart from the beginning of the pipeline module. This command only has effect on tasks that errored out or with instances with failed transitions.
+Restart the given task(s) or all halted tasks or failed transitions in the given instance. Multiple `--task options` may be given. Task options can be comma-separated lists of IDs and ranges. Tasks are started with the given restart mode. The default is to restart from the beginning of the pipeline. This command only has effect on tasks that errored out or with instances with failed transitions.
 
 ```console
 $ ziggy console restart --restartMode resubmit --task 2 --task 3,4,7-10

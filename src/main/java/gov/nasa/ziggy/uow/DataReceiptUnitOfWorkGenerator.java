@@ -14,8 +14,8 @@ import java.util.stream.Collectors;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.management.Manifest;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
+import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;

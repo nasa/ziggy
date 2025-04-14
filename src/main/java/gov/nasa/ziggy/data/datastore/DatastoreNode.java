@@ -7,6 +7,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile.PipelineDefinitionElement;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -28,7 +29,7 @@ import jakarta.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "ziggy_DatastoreNode",
     uniqueConstraints = { @UniqueConstraint(columnNames = { "fullPath" }) })
-public class DatastoreNode {
+public class DatastoreNode implements PipelineDefinitionElement {
 
     public static final String CHILD_NODE_NAME_DELIMITER = ",";
 
@@ -74,8 +75,7 @@ public class DatastoreNode {
     public DatastoreNode() {
     }
 
-    /** For testing only. */
-    DatastoreNode(String name, boolean regexp) {
+    public DatastoreNode(String name, boolean regexp) {
         this.name = name;
         this.regexp = regexp;
     }
@@ -88,7 +88,7 @@ public class DatastoreNode {
         return name;
     }
 
-    void setFullPath(String fullPath) {
+    public void setFullPath(String fullPath) {
         this.fullPath = fullPath;
     }
 
@@ -100,11 +100,7 @@ public class DatastoreNode {
         return regexp;
     }
 
-    /**
-     * Package scoped because only {@link DatastoreConfigurationImporter} should be able to modify
-     * this.
-     */
-    void setRegexp(Boolean regexp) {
+    public void setRegexp(Boolean regexp) {
         this.regexp = regexp;
     }
 

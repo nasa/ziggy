@@ -9,9 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
@@ -30,8 +30,8 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
 
     private PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
     private PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
-    private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
-    private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
+    private PipelineStepCrud pipelineStepCrud = new PipelineStepCrud();
+    private PipelineNodeCrud pipelineNodeCrud = new PipelineNodeCrud();
     private PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
     private ParametersOperations parametersOperations = new ParametersOperations();
     private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
@@ -47,7 +47,8 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
             }
             for (PipelineInstanceNode nextInstanceNode : nextInstanceNodes) {
                 if (nextInstanceNode != null) {
-                    log.info("Launching node {} with a new UOW", nextInstanceNode.getModuleName());
+                    log.info("Launching node {} with a new UOW",
+                        nextInstanceNode.getPipelineStepName());
                 }
             }
             return nextInstanceNodes;
@@ -123,14 +124,13 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
         return new PipelineInstanceNodeInformation(instanceNode, taskCounts);
     }
 
-    public PipelineInstanceNode bindParameterSets(PipelineDefinitionNode definitionNode,
+    public PipelineInstanceNode bindParameterSets(PipelineNode pipelineNode,
         PipelineInstanceNode instanceNode) {
         return performTransaction(() -> {
             PipelineInstanceNode databaseNode = instanceNode.getId() == null ? merge(instanceNode)
                 : pipelineInstanceNode(instanceNode.getId());
-            PipelineDefinitionNode databaseDefinitionNode = pipelineDefinitionNodeCrud()
-                .retrieve(definitionNode.getId());
-            parametersOperations().bindParameterSets(databaseDefinitionNode.getParameterSetNames(),
+            PipelineNode databasePipelineNode = pipelineNodeCrud().retrieve(pipelineNode.getId());
+            parametersOperations().bindParameterSets(databasePipelineNode.getParameterSetNames(),
                 databaseNode.getParameterSets());
             return merge(databaseNode);
         });
@@ -178,8 +178,8 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
         return pipelineInstanceNodeCrud;
     }
 
-    PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
-        return pipelineDefinitionNodeCrud;
+    PipelineNodeCrud pipelineNodeCrud() {
+        return pipelineNodeCrud;
     }
 
     PipelineInstanceCrud pipelineInstanceCrud() {
@@ -194,8 +194,8 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
         return pipelineTaskDisplayDataOperations;
     }
 
-    PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud() {
-        return pipelineModuleDefinitionCrud;
+    PipelineStepCrud pipelineStepCrud() {
+        return pipelineStepCrud;
     }
 
     ParametersOperations parametersOperations() {

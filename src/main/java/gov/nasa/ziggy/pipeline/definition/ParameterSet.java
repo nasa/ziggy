@@ -10,6 +10,7 @@ import java.util.TreeSet;
 
 import org.apache.commons.lang3.StringUtils;
 
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile.PipelineDefinitionElement;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -28,7 +29,7 @@ import jakarta.xml.bind.annotation.XmlElement;
 
 /**
  * This class models a set of algorithm parameters. A parameter set may be shared by multiple
- * pipeline modules.
+ * pipeline steps.
  *
  * @author Todd Klaus
  * @author PT
@@ -37,7 +38,9 @@ import jakarta.xml.bind.annotation.XmlElement;
 @Entity
 @Table(name = "ziggy_ParameterSet",
     uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "version" }) })
-public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSet> {
+public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSet>
+    implements PipelineDefinitionElement {
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_ParameterSet_generator")
     @SequenceGenerator(name = "ziggy_ParameterSet_generator", initialValue = 1,
@@ -56,7 +59,12 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
     private Set<XmlParameter> xmlParameters = new HashSet<>();
 
     @XmlAttribute(required = false)
-    private String moduleInterfaceName;
+    private String algorithmInterfaceName;
+
+    // Tells whether a given parameter set definition should be a partial import.
+    @XmlAttribute(required = false)
+    @Transient
+    private Boolean partial;
 
     public ParameterSet() {
     }
@@ -78,7 +86,7 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
     }
 
     // Populates the parameters field from the XML fields.
-    public void populateDatabaseFields() throws ClassNotFoundException {
+    public void populateDatabaseFields() {
         Set<Parameter> parameters = new HashSet<>();
         for (XmlParameter parameter : xmlParameters) {
             parameters.add(parameter.typedProperty());
@@ -132,23 +140,35 @@ public class ParameterSet extends UniqueNameVersionPipelineComponent<ParameterSe
     }
 
     /**
-     * Returns the module interface name for the parameter set, if it is assigned; otherwise the
+     * Returns the algorithm interface name for the parameter set, if it is assigned; otherwise the
      * parameter set name itself is returned.
      */
-    public String getParameterSetNameOrModuleInterfaceName() {
-        return StringUtils.isEmpty(moduleInterfaceName) ? getName() : moduleInterfaceName;
+    public String getParameterSetNameOrAlgorithmInterfaceName() {
+        return StringUtils.isEmpty(algorithmInterfaceName) ? getName() : algorithmInterfaceName;
     }
 
-    public String getModuleInterfaceName() {
-        return moduleInterfaceName;
+    public String getAlgorithmInterfaceName() {
+        return algorithmInterfaceName;
     }
 
-    public void setModuleInterfaceName(String moduleInterfaceName) {
-        this.moduleInterfaceName = moduleInterfaceName;
+    public void setAlgorithmInterfaceName(String algorithmInterfaceName) {
+        this.algorithmInterfaceName = algorithmInterfaceName;
     }
 
-    public boolean hasModuleInterfaceName() {
-        return !StringUtils.isBlank(moduleInterfaceName);
+    public boolean hasAlgorithmInterfaceName() {
+        return !StringUtils.isBlank(algorithmInterfaceName);
+    }
+
+    public Boolean getPartial() {
+        return partial;
+    }
+
+    public void setPartial(Boolean partial) {
+        this.partial = partial;
+    }
+
+    public boolean isPartial() {
+        return partial != null ? partial : false;
     }
 
     @Override

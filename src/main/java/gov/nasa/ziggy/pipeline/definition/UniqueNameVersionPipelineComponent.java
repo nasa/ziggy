@@ -5,10 +5,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.database.UniqueNameVersionPipelineComponentCrud;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ReflectionUtils;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.MappedSuperclass;
@@ -29,10 +30,9 @@ import jakarta.xml.bind.annotation.XmlTransient;
  * <li>Each instance has an int that is used by Hibernate for optimistic locking.
  * </ol>
  * <p>
- * The components that meet the above criteria are {@link PipelineDefinition},
- * {@link PipelineModuleDefinition}, and {@link ParameterSet}. The capabilities of this class aren't
- * particularly exciting, but they allow for a bunch of common functionality to be located in a CRUD
- * superclass.
+ * The components that meet the above criteria are {@link Pipeline}, {@link PipelineStep}, and
+ * {@link ParameterSet}. The capabilities of this class aren't particularly exciting, but they allow
+ * for a bunch of common functionality to be located in a CRUD superclass.
  *
  * @see UniqueNameVersionPipelineComponentCrud .
  * @author PT
@@ -149,14 +149,7 @@ public abstract class UniqueNameVersionPipelineComponent<T extends UniqueNameVer
     public void updateContents(T newContentInstance) {
         List<Field> fields = ReflectionUtils.getAllFields(this, true);
         for (Field field : fields) {
-            if (Modifier.isFinal(field.getModifiers())) {
-                continue;
-            }
-            if (FIELD_NAMES_NOT_UPDATED.contains(field.getName())) {
-                continue;
-            }
-
-            if (field.getAnnotation(jakarta.persistence.Transient.class) != null) {
+            if (Modifier.isFinal(field.getModifiers()) || FIELD_NAMES_NOT_UPDATED.contains(field.getName()) || (field.getAnnotation(jakarta.persistence.Transient.class) != null)) {
                 continue;
             }
 

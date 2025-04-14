@@ -22,9 +22,9 @@ import jakarta.persistence.JoinTable;
  * Defines the unit of work to be processed by a specified task.
  * <p>
  * The unit of work contains a set of parameters, in the form of {@link Parameter} instances, that
- * can be used by a pipeline module to determine the range of data to be processed by a given
- * pipeline task. For example, for units of work based on time range, the parameters might be the
- * start time and stop time for the task.
+ * can be used by a pipeline step to determine the range of data to be processed by a given pipeline
+ * task. For example, for units of work based on time range, the parameters might be the start time
+ * and stop time for the task.
  * <p>
  * The precise set of parameters is defined by the {@link UnitOfWorkGenerator} that is invoked to
  * generate the {@link UnitOfWork} instances for a particular node in a particular pipeline. Thus,

@@ -62,7 +62,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
     private final long taskId;
     private JLabel instanceText;
     private JLabel workerText;
-    private JLabel moduleText;
+    private JLabel pipelineStepText;
     private JLabel uowText;
     private JLabel elapsedTimeText;
     private JLabel processingStepText;
@@ -114,8 +114,8 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
         JLabel worker = boldLabel("Worker:");
         workerText = new JLabel();
 
-        JLabel module = boldLabel("Task:");
-        moduleText = new JLabel();
+        JLabel pipelineStep = boldLabel("Task:");
+        pipelineStepText = new JLabel();
 
         JLabel uow = boldLabel("UOW:");
         uowText = new JLabel();
@@ -139,7 +139,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(instance)
                     .addComponent(worker)
-                    .addComponent(module)
+                    .addComponent(pipelineStep)
                     .addComponent(uow)
                     .addComponent(processingStep)
                     .addComponent(elapsedTime))
@@ -147,7 +147,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(instanceText)
                     .addComponent(workerText)
-                    .addComponent(moduleText)
+                    .addComponent(pipelineStepText)
                     .addComponent(uowText)
                     .addComponent(processingStepText)
                     .addComponent(elapsedTimeText)))
@@ -159,8 +159,9 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                 .addComponent(instanceText))
             .addGroup(
                 dataPanelLayout.createParallelGroup().addComponent(worker).addComponent(workerText))
-            .addGroup(
-                dataPanelLayout.createParallelGroup().addComponent(module).addComponent(moduleText))
+            .addGroup(dataPanelLayout.createParallelGroup()
+                .addComponent(pipelineStep)
+                .addComponent(pipelineStepText))
             .addGroup(dataPanelLayout.createParallelGroup().addComponent(uow).addComponent(uowText))
             .addGroup(dataPanelLayout.createParallelGroup()
                 .addComponent(processingStep)
@@ -225,7 +226,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
                 log.debug("Selected task ID is {}", taskId);
                 instanceText.setText(Long.toString(task.getPipelineInstanceId()));
                 workerText.setText(task.getWorkerName());
-                moduleText.setText(task.getModuleName());
+                pipelineStepText.setText(task.getPipelineStepName());
                 uowText.setText(task.getBriefState());
                 processingStepText.setText(HtmlBuilder.htmlBuilder()
                     .appendBoldColor(task.getDisplayProcessingStep(),
@@ -310,7 +311,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
             TaskLogInformation information = taskLogInformationList.get(rowIndex);
             return switch (columnIndex) {
                 case 0 -> information.getFilename();
-                case 1 -> information.getLogType().toString();
+                case 1 -> information.getTaskLogType().toString();
                 case 2 -> information.lastModifiedDateTime();
                 case 3 -> information.logFileSizeEngineeringNotation();
                 default -> throw new IllegalArgumentException(

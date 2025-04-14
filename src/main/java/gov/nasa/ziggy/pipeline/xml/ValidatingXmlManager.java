@@ -11,10 +11,10 @@ import javax.xml.validation.SchemaFactory;
 
 import org.xml.sax.SAXException;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -61,6 +61,10 @@ public class ValidatingXmlManager<T extends HasXmlSchemaFilename> {
             throw new PipelineException(
                 "Unable to instantiate ValidatingXmlManager for " + clazz.getName(), e);
         }
+    }
+
+    public T unmarshal(Path xmlFile) {
+        return unmarshal(xmlFile.toFile());
     }
 
     @SuppressWarnings("unchecked")

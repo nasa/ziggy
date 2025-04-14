@@ -80,7 +80,7 @@ import gov.nasa.ziggy.util.dispmod.ModelContentClass;
  * <li>Users can optionally configure tables such that text cells will wrap content to more than one
  * line and row heights will be adjusted automatically (note that this is not supported for
  * {@link Outline}-based instances).
- * <li>Users can trigger a reload of the underlying model from the database.
+ * <li>Users can reload the underlying model from the database.
  * <li>Users can obtain the content of one or more rows from the underlying model.
  * </ol>
  *

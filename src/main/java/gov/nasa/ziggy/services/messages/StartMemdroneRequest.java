@@ -9,14 +9,14 @@ package gov.nasa.ziggy.services.messages;
  * @author PT
  */
 public class StartMemdroneRequest extends PipelineMessage {
-    private static final long serialVersionUID = 20230511L;
+    private static final long serialVersionUID = 20250307L;
 
     private long instanceId;
-    private String moduleName;
+    private String pipelineStepName;
 
-    public StartMemdroneRequest(String moduleName, long instanceId) {
+    public StartMemdroneRequest(String pipelineStepName, long instanceId) {
         this.instanceId = instanceId;
-        this.moduleName = moduleName;
+        this.pipelineStepName = pipelineStepName;
     }
 
     public long getInstanceId() {
@@ -27,11 +27,11 @@ public class StartMemdroneRequest extends PipelineMessage {
         this.instanceId = instanceId;
     }
 
-    public String getModuleName() {
-        return moduleName;
+    public String getPipelineStepName() {
+        return pipelineStepName;
     }
 
-    public void setModuleName(String moduleName) {
-        this.moduleName = moduleName;
+    public void setPipelineStepName(String pipelineStepName) {
+        this.pipelineStepName = pipelineStepName;
     }
 }

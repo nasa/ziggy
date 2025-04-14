@@ -15,16 +15,16 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.util.PipelineException;
 
 // TODO Rename to PipelineTaskOperationsTest and adjust
 //
@@ -43,10 +43,10 @@ import gov.nasa.ziggy.services.database.DatabaseOperations;
 public class PipelineTaskCrudTest {
 
     private static final String TEST_PIPELINE_NAME = "testPipeline";
-    private static final String TEST_MODULE_NAME = "testModule";
+    private static final String TEST_PIPELINE_STEP_NAME = "testPipelineStep";
 
-    private PipelineModuleDefinition moduleDef;
-    private PipelineDefinition pipelineDef;
+    private PipelineStep pipelineStep;
+    private Pipeline pipeline;
     private TestOperations testOperations = new TestOperations();
 
     @Rule
@@ -54,8 +54,8 @@ public class PipelineTaskCrudTest {
 
     @Before
     public void setup() {
-        moduleDef = createModule(TEST_MODULE_NAME);
-        pipelineDef = createPipelineDefinition(TEST_PIPELINE_NAME, moduleDef);
+        pipelineStep = createPipelineStep(TEST_PIPELINE_STEP_NAME);
+        pipeline = createPipeline(TEST_PIPELINE_NAME, pipelineStep);
     }
 
     /**
@@ -64,10 +64,12 @@ public class PipelineTaskCrudTest {
     @Test
     public void testRetrieveNoTasks() {
         List<PipelineTask> allTasks = testOperations.allPipelineTasks();
-        List<PipelineTask> moduleTasks = testOperations.pipelineTasksForModule(TEST_MODULE_NAME);
-        PipelineTask task = testOperations.latestPipelineTaskForModule(TEST_MODULE_NAME);
+        List<PipelineTask> pipelineStepTasks = testOperations
+            .pipelineTasksForPipelineStep(TEST_PIPELINE_STEP_NAME);
+        PipelineTask task = testOperations
+            .latestPipelineTaskForPipelineStep(TEST_PIPELINE_STEP_NAME);
         assertTrue(allTasks.isEmpty());
-        assertTrue(moduleTasks.isEmpty());
+        assertTrue(pipelineStepTasks.isEmpty());
         assertNull(task);
     }
 
@@ -76,16 +78,18 @@ public class PipelineTaskCrudTest {
      */
     @Test
     public void testRetrieveOneTask() {
-        createTasksForPipeline("pipeline1", pipelineDef, moduleDef, 1);
+        createTasksForPipeline("pipeline1", pipeline, pipelineStep, 1);
 
         List<PipelineTask> allTasks = testOperations.allPipelineTasks();
-        List<PipelineTask> moduleTasks = testOperations.pipelineTasksForModule(TEST_MODULE_NAME);
-        PipelineTask task = testOperations.latestPipelineTaskForModule(TEST_MODULE_NAME);
+        List<PipelineTask> pipelineStepTasks = testOperations
+            .pipelineTasksForPipelineStep(TEST_PIPELINE_STEP_NAME);
+        PipelineTask task = testOperations
+            .latestPipelineTaskForPipelineStep(TEST_PIPELINE_STEP_NAME);
         assertEquals(1, allTasks.size());
-        assertEquals(TEST_MODULE_NAME, allTasks.get(0).getModuleName());
+        assertEquals(TEST_PIPELINE_STEP_NAME, allTasks.get(0).getPipelineStepName());
 
-        assertEquals(1, moduleTasks.size());
-        assertEquals(TEST_MODULE_NAME, moduleTasks.get(0).getModuleName());
+        assertEquals(1, pipelineStepTasks.size());
+        assertEquals(TEST_PIPELINE_STEP_NAME, pipelineStepTasks.get(0).getPipelineStepName());
 
         assertEquals(allTasks.get(0), task);
         assertEquals("pipeline1", new PipelineTaskOperations().pipelineInstance(task).getName());
@@ -96,19 +100,21 @@ public class PipelineTaskCrudTest {
      */
     @Test
     public void testRetrieveTwoTasks() {
-        createTasksForPipeline("pipeline1", pipelineDef, moduleDef, 1);
-        createTasksForPipeline("pipeline2", pipelineDef, moduleDef, 1);
+        createTasksForPipeline("pipeline1", pipeline, pipelineStep, 1);
+        createTasksForPipeline("pipeline2", pipeline, pipelineStep, 1);
 
         List<PipelineTask> allTasks = testOperations.allPipelineTasks();
-        List<PipelineTask> moduleTasks = testOperations.pipelineTasksForModule(TEST_MODULE_NAME);
-        PipelineTask task = testOperations.latestPipelineTaskForModule(TEST_MODULE_NAME);
+        List<PipelineTask> pipelineStepTasks = testOperations
+            .pipelineTasksForPipelineStep(TEST_PIPELINE_STEP_NAME);
+        PipelineTask task = testOperations
+            .latestPipelineTaskForPipelineStep(TEST_PIPELINE_STEP_NAME);
         assertEquals(2, allTasks.size());
-        assertEquals(TEST_MODULE_NAME, allTasks.get(0).getModuleName());
-        assertEquals(TEST_MODULE_NAME, allTasks.get(1).getModuleName());
+        assertEquals(TEST_PIPELINE_STEP_NAME, allTasks.get(0).getPipelineStepName());
+        assertEquals(TEST_PIPELINE_STEP_NAME, allTasks.get(1).getPipelineStepName());
 
-        assertEquals(2, moduleTasks.size());
-        assertEquals(TEST_MODULE_NAME, moduleTasks.get(0).getModuleName());
-        assertEquals(TEST_MODULE_NAME, moduleTasks.get(1).getModuleName());
+        assertEquals(2, pipelineStepTasks.size());
+        assertEquals(TEST_PIPELINE_STEP_NAME, pipelineStepTasks.get(0).getPipelineStepName());
+        assertEquals(TEST_PIPELINE_STEP_NAME, pipelineStepTasks.get(1).getPipelineStepName());
 
         // We will find one of the tasks, and it should be from pipeline 2.
         PipelineTask latestTask = allTasks.stream()
@@ -120,8 +126,8 @@ public class PipelineTaskCrudTest {
 
     @Test
     public void testRetrieveTasksForInstanceNode() {
-        PipelineInstance pipelineInstance = createTasksForPipeline("pipeline1", pipelineDef,
-            moduleDef, 2);
+        PipelineInstance pipelineInstance = createTasksForPipeline("pipeline1", pipeline,
+            pipelineStep, 2);
 
         List<PipelineTask> pipelineTasks = testOperations
             .pipelineTasksForInstanceNode(pipelineInstance.getPipelineInstanceNodes().get(0));
@@ -130,41 +136,40 @@ public class PipelineTaskCrudTest {
         assertEquals(2L, (long) pipelineTasks.get(1).getId());
     }
 
-    private PipelineModuleDefinition createModule(String moduleName) {
-        PipelineModuleDefinition moduleDef = new PipelineModuleDefinition(moduleName);
-        moduleDef.setPipelineModuleClass(new ClassWrapper<>(TestModule.class));
-        return testOperations.mergeModuleDefinition(moduleDef);
+    private PipelineStep createPipelineStep(String pipelineStepName) {
+        PipelineStep pipelineStep = new PipelineStep(pipelineStepName);
+        pipelineStep
+            .setPipelineStepExecutorClass(new ClassWrapper<>(TestPipelineStepExecutor.class));
+        return testOperations.mergePipelineStep(pipelineStep);
     }
 
-    private PipelineDefinition createPipelineDefinition(String pipelineName,
-        PipelineModuleDefinition... modules) {
+    private Pipeline createPipeline(String pipelineName, PipelineStep... pipelineSteps) {
 
-        PipelineDefinition pipelineDef = new PipelineDefinition(pipelineName);
+        Pipeline pipeline = new Pipeline(pipelineName);
 
         List<Integer> path = new ArrayList<>();
-        List<PipelineDefinitionNode> nodes = Stream.of(modules).map(module -> {
-            PipelineDefinitionNode node = new PipelineDefinitionNode(module.getName(),
-                pipelineDef.getName());
+        List<PipelineNode> nodes = Stream.of(pipelineSteps).map(pipelineStep -> {
+            PipelineNode node = new PipelineNode(pipelineStep.getName(), pipeline.getName());
             path.add(0);
             return node;
         }).collect(Collectors.toList());
 
-        pipelineDef.setRootNodes(nodes);
-        testOperations.persistPipelineDefinition(pipelineDef);
-        return pipelineDef;
+        pipeline.setRootNodes(nodes);
+        testOperations.persistPipeline(pipeline);
+        return pipeline;
     }
 
-    private PipelineInstance createTasksForPipeline(String instanceName,
-        PipelineDefinition pipelineDef, PipelineModuleDefinition moduleDef, int taskCount) {
+    private PipelineInstance createTasksForPipeline(String instanceName, Pipeline pipeline,
+        PipelineStep pipelineStep, int taskCount) {
 
-        PipelineInstance instance = new PipelineInstance(pipelineDef);
+        PipelineInstance instance = new PipelineInstance(pipeline);
         instance.setName(instanceName);
         instance = new PipelineInstanceCrud().merge(instance);
 
         // Note: Assuming only one root node!
-        PipelineDefinitionNode node = pipelineDef.getRootNodes().get(0);
+        PipelineNode node = pipeline.getRootNodes().get(0);
         while (node != null) {
-            PipelineInstanceNode instanceNode = new PipelineInstanceNode(node, moduleDef);
+            PipelineInstanceNode instanceNode = new PipelineInstanceNode(node, pipelineStep);
             instanceNode = new PipelineInstanceNodeCrud().merge(instanceNode);
             instance.addPipelineInstanceNode(new PipelineInstanceCrud().merge(instanceNode));
 
@@ -181,9 +186,9 @@ public class PipelineTaskCrudTest {
         return new PipelineInstanceCrud().merge(instance);
     }
 
-    public static class TestModule extends PipelineModule {
+    public static class TestPipelineStepExecutor extends PipelineStepExecutor {
 
-        public TestModule(PipelineTask pipelineTask, RunMode runMode) {
+        public TestPipelineStepExecutor(PipelineTask pipelineTask, RunMode runMode) {
             super(pipelineTask, runMode);
         }
 
@@ -193,8 +198,8 @@ public class PipelineTaskCrudTest {
         }
 
         @Override
-        public String getModuleName() {
-            return TEST_MODULE_NAME;
+        public String getPipelineStepName() {
+            return TEST_PIPELINE_STEP_NAME;
         }
 
         @Override
@@ -225,41 +230,37 @@ public class PipelineTaskCrudTest {
             return performTransaction(() -> new PipelineTaskCrud().retrieveAll());
         }
 
-        public void persistPipelineDefinition(PipelineDefinition pipelineDefinition) {
+        public void persistPipeline(Pipeline pipeline) {
             performTransaction(() -> {
-                pipelineDefinition
-                    .setRootNodes(mergePipelineDefinitionNodes(pipelineDefinition.getRootNodes()));
-                new PipelineDefinitionCrud().persist(pipelineDefinition);
+                pipeline.setRootNodes(mergePipelineNodes(pipeline.getRootNodes()));
+                new PipelineCrud().persist(pipeline);
             });
         }
 
-        private List<PipelineDefinitionNode> mergePipelineDefinitionNodes(
-            List<PipelineDefinitionNode> nodes) {
+        private List<PipelineNode> mergePipelineNodes(List<PipelineNode> nodes) {
             if (CollectionUtils.isEmpty(nodes)) {
                 return nodes;
             }
-            List<PipelineDefinitionNode> mergedNodes = new ArrayList<>();
-            for (PipelineDefinitionNode node : nodes) {
-                node.setNextNodes(mergePipelineDefinitionNodes(node.getNextNodes()));
-                mergedNodes.add(new PipelineDefinitionNodeCrud().merge(node));
+            List<PipelineNode> mergedNodes = new ArrayList<>();
+            for (PipelineNode node : nodes) {
+                node.setNextNodes(mergePipelineNodes(node.getNextNodes()));
+                mergedNodes.add(new PipelineNodeCrud().merge(node));
             }
             return mergedNodes;
         }
 
-        public PipelineModuleDefinition mergeModuleDefinition(
-            PipelineModuleDefinition moduleDefinition) {
-            return performTransaction(
-                () -> new PipelineModuleDefinitionCrud().merge(moduleDefinition));
+        public PipelineStep mergePipelineStep(PipelineStep pipelineStep) {
+            return performTransaction(() -> new PipelineStepCrud().merge(pipelineStep));
         }
 
-        public List<PipelineTask> pipelineTasksForModule(String moduleName) {
+        public List<PipelineTask> pipelineTasksForPipelineStep(String pipelineStepName) {
             return performTransaction(
-                () -> new PipelineTaskCrud().retrieveAllForModule(moduleName));
+                () -> new PipelineTaskCrud().retrieveAllForPipelineStep(pipelineStepName));
         }
 
-        public PipelineTask latestPipelineTaskForModule(String moduleName) {
+        public PipelineTask latestPipelineTaskForPipelineStep(String pipelineStepName) {
             return performTransaction(
-                () -> new PipelineTaskCrud().retrieveLatestForModule(moduleName));
+                () -> new PipelineTaskCrud().retrieveLatestForPipelineStep(pipelineStepName));
         }
 
         public List<PipelineTask> pipelineTasksForInstanceNode(

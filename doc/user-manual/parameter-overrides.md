@@ -10,7 +10,7 @@ At this point, we've learned the following about how to define and/or redefine p
 
 - The initial parameter values are loaded into the database during pipeline initialization (see [the article on running the cluster](running-pipeline.md) for a refresher on this).
 - Parameter values can be changed using the parameter set editor dialog box (see [the article on changing parameter values](change-param-values.md) for a refresher on this).
-- Parameters can also be imported using the Import button on the parameters Configuration item (see [the article on parameter's dusty corners](more-parameters.md) for a refresher on this).
+- Parameters can also be imported using the Import button on the parameters Configuration item (see the article [More on Parameter Sets](more-parameter-sets.md) for a refresher on this).
 
 So far, so good. But consider the following scenario:
 
@@ -24,20 +24,20 @@ Fortunately, there's a tool that lets you get around this problem: you can write
 
 ### The Parameter Override File
 
-To see what's involved, take a look at `sample-pipeline/config-extra/pl-with-overrides.xml` . Here's the total contents of that file:
+To see what's involved, take a look at `sample-pipeline/etc/ziggy-extra.d/pl-with-overrides.xml` . Here's the total contents of that file:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<parameterLibrary override-only="true">
-    <parameter-set name="Algorithm Parameters">
-        <parameter name="throw exception subtask 0" value="true" type="boolean"/>
-    </parameter-set>
-</parameterLibrary>
+<pipelineDefinition>
+  <parameterSet name="Algorithm Parameters" partial="true">
+    <parameter name="throw exception subtask 0" value="true" type="boolean"/>
+  </parameterSet>
+</pipelineDefinition>
 ```
 
-In this file, the `parameterLibrary` element has its `override-only` attribute set to `true`. Other than that, only one parameter is defined: the `throw exception subtask 0` parameter in `Algorithm Parameters`.
+In this file, the `parameterLibrary` element has its `partial` attribute set to `true`. Other than that, only one parameter is defined: the `throw exception subtask 0` parameter in `Algorithm Parameters`.
 
-By specifying that override-only is true, Ziggy knows that the user doesn't want any other parameter in any parameter set to be altered.
+By specifying that `partial` is true, Ziggy knows that the user doesn't want any other parameter in any parameter set to be altered.
 
 The resulting file can be imported in the usual ways: either by the `Import` button on the `Parameter Library` item in `Configuration`, or by using the `ziggy` command `import-parameters`. In either case, examining the parameter library via the console shows that the two selected parameters are changed, and the remainder are unchanged.
 

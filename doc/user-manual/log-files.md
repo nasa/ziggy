@@ -22,31 +22,6 @@ Let us consider each of these directories in turn.
 
 This is where the log files from relational database applications may be stored. If you're using an non-system PostgreSQL database, this directory should contain `pg.log`. If a system database is being used, this directory will not be present since the sysadmin and DBA get to decide where the logs go, not you. It is also not present for databases such as HSQLDB.
 
-### state Directory
-
-These aren't -- quite -- log files as such. They're actually files that are used to communicate between the algorithm processing system and the supervisor system (remember that the computer with the supervisor might not be the one trying to run the algorithm). Here's the contents of that directory:
-
-```console
-logs$ ls state
-ziggy.1.2.permuter.COMPLETE_4-4-0
-ziggy.1.3.permuter.COMPLETE_4-4-0
-ziggy.1.4.flip.COMPLETE_4-4-0
-ziggy.1.5.flip.COMPLETE_4-4-0
-ziggy.1.6.averaging.COMPLETE_1-1-0
-ziggy.1.7.averaging.COMPLETE_1-1-0
-ziggy.2.8.permuter.COMPLETE_4-4-0
-ziggy.2.9.permuter.COMPLETE_4-4-0
-ziggy.2.10.flip.COMPLETE_4-4-0
-ziggy.2.11.flip.COMPLETE_4-4-0
-ziggy.3.12.permuter.COMPLETE_4-3-1
-ziggy.3.13.permuter.COMPLETE_4-3-1
-logs$
-```
-
-Each task has a state file that the task execution system updates with the task processing step and the subtask counts for that task; by which we mean, the task execution system keeps changing the name of the file to reflect the current state of the task. The monitoring subsystem in the supervisor looks at these files to determine the current state of each task, which is then reflected on the GUI.
-
-In this case, we see that instance 3, task 12 has completed (i.e., the algorithm is no longer running) with a final score of 4 total subtasks of which 3 completed and 1 failed, which we already knew.
-
 ### cli Directory
 
 Here we see the logs that are produced by various parts of Ziggy that are started from the command line. Looking inside the directory, we see this:
@@ -103,7 +78,7 @@ logs$ ls ziggy
 logs$
 ```
 
-Every task has logs with the usual nomenclature of instance number, task number, and module name separated by hyphens. Note that most tasks have 2 log files: the first ends in `-0.log`; the second, `-2.log`. The thing to understand is that the logs from task execution are numbered in order. Thus, `1-2-permuter.0-0.log` is the first log file for `1-2-permuter`, which is the marshaling log, while `1-2-permuter.0-2.log` is the third log file, for persisting.
+Every task has logs with the usual nomenclature of instance number, task number, and node name separated by hyphens. Note that most tasks have 2 log files: the first ends in `-0.log`; the second, `-2.log`. The thing to understand is that the logs from task execution are numbered in order. Thus, `1-2-permuter.0-0.log` is the first log file for `1-2-permuter`, which is the marshaling log, while `1-2-permuter.0-2.log` is the third log file, for persisting.
 
 So where is `1-2-permuter.0-1.log`, and what does it cover? That's the log file for the step that comes between marshaling and persisting, which is algorithm execution, and that file is in ...
 
@@ -143,10 +118,10 @@ Because execution failed during algorithm processing, not marshaling or persisti
 2022-09-19 19:05:03,385 WARN [pool-2-thread-1:SubtaskExecutor.execAlgorithm] (st-0) Marking subtask as failed because an error file exists
 2022-09-19 19:05:03,386 INFO [pool-2-thread-1:SubtaskMaster.executeSubtask] (st-0) FINISH subtask on host, rc: 1
 2022-09-19 19:05:03,386 ERROR [pool-2-thread-1: SubtaskMaster.processSubtasks] (st-0) Error occurred during subtask processing
-gov.nasa.ziggy.module.ModuleFatalProcessingException: Failed to run: permuter, retCode=1
-  at gov.nasa.ziggy.module.SubtaskMaster.executeSubtask (SubtaskMaster.java:2381 ~[ziggy.jar:?]
-  at gov.nasa.ziggy.module.SubtaskMaster.processSubtasks (SubtaskMaster.java:123) [ziggy.jar:?]
-  at gov.nasa.ziggy.module.SubtaskMaster.run(SubtaskMaster.java:79) [ziggy.jar:?]
+gov.nasa.ziggy.pipeline.step.FatalAlgorithmProcessingException: Failed to run: permuter, retCode=1
+  at gov.nasa.ziggy.pipeline.step.SubtaskMaster.executeSubtask (SubtaskMaster.java:2381 ~[ziggy.jar:?]
+  at gov.nasa.ziggy.pipeline.step.SubtaskMaster.processSubtasks (SubtaskMaster.java:123) [ziggy.jar:?]
+  at gov.nasa.ziggy.pipeline.step.SubtaskMaster.run(SubtaskMaster.java:79) [ziggy.jar:?]
   at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511) [?:1.8.0_265]
   at java.util.concurrent.FutureTask.run(FutureTask.java:266) [?:1.8.0_265]
   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_265]
@@ -160,7 +135,7 @@ While we're here, note the parts of the log that have `(st-0)` in them. The algo
 
 ### Subtask Algorithm Log
 
-This is the one exception to the log files being in the logs directory. If you go to the `3-12-permuter/st-0` directory under task-data, you'll see the `permuter-stdout-0.log` file. This is a transcription of all the standard output from the permuter algorithm module. It looks like this:
+This is the one exception to the log files being in the logs directory. If you go to the `3-12-permuter/st-0` directory under task-data, you'll see the `permuter-stdout.log` file. This is a transcription of all the standard output from the permuter algorithm. It looks like this:
 
 ```console
 Traceback (most recent call last):
@@ -173,7 +148,7 @@ ValueError: Value error raised because throw_exception is true
 
 This is a subset of the algorithm log file, above. What's up with that?
 
-Well, the answer is: Ziggy automatically sends all the standard output from the algorithms to the appropriate `stdout-0.log` file in the subtask directory; but it also sends that same information back through the main logging system so it ends up in the task algorithm log.
+Well, the answer is: Ziggy automatically sends all the standard output from the algorithms to the appropriate `stdout.log` file in the subtask directory; but it also sends that same information back through the main logging system so it ends up in the task algorithm log.
 
 Why do it this way?
 

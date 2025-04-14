@@ -14,7 +14,7 @@ import java.util.List;
 
 import org.hamcrest.beans.PropertyUtil;
 
-import gov.nasa.ziggy.module.io.ProxyIgnore;
+import gov.nasa.ziggy.util.io.ProxyIgnore;
 
 /**
  * Tests POJOs.

@@ -92,21 +92,22 @@ public class RegexEditor {
             File tmpFile = File.createTempFile(FilenameUtils.getBaseName(file.toString()),
                 FilenameUtils.getExtension(file.toString()), directory);
             if (pattern != null) {
-                LineIterator lines = FileUtils.lineIterator(file);
-                List<String> output = new ArrayList<>();
-                if (lines != null) {
-                    while (lines.hasNext()) {
-                        String line = lines.nextLine();
-                        Matcher matcher = pattern.matcher(line);
-                        if (matcher.find()) {
-                            line = action.update(matcher);
-                        }
-                        if (line != null) {
-                            output.add(line);
+                try (LineIterator lines = FileUtils.lineIterator(file)) {
+                    List<String> output = new ArrayList<>();
+                    if (lines != null) {
+                        while (lines.hasNext()) {
+                            String line = lines.next();
+                            Matcher matcher = pattern.matcher(line);
+                            if (matcher.find()) {
+                                line = action.update(matcher);
+                            }
+                            if (line != null) {
+                                output.add(line);
+                            }
                         }
                     }
+                    FileUtils.writeLines(tmpFile, output);
                 }
-                FileUtils.writeLines(tmpFile, output);
             } else {
                 FileUtils.copyFile(file, tmpFile, true);
             }

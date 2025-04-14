@@ -178,7 +178,7 @@ public class ZiggyCppPojoTest {
             .collect(Collectors.toList());
         assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/ZiggyCppMain.cpp"));
         assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/GetString.cpp"));
-        assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/ZiggyCModule.c"));
+        assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/ZiggyCStep.c"));
 
         // Now check that the compiler choices are set correctly.
         Map<File, String> sourceFilesWithCompiler = ziggyCppObject.getSourceFiles(false);
@@ -188,8 +188,8 @@ public class ZiggyCppPojoTest {
             .get(new File(tempDir.getAbsolutePath(), "/src/ZiggyCppMain.cpp")));
         assertEquals(cppCompiler,
             sourceFilesWithCompiler.get(new File(tempDir.getAbsolutePath(), "/src/GetString.cpp")));
-        assertEquals(cCompiler, sourceFilesWithCompiler
-            .get(new File(tempDir.getAbsolutePath(), "/src/ZiggyCModule.c")));
+        assertEquals(cCompiler,
+            sourceFilesWithCompiler.get(new File(tempDir.getAbsolutePath(), "/src/ZiggyCStep.c")));
     }
 
     @Test
@@ -215,7 +215,7 @@ public class ZiggyCppPojoTest {
             cppFilePaths.contains(buildDir.getAbsolutePath() + "/src/cpp/GetAnotherString.cpp"));
         assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/ZiggyCppMain.cpp"));
         assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/GetString.cpp"));
-        assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/ZiggyCModule.c"));
+        assertTrue(cppFilePaths.contains(tempDir.getAbsolutePath() + "/src/ZiggyCStep.c"));
     }
 
     /**
@@ -673,7 +673,7 @@ public class ZiggyCppPojoTest {
         ziggyCppObject.setOutputType("executable");
         ziggyCppObject.setDefaultExecutor(defaultExecutor);
         String linkerCommand = ziggyCppObject.generateLinkCommand()
-            + "GetString.o ZiggyCModule.o ZiggyCppMain.o";
+            + "GetString.o ZiggyCStep.o ZiggyCppMain.o";
         when(defaultExecutor.execute(ziggyCppObject.new CommandLineComparable(linkerCommand)))
             .thenReturn(1);
         // TODO Fix flaky test
@@ -716,8 +716,8 @@ public class ZiggyCppPojoTest {
         String[] ziggyCppLibHeaderContent = { "#ifndef ZIGGY_CPP_LIB", "#define ZIGGY_CPP_LIB",
             "#endif" };
 
-        // Content for the ZiggyCModule.c function
-        String[] ziggyCModuleContent = { "#define <string.h>", "#define <stdlib.h>",
+        // Content for the ZiggyCStep.c function
+        String[] ziggyCStepContent = { "#define <string.h>", "#define <stdlib.h>",
             "void get_sort_index(int nLength, double *inputArray, int *sortIndex, int *iStack ) {",
             "}" };
 
@@ -736,12 +736,11 @@ public class ZiggyCppPojoTest {
         }
         getStringSource.close();
 
-        PrintWriter cModuleSource = new PrintWriter(
-            tempDir.getAbsolutePath() + "/src/ZiggyCModule.c");
-        for (String line : ziggyCModuleContent) {
-            cModuleSource.println(line);
+        PrintWriter cStepSource = new PrintWriter(tempDir.getAbsolutePath() + "/src/ZiggyCStep.c");
+        for (String line : ziggyCStepContent) {
+            cStepSource.println(line);
         }
-        cModuleSource.close();
+        cStepSource.close();
 
         // put the main header in the src directory
         PrintWriter h1 = new PrintWriter(tempDir.getAbsolutePath() + "/src/ZiggyCppMain.h");

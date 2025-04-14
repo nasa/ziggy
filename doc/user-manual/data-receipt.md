@@ -6,7 +6,7 @@
 
 ## Data Receipt
 
-In [the article on pipeline definition](pipeline-definition.md), we mentioned that Ziggy has a special-purpose pipeline module, Data Receipt, that imports data and models into the datastore and which is the only pipeline module the user doesn't need to define. In [the article on starting a pipeline](start-pipeline.md), we led you through starting the sample pipeline, which starts with the data receipt module.
+In [the article on pipelines and nodes](pipelines-and-nodes.md), we mentioned that Ziggy has a special-purpose pipeline step, Data Receipt, that imports data and models into the datastore and which is the only pipeline step the user doesn't need to define. In [the article on starting a pipeline](start-pipeline.md), we led you through starting the sample pipeline, which starts with the data receipt step.
 
 So far, so good. However, you've probably noticed that at no point have we told you enough about the details of data receipt for you to feel comfortable putting it into a pipeline of your own.
 

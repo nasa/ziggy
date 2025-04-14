@@ -31,19 +31,19 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.datastore.DatastoreFileManager.InputFiles;
 import gov.nasa.ziggy.data.datastore.DatastoreFileManager.SubtaskDefinition;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
-import gov.nasa.ziggy.module.AlgorithmStateFiles;
-import gov.nasa.ziggy.module.SubtaskUtils;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles;
+import gov.nasa.ziggy.pipeline.step.subtask.SubtaskUtils;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -72,7 +72,7 @@ public class DatastoreFileManagerTest {
         .around(datastoreRootProperty)
         .around(taskDirRule);
 
-    private DatastoreFileManager datastoreFileManager;
+    private DatastoreFileManagerForTest datastoreFileManager;
     private PipelineTask pipelineTask;
     private DataFileType uncalibratedSciencePixelDataFileType;
     private DataFileType uncalibratedCollateralPixelDataFileType;
@@ -81,24 +81,23 @@ public class DatastoreFileManagerTest {
     private Map<String, DatastoreRegexp> regexpsByName;
     private DatastoreWalker datastoreWalker;
     private Path taskDirectory;
-    private PipelineDefinitionNode pipelineDefinitionNode;
+    private PipelineNode pipelineNode;
     private PipelineInstanceNode pipelineInstanceNode;
     private ModelRegistry modelRegistry;
     private ModelMetadata modelMetadata;
     private Map<String, String> regexpValueByName = new HashMap<>();
     private PipelineTaskOperations pipelineTaskOperations = mock(PipelineTaskOperations.class);
-    private PipelineDefinitionOperations pipelineDefinitionOperations = mock(
-        PipelineDefinitionOperations.class);
+    private PipelineOperations pipelineOperations = mock(PipelineOperations.class);
     private DatastoreProducerConsumerOperations datastoreProducerConsumerOperations = mock(
         DatastoreProducerConsumerOperations.class);
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = mock(
-        PipelineDefinitionNodeOperations.class);
+    private PipelineNodeOperations pipelineNodeOperations = mock(PipelineNodeOperations.class);
 
     @Before
     public void setUp() throws IOException {
         taskDirectory = DirectoryProperties.taskDataDir().toAbsolutePath();
         pipelineTask = mock(PipelineTask.class);
-        datastoreFileManager = Mockito.spy(new DatastoreFileManager(pipelineTask, taskDirectory));
+        datastoreFileManager = Mockito
+            .spy(new DatastoreFileManagerForTest(pipelineTask, taskDirectory));
         doReturn(mock(AlertService.class)).when(datastoreFileManager).alertService();
 
         // Create datastore directories.
@@ -125,14 +124,12 @@ public class DatastoreFileManagerTest {
             DatastoreTestUtils.datastoreNodesByFullPath());
         doReturn(datastoreWalker).when(datastoreFileManager).datastoreWalker();
         doReturn(pipelineTaskOperations).when(datastoreFileManager).pipelineTaskOperations();
-        doReturn(pipelineDefinitionOperations).when(datastoreFileManager)
-            .pipelineDefinitionOperations();
-        when(pipelineDefinitionOperations.processingMode(ArgumentMatchers.anyString()))
+        doReturn(pipelineOperations).when(datastoreFileManager).pipelineOperations();
+        when(pipelineOperations.processingMode(ArgumentMatchers.anyString()))
             .thenReturn(ProcessingMode.PROCESS_ALL);
         doReturn(datastoreProducerConsumerOperations).when(datastoreFileManager)
             .datastoreProducerConsumerOperations();
-        doReturn(pipelineDefinitionNodeOperations).when(datastoreFileManager)
-            .pipelineDefinitionNodeOperations();
+        doReturn(pipelineNodeOperations).when(datastoreFileManager).pipelineNodeOperations();
 
         // Construct the Map from regexp name to value. Note that we need to include the pixel type
         // in the way that DatastoreWalker would include it.
@@ -162,21 +159,18 @@ public class DatastoreFileManagerTest {
 
         // Set up the pipeline task.
         pipelineInstanceNode = mock(PipelineInstanceNode.class);
-        pipelineDefinitionNode = mock(PipelineDefinitionNode.class);
-        when(pipelineDefinitionNode.getPipelineName()).thenReturn("test pipeline");
-        when(pipelineTask.getModuleName()).thenReturn("test module");
-        when(
-            pipelineTaskOperations.pipelineDefinitionNode(ArgumentMatchers.any(PipelineTask.class)))
-                .thenReturn(pipelineDefinitionNode);
-        when(pipelineDefinitionNodeOperations
-            .inputDataFileTypes(ArgumentMatchers.any(PipelineDefinitionNode.class)))
-                .thenReturn(Set.of(uncalibratedSciencePixelDataFileType,
-                    uncalibratedCollateralPixelDataFileType, allFilesAllSubtasksDataFileType));
+        pipelineNode = mock(PipelineNode.class);
+        when(pipelineNode.getPipelineName()).thenReturn("test pipeline");
+        when(pipelineTask.getPipelineStepName()).thenReturn("test node");
+        when(pipelineTaskOperations.pipelineNode(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineNode);
+        when(pipelineNodeOperations.inputDataFileTypes(ArgumentMatchers.any(PipelineNode.class)))
+            .thenReturn(Set.of(uncalibratedSciencePixelDataFileType,
+                uncalibratedCollateralPixelDataFileType, allFilesAllSubtasksDataFileType));
         when(pipelineTaskOperations.modelTypes(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(Set.of(modelType));
-        when(
-            pipelineTaskOperations.pipelineDefinitionName(ArgumentMatchers.any(PipelineTask.class)))
-                .thenReturn("test pipeline");
+        when(pipelineTaskOperations.pipelineName(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn("test pipeline");
         when(pipelineTaskOperations.inputDataFileTypes(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(Set.of(uncalibratedSciencePixelDataFileType,
                 uncalibratedCollateralPixelDataFileType, allFilesAllSubtasksDataFileType));
@@ -193,9 +187,8 @@ public class DatastoreFileManagerTest {
         DatastoreDirectoryUnitOfWorkGenerator uowGenerator = Mockito
             .spy(DatastoreDirectoryUnitOfWorkGenerator.class);
         doReturn(datastoreWalker).when(uowGenerator).datastoreWalker();
-        doReturn(pipelineDefinitionNodeOperations).when(uowGenerator)
-            .pipelineDefinitionNodeOperations();
-        doReturn(pipelineDefinitionNode).when(pipelineInstanceNode).getPipelineDefinitionNode();
+        doReturn(pipelineNodeOperations).when(uowGenerator).pipelineNodeOperations();
+        doReturn(pipelineNode).when(pipelineInstanceNode).getPipelineNode();
         List<UnitOfWork> uows = PipelineExecutor.generateUnitsOfWork(uowGenerator,
             pipelineInstanceNode);
         doReturn(uows.get(0)).when(pipelineTask).getUnitOfWork();
@@ -246,6 +239,25 @@ public class DatastoreFileManagerTest {
         }
     }
 
+    @Test
+    public void testFilterDataFiles() {
+        datastoreFileManager.setFilterSubtasks(true);
+        Set<SubtaskDefinition> subtaskDefinitions = datastoreFileManager.subtaskDefinitions();
+        Map<String, Set<Path>> filesForSubtasks = new HashMap<>();
+        for (SubtaskDefinition subtaskDefinition : subtaskDefinitions) {
+            filesForSubtasks.put(subtaskDefinition.mapEntry().getKey(),
+                subtaskDefinition.mapEntry().getValue());
+        }
+        Set<String> subtaskBaseNames = filesForSubtasks.keySet();
+        assertTrue(subtaskBaseNames.contains("uncalibrated-pixels-1"));
+        assertTrue(subtaskBaseNames.contains("uncalibrated-pixels-2"));
+        assertTrue(subtaskBaseNames.contains("uncalibrated-pixels-3"));
+        assertTrue(subtaskBaseNames.contains("uncalibrated-pixels-4"));
+        assertTrue(subtaskBaseNames.contains("uncalibrated-pixels-5"));
+        assertTrue(subtaskBaseNames.contains("uncalibrated-pixels-6"));
+        assertEquals(SUBTASK_DIR_COUNT - 1, filesForSubtasks.size());
+    }
+
     /** Tests that all expected files are found in a Set of Path instances. */
     private void checkForFiles(String baseName, Set<Path> subtaskFiles) {
         assertTrue(subtaskFiles.contains(DirectoryProperties.datastoreRootDir()
@@ -293,7 +305,7 @@ public class DatastoreFileManagerTest {
     /** Tests that filesForSubtasks acts as expected for a single-subtask use case. */
     @Test
     public void testFilesForSubtasksSingleSubtask() {
-        when(pipelineDefinitionNode.getSingleSubtask()).thenReturn(true);
+        when(pipelineNode.getSingleSubtask()).thenReturn(true);
         Set<SubtaskDefinition> subtaskDefinitions = datastoreFileManager.subtaskDefinitions();
         assertEquals(1, subtaskDefinitions.size());
         SubtaskDefinition subtaskDefinition = subtaskDefinitions.iterator().next();
@@ -375,8 +387,46 @@ public class DatastoreFileManagerTest {
     @Test
     public void testCopyTaskDirectoryFilesToDatastore() throws IOException {
         createOutputFiles();
-        when(pipelineDefinitionNode.getOutputDataFileTypes())
+        when(pipelineNode.getOutputDataFileTypes())
             .thenReturn(Set.of(calibratedCollateralPixelDataFileType));
+        Set<Path> copiedFiles = datastoreFileManager.copyTaskDirectoryFilesToDatastore();
+        Path datastorePath = DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("cal")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("collateral")
+            .resolve("1:1:A");
+        for (int subtaskIndex = 0; subtaskIndex < SUBTASK_DIR_COUNT; subtaskIndex++) {
+            assertTrue(copiedFiles.contains(
+                datastorePath.toAbsolutePath().resolve("outputs-file-" + subtaskIndex + ".nc")));
+        }
+        assertEquals(SUBTASK_DIR_COUNT, copiedFiles.size());
+    }
+
+    @Test
+    public void testCreateDatastoreDirectories() throws IOException {
+        createOutputFiles();
+        when(pipelineNode.getOutputDataFileTypes())
+            .thenReturn(Set.of(calibratedCollateralPixelDataFileType));
+        Files.createDirectories(DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("cal")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("collateral"));
+        Files.delete(DirectoryProperties.datastoreRootDir()
+            .resolve("sector-0002")
+            .resolve("mda")
+            .resolve("cal")
+            .resolve("pixels")
+            .resolve("target")
+            .resolve("collateral")
+            .resolve("1:1:A"));
+        ZiggyFileUtils.writeProtectDirectoryTree(
+            DirectoryProperties.datastoreRootDir().resolve("sector-0002"));
         Set<Path> copiedFiles = datastoreFileManager.copyTaskDirectoryFilesToDatastore();
         Path datastorePath = DirectoryProperties.datastoreRootDir()
             .resolve("sector-0002")
@@ -409,7 +459,7 @@ public class DatastoreFileManagerTest {
         createOutputFiles();
         createInputFiles();
         setAlgorithmStateFiles();
-        when(pipelineDefinitionNode.getOutputDataFileTypes())
+        when(pipelineNode.getOutputDataFileTypes())
             .thenReturn(Set.of(calibratedCollateralPixelDataFileType));
         Files.delete(taskDirectory.resolve(SubtaskUtils.subtaskDirName(SUBTASK_DIR_COUNT - 1))
             .resolve("outputs-file-" + (SUBTASK_DIR_COUNT - 1) + ".nc"));
@@ -487,10 +537,9 @@ public class DatastoreFileManagerTest {
 
     @Test
     public void testSingleSubtaskNoPerSubtaskFiles() {
-        when(pipelineDefinitionNodeOperations
-            .inputDataFileTypes(ArgumentMatchers.any(PipelineDefinitionNode.class)))
-                .thenReturn(Set.of(allFilesAllSubtasksDataFileType));
-        doReturn(true).when(pipelineDefinitionNode).getSingleSubtask();
+        when(pipelineNodeOperations.inputDataFileTypes(ArgumentMatchers.any(PipelineNode.class)))
+            .thenReturn(Set.of(allFilesAllSubtasksDataFileType));
+        doReturn(true).when(pipelineNode).getSingleSubtask();
         Set<SubtaskDefinition> subtaskDefinitions = datastoreFileManager.subtaskDefinitions();
         assertEquals(1, subtaskDefinitions.size());
         SubtaskDefinition subtaskDefinition = subtaskDefinitions.iterator().next();
@@ -552,10 +601,10 @@ public class DatastoreFileManagerTest {
     @Test
     public void testFilteringForSingleSubtask() {
         configureForFilteringTest();
-        when(pipelineDefinitionNode.getSingleSubtask()).thenReturn(true);
+        when(pipelineNode.getSingleSubtask()).thenReturn(true);
 
         Set<SubtaskDefinition> subtaskDefinitions = datastoreFileManager
-            .subtaskDefinitions(pipelineDefinitionNode);
+            .subtaskDefinitions(pipelineNode);
         assertEquals(1, subtaskDefinitions.size());
         SubtaskDefinition subtaskDefinition = subtaskDefinitions.iterator().next();
         assertEquals(DatastoreFileManager.SINGLE_SUBTASK_BASE_NAME,
@@ -568,9 +617,8 @@ public class DatastoreFileManagerTest {
     @Test
     public void testFilteringNoPriorProcessingDetected() {
         configureForFilteringTest();
-        when(pipelineTaskOperations
-            .tasksForPipelineDefinitionNode(ArgumentMatchers.any(PipelineTask.class)))
-                .thenReturn(new ArrayList<>());
+        when(pipelineTaskOperations.tasksForPipelineNode(ArgumentMatchers.any(PipelineNode.class)))
+            .thenReturn(new ArrayList<>());
         Set<SubtaskDefinition> subtaskDefinitions = datastoreFileManager.subtaskDefinitions();
         assertEquals(7, subtaskDefinitions.size());
     }
@@ -578,7 +626,7 @@ public class DatastoreFileManagerTest {
     private void configureForFilteringTest() {
 
         // Request processing of only new data.
-        when(pipelineDefinitionOperations.processingMode(ArgumentMatchers.anyString()))
+        when(pipelineOperations.processingMode(ArgumentMatchers.anyString()))
             .thenReturn(ProcessingMode.PROCESS_NEW);
         Set<String> scienceDatastoreFilenames = producerConsumerTableFilenames("science");
         Set<String> collateralDatastoreFilenames = producerConsumerTableFilenames("collateral");
@@ -591,17 +639,15 @@ public class DatastoreFileManagerTest {
         PipelineTask pipelineTask40 = mock(PipelineTask.class);
         when(pipelineTask40.getId()).thenReturn(40L);
 
-        when(pipelineTaskOperations
-            .tasksForPipelineDefinitionNode(ArgumentMatchers.any(PipelineTask.class)))
-                .thenReturn(List.of(pipelineTask30, pipelineTask40))
-                .thenReturn(List.of(pipelineTask30, pipelineTask35));
+        when(pipelineTaskOperations.tasksForPipelineNode(ArgumentMatchers.any(PipelineNode.class)))
+            .thenReturn(List.of(pipelineTask30, pipelineTask35, pipelineTask40));
 
         // Set up the DatastoreProducerConsumer retieval mocks.
-        when(datastoreProducerConsumerOperations.filesConsumedByTasks(
-            List.of(pipelineTask30, pipelineTask40), scienceDatastoreFilenames)).thenReturn(Set.of(
+        when(datastoreProducerConsumerOperations.filesConsumedByTasks(List.of(pipelineTask30,
+            pipelineTask35, pipelineTask40), scienceDatastoreFilenames)).thenReturn(Set.of(
                 "sector-0002/mda/dr/pixels/target/science/1:1:A/uncalibrated-pixels-0.science.nc"));
         when(datastoreProducerConsumerOperations.filesConsumedByTasks(List.of(pipelineTask30,
-            pipelineTask35), collateralDatastoreFilenames)).thenReturn(Set.of(
+            pipelineTask35, pipelineTask40), collateralDatastoreFilenames)).thenReturn(Set.of(
                 "sector-0002/mda/dr/pixels/target/collateral/1:1:A/uncalibrated-pixels-0.collateral.nc",
                 "sector-0002/mda/dr/pixels/target/collateral/1:1:A/uncalibrated-pixels-1.collateral.nc"));
     }
@@ -706,5 +752,28 @@ public class DatastoreFileManagerTest {
             .resolve(ziggyDirectoryRule.directory().resolve("copydir").relativize(copiedFile));
         assertTrue(Files.isRegularFile(originalFile));
         assertTrue(Files.isSameFile(copiedFile, originalFile));
+    }
+
+    private static class DatastoreFileManagerForTest extends DatastoreFileManager {
+
+        public DatastoreFileManagerForTest(PipelineTask pipelineTask, Path taskDirectory) {
+            super(pipelineTask, taskDirectory);
+        }
+
+        private boolean filterSubtasks;
+
+        void setFilterSubtasks(boolean filterSubtasks) {
+            this.filterSubtasks = filterSubtasks;
+        }
+
+        @Override
+        protected Set<Path> filterDataFiles(UnitOfWork uow, DataFileType dataFileType,
+            Set<Path> dataFilesForDataFileType) {
+            return filterSubtasks
+                ? dataFilesForDataFileType.stream()
+                    .filter(s -> !s.getFileName().toString().contains("uncalibrated-pixels-0"))
+                    .collect(Collectors.toSet())
+                : dataFilesForDataFileType;
+        }
     }
 }

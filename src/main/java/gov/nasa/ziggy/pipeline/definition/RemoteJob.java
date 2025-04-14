@@ -2,9 +2,7 @@ package gov.nasa.ziggy.pipeline.definition;
 
 import java.util.Objects;
 
-import gov.nasa.ziggy.module.remote.RemoteNodeDescriptor;
 import gov.nasa.ziggy.ui.ZiggyGuiConsole;
-import gov.nasa.ziggy.util.TimeFormatter;
 import jakarta.persistence.Embeddable;
 
 /**
@@ -33,12 +31,24 @@ public class RemoteJob implements Comparable<RemoteJob> {
     private long jobId;
     private double costEstimate;
     private boolean finished;
+    private String remoteEnvironmentName;
+    private double costFactor;
 
     public RemoteJob() {
     }
 
     public RemoteJob(long jobId) {
         this.jobId = jobId;
+    }
+
+    public RemoteJob(long jobId, String remoteEnvironmentName) {
+        this(jobId);
+        this.remoteEnvironmentName = remoteEnvironmentName;
+    }
+
+    public RemoteJob(long jobId, String remoteEnvironmentName, double costFactor) {
+        this(jobId, remoteEnvironmentName);
+        this.costFactor = costFactor;
     }
 
     public void setJobId(long jobId) {
@@ -65,6 +75,22 @@ public class RemoteJob implements Comparable<RemoteJob> {
         this.finished = finished;
     }
 
+    public String getRemoteEnvironmentName() {
+        return remoteEnvironmentName;
+    }
+
+    public void setRemoteEnvironmentName(String remoteEnvironmentName) {
+        this.remoteEnvironmentName = remoteEnvironmentName;
+    }
+
+    public double getCostFactor() {
+        return costFactor;
+    }
+
+    public void setCostFactor(double costFactor) {
+        this.costFactor = costFactor;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(jobId);
@@ -85,52 +111,5 @@ public class RemoteJob implements Comparable<RemoteJob> {
     @Override
     public int compareTo(RemoteJob otherRemoteJob) {
         return (int) (jobId - otherRemoteJob.jobId);
-    }
-
-    /**
-     * Convenience class that transports a job's "select" value (model and node count) and wall time
-     * value from qstat.
-     *
-     * @author PT
-     */
-    public static class RemoteJobQstatInfo {
-
-        private int nodes;
-        private String model;
-        private String wallTime;
-
-        public double costEstimate() {
-            if (nodes == 0 || model == null || wallTime == null) {
-                return 0;
-            }
-            String decodedModel = model.equals("bro_ele") ? "bro" : model;
-            double costFactor = RemoteNodeDescriptor.fromName(decodedModel).getCostFactor();
-            double wallTimeHours = TimeFormatter.timeStringHhMmSsToTimeInHours(wallTime);
-            return nodes * costFactor * wallTimeHours;
-        }
-
-        public String getWallTime() {
-            return wallTime;
-        }
-
-        public void setWallTime(String wallTime) {
-            this.wallTime = wallTime;
-        }
-
-        public int getNodes() {
-            return nodes;
-        }
-
-        public void setNodes(int nodes) {
-            this.nodes = nodes;
-        }
-
-        public String getModel() {
-            return model;
-        }
-
-        public void setModel(String model) {
-            this.model = model;
-        }
     }
 }

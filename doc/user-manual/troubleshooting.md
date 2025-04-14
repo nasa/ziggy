@@ -14,7 +14,7 @@ On the console, go back to the `Parameter Library` panel and double-click `Algor
 
 What this does is to tell the permuter's Python-side "glue" code that it should deliberately throw an exception during the processing of subtask zero. Obviously you shouldn't put such a parameter into your own pipeline! But in this case it's useful because it allows us to generate an exception in a controlled manner and watch what happens.
 
-Now go to the `Pipelines` panel and set up to run `permuter` and `flip` nodes in the sample pipeline. Start the pipeline and return to the `Instances` panel. After a few seconds you'll see that the `permuter` module has started, but then stops with an error:
+Now go to the `Pipelines` panel and set up to run `permuter` and `flip` nodes in the sample pipeline. Start the pipeline and return to the `Instances` panel. After a few seconds you'll see that the `permuter` node has started, but then stops with an error:
 
 <img src="images/exception-1.png" style="width:35cm;"/>
 

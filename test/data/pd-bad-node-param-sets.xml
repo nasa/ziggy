@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+  <step name="importer" description="Hyperion importer"
+          pipelineStepExecutorClass="gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrudTest$TestPipelineStepExecutor"
+          exeTimeoutSecs="2000000" minMemoryMegabytes="0"
+          uowGenerator="gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator"/>
+
+  <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer">
+    <parameterSet name="Sample classless parameter set"/>
+    <parameterSet name="ISOFIT algorithm parameters"/>
+    <node name="importer">
+        <parameterSet name="Not in this database"/>
+        <parameterSet name="yet another one..."/>
+    </node>
+  </pipeline>
+
+</pipelineDefinition>

@@ -17,10 +17,19 @@ from PIL import Image
 import numpy as np
 import os
 import re
+import time
 
 # Takes a PNG image and permutes the R, G, B components.
-def permute_color(filename, throw_exception, generate_output):
-    
+def permuter(inputs):
+
+    throw_exception = inputs['algorithmParameters']['Algorithm_Parameters']['throw_exception_subtask_0']
+    generate_output = inputs['algorithmParameters']['Algorithm_Parameters']['produce_output_subtask_1']
+    filename = inputs['dataFilenames']
+
+    dir_name = os.path.basename(os.getcwd())
+    throw_exception = throw_exception and dir_name == 'st-0'
+    generate_output = generate_output or dir_name != 'st-1'
+
     # If generate_output and throw_exception are both false, we can return
     # 0 here and be done with it.
     if not throw_exception and not generate_output:
@@ -53,7 +62,22 @@ def permute_color(filename, throw_exception, generate_output):
     
     new_png_file = Image.fromarray(png_array, 'RGBA')
     new_png_file.save(save_filename)
-            
+
+    # Sleep for a user-specified interval. This is here just so the
+    # user can watch execution run on the pipeline console.
+    time.sleep(inputs['algorithmParameters']['Algorithm_Parameters']['execution_pause_seconds'])
+
+    return
+
+def flip(inputs):
+    filename = inputs['dataFilenames']
+    left_right_flip(filename)
+    up_down_flip(filename)
+
+    # Sleep for a user-specified interval. This is here just so the
+    # user can watch execution run on the pipeline console.
+    time.sleep(inputs['algorithmParameters']['Algorithm_Parameters']['execution_pause_seconds'])
+
     return
 
 # Takes a PNG image and performs a left-right flip.
@@ -105,12 +129,14 @@ def up_down_flip(filename):
     
     new_png_file = Image.fromarray(png_array)
     new_png_file.save(save_filename)
-            
+
     return
 
 # Takes the mean of a series of PNG images.
-def average_images(filenames):
-    
+def averaging(inputs):
+
+    filenames = inputs['dataFilenames']
+
     n_images = len(filenames)
     i_image = 0
     
@@ -138,6 +164,10 @@ def average_images(filenames):
     
     new_png_file = Image.fromarray(mean_array)
     new_png_file.save(save_filename)
-            
+
+    # Sleep for a user-specified interval. This is here just so the
+    # user can watch execution run on the pipeline console.
+    time.sleep(inputs['algorithmParameters']['Algorithm_Parameters']['execution_pause_seconds'])
+
     return
    

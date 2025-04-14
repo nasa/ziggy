@@ -8,7 +8,7 @@ plugins {
     id 'maven-publish'
 }
 
-defaultTasks 'assemble'
+defaultTasks 'publish'
 
 repositories {
     mavenCentral()
@@ -16,11 +16,12 @@ repositories {
 
 dependencies {
     // Needed to compile buildSrc.
-    implementation 'com.google.guava:guava:23.6.+'
-    implementation 'commons-io:commons-io:2.11.+'
+    implementation 'com.google.guava:guava:33.4.+'
+    implementation 'commons-io:commons-io:2.18.+'
     implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.+'
     implementation 'org.apache.commons:commons-exec:1.4.+'
-    implementation 'org.apache.commons:commons-lang3:3.12.+'
+    implementation 'org.apache.commons:commons-lang3:3.17.+'
+
     runtimeOnly 'com.sun.xml.bind:jaxb-impl:3.0.+'
 
     // Needed to compile unit tests.
@@ -30,6 +31,18 @@ dependencies {
     // The following stuff is needed in order to build custom gradle tasks and plugins.
     implementation gradleApi()
     implementation localGroovy()
+}
+
+tasks.withType(JavaCompile) {
+    options.deprecation = true
+
+    // Avoid the Eclipse "Project XXX has no explicit encoding set" warning.
+    // Until Eclipse Buildship issue #344 is fixed, remove the warning
+    // in Eclipse by using C-1 to apply a Quick Fix on the warning message.
+    options.encoding = 'UTF-8'
+
+    // Suppresses "Note: Hibernate JPA 2 Static-Metamodel Generator 6.2.32.Final" output
+    logging.captureStandardError LogLevel.INFO
 }
 
 test {
@@ -68,10 +81,10 @@ tasks.eclipse.dependsOn(cleanEclipse)
 publishing {
     publications {
         ziggyBuildSrc(MavenPublication) {
-            groupId group
+            groupId = group
             from components.java
-            artifactId "ziggy-buildSrc"
-            version version
+            artifactId = "ziggy-buildSrc"
+            version = version
 
             // Maven doesn't understand 2.17.+ notation.
             suppressPomMetadataWarningsFor('runtimeElements')

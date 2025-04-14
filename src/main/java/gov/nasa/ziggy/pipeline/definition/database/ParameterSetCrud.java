@@ -33,14 +33,11 @@ public class ParameterSetCrud extends UniqueNameVersionPipelineComponentCrud<Par
     public ParameterSet retrieve(long id) {
         ZiggyQuery<ParameterSet, ParameterSet> query = createZiggyQuery(ParameterSet.class);
         query.column(ParameterSet_.id).in(id);
-        ParameterSet result = uniqueResult(query);
-        return result;
+        return uniqueResult(query);
     }
 
     public Set<ParameterSet> retrieveParameterSets(PipelineTask pipelineTask) {
-        Set<ParameterSet> parameterSets = new HashSet<>();
-        parameterSets.addAll(
-            new PipelineInstanceCrud().retrieveParameterSets(pipelineTask.getPipelineInstanceId()));
+        Set<ParameterSet> parameterSets = new HashSet<>(new PipelineInstanceCrud().retrieveParameterSets(pipelineTask.getPipelineInstanceId()));
         parameterSets.addAll(new PipelineInstanceNodeCrud().retrieveParameterSets(pipelineTask));
         return parameterSets;
     }

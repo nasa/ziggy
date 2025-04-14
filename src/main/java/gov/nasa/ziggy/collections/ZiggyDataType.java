@@ -15,10 +15,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.primitives.Primitives;
 
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.module.io.Persistable;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.util.io.Persistable;
 import hdf.hdf5lib.HDF5Constants;
 
 /**

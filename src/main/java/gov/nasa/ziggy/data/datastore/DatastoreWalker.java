@@ -23,12 +23,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Provides recursive transiting of the datastore directory tree (as defined by
@@ -658,9 +658,9 @@ public class DatastoreWalker {
 
     /**
      * Full path string for a {@link DatastoreNode} when the full path of its parent is taken into
-     * account. Package scoped for test purposes.
+     * account.
      */
-    static String fullPathFromParentPath(String nodeName, String parentFullPath) {
+    public static String fullPathFromParentPath(String nodeName, String parentFullPath) {
         return StringUtils.isBlank(parentFullPath) ? nodeName
             : parentFullPath + NODE_SEPARATOR + nodeName;
     }

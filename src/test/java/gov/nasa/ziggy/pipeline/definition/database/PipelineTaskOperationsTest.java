@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.pipeline.definition.database;
 
-import static gov.nasa.ziggy.services.config.PropertyName.REMOTE_QUEUE_COMMAND_CLASS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -18,23 +17,20 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
-import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.data.datastore.DataFileType;
-import gov.nasa.ziggy.module.remote.QueueCommandManager;
-import gov.nasa.ziggy.module.remote.QueueCommandManagerTest;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCountsTest;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.util.ZiggyCollectionUtils;
@@ -54,21 +50,16 @@ public class PipelineTaskOperationsTest {
     private PipelineInstance pipelineInstance;
     private PipelineInstanceNode newInstanceNode;
     private PipelineInstanceNode pipelineInstanceNode;
-    private PipelineDefinitionNode definitionNode;
-    private PipelineDefinition pipelineDefinition;
+    private PipelineNode pipelineNode;
+    private Pipeline pipeline;
     private PipelineTaskOperations pipelineTaskOperations;
     private PipelineTaskDataOperations pipelineTaskDataOperations;
     private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations;
     private PipelineInstanceOperations pipelineInstanceOperations;
-    private QueueCommandManager cmdManager;
     private TestOperations testOperations = new TestOperations();
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
-
-    @Rule
-    public ZiggyPropertyRule queueCommandClassPropertyRule = new ZiggyPropertyRule(
-        REMOTE_QUEUE_COMMAND_CLASS, "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
 
     @Before
     public void setUp() {
@@ -77,17 +68,15 @@ public class PipelineTaskOperationsTest {
         pipelineTaskDataOperations = spy(PipelineTaskDataOperations.class);
         pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
         pipelineInstanceOperations = spy(PipelineInstanceOperations.class);
-        cmdManager = spy(QueueCommandManager.newInstance());
-        when(pipelineTaskDataOperations.queueCommandManager()).thenReturn(cmdManager);
         when(pipelineInstanceOperations.pipelineTaskOperations())
             .thenReturn(pipelineTaskOperations);
     }
 
-    private void setUpSingleModulePipeline() {
+    private void setUpSingleNodePipeline() {
         PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
-        testUtils.setUpSingleModulePipeline();
-        pipelineDefinition = testUtils.pipelineDefinition();
-        definitionNode = testUtils.pipelineDefinitionNode();
+        testUtils.setUpSingleNodePipeline();
+        pipeline = testUtils.pipeline();
+        pipelineNode = testUtils.pipelineNode();
         pipelineInstance = testUtils.pipelineInstance();
         pipelineInstanceNode = testUtils.pipelineInstanceNode();
         task1 = testUtils.getPipelineTasks().get(0);
@@ -96,7 +85,7 @@ public class PipelineTaskOperationsTest {
 
     @Test
     public void testPipelineInstanceNode() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         PipelineInstanceNode pipelineInstanceNode = pipelineTaskOperations
             .pipelineInstanceNode(task1);
         assertNotNull(pipelineInstanceNode);
@@ -105,16 +94,16 @@ public class PipelineTaskOperationsTest {
 
     @Test
     public void testPipelineInstance() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         PipelineInstance pipelineInstance = pipelineTaskOperations.pipelineInstance(task1);
         assertNotNull(pipelineInstance);
         assertEquals(1L, pipelineInstance.getId().longValue());
     }
 
     @Test
-    public void testPipelineDefinitionNode() {
-        setUpSingleModulePipeline();
-        PipelineDefinitionNode node = pipelineTaskOperations.pipelineDefinitionNode(task1);
+    public void testPipelineNode() {
+        setUpSingleNodePipeline();
+        PipelineNode node = pipelineTaskOperations.pipelineNode(task1);
         assertNotNull(node);
         assertEquals(1L, node.getId().longValue());
     }
@@ -130,7 +119,7 @@ public class PipelineTaskOperationsTest {
     @Test
     public void testUpdateProcessingStepNoErrors() {
 
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
 
         // Check initial states.
         List<PipelineTask> databaseTasks = testOperations.allPipelineTasks();
@@ -222,7 +211,7 @@ public class PipelineTaskOperationsTest {
     @Test
     public void testUpdateProcessingStepWithErrors() {
 
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
 
         // Move the tasks to the EXECUTING step.
         pipelineTaskDataOperations.updateProcessingStep(task1, ProcessingStep.EXECUTING);
@@ -269,18 +258,16 @@ public class PipelineTaskOperationsTest {
     @Test
     public void testMultipleInstanceNodesNoErrors() {
 
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
 
         // Create a new instance node with 2 tasks in it and attach it to the instance.
-        PipelineModuleDefinition newModuleDefinition = testOperations
-            .merge(new PipelineModuleDefinition("dummy6"));
-        PipelineDefinitionNode newDefinitionNode = testOperations
-            .merge(new PipelineDefinitionNode("dummy7", "dummy7"));
-        definitionNode.setNextNodes(List.of(newDefinitionNode));
-        pipelineDefinition.setRootNodes(List.of(definitionNode));
-        testOperations.merge(definitionNode);
+        PipelineStep newPipelineStep = testOperations.merge(new PipelineStep("dummy6"));
+        PipelineNode newPipelineNode = testOperations.merge(new PipelineNode("dummy7", "dummy7"));
+        pipelineNode.setNextNodes(List.of(newPipelineNode));
+        pipeline.setRootNodes(List.of(pipelineNode));
+        testOperations.merge(pipelineNode);
         newInstanceNode = testOperations
-            .merge(new PipelineInstanceNode(newDefinitionNode, newModuleDefinition));
+            .merge(new PipelineInstanceNode(newPipelineNode, newPipelineStep));
         pipelineInstance.setEndNode(newInstanceNode);
         pipelineInstance.addPipelineInstanceNode(newInstanceNode);
         testOperations.merge(pipelineInstance);
@@ -341,19 +328,18 @@ public class PipelineTaskOperationsTest {
     @Test
     public void testMultipleInstanceNodesWithErrors() {
 
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
 
         // Create a new instance node with 2 tasks in it and attach it to the instance.
-        PipelineModuleDefinition newModuleDefinition = testOperations
-            .merge(new PipelineModuleDefinition("dummy6"));
-        PipelineDefinitionNode newDefinitionNode = new PipelineDefinitionNode("dummy7", "dummy7");
-        definitionNode.setNextNodes(ZiggyCollectionUtils.mutableListOf(newDefinitionNode));
-        pipelineDefinition.setRootNodes(ZiggyCollectionUtils.mutableListOf(definitionNode));
-        newDefinitionNode = testOperations.merge(newDefinitionNode);
-        definitionNode = testOperations.merge(definitionNode);
-        pipelineDefinition = testOperations.merge(pipelineDefinition);
+        PipelineStep newPipelineStep = testOperations.merge(new PipelineStep("dummy6"));
+        PipelineNode newPipelineNode = new PipelineNode("dummy7", "dummy7");
+        pipelineNode.setNextNodes(ZiggyCollectionUtils.mutableListOf(newPipelineNode));
+        pipeline.setRootNodes(ZiggyCollectionUtils.mutableListOf(pipelineNode));
+        newPipelineNode = testOperations.merge(newPipelineNode);
+        pipelineNode = testOperations.merge(pipelineNode);
+        pipeline = testOperations.merge(pipeline);
         newInstanceNode = testOperations
-            .merge(new PipelineInstanceNode(newDefinitionNode, newModuleDefinition));
+            .merge(new PipelineInstanceNode(newPipelineNode, newPipelineStep));
         pipelineInstance.setEndNode(newInstanceNode);
         pipelineInstance = testOperations.merge(pipelineInstance);
 
@@ -390,9 +376,9 @@ public class PipelineTaskOperationsTest {
     }
 
     @Test
-    public void testTaskIdsForPipelineDefinitionNode() {
-        setUpSingleModulePipeline();
-        List<PipelineTask> taskIds = pipelineTaskOperations.tasksForPipelineDefinitionNode(task1);
+    public void testTaskIdsForPipelineNode() {
+        setUpSingleNodePipeline();
+        List<PipelineTask> taskIds = pipelineTaskOperations.tasksForPipelineNode(task1);
         assertEquals(2, taskIds.size());
         assertTrue(taskIds.contains(task1));
         assertTrue(taskIds.contains(task2));
@@ -432,7 +418,7 @@ public class PipelineTaskOperationsTest {
 
     @Test
     public void testParameterSets() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         assertTrue(CollectionUtils.isEmpty(pipelineTaskOperations.parameterSets(task1)));
         persistParameterSets();
         testOperations.bindParameterSets();
@@ -447,14 +433,17 @@ public class PipelineTaskOperationsTest {
         assertEquals(4, parameterSetNames.size());
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+        value = "DLS_DEAD_LOCAL_STORE_SHADOWS_FIELD",
+        justification = "The pipelineNode variable is actually used, and isn't meant to update the pipelineNode field")
     PipelineTask createPipelineTask() {
 
         PipelineInstance instance = testOperations.merge(new PipelineInstance());
-        PipelineModuleDefinition modDef = testOperations.merge(new PipelineModuleDefinition("tps"));
-        PipelineDefinitionNode defNode = testOperations
-            .merge(new PipelineDefinitionNode(modDef.getName(), "dummy"));
+        PipelineStep pipelineStep = testOperations.merge(new PipelineStep("tps"));
+        PipelineNode pipelineNode = testOperations
+            .merge(new PipelineNode(pipelineStep.getName(), "dummy"));
         PipelineInstanceNode instNode = testOperations
-            .merge(new PipelineInstanceNode(defNode, modDef));
+            .merge(new PipelineInstanceNode(pipelineNode, pipelineStep));
         DataFileType inputDataFileType = testOperations
             .merge(new DataFileType("dummy1", "dummy2", "dummy3"));
         DataFileType outputDataFileType = testOperations
@@ -462,10 +451,10 @@ public class PipelineTaskOperationsTest {
         ModelType modelType = new ModelType();
         modelType.setType("dummy7");
         modelType = new ModelCrud().merge(modelType);
-        defNode.addAllInputDataFileTypes(List.of(inputDataFileType));
-        defNode.addAllOutputDataFileTypes(List.of(outputDataFileType));
-        defNode.addAllModelTypes(List.of(modelType));
-        defNode = testOperations.merge(defNode);
+        pipelineNode.addAllInputDataFileTypes(List.of(inputDataFileType));
+        pipelineNode.addAllOutputDataFileTypes(List.of(outputDataFileType));
+        pipelineNode.addAllModelTypes(List.of(modelType));
+        pipelineNode = testOperations.merge(pipelineNode);
         PipelineTask task = new PipelineTask(instance, instNode, null);
         task = pipelineTaskOperations.merge(task);
         instNode.addPipelineTask(task);
@@ -473,21 +462,16 @@ public class PipelineTaskOperationsTest {
         instance.addPipelineInstanceNode(instNode);
         instance.setEndNode(instNode);
         instance = testOperations.merge(instance);
-
-        // Mock up the QueueCommandManager so that it returns 3 jobs for the pipeline task
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-u user", new String[] { "1-1-tps" },
-            "9101154.batch user low   1-1-tps.0   5   5 04:00 F 01:34 419%",
-            "9102337.batch user low   1-1-tps.1   5   5 04:00 F 01:34 419%",
-            "6020203.batch user low   1-1-tps.2   5   5 04:00 F 01:34 419%");
-
-        // add mocking that gets the correct server in each case
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 6020203 9101154 9102337",
-            new String[] { "Job:", "Job_Owner" }, "Job: 6020203.batch.example.com",
-            "    Job_Owner = user@host.example.com", "Job: 9101154.batch.example.com",
-            "    Job_Owner = user@host.example.com", "Job: 9102337.batch.example.com",
-            "    Job_Owner = user@host.example.com");
-
         return task;
+    }
+
+    @Test
+    public void testTasksForPipelineNode() {
+        setUpSingleNodePipeline();
+        List<PipelineTask> tasksForNode = pipelineTaskOperations.tasksForPipelineNode(pipelineNode);
+        assertTrue(tasksForNode.contains(task1));
+        assertTrue(tasksForNode.contains(task2));
+        assertEquals(2, tasksForNode.size());
     }
 
     private void persistParameterSets() {
@@ -519,14 +503,12 @@ public class PipelineTaskOperationsTest {
             return performTransaction(() -> new PipelineInstanceCrud().retrieveAll());
         }
 
-        public PipelineModuleDefinition merge(PipelineModuleDefinition moduleDefinition) {
-            return performTransaction(
-                () -> new PipelineModuleDefinitionCrud().merge(moduleDefinition));
+        public PipelineStep merge(PipelineStep pipelineStep) {
+            return performTransaction(() -> new PipelineStepCrud().merge(pipelineStep));
         }
 
-        public PipelineDefinitionNode merge(PipelineDefinitionNode pipelineDefinitionNode) {
-            return performTransaction(
-                () -> new PipelineDefinitionNodeCrud().merge(pipelineDefinitionNode));
+        public PipelineNode merge(PipelineNode pipelineNode) {
+            return performTransaction(() -> new PipelineNodeCrud().merge(pipelineNode));
         }
 
         public PipelineInstanceNode merge(PipelineInstanceNode pipelineInstanceNode) {
@@ -538,8 +520,8 @@ public class PipelineTaskOperationsTest {
             return performTransaction(() -> new PipelineInstanceCrud().merge(pipelineInstance));
         }
 
-        public PipelineDefinition merge(PipelineDefinition pipelineDefinition) {
-            return performTransaction(() -> new PipelineDefinitionCrud().merge(pipelineDefinition));
+        public Pipeline merge(Pipeline pipeline) {
+            return performTransaction(() -> new PipelineCrud().merge(pipeline));
         }
 
         public DataFileType merge(DataFileType dataFileType) {
@@ -555,9 +537,8 @@ public class PipelineTaskOperationsTest {
 
         public void bindParameterSets() {
             performTransaction(() -> {
-                new PipelineInstanceOperations().bindParameterSets(pipelineDefinition,
-                    pipelineInstance);
-                new PipelineInstanceNodeOperations().bindParameterSets(definitionNode,
+                new PipelineInstanceOperations().bindParameterSets(pipeline, pipelineInstance);
+                new PipelineInstanceNodeOperations().bindParameterSets(pipelineNode,
                     pipelineInstanceNode);
             });
         }

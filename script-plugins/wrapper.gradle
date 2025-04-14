@@ -1,6 +1,6 @@
 // Download and build the wrapper.
 
-ext.wrapperVersion = "3.5.51"
+ext.wrapperVersion = "3.5.54"
 
 task buildWrapper() {
     def tmp = file("$outsideDir/tmp/wrapper")
@@ -47,20 +47,23 @@ task buildWrapper() {
         tmp.mkdirs()
 
         // See https://wrapper.tanukisoftware.com/doc/english/versions.jsp to determine the URL.
-        exec {
+        providers.exec {
             workingDir tmp
             commandLine "curl", "-o", "wrapper-${wrapperVersion}.tar.gz", "https://download.tanukisoftware.com/wrapper/$wrapperVersion/${wrapperBaseName}.tar.gz"
-        }
-        exec {
+        }.result.get()
+
+        providers.exec {
             workingDir tmp
             commandLine "tar", "-xf", "wrapper-${wrapperVersion}.tar.gz"
-        }
+        }.result.get()
+
         copy {
             from("$wrapperDir/bin") {
                 include "wrapper"
             }
             into "$bin"
         }
+
         copy {
             from("$wrapperDir/lib") {
                 include "$wrapperLib", "wrapper.jar"

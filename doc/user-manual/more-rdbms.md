@@ -16,7 +16,7 @@ The relational database is the system Ziggy uses to store its permanent records 
 
 Experience with prior missions has given us a sense that Ziggy's records are well-suited to be stored in a relational database, while the algorithms mainly need data that's not well-suited to such storage. This is why Ziggy stores models and data files in the datastore and never attempts to open those files up and manipulate the contents.
 
-The limited amount of database information that's potentially needed for algorithm execution is the stuff that's provided in the algorithm inputs files: module parameters, names of model and data files, data file type definitions, etc.
+The limited amount of database information that's potentially needed for algorithm execution is the stuff that's provided in the algorithm inputs files: algorithm parameters, names of model and data files, data file type definitions, etc.
 
 ### What if We Need to Change Pipeline Definitions?
 

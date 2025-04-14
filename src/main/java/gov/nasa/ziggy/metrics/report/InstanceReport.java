@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 
 import com.lowagie.text.pdf.PdfPTable;
 
-import gov.nasa.ziggy.module.PipelineCategories;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
@@ -17,6 +16,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.step.PipelineCategories;
 import gov.nasa.ziggy.util.dispmod.InstancesDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskSummaryDisplayModel;
 
@@ -33,7 +33,7 @@ public class InstanceReport extends Report {
 
     public void generateReport(PipelineInstance instance, List<PipelineInstanceNode> nodes) {
 
-        String instanceName = instance.getPipelineDefinition().getName()
+        String instanceName = instance.getPipeline().getName()
             + (StringUtils.isBlank(instance.getName()) ? "" : ": " + instance.getName()) + " ("
             + instance.getId() + ")";
 
@@ -141,7 +141,7 @@ public class InstanceReport extends Report {
         log.info("millisForNode = {}", millisForNode);
         log.info("bytesPerSecondForNode = {}", bytesPerSecondForNode);
 
-        addCell(transfersTable, node.getModuleName());
+        addCell(transfersTable, node.getPipelineStepName());
         addCell(transfersTable, label);
         addCell(transfersTable, bytesFormatter.format(bytesForNode));
         addCell(transfersTable, rateFormatter.format(bytesPerSecondForNode));

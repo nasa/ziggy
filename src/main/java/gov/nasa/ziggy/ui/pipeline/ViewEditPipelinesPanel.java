@@ -25,8 +25,8 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import org.netbeans.swing.outline.RowModel;
 
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
@@ -41,15 +41,14 @@ import gov.nasa.ziggy.util.dispmod.ModelContentClass;
  * @author PT
  * @author Bill Wohler
  */
-public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineDefinition> {
+public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<Pipeline> {
 
     private static final long serialVersionUID = 20241002L;
-    private static final String TYPE = "PipelineDefinition";
+    private static final String TYPE = "Pipeline";
 
     private Action startAction;
 
-    public ViewEditPipelinesPanel(PipelineRowModel rowModel,
-        ZiggyTreeModel<PipelineDefinition> treeModel) {
+    public ViewEditPipelinesPanel(PipelineRowModel rowModel, ZiggyTreeModel<Pipeline> treeModel) {
         super(rowModel, treeModel, "Name");
 
         ziggyTable.getTable()
@@ -64,8 +63,8 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
      * for parameter sets needs the tree model in its constructor.
      */
     public static ViewEditPipelinesPanel newInstance() {
-        ZiggyTreeModel<PipelineDefinition> treeModel = new ZiggyTreeModel<>(TYPE,
-            () -> new PipelineDefinitionOperations().allPipelineDefinitions());
+        ZiggyTreeModel<Pipeline> treeModel = new ZiggyTreeModel<>(TYPE,
+            () -> new PipelineOperations().allPipelines());
         return new ViewEditPipelinesPanel(new PipelineRowModel(), treeModel);
     }
 
@@ -91,7 +90,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
 
         int tableRow = ziggyTable.getSelectedRow();
         selectedModelRow = ziggyTable.convertRowIndexToModel(tableRow);
-        PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(selectedModelRow);
+        Pipeline pipeline = ziggyTable.getContentAtViewRow(selectedModelRow);
 
         try {
             new StartPipelineDialog(SwingUtilities.getWindowAncestor(this), pipeline)
@@ -127,7 +126,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
     @Override
     protected void view(int row) {
 
-        PipelineDefinition pipeline = ziggyTable.getContentAtViewRow(row);
+        Pipeline pipeline = ziggyTable.getContentAtViewRow(row);
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), pipeline.getName(),
             JDialog.DEFAULT_MODALITY_TYPE);
         dialog.setLocationRelativeTo(SwingUtilities.getWindowAncestor(this));
@@ -168,8 +167,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
         return TYPE;
     }
 
-    private static class PipelineRowModel
-        implements RowModel, ModelContentClass<PipelineDefinition> {
+    private static class PipelineRowModel implements RowModel, ModelContentClass<Pipeline> {
 
         private static final String[] COLUMN_NAMES = { "Version", "Locked", "User", "Modified",
             "Node count" };
@@ -201,10 +199,10 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
             checkColumnArgument(columnIndex);
             Object node = ((DefaultMutableTreeNode) treeNode).getUserObject();
 
-            if (!(node instanceof PipelineDefinition)) {
+            if (!(node instanceof Pipeline)) {
                 return null;
             }
-            PipelineDefinition pipeline = (PipelineDefinition) node;
+            Pipeline pipeline = (Pipeline) node;
 
             AuditInfo auditInfo = pipeline.getAuditInfo();
 
@@ -239,8 +237,8 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<PipelineD
         }
 
         @Override
-        public Class<PipelineDefinition> tableModelContentClass() {
-            return PipelineDefinition.class;
+        public Class<Pipeline> tableModelContentClass() {
+            return Pipeline.class;
         }
     }
 }

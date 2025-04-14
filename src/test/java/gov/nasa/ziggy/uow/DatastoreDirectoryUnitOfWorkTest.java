@@ -25,9 +25,9 @@ import gov.nasa.ziggy.data.datastore.DatastoreRegexp;
 import gov.nasa.ziggy.data.datastore.DatastoreTestUtils;
 import gov.nasa.ziggy.data.datastore.DatastoreWalker;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 
 /**
@@ -38,10 +38,10 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 public class DatastoreDirectoryUnitOfWorkTest {
 
     private PipelineInstanceNode pipelineInstanceNode;
-    private PipelineDefinitionNode pipelineDefinitionNode;
+    private PipelineNode pipelineNode;
     private DatastoreDirectoryUnitOfWorkGenerator uowGenerator;
     private DataFileType drSciencePixels;
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations;
+    private PipelineNodeOperations pipelineNodeOperations;
 
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
 
@@ -62,15 +62,13 @@ public class DatastoreDirectoryUnitOfWorkTest {
         drSciencePixels = new DataFileType("dr science pixels",
             "sector/mda/dr/pixels/cadenceType/pixelType$science/channel", "dummy1");
 
-        // Create the pipeline instance node and pipeline definition node.
+        // Create the pipeline instance node and pipeline node.
         pipelineInstanceNode = Mockito.mock(PipelineInstanceNode.class);
-        pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
-        Mockito.when(pipelineDefinitionNode.getInputDataFileTypes())
-            .thenReturn(Set.of(drSciencePixels));
-        Mockito.when(pipelineInstanceNode.getPipelineDefinitionNode())
-            .thenReturn(pipelineDefinitionNode);
-        pipelineDefinitionNodeOperations = Mockito.mock(PipelineDefinitionNodeOperations.class);
-        Mockito.when(pipelineDefinitionNodeOperations.inputDataFileTypes(pipelineDefinitionNode))
+        pipelineNode = Mockito.mock(PipelineNode.class);
+        Mockito.when(pipelineNode.getInputDataFileTypes()).thenReturn(Set.of(drSciencePixels));
+        Mockito.when(pipelineInstanceNode.getPipelineNode()).thenReturn(pipelineNode);
+        pipelineNodeOperations = Mockito.mock(PipelineNodeOperations.class);
+        Mockito.when(pipelineNodeOperations.inputDataFileTypes(pipelineNode))
             .thenReturn(Set.of(drSciencePixels));
 
         // Create the datastore walker and the UOW generator.
@@ -78,9 +76,7 @@ public class DatastoreDirectoryUnitOfWorkTest {
             DatastoreTestUtils.datastoreNodesByFullPath());
         uowGenerator = Mockito.spy(DatastoreDirectoryUnitOfWorkGenerator.class);
         Mockito.doReturn(datastoreWalker).when(uowGenerator).datastoreWalker();
-        Mockito.doReturn(pipelineDefinitionNodeOperations)
-            .when(uowGenerator)
-            .pipelineDefinitionNodeOperations();
+        Mockito.doReturn(pipelineNodeOperations).when(uowGenerator).pipelineNodeOperations();
     }
 
     /**
@@ -289,7 +285,7 @@ public class DatastoreDirectoryUnitOfWorkTest {
         DataFileType collateralSciencePixels = new DataFileType("collateral science pixels",
             "sector/mda/dr/pixels/cadenceType$target/pixelType$collateral/channel", "dummy3");
 
-        Mockito.when(pipelineDefinitionNodeOperations.inputDataFileTypes(pipelineDefinitionNode))
+        Mockito.when(pipelineNodeOperations.inputDataFileTypes(pipelineNode))
             .thenReturn(Set.of(targetSciencePixels, collateralSciencePixels));
 
         List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,
@@ -374,7 +370,7 @@ public class DatastoreDirectoryUnitOfWorkTest {
         DataFileType collateralSciencePixels = new DataFileType("collateral science pixels",
             "sector/mda/dr/pixels/cadenceType$target/pixelType$collateral/channel", "dummy5");
 
-        Mockito.when(pipelineDefinitionNodeOperations.inputDataFileTypes(pipelineDefinitionNode))
+        Mockito.when(pipelineNodeOperations.inputDataFileTypes(pipelineNode))
             .thenReturn(Set.of(targetSciencePixels, collateralSciencePixels));
 
         // Create an include restriction.
@@ -469,7 +465,7 @@ public class DatastoreDirectoryUnitOfWorkTest {
         DataFileType drCollateralPixels = new DataFileType("dr science pixels",
             "sector/mda/dr/pixels/cadenceType/pixelType$collateral/channel", "dummy6");
 
-        Mockito.when(pipelineDefinitionNodeOperations.inputDataFileTypes(pipelineDefinitionNode))
+        Mockito.when(pipelineNodeOperations.inputDataFileTypes(pipelineNode))
             .thenReturn(Set.of(drSciencePixels, drCollateralPixels));
 
         List<UnitOfWork> uowList = PipelineExecutor.generateUnitsOfWork(uowGenerator,

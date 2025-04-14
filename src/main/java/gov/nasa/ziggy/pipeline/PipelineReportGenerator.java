@@ -6,21 +6,21 @@ import java.util.Set;
 import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -39,11 +39,11 @@ public class PipelineReportGenerator {
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
     private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+    private PipelineNodeOperations pipelineNodeOperations = new PipelineNodeOperations();
+    private PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
-    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private PipelineOperations pipelineOperations = new PipelineOperations();
 
     /**
      * Creates a textual report of all ParameterSets in the Parameter Library, including name, type,
@@ -110,8 +110,8 @@ public class PipelineReportGenerator {
             .distinctSoftwareRevisions(instance);
         report.append("Instance Software Revisions: " + instanceSoftwareRevisions + nl);
         report.append(nl);
-        report.append("Definition Name: " + instance.getPipelineDefinition().getName() + nl);
-        report.append("Definition Version: " + instance.getPipelineDefinition().getVersion() + nl);
+        report.append("Pipeline Name: " + instance.getPipeline().getName() + nl);
+        report.append("Pipeline Version: " + instance.getPipeline().getVersion() + nl);
 
         report.append(nl);
         report.append("Pipeline Parameter Sets" + nl);
@@ -129,10 +129,10 @@ public class PipelineReportGenerator {
             .instanceNodes(instance);
 
         for (PipelineInstanceNode node : pipelineNodes) {
-            PipelineModuleDefinition module = node.getPipelineModuleDefinition();
+            PipelineStep pipelineStep = node.getPipelineStep();
             TaskCounts instanceNodeCounts = pipelineTaskDisplayDataOperations().taskCounts(node);
 
-            appendModule(nl, report, module);
+            appendPipelineStep(nl, report, pipelineStep);
 
             report.append(FOUR_SPACE_INDENT + "# Tasks (total/completed/failed): "
                 + instanceNodeCounts.getTaskCount() + "/"
@@ -143,10 +143,9 @@ public class PipelineReportGenerator {
             report.append(
                 FOUR_SPACE_INDENT + "Software Revisions for node:" + nodeSoftwareRevisions + nl);
 
-            Set<ParameterSet> moduleParameterSets = pipelineInstanceNodeOperations()
-                .parameterSets(node);
-            for (ParameterSet moduleParamSet : moduleParameterSets) {
-                appendParameterSetToReport(report, moduleParamSet, FOUR_SPACE_INDENT, false);
+            Set<ParameterSet> parameterSets = pipelineInstanceNodeOperations().parameterSets(node);
+            for (ParameterSet parameterSet : parameterSets) {
+                appendParameterSetToReport(report, parameterSet, FOUR_SPACE_INDENT, false);
                 report.append(nl);
             }
         }
@@ -159,30 +158,29 @@ public class PipelineReportGenerator {
         return report.toString();
     }
 
-    private void appendModule(String nl, StringBuilder report, PipelineModuleDefinition module) {
+    private void appendPipelineStep(String nl, StringBuilder report, PipelineStep pipelineStep) {
         report.append(nl);
-        report.append(TWO_SPACE_INDENT + "Module definition: " + module.getName() + ", version="
-            + module.getVersion() + nl);
+        report.append(TWO_SPACE_INDENT + "Pipeline step: " + pipelineStep.getName() + ", version="
+            + pipelineStep.getVersion() + nl);
         report.append(FOUR_SPACE_INDENT + "Java classname: "
-            + module.getPipelineModuleClass().getClazz().getSimpleName() + nl);
+            + pipelineStep.getPipelineStepExecutorClass().getClazz().getSimpleName() + nl);
     }
 
     /**
-     * Generate a text report about the specified {@link PipelineDefinition} including all parameter
-     * sets and their values.
+     * Generate a text report about the specified {@link Pipeline} including all parameter sets and
+     * their values.
      */
-    public String generatePipelineReport(PipelineDefinition pipelineDefinition) {
+    public String generatePipelineReport(Pipeline pipeline) {
         String nl = System.lineSeparator();
         StringBuilder report = new StringBuilder();
 
-        report.append("Pipeline version: " + pipelineDefinition.getVersion() + nl);
-        report.append("Pipeline name: " + pipelineDefinition.getName() + nl);
-        report.append("Pipeline priority: " + pipelineDefinition.getInstancePriority() + nl);
+        report.append("Pipeline version: " + pipeline.getVersion() + nl);
+        report.append("Pipeline name: " + pipeline.getName() + nl);
+        report.append("Pipeline priority: " + pipeline.getInstancePriority() + nl);
         report.append(nl);
 
         report.append("Pipeline Parameter Sets" + nl);
-        Set<String> pipelineParameterSetNames = pipelineDefinitionOperations()
-            .parameterSetNames(pipelineDefinition);
+        Set<String> pipelineParameterSetNames = pipelineOperations().parameterSetNames(pipeline);
         for (String paramSetName : pipelineParameterSetNames) {
             ParameterSet paramSet = parametersOperations().parameterSet(paramSetName);
 
@@ -193,24 +191,20 @@ public class PipelineReportGenerator {
         report.append(nl);
         report.append("Nodes" + nl);
 
-        List<PipelineDefinitionNode> nodes = pipelineDefinitionNodeOperations()
-            .pipelineDefinitionNodesForPipelineDefinition(pipelineDefinition.getName());
-        pipelineDefinition.getNodes();
-        for (PipelineDefinitionNode node : nodes) {
-            String moduleName = node.getModuleName();
+        List<PipelineNode> nodes = pipelineNodeOperations()
+            .pipelineNodesForPipeline(pipeline.getName());
+        pipeline.getNodes();
+        for (PipelineNode node : nodes) {
+            String pipelineStepName = node.getPipelineStepName();
 
-            PipelineModuleDefinition modDef = pipelineModuleDefinitionOperations()
-                .pipelineModuleDefinition(moduleName);
+            PipelineStep pipelineStep = pipelineStepOperations().pipelineStep(pipelineStepName);
 
-            appendModule(nl, report, modDef);
+            appendPipelineStep(nl, report, pipelineStep);
 
-            Set<String> parameterSetNames = pipelineDefinitionNodeOperations()
-                .parameterSetNames(node);
-            for (String moduleParamSetName : parameterSetNames) {
-                ParameterSet moduleParamSet = parametersOperations()
-                    .parameterSet(moduleParamSetName);
-
-                appendParameterSetToReport(report, moduleParamSet, FOUR_SPACE_INDENT, false);
+            Set<String> parameterSetNames = pipelineNodeOperations().parameterSetNames(node);
+            for (String parameterSetName : parameterSetNames) {
+                ParameterSet parameterSet = parametersOperations().parameterSet(parameterSetName);
+                appendParameterSetToReport(report, parameterSet, FOUR_SPACE_INDENT, false);
             }
         }
 
@@ -241,15 +235,15 @@ public class PipelineReportGenerator {
         return pipelineInstanceNodeOperations;
     }
 
-    PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
-        return pipelineModuleDefinitionOperations;
+    PipelineStepOperations pipelineStepOperations() {
+        return pipelineStepOperations;
     }
 
-    PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations() {
-        return pipelineDefinitionNodeOperations;
+    PipelineNodeOperations pipelineNodeOperations() {
+        return pipelineNodeOperations;
     }
 
-    PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 }

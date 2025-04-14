@@ -1,6 +1,6 @@
 // Download and build HDF5.
 
-ext.hdf5Version = "1.12.2"
+ext.hdf5Version = "1.14.5"
 
 task buildHdf5() {
     def tmp = file("$outsideDir/tmp/hdf5")
@@ -13,30 +13,36 @@ task buildHdf5() {
         tmp.mkdirs()
 
         // Use the SHA256 links at https://www.hdfgroup.org/downloads/hdf5/source-code/ to determine the URL.
-        exec {
+        providers.exec {
             workingDir tmp
-            commandLine "curl", "--remote-name", "https://hdf-wordpress-1.s3.amazonaws.com/wp-content/uploads/manual/HDF5/HDF5_1_12_2/source/hdf5-1.12.2.tar.bz2"
-        }
-        exec {
+            commandLine "curl", "--remote-name", "https://support.hdfgroup.org/releases/hdf5/v1_14/v1_14_5/downloads/hdf5-1.14.5.tar.gz"
+        }.result.get()
+
+        providers.exec {
             workingDir tmp
-            commandLine "curl", "--remote-name", "https://hdf-wordpress-1.s3.amazonaws.com/wp-content/uploads/manual/HDF5/HDF5_1_12_2/source/hdf5-1.12.2.sha256"
-        }
-        exec {
+            commandLine "curl", "--remote-name", "https://support.hdfgroup.org/releases/hdf5/v1_14/v1_14_5/downloads/hdf5-1.14.5.sha256sums.txt"
+        }.result.get()
+
+        providers.exec {
             workingDir tmp
-            commandLine "tar", "-xf", "hdf5-${hdf5Version}.tar.bz2"
-        }
-        exec {
+            commandLine "tar", "-xf", "hdf5-${hdf5Version}.tar.gz"
+        }.result.get()
+
+        providers.exec {
             workingDir hdf5
             commandLine "sh", "-c", "./configure --with-zlib=/usr --prefix=$outsideDir --enable-threadsafe --with-pthread=/usr --enable-unsupported --enable-java --with-java-prefix=$System.env.JAVA_HOME"
-        }
-        exec {
+        }.result.get()
+
+        providers.exec {
             workingDir hdf5
             commandLine "make"
-        }
-        exec {
+        }.result.get()
+
+        providers.exec {
             workingDir hdf5
             commandLine "make", "install"
-        }
+        }.result.get()
+
         copy {
             from("$tmp/lib") {
                 include "*.jar"

@@ -10,6 +10,7 @@ import java.util.Set;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -24,11 +25,11 @@ import jakarta.persistence.Table;
 
 /**
  * Created by the {@link PipelineExecutor} when creating {@link PipelineTask} objects for a
- * {@link PipelineDefinitionNode}
+ * {@link PipelineNode}
  * <p>
- * Associated with a {@link PipelineInstance}, and a {@link PipelineDefinitionNode}. Contains the
- * number of {@link PipelineTask} objects created for this node and their aggregate states so that
- * the transition logic can properly determine whether all tasks for this node have completed.
+ * Associated with a {@link PipelineInstance}, and a {@link PipelineNode}. Contains the number of
+ * {@link PipelineTask} objects created for this node and their aggregate states so that the
+ * transition logic can properly determine whether all tasks for this node have completed.
  *
  * @author Todd Klaus
  */
@@ -45,8 +46,10 @@ public class PipelineInstanceNode {
     /** Timestamp this was created (either by launcher or transition logic) */
     private Date created = new Date();
 
-    /** Shortcut to the module name, so we don't always have to do a database access for it. */
-    private String moduleName;
+    /**
+     * Shortcut to the pipeline step name, so we don't always have to do a database access for it.
+     */
+    private String pipelineStepName;
     private String executableName;
 
     @ManyToMany
@@ -68,10 +71,10 @@ public class PipelineInstanceNode {
     private List<PipelineTask> pipelineTasks = new ArrayList<>();
 
     @ManyToOne
-    private PipelineDefinitionNode pipelineDefinitionNode;
+    private PipelineNode pipelineNode;
 
     @ManyToOne
-    private PipelineModuleDefinition pipelineModuleDefinition;
+    private PipelineStep pipelineStep;
 
     /**
      * Required by Hibernate
@@ -79,11 +82,10 @@ public class PipelineInstanceNode {
     public PipelineInstanceNode() {
     }
 
-    public PipelineInstanceNode(PipelineDefinitionNode pipelineDefinitionNode,
-        PipelineModuleDefinition pipelineModuleDefinition) {
-        this.pipelineDefinitionNode = pipelineDefinitionNode;
-        setPipelineModuleDefinition(pipelineModuleDefinition);
-        executableName = pipelineModuleDefinition.getExecutableName();
+    public PipelineInstanceNode(PipelineNode pipelineNode, PipelineStep pipelineStep) {
+        this.pipelineNode = pipelineNode;
+        setPipelineStep(pipelineStep);
+        executableName = pipelineStep.getFile();
     }
 
     public Date getCreated() {
@@ -94,8 +96,8 @@ public class PipelineInstanceNode {
         this.created = created;
     }
 
-    public String getModuleName() {
-        return moduleName;
+    public String getPipelineStepName() {
+        return pipelineStepName;
     }
 
     public String getExecutableName() {
@@ -159,21 +161,21 @@ public class PipelineInstanceNode {
         pipelineTasks.add(pipelineTask);
     }
 
-    public PipelineDefinitionNode getPipelineDefinitionNode() {
-        return pipelineDefinitionNode;
+    public PipelineNode getPipelineNode() {
+        return pipelineNode;
     }
 
-    public void setPipelineDefinitionNode(PipelineDefinitionNode pipelineDefinitionNode) {
-        this.pipelineDefinitionNode = pipelineDefinitionNode;
+    public void setPipelineNode(PipelineNode pipelineNode) {
+        this.pipelineNode = pipelineNode;
     }
 
-    public PipelineModuleDefinition getPipelineModuleDefinition() {
-        return pipelineModuleDefinition;
+    public PipelineStep getPipelineStep() {
+        return pipelineStep;
     }
 
-    public void setPipelineModuleDefinition(PipelineModuleDefinition pipelineModuleDefinition) {
-        this.pipelineModuleDefinition = pipelineModuleDefinition;
-        moduleName = pipelineModuleDefinition.getName();
+    public void setPipelineStep(PipelineStep pipelineStep) {
+        this.pipelineStep = pipelineStep;
+        pipelineStepName = pipelineStep.getName();
     }
 
     @Override

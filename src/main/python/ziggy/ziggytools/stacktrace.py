@@ -8,12 +8,11 @@ Created on Nov 19, 2020
 '''
 from sys import exc_info, stdout
 from inspect import getmodule
-from os import getcwd, sep
-from os.path import normpath
+from .fileutils import algorithm_step_name
 if __package__ is None or __package__ == '':
-    from hdf5 import Hdf5ModuleInterface
+    from hdf5 import Hdf5AlgorithmInterface
 else:
-    from .hdf5 import Hdf5ModuleInterface
+    from .hdf5 import Hdf5AlgorithmInterface
 from traceback import print_exception
 
 class ZiggyErrorReturn():
@@ -74,12 +73,7 @@ class ZiggyErrorWriter:
     def __init__(self, seq_num=0):
         
         # get the module name
-        working_dir = normpath(getcwd())
-        dir_parts = working_dir.split(sep)
-        num_parts = len(dir_parts)
-        task_dir = dir_parts[num_parts-2]
-        task_dir_tokens = task_dir.split("-")
-        module_name = task_dir_tokens[2]
+        module_name = algorithm_step_name()
         
         if (not isinstance(seq_num, int)):
             seq_num = 0;
@@ -103,6 +97,6 @@ class ZiggyErrorWriter:
         del(error_return.exception_traceback)
                  
         # write to HDF5 file
-        hdf5_module_interface = Hdf5ModuleInterface()
+        hdf5_module_interface = Hdf5AlgorithmInterface()
         hdf5_module_interface.write_file(error_file_name, error_return)
         

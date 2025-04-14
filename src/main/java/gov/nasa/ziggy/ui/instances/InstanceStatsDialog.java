@@ -26,7 +26,7 @@ import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel.ProcessingStatistics;
-import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
+import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.PipelineStepTaskMetrics;
 
 /**
  * @author Bill Wohler
@@ -35,13 +35,13 @@ import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
 public class InstanceStatsDialog extends javax.swing.JDialog {
 
     private ZiggyTable<ProcessingStatistics> processingTimeZiggyTable;
-    private ZiggyTable<ModuleTaskMetrics> processingBreakdownZiggyTable;
+    private ZiggyTable<PipelineStepTaskMetrics> processingBreakdownZiggyTable;
 
     private final PipelineInstance pipelineInstance;
     private TaskMetricsTableModel processingBreakdownTableModel;
     private PipelineStatsTableModel processingTimeTableModel;
     private List<PipelineTaskDisplayData> tasks;
-    private ArrayList<String> orderedModuleNames;
+    private ArrayList<String> orderedPipelineStepNames;
 
     private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
@@ -58,12 +58,12 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
 
     private void loadFromDatabase() {
         tasks = pipelineTaskDisplayDataOperations().pipelineTaskDisplayData(pipelineInstance);
-        orderedModuleNames = new ArrayList<>();
+        orderedPipelineStepNames = new ArrayList<>();
 
         for (PipelineTaskDisplayData task : tasks) {
-            String moduleName = task.getModuleName();
-            if (!orderedModuleNames.contains(moduleName)) {
-                orderedModuleNames.add(moduleName);
+            String pipelineStepName = task.getPipelineStepName();
+            if (!orderedPipelineStepNames.contains(pipelineStepName)) {
+                orderedPipelineStepNames.add(pipelineStepName);
             }
         }
     }
@@ -87,13 +87,13 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
         JLabel processingTime = ZiggySwingUtils.boldLabel("Processing time statistics",
             LabelType.HEADING);
         processingTimeZiggyTable = new ZiggyTable<>(
-            new PipelineStatsTableModel(tasks, orderedModuleNames));
+            new PipelineStatsTableModel(tasks, orderedPipelineStepNames));
         JScrollPane processingTimeScrollPane = new JScrollPane(processingTimeZiggyTable.getTable());
 
         JLabel processingBreakdown = ZiggySwingUtils
             .boldLabel("Processing time breakdown for completed tasks", LabelType.HEADING);
         processingBreakdownZiggyTable = new ZiggyTable<>(
-            new TaskMetricsTableModel(tasks, orderedModuleNames, false));
+            new TaskMetricsTableModel(tasks, orderedPipelineStepNames, false));
         JScrollPane processingBreakdownScrollPane = new JScrollPane(
             processingBreakdownZiggyTable.getTable());
 
@@ -128,8 +128,8 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
 
             @Override
             protected void done() {
-                processingTimeTableModel.update(tasks, orderedModuleNames);
-                processingBreakdownTableModel.update(tasks, orderedModuleNames);
+                processingTimeTableModel.update(tasks, orderedPipelineStepNames);
+                processingBreakdownTableModel.update(tasks, orderedPipelineStepNames);
             }
         };
     }
@@ -148,12 +148,14 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
         private PipelineStatsDisplayModel pipelineStatsDisplayModel;
 
         public PipelineStatsTableModel(List<PipelineTaskDisplayData> tasks,
-            List<String> orderedModuleNames) {
-            update(tasks, orderedModuleNames);
+            List<String> orderedPipelineStepNames) {
+            update(tasks, orderedPipelineStepNames);
         }
 
-        public void update(List<PipelineTaskDisplayData> tasks, List<String> orderedModuleNames) {
-            pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks, orderedModuleNames);
+        public void update(List<PipelineTaskDisplayData> tasks,
+            List<String> orderedPipelineStepNames) {
+            pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks,
+                orderedPipelineStepNames);
             fireTableDataChanged();
         }
 

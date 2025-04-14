@@ -4,6 +4,50 @@
 
 These are the release notes for Ziggy. In the change log below, we'll refer to our internal Jira key for our benefit. If the item is associated with a resolved GitHub issue or pull request, we'll add a link to that. Changes that are incompatible with previous versions are marked below. While the major version is 0, we will be making breaking changes when bumping the minor number. However, once we hit version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v0.9.0: Getting ready for 1.0.0
+
+Since this was our last chance to rename everything, we did so. The architecture has diverged over the decades, but we've made the names and architecture a lot more consistent in this release. You'll notice some of the changes in the XML elements in your pipeline definition (the Ziggy definitions are now in etc/ziggy.d); the rest are internal. In particular, rather than using "module" in a gazillion contexts, we've teased out the differences in separate names. The algorithms are now called "steps." When those steps are incorporated into a "pipeline," they are called "nodes." We no longer use module except in the context of Python modules.
+
+It should be a bit easier to add your algorithm to Ziggy as we've reduced the amount of required glue code. The prefixes for the XML pipeline configuration files such as "pd" and "pl" are no longer required and you can now organize your pipelines as you wish in one or more files. In the UI, you'll notice that the component to turn on remote execution is now a pull-down instead of a checkbox to allow for future remote environments. The new Milan nodes at the HECC are now supported.
+
+We fixed some problems interacting with PBS, running on Mac in some environments, and performing the unit tests in time zones other than Pacific. Changing ziggy.database.port now has an effect when using the HSQLDB database and the database is now stopped after running "ziggy cluster init." The log files now roll as defined in log4j2.xml. The "Process all data" and "Process new data" radio buttons in the Edit pipeline dialog work again. We also fixed some issues in the datastore:  new directories can be created, producer-consumer queries run more quickly with a large datastore, and multiple include patterns don't always produce zero files.
+
+## New Features
+
+1. Add explicit support for modules of some languages (ZIGGY-141)
+1. Improve support for compute node management (ZIGGY-164)
+1. Update libraries (ZIGGY-211)
+1. Unify pipeline definition XML readers (ZIGGY-272)
+1. Add Milan node support (ZIGGY-491)
+1. Improve Ziggy management of Python pipeline modules (ZIGGY-494)
+1. Increase flexibility in TimestampFile class (ZIGGY-525)
+1. Change stringValue field in Parameter to database type VARCHAR (ZIGGY-527)
+1. Support subclassing better in datastore classes (ZIGGY-531)
+1. Add logging of cause for failed transition (ZIGGY-539)
+1. Automate tests (simply) (ZIGGY-540)
+1. Refactor module and ui.util packages (ZIGGY-541)
+
+## Bug Fixes
+
+1. Bad QSUB return value not handled (ZIGGY-458)
+1. Parameters not sorted  (ZIGGY-485)
+1. JNA_PATH should be set somehow, or be part of instructions (ZIGGY-496)
+1. Mcc task requires MATLAB_HOME/bin on search path (ZIGGY-497)
+1. Fix file leak in LockManager (ZIGGY-524)
+1. Update pipelines doesn't set singleSubtask field correctly (ZIGGY-532)
+1. HSQLDB database server ignores database port (ZIGGY-534)
+1. Log files not rolling (ZIGGY-535)
+1. Updated remote status not always picked up upon cluster restart  (ZIGGY-536)
+1. MCR cache directories interfere with pipeline execution (ZIGGY-537)
+1. ZiggyTaskLogTest fails when properties file not set (ZIGGY-545)
+1. Iso8601Formatter unit tests fail outside of Pacific time (ZIGGY-546)
+1. EditPipelineDialog doesn't handle option to process new tasks (ZIGGY-547)
+1. Ziggy query to find consumed files runs too slowly (ZIGGY-548)
+1. cluster init doesn't stop database (ZIGGY-550)
+1. Unable to create datastore subdirectories (ZIGGY-553)
+1. ZiggyFileUtils.listFiles() that takes inclusion/exclusion patterns not working correctly (ZIGGY-556)
+1. PbsBatchManager has silent null pointer exception (ZIGGY-562)
+
 # v0.8.0: Polishing the cannonball
 
 This release consists of lots of little improvements. We added a tool to inject your pipeline version into your pipeline and updated the "ziggy" script so that you can override properties in ziggy.properties. We worked around a couple of issues that got in the way of running Ziggy on a Mac. We also fixed a bunch of annoying problems and improved the UI.

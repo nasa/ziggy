@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<node name="node 1" childNodeNames="node 2, node 3">
+  <parameterSet name="Convergence criteria"/>
+  <parameterSet name="Remote execution"/>
+  <inputDataFileType name="flight L0 data"/>
+  <inputDataFileType name="target pixel table" filePerSubtask="false"/>
+  <outputDataFileType name="flight L1 data"/>
+  <modelType name="calibration constants"/>
+</node>

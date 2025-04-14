@@ -45,7 +45,7 @@ public class MetricsReaperThread extends Thread {
             while (true) {
                 long now = System.currentTimeMillis();
                 if (now - lastCheck > checkIntervalMillis) {
-                    log.info("Checking rowCount");
+                    log.info("Checking rowCount...");
                     metricsOperations().deleteOldMetrics(maxRows);
                     lastCheck = now;
                     log.info("Checking rowCount...done");

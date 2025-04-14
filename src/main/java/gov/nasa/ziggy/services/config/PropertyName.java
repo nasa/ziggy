@@ -121,7 +121,7 @@ public enum PropertyName {
     USER_NAME("user.name"),
 
     /** Algorithm name used in log files. */
-    ZIGGY_ALGORITHM_NAME("ziggy.algorithmName"),
+    ZIGGY_ALGORITHM_NAME("ziggy.algorithm.name"),
 
     /** Location of the database executables. */
     DATABASE_BIN_DIR("ziggy.database.bin.dir"),
@@ -162,13 +162,19 @@ public enum PropertyName {
     /** Ziggy home directory (the build directory in the top-level Ziggy directory). */
     ZIGGY_HOME_DIR("ziggy.home.dir"),
 
-    /** Location of the current log file. */
-    ZIGGY_LOG_FILE("ziggy.logFile"),
+    /** Name of the current log file appender. */
+    ZIGGY_LOG_APPENDER_NAME("ziggy.log.appender"),
+
+    /** Location of the current rolling log file. */
+    ZIGGY_LOG_ROLLING_FILE("ziggy.log.rolling.file"),
+
+    /** Location of the current single log file. */
+    ZIGGY_LOG_SINGLE_FILE("ziggy.log.single.file"),
 
     /** Location and name of the logo file for the pipeline (not the Ziggy logo). */
     PIPELINE_LOGO_FILE("ziggy.logoFile"),
 
-    /** Search path for executables used by pipeline modules. */
+    /** Search path for executables used by pipeline steps. */
     BINPATH("ziggy.pipeline.binPath"),
 
     /**
@@ -198,13 +204,13 @@ public enum PropertyName {
     /** Location of XML files that define the pipeline. */
     PIPELINE_DEFS_DIR("ziggy.pipeline.definition.dir"),
 
-    /** Environment definition used by pipeline modules. */
+    /** Environment definition used by pipeline steps. */
     RUNTIME_ENVIRONMENT("ziggy.pipeline.environment"),
 
     /** Pipeline home directory. */
     PIPELINE_HOME_DIR("ziggy.pipeline.home.dir"),
 
-    /** Shared object library path for pipeline modules. */
+    /** Shared object library path for pipeline steps. */
     LIBPATH("ziggy.pipeline.libPath"),
 
     /** Location of the MATLAB Compiler Runtime (MCR). */
@@ -242,26 +248,14 @@ public enum PropertyName {
     /** Indicates whether to copy files to/from the working directory, or use symlinks. */
     USE_SYMLINKS("ziggy.pipeline.useSymlinks"),
 
-    /** Remote cluster to use when submitting batch jobs. */
-    REMOTE_CLUSTER("ziggy.remote.cluster.name"),
+    /** Prefix for the user, host, and group properties for a given remote environment. */
+    REMOTE_PROPERTY_PREFIX("ziggy.remote."),
 
-    /** The user group to use on Pleiades. */
-    REMOTE_GROUP("ziggy.remote.group"),
-
-    /**
-     * Names of Pleiades hosts, in order from most- to least-desired to use separated by
-     * semi-colons.
-     */
-    REMOTE_HOST("ziggy.remote.host"),
+    /** Remote environments to show in remote execution dialog. */
+    REMOTE_ENVIRONMENTS("ziggy.remote.environment.names"),
 
     /** NASA directorate to be used for calculating likely NAS queue wait times. */
     REMOTE_NASA_DIRECTORATE("ziggy.remote.nasa.directorate"),
-
-    /** Implementation class of QueueCommandManager for use by Ziggy. */
-    REMOTE_QUEUE_COMMAND_CLASS("ziggy.remote.queuecommand.classname"),
-
-    /** The username to use on Pleiades. */
-    REMOTE_USER("ziggy.remote.user"),
 
     /**
      * Interval between messages from the supervisor to RMI clients to ensure that connections
@@ -296,6 +290,9 @@ public enum PropertyName {
      */
     WORKER_HEAP_SIZE("ziggy.worker.heapSize");
 
+    private static final String GROUP_SUFFIX = ".group";
+    private static final String USER_SUFFIX = ".user";
+
     private String property;
 
     PropertyName(String property) {
@@ -310,5 +307,15 @@ public enum PropertyName {
     /** The {@link #property} method is favored unless this method is used implicitly. */
     public String toString() {
         return property();
+    }
+
+    /** Returns the "ziggy.remote.<remoteEnvName>.user" property. */
+    public static String remoteUser(String remoteEnvironmentName) {
+        return REMOTE_PROPERTY_PREFIX + remoteEnvironmentName.toLowerCase() + USER_SUFFIX;
+    }
+
+    /** Returns the "ziggy.remote.<remoteEnvName>.group" property. */
+    public static String remoteGroup(String remoteEnvironmentName) {
+        return REMOTE_PROPERTY_PREFIX + remoteEnvironmentName.toLowerCase() + GROUP_SUFFIX;
     }
 }

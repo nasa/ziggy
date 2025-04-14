@@ -7,7 +7,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 
 /**
  * Interface for all unit of work generators. A unit of work generator constructs instances of the
- * {@link UnitOfWork} class that can be used by pipeline modules to determine which set of data the
+ * {@link UnitOfWork} class that can be used by pipeline nodes to determine which set of data the
  * corresponding pipeline task should process (for example: a time range).
  * <p>
  * Implementations of {@link UnitOfWorkGenerator} are required to provide the
@@ -50,7 +50,7 @@ public interface UnitOfWorkGenerator {
     }
 
     /**
-     * Generate the units of work for the current module in the current pipeline run.
+     * Generate the units of work for the current node in the current pipeline run.
      */
     List<UnitOfWork> generateUnitsOfWork(PipelineInstanceNode pipelineInstanceNode);
 

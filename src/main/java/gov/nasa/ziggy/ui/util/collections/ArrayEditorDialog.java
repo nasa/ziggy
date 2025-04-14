@@ -1,11 +1,11 @@
 package gov.nasa.ziggy.ui.util.collections;
 
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW_SYMBOL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CANCEL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DELETE_SYMBOL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.EXPORT;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.IMPORT;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.NEW_SYMBOL;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.OK;
-import static gov.nasa.ziggy.ui.ZiggyGuiConstants.DELETE_SYMBOL;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
 
 import java.awt.BorderLayout;

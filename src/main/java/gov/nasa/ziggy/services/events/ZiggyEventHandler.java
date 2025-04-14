@@ -22,12 +22,12 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile.PipelineDefinitionElement;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -36,6 +36,7 @@ import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -58,7 +59,7 @@ import jakarta.xml.bind.annotation.XmlAttribute;
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
 @Table(name = "ziggy_EventHandler")
-public class ZiggyEventHandler implements Runnable {
+public class ZiggyEventHandler implements Runnable, PipelineDefinitionElement {
 
     private static final Logger log = LoggerFactory.getLogger(ZiggyEventHandler.class);
 
@@ -116,7 +117,7 @@ public class ZiggyEventHandler implements Runnable {
     private String pipelineName;
 
     @Transient
-    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private PipelineOperations pipelineOperations = new PipelineOperations();
 
     @Transient
     private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
@@ -232,13 +233,12 @@ public class ZiggyEventHandler implements Runnable {
         log.info("Event handler {} detected event", name);
         log.info("Event {} has {} labels", readyFile.getName(), readyFile.labelCount());
         log.debug("Event handler labels are {}", readyFile.labels());
-        log.info("Event handler {} starting pipeline {}", name, pipelineName);
+        log.info("Event handler {} starting pipeline {}...", name, pipelineName);
 
         // Create a new pipeline instance that includes the event handler labels.
-        PipelineDefinition pipelineDefinition = pipelineDefinitionOperations()
-            .pipelineDefinition(pipelineName);
-        PipelineInstance pipelineInstance = pipelineExecutor().launch(pipelineDefinition, null,
-            null, null, readyFile.getLabels());
+        Pipeline pipeline = pipelineOperations().pipeline(pipelineName);
+        PipelineInstance pipelineInstance = pipelineExecutor().launch(pipeline, null, null, null,
+            readyFile.getLabels());
         ZiggyMessenger.publish(new PipelineInstanceStartedMessage());
         ziggyEventOperations().newZiggyEvent(name, pipelineName, pipelineInstance.getId(),
             readyFile.getLabels());
@@ -293,8 +293,8 @@ public class ZiggyEventHandler implements Runnable {
         return pipelineExecutor;
     }
 
-    PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
     ZiggyEventOperations ziggyEventOperations() {

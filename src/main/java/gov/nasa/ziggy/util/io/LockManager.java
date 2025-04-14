@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,6 +51,8 @@ public enum LockManager {
 
     private Map<File, FileChannel> readerChannels = new HashMap<>();
     private Map<File, FileChannel> writerChannels = new HashMap<>();
+
+    private FileChannel mostRecentFileChannel;
 
     private synchronized ReentrantReadWriteLock getLock(File f) {
         ReentrantReadWriteLock lock = locks.get(f);
@@ -148,6 +151,7 @@ public enum LockManager {
                 if (readerCount.incrementAndGet() == 1) {
                     // First reader - must lock file in file system.
                     FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.READ);
+                    mostRecentFileChannel = channel;
                     channel.lock(0L, Long.MAX_VALUE, true);
                     readerChannels.put(f, channel);
                 }
@@ -186,6 +190,7 @@ public enum LockManager {
             f.getParentFile().mkdirs();
             FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE);
+            mostRecentFileChannel = channel;
             channel.lock();
             synchronized (writerChannels) {
                 writerChannels.put(f, channel);
@@ -196,6 +201,7 @@ public enum LockManager {
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private synchronized boolean getWriteLockWithoutBlockingInternal(File f) {
 
         // See if some other thread already has the lock, if so return false.
@@ -205,9 +211,13 @@ public enum LockManager {
 
         // Try to get the OS-level lock.
         f.getParentFile().mkdirs();
+
+        // Note that we can't use try-with-resources because if we get the lock we need
+        // the FileChannel to remain open when the method exits.
         try {
             FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE);
+            mostRecentFileChannel = channel;
             FileLock fileLock = channel.tryLock();
 
             // If the OS-level lock is obtained, then record that fact and return true.
@@ -215,8 +225,17 @@ public enum LockManager {
                 writerChannels.put(f, channel);
                 return true;
             }
+            closeMostRecentFileChannel();
         } catch (IOException e) {
+            if (mostRecentFileChannel != null) {
+                closeMostRecentFileChannel();
+            }
             throw new UncheckedIOException("Failed to get write lock on file " + f.toString(), e);
+        } catch (OverlappingFileLockException e) {
+            // Swallow this exception. This is a special case in which a given JVM already holds
+            // a lock but it attempts to get the lock again, which means it should report failure
+            // to obtain the lock.
+            closeMostRecentFileChannel();
         }
 
         // If we got this far then we got the local lock but not the OS-level one.
@@ -225,6 +244,16 @@ public enum LockManager {
         // always in the same state (either got both or ain't got both).
         getLock(f).writeLock().unlock();
         return false;
+    }
+
+    private void closeMostRecentFileChannel() {
+        if (mostRecentFileChannel != null && mostRecentFileChannel.isOpen()) {
+            try {
+                mostRecentFileChannel.close();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
@@ -241,5 +270,10 @@ public enum LockManager {
         }
 
         getLock(f).writeLock().unlock();
+    }
+
+    // For testing only.
+    FileChannel getMostRecentFileChannel() {
+        return mostRecentFileChannel;
     }
 }

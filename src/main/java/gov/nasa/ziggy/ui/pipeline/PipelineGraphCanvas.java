@@ -14,8 +14,8 @@ import java.awt.Toolkit;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 
 /**
  * Display the pipeline nodes as a directed graph.
@@ -43,12 +43,12 @@ public class PipelineGraphCanvas extends JPanel {
     private final static int NODE_WIDGET_WIDTH = 250;
     private final static int NODE_WIDGET_HEIGHT = 30;
 
-    private final PipelineDefinition pipeline;
+    private final Pipeline pipeline;
     private JPanel canvasPane;
     private int width;
     private int height = 2 * VERTICAL_INSET;
 
-    public PipelineGraphCanvas(PipelineDefinition pipeline) {
+    public PipelineGraphCanvas(Pipeline pipeline) {
         this.pipeline = pipeline;
         buildComponent();
     }
@@ -83,7 +83,7 @@ public class PipelineGraphCanvas extends JPanel {
         repaint();
     }
 
-    private void drawPipeline(PipelineDefinition pipeline, DrawType drawType, Graphics2D g2) {
+    private void drawPipeline(Pipeline pipeline, DrawType drawType, Graphics2D g2) {
         int horzInset = HORIZONTAL_INSET + (NODE_WIDGET_WIDTH - START_WIDGET_WIDTH) / 2;
         Rectangle nodeBounds = new Rectangle(horzInset, VERTICAL_INSET, START_WIDGET_WIDTH,
             START_WIDGET_HEIGHT);
@@ -95,13 +95,13 @@ public class PipelineGraphCanvas extends JPanel {
         }
 
         int childColumn = 0;
-        for (PipelineDefinitionNode rootNode : pipeline.getRootNodes()) {
+        for (PipelineNode rootNode : pipeline.getRootNodes()) {
             drawNodes(rootNode, null, 1, childColumn++, drawType, nodeBounds, g2);
         }
     }
 
-    private void drawNodes(PipelineDefinitionNode node, PipelineDefinitionNode parentNode, int row,
-        int column, DrawType drawType, Rectangle parentBounds, Graphics2D g2) {
+    private void drawNodes(PipelineNode node, PipelineNode parentNode, int row, int column,
+        DrawType drawType, Rectangle parentBounds, Graphics2D g2) {
 
         Rectangle nodeBounds = new Rectangle(HORIZONTAL_INSET + COLUMN_SPACING * column,
             VERTICAL_INSET + ROW_SPACING * row, NODE_WIDGET_WIDTH, NODE_WIDGET_HEIGHT);
@@ -116,7 +116,7 @@ public class PipelineGraphCanvas extends JPanel {
 
         int childColumn = column;
 
-        for (PipelineDefinitionNode childNode : node.getNextNodes()) {
+        for (PipelineNode childNode : node.getNextNodes()) {
             drawNodes(childNode, node, row + 1, childColumn, drawType, nodeBounds, g2);
             childColumn++;
         }

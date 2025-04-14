@@ -19,7 +19,7 @@ import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel.ProcessingStatistic
  * Aggregates and displays stats for processing times for the {@link PipelineTask}s that make up the
  * specified {@link PipelineInstance}.
  * <p>
- * Sum, max, min, mean, and standard deviation are provided for each module/processingStep
+ * Sum, max, min, mean, and standard deviation are provided for each node/processingStep
  * combination.
  *
  * @author Todd Klaus
@@ -28,61 +28,69 @@ import gov.nasa.ziggy.util.dispmod.PipelineStatsDisplayModel.ProcessingStatistic
 public class PipelineStatsDisplayModel extends DisplayModel
     implements ModelContentClass<ProcessingStatistics> {
 
-    private static final String[] COLUMN_NAMES = { "Module", "Start", "Status", "Count",
-        "Sum (hrs)", "Min (hrs)", "Max (hrs)", "Mean (hrs)", "Std (hrs)" };
+    private static final String[] COLUMN_NAMES = { "Node", "Start", "Status", "Count", "Sum (hrs)",
+        "Min (hrs)", "Max (hrs)", "Mean (hrs)", "Std (hrs)" };
 
     private static final String ERROR = "ERROR";
 
     private List<ProcessingStatistics> stats = new LinkedList<>();
 
     public PipelineStatsDisplayModel(List<PipelineTaskDisplayData> tasks,
-        List<String> orderedModuleNames) {
-        update(tasks, orderedModuleNames);
+        List<String> orderedPipelineStepNames) {
+        update(tasks, orderedPipelineStepNames);
     }
 
-    private void update(List<PipelineTaskDisplayData> tasks, List<String> orderedModuleNames) {
+    private void update(List<PipelineTaskDisplayData> tasks,
+        List<String> orderedPipelineStepNames) {
         stats = new LinkedList<>();
 
-        Map<String, Map<String, List<PipelineTaskDisplayData>>> moduleStats = new HashMap<>();
+        Map<String, Map<String, List<PipelineTaskDisplayData>>> tasksSubListByProcessingStepByStep = new HashMap<>();
 
         for (PipelineTaskDisplayData task : tasks) {
-            String moduleName = task.getModuleName();
+            String pipelineStepName = task.getPipelineStepName();
 
-            Map<String, List<PipelineTaskDisplayData>> moduleMap = moduleStats.get(moduleName);
-            if (moduleMap == null) {
-                moduleMap = new HashMap<>();
-                moduleStats.put(moduleName, moduleMap);
+            Map<String, List<PipelineTaskDisplayData>> tasksSubListByProcessingStep = tasksSubListByProcessingStepByStep
+                .get(pipelineStepName);
+            if (tasksSubListByProcessingStep == null) {
+                tasksSubListByProcessingStep = new HashMap<>();
+                tasksSubListByProcessingStepByStep.put(pipelineStepName,
+                    tasksSubListByProcessingStep);
             }
 
-            List<PipelineTaskDisplayData> tasksSubList = moduleMap.get(displayProcessingStep(task));
+            List<PipelineTaskDisplayData> tasksSubList = tasksSubListByProcessingStep
+                .get(processingStep(task));
             if (tasksSubList == null) {
                 tasksSubList = new LinkedList<>();
-                moduleMap.put(displayProcessingStep(task), tasksSubList);
+                tasksSubListByProcessingStep.put(processingStep(task), tasksSubList);
             }
 
             tasksSubList.add(task);
         }
 
-        for (String moduleName : orderedModuleNames) {
-            Map<String, List<PipelineTaskDisplayData>> moduleMap = moduleStats.get(moduleName);
+        for (String pipelineStepName : orderedPipelineStepNames) {
+            Map<String, List<PipelineTaskDisplayData>> tasksSubListByProcessingStep = tasksSubListByProcessingStepByStep
+                .get(pipelineStepName);
 
-            updateStats(moduleName, moduleMap, ERROR);
+            updateStats(pipelineStepName, tasksSubListByProcessingStep, ERROR);
             for (ProcessingStep processingStep : ProcessingStep.values()) {
-                updateStats(moduleName, moduleMap, processingStep.toString());
+                updateStats(pipelineStepName, tasksSubListByProcessingStep,
+                    processingStep.toString());
             }
         }
     }
 
-    private void updateStats(String moduleName,
-        Map<String, List<PipelineTaskDisplayData>> moduleMap, String displayProcessingStep) {
-        List<PipelineTaskDisplayData> tasksSubList = moduleMap.get(displayProcessingStep);
+    private void updateStats(String pipelineStepName,
+        Map<String, List<PipelineTaskDisplayData>> tasksSubListByProcessingStep,
+        String processingStep) {
+        List<PipelineTaskDisplayData> tasksSubList = tasksSubListByProcessingStep
+            .get(processingStep);
         if (tasksSubList != null) {
             TaskProcessingTimeStats s = TaskProcessingTimeStats.of(tasksSubList);
-            stats.add(new ProcessingStatistics(moduleName, displayProcessingStep, s));
+            stats.add(new ProcessingStatistics(pipelineStepName, processingStep, s));
         }
     }
 
-    private String displayProcessingStep(PipelineTaskDisplayData task) {
+    private String processingStep(PipelineTaskDisplayData task) {
         return task.isError() ? ERROR : task.getProcessingStep().toString();
     }
 
@@ -102,9 +110,9 @@ public class PipelineStatsDisplayModel extends DisplayModel
         TaskProcessingTimeStats s = statsForTaskType.getProcessingStats();
 
         return switch (columnIndex) {
-            case 0 -> statsForTaskType.getModuleName();
+            case 0 -> statsForTaskType.getPipelineStepName();
             case 1 -> formatDate(s.getMinStart());
-            case 2 -> statsForTaskType.getDisplayProcessingStep();
+            case 2 -> statsForTaskType.getProcessingStep();
             case 3 -> s.getCount();
             case 4 -> formatDouble(s.getSum());
             case 5 -> formatDouble(s.getMin());
@@ -127,23 +135,23 @@ public class PipelineStatsDisplayModel extends DisplayModel
 
     public static class ProcessingStatistics {
 
-        private final String moduleName;
-        private final String displayProcessingStep;
+        private final String pipelineStepName;
+        private final String processingStep;
         private final TaskProcessingTimeStats processingStats;
 
-        public ProcessingStatistics(String moduleName, String displayProcessingStep,
+        public ProcessingStatistics(String pipelineStepName, String processingStep,
             TaskProcessingTimeStats processingStats) {
-            this.moduleName = moduleName;
-            this.displayProcessingStep = displayProcessingStep;
+            this.pipelineStepName = pipelineStepName;
+            this.processingStep = processingStep;
             this.processingStats = processingStats;
         }
 
-        public String getModuleName() {
-            return moduleName;
+        public String getPipelineStepName() {
+            return pipelineStepName;
         }
 
-        public String getDisplayProcessingStep() {
-            return displayProcessingStep;
+        public String getProcessingStep() {
+            return processingStep;
         }
 
         public TaskProcessingTimeStats getProcessingStats() {
@@ -152,7 +160,7 @@ public class PipelineStatsDisplayModel extends DisplayModel
 
         @Override
         public int hashCode() {
-            return Objects.hash(moduleName, processingStats, displayProcessingStep);
+            return Objects.hash(pipelineStepName, processingStats, processingStep);
         }
 
         @Override
@@ -164,9 +172,9 @@ public class PipelineStatsDisplayModel extends DisplayModel
                 return false;
             }
             ProcessingStatistics other = (ProcessingStatistics) obj;
-            return Objects.equals(moduleName, other.moduleName)
+            return Objects.equals(pipelineStepName, other.pipelineStepName)
                 && Objects.equals(processingStats, other.processingStats)
-                && displayProcessingStep == other.displayProcessingStep;
+                && processingStep == other.processingStep;
         }
     }
 

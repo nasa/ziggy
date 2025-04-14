@@ -23,9 +23,8 @@ public class AuditInfoTest {
     }
 
     /**
-     * Tests getting the current user name when there is no
-     * exception getting the information from the process
-     * handle.
+     * Tests getting the current user name when there is no exception getting the information from
+     * the process handle.
      */
     @Test
     public void testGetUserNameFromProcessHandle() {
@@ -35,8 +34,8 @@ public class AuditInfoTest {
     }
 
     /**
-     * Tests that if getting the user name from the process handle
-     * fails, that the user name is set from the system properties.
+     * Tests that if getting the user name from the process handle fails, that the user name is set
+     * from the system properties.
      */
     @Test
     public void testGetUserNameFromProperties() {
@@ -52,8 +51,8 @@ public class AuditInfoTest {
     }
 
     /**
-     * Tests that if both getting the user name from the process info and
-     * from the system properties fails, that a default name is returned.
+     * Tests that if both getting the user name from the process info and from the system properties
+     * fails, that a default name is returned.
      */
     @Test
     public void testGetDefaultUserName() {
@@ -62,6 +61,7 @@ public class AuditInfoTest {
             public String getUserFromProcessHandle() throws Throwable {
                 throw new IOException("read error");
             }
+
             @Override
             public String getUserFromProperties() throws SecurityException {
                 throw new SecurityException("cannot access system properties");

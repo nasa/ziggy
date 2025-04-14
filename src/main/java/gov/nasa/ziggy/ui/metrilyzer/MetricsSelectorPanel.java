@@ -28,10 +28,10 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.MetricType;
 import gov.nasa.ziggy.metrics.MetricValue;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.ui.util.DateTextField;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.TimeRange;
 
 /**

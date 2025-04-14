@@ -18,10 +18,6 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
-import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests;
-import gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests.QueueDeleteCommand;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -30,12 +26,13 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperation
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.step.remote.BatchManager;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
-import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.RetryTransitionRequest;
 import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Unit tests for {@link PipelineSupervisor} class.
@@ -52,11 +49,6 @@ import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 public class PipelineSupervisorTest {
 
     @Rule
-    public ZiggyPropertyRule queueCommandRule = new ZiggyPropertyRule(
-        PropertyName.REMOTE_QUEUE_COMMAND_CLASS,
-        "gov.nasa.ziggy.module.remote.QueueCommandManagerForUnitTests");
-
-    @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
 
     private PipelineSupervisor supervisor;
@@ -68,6 +60,7 @@ public class PipelineSupervisorTest {
     private PipelineExecutor pipelineExecutor = Mockito.mock(PipelineExecutor.class);
     private Map<PipelineTask, List<Long>> jobIdsByTask = new HashMap<>();
     private List<PipelineTask> tasks = new ArrayList<>();
+    private BatchManager<?> batchManager = Mockito.mock(BatchManager.class);
 
     private PipelineTask pipelineTask1;
     private PipelineTask pipelineTask2;
@@ -82,6 +75,9 @@ public class PipelineSupervisorTest {
         Mockito.doReturn(pipelineTaskDataOperations).when(supervisor).pipelineTaskDataOperations();
         Mockito.doReturn(jobIdsByTask).when(supervisor).jobIdsByTask(ArgumentMatchers.anyList());
         Mockito.doReturn(pipelineExecutor).when(supervisor).pipelineExecutor();
+        Mockito.doReturn(batchManager)
+            .when(supervisor)
+            .batchManager(ArgumentMatchers.any(PipelineTask.class));
 
         pipelineTask1 = Mockito.spy(PipelineTask.class);
         Mockito.doReturn(1L).when(pipelineTask1).getId();
@@ -98,7 +94,6 @@ public class PipelineSupervisorTest {
     public void testHaltTasksEmptyStateFileCollection() {
         supervisor.haltRemoteTasks(
             new HaltTasksRequest(Set.of(pipelineTask1, pipelineTask2, pipelineTask3)));
-        assertEquals(0, queueCommandManager().getQueueDeleteCommands().size());
         Mockito.verify(supervisor, times(0))
             .publishTaskHaltedMessage(ArgumentMatchers.any(PipelineTask.class));
     }
@@ -119,21 +114,11 @@ public class PipelineSupervisorTest {
         tasks.add(pipelineTask2);
         tasks.add(pipelineTask4);
 
+        Mockito.when(batchManager.deleteJobs(pipelineTask1)).thenReturn(0);
+        Mockito.when(batchManager.deleteJobs(pipelineTask2)).thenReturn(0);
+
         HaltTasksRequest request = new HaltTasksRequest(tasks);
         supervisor.haltRemoteTasks(request);
-        List<QueueDeleteCommand> queueDeleteCommands = queueCommandManager()
-            .getQueueDeleteCommands();
-        assertEquals(2, queueDeleteCommands.size());
-        QueueDeleteCommand queueDeleteCommand = queueDeleteCommands.get(0);
-        assertEquals(0, queueDeleteCommand.getReturnCode());
-        assertTrue(queueDeleteCommand.getJobIds().contains(100L));
-        assertTrue(queueDeleteCommand.getJobIds().contains(101L));
-        assertEquals(2, queueDeleteCommand.getJobIds().size());
-        queueDeleteCommand = queueDeleteCommands.get(1);
-        assertEquals(0, queueDeleteCommand.getReturnCode());
-        assertTrue(queueDeleteCommand.getJobIds().contains(102L));
-        assertTrue(queueDeleteCommand.getJobIds().contains(103L));
-        assertEquals(2, queueDeleteCommand.getJobIds().size());
         Mockito.verify(supervisor).publishTaskHaltedMessage(pipelineTask1);
         Mockito.verify(supervisor).publishTaskHaltedMessage(pipelineTask2);
         Mockito.verify(supervisor, times(0)).publishTaskHaltedMessage(pipelineTask3);
@@ -154,22 +139,12 @@ public class PipelineSupervisorTest {
         tasks.add(pipelineTask2);
         tasks.add(pipelineTask4);
 
+        Mockito.when(batchManager.deleteJobs(pipelineTask1)).thenReturn(0);
+        Mockito.when(batchManager.deleteJobs(pipelineTask2)).thenReturn(1);
+
         // Two kill task requests should have gone out.
         HaltTasksRequest request = new HaltTasksRequest(tasks);
         supervisor.haltRemoteTasks(request);
-        List<QueueDeleteCommand> queueDeleteCommands = queueCommandManager()
-            .getQueueDeleteCommands();
-        assertEquals(2, queueDeleteCommands.size());
-        QueueDeleteCommand queueDeleteCommand = queueDeleteCommands.get(0);
-        assertEquals(0, queueDeleteCommand.getReturnCode());
-        assertTrue(queueDeleteCommand.getJobIds().contains(100L));
-        assertTrue(queueDeleteCommand.getJobIds().contains(101L));
-        assertEquals(2, queueDeleteCommand.getJobIds().size());
-        queueDeleteCommand = queueDeleteCommands.get(1);
-        assertEquals(1, queueDeleteCommand.getReturnCode());
-        assertTrue(queueDeleteCommand.getJobIds().contains(102L));
-        assertTrue(queueDeleteCommand.getJobIds().contains(203L));
-        assertEquals(2, queueDeleteCommand.getJobIds().size());
 
         // Only the case where qdel returned 0 should publish a task message.
         Mockito.verify(supervisor).publishTaskHaltedMessage(pipelineTask1);
@@ -193,7 +168,7 @@ public class PipelineSupervisorTest {
     @Test
     public void testRetryTransition() {
         PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
-        testUtils.setUpSingleModulePipeline();
+        testUtils.setUpSingleNodePipeline();
         PipelineInstanceNode pipelineInstanceNode = testUtils.pipelineInstanceNode();
         PipelineInstance pipelineInstance = testUtils.pipelineInstance();
 
@@ -218,7 +193,7 @@ public class PipelineSupervisorTest {
     @Test(expected = PipelineException.class)
     public void testRetryTransitionNoFailedInstances() {
         PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
-        testUtils.setUpSingleModulePipeline();
+        testUtils.setUpSingleNodePipeline();
         PipelineInstance pipelineInstance = testUtils.pipelineInstance();
         RetryTransitionRequest retryTransitionRequest = new RetryTransitionRequest(
             pipelineInstance.getId());
@@ -228,7 +203,7 @@ public class PipelineSupervisorTest {
     @Test(expected = PipelineException.class)
     public void testRetryTransitionTooManyFailedInstances() {
         PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
-        testUtils.setUpFourModulePipelineWithInstanceNodes();
+        testUtils.setUpFourNodePipelineWithInstanceNodes();
         List<PipelineInstanceNode> pipelineInstanceNodes = testUtils.getPipelineInstanceNodes();
         PipelineInstance pipelineInstance = testUtils.pipelineInstance();
         PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
@@ -239,9 +214,5 @@ public class PipelineSupervisorTest {
         RetryTransitionRequest retryTransitionRequest = new RetryTransitionRequest(
             pipelineInstance.getId());
         supervisor.retryTransition(retryTransitionRequest);
-    }
-
-    public QueueCommandManagerForUnitTests queueCommandManager() {
-        return (QueueCommandManagerForUnitTests) supervisor.queueCommandManager();
     }
 }

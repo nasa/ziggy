@@ -16,15 +16,15 @@ And now you know as much as you did when we started. Okay, keep reading.
 
 #### Instances
 
-A pipeline instance is just what it sounds like: it's a single instance of one of the pipelines defined in the `pd-*.xml` files. Recall that the sample pipeline has 4 nodes: data receipt, permuter, flip, and averaging. When you pressed the `Start` button, Ziggy created a copy of that pipeline, in a form that Ziggy knows how to execute.
+A pipeline instance is just what it sounds like: it's a single instance of one of the pipelines defined in the XML files. Recall that the sample pipeline has 4 nodes: data receipt, permuter, flip, and averaging. When you pressed the `Start` button, Ziggy created a copy of that pipeline, in a form that Ziggy knows how to execute.
 
-Each instance has a unique ID number, with instance 1 being the first (so 1-based, not 0-based). The instance contains its own copies of all the parameter sets used in the pipeline, and these are stored permanently. Thus, even if you later change the values of some parameters, the copies that were made for the instance won't change.
+Each instance has a unique ID number, with instance 1 being the first (so 1-based, not 0-based). The instance contains its own copies of all the parameter sets used in the pipeline, and these are stored permanently. Thus, even if you later change the values of some parameters, the copies that were made for this instance will still be in the database, and the pipeline instance will still have those parameter sets. This is helpful if you need to go back a few years later and see what the pipeline instance actually did. 
 
 #### Tasks
 
-A pipeline task is also just what it sounds like: it's a chunk of work that Ziggy has to execute as part of a pipeline instance. Each task uses a specific algorithm module to process a specific collection of data. Tasks, then, are the things that pipeline instances use to run the individual algorithms. Every task is associated with one and only one instance; an instance can have as many tasks as it needs to get the work done.
+A pipeline task is also just what it sounds like: it's a chunk of work that Ziggy has to execute as part of a pipeline instance. Each task uses a specific algorithm to process a specific collection of data. Tasks, then, are the things that pipeline instances use to run the individual algorithms. Every task is associated with one and only one instance; an instance can have as many tasks as it needs to get the work done.
 
-In the same way that a pipeline instance is defined by a `pipeline` definition in one of the `pd-*.xml` files, each task is created from a `node` in the pipeline. As the pipeline instance executes, it steps through the node list; at each node, it creates tasks that run the algorithm defined by the node; once those tasks are done, the instance moves on to the next node until the tasks created from the last node finish.
+In the same way that a pipeline instance is defined by a `pipeline` definition in one of the XML files, each task is created from a `node` in the pipeline. As the pipeline instance executes, it steps through the node list; at each node, it creates tasks that run the algorithm defined by the node; once those tasks are done, the instance moves on to the next node until the tasks created from the last node finish.
 
 Like pipeline instances, pipeline tasks have unique ID numbers that start at 1 and increase monotonically. Task numbers are never "recycled." That is to say, if pipeline instance 1 has tasks 1 through 7, pipeline instance 2 will start with task 8.
 
@@ -48,7 +48,7 @@ The scoreboard at the top rolls up the tasks table according to the name of the 
 
 In the midst of all this is a column under tasks labeled `UOW`, which stands for "Unit of Work." As a general matter, "Unit of Work" is a $10 word for, "What's the chunk of data that this task is in charge of?"
 
-The parameter set that Ziggy uses to figure out how to divide work up into tasks also provides a means by which the user can specify a name that gets associated with each task. This is what's displayed in the `UOW` column. In the event that some tasks for a given algorithm module succeed and others fail, the `UOW` label lets you figure out where Ziggy got the data that caused the failed task. This can be useful, as I'm sure you can imagine.
+The parameter set that Ziggy uses to figure out how to divide work up into tasks also provides a means by which the user can specify a name that gets associated with each task. This is what's displayed in the `UOW` column. In the event that some tasks for a given algorithm succeed and others fail, the `UOW` label lets you figure out where Ziggy got the data that caused the failed task. This can be useful, as I'm sure you can imagine.
 
 #### Can You be a Bit More Specific About That?
 
@@ -66,7 +66,7 @@ While we're at it, let's look at the definition of the `dataset` datastore node:
    <datastoreNode name="dataset" isRegexp="true" nodes="L0, L1, L2A, L2B, L3">
 ```
 
-When Ziggy goes to generate `permuter` tasks, the first thing it does is go to the datastore and say, "Give me all the directories that match the location of this `raw data` data file type." When it gets back "`set-1/L0`" and "`set-2/L0`", it says to them, "Congratulations, you two define the two units of work for this module."
+When Ziggy goes to generate `permuter` tasks, the first thing it does is go to the datastore and say, "Give me all the directories that match the location of this `raw data` data file type." When it gets back "`set-1/L0`" and "`set-2/L0`", it says to them, "Congratulations, you two define the two units of work for this node."
 
 The next thing Ziggy has to do is give those tasks names, or in Ziggy lingo, "brief states." The way it does that is by grabbing the `set-1/L0` location and the `set-2/L0` location and asking, "What parts of these locations are different from one to the next?" Seeing that it's the "set-#" part, it then says, "Congratulations, your brief states are `[set-1]` and `[set-2]`."
 
@@ -107,17 +107,17 @@ The default is for Ziggy to create a subtask for each input data file. When crea
 
 ##### Tasks with Multiple Input Data File Types
 
-At the end of the pipeline, we have the `averaging` pipeline module, which averages together a bunch of PNG files. Let's see how it's defined in pd-sample.xml:
+At the end of the pipeline, we have the `averaging` pipeline node, which averages together a bunch of PNG files. Let's see how it's defined in pd-sample.xml:
 
 ```xml
-    <node moduleName="averaging" singleSubtask="true">
+    <node name="averaging" singleSubtask="true">
       <inputDataFileType name="left-right flipped"/>
       <inputDataFileType name="up-down flipped"/>
       <outputDataFileType name="averaged image"/>
     </node>
 ```
 
-This module has two input file types! How does Ziggy generate subtasks for that?
+This node has two input file types! How does Ziggy generate subtasks for that?
 
 Let's look again at the `left-right flipped` and `up-down flipped` data file type definitions:
 
@@ -135,7 +135,7 @@ Notice the part of the fileNameRegexp that's inside the parentheses: In Java reg
 
 You've probably already guessed what this is leading up to:
 
-**When Ziggy has multiple input data file types for a pipeline module, it figures out which files go together in a subtask by their regular expression groups. Specifically, two files go together if the values of all their regular expression groups match.** 
+**When Ziggy has multiple input data file types for a pipeline node, it figures out which files go together in a subtask by their regular expression groups. Specifically, two files go together if the values of all their regular expression groups match.**
 
 Of course, if that was the only requirement, we could simply give both data file types the fileNameRegexp value of `(nasa-logo-file-[0-9])\.png`. There is one other requirement, which, again, you've probably already guessed:
 
@@ -143,15 +143,15 @@ Because all of the inputs for a given subtask get copied to the subtask working 
 
 In fact, the rule is stricter than that, because output files get written into the subtask working directory as well, and, again, we can't abide by files overwriting each other. Thus the general rule:
 
-**All of the inputs and outputs files for a pipeline module must have unique names. Inputs files for a given pipeline module must have names that match up to the first period (".") character.**
+**All of the inputs and outputs files for a pipeline node must have unique names. Inputs files for a given pipeline node must have names that match up to the first period (".") character.**
 
 ##### Tasks with Only One Subtask
 
-There are also cases in which you won't want Ziggy to automatically build a bunch of subtasks. Consider the `averaging` pipeline module: we want to average together all 4 of the up-down flipped and all 4 of the right-left flipped images into one final averaged image. We obviously can't do that if `averaging` creates 4 subtasks and each one averages together one up-down flipped file with one left-right flipped one. In this situation -- where Ziggy is tempted to make multiple subtasks but you want it to resist that temptation -- you can tell this to Ziggy by adding the `singleSubtask="true"` attribute to the pipeline node definition. If you look back up at the definition of the `averaging` node a few paragraphs back, you can see that the node is marked to produce a single subtask, and indeed that's exactly what it does.
+There are also cases in which you won't want Ziggy to automatically build a bunch of subtasks. Consider the `averaging` pipeline node: we want to average together all 4 of the up-down flipped and all 4 of the right-left flipped images into one final averaged image. We obviously can't do that if `averaging` creates 4 subtasks and each one averages together one up-down flipped file with one left-right flipped one. In this situation -- where Ziggy is tempted to make multiple subtasks but you want it to resist that temptation -- you can tell this to Ziggy by adding the `singleSubtask="true"` attribute to the pipeline node definition. If you look back up at the definition of the `averaging` node a few paragraphs back, you can see that the node is marked to produce a single subtask, and indeed that's exactly what it does.
 
 ##### Data Files Needed By All Subtasks
 
-Now let's consider an even more complex situation: imagine that the `permuter` pipeline module needs some other flavor of data file that's in the datastore. Let's imagine that there's a directory, description, that's at the same level of the datastore as the L0, etc., directories, and it contains a bunch of files with miscellaneous names and file type XML:
+Now let's consider an even more complex situation: imagine that the `permuter` pipeline node needs some other flavor of data file that's in the datastore. Let's imagine that there's a directory, description, that's at the same level of the datastore as the L0, etc., directories, and it contains a bunch of files with miscellaneous names and file type XML:
 
 ```xml
   <!-- Datastore regular expressions. -->
@@ -209,7 +209,7 @@ The possible states for a pipeline instance are described below.
 | PROCESSING     | Tasks in this instance are being processed, and none have failed yet. |
 | ERRORS_RUNNING | Tasks in this instance are being processed, but at least 1 has failed. |
 | ERRORS_STALLED | Processing has stopped because of task failures. |
-| STOPPED        | Not currently used. |
+| TRANSITION_FAILED | All the tasks in for the current node completed, but something went wrong when the tasks for the next node were being generated and started. |
 | COMPLETED      | All done! |
 
 About ERRORS_RUNNING and ERRORS_STALLED: as a general matter, tasks that are running the same algorithm in parallel are totally independent, so if one fails the others can keep running; this is the ERRORS_RUNNING state. However: once all tasks for a given algorithm are done, if one or more has failed, it's not guaranteed that the next algorithm can run. After all, a classic pipeline has the outputs from one task become the inputs of the next, and in this case some of the outputs from some of the tasks aren't there. In this case, the instance goes to ERRORS_STALLED, and nothing more will happen until the operator addresses whatever caused the failure.

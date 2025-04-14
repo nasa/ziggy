@@ -19,7 +19,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
@@ -27,6 +26,7 @@ import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.SystemProxy;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 
@@ -160,11 +160,11 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
             return;
         }
 
-        log.info("Starting RMI communications server with registry on port {}", rmiPort());
+        log.info("Starting RMI communications server with registry on port {}...", rmiPort());
 
         // Set the RMI server hostname, if specfied in the pipeline properties.
-        String rmiServerHostname = ZiggyConfiguration.getInstance().getString(
-            PropertyName.JAVA_RMI_SERVER_HOSTNAME.property(), null);
+        String rmiServerHostname = ZiggyConfiguration.getInstance()
+            .getString(PropertyName.JAVA_RMI_SERVER_HOSTNAME.property(), null);
         if (rmiServerHostname != null) {
             System.setProperty("java.rmi.server.hostname", rmiServerHostname);
         }
@@ -178,9 +178,9 @@ public class ZiggyRmiServer implements ZiggyRmiServerService {
             serverInstance.registry.rebind(ZiggyRmiServerService.SERVICE_NAME, commStub);
 
             ZiggyShutdownHook.addShutdownHook(() -> {
-                log.info("SHUTDOWN: ZiggyRmiServer...");
+                log.info("Shutting down ZiggyRmiServer...");
                 ZiggyRmiServer.shutdown(true);
-                log.info("SHUTDOWN: ZiggyRmiServer...done");
+                log.info("Shutting down ZiggyRmiServer...done");
             });
             instance = serverInstance;
         } catch (RemoteException e) {

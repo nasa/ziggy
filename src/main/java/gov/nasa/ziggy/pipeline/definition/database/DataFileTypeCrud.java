@@ -14,7 +14,6 @@ import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.data.datastore.DataFileType_;
-import gov.nasa.ziggy.module.PipelineException;
 
 /**
  * CRUD class for DataFileType.
@@ -24,17 +23,6 @@ import gov.nasa.ziggy.module.PipelineException;
 public class DataFileTypeCrud extends AbstractCrud<DataFileType> {
 
     private static final Logger log = LoggerFactory.getLogger(DataFileTypeCrud.class);
-
-    /**
-     * Because the DataFileType encodes information about how each data file is stored in the
-     * datastore, it is unsafe to update it -- it may cause the updated version to be unable to
-     * locate the data that's already in the datastore. For this reason, we override the merge()
-     * method in AbstractCrud with one that simply throws an exception.
-     */
-    @Override
-    public <T> T merge(T o) {
-        throw new PipelineException("Use of merge in DataFileTypeCrud is forbidden");
-    }
 
     /**
      * Creates a collection of DataFileType objects. The collection is first searched for instances

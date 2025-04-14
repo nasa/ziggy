@@ -30,8 +30,8 @@ import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
- * Represents an instance of a {@link PipelineDefinition} that either is running or has completed.
- * An instance of this class is created when a {@link PipelineDefinition} is launched by a trigger.
+ * Represents an instance of a {@link Pipeline} that either is running or has completed. An instance
+ * of this class is created when a {@link Pipeline} is started.
  * <p>
  * Pipeline instances have a priority level which determines the JMS priority for the messages that
  * contain the individual unit of work tasks for this pipeline instance.
@@ -81,7 +81,7 @@ public class PipelineInstance {
     }
 
     /**
-     * Execution priority of a pipeline and its modules.
+     * Execution priority of a pipeline and its nodes.
      * <p>
      * Note: Java enumerations have a natural ordering that matches the order in the definition. The
      * {@link Priority} enum is used to determine the order with which tasks are moved from the
@@ -121,7 +121,7 @@ public class PipelineInstance {
     private String name;
 
     @ManyToOne
-    private PipelineDefinition pipelineDefinition;
+    private Pipeline pipeline;
 
     private Date created = new Date();
 
@@ -178,8 +178,8 @@ public class PipelineInstance {
     public PipelineInstance() {
     }
 
-    public PipelineInstance(PipelineDefinition pipeline) {
-        pipelineDefinition = pipeline;
+    public PipelineInstance(Pipeline pipeline) {
+        this.pipeline = pipeline;
     }
 
     public Long getId() {
@@ -198,12 +198,12 @@ public class PipelineInstance {
         this.name = name;
     }
 
-    public PipelineDefinition getPipelineDefinition() {
-        return pipelineDefinition;
+    public Pipeline getPipeline() {
+        return pipeline;
     }
 
-    public void setPipelineDefinition(PipelineDefinition pipeline) {
-        pipelineDefinition = pipeline;
+    public void setPipeline(Pipeline pipeline) {
+        this.pipeline = pipeline;
     }
 
     public Date getCreated() {

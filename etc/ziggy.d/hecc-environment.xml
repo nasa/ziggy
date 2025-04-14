@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+  <!-- Remote environment definition for the High End Computing Capability (HECC) at NASA. -->
+
+  <remoteEnvironment name="HECC" description="HECC" batchSystem="pbs" costUnit="SBU"
+                     queueTimeMetricsClass="gov.nasa.ziggy.module.remote.NasQueueTimeMetrics">
+    <architecture name="san" description="Sandy Bridge" cores="16" ramGigabytes="32" cost="0.47"/>
+    <architecture name="ivy" description="Ivy Bridge" cores="20" ramGigabytes="64" cost="0.66"/>
+    <architecture name="has" description="Haswell" cores="24" ramGigabytes="128" cost="0.8"/>
+    <architecture name="bro" description="Broadwell" cores="28" ramGigabytes="128" cost="1.0"/>
+    <architecture name="sky_ele" description="Skylake" cores="40" ramGigabytes="192" cost="1.59"/>
+    <architecture name="cas_ait" description="Cascade Lake" cores="40" ramGigabytes="192" cost="1.64"/>
+    <architecture name="rom_ait" description="Rome" cores="128" ramGigabytes="512" cost="4.06"/>
+    <architecture name="mil_ait" description="Milan" cores="128" ramGigabytes="512" cost="4.08"/>
+    <queue name="low" description="Low" maxWallTimeHours="4"/>
+    <queue name="normal" description="Normal" maxWallTimeHours="8"/>
+    <queue name="long" description="Long" maxWallTimeHours="120"/>
+    <queue name="debug" description="Debug" maxWallTimeHours="2" maxNodes="128" autoSelectable="false"/>
+    <queue name="devel" description="Development" maxWallTimeHours="2" maxNodes="512" autoSelectable="false"/>
+    <queue name="reserved" description="Reserved" autoSelectable="false" reserved="true"/>
+  </remoteEnvironment>
+  
+</pipelineDefinition>
+

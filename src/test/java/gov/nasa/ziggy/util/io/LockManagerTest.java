@@ -5,7 +5,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -147,6 +151,24 @@ public class LockManagerTest {
         task.start();
         task.join();
         assertTrue(task.isLockObtained());
+    }
+
+    @Test
+    public void testNonBlockingWriteLockDoesNotLeak() {
+
+        // Lock the file without using the LockManager.
+        try (FileChannel channel = FileChannel.open(lockFileOne, StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE)) {
+            FileLock fileLock = channel.tryLock();
+            if (fileLock == null) {
+                throw new IOException("Unable to get write lock");
+            }
+            LockManager.getWriteLockWithoutBlocking(lockFileOne.toFile());
+            assertFalse(LockManager.INSTANCE.getMostRecentFileChannel().isOpen());
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Failed to get write lock on file " + lockFileOne.toString(), e);
+        }
     }
 
     /**

@@ -41,11 +41,11 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
-import gov.nasa.ziggy.services.logging.TaskLog;
+import gov.nasa.ziggy.services.logging.ZiggyLog;
 import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
@@ -122,16 +122,16 @@ public class PipelineWorker extends AbstractPipelineProcess {
      */
     private void processTask(RunMode runMode) {
 
-        TaskLog.endConsoleLogging();
+        ZiggyLog.endConsoleLogging();
         pipelineTaskDataOperations().incrementTaskLogIndex(pipelineTask);
-        log.info("Process {} instance {} starting", NAME, workerId);
+        log.info("Process {} instance {} run mode {} starting", NAME, workerId, runMode.toString());
 
         // Initialize an instance of TaskExecutor
         TaskExecutor taskRequestExecutor = new TaskExecutor(workerId, pipelineTask, runMode);
         addProcessStatusReporter(taskRequestExecutor);
 
         // Initialize the ProcessHeartbeatManager for this process.
-        log.info("Initializing ProcessHeartbeatManager");
+        log.info("Initializing ProcessHeartbeatManager...");
         HeartbeatManager.startInstance();
         log.info("Initializing ProcessHeartbeatManager...done");
 

@@ -20,7 +20,7 @@ import gov.nasa.ziggy.pipeline.definition.Group;
 public class GroupOperationsTest {
 
     private static final String PARAMETER_SET = "ParameterSet";
-    private static final String PIPELINE_DEFINITION = "PipelineDefinition";
+    private static final String PIPELINE = "Pipeline";
 
     private GroupOperations groupOperations = new GroupOperations();
 
@@ -81,7 +81,7 @@ public class GroupOperationsTest {
         assertEquals(group1, groups.get(0));
         assertEquals(Set.of("parameterSet1"), groups.get(0).getItems());
 
-        groups = groupOperations.groups(PIPELINE_DEFINITION);
+        groups = groupOperations.groups(PIPELINE);
         assertEquals(0, groups.size());
     }
 
@@ -95,7 +95,7 @@ public class GroupOperationsTest {
         Group group = groupOperations.group("group1", PARAMETER_SET);
         assertEquals(Set.of("parameterSet1"), group.getItems());
 
-        assertTrue(groupOperations.group("group1", PIPELINE_DEFINITION) == Group.DEFAULT);
+        assertTrue(groupOperations.group("group1", PIPELINE) == Group.DEFAULT);
         assertTrue(groupOperations.group("group2", PARAMETER_SET) == Group.DEFAULT);
     }
 
@@ -116,7 +116,7 @@ public class GroupOperationsTest {
     }
 
     private Group createGroup2() {
-        Group group2 = new Group("group2", PIPELINE_DEFINITION);
+        Group group2 = new Group("group2", PIPELINE);
         group2.getItems().add("pipeline1");
         groupOperations.persist(group2);
         return group2;

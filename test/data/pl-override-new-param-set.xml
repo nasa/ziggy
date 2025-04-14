@@ -1,0 +1,7 @@
+<pipelineDefinition>
+
+  <parameterSet name="New classless parameter set" partial="true">
+    <parameter name="z1" value="string"/>
+  </parameterSet>
+
+</pipelineDefinition>

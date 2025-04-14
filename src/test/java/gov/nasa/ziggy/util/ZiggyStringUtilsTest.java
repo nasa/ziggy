@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.util;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -90,14 +89,22 @@ public class ZiggyStringUtilsTest {
     }
 
     @Test
-    public void testConvertStringArray() {
-        String[] array = ZiggyStringUtils.convertStringArray("a, b, c");
-        assertArrayEquals(new String[] { "a", "b", "c" }, array);
+    public void testStringToList() {
+        List<String> array = ZiggyStringUtils.toList("   a,b   , c  ");
+        assertEquals(List.of("a", "b", "c"), array);
+        array = ZiggyStringUtils.toList("a,b,c");
+        assertEquals(List.of("a", "b", "c"), array);
+    }
+
+    @Test
+    public void testStringToListWithEmptyString() {
+        List<String> array = ZiggyStringUtils.toList("");
+        assertEquals(List.of(), array);
     }
 
     @Test(expected = NullPointerException.class)
-    public void testConvertStringArrayWithNullString() {
-        ZiggyStringUtils.convertStringArray(null);
+    public void testStringToListWithNullString() {
+        ZiggyStringUtils.toList(null);
     }
 
     @Test

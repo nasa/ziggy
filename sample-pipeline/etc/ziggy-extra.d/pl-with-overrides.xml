@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<pipelineDefinition>
+  <parameterSet name="Algorithm Parameters" partial="true">
+    <parameter name="throw exception subtask 0" value="true" type="boolean"/>
+  </parameterSet>
+</pipelineDefinition>

@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.PerformanceReport;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceFilter;
@@ -43,13 +42,12 @@ import gov.nasa.ziggy.services.events.ZiggyEventOperations;
 import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
-import gov.nasa.ziggy.ui.util.TaskHalter;
-import gov.nasa.ziggy.ui.util.TaskRestarter;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.table.TableUpdater;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Displays just the table of instances.
@@ -399,7 +397,7 @@ public class InstancesTable extends JPanel {
 
             return switch (columnIndex) {
                 case 0 -> pipelineInstance.getId();
-                case 1 -> pipelineInstance.getPipelineDefinition().getName()
+                case 1 -> pipelineInstance.getPipeline().getName()
                     + (StringUtils.isBlank(pipelineInstance.getName()) ? ""
                         : ": " + pipelineInstance.getName());
                 case 2 -> ziggyEvent != null ? ziggyEvent.getEventHandlerName() : "-";

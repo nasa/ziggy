@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<parameterLibrary override-only="true">
-    <parameter-set name="Algorithm Parameters">
-        <parameter name="throw exception subtask 0" value="true" type="boolean"/>
-    </parameter-set>
-</parameterLibrary>

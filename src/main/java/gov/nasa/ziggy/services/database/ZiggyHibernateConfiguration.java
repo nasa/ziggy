@@ -13,9 +13,9 @@ import org.hibernate.cfg.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * This class contructs a Hibernate @{link AnnotatedConfiguration} object.

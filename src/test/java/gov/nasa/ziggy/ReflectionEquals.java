@@ -18,7 +18,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.io.ProxyIgnore;
+import gov.nasa.ziggy.util.io.ProxyIgnore;
 
 /**
  * Utility class for unit tests that uses reflection to do a deep compare of two object trees. It is
@@ -43,8 +43,7 @@ public class ReflectionEquals {
     /**
      * Exclude fields whose fully qualified name matches the specified regular expression pattern.
      * <p>
-     * Fully-qualified field names are of the form:
-     * PipelineDefinition.auditInfo.lastChangedUser.loginName
+     * Fully-qualified field names are of the form: Pipeline.auditInfo.lastChangedUser.loginName
      * <p>
      * For example: excludeField(".*\\.id"); excludes fields named id for any object in the object
      * tree

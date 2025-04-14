@@ -198,10 +198,10 @@ public class ZiggyCppMexPojo extends ZiggyCppPojo {
     /**
      * Generates a name for the shared object library in the event that none has been set. This is
      * done by taking the project name and adding to it the components of the C++ path name,
-     * separated by hyphens. For example, if the project directory is /path/to/pipeline/module1, and
-     * the source directory is /path/to/pipeline/module1/src/main/cpp/mex, the name of the library
-     * will be module1-src-main-cpp-mex, resulting in a shared object named
-     * libmodule1-src-main-cpp-mex.so or .dylib.
+     * separated by hyphens. For example, if the project directory is /path/to/pipeline/step1, and
+     * the source directory is /path/to/pipeline/step1/src/main/cpp/mex, the name of the library
+     * will be step1-src-main-cpp-mex, resulting in a shared object named
+     * libstep1-src-main-cpp-mex.so or .dylib.
      *
      * @return Generated name for the shared object library.
      */

@@ -26,9 +26,9 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
@@ -55,7 +55,7 @@ public class StartPipelineDialog extends javax.swing.JDialog {
         }
     }
 
-    private PipelineDefinition pipeline;
+    private Pipeline pipeline;
 
     private JTextField instanceNameTextField;
     private JCheckBox unlimitedCheckBox;
@@ -65,12 +65,12 @@ public class StartPipelineDialog extends javax.swing.JDialog {
     private JComboBox<DelayUnits> delayUnitsComboBox;
     private JCheckBox overrideStartCheckBox;
     private JComboBox<String> startNodeComboBox;
-    private PipelineModulesListModel startNodeComboBoxModel;
+    private PipelineNodesListModel startNodeComboBoxModel;
     private JCheckBox overrideEndCheckBox;
     private JComboBox<String> endNodeComboBox;
-    private PipelineModulesListModel endNodeComboBoxModel;
+    private PipelineNodesListModel endNodeComboBoxModel;
 
-    public StartPipelineDialog(Window owner, PipelineDefinition pipeline) {
+    public StartPipelineDialog(Window owner, Pipeline pipeline) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.pipeline = pipeline;
 
@@ -116,14 +116,14 @@ public class StartPipelineDialog extends javax.swing.JDialog {
         overrideStartCheckBox = new JCheckBox("Override start");
         overrideStartCheckBox.addActionListener(this::overrideStart);
 
-        startNodeComboBoxModel = new PipelineModulesListModel(pipeline);
+        startNodeComboBoxModel = new PipelineNodesListModel(pipeline);
         startNodeComboBox = new JComboBox<>(startNodeComboBoxModel);
         startNodeComboBox.setEnabled(false);
 
         overrideEndCheckBox = new JCheckBox("Override stop");
         overrideEndCheckBox.addActionListener(this::overrideEnd);
 
-        endNodeComboBoxModel = new PipelineModulesListModel(pipeline);
+        endNodeComboBoxModel = new PipelineNodesListModel(pipeline);
         endNodeComboBox = new JComboBox<>(endNodeComboBoxModel);
         endNodeComboBox.setEnabled(false);
 
@@ -236,8 +236,8 @@ public class StartPipelineDialog extends javax.swing.JDialog {
         try {
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-            PipelineDefinitionNode startNode = null;
-            PipelineDefinitionNode endNode = null;
+            PipelineNode startNode = null;
+            PipelineNode endNode = null;
 
             if (overrideStartCheckBox.isSelected()) {
                 startNode = startNodeComboBoxModel.getSelectedPipelineNode();
@@ -253,8 +253,8 @@ public class StartPipelineDialog extends javax.swing.JDialog {
             log.info("Pipeline started with {} repetition(s){} from {} to {}",
                 repetitions > 0 ? repetitions : "unlimited",
                 repetitions == 1 ? "" : " at " + delayMinutes + " minutes interval",
-                startNode == null ? "pipeline start" : startNode.getModuleName(),
-                endNode == null ? "pipeline end" : endNode.getModuleName());
+                startNode == null ? "pipeline start" : startNode.getPipelineStepName(),
+                endNode == null ? "pipeline end" : endNode.getPipelineStepName());
 
             ZiggyMessenger.publish(
                 new StartPipelineRequest(pipeline.getName(), instanceNameTextField.getText(),
@@ -315,11 +315,11 @@ public class StartPipelineDialog extends javax.swing.JDialog {
     }
 
     public static void main(String[] args) {
-        PipelineDefinition dummyPipeline = new PipelineDefinition("dummy");
-        PipelineModuleDefinition dummyModule = new PipelineModuleDefinition("dmy");
-        PipelineDefinitionNode dummyNode = new PipelineDefinitionNode(dummyModule.getName(),
+        Pipeline dummyPipeline = new Pipeline("dummy");
+        PipelineStep dummyPipelineStep = new PipelineStep("dmy");
+        PipelineNode dummyNode = new PipelineNode(dummyPipelineStep.getName(),
             dummyPipeline.getName());
-        List<PipelineDefinitionNode> rootNode = new ArrayList<>();
+        List<PipelineNode> rootNode = new ArrayList<>();
         rootNode.add(dummyNode);
         dummyPipeline.setRootNodes(rootNode);
         ZiggySwingUtils.displayTestDialog(new StartPipelineDialog(null, dummyPipeline));

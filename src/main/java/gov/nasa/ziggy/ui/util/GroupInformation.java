@@ -57,8 +57,7 @@ public class GroupInformation<T> {
         for (Group group : allGroups) {
 
             // Does this group contain any of the objects we're interested in today?
-            Sets.SetView<String> items = Sets.intersection(group.getItems(),
-                objectByName.keySet());
+            Sets.SetView<String> items = Sets.intersection(group.getItems(), objectByName.keySet());
             if (!items.isEmpty()) {
                 List<T> objects = new ArrayList<>();
                 for (String objectName : items) {

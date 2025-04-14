@@ -33,7 +33,8 @@ public class DataReceiptOperations extends DatabaseOperations {
 
             // Get the instances that have a data receipt task in them
             List<PipelineInstance> pipelineInstances = pipelineInstanceCrud()
-                .pipelineInstancesForModule(DataReceiptPipelineModule.DATA_RECEIPT_MODULE_NAME);
+                .pipelineInstancesForPipelineStep(
+                    DataReceiptPipelineStepExecutor.DATA_RECEIPT_PIPELINE_STEP_EXECUTOR_NAME);
 
             // Construct a list entry for each instance.
             for (PipelineInstance pipelineInstance : pipelineInstances) {
@@ -75,7 +76,7 @@ public class DataReceiptOperations extends DatabaseOperations {
      * Updates the {@link ModelRegistry} associated with a given {@link PipelineInstance}.
      * <p>
      * A pipeline instance that includes data receipt will potentially import new models. In this
-     * case, the model registry for the instance must be updated; otherwise, the pipeline modules
+     * case, the model registry for the instance must be updated; otherwise, the pipeline nodes
      * after data receipt will attempt to run using the old (pre-import) models. This method will
      * update the current pipeline instance to use the newest model registry. This is an exception
      * to the usual rule that the model registry of a pipeline instance is immutable once the

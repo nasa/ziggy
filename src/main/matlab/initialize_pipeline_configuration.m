@@ -88,7 +88,8 @@ function initialize_pipeline_configuration( csciNamesToSkip )
             log4jDestination = fullfile(pipelineProperties.get_property( ...
                 'ziggy.pipeline.home.dir'), 'logs', 'matlab.log');
             disp(['Setting log4j log file to: ', log4jDestination]);
-            java.lang.System.setProperty('ziggy.logFile', log4jDestination);
+            java.lang.System.setProperty('ziggy.log.single.file', log4jDestination);
+            java.lang.System.setProperty('ziggy.log.appender', 'singleFile');
         else
             disp('No log4j config file found') ;
         end

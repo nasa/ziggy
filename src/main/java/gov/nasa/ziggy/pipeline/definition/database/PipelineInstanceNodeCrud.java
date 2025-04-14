@@ -10,12 +10,12 @@ import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance_;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
@@ -110,21 +110,21 @@ public class PipelineInstanceNodeCrud extends AbstractCrud<PipelineInstanceNode>
 
     public Set<DataFileType> retrieveInputDataFileTypes(PipelineInstanceNode pipelineInstanceNode) {
 
-        // The main query gets the inputDataFileTypes from the PipelineDefinitionNode.
-        ZiggyQuery<PipelineDefinitionNode, DataFileType> query = createZiggyQuery(
-            PipelineDefinitionNode.class, DataFileType.class);
-        query.column(PipelineDefinitionNode_.inputDataFileTypes).select();
+        // The main query gets the inputDataFileTypes from the PipelineNode.
+        ZiggyQuery<PipelineNode, DataFileType> query = createZiggyQuery(PipelineNode.class,
+            DataFileType.class);
+        query.column(PipelineNode_.inputDataFileTypes).select();
 
-        // The subquery gets the PipelineDefinitionNode ID from the PipelineInstanceNode.
-        ZiggyQuery<PipelineInstanceNode, Long> definitionNodeIdQuery = query
+        // The subquery gets the PipelineNode ID from the PipelineInstanceNode.
+        ZiggyQuery<PipelineInstanceNode, Long> pipelineNodeIdQuery = query
             .ziggySubquery(PipelineInstanceNode.class, Long.class);
-        definitionNodeIdQuery.column(PipelineInstanceNode_.id).in(pipelineInstanceNode.getId());
-        definitionNodeIdQuery.select(definitionNodeIdQuery.getRoot()
-            .get(PipelineInstanceNode_.pipelineDefinitionNode)
-            .get(PipelineDefinitionNode_.id));
+        pipelineNodeIdQuery.column(PipelineInstanceNode_.id).in(pipelineInstanceNode.getId());
+        pipelineNodeIdQuery.select(pipelineNodeIdQuery.getRoot()
+            .get(PipelineInstanceNode_.pipelineNode)
+            .get(PipelineNode_.id));
 
         // Put it all together.
-        query.column(PipelineDefinitionNode_.id).in(definitionNodeIdQuery);
+        query.column(PipelineNode_.id).in(pipelineNodeIdQuery);
         return new HashSet<>(list(query));
     }
 

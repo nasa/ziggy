@@ -19,13 +19,13 @@ import javax.swing.JTable;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.table.AbstractTableModel;
 
-import gov.nasa.ziggy.module.SubtaskInformation;
 import gov.nasa.ziggy.pipeline.PipelineTaskInformation;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.step.subtask.SubtaskInformation;
 
 /**
- * Displays task information for a {@link PipelineDefinitionNode}. Implemented as a modal dialog so
- * as to block until the user is done with it.
+ * Displays task information for a {@link PipelineNode}. Implemented as a modal dialog so as to
+ * block until the user is done with it.
  *
  * @author PT
  * @author Bill Wohler
@@ -34,9 +34,9 @@ public class TaskInformationDialog extends JDialog {
 
     private static final long serialVersionUID = 20230810L;
 
-    private PipelineDefinitionNode node;
+    private PipelineNode node;
 
-    public TaskInformationDialog(Window owner, PipelineDefinitionNode node) {
+    public TaskInformationDialog(Window owner, PipelineNode node) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.node = node;
         buildComponent();
@@ -58,8 +58,8 @@ public class TaskInformationDialog extends JDialog {
         JLabel pipeline = boldLabel("Pipeline");
         JLabel pipelineText = new JLabel(node.getPipelineName());
 
-        JLabel module = boldLabel("Module");
-        JLabel moduleText = new JLabel(node.getModuleName());
+        JLabel nodeLabel = boldLabel("Node"); // non-standard name to avoid conflict with field name
+        JLabel nodeText = new JLabel(node.getPipelineStepName());
 
         List<SubtaskInformation> subtaskInfo = PipelineTaskInformation.subtaskInformation(node);
         JTable table = new JTable(new TaskInformationTableModel(subtaskInfo));
@@ -74,16 +74,16 @@ public class TaskInformationDialog extends JDialog {
         dataPanelLayout.setHorizontalGroup(dataPanelLayout.createParallelGroup()
             .addComponent(pipeline)
             .addComponent(pipelineText)
-            .addComponent(module)
-            .addComponent(moduleText)
+            .addComponent(nodeLabel)
+            .addComponent(nodeText)
             .addComponent(tablePane));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
             .addComponent(pipeline)
             .addComponent(pipelineText)
             .addPreferredGap(ComponentPlacement.RELATED)
-            .addComponent(module)
-            .addComponent(moduleText)
+            .addComponent(nodeLabel)
+            .addComponent(nodeText)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(tablePane));
 

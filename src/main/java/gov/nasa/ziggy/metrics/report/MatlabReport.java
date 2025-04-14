@@ -13,21 +13,21 @@ import org.slf4j.LoggerFactory;
 
 public class MatlabReport extends Report {
     private static final Logger log = LoggerFactory.getLogger(MatlabReport.class);
-    private final String moduleName;
+    private final String pipelineStepName;
     private final File taskFilesDir;
     private final long instanceId;
 
-    public MatlabReport(PdfRenderer pdfRenderer, File taskFilesDir, String moduleName,
+    public MatlabReport(PdfRenderer pdfRenderer, File taskFilesDir, String pipelineStepName,
         long instanceId) {
         super(pdfRenderer);
-        this.moduleName = moduleName;
+        this.pipelineStepName = pipelineStepName;
         this.taskFilesDir = taskFilesDir;
         this.instanceId = instanceId;
     }
 
     /**
      * Generate stacked bar chart Generate descriptive statistics and a histogram of the peak memory
-     * usage for all matlab processes for all tasks for the specified module.
+     * usage for all matlab processes for all tasks for the specified pipeline step.
      */
     public void generateReport() {
         generateExecTimeReport();
@@ -35,7 +35,7 @@ public class MatlabReport extends Report {
     }
 
     private void generateExecTimeReport() {
-        MatlabMetrics matlabMetrics = new MatlabMetrics(taskFilesDir, moduleName);
+        MatlabMetrics matlabMetrics = new MatlabMetrics(taskFilesDir, pipelineStepName);
         matlabMetrics.parseFiles();
 
         DescriptiveStatistics matlabStats = matlabMetrics.getTotalTimeStats();
@@ -45,7 +45,7 @@ public class MatlabReport extends Report {
         double totalTime = matlabStats.getSum();
         double otherTime = totalTime;
 
-        DefaultPieDataset functionBreakdownDataset = new DefaultPieDataset();
+        DefaultPieDataset<String> functionBreakdownDataset = new DefaultPieDataset<>();
 
         log.info("Breakdown report");
 
@@ -92,8 +92,8 @@ public class MatlabReport extends Report {
     }
 
     private void generateMemoryReport() {
-        File[] taskDirs = taskFilesDir
-            .listFiles((FileFilter) f -> f.getName().contains(moduleName + "-") && f.isDirectory());
+        File[] taskDirs = taskFilesDir.listFiles(
+            (FileFilter) f -> f.getName().contains(pipelineStepName + "-") && f.isDirectory());
 
         DescriptiveStatistics memoryStats = new DescriptiveStatistics();
         TopNList topTen = new TopNList(10);
@@ -101,7 +101,7 @@ public class MatlabReport extends Report {
         for (File taskDir : taskDirs) {
             log.info("Processing {}", taskDir);
 
-            Memdrone memdrone = new Memdrone(moduleName, instanceId);
+            Memdrone memdrone = new Memdrone(pipelineStepName, instanceId);
             Map<String, DescriptiveStatistics> taskStats = memdrone.statsByPid();
             Map<String, String> pidMap = memdrone.subtasksByPid();
 

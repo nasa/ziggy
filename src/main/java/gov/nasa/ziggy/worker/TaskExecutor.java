@@ -13,8 +13,8 @@ import gov.nasa.ziggy.metrics.CounterMetric;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.IntervalMetricKey;
 import gov.nasa.ziggy.metrics.Metric;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
@@ -34,7 +34,7 @@ import gov.nasa.ziggy.util.BuildInfo;
 
 /**
  * Coordinates processing of inbound worker task request messages. Manages the database and
- * messaging transaction context, invokes the module, then invokes the transition logic.
+ * messaging transaction context, invokes the pipeline step, then invokes the transition logic.
  *
  * @author Todd Klaus
  * @author PT
@@ -48,7 +48,7 @@ public class TaskExecutor implements StatusReporter {
 
     private static final Logger log = LoggerFactory.getLogger(TaskExecutor.class);
 
-    public static final String PIPELINE_MODULE_COMMIT_METRIC = "pipeline.module.commitTime";
+    public static final String PIPELINE_NODE_COMMIT_METRIC = "pipeline.module.commitTime";
     public static final int MAX_TASK_RETRIEVE_RETRIES = 1;
     public static final long WAIT_BETWEEN_RETRIES_MILLIS = 100;
 
@@ -64,7 +64,7 @@ public class TaskExecutor implements StatusReporter {
     private TaskState state = TaskState.IDLE;
     private boolean taskDone;
     private PipelineTask pipelineTask;
-    private PipelineModule currentPipelineModule;
+    private PipelineStepExecutor currentPipelineStepExecutor;
     private RunMode runMode;
     private long processingStartTimeMillis;
     private Map<String, Metric> taskMetrics;
@@ -90,10 +90,11 @@ public class TaskExecutor implements StatusReporter {
         try {
             executeTaskInternal();
         } catch (Exception e) {
-            // Here we catch Exception because it's what's thrown by PipelineModule.processTask().
-            // See the documentation for that class and method for an explanation. Once the
-            // exception gets here we handle it so that the worker doesn't terminate until after
-            // all the foregoing catch and finally actions are complete.
+            // Here we catch Exception because it's what's thrown by
+            // PipelineStepExecutor.processTask(). See the documentation for that class and method
+            // for an explanation. Once the exception gets here we handle it so that the worker
+            // doesn't terminate until after all the foregoing catch and finally actions are
+            // complete.
             lastErrorMessage = e.getMessage();
 
             log.error("Caught exception processing worker task request for {}",
@@ -117,15 +118,15 @@ public class TaskExecutor implements StatusReporter {
         processingStartTimeMillis = System.currentTimeMillis();
         ZiggyMessenger.publish(statusMessage(false));
 
-        log.info("Executing pre-processing for task {}", pipelineTask);
+        log.info("Executing pre-processing for task {}...", pipelineTask);
         preProcessing();
         log.info("Executing pre-processing for task {}...done", pipelineTask);
 
         try {
             Metric.enableThreadMetrics();
 
-            /* Invoke the module */
-            log.info("Executing processTask for task {}", pipelineTask);
+            /* Invoke the pipeline step. */
+            log.info("Executing processTask for task {}...", pipelineTask);
             taskDone = processTask();
 
             if (taskDone) {
@@ -142,7 +143,7 @@ public class TaskExecutor implements StatusReporter {
         }
 
         /* Update the task status */
-        log.info("Executing post-processing for task {}", pipelineTask);
+        log.info("Executing post-processing for task {}...", pipelineTask);
         postProcessing(taskDone, true);
         log.info("Executing post-processing for task {}...done", pipelineTask);
     }
@@ -181,12 +182,13 @@ public class TaskExecutor implements StatusReporter {
             pipelineTaskDataOperations().updatePipelineSoftwareRevision(pipelineTask,
                 BuildInfo.pipelineVersion());
 
-            // If this is the first time we've called the module, set the processing step to the
-            // first step that the module defines; otherwise, leave it alone and let the module pick
+            // If this is the first time we've called the step, set the processing step to the
+            // first step that the pipeline step defines; otherwise, leave it alone and let the
+            // pipeline step pick
             // up where it left off.
             if (processingStep.isInfrastructureStep()) {
                 ProcessingStep firstProcessingStep = pipelineTaskOperations()
-                    .moduleImplementation(pipelineTask, runMode)
+                    .pipelineStepExecutorImplementation(pipelineTask, runMode)
                     .processingSteps()
                     .get(0);
                 outgoingMessageLatch = new CountDownLatch(1);
@@ -204,13 +206,13 @@ public class TaskExecutor implements StatusReporter {
     }
 
     /**
-     * Invoke PipelineModule.processTask() and execute the transition logic (if applicable)
+     * Invoke PipelineStepExecutor.processTask() and execute the transition logic (if applicable).
      *
      * @returns true if task is done (no more steps)
      */
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private boolean processTask() throws Exception {
-        String moduleExecMetricPrefix = null;
+        String stepExecMetricPrefix = null;
 
         try {
             return processTaskInternal();
@@ -220,8 +222,8 @@ public class TaskExecutor implements StatusReporter {
             throw e;
         } finally {
 
-            if (moduleExecMetricPrefix != null) {
-                CounterMetric.increment(moduleExecMetricPrefix + ".execCount");
+            if (stepExecMetricPrefix != null) {
+                CounterMetric.increment(stepExecMetricPrefix + ".execCount");
             }
         }
     }
@@ -229,17 +231,17 @@ public class TaskExecutor implements StatusReporter {
     private boolean processTaskInternal() throws Exception {
 
         workerTask = pipelineTask;
-        log.info("Processing {}", pipelineTask.toFullString());
+        log.info("Processing {} run mode {}", pipelineTask.toFullString(), runMode.toString());
 
-        currentPipelineModule = pipelineTaskOperations().moduleImplementation(pipelineTask,
-            runMode);
+        currentPipelineStepExecutor = pipelineTaskOperations()
+            .pipelineStepExecutorImplementation(pipelineTask, runMode);
 
-        String moduleSimpleName = currentPipelineModule.getClass().getSimpleName();
+        String pipelineStepSimpleName = currentPipelineStepExecutor.getClass().getSimpleName();
 
-        log.info("Calling {}.processTask()", moduleSimpleName);
-        pipelineModuleProcessTask(currentPipelineModule,
-            "pipeline.module." + pipelineTask.getModuleName());
-        log.info("Calling {}.processTask()...done", moduleSimpleName);
+        log.info("Calling {}.processTask()...", pipelineStepSimpleName);
+        pipelineStepExecutorProcessTask(currentPipelineStepExecutor,
+            "pipeline.module." + pipelineTask.getPipelineStepName());
+        log.info("Calling {}.processTask()...done", pipelineStepSimpleName);
 
         if (isTaskDone()) {
             outgoingMessageLatch = new CountDownLatch(1);
@@ -257,15 +259,15 @@ public class TaskExecutor implements StatusReporter {
     }
 
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
-    private void pipelineModuleProcessTask(PipelineModule currentPipelineModule,
-        String moduleExecMetricPrefix) throws Exception {
+    private void pipelineStepExecutorProcessTask(PipelineStepExecutor currentPipelineStepExecutor,
+        String stepExecMetricPrefix) throws Exception {
 
         IntervalMetricKey key = IntervalMetric.start();
         try {
-            // Hand off control to the PipelineModule implementation.
-            setTaskDone(currentPipelineModule.processTask());
+            // Hand off control to the PipelineStepExecutor implementation.
+            setTaskDone(currentPipelineStepExecutor.processTask());
         } finally {
-            IntervalMetric.stop(moduleExecMetricPrefix + ".processTask", key);
+            IntervalMetric.stop(stepExecMetricPrefix + ".processTask", key);
         }
     }
 
@@ -283,7 +285,8 @@ public class TaskExecutor implements StatusReporter {
         Date endProcessingTime = new Date(processingEndTimeMillis);
 
         // Update summary metrics.
-        currentPipelineModule.updateMetrics(pipelineTask, taskMetrics, totalProcessingTimeMillis);
+        currentPipelineStepExecutor.updateMetrics(pipelineTask, taskMetrics,
+            totalProcessingTimeMillis);
 
         pipelineTaskDataOperations().updateLastTaskExecutionLog(pipelineTask, endProcessingTime);
 
@@ -305,8 +308,8 @@ public class TaskExecutor implements StatusReporter {
             pipelineTaskDataOperations().taskErrored(pipelineTask);
 
             AlertService alertService = AlertService.getInstance();
-            alertService.generateAlert("PI(" + pipelineTask.getModuleName() + ")", pipelineTask,
-                Severity.INFRASTRUCTURE, lastErrorMessage);
+            alertService.generateAlert("PI(" + pipelineTask.getPipelineStepName() + ")",
+                pipelineTask, Severity.INFRASTRUCTURE, lastErrorMessage);
         }
     }
 
@@ -329,7 +332,7 @@ public class TaskExecutor implements StatusReporter {
             : "" + pipelineInstanceId.toString();
 
         WorkerStatusMessage message = new WorkerStatusMessage(workerNumber, state.toString(),
-            currentPipelineInstanceId, pipelineTask, pipelineTask.getModuleName(),
+            currentPipelineInstanceId, pipelineTask, pipelineTask.getPipelineStepName(),
             pipelineTask.getUnitOfWork().briefState(), processingStartTimeMillis, lastMessage);
         message.setSourceProcess(getProcessInfo());
         return message;

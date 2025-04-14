@@ -6,9 +6,9 @@ import java.util.List;
 
 import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.UniqueNameVersionPipelineComponent;
 import gov.nasa.ziggy.pipeline.definition.UniqueNameVersionPipelineComponent_;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Superclass for CRUD methods that support {@link UniqueNameVersionPipelineComponent} classes.
@@ -34,8 +34,7 @@ public abstract class UniqueNameVersionPipelineComponentCrud<U extends UniqueNam
         versionQuery.column(UniqueNameVersionPipelineComponent_.VERSION).max();
         query.column(UniqueNameVersionPipelineComponent_.NAME).in(name);
         query.column(UniqueNameVersionPipelineComponent_.VERSION).in(versionQuery);
-        U result = uniqueResult(query);
-        return result;
+        return uniqueResult(query);
     }
 
     public U retrieve(String name, int version) {

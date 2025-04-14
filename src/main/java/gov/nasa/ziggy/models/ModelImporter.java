@@ -82,7 +82,7 @@ public class ModelImporter {
      */
     public void importModels(List<Path> files) {
 
-        log.info("Importing models");
+        log.info("Importing models...");
         if (modelTypesToImport.isEmpty()) {
             modelTypesToImport.addAll(modelTypes());
             log.info("Retrieved {} model types from database", modelTypesToImport.size());

@@ -14,7 +14,6 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Test;
 
-import gov.nasa.ziggy.module.AlgorithmType;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
@@ -30,7 +29,7 @@ public class PipelineTaskDataTest {
     private static final long PIPELINE_INSTANCE_ID = 43L;
     private static final long NOW = 1000L;
     private static final Date CREATED = new Date(NOW);
-    private static final String MODULE_NAME = "moduleName";
+    private static final String PIPELINE_STEP_NAME = "pipelineStepName";
     private static final String BRIEF_STATE = "briefState";
     private static final String ZIGGY_SOFTWARE_REVISION = "ziggyRevision";
     private static final String PIPELINE_SOFTWARE_REVISION = "pipelineRevision";
@@ -56,7 +55,7 @@ public class PipelineTaskDataTest {
         pipelineTask = spy(PipelineTask.class);
         doReturn(PIPELINE_TASK_ID).when(pipelineTask).getId();
         doReturn(PIPELINE_INSTANCE_ID).when(pipelineTask).getPipelineInstanceId();
-        doReturn(MODULE_NAME).when(pipelineTask).getModuleName();
+        doReturn(PIPELINE_STEP_NAME).when(pipelineTask).getPipelineStepName();
         doReturn(new UnitOfWork(BRIEF_STATE)).when(pipelineTask).getUnitOfWork();
         doReturn(CREATED).when(pipelineTask).getCreated();
 
@@ -71,7 +70,7 @@ public class PipelineTaskDataTest {
         pipelineTaskData.setTotalSubtaskCount(TOTAL_SUBTASK_COUNT);
         pipelineTaskData.setFailureCount(FAILURE_COUNT);
         pipelineTaskMetrics = List
-            .of(new PipelineTaskMetric(MODULE_NAME, RUNNING_SUBTASK_COUNT, Units.RATE));
+            .of(new PipelineTaskMetric(PIPELINE_STEP_NAME, RUNNING_SUBTASK_COUNT, Units.RATE));
         pipelineTaskData.setPipelineTaskMetrics(pipelineTaskMetrics);
         RemoteJob remoteJob = new RemoteJob(1);
         remoteJob.setCostEstimate(42.0);
@@ -107,8 +106,8 @@ public class PipelineTaskDataTest {
     }
 
     @Test
-    public void testGetModuleName() {
-        assertEquals(MODULE_NAME, pipelineTaskDisplayData.getModuleName());
+    public void testGetPipelineStepName() {
+        assertEquals(PIPELINE_STEP_NAME, pipelineTaskDisplayData.getPipelineStepName());
     }
 
     @Test
@@ -203,12 +202,6 @@ public class PipelineTaskDataTest {
     }
 
     @Test
-    public void testAlgorithmType() {
-        pipelineTaskData.setAlgorithmType(AlgorithmType.REMOTE);
-        assertEquals(AlgorithmType.REMOTE, pipelineTaskData.getAlgorithmType());
-    }
-
-    @Test
     public void testTaskLogIndex() {
         pipelineTaskData.setTaskLogIndex(42);
         assertEquals(42, pipelineTaskData.getTaskLogIndex());
@@ -273,8 +266,8 @@ public class PipelineTaskDataTest {
     @Test
     public void testToFullString() {
         assertEquals(
-            "PipelineTaskDisplayData: pipelineTaskId=" + PIPELINE_TASK_ID + ", moduleName="
-                + MODULE_NAME + ", briefState=" + BRIEF_STATE,
+            "PipelineTaskDisplayData: pipelineTaskId=" + PIPELINE_TASK_ID + ", pipelineStepName="
+                + PIPELINE_STEP_NAME + ", briefState=" + BRIEF_STATE,
             pipelineTaskDisplayData.toFullString());
     }
 

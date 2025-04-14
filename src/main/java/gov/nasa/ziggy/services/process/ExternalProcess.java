@@ -27,13 +27,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.os.ProcessUtils;
@@ -591,7 +591,7 @@ public class ExternalProcess {
             ZiggyShutdownHook.addShutdownHook(() -> {
                 pool.shutdown();
                 childProcessIds.addAll(childProcessIdsPreviousCall);
-                log.debug("Sending SIGTERM to child processes");
+                log.debug("Sending SIGTERM to child processes...");
                 for (Long processId : childProcessIds) {
                     log.debug("Sending SIGTERM to PID {}", processId);
                     ProcessUtils.sendSigtermToProcess(processId);

@@ -9,7 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.SubtaskUtils;
+import gov.nasa.ziggy.pipeline.step.subtask.SubtaskUtils;
 
 /**
  * Subclass of {@link LogOutputStream} used in the context of a {@link PumpStreamHandler} to capture

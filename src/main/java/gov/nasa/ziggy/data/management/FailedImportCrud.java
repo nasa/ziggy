@@ -34,8 +34,9 @@ public class FailedImportCrud extends AbstractCrud<FailedImport> {
     public List<FailedImport> retrieveForInstance(long pipelineInstanceId) {
 
         // Start with task IDs
-        List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForModuleAndInstance(
-            DataReceiptPipelineModule.DATA_RECEIPT_MODULE_NAME, pipelineInstanceId);
+        List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForPipelineStepAndInstance(
+            DataReceiptPipelineStepExecutor.DATA_RECEIPT_PIPELINE_STEP_EXECUTOR_NAME,
+            pipelineInstanceId);
         Set<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toSet());
         ZiggyQuery<FailedImport, FailedImport> query = createZiggyQuery(FailedImport.class);
         query.column(FailedImport_.dataReceiptTaskId).in(taskIds).distinct(true);

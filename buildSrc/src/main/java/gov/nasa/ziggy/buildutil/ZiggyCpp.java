@@ -101,7 +101,7 @@ public class ZiggyCpp extends DefaultTask {
      */
     public ZiggyCpp() {
         Project project = getProject();
-        ziggyCppPojo.setBuildDir(project.getBuildDir());
+        ziggyCppPojo.setBuildDir(project.getLayout().getBuildDirectory().getAsFile().get());
         ziggyCppPojo.setRootDir(pipelineRootDir(project));
         if (project.hasProperty(DEFAULT_CPP_COMPILE_OPTIONS_GRADLE_PROPERTY)) {
             ziggyCppPojo.setcppCompileOptions(ZiggyCppPojo.gradlePropertyToList(

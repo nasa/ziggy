@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.FilenameUtils;
 
 import gov.nasa.ziggy.data.management.Manifest.ManifestEntry;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
@@ -28,6 +27,7 @@ import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.xml.bind.annotation.XmlAccessType;

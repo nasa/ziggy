@@ -59,7 +59,7 @@ Summarizing what we see:
 - A `set-1` directory and a `set-2` directory. The `set-2` directory layout mirrors the layout of `set-1`; take a look if you don't believe me, I didn't bother to expand set-2 in the interest of not taking up too much space.
 - Within `set-1` we see a directory `L0` with some PNG files in it, a directory `L1` with some PNG files, and then `L2A`, `L2B`, and `L3` directories which contain additional PNG files.
 
-Where did all this come from? Let's take a look again at part of the `pt-sample.xml` file:
+Where did all this come from? Let's take a look again at part of the `sample-pipeline.xml` file:
 
 ```xml
   <!-- The raw data. this is in the L0 subdir of the dataset
@@ -103,7 +103,7 @@ You can use this mechanism to specify that filenames have version numbers in the
 
 ### The Task Directory
 
-When Ziggy runs algorithm code, it doesn't the algorithm direct access to files in the datastore. Instead, each pipeline task gets its own directory, known as the "task directory" (clever!).
+When Ziggy runs algorithm code, it doesn't give the algorithm direct access to files in the datastore. Instead, each pipeline task gets its own directory, known as the "task directory" (clever!).
 
 To find the task directory, look first to the pipeline results location in the properties file:
 
@@ -111,7 +111,7 @@ To find the task directory, look first to the pipeline results location in the p
 ziggy.pipeline.results.dir=${ziggy.pipeline.home.dir}/pipeline-results
 ```
 
-The pipeline-results directory contains a number of subdirectories. First, let's look at task-data:
+The pipeline-results directory contains a number of subdirectories. First, let's look at `task-data`:
 
 ```
 task-data$ ls
@@ -120,34 +120,29 @@ task-data$ ls
 task-data$
 ```
 
-Every pipeline task has its own directory. The name of a task's directory is the instance number, the task number, and the module name, separated by hyphens. If we drill down into `1-2-permuter`, we see this:
+Every pipeline task has its own directory. The name of a task's directory is the instance number, the task number, and the node's name, separated by hyphens. If we drill down into `1-2-permuter`, we see this:
 
 ```console
-1-2-permuter$ ls -R
-ARRIVE_PFE.1667003280019        QUEUED_PBS.1667003279236    st-1
-PBS_JOB_FINISH.1667003320029    permuter-inputs.h5          st-2
-PBS_JOB_START.1667003280021     st-0                        st-3
+$ ls -R
+ARRIVE_COMPUTE_NODES.1741891715793	START.1741891715795			st-2
+FINISH.1741891725262			st-0					st-3
+QUEUED.1741891725290			st-1
 
 1-2-permuter/st-0:
-SUB_TASK_FINISH.1667003287519    nasa_logo-file-0.perm.png    permuter-inputs.h5
-sample-model.txt
-SUB_TASK_START.1667003280036     nasa_logo-file-0.png         permuter-stdout.log
+SUBTASK_FINISH.1741891722786	nasa-logo-file-1.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
+SUBTASK_START.1741891715803	nasa-logo-file-1.png		sample-model.txt
 
 1-2-permuter/st-1:
-SUB_TASK_FINISH.1667003294982    nasa_logo-file-1.perm.png    permuter-inputs.h5
-sample-model.txt
-SUB_TASK_START.1667003287523     nasa_logo-file-1.png         permuter-stdout.log
+SUBTASK_FINISH.1741891723716	nasa-logo-file-0.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
+SUBTASK_START.1741891722787	nasa-logo-file-0.png		sample-model.txt
 
 1-2-permuter/st-2:
-SUB_TASK_FINISH.1667003302619    nasa_logo-file-2.perm.png    permuter-inputs.h5
-sample-model.txt
-SUB_TASK_START.1667003294987     nasa_logo-file-2.png         permuter-stdout.log
+SUBTASK_FINISH.1741891724532	nasa-logo-file-3.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
+SUBTASK_START.1741891723716	nasa-logo-file-3.png		sample-model.txt
 
 1-2-permuter/st-3:
-SUB_TASK_FINISH.1667003310303    nasa_logo-file-3.perm.png    permuter-inputs.h5
-sample-model.txt
-SUB_TASK_START.1667003302623     nasa_logo-file-3.png         permuter-stdout.log
-1-2-permuter$
+SUBTASK_FINISH.1741891725261	nasa-logo-file-2.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
+SUBTASK_START.1741891724533	nasa-logo-file-2.png		sample-model.txt
 ```
 
 At the top level there's some stuff we're not going to talk about now. What's interesting is the contents of the subtask directory, st-0:

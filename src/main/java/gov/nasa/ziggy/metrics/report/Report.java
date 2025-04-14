@@ -257,9 +257,9 @@ public abstract class Report {
         CategoryPlot plot = (CategoryPlot) chart.getPlot();
         StackedBarRenderer renderer = (StackedBarRenderer) plot.getRenderer(); // new
                                                                                // StackedBarRenderer();
-        renderer.setBaseItemLabelsVisible(true);
-        renderer.setBaseItemLabelGenerator(new StandardCategoryItemLabelGenerator());
-        renderer.setBaseToolTipGenerator(new StandardCategoryToolTipGenerator());
+        renderer.setDefaultItemLabelsVisible(true);
+        renderer.setDefaultItemLabelGenerator(new StandardCategoryItemLabelGenerator());
+        renderer.setDefaultToolTipGenerator(new StandardCategoryToolTipGenerator());
         plot.setRenderer(renderer);
 
         renderer.setDrawBarOutline(true);
@@ -267,11 +267,11 @@ public abstract class Report {
         return chart;
     }
 
-    protected JFreeChart generatePieChart(String title, PieDataset dataset) {
+    protected JFreeChart generatePieChart(String title, PieDataset<?> dataset) {
         JFreeChart chart = ChartFactory.createPieChart(title, dataset, true, // include legend
             true, false);
 
-        PiePlot plot = (PiePlot) chart.getPlot();
+        PiePlot<?> plot = (PiePlot<?>) chart.getPlot();
         StandardPieSectionLabelGenerator labelGenerator = new StandardPieSectionLabelGenerator(
             "{2}");
         plot.setLabelGenerator(labelGenerator);

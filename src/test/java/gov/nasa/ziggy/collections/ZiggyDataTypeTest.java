@@ -23,10 +23,10 @@ import java.util.List;
 
 import org.junit.Test;
 
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.module.hdf5.EnumTest;
-import gov.nasa.ziggy.module.hdf5.PersistableSample1;
-import gov.nasa.ziggy.module.hdf5.PersistableSample2;
+import gov.nasa.ziggy.pipeline.step.hdf5.EnumTest;
+import gov.nasa.ziggy.pipeline.step.hdf5.PersistableSample1;
+import gov.nasa.ziggy.pipeline.step.hdf5.PersistableSample2;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Unit tests for the {@link ZiggyDataType} class.
@@ -233,10 +233,10 @@ public class ZiggyDataTypeTest {
         assertEquals("java.lang.Float", truncatedName);
         PersistableSample1[][] pTest1Array2 = new PersistableSample1[5][5];
         truncatedName = truncateClassName(pTest1Array2.getClass().getName());
-        assertEquals("gov.nasa.ziggy.module.hdf5.PersistableSample1", truncatedName);
+        assertEquals("gov.nasa.ziggy.pipeline.step.hdf5.PersistableSample1", truncatedName);
         EnumTest[] testEnumArray1 = new EnumTest[5];
         truncatedName = truncateClassName(testEnumArray1.getClass().getName());
-        assertEquals("gov.nasa.ziggy.module.hdf5.EnumTest", truncatedName);
+        assertEquals("gov.nasa.ziggy.pipeline.step.hdf5.EnumTest", truncatedName);
     }
 
     @Test

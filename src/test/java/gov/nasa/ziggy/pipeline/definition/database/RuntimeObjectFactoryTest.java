@@ -25,12 +25,12 @@ import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -43,15 +43,15 @@ import gov.nasa.ziggy.uow.UnitOfWork;
 public class RuntimeObjectFactoryTest {
 
     private RuntimeObjectFactory factory;
-    private PipelineDefinition pipelineDefinition;
+    private Pipeline pipeline;
     private PipelineInstance pipelineInstance;
     private PipelineInstanceNode pipelineInstanceNode;
-    private PipelineDefinitionNode definitionNode, definitionNode4;
+    private PipelineNode pipelineNode, pipelineNode4;
     private TestOperations testOperations;
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations;
     private PipelineInstanceOperations pipelineInstanceOperations;
     private ParametersOperations parametersOperations;
-    private List<PipelineDefinitionNode> pipelineDefinitionNodes;
+    private List<PipelineNode> pipelineNodes;
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
@@ -79,96 +79,96 @@ public class RuntimeObjectFactoryTest {
 
     @Test
     public void testCreateInstanceNodes() {
-        setUpFourModulePipeline();
-        List<PipelineInstanceNode> createdInstanceNodes = factory.newInstanceNodes(
-            pipelineDefinition, pipelineInstance, List.of(definitionNode), definitionNode4);
+        setUpFourNodePipeline();
+        List<PipelineInstanceNode> createdInstanceNodes = factory.newInstanceNodes(pipeline,
+            pipelineInstance, List.of(pipelineNode), pipelineNode4);
         PipelineInstanceNode createdInstanceNode = createdInstanceNodes.get(0);
-        assertEquals("module1", createdInstanceNode.getModuleName());
+        assertEquals("step1", createdInstanceNode.getPipelineStepName());
         assertEquals(1, createdInstanceNodes.size());
         for (PipelineInstanceNode node : createdInstanceNodes) {
-            assertEquals("pipeline1", node.getPipelineDefinitionNode().getPipelineName());
+            assertEquals("pipeline1", node.getPipelineNode().getPipelineName());
             assertEquals(1L,
                 pipelineInstanceNodeOperations.pipelineInstance(node).getId().longValue());
         }
         createdInstanceNodes = testOperations.allInstanceNodes();
         Map<String, PipelineInstanceNode> instanceNodesByName = new HashMap<>();
         for (PipelineInstanceNode instanceNode : createdInstanceNodes) {
-            instanceNodesByName.put(instanceNode.getModuleName(), instanceNode);
+            instanceNodesByName.put(instanceNode.getPipelineStepName(), instanceNode);
         }
-        assertNotNull(instanceNodesByName.get("module1"));
-        assertNotNull(instanceNodesByName.get("module2"));
-        assertNotNull(instanceNodesByName.get("module3"));
-        assertNotNull(instanceNodesByName.get("module4"));
+        assertNotNull(instanceNodesByName.get("step1"));
+        assertNotNull(instanceNodesByName.get("step2"));
+        assertNotNull(instanceNodesByName.get("step3"));
+        assertNotNull(instanceNodesByName.get("step4"));
         assertEquals(4, instanceNodesByName.size());
 
-        assertEquals(pipelineDefinitionNodes.get(0).getId().longValue(),
-            instanceNodesByName.get("module1").getPipelineDefinitionNode().getId().longValue());
+        assertEquals(pipelineNodes.get(0).getId().longValue(),
+            instanceNodesByName.get("step1").getPipelineNode().getId().longValue());
 
         List<PipelineInstanceNode> nextNodes = pipelineInstanceNodeOperations
             .nextPipelineInstanceNodes(createdInstanceNodes.get(0).getId());
         PipelineInstanceNode nextNode = nextNodes.get(0);
-        assertEquals(pipelineDefinitionNodes.get(1).getId().longValue(),
-            nextNode.getPipelineDefinitionNode().getId().longValue());
-        assertEquals("module2", nextNode.getModuleName());
+        assertEquals(pipelineNodes.get(1).getId().longValue(),
+            nextNode.getPipelineNode().getId().longValue());
+        assertEquals("step2", nextNode.getPipelineStepName());
         assertEquals(1, nextNodes.size());
 
         nextNodes = pipelineInstanceNodeOperations
-            .nextPipelineInstanceNodes(instanceNodesByName.get("module2").getId());
+            .nextPipelineInstanceNodes(instanceNodesByName.get("step2").getId());
         nextNode = nextNodes.get(0);
-        assertEquals(pipelineDefinitionNodes.get(2).getId().longValue(),
-            nextNode.getPipelineDefinitionNode().getId().longValue());
-        assertEquals("module3", nextNode.getModuleName());
+        assertEquals(pipelineNodes.get(2).getId().longValue(),
+            nextNode.getPipelineNode().getId().longValue());
+        assertEquals("step3", nextNode.getPipelineStepName());
         assertEquals(1, nextNodes.size());
 
         nextNodes = pipelineInstanceNodeOperations
-            .nextPipelineInstanceNodes(instanceNodesByName.get("module3").getId());
+            .nextPipelineInstanceNodes(instanceNodesByName.get("step3").getId());
         nextNode = nextNodes.get(0);
-        assertEquals(pipelineDefinitionNodes.get(3).getId().longValue(),
-            nextNode.getPipelineDefinitionNode().getId().longValue());
-        assertEquals("module4", nextNode.getModuleName());
+        assertEquals(pipelineNodes.get(3).getId().longValue(),
+            nextNode.getPipelineNode().getId().longValue());
+        assertEquals("step4", nextNode.getPipelineStepName());
         assertEquals(1, nextNodes.size());
 
         nextNodes = pipelineInstanceNodeOperations
-            .nextPipelineInstanceNodes(instanceNodesByName.get("module4").getId());
+            .nextPipelineInstanceNodes(instanceNodesByName.get("step4").getId());
         assertTrue(CollectionUtils.isEmpty(nextNodes));
     }
 
-    private void setUpFourModulePipeline() {
+    private void setUpFourNodePipeline() {
         PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
-        testUtils.setUpFourModulePipeline();
-        pipelineDefinitionNodes = testUtils.getPipelineDefinitionNodes();
-        definitionNode = pipelineDefinitionNodes.get(0);
-        definitionNode4 = pipelineDefinitionNodes.get(3);
+        testUtils.setUpFourNodePipeline();
+        pipelineNodes = testUtils.getPipelineNodes();
+        pipelineNode = pipelineNodes.get(0);
+        pipelineNode4 = pipelineNodes.get(3);
         pipelineInstance = testUtils.pipelineInstance();
-        pipelineDefinition = testUtils.pipelineDefinition();
+        pipeline = testUtils.pipeline();
     }
 
     @Test
     public void testNewPipelineInstance() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         ModelRegistry modelRegistry = new ModelOperations().unlockedRegistry();
-        PipelineInstance newPipelineInstance = factory.newPipelineInstance("test",
-            pipelineDefinition, modelRegistry);
+        PipelineInstance newPipelineInstance = factory.newPipelineInstance("test", pipeline,
+            modelRegistry);
         assertEquals(2L, newPipelineInstance.getId().longValue());
         assertEquals("test", newPipelineInstance.getName());
-        assertEquals("pipeline1", newPipelineInstance.getPipelineDefinition().getName());
+        assertEquals("pipeline1", newPipelineInstance.getPipeline().getName());
         assertEquals(PipelineInstance.State.PROCESSING, newPipelineInstance.getState());
     }
 
-    private void setUpSingleModulePipeline() {
+    private void setUpSingleNodePipeline() {
         PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
-        testUtils.setUpSingleModulePipeline();
-        pipelineDefinition = testUtils.pipelineDefinition();
-        definitionNode = testUtils.pipelineDefinitionNode();
+        testUtils.setUpSingleNodePipeline();
+        pipeline = testUtils.pipeline();
+        pipelineNode = testUtils.pipelineNode();
         pipelineInstance = testUtils.pipelineInstance();
         pipelineInstanceNode = testUtils.pipelineInstanceNode();
     }
 
     @Test
     public void testNewPipelineTasks() {
-        setUpSingleModulePipeline();
-        PipelineDefinitionNodeExecutionResources resources = new PipelineDefinitionNodeExecutionResources(
-            pipelineDefinition.getName(), definitionNode.getModuleName());
+        setUpSingleNodePipeline();
+        PipelineNodeExecutionResources resources = new PipelineNodeExecutionResources(
+            pipeline.getName(), pipelineNode.getPipelineStepName());
         resources.setMaxFailedSubtaskCount(5);
         resources.setMaxAutoResubmits(2);
         testOperations.persist(resources);
@@ -189,7 +189,7 @@ public class RuntimeObjectFactoryTest {
         PipelineTask pipelineTask = pipelineTasksById.get(3L);
         assertNotNull(pipelineTask);
         assertEquals(pipelineInstance.getId().longValue(), pipelineTask.getPipelineInstanceId());
-        assertEquals(definitionNode.getModuleName(), pipelineTask.getModuleName());
+        assertEquals(pipelineNode.getPipelineStepName(), pipelineTask.getPipelineStepName());
         UnitOfWork taskUow = pipelineTask.getUnitOfWork();
         Set<Parameter> parameters = taskUow.getParameters();
         assertFalse(CollectionUtils.isEmpty(parameters));
@@ -201,7 +201,7 @@ public class RuntimeObjectFactoryTest {
         pipelineTask = pipelineTasksById.get(4L);
         assertNotNull(pipelineTask);
         assertEquals(pipelineInstance.getId().longValue(), pipelineTask.getPipelineInstanceId());
-        assertEquals(definitionNode.getModuleName(), pipelineTask.getModuleName());
+        assertEquals(pipelineNode.getPipelineStepName(), pipelineTask.getPipelineStepName());
         taskUow = pipelineTask.getUnitOfWork();
         parameters = taskUow.getParameters();
         assertFalse(CollectionUtils.isEmpty(parameters));
@@ -217,7 +217,7 @@ public class RuntimeObjectFactoryTest {
 
     @Test
     public void testPipelineInstanceParameterBinding() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         ParameterSet parameter1 = new ParameterSet();
         parameter1.setName("parameter1");
         ParameterSet parameter2 = new ParameterSet();
@@ -228,8 +228,8 @@ public class RuntimeObjectFactoryTest {
         Mockito.doReturn(realParametersOperations)
             .when(pipelineInstanceOperations)
             .parametersOperations();
-        PipelineInstance pipelineInstance = factory.newPipelineInstance("partest",
-            pipelineDefinition, modelRegistry);
+        PipelineInstance pipelineInstance = factory.newPipelineInstance("partest", pipeline,
+            modelRegistry);
         assertEquals(2, pipelineInstance.getParameterSets().size());
         Set<ParameterSet> parameterSets = pipelineInstanceOperations
             .parameterSets(pipelineInstance);
@@ -242,7 +242,7 @@ public class RuntimeObjectFactoryTest {
 
     @Test
     public void testPipelineInstanceNodeParameterBinding() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         ParameterSet parameter3 = new ParameterSet();
         parameter3.setName("parameter3");
         ParameterSet parameter4 = new ParameterSet();
@@ -252,8 +252,8 @@ public class RuntimeObjectFactoryTest {
         Mockito.doReturn(realParametersOperations)
             .when(pipelineInstanceNodeOperations)
             .parametersOperations();
-        List<PipelineInstanceNode> pipelineInstanceNodes = factory.newInstanceNodes(
-            pipelineDefinition, pipelineInstance, List.of(definitionNode), definitionNode);
+        List<PipelineInstanceNode> pipelineInstanceNodes = factory.newInstanceNodes(pipeline,
+            pipelineInstance, List.of(pipelineNode), pipelineNode);
         PipelineInstanceNode pipelineInstanceNode = pipelineInstanceNodes.get(0);
         assertEquals(2, pipelineInstanceNode.getParameterSets().size());
         Set<ParameterSet> parameterSets = pipelineInstanceNodeOperations
@@ -273,8 +273,8 @@ public class RuntimeObjectFactoryTest {
                 () -> new PipelineInstanceNodeCrud().retrieveAll(pipelineInstance));
         }
 
-        public void persist(PipelineDefinitionNodeExecutionResources resources) {
-            performTransaction(() -> new PipelineDefinitionNodeCrud().persist(resources));
+        public void persist(PipelineNodeExecutionResources resources) {
+            performTransaction(() -> new PipelineNodeCrud().persist(resources));
         }
 
         public List<PipelineTask> pipelineTasks(PipelineInstanceNode pipelineInstanceNode) {

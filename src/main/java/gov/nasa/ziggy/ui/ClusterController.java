@@ -36,13 +36,8 @@ package gov.nasa.ziggy.ui;
 
 import static gov.nasa.ziggy.supervisor.PipelineSupervisor.supervisorCommand;
 
-import java.io.File;
-import java.io.FilenameFilter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,12 +53,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineImportOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
-import gov.nasa.ziggy.pipeline.xml.ParameterImportExportOperations;
-import gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli.ParamIoMode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionImporter;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -73,6 +65,7 @@ import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.BuildInfo;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
@@ -132,11 +125,8 @@ public class ClusterController {
     private static final String NAME = "ClusterController";
 
     // Parameters related to cluster initialization
-    private static final String PARAM_LIBRARY_PREFIX = "pl-";
-    private static final String TYPE_FILE_PREFIX = "pt-";
-    private static final String PIPELINE_DEF_FILE_PREFIX = "pd-";
-    private static final String EVENT_HANDLER_DEF_FILE_PREFIX = "pe-";
     private static final String XML_SUFFIX = ".xml";
+    private static final String PIPELINE_DEFINITION_FILE_REGEXP = "\\S+\\" + XML_SUFFIX;
 
     // Parameters related to the supervisor process
     private static final int WORKER_HEAP_SIZE_DEFAULT = 16000;
@@ -179,9 +169,7 @@ public class ClusterController {
     private final int workerHeapSize;
     private final int workerCount;
 
-    private final PipelineImportOperations pipelineImportOperations = new PipelineImportOperations();
-    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
-    private final ParameterImportExportOperations parameterImportExportOperations = new ParameterImportExportOperations();
+    private final PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
 
     public ClusterController(int workerHeapSize, int workerCount) {
         databaseController = DatabaseController.newInstance();
@@ -319,116 +307,86 @@ public class ClusterController {
 
         if (databaseController != null) {
             if (databaseController.isSystemDatabase()) {
-                log.info("Deleting contents of existing database");
+                log.info("Deleting contents of existing database...");
                 databaseController.dropDatabase();
                 log.info("Deleting contents of existing database...done");
             } else {
-                log.info("Deleting existing database directory {}",
+                log.info("Deleting existing database directory {}...",
                     DirectoryProperties.databaseDir());
                 ZiggyFileUtils.deleteDirectoryTree(DirectoryProperties.databaseDir(), true);
                 log.info("Deleting existing database directory...done");
             }
         }
 
-        log.info("Deleting existing datastore directory");
+        log.info("Deleting existing datastore directory...");
         ZiggyFileUtils.deleteDirectoryTree(DirectoryProperties.datastoreRootDir(), true);
         log.info("Deleting existing datastore directory...done");
 
         if (databaseController != null) {
-            log.info("Creating database");
+            log.info("Creating database...");
             databaseController.createDatabase();
             log.info("Creating database...done");
         }
 
-        log.info("Creating datastore directory");
+        log.info("Creating datastore directory...");
         if (!DirectoryProperties.datastoreRootDir().toFile().mkdirs()) {
             throw new PipelineException(
                 "Unable to create directory defined by " + PropertyName.DATASTORE_ROOT_DIR);
         }
         log.info("Creating datastore directory...done");
 
-        int dbStartRetCode = databaseController != null ? databaseController.start()
-            : DatabaseController.NOT_SUPPORTED;
-        if (dbStartRetCode == DatabaseController.NOT_SUPPORTED) {
-            log.info("Database should be available");
-        } else if (dbStartRetCode != 0) {
-            throw new PipelineException("Unable to start initialized database");
+        try {
+            int dbStartRetCode = databaseController != null ? databaseController.start()
+                : DatabaseController.NOT_SUPPORTED;
+            if (dbStartRetCode == DatabaseController.NOT_SUPPORTED) {
+                log.info("Database should be available");
+            } else if (dbStartRetCode != 0) {
+                throw new PipelineException("Unable to start initialized database");
+            }
+
+            log.info("Creating utility pipeline steps...");
+            createUtilityPipelineSteps();
+            log.info("Creating utility pipeline steps...done");
+
+            // Import the parameters, data types, and pipelines.
+            importPipelineDefinitions(DirectoryProperties.ziggyDefinitionDir());
+            importPipelineDefinitions(DirectoryProperties.pipelineDefinitionDir());
+        } finally {
+            if (databaseController != null) {
+                databaseController.stop();
+            }
         }
-
-        log.info("Creating utility pipeline modules...");
-        createUtilityPipelineModules();
-        log.info("Creating utility pipeline modules...done");
-
-        // Import the parameters, data types, and pipelines.
-        Path pipelineDefsDir = DirectoryProperties.pipelineDefinitionDir();
-        if (!Files.exists(pipelineDefsDir)) {
-            throw new PipelineException(
-                "Pipeline definitions directory " + pipelineDefsDir.toString() + " does not exist");
-        }
-
-        log.info("Importing parameter libraries from directory {}", pipelineDefsDir.toString());
-        File[] parameterFiles = pipelineDefsDir.toFile()
-            .listFiles((FilenameFilter) (dir,
-                name) -> (name.startsWith(PARAM_LIBRARY_PREFIX) && name.endsWith(XML_SUFFIX)));
-        Arrays.sort(parameterFiles, Comparator.comparing(File::getName));
-
-        log.info("Importing datastore configuration from directory {}", pipelineDefsDir.toString());
-        File[] dataTypeFiles = pipelineDefsDir.toFile()
-            .listFiles((FilenameFilter) (dir,
-                name) -> (name.startsWith(TYPE_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));
-        Arrays.sort(dataTypeFiles, Comparator.comparing(File::getName));
-        List<String> dataTypeFileNames = new ArrayList<>(dataTypeFiles.length);
-        for (File dataTypeFile : dataTypeFiles) {
-            log.info("Adding {} to imports list", dataTypeFile.getName());
-            dataTypeFileNames.add(dataTypeFile.getAbsolutePath());
-        }
-
-        log.info("Importing pipeline definitions from directory {}", pipelineDefsDir.toString());
-        File[] pipelineDefinitionFiles = pipelineDefsDir.toFile()
-            .listFiles((FilenameFilter) (dir,
-                name) -> (name.startsWith(PIPELINE_DEF_FILE_PREFIX) && name.endsWith(XML_SUFFIX)));
-        Arrays.sort(pipelineDefinitionFiles, Comparator.comparing(File::getName));
-        List<File> pipelineDefFileList = new ArrayList<>();
-        for (File pipelineDefinitionFile : pipelineDefinitionFiles) {
-            log.info("Adding {} to imports list", pipelineDefinitionFile.getName());
-            pipelineDefFileList.add(pipelineDefinitionFile);
-        }
-
-        log.info("Importing event definitions from directory {}", pipelineDefsDir.toString());
-        File[] handlerDefinitionFiles = pipelineDefsDir.toFile()
-            .listFiles(
-                (FilenameFilter) (dir, name) -> (name.startsWith(EVENT_HANDLER_DEF_FILE_PREFIX)
-                    && name.endsWith(XML_SUFFIX)));
-        Arrays.sort(handlerDefinitionFiles, Comparator.comparing(File::getName));
-
-        for (File parameterFile : parameterFiles) {
-            log.info("Importing library {}", parameterFile.getName());
-            parametersImportExportOperations().importParameterLibrary(parameterFile, null,
-                ParamIoMode.STANDARD);
-        }
-
-        log.info("Persisting cluster definitions to database...");
-        pipelineImportOperations().importClusterDefinitions(parameterFiles, dataTypeFileNames,
-            pipelineDefFileList, handlerDefinitionFiles, databaseController);
-        log.info("Persisting cluster definitions to database...done");
 
         log.info("Database initialization and creation complete");
         System.out.println("Cluster initialized");
     }
 
-    /**
-     * Creates instances of {@link PipelineModuleDefinition} for pipeline modules that perform
-     * utility functions for data analysis pipelines. This allows users to implement pipelines that
-     * use the utility pipeline modules without having to define them explicitly themselves. At the
-     * moment, the only such is the data receipt module, which imports data and models into the
-     * datastore.
-     */
-    private void createUtilityPipelineModules() {
-        pipelineModuleDefinitionOperations().createDataReceiptPipelineModule();
-    }
-
     private boolean isInitialized() {
         return Files.exists(DirectoryProperties.datastoreRootDir());
+    }
+
+    /**
+     * Creates instances of {@link PipelineStep} for pipeline steps that perform utility functions
+     * for data analysis pipelines. This allows users to implement pipelines that use the utility
+     * pipeline steps without having to define them explicitly themselves. At the moment, the only
+     * such step is the data receipt step, which imports data and models into the datastore.
+     */
+    private void createUtilityPipelineSteps() {
+        pipelineStepOperations().createDataReceiptPipelineStep();
+    }
+
+    private void importPipelineDefinitions(Path pipelineDefinitionsDir) {
+        log.info("Importing pipeline definitions from directory {}...",
+            pipelineDefinitionsDir.toString());
+        if (!Files.exists(pipelineDefinitionsDir)) {
+            throw new PipelineException("Pipeline definitions directory "
+                + pipelineDefinitionsDir.toString() + " does not exist");
+        }
+        new PipelineDefinitionImporter(
+            ZiggyFileUtils.listFiles(pipelineDefinitionsDir, PIPELINE_DEFINITION_FILE_REGEXP))
+                .importPipelineDefinitions();
+        log.info("Importing pipeline definitions from directory {}...done",
+            pipelineDefinitionsDir.toString());
     }
 
     private boolean isClusterRunning() {
@@ -578,16 +536,8 @@ public class ClusterController {
         ExternalProcess.simpleExternalProcess(consoleCommand).execute(false);
     }
 
-    private PipelineImportOperations pipelineImportOperations() {
-        return pipelineImportOperations;
-    }
-
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
-        return pipelineModuleDefinitionOperations;
-    }
-
-    private ParameterImportExportOperations parametersImportExportOperations() {
-        return parameterImportExportOperations;
+    private PipelineStepOperations pipelineStepOperations() {
+        return pipelineStepOperations;
     }
 
     private static void usageAndExit(Options options, String message) {

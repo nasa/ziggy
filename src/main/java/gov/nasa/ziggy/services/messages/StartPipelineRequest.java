@@ -1,17 +1,17 @@
 package gov.nasa.ziggy.services.messages;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 
 /**
  * A request to start a given pipeline. The request can include a start and end node, and can
- * include repetition parameters (i.e., the trigger can automatically re-fire after some period of
+ * include repetition parameters (i.e., the pipeline can automatically start after some period of
  * time).
  *
  * @author PT
  */
 public class StartPipelineRequest extends PipelineMessage {
 
-    private static final long serialVersionUID = 20230511L;
+    private static final long serialVersionUID = 20250307L;
 
     private final String pipelineName;
     private final String instanceName;
@@ -30,13 +30,12 @@ public class StartPipelineRequest extends PipelineMessage {
         this.repeatIntervalSeconds = repeatIntervalSeconds;
     }
 
-    public StartPipelineRequest(String pipelineName, String instanceName,
-        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode, int maxRepeats,
-        int repeatIntervalSeconds) {
+    public StartPipelineRequest(String pipelineName, String instanceName, PipelineNode startNode,
+        PipelineNode endNode, int maxRepeats, int repeatIntervalSeconds) {
         this.pipelineName = pipelineName;
         this.instanceName = instanceName;
-        startNodeName = startNode != null ? startNode.getModuleName() : null;
-        endNodeName = endNode != null ? endNode.getModuleName() : null;
+        startNodeName = startNode != null ? startNode.getPipelineStepName() : null;
+        endNodeName = endNode != null ? endNode.getPipelineStepName() : null;
         this.maxRepeats = maxRepeats;
         this.repeatIntervalSeconds = repeatIntervalSeconds;
     }

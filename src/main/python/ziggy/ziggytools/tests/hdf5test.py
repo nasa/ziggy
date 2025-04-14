@@ -1,5 +1,5 @@
 '''
-hdf5moduleinterface_test : unit tests for the Hdf5ModuleInterface class.  
+hdf5algorithminterface_test : unit tests for the Hdf5AlgorithmInterface class.
 Created on Oct 5, 2020
 
 @author: PT
@@ -8,13 +8,13 @@ import unittest
 import tempfile
 import os
 import numpy as np
-from ..hdf5 import Hdf5ModuleInterface
+from ..hdf5 import Hdf5AlgorithmInterface
 
-class Hdf5ModuleInterfaceTest(unittest.TestCase):
+class Hdf5AlgorithmInterfaceTest(unittest.TestCase):
 
     def setUp(self):
         self._temporary_directory = tempfile.TemporaryDirectory()
-        self.h = Hdf5ModuleInterface()
+        self.h = Hdf5AlgorithmInterface()
         self.hdf5_file_name = os.path.join(self._temporary_directory.name, "test-file.h5")
         pass
 
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
     
-# end of Hdf5ModuleInterfaceTest class
+# end of Hdf5AlgorithmInterfaceTest class
 
 '''
 Returns a simple dictionary with 2 entries, each of which is a 

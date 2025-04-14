@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 import org.junit.Test;
 
-import gov.nasa.ziggy.module.io.ProxyIgnore;
+import gov.nasa.ziggy.util.io.ProxyIgnore;
 
 public class ReflectionUtilsTest {
 

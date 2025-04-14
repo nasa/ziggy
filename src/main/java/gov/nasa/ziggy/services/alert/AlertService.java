@@ -8,7 +8,6 @@ import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -19,6 +18,7 @@ import gov.nasa.ziggy.services.process.AbstractPipelineProcess;
 import gov.nasa.ziggy.services.process.ProcessInfo;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Alert service implementation.

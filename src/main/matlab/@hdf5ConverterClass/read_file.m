@@ -1,10 +1,10 @@
 function dataStruct = read_file( object, filename, structName )
 %
-% read_file -- read a module interface HDF5-formatted file into a MATLAB struct
+% read_file -- read a algorithm interface HDF5-formatted file into a MATLAB struct
 %
 % dataStruct = hdf5ConverterObject.read_file( filename ) reads the HDF5 file specified by
 %    filename into a MATLAB struct. The HDF5 file has to conform to the standards for
-%    module interface files, see hdf5ConverterClass help for details.
+%    algorithm interface files, see hdf5ConverterClass help for details.
 %
 % data = hdf5ConverterObject.read_file( filename, structName ) searches for a particular
 %    sub-structure in the HDF5 file, and returns it if found. The structName has to be

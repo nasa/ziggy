@@ -11,7 +11,6 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
-import gov.nasa.ziggy.module.AlgorithmType;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.util.HostNameUtils;
@@ -109,10 +108,6 @@ public class PipelineTaskData implements Comparable<PipelineTaskData> {
 
     /** Count of the number of automatic resubmits performed for this task. */
     private int autoResubmitCount;
-
-    /** Indicates whether the task has been submitted for remote execution. */
-    @Enumerated(EnumType.STRING)
-    private AlgorithmType algorithmType;
 
     private int taskLogIndex;
 
@@ -274,14 +269,6 @@ public class PipelineTaskData implements Comparable<PipelineTaskData> {
 
     public void resetAutoResubmitCount() {
         autoResubmitCount = 0;
-    }
-
-    public AlgorithmType getAlgorithmType() {
-        return algorithmType;
-    }
-
-    public void setAlgorithmType(AlgorithmType mode) {
-        algorithmType = mode;
     }
 
     public void setTaskLogIndex(int taskLogIndex) {

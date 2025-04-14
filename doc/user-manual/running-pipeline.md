@@ -23,23 +23,18 @@ You can see the full set of nicknames by running the ziggy command with no argum
 ```console
 $ ziggy
 NICKNAME                 CLASS NAME
-cluster                  gov.nasa.ziggy.ui.ClusterController
-compute-node-master      gov.nasa.ziggy.module.ComputeNodeMaster
-console                  gov.nasa.ziggy.ui.ZiggyConsole
-dump-system-properties   gov.nasa.ziggy.services.config.DumpSystemProperties
-execsql                  gov.nasa.ziggy.services.database.SqlRunner
-export-parameters        gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli
-export-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
-generate-build-info      gov.nasa.ziggy.util.BuildInfo
-generate-manifest        gov.nasa.ziggy.data.management.Manifest
-hsqlgui                  org.hsqldb.util.DatabaseManagerSwing
-import-datastore-config  gov.nasa.ziggy.data.management.DatastoreConfigurationImporter
-import-events            gov.nasa.ziggy.services.events.ZiggyEventHandlerDefinitionImporter
-import-parameters        gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli
-import-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
-metrics                  gov.nasa.ziggy.metrics.report.MetricsCli
-perf-report              gov.nasa.ziggy.metrics.report.PerformanceReport
-update-pipelines         gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
+cluster                 gov.nasa.ziggy.ui.ClusterController
+compute-node-master     gov.nasa.ziggy.pipeline.step.ComputeNodeMaster
+console                 gov.nasa.ziggy.ui.ZiggyConsole
+dump-system-properties  gov.nasa.ziggy.services.config.DumpSystemProperties
+export-pipelines        gov.nasa.ziggy.pipeline.definition.PipelineDefinitionCli
+generate-build-info     gov.nasa.ziggy.util.BuildInfo
+generate-manifest       gov.nasa.ziggy.data.management.Manifest
+hsqlgui                 org.hsqldb.util.DatabaseManagerSwing
+import-pipelines        gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionCli
+metrics                 gov.nasa.ziggy.metrics.report.MetricsCli
+perf-report             gov.nasa.ziggy.metrics.report.PerformanceReport
+update-pipelines        gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionCli
 $ 
 ```
 
@@ -83,7 +78,7 @@ The first thing you need to do is to initialize the cluster (hence the name).
 
 Cluster initialization is something you only do once per cluster. It populates the database with Ziggy's standard tables; sets up the datastore directories; and reads in the pipeline configuration from the XML files.
 
-The command `ziggy cluster init` causes the initialization to occur. When you do this, after a few seconds you'll either have a nice spew of logging that ends with the message:
+The command `ziggy cluster init` causes the initialization to occur. When you do this, after a few seconds you'll either see the message:
 
 `Cluster initialized`
 
@@ -94,7 +89,7 @@ Once you've initialized the cluster, Ziggy will prevent you from doing so again:
 ```
 $ ziggy cluster init
 [ClusterController.usageAndExit] Failed to initialize cluster
-gov.nasa.ziggy.module.PipelineException: Cannot re-initialize an initialized cluster without --force option
+gov.nasa.ziggy.pipeline.step.PipelineException: Cannot re-initialize an initialized cluster without --force option
         at gov.nasa.ziggy.ui.ClusterController.initializeCluster(ClusterController.java:317) [ziggy-0.5.0.jar:?]
         at gov.nasa.ziggy.ui.ClusterController.main(ClusterController.java:277) [ziggy-0.5.0.jar:?]
 $
@@ -108,9 +103,19 @@ That said: if your cluster initialization fails because of a problem in the XML,
 
 If the failure was in the import of the contents of the pipeline-defining XML files, there's an alternative to using `ziggy cluster init`. Specifically, you can use other ziggy commands that import the XML files without performing initialization.
 
-If you look at the list of ziggy nicknames in the top screen shot, there are 3 that will be helpful here: `import-parameters`, `import-datastore-config`, and `import-pipelines`. These do what they say: import the parameter library, data type definition, and pipeline definition files, respectively.
+If you look at the list of ziggy nicknames in the top screen shot, there are 2 that will be helpful here: `import-pipelines` and `update-pipelines`. The `import-pipelines` command will attempt to import whatever XML files you provide on its command line. The `update-pipelines` command will attempt to update the pipeline definition. 
 
-Important note: if you decide to manually import the XML files, **you must do so in the order shown above:** parameters, then data types, then the pipeline definitions. This is because some items can't import correctly unless other items that they depend upon have already been pulled in.
+##### Import versus Update
+
+What's the difference between an import and an update? The difference comes down to what each one does if it sees an entry in the XML file that already exists in the database. 
+
+The `import-pipelines` command will only attempt to import genuinely new pipeline definition elements. If it sees something in the XML that already exists in the database, it will ignore that something. The `update-pipelines` will import any genuinely new elements, and will also import elements that are already defined in the database. 
+
+The thing about update-pipelines is that, if there are elements in the XML files that already exist in the database, the versions that are in the database will be replaced by the versions in the XML. Hence this is a potentially destructive action in that it might replace versions of pipelines, etc., that you like, with versions you don't. The `import-pipelines` command is guaranteed not to do this. 
+
+##### All or Nothing Imports
+
+It is worth noting here that imports or udpates of the pipeline definitions are all-or-nothing: If you have 10 XML files that define your pipelines, and 1 out of 10 can't be imported due to errors, nothing in any of those 10 files will be saved to the database. This means that if you get a Java stack trace from one of your import files failing, and you fix it, you have to rerun the import for all the files. 
 
 #### Cluster Start and Cluster Status
 
@@ -153,7 +158,7 @@ Excellent question! To answer it, we first need to understand why this sort of i
 
 The most likely way for this to happen is if you have algorithms that have significantly different resource requirements, in particular RAM requirements. Imagine that you have a server with 256 GB of RAM, and on this you need to run an algorithm that needs 16 GB per process and another that needs 10 GB per process. This means that you can run 25 processes at a time for the algorithm that needs 10 GB each, but only 16 processes at a time for the one that needs 16 GB each. If you set the number of workers to 16, then you're not taking full advantage of your server's capacity when running the leaner algorithm (i.e., you're forcing it to take longer than it should); if you set it to 25, the more memory-intensive algorithm will run out of RAM and will start to use "virtual memory" (i.e., it will get extremely slow). 
 
-If this is your situation, you're in luck, because Ziggy allows you to assign a different max worker value for each module in a pipeline. To see how this is done, take a look at [the article on the Edit Pipeline Dialog](edit-pipeline.md). If you decide to use this per-module worker setting, then the value you set via the methods described above acts as a default: it's used by any pipeline module that doesn't have its own max worker setting.
+If this is your situation, you're in luck, because Ziggy allows you to assign a different max worker value for each node in a pipeline. To see how this is done, take a look at [the article on the Edit Pipeline Dialog](edit-pipeline.md). If you decide to use this per-node worker setting, then the value you set via the methods described above acts as a default: it's used by any pipeline node that doesn't have its own max worker setting.
 
 #### Cluster console
 

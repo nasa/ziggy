@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datastoreConfiguration>
-
-  <dataFileType name="TCE"
-                location="sector/mda/dr/cal/pixels" 
-                fileNameRegexp="cadenceType/channel/tce.h5"
-                includeAllFilesInAllSubtasks="true"/>
-
-</datastoreConfiguration>

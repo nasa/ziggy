@@ -52,13 +52,13 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * @author Todd Klaus
@@ -102,7 +102,7 @@ public class PerformanceReport {
                 "Unable to create directory " + outputPath.getParent().toString(), e);
         }
 
-        log.info("Writing report to {}", outputPath.toString());
+        log.info("Writing report to {}...", outputPath.toString());
 
         PdfRenderer pdfRenderer = new PdfRenderer(outputPath.toFile(), false);
 
@@ -155,7 +155,7 @@ public class PerformanceReport {
     }
 
     private void generateNodeReport(PdfRenderer pdfRenderer, PipelineInstanceNode node) {
-        String moduleName = node.getModuleName();
+        String pipelineStepName = node.getPipelineStepName();
 
         NodeReport nodeReport = new NodeReport(pdfRenderer);
         nodeReport.generateReport(node);
@@ -164,8 +164,8 @@ public class PerformanceReport {
 
         if (taskFilesDir != null) {
             // generate matlab report
-            MatlabReport matlabReport = new MatlabReport(pdfRenderer, taskFilesDir, moduleName,
-                instanceId);
+            MatlabReport matlabReport = new MatlabReport(pdfRenderer, taskFilesDir,
+                pipelineStepName, instanceId);
             matlabReport.generateReport();
         } else {
             pdfRenderer.printText(
@@ -186,7 +186,7 @@ public class PerformanceReport {
 
             boolean isTime = nodeReport.categoryIsTime(category);
             CategoryReport categoryReport = new CategoryReport(category, pdfRenderer, isTime);
-            categoryReport.generateReport(moduleName, categoryStats.get(category),
+            categoryReport.generateReport(pipelineStepName, categoryStats.get(category),
                 topTen.get(category));
         }
     }

@@ -2,42 +2,37 @@
 <Configuration>
 
   <Properties>
-    <Property name="pattern">%d %-5p [%t:%C{1}.%M] %X{logStreamIdentifier} %m%n</Property>
-    <Property name="filename">${sys:ziggy.logFile:-/dev/null}</Property>
-    <Property name="algorithmFilesNeverRoll">1000 TB</Property>
-
-    <!-- TODO
-         1. Rename ziggy.logFile to ziggy.logFile.prefix when we introduce alternate files like ziggy-err.log.
-         2. When we introduce a prefix, consider an alternative to /dev/null such as "ziggy"
-         since /dev/null.log is bound to cause trouble.
-    -->
+    <Property name="standardPattern">%d %-5p [%t:%C{1}.%M] %X{logStreamIdentifier} %m%n</Property>
+    <Property name="algorithmPattern">%d %-5p [${sys:ziggy.algorithm.name}:stdout] %X{logStreamIdentifier} %m%n</Property>
+    <Property name="singleFilename">${sys:ziggy.log.single.file:-/dev/null}</Property>
+    <Property name="rollingFilename">${sys:ziggy.log.rolling.file:-/dev/null}</Property>
+    <Property name="appender">${sys:ziggy.log.appender:-rollingFile}</Property>
   </Properties>
 
   <Appenders>
+
     <!-- The name of the console appender must match the value of TaskLog.CONSOLE_APPENDER_NAME. -->
     <Console name="console">
       <PatternLayout pattern="[%C{1}.%M] %m%n"/>
     </Console>
 
-    <!-- The name of the file appender must match the value of TaskLog.FILE_APPENDER_NAME. -->
-    <RollingFile name="file" fileName="${filename}" filePattern="${filename}.%i.gz">
-      <Select>
-        <SystemPropertyArbiter propertyName="ziggy.algorithmName">
-          <PatternLayout pattern="${pattern}"/>
-          <SizeBasedTriggeringPolicy size="${algorithmFilesNeverRoll}"/>
-        </SystemPropertyArbiter>
-        <DefaultArbiter>
-          <PatternLayout pattern="${pattern}"/>
-          <SizeBasedTriggeringPolicy size="10 MB"/>
-          <DefaultRolloverStrategy max="4" fileIndex="min" />
-        </DefaultArbiter>
-      </Select>
+    <!-- The name of the rolling file appender must match the value of TaskLog.ROLLING_FILE_APPENDER_NAME. -->
+    <RollingFile name="rollingFile" fileName="${rollingFilename}" filePattern="${rollingFilename}.%i.gz">
+      <PatternLayout pattern="${standardPattern}"/>
+      <SizeBasedTriggeringPolicy size="10 MB"/>
+      <DefaultRolloverStrategy max="4" fileIndex="min" />
     </RollingFile>
 
-    <RollingFile name="algorithm" fileName="${filename}" filePattern="${filename}.%i.gz">
-      <PatternLayout pattern="%d %-5p [${sys:ziggy.algorithmName}:stdout] %X{logStreamIdentifier} %m%n"/>
-      <SizeBasedTriggeringPolicy size="${algorithmFilesNeverRoll}"/>
-    </RollingFile>
+    <!-- The name of the algorithm appender must match the value of TaskLog.SINGLE_FILE_APPENDER_NAME. -->
+    <File name="singleFile" fileName="${singleFilename}">
+      <PatternLayout pattern="${standardPattern}"/>
+    </File>
+
+    <File name="algorithm" fileName="${singleFilename}">
+      <PatternLayout pattern="${algorithmPattern}"/>
+    </File>
+
+    <Null name="null" />
 
   </Appenders>
 
@@ -71,7 +66,7 @@
     
     <Root level="info">
       <AppenderRef ref="console" level="error"/>
-      <AppenderRef ref="file"/>
+      <AppenderRef ref="${appender}" />
     </Root>
     
   </Loggers>

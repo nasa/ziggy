@@ -10,15 +10,15 @@ import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance_;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.metamodel.SetAttribute;
@@ -77,37 +77,40 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     }
 
     /**
-     * Convenience method that generates a query for getting the tasks for a given named module
+     * Convenience method that generates a query for getting the tasks for a given named pipeline
+     * step.
      *
-     * @param moduleName name of the module
-     * @return {@link ZiggyQuery} for retrieving all tasks for the requested module name.
+     * @param pipelineStepName name of the pipeline step
+     * @return {@link ZiggyQuery} for retrieving all tasks for the requested pipeline step
      */
-    public ZiggyQuery<PipelineTask, PipelineTask> createModuleNameCriteria(String moduleName) {
+    public ZiggyQuery<PipelineTask, PipelineTask> createPipelineStepNameCriteria(
+        String pipelineStepName) {
         ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.moduleName).in(moduleName);
+        query.column(PipelineTask_.pipelineStepName).in(pipelineStepName);
         return query;
     }
 
     /**
-     * Retrieve all {@link PipelineTask}s for the specified module name.
+     * Retrieve all {@link PipelineTask}s for the specified pipeline step name.
      *
-     * @param moduleName the name of the module for which to find tasks
-     * @return a list of tasks for that module
+     * @param pipelineStep the name of the pipeline step for which to find tasks
+     * @return a list of tasks for that pipeline step
      */
-    public List<PipelineTask> retrieveAllForModule(String moduleName) {
-        ZiggyQuery<PipelineTask, PipelineTask> query = createModuleNameCriteria(moduleName);
+    public List<PipelineTask> retrieveAllForPipelineStep(String pipelineStep) {
+        ZiggyQuery<PipelineTask, PipelineTask> query = createPipelineStepNameCriteria(pipelineStep);
         query.column(PipelineTask_.created).ascendingOrder();
         return list(query);
     }
 
     /**
-     * Retrieve the latest {@link PipelineTask} for the specified module name.
+     * Retrieve the latest {@link PipelineTask} for the specified pipeline step name.
      *
-     * @param moduleName the name of the module for which to find tasks
-     * @return the latest task, or null if no tasks exist for the module name
+     * @param pipelineStepName the name of the pipeline step for which to find tasks
+     * @return the latest task, or null if no tasks exist for the pipeline step name
      */
-    public PipelineTask retrieveLatestForModule(String moduleName) {
-        ZiggyQuery<PipelineTask, PipelineTask> query = createModuleNameCriteria(moduleName);
+    public PipelineTask retrieveLatestForPipelineStep(String pipelineStepName) {
+        ZiggyQuery<PipelineTask, PipelineTask> query = createPipelineStepNameCriteria(
+            pipelineStepName);
         query.column(PipelineTask_.id).descendingOrder();
 
         List<PipelineTask> tasks = list(query);
@@ -115,28 +118,28 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
     }
 
     /**
-     * Return the pipeline tasks for a given instance and given module name
+     * Return the pipeline tasks for a given instance and given pipeline step name
      *
-     * @param moduleName name of desired module
+     * @param pipelineStepName name of desired pipeline step
      * @param instanceId number of desired instance
-     * @return list of pipeline tasks, or null if no tasks with that instance and module name
+     * @return list of pipeline tasks, or null if no tasks with that instance and pipeline step name
      */
-    public List<PipelineTask> retrieveTasksForModuleAndInstance(String moduleName,
+    public List<PipelineTask> retrieveTasksForPipelineStepAndInstance(String pipelineStepName,
         long instanceId) {
-        ZiggyQuery<PipelineTask, PipelineTask> query = createModuleNameCriteria(moduleName);
+        ZiggyQuery<PipelineTask, PipelineTask> query = createPipelineStepNameCriteria(
+            pipelineStepName);
         query.column(PipelineTask_.pipelineInstanceId).in(instanceId);
         return list(query);
     }
 
     /**
-     * Retrieve all {@link PipelineTask}s that have a specific {@link PipelineDefinitionNode}.
+     * Retrieve all {@link PipelineTask}s that have a specific {@link PipelineNode}.
      */
-    public List<PipelineTask> retrieveTasksForPipelineDefinitionNode(
-        PipelineDefinitionNode pipelineDefinitionNode) {
+    public List<PipelineTask> retrieveTasksForPipelineNode(PipelineNode pipelineNode) {
 
         ZiggyQuery<PipelineInstanceNode, PipelineTask> query = createZiggyQuery(
             PipelineInstanceNode.class, PipelineTask.class);
-        query.column(PipelineInstanceNode_.pipelineDefinitionNode).in(pipelineDefinitionNode);
+        query.column(PipelineInstanceNode_.pipelineNode).in(pipelineNode);
         query.column(PipelineInstanceNode_.pipelineTasks).select();
         return list(query);
     }
@@ -194,59 +197,56 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
         return uniqueResult(query);
     }
 
-    public PipelineDefinitionNode retrievePipelineDefinitionNode(PipelineTask pipelineTask) {
-        return retrievePipelineInstanceNode(pipelineTask).getPipelineDefinitionNode();
+    public PipelineNode retrievePipelineNode(PipelineTask pipelineTask) {
+        return retrievePipelineInstanceNode(pipelineTask).getPipelineNode();
     }
 
     public Set<DataFileType> retrieveInputDataFileTypes(PipelineTask pipelineTask) {
-        return definitionNodeSetQuery(PipelineDefinitionNode_.inputDataFileTypes,
-            DataFileType.class, pipelineTask);
+        return pipelineNodeSetQuery(PipelineNode_.inputDataFileTypes, DataFileType.class,
+            pipelineTask);
     }
 
     /**
-     * Query for a {@link Set} field in the {@link PipelineDefinitionNode} instance associated with
-     * a specific {@link PipelineTask}.
+     * Query for a {@link Set} field in the {@link PipelineNode} instance associated with a specific
+     * {@link PipelineTask}.
      */
-    private <T> Set<T> definitionNodeSetQuery(SetAttribute<PipelineDefinitionNode, T> setAttribute,
+    private <T> Set<T> pipelineNodeSetQuery(SetAttribute<PipelineNode, T> setAttribute,
         Class<T> clazz, PipelineTask pipelineTask) {
 
         // The main query is to retrieve the data file types from the
-        // PipelineDefinitionNode.
-        ZiggyQuery<PipelineDefinitionNode, T> query = createZiggyQuery(PipelineDefinitionNode.class,
-            clazz);
+        // PipelineNode.
+        ZiggyQuery<PipelineNode, T> query = createZiggyQuery(PipelineNode.class, clazz);
         query.column(setAttribute).select();
 
-        // Use a subquery to find the PipelineDefinitionNode for the given PipelineTask.
-        query.column(PipelineDefinitionNode_.id)
-            .in(pipelineDefinitionNodeIdQuery(query, pipelineTask));
+        // Use a subquery to find the PipelineNode for the given PipelineTask.
+        query.column(PipelineNode_.id).in(pipelineNodeIdQuery(query, pipelineTask));
         return new HashSet<>(list(query));
     }
 
     /**
-     * Creates a subquery that retrieves the ID of the {@link PipelineDefinitionNode} from the
+     * Creates a subquery that retrieves the ID of the {@link PipelineNode} from the
      * {@link PipelineInstanceNode} that includes a specified {@link PipelineTask}.
      */
-    private ZiggyQuery<PipelineInstanceNode, Long> pipelineDefinitionNodeIdQuery(
-        ZiggyQuery<PipelineDefinitionNode, ?> parentQuery, PipelineTask pipelineTask) {
-        // The subquery finds the PipelineDefinitionNode ID that goes with the
+    private ZiggyQuery<PipelineInstanceNode, Long> pipelineNodeIdQuery(
+        ZiggyQuery<PipelineNode, ?> parentQuery, PipelineTask pipelineTask) {
+        // The subquery finds the PipelineNode ID that goes with the
         // PipelineTask.
-        ZiggyQuery<PipelineInstanceNode, Long> definitionNodeIdQuery = parentQuery
+        ZiggyQuery<PipelineInstanceNode, Long> pipelineNodeIdQuery = parentQuery
             .ziggySubquery(PipelineInstanceNode.class, Long.class);
-        definitionNodeIdQuery.column(PipelineInstanceNode_.pipelineTasks).contains(pipelineTask);
-        definitionNodeIdQuery.select(definitionNodeIdQuery.getRoot()
-            .get(PipelineInstanceNode_.pipelineDefinitionNode)
-            .get(PipelineDefinitionNode_.id));
-        return definitionNodeIdQuery;
+        pipelineNodeIdQuery.column(PipelineInstanceNode_.pipelineTasks).contains(pipelineTask);
+        pipelineNodeIdQuery.select(pipelineNodeIdQuery.getRoot()
+            .get(PipelineInstanceNode_.pipelineNode)
+            .get(PipelineNode_.id));
+        return pipelineNodeIdQuery;
     }
 
     public Set<DataFileType> retrieveOutputDataFileTypes(PipelineTask pipelineTask) {
-        return definitionNodeSetQuery(PipelineDefinitionNode_.outputDataFileTypes,
-            DataFileType.class, pipelineTask);
+        return pipelineNodeSetQuery(PipelineNode_.outputDataFileTypes, DataFileType.class,
+            pipelineTask);
     }
 
     public Set<ModelType> retrieveModelTypes(PipelineTask pipelineTask) {
-        return definitionNodeSetQuery(PipelineDefinitionNode_.modelTypes, ModelType.class,
-            pipelineTask);
+        return pipelineNodeSetQuery(PipelineNode_.modelTypes, ModelType.class, pipelineTask);
     }
 
     public PipelineInstance retrievePipelineInstance(long pipelineTaskId) {
@@ -260,7 +260,7 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
             .contains(retrievePipelineInstanceNode(pipelineTask)));
     }
 
-    public PipelineModuleDefinition retrievePipelineModuleDefinition(PipelineTask pipelineTask) {
-        return retrievePipelineInstanceNode(pipelineTask).getPipelineModuleDefinition();
+    public PipelineStep retrievePipelineStep(PipelineTask pipelineTask) {
+        return retrievePipelineInstanceNode(pipelineTask).getPipelineStep();
     }
 }

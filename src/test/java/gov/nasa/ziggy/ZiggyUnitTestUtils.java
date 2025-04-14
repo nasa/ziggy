@@ -6,11 +6,11 @@ import java.util.Collection;
 
 import org.hibernate.Hibernate;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 
 /**
  * General utilities for unit and integration tests.
@@ -42,30 +42,29 @@ public class ZiggyUnitTestUtils {
         Hibernate.initialize(node.getPipelineTasks());
     }
 
-    // Initialization for database items that define the pipelines: pipeline definitions,
-    // pipeline module definitions, pipeline definition nodes
-    public static void initializePipelineDefinition(PipelineDefinition pipelineDefinition) {
-        Hibernate.initialize(pipelineDefinition.getRootNodes());
-        initializePipelineDefinitionNodes(pipelineDefinition.getRootNodes());
+    // Initialization for database items that define the pipelines: pipeline steps, pipelines,
+    // pipeline nodes
+    public static void initializePipeline(Pipeline pipeline) {
+        Hibernate.initialize(pipeline.getRootNodes());
+        initializePipelineNodes(pipeline.getRootNodes());
     }
 
-    public static void initializePipelineDefinitionNodes(Collection<PipelineDefinitionNode> nodes) {
+    public static void initializePipelineNodes(Collection<PipelineNode> nodes) {
         if (nodes != null && !nodes.isEmpty()) {
-            for (PipelineDefinitionNode node : nodes) {
-                initializePipelineDefinitionNode(node);
+            for (PipelineNode node : nodes) {
+                initializePipelineNode(node);
             }
         }
     }
 
-    public static void initializePipelineDefinitionNode(PipelineDefinitionNode node) {
+    public static void initializePipelineNode(PipelineNode node) {
         Hibernate.initialize(node.getInputDataFileTypes());
         Hibernate.initialize(node.getOutputDataFileTypes());
         Hibernate.initialize(node.getModelTypes());
         Hibernate.initialize(node.getNextNodes());
-        initializePipelineDefinitionNodes(node.getNextNodes());
+        initializePipelineNodes(node.getNextNodes());
     }
 
-    public static void initializePipelineModuleDefinition(
-        PipelineModuleDefinition moduleDefinition) {
+    public static void initializePipelineStep(PipelineStep pipelineStep) {
     }
 }

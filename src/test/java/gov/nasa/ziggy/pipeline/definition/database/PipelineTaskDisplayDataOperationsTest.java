@@ -28,7 +28,7 @@ public class PipelineTaskDisplayDataOperationsTest {
         pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
         pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
-        pipelineOperationsTestUtils.setUpSingleModulePipeline();
+        pipelineOperationsTestUtils.setUpSingleNodePipeline();
     }
 
     @Test

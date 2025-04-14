@@ -4,13 +4,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.ModuleFatalProcessingException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
+import gov.nasa.ziggy.pipeline.step.FatalAlgorithmProcessingException;
 import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -41,10 +41,10 @@ public class PipelineInstanceManager {
      */
     private static int CHECK_AGAIN_INTERVAL_MINUTES = 15;
 
-    private PipelineDefinition pipeline;
+    private Pipeline pipeline;
     private String instanceName;
-    private PipelineDefinitionNode startNode;
-    private PipelineDefinitionNode endNode;
+    private PipelineNode startNode;
+    private PipelineNode endNode;
     private int maxRepeats;
     private long repeatIntervalMillis;
 
@@ -55,7 +55,7 @@ public class PipelineInstanceManager {
 
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private PipelineExecutor pipelineExecutor = new PipelineExecutor();
-    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private PipelineOperations pipelineOperations = new PipelineOperations();
 
     /**
      * Provided with package scope to facilitate testing. This is used when creating a Mockito spy
@@ -64,39 +64,39 @@ public class PipelineInstanceManager {
     PipelineInstanceManager() {
     }
 
-    public PipelineInstanceManager(StartPipelineRequest triggerRequest) {
-        initialize(triggerRequest);
+    public PipelineInstanceManager(StartPipelineRequest startPipelineRequest) {
+        initialize(startPipelineRequest);
     }
 
     /**
      * Provided with package scope to facilitate testing.
      */
-    void initialize(StartPipelineRequest triggerRequest) {
-        instanceName = triggerRequest.getInstanceName();
-        maxRepeats = triggerRequest.getMaxRepeats();
+    void initialize(StartPipelineRequest startPipelineRequest) {
+        instanceName = startPipelineRequest.getInstanceName();
+        maxRepeats = startPipelineRequest.getMaxRepeats();
         if (maxRepeats < 0) {
             maxRepeats = Integer.MAX_VALUE;
         }
-        String startNodeName = triggerRequest.getStartNodeName();
-        String endNodeName = triggerRequest.getEndNodeName();
+        String startNodeName = startPipelineRequest.getStartNodeName();
+        String endNodeName = startPipelineRequest.getEndNodeName();
         log.info("start node is {}, end node is {}",
             StringUtils.isBlank(startNodeName) ? "not set" : startNodeName,
             StringUtils.isBlank(endNodeName) ? "not set" : endNodeName);
-        repeatIntervalMillis = triggerRequest.getRepeatIntervalSeconds() * 1000;
-        pipeline = pipelineDefinitionOperations()
-            .lockAndReturnLatestPipelineDefinition(triggerRequest.getPipelineName());
-        startNode = pipelineDefinitionOperations().pipelineDefinitionNodeByName(pipeline,
-            triggerRequest.getStartNodeName());
-        endNode = pipelineDefinitionOperations().pipelineDefinitionNodeByName(pipeline,
-            triggerRequest.getEndNodeName());
+        repeatIntervalMillis = startPipelineRequest.getRepeatIntervalSeconds() * 1000;
+        pipeline = pipelineOperations()
+            .lockAndReturnLatestPipeline(startPipelineRequest.getPipelineName());
+        startNode = pipelineOperations().pipelineNodeByName(pipeline,
+            startPipelineRequest.getStartNodeName());
+        endNode = pipelineOperations().pipelineNodeByName(pipeline,
+            startPipelineRequest.getEndNodeName());
     }
 
     /**
-     * Fires the trigger for the given pipeline. If repetitions are requested, they are also managed
-     * by this method.
+     * Starts the given pipeline. If repetitions are requested, they are also managed by this
+     * method.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    public void fireTrigger() {
+    public void startPipeline() {
 
         while (repeats < maxRepeats) {
 
@@ -127,12 +127,12 @@ public class PipelineInstanceManager {
             if (repeats++ < maxRepeats - 1) {
                 try {
                     if (!waitAndCheckStatus()) {
-                        throw new ModuleFatalProcessingException(
+                        throw new FatalAlgorithmProcessingException(
                             "Unable to start pipeline repeat " + repeats
                                 + " due to errored status of pipeline repeat " + (repeats - 1));
                     }
                 } catch (InterruptedException e) {
-                    throw new ModuleFatalProcessingException(
+                    throw new FatalAlgorithmProcessingException(
                         "Unable to start pipeline repeat " + repeats
                             + " due to InterruptedException during pipeline repeat" + (repeats - 1),
                         e);
@@ -209,7 +209,7 @@ public class PipelineInstanceManager {
     }
 
     // getters
-    public PipelineDefinition getPipeline() {
+    public Pipeline getPipeline() {
         return pipeline;
     }
 
@@ -217,11 +217,11 @@ public class PipelineInstanceManager {
         return instanceName;
     }
 
-    public PipelineDefinitionNode getStartNode() {
+    public PipelineNode getStartNode() {
         return startNode;
     }
 
-    public PipelineDefinitionNode getEndNode() {
+    public PipelineNode getEndNode() {
         return endNode;
     }
 
@@ -253,8 +253,8 @@ public class PipelineInstanceManager {
         return pipelineExecutor;
     }
 
-    PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
     long keepAliveLogMsgIntervalMillis() {

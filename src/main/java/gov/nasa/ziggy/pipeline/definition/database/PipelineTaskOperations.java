@@ -12,25 +12,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.data.datastore.DataFileType;
-import gov.nasa.ziggy.module.AlgorithmExecutor;
-import gov.nasa.ziggy.module.AlgorithmType;
-import gov.nasa.ziggy.module.remote.RemoteExecutor;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.RemoteJob;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
+import gov.nasa.ziggy.pipeline.step.remote.RemoteAlgorithmExecutor;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
-import gov.nasa.ziggy.util.AcceptableCatchBlock;
-import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
@@ -48,7 +45,7 @@ public class PipelineTaskOperations extends DatabaseOperations {
     private PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
     private PipelineTaskDataCrud pipelineTaskDataCrud = new PipelineTaskDataCrud();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
-    private PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
+    private PipelineNodeCrud pipelineNodeCrud = new PipelineNodeCrud();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
 
     /**
@@ -78,14 +75,12 @@ public class PipelineTaskOperations extends DatabaseOperations {
                 // If the task was executing remotely, and it was queued or executing, we can try
                 // to resume monitoring on it -- the jobs may have continued to run while the
                 // supervisor was down.
-                AlgorithmType algorithmType = pipelineTaskDataOperations().algorithmType(task);
-                if (algorithmType != null && algorithmType == AlgorithmType.REMOTE) {
+                if (unfinishedJobs(task)) {
                     ProcessingStep processingStep = pipelineTaskDataCrud()
                         .retrieveProcessingStep(task);
                     if (processingStep == ProcessingStep.QUEUED
                         || processingStep == ProcessingStep.EXECUTING) {
-                        RemoteExecutor remoteExecutor = (RemoteExecutor) AlgorithmExecutor
-                            .newRemoteInstance(task);
+                        RemoteAlgorithmExecutor remoteExecutor = new RemoteAlgorithmExecutor(task);
                         if (remoteExecutor.resumeMonitoring()) {
                             continue;
                         }
@@ -103,17 +98,28 @@ public class PipelineTaskOperations extends DatabaseOperations {
         });
     }
 
-    public WorkerResources workerResourcesForTask(PipelineTask pipelineTask) {
-        return performTransaction(
-            () -> pipelineDefinitionNodeCrud()
-                .retrieveExecutionResources(
-                    pipelineTaskCrud().retrievePipelineDefinitionNode(pipelineTask))
-                .workerResources());
+    private boolean unfinishedJobs(PipelineTask pipelineTask) {
+        Set<RemoteJob> remoteJobs = pipelineTaskDataOperations().remoteJobs(pipelineTask);
+        if (remoteJobs.isEmpty()) {
+            return false;
+        }
+        for (RemoteJob remoteJob : remoteJobs) {
+            if (!remoteJob.isFinished()) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    public PipelineDefinitionNodeExecutionResources executionResources(PipelineTask pipelineTask) {
-        return performTransaction(() -> pipelineDefinitionNodeCrud().retrieveExecutionResources(
-            pipelineTaskCrud().retrievePipelineDefinitionNode(pipelineTask)));
+    public WorkerResources workerResourcesForTask(PipelineTask pipelineTask) {
+        return performTransaction(() -> pipelineNodeCrud()
+            .retrieveExecutionResources(pipelineTaskCrud().retrievePipelineNode(pipelineTask))
+            .workerResources());
+    }
+
+    public PipelineNodeExecutionResources executionResources(PipelineTask pipelineTask) {
+        return performTransaction(() -> pipelineNodeCrud()
+            .retrieveExecutionResources(pipelineTaskCrud().retrievePipelineNode(pipelineTask)));
     }
 
     public ModelRegistry modelRegistry(PipelineTask pipelineTask) {
@@ -156,20 +162,19 @@ public class PipelineTaskOperations extends DatabaseOperations {
             () -> pipelineTaskCrud().retrieveTasksForInstance(pipelineInstance));
     }
 
-    public String pipelineDefinitionName(PipelineTask pipelineTask) {
+    public String pipelineName(PipelineTask pipelineTask) {
         return performTransaction(() -> pipelineTaskCrud().retrievePipelineInstance(pipelineTask)
-            .getPipelineDefinition()
+            .getPipeline()
             .getName());
     }
 
-    public List<PipelineTask> tasksForPipelineDefinitionNode(PipelineTask pipelineTask) {
-        return performTransaction(() -> pipelineTaskCrud().retrieveTasksForPipelineDefinitionNode(
-            pipelineTaskCrud().retrievePipelineDefinitionNode(pipelineTask)));
+    public List<PipelineTask> tasksForPipelineNode(PipelineTask pipelineTask) {
+        return performTransaction(() -> pipelineTaskCrud()
+            .retrieveTasksForPipelineNode(pipelineTaskCrud().retrievePipelineNode(pipelineTask)));
     }
 
-    public PipelineDefinitionNode pipelineDefinitionNode(PipelineTask pipelineTask) {
-        return performTransaction(
-            () -> pipelineTaskCrud().retrievePipelineDefinitionNode(pipelineTask));
+    public PipelineNode pipelineNode(PipelineTask pipelineTask) {
+        return performTransaction(() -> pipelineTaskCrud().retrievePipelineNode(pipelineTask));
     }
 
     public Set<DataFileType> inputDataFileTypes(PipelineTask pipelineTask) {
@@ -205,25 +210,24 @@ public class PipelineTaskOperations extends DatabaseOperations {
             () -> pipelineTaskCrud().retrievePipelineInstance(pipelineTaskId));
     }
 
-    public PipelineModuleDefinition pipelineModuleDefinition(PipelineTask pipelineTask) {
-        return performTransaction(
-            () -> pipelineTaskCrud().retrievePipelineModuleDefinition(pipelineTask));
+    public PipelineStep pipelineStep(PipelineTask pipelineTask) {
+        return performTransaction(() -> pipelineTaskCrud().retrievePipelineStep(pipelineTask));
     }
 
-    public PipelineModule moduleImplementation(PipelineTask pipelineTask) {
-        return moduleImplementation(pipelineTask, RunMode.STANDARD);
+    public PipelineStepExecutor pipelineStepExecutorImplementation(PipelineTask pipelineTask) {
+        return pipelineStepExecutorImplementation(pipelineTask, RunMode.STANDARD);
     }
 
-    @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
-    public PipelineModule moduleImplementation(PipelineTask pipelineTask, RunMode runMode) {
-        ClassWrapper<PipelineModule> moduleWrapper = pipelineModuleDefinition(pipelineTask)
-            .getPipelineModuleClass();
+    public PipelineStepExecutor pipelineStepExecutorImplementation(PipelineTask pipelineTask,
+        RunMode runMode) {
+        ClassWrapper<PipelineStepExecutor> pipelineStepExecutorClassWrapper = pipelineStep(
+            pipelineTask).getPipelineStepExecutorClass();
         try {
-            return moduleWrapper.constructor(PipelineTask.class, RunMode.class)
+            return pipelineStepExecutorClassWrapper.constructor(PipelineTask.class, RunMode.class)
                 .newInstance(pipelineTask, runMode);
         } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
             | InvocationTargetException e) {
-            // Can never occur. The PipelineModule has a constructor that takes PipelineTask
+            // Can never occur. The PipelineStepExecutor has a constructor that takes PipelineTask
             // and RunMode as arguments.
             throw new AssertionError(e);
         }
@@ -234,7 +238,7 @@ public class PipelineTaskOperations extends DatabaseOperations {
         Map<PipelineTask, List<RunMode>> supportedRunModesByPipelineTask = new HashMap<>();
         for (PipelineTask pipelineTask : pipelineTasks) {
             supportedRunModesByPipelineTask.put(pipelineTask,
-                moduleImplementation(pipelineTask).supportedRestartModes());
+                pipelineStepExecutorImplementation(pipelineTask).supportedRestartModes());
         }
         return supportedRunModesByPipelineTask;
     }
@@ -251,6 +255,11 @@ public class PipelineTaskOperations extends DatabaseOperations {
                 pipelineTaskCrud().retrievePipelineInstanceNode(pipelineTask)));
             return parameterSets;
         });
+    }
+
+    public List<PipelineTask> tasksForPipelineNode(PipelineNode pipelineNode) {
+        return performTransaction(
+            () -> pipelineTaskCrud().retrieveTasksForPipelineNode(pipelineNode));
     }
 
     PipelineInstanceCrud pipelineInstanceCrud() {
@@ -273,8 +282,8 @@ public class PipelineTaskOperations extends DatabaseOperations {
         return pipelineTaskDataOperations;
     }
 
-    PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud() {
-        return pipelineDefinitionNodeCrud;
+    PipelineNodeCrud pipelineNodeCrud() {
+        return pipelineNodeCrud;
     }
 
     PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {

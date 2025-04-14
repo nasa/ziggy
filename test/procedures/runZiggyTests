@@ -1,0 +1,239 @@
+#! /bin/bash
+
+# Run through all of Ziggy test procedures.
+
+# Variables
+cmd=`basename $0`
+bin=$(dirname $(readlink -f $0))
+
+runZiggyTestArgs=
+quiet=0
+testAll=1
+
+# Variables for test procedures in alphabetical order.
+testZiggyBuild=0
+testZiggyCli=0
+testZiggyCluster=0
+testZiggyConsole=0
+testZiggyGitHub=0
+testZiggyNas=0
+testZiggyOffNominal=0
+testZiggySamplePipeline=0
+testZiggyUnit=0
+
+usage() {
+    echo "Usage: $cmd [options]"
+    echo "-a|--all                      run all tests (default, unless one or more of the --test* options are chosen)"
+    echo "-h|--help                     this help"
+    echo "-q|--quiet                    proceed without explanation or prompts; in this case interactive tests are not performed"
+    echo "--testZiggyBuild"
+    echo "--testZiggyCli"
+    echo "--testZiggyCluster"
+    echo "--testZiggyConsole"
+    echo "--testZiggyGitHub"
+    echo "--testZiggyNas"
+    echo "--testZiggyOffNominal"
+    echo "--testZiggySamplePipeline"
+    echo "--testZiggyUnit"
+    exit 1
+}
+
+if [ $? != 0 ]; then
+    usage;
+fi
+
+while [ "$#" -gt 1 ]; do
+    case "$1" in
+        -a|--all) testAll=1;;
+        -h|--help) usage;;
+        -q|--quiet) quiet=1;;
+        --testZiggyBuild) testZiggyBuild=1; testAll=0;;
+        --testZiggyCli) testZiggyCli=1; testAll=0;;
+        --testZiggyCluster) testZiggyCluster=1; testAll=0;;
+        --testZiggyConsole) testZiggyConsole=1; testAll=0;;
+        --testZiggyGitHub) testZiggyGitHub=1; testAll=0;;
+        --testZiggyNas) testZiggyNas=1; testAll=0;;
+        --testZiggyOffNominal) testZiggyOffNominal=1; testAll=0;;
+        --testZiggySamplePipeline) testZiggySamplePipeline=1; testAll=0;;
+        --testZiggyUnit) testZiggyUnit=1; testAll=0;;
+        --) shift; break;;
+        *) echo "$1 is not implemented"; usage;;
+    esac
+    shift
+done
+
+if [ $quiet = 1 ]; then
+    runZiggyTestArgs="--non-interactive"
+fi
+
+pause() {
+    echo -ne "\nHit return to continue: "
+    read ans
+}
+
+init() {
+    # Reset all parameters to a known state to try to keep expected outputs consistent.
+    # TODO Add items in Close out sections here
+    return
+}
+
+# Test procedures in alphabetical order.
+testZiggyBuild() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyBuildTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+testZiggyUnit() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyUnitTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+testZiggyCluster() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyClusterTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+testZiggySamplePipeline() {
+    if [ $quiet -eq 0 ]; then
+        cat <<EOF
+1/6. Run sample pipeline.
+EOF
+        pause
+    fi
+
+    $bin/runZiggyTest $runZiggyTestArgs ZiggySamplePipelineTest-01 || exit 1
+
+    if [ $quiet -eq 0 ]; then
+        cat <<EOF
+2/6. Keep up processing. Because this test introduces additional
+tasks, it is run last to avoid slowing down the following tests.
+EOF
+        pause
+    fi
+
+    if [ $quiet -eq 0 ]; then
+        cat <<EOF
+3/6. Override start and stop nodes. This procedure verifies that Ziggy
+can start and stop the pipeline from arbitrary nodes within a defined
+pipeline.
+EOF
+        pause
+    fi
+
+    # $bin/runZiggyTest $runZiggyTestArgs ZiggySamplePipelineTest-03 || exit 1
+
+    if [ $quiet -eq 0 ]; then
+        cat <<EOF
+4/6. Change per pipeline node worker count. This procedure verifies that
+Ziggy can run pipeline node with varying numbers of workers.
+EOF
+        pause
+    fi
+
+    # $bin/runZiggyTest $runZiggyTestArgs ZiggySamplePipelineTest-04 || exit 1
+
+    if [ $quiet -eq 0 ]; then
+        cat <<EOF
+5/6. Run sample pipeline with a system database.
+Run this test outside of $cmd.
+EOF
+        pause
+    fi
+
+    # $bin/runZiggyTest $runZiggyTestArgs ZiggySamplePipelineTest-05 || exit 1
+
+    if [ $quiet -eq 0 ]; then
+        cat <<EOF
+2/6. Keep up processing. This procedure tests the ability of the
+pipeline to restrict processing to data that has not already been
+processed. That is, data should not be reprocessed, but anything
+that's never been touched before should be processed. It also
+exercises event-handler driven data receipt with multiple
+subdirectories of data files, followed by pipeline execution.
+EOF
+        pause
+    fi
+
+    # $bin/runZiggyTest $runZiggyTestArgs ZiggySamplePipelineTest-02 || exit 1
+
+    if [ $quiet -eq 0 ]; then
+        cat <<EOF
+6/6. Endurance test This test ensures that Ziggy can run without
+errors indefinitely.
+Run this test outside of $cmd.
+EOF
+        pause
+    fi
+}
+
+testZiggyCli() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyCliTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+testZiggyConsole() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyConsoleTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+testZiggyNas() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyNasTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+testZiggyOffNominal() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyOffNominalTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+testZiggyGitHub() {
+    if [ $quiet -eq 0 ]; then
+        echo -ne "\nSee ZiggyGitHubTest procedure; hit return to move on to next test: "
+        read ignore
+    fi
+}
+
+init
+
+# Test procedures in order of document.
+if [ $testAll = 1 -o $testZiggyBuild = 1 ]; then
+    testZiggyBuild
+fi
+if [ $testAll = 1 -o $testZiggyUnit = 1 ]; then
+    testZiggyUnit
+fi
+if [ $testAll = 1 -o $testZiggyCluster = 1 ]; then
+    testZiggyCluster
+fi
+if [ $testAll = 1 -o $testZiggySamplePipeline = 1 ]; then
+    testZiggySamplePipeline
+fi
+if [ $testAll = 1 -o $testZiggyCli = 1 ]; then
+    testZiggyCli
+fi
+if [ $testAll = 1 -o $testZiggyConsole = 1 ]; then
+    testZiggyConsole
+fi
+if [ $testAll = 1 -o $testZiggyNas = 1 ]; then
+    testZiggyNas
+fi
+if [ $testAll = 1 -o $testZiggyOffNominal = 1 ]; then
+    testZiggyOffNominal
+fi
+if [ $testAll = 1 -o $testZiggyGitHub = 1 ]; then
+    testZiggyGitHub
+fi

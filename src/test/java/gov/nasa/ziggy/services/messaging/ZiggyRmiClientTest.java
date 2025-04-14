@@ -25,10 +25,10 @@ public class ZiggyRmiClientTest {
     public void testClientStartStop() {
         try {
             ZiggyRmiServer.start();
-            TestEventDetector.detectTestEvent(1000L, () -> ZiggyRmiServer.isInitialized());
+            TestEventDetector.detectTestEvent(1000L, ZiggyRmiServer::isInitialized);
 
             ZiggyRmiClient.start(CLIENT_TYPE);
-            TestEventDetector.detectTestEvent(1000L, () -> ZiggyRmiClient.isInitialized());
+            TestEventDetector.detectTestEvent(1000L, ZiggyRmiClient::isInitialized);
             assertEquals(CLIENT_TYPE, ZiggyRmiClient.getClientType());
 
             ZiggyRmiClient.reset();

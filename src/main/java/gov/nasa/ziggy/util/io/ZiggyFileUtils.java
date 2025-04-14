@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -407,20 +408,37 @@ public class ZiggyFileUtils {
     public static Set<Path> listFiles(Path directory, Collection<Pattern> includePatterns,
         Collection<Pattern> excludePatterns) {
         try (Stream<Path> stream = Files.list(directory)) {
-            Stream<Path> filteredStream = stream;
+
+            Predicate<Path> includeFilter = null;
             if (!CollectionUtils.isEmpty(includePatterns)) {
                 for (Pattern includePattern : includePatterns) {
-                    filteredStream = filteredStream
-                        .filter(s -> includePattern.matcher(s.getFileName().toString()).matches());
+                    Predicate<Path> filter = s -> includePattern.matcher(s.getFileName().toString())
+                        .matches();
+                    includeFilter = includeFilter == null ? filter : includeFilter.or(filter);
                 }
             }
+
+            Predicate<Path> excludeFilter = null;
             if (!CollectionUtils.isEmpty(excludePatterns)) {
                 for (Pattern excludePattern : excludePatterns) {
-                    filteredStream = filteredStream
-                        .filter(s -> !excludePattern.matcher(s.getFileName().toString()).matches());
+                    Predicate<Path> filter = s -> !excludePattern
+                        .matcher(s.getFileName().toString())
+                        .matches();
+                    excludeFilter = excludeFilter == null ? filter : excludeFilter.and(filter);
                 }
             }
-            return filteredStream.collect(Collectors.toSet());
+
+            Predicate<Path> combinedFilter = null;
+            if (includeFilter != null) {
+                combinedFilter = excludeFilter == null ? includeFilter
+                    : includeFilter.and(excludeFilter);
+            } else if (excludeFilter != null) {
+                combinedFilter = excludeFilter;
+            }
+
+            return combinedFilter != null
+                ? stream.filter(combinedFilter).collect(Collectors.toSet())
+                : stream.collect(Collectors.toSet());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

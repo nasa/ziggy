@@ -8,7 +8,6 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.text.DecimalFormat;
 import java.util.List;
 
 import javax.swing.GroupLayout;
@@ -29,6 +28,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperat
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.RealValueFormatter;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
@@ -138,22 +138,7 @@ public class InstanceCostEstimateDialog extends JDialog {
         for (PipelineTaskDisplayData task : pipelineTasksInInstance) {
             totalCost += task.costEstimate();
         }
-        return formatCost(totalCost);
-    }
-
-    private static String formatCost(double cost) {
-        String format;
-        if (cost < 1) {
-            format = "#.####";
-        } else if (cost < 10) {
-            format = "#.###";
-        } else if (cost < 100) {
-            format = "#.##";
-        } else {
-            format = "#.#";
-        }
-
-        return new DecimalFormat(format).format(cost);
+        return RealValueFormatter.costFormatter(totalCost);
     }
 
     private PipelineTaskDataOperations pipelineTaskDataOperations() {
@@ -169,7 +154,7 @@ public class InstanceCostEstimateDialog extends JDialog {
 
         private static final long serialVersionUID = 20240614L;
 
-        private static final String[] COLUMN_NAMES = { "ID", "Module", "UOW", "Status",
+        private static final String[] COLUMN_NAMES = { "ID", "Node", "UOW", "Status",
             "Cost estimate" };
 
         private final List<PipelineTaskDisplayData> pipelineTasks;
@@ -198,10 +183,10 @@ public class InstanceCostEstimateDialog extends JDialog {
             PipelineTaskDisplayData task = pipelineTasks.get(rowIndex);
             return switch (columnIndex) {
                 case 0 -> task.getPipelineTaskId();
-                case 1 -> task.getModuleName();
+                case 1 -> task.getPipelineStepName();
                 case 2 -> task.getBriefState();
                 case 3 -> task.getDisplayProcessingStep();
-                case 4 -> formatCost(task.costEstimate());
+                case 4 -> RealValueFormatter.costFormatter(task.costEstimate());
                 default -> throw new IllegalArgumentException(
                     "Illegal column number: " + columnIndex);
             };

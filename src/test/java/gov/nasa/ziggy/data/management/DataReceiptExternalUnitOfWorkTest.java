@@ -8,8 +8,8 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 
@@ -30,15 +30,15 @@ public class DataReceiptExternalUnitOfWorkTest {
 
     @Test
     public void testExternalUowDefinition() {
-        new PipelineModuleDefinitionOperations().createDataReceiptPipelineModule();
-        PipelineModuleDefinition dataReceiptDefinition = new PipelineModuleDefinitionOperations()
-            .pipelineModuleDefinition("data-receipt");
+        new PipelineStepOperations().createDataReceiptPipelineStep();
+        PipelineStep dataReceiptDefinition = new PipelineStepOperations()
+            .pipelineStep("data-receipt");
         assertNotNull(dataReceiptDefinition);
         assertEquals(TestDataReceiptUowGenerator.class,
             dataReceiptDefinition.getUnitOfWorkGenerator().getClazz());
     }
 
-    private class TestDataReceiptUowGenerator extends DataReceiptUnitOfWorkGenerator {
+    private static class TestDataReceiptUowGenerator extends DataReceiptUnitOfWorkGenerator {
 
     }
 }

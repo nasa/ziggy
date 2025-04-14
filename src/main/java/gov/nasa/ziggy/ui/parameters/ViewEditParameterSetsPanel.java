@@ -30,12 +30,13 @@ import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
 import gov.nasa.ziggy.pipeline.definition.AuditInfo;
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
+import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionExporter;
 import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
-import gov.nasa.ziggy.pipeline.xml.ParameterImportExportOperations;
-import gov.nasa.ziggy.pipeline.xml.ParameterLibraryImportExportCli.ParamIoMode;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionImporter;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineImportOperations;
 import gov.nasa.ziggy.pipeline.xml.ParameterSetDescriptor;
-import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.ParametersChangedMessage;
+import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
@@ -61,7 +62,9 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
 
     private String defaultParamLibImportExportPath;
 
-    private final ParameterImportExportOperations parameterImportExportOperations = new ParameterImportExportOperations();
+    private final ParametersOperations parametersOperations = new ParametersOperations();
+    private final PipelineDefinitionExporter pipelineDefinitionExporter = new PipelineDefinitionExporter();
+    private final PipelineImportOperations pipelineImportOperations = new PipelineImportOperations();
 
     public ViewEditParameterSetsPanel(RowModel rowModel, ZiggyTreeModel<ParameterSet> treeModel) {
         super(rowModel, treeModel, "Name");
@@ -149,16 +152,17 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
             @Override
             protected List<ParameterSetDescriptor> doInBackground() throws Exception {
                 defaultParamLibImportExportPath = fc.getSelectedFile().getAbsolutePath();
-
-                return parameterImportExportOperations().importParameterLibrary(
-                    fc.getSelectedFile().getAbsolutePath(), null, ParamIoMode.DRYRUN);
+                return PipelineDefinitionImporter
+                    .parameterSetDescriptors(List.of(fc.getSelectedFile().toPath()));
             }
 
             @Override
             protected void done() {
                 try {
+                    List<ParameterSetDescriptor> descriptors = get();
                     List<String> excludeList = ImportParamLibDialog.selectParamSet(
-                        SwingUtilities.getWindowAncestor(ViewEditParameterSetsPanel.this), get());
+                        SwingUtilities.getWindowAncestor(ViewEditParameterSetsPanel.this),
+                        descriptors);
 
                     // null means user cancelled.
                     if (excludeList == null) {
@@ -168,8 +172,10 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
                     new SwingWorker<Void, Void>() {
                         @Override
                         protected Void doInBackground() throws Exception {
-                            parameterImportExportOperations().importParameterLibrary(
-                                defaultParamLibImportExportPath, excludeList, ParamIoMode.STANDARD);
+                            List<ParameterSetDescriptor> includedDescriptors = descriptors.stream()
+                                .filter(s -> !excludeList.contains(s.getName()))
+                                .toList();
+                            pipelineImportOperations().persistParameterSets(includedDescriptors);
                             return null;
                         }
 
@@ -203,8 +209,8 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
             protected Void doInBackground() throws Exception {
                 // Excludes not supported ATM.
                 defaultParamLibImportExportPath = fc.getSelectedFile().getAbsolutePath();
-                parameterImportExportOperations().exportParameterLibrary(
-                    defaultParamLibImportExportPath, null, ParamIoMode.STANDARD);
+                pipelineDefinitionExporter().exportPipelineConfiguration(null,
+                    parametersOperations().parameterSets(), defaultParamLibImportExportPath);
                 return null;
             }
 
@@ -232,7 +238,7 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
     protected void edit(int row) {
         try {
             EditParameterSetDialog dialog = new EditParameterSetDialog(
-                SwingUtilities.getWindowAncestor(this), ziggyTable.getContentAtViewRow(row), false);
+                SwingUtilities.getWindowAncestor(this), ziggyTable.getContentAtViewRow(row));
             dialog.setVisible(true);
 
             if (!dialog.isCancelled()) {
@@ -248,8 +254,16 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
         return TYPE;
     }
 
-    private ParameterImportExportOperations parameterImportExportOperations() {
-        return parameterImportExportOperations;
+    private PipelineImportOperations pipelineImportOperations() {
+        return pipelineImportOperations;
+    }
+
+    private PipelineDefinitionExporter pipelineDefinitionExporter() {
+        return pipelineDefinitionExporter;
+    }
+
+    private ParametersOperations parametersOperations() {
+        return parametersOperations;
     }
 
     /**

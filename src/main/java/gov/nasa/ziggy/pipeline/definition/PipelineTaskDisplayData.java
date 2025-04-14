@@ -46,8 +46,8 @@ public class PipelineTaskDisplayData {
         return getPipelineTask().getCreated();
     }
 
-    public String getModuleName() {
-        return getPipelineTask().getModuleName();
+    public String getPipelineStepName() {
+        return getPipelineTask().getPipelineStepName();
     }
 
     public String getBriefState() {
@@ -109,7 +109,7 @@ public class PipelineTaskDisplayData {
     @Override
     public int hashCode() {
         return Objects.hash(getPipelineTaskId(), getPipelineInstanceId(), getCreated(),
-            getModuleName(), getBriefState(), getZiggySoftwareRevision(),
+            getPipelineStepName(), getBriefState(), getZiggySoftwareRevision(),
             getPipelineSoftwareRevision(), getWorkerName(), getExecutionClock(),
             getProcessingStep(), isError(), getTotalSubtaskCount(), getCompletedSubtaskCount(),
             getFailedSubtaskCount(), getFailureCount(), getPipelineTaskMetrics(), getRemoteJobs());
@@ -128,7 +128,7 @@ public class PipelineTaskDisplayData {
             && Objects.equals(getPipelineTaskId(), other.getPipelineTaskId())
             && Objects.equals(getPipelineInstanceId(), other.getPipelineInstanceId())
             && Objects.equals(getCreated(), other.getCreated())
-            && Objects.equals(getModuleName(), other.getModuleName())
+            && Objects.equals(getPipelineStepName(), other.getPipelineStepName())
             && Objects.equals(getBriefState(), other.getBriefState())
             && Objects.equals(getZiggySoftwareRevision(), other.getZiggySoftwareRevision())
             && Objects.equals(getPipelineSoftwareRevision(), other.getPipelineSoftwareRevision())
@@ -146,7 +146,7 @@ public class PipelineTaskDisplayData {
 
     public String toFullString() {
         return getClass().getSimpleName() + ": pipelineTaskId=" + getPipelineTaskId()
-            + ", moduleName=" + getModuleName() + ", briefState=" + getBriefState();
+            + ", pipelineStepName=" + getPipelineStepName() + ", briefState=" + getBriefState();
     }
 
     @Override

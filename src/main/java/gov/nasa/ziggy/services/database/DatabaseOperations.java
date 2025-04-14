@@ -3,7 +3,7 @@ package gov.nasa.ziggy.services.database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Provides database access to Ziggy classes.

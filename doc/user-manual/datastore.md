@@ -1,8 +1,8 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](module-parameters.md)
+[[Previous]](algorithm-parameters.md)
 [[Up]](configuring-pipeline.md)
-[[Next]](pipeline-definition.md)
+[[Next]](remote-environments.md)
 
 ## The Datastore
 
@@ -14,17 +14,15 @@ As the user, one of your jobs is to define the following for Ziggy:
 - The datastore locations and file name conventions for all of the data files used as inputs or outputs for your algorithms.
 - The types of model files that your algorithms need, and the file name conventions for each.
 
-The place for these definitions is in data file type XML files. These have names that start with "pt-" (for "Pipeline Data Type"); in the sample pipeline, the data file type definitions are in [config/pt-sample.xml](../../sample-pipeline/conf/pt-sample.xml).
-
 Note that when we talk about data file types, we're not talking about data file formats (like HDF5 or geoTIFF). Ziggy doesn't care about data file formats; use whatever you like, as long as the algorithm software can read and write that format.
 
 ### The Datastore Directory Tree
 
 Once you've spent a bit of time thinking about your algorithms and their inputs and outputs, you've probably got some sense of how you want to organize the directory tree for all those files. It's probably a bit intuitive and hard to put into words, but it's likely that you have some directory levels where there's just one directory with a fixed name, and others where you can have several directories with different names. If you have a directory "foo" that has subdirectories "bar" and "baz", the "foo" directory is an example of a fixed-name, all-by-itself-at-a-directory-level directory, while "bar" and "baz" are examples of a directory level where the directories can have one of a variety of different names.
 
-The way that Ziggy puts these into words (and code) is that every level of a directory is a `DatastoreNode`, and `DatastoreNodes` can use another kind of object, a `DatastoreRegexp`, to define different names that a `DatastoreNode` can take on.
+The way that Ziggy puts these into words (and code) is that every level of a directory is a `datastoreNode`, and `datastoreNodes` can use another kind of XML element, a `datastoreRegexp`, to define different names that a `datastoreNode` can take on.
 
-To make this more concrete (it could hardly be less concrete so far), let's consider the section of pt-sample.xml that defines the datastore directory tree:
+To make this more concrete (it could hardly be less concrete so far), let's consider the section of [sample-pipeline.xml](../../sample-pipeline/etc/ziggy.d/sample-pipeline.xml) that defines the datastore directory tree:
 
 ```xml
   <!-- Datastore regular expressions. -->
@@ -40,13 +38,13 @@ To make this more concrete (it could hardly be less concrete so far), let's cons
   </datastoreNode>
 ```
 
-The first thing you see is an example of a `DatastoreRegexp`. It has a `name` (`"dataset"`) and a `value` (`"set-[0-9]"`). The value is a *Java [regular expression](https://xkcd.com/208/)* (`"regexp"`), which is [defined by the Pattern class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Pattern.html). In this case, the regular expression will match "`set-0"`, `"set-1"`, etc. -- anything that's a combination of `"set-"` and a digit.
+The first thing you see is an example of a `datastoreRegexp`. It has a `name` (`"dataset"`) and a `value` (`"set-[0-9]"`). The value is a *Java [regular expression](https://xkcd.com/208/)* (`"regexp"`), which is [defined by the Pattern class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Pattern.html). In this case, the regular expression will match "`set-0"`, `"set-1"`, etc. -- anything that's a combination of `"set-"` and a digit.
 
-The next thing you see is a `DatastoreNode`, also named `"dataset".` It has an attribute, `isRegexp`, which is true. What does this mean? It means that there's a top-level directory under the datastore root directory which can have as its name anything that matches the value of the `"dataset"` `DatastoreRegexp`. More generally, it means that any directory under the datastore root that matches that value is a valid directory in the datastore! Thus, the "`dataset"` `DatastoreNode` means, "put as many directories as you like here, as long as they match the `dataset` regular expression, and I'll know how to access them when the time comes."
+The next thing you see is a `datastoreNode`, also named `"dataset".` It has an attribute, `isRegexp`, which is true. What does this mean? It means that there's a top-level directory under the datastore root directory which can have as its name anything that matches the value of the `"dataset"` `datastoreRegexp`. More generally, it means that any directory under the datastore root that matches that value is a valid directory in the datastore! Thus, the "`dataset"` `datastoreNode` means, "put as many directories as you like here, as long as they match the `dataset` regular expression, and I'll know how to access them when the time comes."
 
-The `"dataset"` `DatastoreNode` also has another attribute: `nodes`, which has a value of `"L0, L1, L2A, L2B, L3"`. This tells Ziggy, "You should expect that any of these `dataset` directories will have subdirectories given by the `L0, L1, L2A, L2B`, and `L3` `DatastoreNode` instances." The `"dataset"` `DatastoreNode` then has elements that are themselves `DatastoreNode` instances, specifically the `"L0"`, `"L1"`, `"L2A"`, `"L2B"`, and `"L3"` nodes.
+The `"dataset"` `datastoreNode` also has another attribute: `nodes`, which has a value of `"L0, L1, L2A, L2B, L3"`. This tells Ziggy, "You should expect that any of these `dataset` directories will have subdirectories given by the `L0, L1, L2A, L2B`, and `L3` `datastoreNode` instances." The `"dataset"` `datastoreNode` then has elements that are themselves `datastoreNode` instances, specifically the `"L0"`, `"L1"`, `"L2A"`, `"L2B"`, and `"L3"` nodes.
 
-None of these 5 `DatastoreNode` instances has an `isRegexp` attribute. That means that none of them references any `DatastoreRegexp` instances; which in turn means that each of them represents a plain old directory with a fixed name.
+None of these 5 `datastoreNode` instances has an `isRegexp` attribute. That means that none of them references any `datastoreRegexp` instances; which in turn means that each of them represents a plain old directory with a fixed name.
 
 Anyway, the point of this is that, at the top level of the datastore, we can have directories `set-1`, `set-2`, etc.; and each of those can have in it subdirectories named `L0`, `L1`, etc.
 
@@ -62,7 +60,7 @@ Let's consider our datastore layout again, but instead of putting all of the L* 
   <datastoreNode name="dataset" isRegexp="true" nodes="L0">
     <datastoreNode name="L0" nodes="L1">
       <datastoreNode name="L1" nodes="L2A">
-        <datastoreNode name="L2A"nodes="L2B">
+        <datastoreNode name="L2A" nodes="L2B">
           <datastoreNode name="L2B" nodes="L3">
             <datastoreNode name="L3"/>
           </datastoreNode>
@@ -113,7 +111,7 @@ In this case, though, you would be wrong! This won't work.
 
 Why not?
 
-The reason is that **every `DatastoreNode` within a parent `DatastoreNode` must have a unique name.** In this case, the `"dataset"` node contains two `"L0"` nodes, which is not allowed. If you wanted to do something like this, here's how you'd assemble the XML:
+The reason is that **every `datastoreNode` within a parent `datastoreNode` must have a unique name.** In this case, the `"dataset"` node contains two `"L0"` nodes, which is not allowed. If you wanted to do something like this, here's how you'd assemble the XML:
 
 ```xml
   <!-- Datastore regular expressions. -->
@@ -133,11 +131,11 @@ The reason is that **every `DatastoreNode` within a parent `DatastoreNode` must 
 
 This works because, although there are two nodes named `"L0"`, they are sub-nodes of different parents: one is under `"dataset"`, the other is under `"L1"`. The first one is the only `"L0"` that has `"dataset"` as its parent; the second one is the only `"L0"` that has `"L1"` as its parent.
 
-Although the sample pipeline uses a pretty simple datastore layout, it's possible to implement extremely sophisticated layouts with the use of additional `DatastoreRegexp` instances, and so on.
+Although the sample pipeline uses a pretty simple datastore layout, it's possible to implement extremely sophisticated layouts with the use of additional `datastoreRegexp` instances, and so on.
 
 ### Mission Data
 
-Now that we have the datastore layout defined, let's look at the next thing in the pt-sample file: data file type definitions. We'll just look at the first two:
+Now that we have the datastore layout defined, let's look at the data file type definitions. We'll just look at the first two:
 
 ```xml
   <!-- The raw data. this is in the L0 subdir of the dataset
@@ -155,9 +153,9 @@ Now that we have the datastore layout defined, let's look at the next thing in t
 
 A data file type declaration has three pieces of information: a `name,` a `location`, and a `fileNameRegexp`.
 
-The `name` is hopefully self-explanatory.
+The `name` is hopefully self-explanatory. As always, this must be unique. 
 
-What is a `location`? It's a valid, er, location in the datastore, as defined by the `DatastoreNode` instances. In the case of `raw data`, the `location` is `dataset/L0`. This means that `raw data` files can be found in directories `set-1/L0`, `set-2/L0`, etc. Note that the separator used in `location` instances is always the slash character. This is true even when the local file system uses some other character as its file separator in file path definitions.
+What is a `location`? It's a valid, er, location in the datastore, as defined by the `datastoreNode` instances. In the case of `raw data`, the `location` is `dataset/L0`. This means that `raw data` files can be found in directories `set-1/L0`, `set-2/L0`, etc. Note that the separator used in `location` instances is always the slash character. This is true even when the local file system uses some other character as its file separator in file path definitions.
 
 The `fileNameRegexp` uses a Java regular expression to define the naming convention for files of the `raw data` type. For raw-data, the regular expression is `"(nasa-logo-file-[0-9])\.png"`. This means that `nasa-logo-file-0.png`, `nasa-logo-file-1.png`, etc., are valid names for `raw data` files. Note the backslash character before the "." character: this is necessary because "." has a special meaning in Java regular expressions. If you don't want it to have that meaning, but instead just want it to be a regular old period, you put the backslash character before the period.
 
@@ -187,7 +185,7 @@ Behold our sample instrument model type definition:
 
 ​    `<modelType type="dummy model" fileNameRegex="sample-model.txt"/>`
 
-As with the data file types, model types are identified by a string (in this case, the `type` attribute) that can contain whitespace, and provides a regular expression that can be used to determine whether any particular file is a model of the specified type. In this case, in a fit of no-imagination, the regex is simply a fixed name of `sample-model.txt`. Thus, any processing algorithm that needs the `dummy model` will expect to find a file named `sample-model.txt` in its task directory.
+As with the data file types, model types are identified by a string (in this case, the `type` attribute) that is unique and can contain whitespace, and provides a regular expression that can be used to determine whether any particular file is a model of the specified type. In this case, in a fit of no-imagination, the regex is simply a fixed name of `sample-model.txt`. Thus, any processing algorithm that needs the `dummy model` will expect to find a file named `sample-model.txt` in its task directory.
 
 #### Wait, is That It?
 
@@ -245,6 +243,6 @@ One thing about supplying timestamp and version information in the filename is t
 
 For models that don't provide that information in the filename, there's no protection against such an accident because there can't be any such protection. If you accidentally re-import an old version of `sample-model.txt`, Ziggy will assume it's a new version and store it with a new timestamp and version number. When Ziggy goes to process data, this version will be provided to the algorithms.
 
-[[Previous]](module-parameters.md)
+[[Previous]](algorithm-parameters.md)
 [[Up]](configuring-pipeline.md)
-[[Next]](pipeline-definition.md)
+[[Next]](remote-environments.md)

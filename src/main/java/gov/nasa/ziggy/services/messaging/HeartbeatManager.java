@@ -103,7 +103,7 @@ public class HeartbeatManager {
 
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private void initializeHeartbeatManagerInternal() {
-        log.debug("Initializing heartbeat manager");
+        log.debug("Initializing heartbeat manager...");
 
         heartbeatCountdownLatch = new CountDownLatch(1);
         SystemProxy.currentTimeMillis();
@@ -145,7 +145,7 @@ public class HeartbeatManager {
      */
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     protected void startHeartbeatListener() {
-        log.info("Starting heartbeat listener thread");
+        log.info("Starting heartbeat listener thread...");
         heartbeatListener = new ScheduledThreadPoolExecutor(1);
         if (heartbeatIntervalMillis == 0) {
             log.info("Heartbeat listener thread not started");

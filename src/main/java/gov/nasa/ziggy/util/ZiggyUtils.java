@@ -5,8 +5,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
-
 /**
  * Contains static methods that don't belong anywhere else.
  *

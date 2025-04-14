@@ -74,8 +74,8 @@ public class ParameterSetDescriptorTest {
         Map<String, Parameter> descriptorParameters = ops
             .nameToTypedPropertyMap(desc.getParameterSet().getParameters());
         assertEquals(originalParameters.size(), descriptorParameters.size());
-        assertNull(desc.getParameterSet().getModuleInterfaceName());
-        assertNull(desc.getModuleInterfaceName());
+        assertNull(desc.getParameterSet().getAlgorithmInterfaceName());
+        assertNull(desc.getAlgorithmInterfaceName());
         for (Map.Entry<String, Parameter> entry : originalParameters.entrySet()) {
             Parameter updatedParameter = descriptorParameters.get(entry.getKey());
             assertNotNull(updatedParameter);
@@ -88,15 +88,15 @@ public class ParameterSetDescriptorTest {
     }
 
     @Test
-    public void testParameterUpdateModuleInterfaceName() {
+    public void testParameterUpdateAlgorithmInterfaceName() {
         Set<Parameter> typedProperties = new HashSet<>();
         typedProperties.add(new Parameter("f1", "100", ZiggyDataType.ZIGGY_INT, true));
         typedProperties.add(new Parameter("f2", "100.5, 100.6", ZiggyDataType.ZIGGY_FLOAT, false));
         ParameterSet parameterSet = new ParameterSet();
         parameterSet.setParameters(typedProperties);
-        parameterSet.setModuleInterfaceName("test");
+        parameterSet.setAlgorithmInterfaceName("test");
         ParameterSetDescriptor desc = new ParameterSetDescriptor(parameterSet);
-        assertEquals("test", desc.getModuleInterfaceName());
-        assertEquals("test", desc.getParameterSet().getModuleInterfaceName());
+        assertEquals("test", desc.getAlgorithmInterfaceName());
+        assertEquals("test", desc.getParameterSet().getAlgorithmInterfaceName());
     }
 }

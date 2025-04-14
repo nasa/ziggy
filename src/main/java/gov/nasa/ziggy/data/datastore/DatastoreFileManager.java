@@ -31,24 +31,24 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumer;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
-import gov.nasa.ziggy.module.AlgorithmStateFiles;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.module.SubtaskUtils;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles;
+import gov.nasa.ziggy.pipeline.step.subtask.SubtaskUtils;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
@@ -91,8 +91,8 @@ public class DatastoreFileManager {
     private final Path taskDirectory;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private DatastoreProducerConsumerOperations datastoreProducerConsumerOperations = new DatastoreProducerConsumerOperations();
-    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
+    private PipelineOperations pipelineOperations = new PipelineOperations();
+    private PipelineNodeOperations pipelineNodeOperations = new PipelineNodeOperations();
     private DatastoreCopier datastoreToTaskDirCopier = DatastoreFileManager::copyOrLink;
     private DatastoreCopier taskDirToDatastoreCopier = DatastoreFileManager::copyOrLink;
     private boolean singleSubtask;
@@ -109,16 +109,14 @@ public class DatastoreFileManager {
      * that is missing one or more files is omitted from the returned {@link Set}.
      */
     public Set<SubtaskDefinition> subtaskDefinitions() {
-        return subtaskDefinitions(pipelineTaskOperations().pipelineDefinitionNode(pipelineTask));
+        return subtaskDefinitions(pipelineTaskOperations().pipelineNode(pipelineTask));
     }
 
-    public Set<SubtaskDefinition> subtaskDefinitions(
-        PipelineDefinitionNode pipelineDefinitionNode) {
+    public Set<SubtaskDefinition> subtaskDefinitions(PipelineNode pipelineNode) {
 
-        singleSubtask = pipelineDefinitionNode.getSingleSubtask();
-        // Obtain the data file types that the module requires
-        Set<DataFileType> dataFileTypes = pipelineDefinitionNodeOperations()
-            .inputDataFileTypes(pipelineDefinitionNode);
+        singleSubtask = pipelineNode.getSingleSubtask();
+        // Obtain the data file types that the node requires
+        Set<DataFileType> dataFileTypes = pipelineNodeOperations().inputDataFileTypes(pipelineNode);
         // Construct a List of data file types that expect 1 file per subtask.
         List<DataFileType> filePerSubtaskDataFileTypes = dataFileTypes.stream()
             .filter(s -> !s.isIncludeAllFilesInAllSubtasks())
@@ -139,12 +137,11 @@ public class DatastoreFileManager {
             allFilesAllSubtasksDataFileTypes);
 
         // If the user wants new-data processing only, filter the data files to remove
-        // any that were processed already by the pipeline module that's assigned to
+        // any that were processed already by the pipeline node that's assigned to
         // this pipeline task.
-        if (!singleSubtask && pipelineDefinitionOperations()
-            .processingMode(pipelineDefinitionNode.getPipelineName())
+        if (!singleSubtask && pipelineOperations().processingMode(pipelineNode.getPipelineName())
             .equals(ProcessingMode.PROCESS_NEW)) {
-            filterOutDataFilesAlreadyProcessed(filesForPerSubtaskDataType);
+            filterOutDataFilesAlreadyProcessed(filesForPerSubtaskDataType, pipelineNode);
         }
         for (DataFilesForDataFileType dataFilesForDataFileType : filesForPerSubtaskDataType) {
             log.debug("Data file type {} file count {}",
@@ -167,7 +164,7 @@ public class DatastoreFileManager {
         // if this task will use a single subtask, it's possible that it has
         // no input types that are in the one-file-per-subtask category. Handle
         // that corner case now.
-        if (pipelineDefinitionNode.getSingleSubtask() && subtaskDefinitions.isEmpty()) {
+        if (pipelineNode.getSingleSubtask() && subtaskDefinitions.isEmpty()) {
             subtaskDefinitions = generateSubtaskDefinitions(filesForAllSubtasksDataType);
         }
 
@@ -213,6 +210,7 @@ public class DatastoreFileManager {
                     ZiggyFileUtils.listFiles(datastoreSubdirectory,
                         DatastoreWalker.fileNameRegexpBaseName(dataFileType)));
             }
+            dataFilesForDataFileType.applyFilter(this, uow);
             log.debug("Data file type {} file count {}", dataFileType.getName(),
                 dataFilesForDataFileType.allPaths().size());
             dataFilesForDataFileTypes.add(dataFilesForDataFileType);
@@ -221,17 +219,29 @@ public class DatastoreFileManager {
     }
 
     /**
+     * Additional filtering of inputs data for a given {@link DataFileType}. Default implementation
+     * does nothing.
+     */
+    protected Set<Path> filterDataFiles(UnitOfWork uow, DataFileType dataFileType,
+        Set<Path> dataFilesForDataFileType) {
+        return dataFilesForDataFileType;
+    }
+
+    /**
      * Filters out data files that have already been processed for situations in which the user only
      * wants to process new data files (i.e., files that have not yet been processed).
      * <p>
      * The method works by obtaining the {@link DatastoreProducerConsumer} records for all the files
      * in the datastore that are going to be processed by this task. It then finds the intersection
-     * of the consumer task IDs for the files and IDs for tasks that share the same pipeline
-     * definition node. Any file that has a consumer in that intersection set must be omitted from
-     * processing.
+     * of the consumer task IDs for the files and IDs for tasks that share the same pipeline node.
+     * Any file that has a consumer in that intersection set must be omitted from processing.
      */
     private void filterOutDataFilesAlreadyProcessed(
-        Set<DataFilesForDataFileType> dataFilesForDataFileTypes) {
+        Set<DataFilesForDataFileType> dataFilesForDataFileTypes, PipelineNode pipelineNode) {
+
+        // Find the consumers that correspond to the definition node of the current task.
+        List<PipelineTask> consumersWithMatchingPipelineNode = pipelineTaskOperations()
+            .tasksForPipelineNode(pipelineNode);
 
         for (DataFilesForDataFileType dataFilesForDataFileType : dataFilesForDataFileTypes) {
             for (Map.Entry<String, Set<Path>> entry : dataFilesForDataFileType
@@ -247,12 +257,8 @@ public class DatastoreFileManager {
                     .map(Path::toString)
                     .collect(Collectors.toSet());
 
-                // Find the consumers that correspond to the definition node of the current task.
-                List<PipelineTask> consumersWithMatchingPipelineNode = pipelineTaskOperations()
-                    .tasksForPipelineDefinitionNode(pipelineTask);
-
                 // Obtain the Set of datastore files that are in the relativizedFilePaths collection
-                // and which have a consumer that matches the pipeline definition node of the
+                // and which have a consumer that matches the pipeline node of the
                 // current pipeline task.
                 Set<String> namesOfFilesAlreadyProcessed = datastoreProducerConsumerOperations()
                     .filesConsumedByTasks(consumersWithMatchingPipelineNode, relativizedFilePaths);
@@ -419,7 +425,7 @@ public class DatastoreFileManager {
                 copyOrLink(modelEntry.getKey(), destination);
             }
             if (subtaskIndex++ % loggingIndex == 0) {
-                log.info("Subtask {} of {} generated", subtaskIndex, subtaskDefinitions.size());
+                log.info("Subtask {} of {} generated...", subtaskIndex, subtaskDefinitions.size());
             }
             pathsBySubtaskDirectory.put(subtaskDirectory, subtaskDefinition.getSubtaskFiles());
         }
@@ -496,17 +502,17 @@ public class DatastoreFileManager {
         // the write protect on each directory twice.
         for (Map.Entry<Path, Set<Path>> entry : outputFilesByDestinationDir.entrySet()) {
             try {
+                ZiggyFileUtils.prepareDirectoryTreeForOverwrites(entry.getKey().getParent());
                 Files.createDirectories(entry.getKey());
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-            ZiggyFileUtils.prepareDirectoryTreeForOverwrites(entry.getKey());
             for (Path outputFile : entry.getValue()) {
                 Path destinationFile = entry.getKey().resolve(outputFile.getFileName());
                 taskDirToDatastoreCopier.copy(outputFile, destinationFile);
                 outputFiles.add(destinationFile);
             }
-            ZiggyFileUtils.writeProtectDirectoryTree(entry.getKey());
+            ZiggyFileUtils.writeProtectDirectoryTree(entry.getKey().getParent());
         }
 
         log.info("Copying output files to datastore...done");
@@ -518,8 +524,8 @@ public class DatastoreFileManager {
         return subtaskDefinitions().size();
     }
 
-    public int subtaskCount(PipelineDefinitionNode pipelineDefinitionNode) {
-        return subtaskDefinitions(pipelineDefinitionNode).size();
+    public int subtaskCount(PipelineNode pipelineNode) {
+        return subtaskDefinitions(pipelineNode).size();
     }
 
     @SuppressWarnings("unchecked")
@@ -639,12 +645,12 @@ public class DatastoreFileManager {
         return pipelineTaskOperations;
     }
 
-    PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
-    PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations() {
-        return pipelineDefinitionNodeOperations;
+    PipelineNodeOperations pipelineNodeOperations() {
+        return pipelineNodeOperations;
     }
 
     DatastoreProducerConsumerOperations datastoreProducerConsumerOperations() {
@@ -835,6 +841,19 @@ public class DatastoreFileManager {
 
         public void addPathsToSublocation(Path subdir, Set<Path> paths) {
             dataFilesBySublocation.get(sublocationByPath.get(subdir)).addAll(paths);
+        }
+
+        /**
+         * Applies filtering to data files via the method provided by the
+         * {@link DatastoreFileManager} implementation.
+         */
+        public void applyFilter(DatastoreFileManager datastoreFileManager, UnitOfWork uow) {
+            for (Map.Entry<String, Set<Path>> entry : dataFilesBySublocation.entrySet()) {
+                String subLocation = entry.getKey();
+                Set<Path> dataFiles = entry.getValue();
+                dataFilesBySublocation.put(subLocation,
+                    datastoreFileManager.filterDataFiles(uow, dataFileType, dataFiles));
+            }
         }
 
         public Set<Path> allPaths() {

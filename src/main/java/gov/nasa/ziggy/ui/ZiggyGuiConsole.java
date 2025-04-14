@@ -87,7 +87,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
     private ZiggyGuiConsole() {
 
         // Initialize the ProcessHeartbeatManager for this process.
-        log.info("Initializing ProcessHeartbeatManager");
+        log.info("Initializing ProcessHeartbeatManager...");
         HeartbeatManager.startInstance();
         log.info("Initializing ProcessHeartbeatManager...done");
 
@@ -104,7 +104,7 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
 
         int rmiPort = ZiggyConfiguration.getInstance()
             .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
-        log.info("Starting ZiggyRmiClient instance with registry on port {}", rmiPort);
+        log.info("Starting ZiggyRmiClient instance with registry on port {}...", rmiPort);
         ZiggyRmiClient.start(NAME);
         ZiggyShutdownHook.addShutdownHook(() -> {
             ZiggyRmiClient.reset();

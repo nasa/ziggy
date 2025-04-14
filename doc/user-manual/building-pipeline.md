@@ -1,10 +1,10 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](pipeline-definition.md)
+[[Previous]](pipelines-and-nodes.md)
 [[Up]](user-manual.md)
 [[Next]](running-pipeline.md)
 
-## Building a Pipeline
+## Build System for your Pipeline
 
 The question of whether your pipeline even needs a build system is one that only you can answer. If all the components of the pipeline are written in interpreted languages (Python, shell script, etc.), you might be able to get away without one!
 
@@ -18,7 +18,7 @@ Just in case you haven't looked yet, here's what the sample pipeline directory s
 
 ```console
 sample-pipeline$ ls
-build-env.sh  clean-env.sh  config  config-extra  data  etc  multi-data  src
+build-env.sh  clean-env.sh  data  etc  multi-data  src
 sample-pipeline$
 ```
 
@@ -38,32 +38,32 @@ Processing ./build/src/main/python/ziggy
   Installing build dependencies ... done
   Getting requirements to build wheel ... done
   Preparing metadata (pyproject.toml) ... done
-Collecting Pillow (from sample_pipeline==0.7.0)
+Collecting Pillow (from sample_pipeline==0.9.0)
   Using cached pillow-11.0.0-cp312-cp312-macosx_11_0_arm64.whl.metadata (9.1 kB)
-Collecting numpy (from sample_pipeline==0.7.0)
+Collecting numpy (from sample_pipeline==0.9.0)
   Using cached numpy-2.1.3-cp312-cp312-macosx_14_0_arm64.whl.metadata (62 kB)
-Collecting h5py (from ziggy==0.7.0)
+Collecting h5py (from ziggy==0.9.0)
   Using cached h5py-3.12.1-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.5 kB)
 Using cached h5py-3.12.1-cp312-cp312-macosx_11_0_arm64.whl (2.9 MB)
 Using cached numpy-2.1.3-cp312-cp312-macosx_14_0_arm64.whl (5.1 MB)
 Using cached pillow-11.0.0-cp312-cp312-macosx_11_0_arm64.whl (3.0 MB)
 Building wheels for collected packages: sample_pipeline, ziggy
   Building wheel for sample_pipeline (pyproject.toml) ... done
-  Created wheel for sample_pipeline: filename=sample_pipeline-0.7.0-py3-none-any.whl size=5660 sha256=5910f25cdaab267d2808b7a5e613fb9d8a3ecc38ad2e1901d7e6468ba77662cd
+  Created wheel for sample_pipeline: filename=sample_pipeline-0.9.0-py3-none-any.whl size=5660 sha256=5910f25cdaab267d2808b7a5e613fb9d8a3ecc38ad2e1901d7e6468ba77662cd
   Stored in directory: /private/var/folders/q5/0svn77vd25z40y9clkvktgq00000gp/T/pip-ephem-wheel-cache-3q146zcn/wheels/25/0c/64/f43bcc8b7f017d18d5c8be8fe8bfa73c57b13b9fe4800b778c
   Building wheel for ziggy (pyproject.toml) ... done
-  Created wheel for ziggy: filename=ziggy-0.7.0-py3-none-any.whl size=16109 sha256=cfeced3656770e5aad897eedd5c0efb18a36e3add24c4e87415149b15314f887
+  Created wheel for ziggy: filename=ziggy-0.9.0-py3-none-any.whl size=16109 sha256=cfeced3656770e5aad897eedd5c0efb18a36e3add24c4e87415149b15314f887
   Stored in directory: /private/var/folders/q5/0svn77vd25z40y9clkvktgq00000gp/T/pip-ephem-wheel-cache-3q146zcn/wheels/f8/b5/e5/0f689b8d4a4f432a4927a6c94193925bc8ac3ac449df12eb08
 Successfully built sample_pipeline ziggy
 Installing collected packages: Pillow, numpy, sample_pipeline, h5py, ziggy
-Successfully installed Pillow-11.0.0 h5py-3.12.1 numpy-2.1.3 sample_pipeline-0.7.0 ziggy-0.7.0
+Successfully installed Pillow-11.0.0 h5py-3.12.1 numpy-2.1.3 sample_pipeline-0.9.0 ziggy-0.9.0
 ```
 
 Meanwhile, the directory now looks like this:
 
 ```console
 sample-pipeline$ ls
-build  build-env.sh  clean-env.sh  config  config-extra  data  etc  multi-data  src
+build  build-env.sh  clean-env.sh  data  etc  multi-data  src
 sample-pipeline$ ls build
 bin    env    pipeline-results
 sample-pipeline$
@@ -98,18 +98,13 @@ cp -r $sample_root/data/* $data_receipt_dir
 Here we create the `build` directory and its `env` and `pipeline-results` directories. The contents of the data directory from the sample directory gets copied to the `data-receipt` subdirectory.
 
 ```bash
-# Build the bin directory in build.
-bin_dir=$sample_home/bin
-mkdir -p $bin_dir
-bin_src_dir=$sample_root/src/main/sh
+# Copy the Python source to the build directory.
+mkdir -p $sample_home/src/main
+cp -r $sample_root/src/main/python $sample_home/src/main
 
-# Copy the shell scripts from src to build.
-install -m a+rx  $bin_src_dir/permuter.sh $bin_dir/permuter
-install -m a+rx  $bin_src_dir/flip.sh $bin_dir/flip
-install -m a+rx  $bin_src_dir/averaging.sh $bin_dir/averaging
 ```
 
-Here we construct `build/bin` and copy the shell scripts from `src/main/sh` to `build/bin`. In the process, we strip off the `.sh` suffixes. The shell script copies in `build/bin` now match what Ziggy expects to see.
+This copies the `src/main/python` directories into `build/src/main/python`. Why do this? Strictly speaking it's not necessary, but after the next block of the script we'll see the upside. 
 
 ```bash
 python3 -m venv $python_env
@@ -129,7 +124,7 @@ $ZIGGY_HOME/bin/ziggy generate-build-info --home $sample_home
 exit 0
 ```
 
-Here at last we build the Python environment that will be used for the sample pipeline. The environment is built in `build/env`, and the packages from the `sample_pipeline` Python project are installed in the environment, along with their dependencies; the packages from the `ziggy` Python project are also installed. 
+Here at last we build the Python environment that will be used for the sample pipeline. The environment is built in `build/env`, and the packages from the `sample_pipeline` Python project are installed in the environment, along with their dependencies; the packages from the `ziggy` Python project are also installed. This is why the files were copied from `src/main/python` to `build/src/main/python`: when Python prepares the `sample-pipeline` root package for installation, it generates a ton of metadata files (egg-info, whatever that is, plus some other even less interesting directories and files). If we used `src/main/python` as the location for `sample-pipeline`, all that stuff would've gone into the `src` directory tree. I don't want those things cluttering up `src`, so I put it into `build`. I don't mind if `build` gets cluttered up, given that it gets deleted periodically (at least for the sample pipeline).
 
 Finally, the version information for the sample pipeline is generated. This creates a metadata file in the `build/etc` directory of the sample pipeline. The file is named `pipeline-build.properties`, and the contents are as follows:
 
@@ -167,6 +162,6 @@ For more complex systems, we're enamored of Gradle. The secret truth of build sy
 
 Note that while going through all this exposition, we've also sneakily built the sample pipeline! This positions us for the next (exciting) step: [running the pipeline](running-pipeline.md)!
 
-[[Previous]](pipeline-definition.md)
+[[Previous]](pipelines-and-nodes.md)
 [[Up]](user-manual.md)
 [[Next]](running-pipeline.md)

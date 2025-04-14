@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+  <!-- Here is a genuinely new pipeline -->
+  <pipeline name="genuinely-new" description="should always import" 
+  	rootNodeNames="level0">
+  	<node name="level0">
+  	  <parameterSet name="New Remote Hyperion L0"/>
+      <inputDataFileType name="Hyperion L2"/>
+  	</node>
+  </pipeline>
+  
+  <!-- here is a genuinely new step -->
+  <step name="level3" description="should always import"
+          exeTimeoutSecs="1000000" minMemoryMegabytes="10"/>
+
+  <!-- Here is a step that is updated -->
+  <step name="level0" description="Hyperion L0 -> L1R"
+          exeTimeoutSecs="200000" minMemoryMegabytes="1"/>
+          
+  <!-- here is a modified pipeline -->
+    <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="level1">
+      <node name="level1" childNodeNames="level3" singleSubtask="true">
+      	<parameterSet name="Hyperion L0 Task Configuration"/>
+      	<modelType name="bandwidth"/>
+	  </node>
+	  <node name="level3"/>
+	</pipeline>
+	
+  <!-- Here is a genuinely new remote environment -->
+  <remoteEnvironment name="duranduran" batchSystem="pbs" costUnit="$" description="Reflex">
+  	<architecture name="rio" description="Dances" cores="5" ramGigabytes="10" cost="1"
+  		bandwidthGbps="10" nodeCollectionNamesFile="/path/to/file"/>
+  	<queue name="notorious" description="Notorious" maxWallTimeHours="24"/>
+  </remoteEnvironment>  	
+  
+  <!-- Here is an updated environment -->
+
+  <remoteEnvironment name="nas" batchSystem="pbs" costUnit="SBU2" description="The NAS">
+  	<architecture name="bro" description="Broadwell" cores="32" ramGigabytes="128" cost="1.0"/>
+  	<architecture name="rom_ait" description="Rome" cores="64" ramGigabytes="256" cost="4.5"/>
+  	<queue name="debug" description="Debugging" autoSelectable="false" maxWallTimeHours="2"
+  		maxNodes="4"/>
+  	<queue name="normal" description="Normal" maxWallTimeHours="8"/>
+  </remoteEnvironment>
+
+</pipelineDefinition>

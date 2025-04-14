@@ -8,7 +8,7 @@ import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
 
 /**
  * Current processing step. The enumerations also provide support for actions that are to be
- * performed in each step on the given {@link PipelineModule} or to be counted in a
+ * performed in each step on the given {@link PipelineStepExecutor} or to be counted in a
  * {@link TaskCounts} object.
  * <p>
  * The {@link #INITIALIZING}, {@link #WAITING_TO_RUN}, and {@link #COMPLETE} steps are performed by
@@ -20,27 +20,30 @@ import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
  */
 public enum ProcessingStep implements Serializable {
 
-    INITIALIZING(PipelineModule::initializingTaskAction, Counts::incrementInitializingTaskCount),
-    WAITING_TO_RUN(PipelineModule::waitingToRunTaskAction, Counts::incrementWaitingToRunTaskCount),
-    MARSHALING(PipelineModule::marshalingTaskAction, Counts::incrementMarshallingTaskCount),
-    SUBMITTING(PipelineModule::submittingTaskAction, Counts::incrementSubmittingTaskCount),
-    QUEUED(PipelineModule::queuedTaskAction, Counts::incrementQueuedTaskCount),
-    EXECUTING(PipelineModule::executingTaskAction, Counts::incrementExecutingTaskCount),
-    WAITING_TO_STORE(PipelineModule::waitingToStoreTaskAction,
+    INITIALIZING(PipelineStepExecutor::initializingTaskAction,
+        Counts::incrementInitializingTaskCount),
+    WAITING_TO_RUN(PipelineStepExecutor::waitingToRunTaskAction,
+        Counts::incrementWaitingToRunTaskCount),
+    MARSHALING(PipelineStepExecutor::marshalingTaskAction, Counts::incrementMarshallingTaskCount),
+    SUBMITTING(PipelineStepExecutor::submittingTaskAction, Counts::incrementSubmittingTaskCount),
+    QUEUED(PipelineStepExecutor::queuedTaskAction, Counts::incrementQueuedTaskCount),
+    EXECUTING(PipelineStepExecutor::executingTaskAction, Counts::incrementExecutingTaskCount),
+    WAITING_TO_STORE(PipelineStepExecutor::waitingToStoreTaskAction,
         Counts::incrementWaitingToStoreTaskCount),
-    STORING(PipelineModule::storingTaskAction, Counts::incrementStoringTaskCount),
-    COMPLETE(PipelineModule::processingCompleteTaskAction, Counts::incrementCompleteTaskCount);
+    STORING(PipelineStepExecutor::storingTaskAction, Counts::incrementStoringTaskCount),
+    COMPLETE(PipelineStepExecutor::processingCompleteTaskAction,
+        Counts::incrementCompleteTaskCount);
 
-    private Consumer<PipelineModule> taskAction;
+    private Consumer<PipelineStepExecutor> taskAction;
     private Consumer<Counts> countsAction;
 
-    ProcessingStep(Consumer<PipelineModule> taskAction, Consumer<Counts> countsAction) {
+    ProcessingStep(Consumer<PipelineStepExecutor> taskAction, Consumer<Counts> countsAction) {
         this.taskAction = taskAction;
         this.countsAction = countsAction;
     }
 
-    public void taskAction(PipelineModule pipelineModule) {
-        taskAction.accept(pipelineModule);
+    public void taskAction(PipelineStepExecutor pipelineStepExecutor) {
+        taskAction.accept(pipelineStepExecutor);
     }
 
     public void incrementTaskCount(Counts counts) {

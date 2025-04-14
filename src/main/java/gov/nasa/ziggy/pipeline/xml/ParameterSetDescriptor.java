@@ -13,30 +13,40 @@ import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 public class ParameterSetDescriptor implements Comparable<ParameterSetDescriptor> {
     public enum State {
         /** initial state */
-        NONE,
+        NONE(false),
         /**
          * param set exists in the library, and the contents are identical
          */
-        SAME,
+        SAME(false),
         /**
          * param set exists in the library, but the contents are different
          */
-        UPDATE,
+        UPDATE(true),
         /** param set does not exist in the library */
-        CREATE,
+        CREATE(true),
         /**
          * param set exists in the library, but not in the import directory
          */
-        LIBRARY_ONLY,
+        LIBRARY_ONLY(false),
         /** param set will be exported */
-        EXPORT,
+        EXPORT(false),
         /**
          * param set exists in the import directory, but is ignored because it is on the exclude
          * list
          */
-        IGNORE,
+        IGNORE(false),
         /** param class does not exist */
-        CLASS_MISSING
+        CLASS_MISSING(false);
+
+        State(boolean needsPersisting) {
+            this.needsPersisting = needsPersisting;
+        }
+
+        private boolean needsPersisting;
+
+        public boolean needsPersisting() {
+            return needsPersisting;
+        }
     }
 
     private State state;
@@ -103,8 +113,8 @@ public class ParameterSetDescriptor implements Comparable<ParameterSetDescriptor
         return parameterSet.getName();
     }
 
-    public String getModuleInterfaceName() {
-        return parameterSet.getModuleInterfaceName();
+    public String getAlgorithmInterfaceName() {
+        return parameterSet.getAlgorithmInterfaceName();
     }
 
     public State getState() {

@@ -7,26 +7,26 @@ import javax.swing.table.AbstractTableModel;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel;
-import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
+import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.PipelineStepTaskMetrics;
 
 /**
  * @author Todd Klaus
  */
 @SuppressWarnings("serial")
 public class TaskMetricsTableModel extends AbstractTableModel
-    implements ModelContentClass<ModuleTaskMetrics> {
+    implements ModelContentClass<PipelineStepTaskMetrics> {
 
     private TaskMetricsDisplayModel taskMetricsDisplayModel;
     private boolean completedTasksOnly;
 
     public TaskMetricsTableModel(List<PipelineTaskDisplayData> tasks,
-        List<String> orderedModuleNames, boolean completedTasksOnly) {
+        List<String> orderedPipelineStepNames, boolean completedTasksOnly) {
         this.completedTasksOnly = completedTasksOnly;
-        update(tasks, orderedModuleNames);
+        update(tasks, orderedPipelineStepNames);
     }
 
-    public void update(List<PipelineTaskDisplayData> tasks, List<String> orderedModuleNames) {
-        taskMetricsDisplayModel = new TaskMetricsDisplayModel(tasks, orderedModuleNames,
+    public void update(List<PipelineTaskDisplayData> tasks, List<String> orderedPipelineStepNames) {
+        taskMetricsDisplayModel = new TaskMetricsDisplayModel(tasks, orderedPipelineStepNames,
             completedTasksOnly);
         fireTableDataChanged();
     }
@@ -52,7 +52,7 @@ public class TaskMetricsTableModel extends AbstractTableModel
     }
 
     @Override
-    public Class<ModuleTaskMetrics> tableModelContentClass() {
-        return ModuleTaskMetrics.class;
+    public Class<PipelineStepTaskMetrics> tableModelContentClass() {
+        return PipelineStepTaskMetrics.class;
     }
 }

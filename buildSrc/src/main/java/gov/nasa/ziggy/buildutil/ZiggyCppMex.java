@@ -104,7 +104,7 @@ public class ZiggyCppMex extends DefaultTask {
      */
     public ZiggyCppMex() {
         Project project = getProject();
-        ziggyCppMexObject.setBuildDir(project.getBuildDir());
+        ziggyCppMexObject.setBuildDir(project.getLayout().getBuildDirectory().getAsFile().get());
         ziggyCppMexObject.setRootDir(ZiggyCpp.pipelineRootDir(project));
         ziggyCppMexObject.setProjectDir(project.getProjectDir());
         if (project.hasProperty(DEFAULT_COMPILE_OPTIONS_GRADLE_PROPERTY)) {

@@ -33,14 +33,14 @@ import gov.nasa.ziggy.metrics.report.ReportFilePaths;
 import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
 import gov.nasa.ziggy.pipeline.PipelineTaskInformation;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNodeExecutionResources;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
+import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.services.messages.ParametersChangedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
@@ -60,28 +60,28 @@ public class EditPipelineDialog extends javax.swing.JDialog {
 
     private JSpinner prioritySpinner;
     private JLabel pipelineNameTextField;
-    private JList<String> modulesList;
+    private JList<String> pipelineNodesList;
 
     private JRadioButton reprocessButton;
 
-    private PipelineDefinition pipeline;
-    private Map<String, ParameterSet> parameterSetByName;
-    private PipelineModulesListModel pipelineModulesListModel;
+    private Pipeline pipeline;
+    private Map<String, ParameterSet> pipelineParameterSetByName;
+    private PipelineNodesListModel pipelineNodesListModel;
 
     // Contains all parameter sets that have been edited since this
     // window was opened.
     private Map<String, ParameterSet> editedParameterSetByName = new HashMap<>();
 
-    // Contains all pipeline definition nodes with updated execution resources.
-    private Map<Long, PipelineDefinitionNodeExecutionResources> updatedExecutionResources = new HashMap<>();
+    // Contains all pipeline nodes with updated execution resources.
+    private Map<Long, PipelineNodeExecutionResources> updatedExecutionResources = new HashMap<>();
 
     private boolean cancelled;
 
-    private final PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
-    private final PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
+    private final PipelineOperations pipelineOperations = new PipelineOperations();
+    private final PipelineNodeOperations pipelineNodeOperations = new PipelineNodeOperations();
     private final ParametersOperations parametersOperations = new ParametersOperations();
 
-    public EditPipelineDialog(Window owner, PipelineDefinition pipeline) {
+    public EditPipelineDialog(Window owner, Pipeline pipeline) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.pipeline = pipeline;
 
@@ -124,8 +124,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         processConfigButtonGroup.add(reprocessButton);
         processConfigButtonGroup.add(forwardProcessButton);
 
-        if (pipelineDefinitionOperations()
-            .processingMode(pipeline.getName()) == ProcessingMode.PROCESS_ALL) {
+        if (pipelineOperations().processingMode(pipeline.getName()) == ProcessingMode.PROCESS_ALL) {
             reprocessButton.setSelected(true);
         } else {
             forwardProcessButton.setSelected(true);
@@ -134,25 +133,25 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         JLabel pipelineParameterSetsGroup = boldLabel("Pipeline parameter sets",
             LabelType.HEADING1);
 
-        parameterSetByName = ParameterSet.parameterSetByName(parametersOperations()
-            .parameterSets(pipelineDefinitionOperations().parameterSetNames(pipeline)));
+        pipelineParameterSetByName = ParameterSet.parameterSetByName(
+            parametersOperations().parameterSets(pipelineOperations().parameterSetNames(pipeline)));
         ParameterSetMapEditorPanel pipelineParameterSetMapEditorPanel = new ParameterSetMapEditorPanel(
-            parameterSetByName, editedParameterSetByName);
+            pipelineParameterSetByName, editedParameterSetByName);
         pipelineParameterSetMapEditorPanel.setMapListener(source -> pipeline.setParameterSetNames(
-            pipelineParameterSetMapEditorPanel.getModuleParameterSetByName().keySet()));
+            pipelineParameterSetMapEditorPanel.getPipelineParameterSetByName().keySet()));
 
-        JLabel modulesGroup = boldLabel("Modules", LabelType.HEADING1);
+        JLabel pipelineNodesGroup = boldLabel("Pipeline nodes", LabelType.HEADING1);
 
-        JPanel modulesToolBar = createButtonPanel(ButtonPanelContext.TOOL_BAR,
+        JPanel pipelineNodesToolBar = createButtonPanel(ButtonPanelContext.TOOL_BAR,
             createButton("Task information", this::displayTaskInformation),
             createButton("Resources", this::configureResources),
-            createButton("Parameters", this::editModuleParameters),
+            createButton("Parameters", this::editParameters),
             createButton("Remote execution", this::configureRemoteExecution));
 
-        pipelineModulesListModel = new PipelineModulesListModel(pipeline);
-        modulesList = new JList<>(pipelineModulesListModel);
-        modulesList.setVisibleRowCount(pipelineModulesListModel.getSize());
-        JScrollPane modulesListScrollPane = new JScrollPane(modulesList);
+        pipelineNodesListModel = new PipelineNodesListModel(pipeline);
+        pipelineNodesList = new JList<>(pipelineNodesListModel);
+        pipelineNodesList.setVisibleRowCount(pipelineNodesListModel.getSize());
+        JScrollPane pipelineNodesListScrollPane = new JScrollPane(pipelineNodesList);
 
         JPanel dataPanel = new JPanel();
         GroupLayout dataPanelLayout = new GroupLayout(dataPanel);
@@ -175,9 +174,9 @@ public class EditPipelineDialog extends javax.swing.JDialog {
                     .addComponent(forwardProcessButton)))
             .addComponent(pipelineParameterSetsGroup)
             .addComponent(pipelineParameterSetMapEditorPanel)
-            .addComponent(modulesGroup)
-            .addComponent(modulesToolBar)
-            .addComponent(modulesListScrollPane));
+            .addComponent(pipelineNodesGroup)
+            .addComponent(pipelineNodesToolBar)
+            .addComponent(pipelineNodesListScrollPane));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
             .addComponent(pipelineGroup)
@@ -201,10 +200,10 @@ public class EditPipelineDialog extends javax.swing.JDialog {
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(pipelineParameterSetMapEditorPanel)
             .addGap(ZiggyGuiConstants.GROUP_GAP)
-            .addComponent(modulesGroup)
-            .addComponent(modulesToolBar, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
-                GroupLayout.PREFERRED_SIZE)
-            .addComponent(modulesListScrollPane));
+            .addComponent(pipelineNodesGroup)
+            .addComponent(pipelineNodesToolBar, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addComponent(pipelineNodesListScrollPane));
 
         return dataPanel;
     }
@@ -220,7 +219,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
             protected void done() {
                 try {
                     TextualReportDialog.showReport(EditPipelineDialog.this, get(),
-                        "Pipeline report", ReportFilePaths.triggerReportPath(pipeline.getName()));
+                        "Pipeline report", ReportFilePaths.pipelineReportPath(pipeline.getName()));
                 } catch (InterruptedException | ExecutionException e) {
                     MessageUtils.showError(getRootPane(), e);
                 }
@@ -228,39 +227,38 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         }.execute();
     }
 
-    private void editModuleParameters(ActionEvent evt) {
+    private void editParameters(ActionEvent evt) {
 
-        int selectedRow = modulesList.getSelectedIndex();
+        int selectedRow = pipelineNodesList.getSelectedIndex();
 
         if (selectedRow == -1) {
-            MessageUtils.showError(this, "No module selected");
+            MessageUtils.showError(this, "No pipeline node selected");
             return;
         }
 
-        final PipelineDefinitionNode pipelineNode = pipelineModulesListModel
-            .getPipelineNodeAt(selectedRow);
+        final PipelineNode pipelineNode = pipelineNodesListModel.getPipelineNodeAt(selectedRow);
         new SwingWorker<Map<String, ParameterSet>, Void>() {
             @Override
             protected Map<String, ParameterSet> doInBackground() throws Exception {
-                log.debug("Loading latest parameter sets for module {}...",
-                    pipelineNode.getModuleName());
-                return ParameterSet.parameterSetByName(new ParametersOperations().parameterSets(
-                    new PipelineDefinitionNodeOperations().parameterSetNames(pipelineNode)));
+                log.debug("Loading latest parameter sets for pipeline node {}...",
+                    pipelineNode.getPipelineStepName());
+                return ParameterSet.parameterSetByName(new ParametersOperations()
+                    .parameterSets(new PipelineNodeOperations().parameterSetNames(pipelineNode)));
             }
 
             @Override
             protected void done() {
                 try {
-                    Map<String, ParameterSet> moduleParameterSetsByName = get();
-                    log.debug("Loading latest parameter sets for module {}...done",
-                        pipelineNode.getModuleName());
+                    Map<String, ParameterSet> parameterSetsByName = get();
+                    log.debug("Loading latest parameter sets for pipeline node {}...done",
+                        pipelineNode.getPipelineStepName());
 
-                    final ModuleParameterSetMapEditorDialog dialog = new ModuleParameterSetMapEditorDialog(
-                        EditPipelineDialog.this, moduleParameterSetsByName, parameterSetByName,
+                    final ParameterSetMapEditorDialog dialog = new ParameterSetMapEditorDialog(
+                        EditPipelineDialog.this, parameterSetsByName, pipelineParameterSetByName,
                         editedParameterSetByName);
 
                     dialog.setMapListener(source -> pipelineNode
-                        .setParameterSetNames(dialog.getModuleParameterSetByName().keySet()));
+                        .setParameterSetNames(dialog.getParameterSetByName().keySet()));
 
                     dialog.setVisible(true);
                 } catch (ExecutionException | InterruptedException e) {
@@ -277,7 +275,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
             protected Void doInBackground() throws Exception {
                 pipeline.setInstancePriority(Priority.valueOf((String) prioritySpinner.getValue()));
 
-                pipelineDefinitionOperations().merge(pipeline);
+                pipelineOperations().merge(pipeline);
 
                 // Save any parameter sets that have been touched since the dialog box was opened.
                 for (Map.Entry<String, ParameterSet> mapEntry : editedParameterSetByName
@@ -291,21 +289,17 @@ public class EditPipelineDialog extends javax.swing.JDialog {
                     ZiggyMessenger.publish(new ParametersChangedMessage());
                 }
 
-                // Save any pipeline definition nodes that have been touched since the dialog box
+                // Save any pipeline nodes that have been touched since the dialog box
                 // was opened.
-                for (PipelineDefinitionNodeExecutionResources executionResources : updatedExecutionResources
+                for (PipelineNodeExecutionResources executionResources : updatedExecutionResources
                     .values()) {
                     updatedExecutionResources.put(executionResources.getId(),
-                        pipelineDefinitionNodeOperations()
-                            .mergeExecutionResources(executionResources));
+                        pipelineNodeOperations().merge(executionResources));
                 }
 
                 // Update the reprocess selection.
-                ProcessingMode processingMode = reprocessButton.isSelected()
-                    ? ProcessingMode.PROCESS_ALL
-                    : ProcessingMode.PROCESS_NEW;
-                pipelineDefinitionOperations().updateProcessingMode(pipeline.getName(),
-                    processingMode);
+                pipelineOperations().updateProcessingMode(pipeline.getName(),
+                    processingButtonProcessingMode());
                 return null;
             }
 
@@ -322,41 +316,92 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         }.execute();
     }
 
+    private ProcessingMode processingButtonProcessingMode() {
+        return reprocessButton.isSelected() ? ProcessingMode.PROCESS_ALL
+            : ProcessingMode.PROCESS_NEW;
+    }
+
     private void cancel(ActionEvent evt) {
         cancelled = true;
         setVisible(false);
     }
 
     private void displayTaskInformation(ActionEvent evt) {
-        int selectedRow = modulesList.getSelectedIndex();
+        int selectedRow = pipelineNodesList.getSelectedIndex();
 
         if (selectedRow == -1) {
-            MessageUtils.showError(this, "No module selected");
+            MessageUtils.showError(this, "No pipeline node selected");
         } else {
-            final PipelineDefinitionNode pipelineNode = pipelineModulesListModel
-                .getPipelineNodeAt(selectedRow);
-            TaskInformationDialog infoTable = new TaskInformationDialog(this, pipelineNode);
-            infoTable.setVisible(true);
+            final PipelineNode pipelineNode = pipelineNodesListModel.getPipelineNodeAt(selectedRow);
+
+            new SwingWorker<ProcessingMode, Void>() {
+
+                @Override
+                protected ProcessingMode doInBackground() {
+                    ProcessingMode databaseMode = pipelineOperations()
+                        .processingMode(pipeline.getName());
+                    pipelineOperations().updateProcessingMode(pipeline.getName(),
+                        processingButtonProcessingMode());
+                    PipelineTaskInformation.reset(pipelineNode);
+                    return databaseMode;
+                }
+
+                @Override
+                protected void done() {
+                    TaskInformationDialog infoTable = new TaskInformationDialog(
+                        EditPipelineDialog.this, pipelineNode);
+                    infoTable.setVisible(true);
+                    try {
+                        setProcessingMode(get());
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("Unable to retrieve database processing mode");
+                    }
+                }
+            }.execute();
         }
     }
 
-    private void configureRemoteExecution(ActionEvent evt) {
-        new SwingWorker<PipelineDefinitionNode, Void>() {
+    /**
+     * Set the processing mode directly. Used to restore the database mode to the database.
+     * Performed in a {@link SwingWorker} so it can be used in the SwingWorker's done() method.
+     */
+    private void setProcessingMode(ProcessingMode processingMode) {
+        new SwingWorker<Void, Void>() {
             @Override
-            protected PipelineDefinitionNode doInBackground() throws Exception {
-                return prepNodeForResourcesUpdate();
+            public Void doInBackground() {
+                pipelineOperations().updateProcessingMode(pipeline.getName(), processingMode);
+                return null;
+            }
+
+            @Override
+            public void done() {
+            }
+        }.execute();
+    }
+
+    private void configureRemoteExecution(ActionEvent evt) {
+        new SwingWorker<RemoteExecutionInformation, Void>() {
+            @Override
+            protected RemoteExecutionInformation doInBackground() throws Exception {
+                ProcessingMode databaseMode = pipelineOperations()
+                    .processingMode(pipeline.getName());
+                pipelineOperations().updateProcessingMode(pipeline.getName(),
+                    processingButtonProcessingMode());
+                PipelineNode pipelineNode = prepNodeForResourcesUpdate();
+                PipelineTaskInformation.reset(pipelineNode);
+                return new RemoteExecutionInformation(pipelineNode, databaseMode);
             }
 
             @Override
             protected void done() {
                 try {
-                    PipelineDefinitionNode pipelineNode = get();
-
+                    RemoteExecutionInformation remoteExecutionInformation = get();
+                    PipelineNode pipelineNode = remoteExecutionInformation.getPipelineNode();
                     if (pipelineNode == null) {
                         return;
                     }
 
-                    PipelineDefinitionNodeExecutionResources executionResources = updatedExecutionResources
+                    PipelineNodeExecutionResources executionResources = updatedExecutionResources
                         .get(pipelineNode.getId());
                     RemoteExecutionDialog remoteExecutionDialog = new RemoteExecutionDialog(
                         EditPipelineDialog.this, executionResources, pipelineNode,
@@ -366,6 +411,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
                         executionResources.equals(remoteExecutionDialog.getCurrentConfiguration()));
                     executionResources
                         .populateFrom(remoteExecutionDialog.getCurrentConfiguration());
+                    setProcessingMode(remoteExecutionInformation.getProcessingMode());
                 } catch (InterruptedException | ExecutionException e) {
                     log.error("Could not load execution resources", e);
                 }
@@ -374,37 +420,36 @@ public class EditPipelineDialog extends javax.swing.JDialog {
     }
 
     /**
-     * Helper method for locating a {@link PipelineDefinitionNode} instance from the dialog and
-     * retrieving (or creating) its {@link PipelineDefinitionNodeExecutionResources} instance. The
-     * pair are added to the map used to track nodes with updated resources.
+     * Helper method for locating a {@link PipelineNode} instance from the dialog and retrieving (or
+     * creating) its {@link PipelineNodeExecutionResources} instance. The pair are added to the map
+     * used to track nodes with updated resources.
      */
-    private PipelineDefinitionNode prepNodeForResourcesUpdate() {
-        int selectedRow = modulesList.getSelectedIndex();
+    private PipelineNode prepNodeForResourcesUpdate() {
+        int selectedRow = pipelineNodesList.getSelectedIndex();
         if (selectedRow == -1) {
-            MessageUtils.showError(this, "No module selected");
+            MessageUtils.showError(this, "No pipeline node selected");
             return null;
         }
 
-        final PipelineDefinitionNode pipelineNode = pipelineModulesListModel
-            .getPipelineNodeAt(selectedRow);
+        final PipelineNode pipelineNode = pipelineNodesListModel.getPipelineNodeAt(selectedRow);
 
         // Make sure the pipeline node is in the set of nodes with edited remote parameters.
         if (!updatedExecutionResources.containsKey(pipelineNode.getId())) {
-            updatedExecutionResources.put(pipelineNode.getId(), pipelineDefinitionNodeOperations()
-                .pipelineDefinitionNodeExecutionResources(pipelineNode));
+            updatedExecutionResources.put(pipelineNode.getId(),
+                pipelineNodeOperations().pipelineNodeExecutionResources(pipelineNode));
         }
         return pipelineNode;
     }
 
     private void configureResources(ActionEvent evt) {
-        PipelineDefinitionNode pipelineNode = prepNodeForResourcesUpdate();
+        PipelineNode pipelineNode = prepNodeForResourcesUpdate();
         if (pipelineNode == null) {
             return;
         }
-        PipelineDefinitionNodeExecutionResources executionResources = updatedExecutionResources
+        PipelineNodeExecutionResources executionResources = updatedExecutionResources
             .get(pipelineNode.getId());
-        new PipelineDefinitionNodeResourcesDialog(this, pipeline.getName(), pipelineNode,
-            executionResources).setVisible(true);
+        new PipelineNodeResourcesDialog(this, pipeline.getName(), pipelineNode, executionResources)
+            .setVisible(true);
     }
 
     /**
@@ -426,15 +471,34 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         return cancelled;
     }
 
-    private PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    private PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations() {
-        return pipelineDefinitionNodeOperations;
+    private PipelineNodeOperations pipelineNodeOperations() {
+        return pipelineNodeOperations;
     }
 
     private ParametersOperations parametersOperations() {
         return parametersOperations;
+    }
+
+    private static class RemoteExecutionInformation {
+        private final PipelineNode pipelineNode;
+        private final ProcessingMode processingMode;
+
+        public RemoteExecutionInformation(PipelineNode pipelineNode,
+            ProcessingMode processingMode) {
+            this.pipelineNode = pipelineNode;
+            this.processingMode = processingMode;
+        }
+
+        public PipelineNode getPipelineNode() {
+            return pipelineNode;
+        }
+
+        public ProcessingMode getProcessingMode() {
+            return processingMode;
+        }
     }
 }

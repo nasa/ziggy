@@ -210,7 +210,7 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
     public void testFilesForImport() throws IOException {
 
         // Delete the manifest to emulate the behavior of the methods of DataReceiptDefinition
-        // that are called in the pipeline module prior to the filesForImport() call.
+        // that are called in the pipeline step prior to the filesForImport() call.
         Files.delete(dataImporterPath.resolve("datastore-directory-definition-manifest.xml"));
         List<Path> filesForImport = dataReceiptDefinition.filesForImport();
         assertTrue(filesForImport.contains(dataFile1));
@@ -228,7 +228,7 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
     public void testDataFilesForImport() throws IOException {
 
         // Delete the manifest to emulate the behavior of the methods of DataReceiptDefinition
-        // that are called in the pipeline module prior to the filesForImport() call.
+        // that are called in the pipeline step prior to the filesForImport() call.
         Files.delete(dataImporterPath.resolve("datastore-directory-definition-manifest.xml"));
         List<Path> filesForImport = dataReceiptDefinition.dataFilesForImport();
         assertTrue(filesForImport.contains(dataFile1));
@@ -242,7 +242,7 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
     public void testModelFilesForImport() throws IOException {
 
         // Delete the manifest to emulate the behavior of the methods of DataReceiptDefinition
-        // that are called in the pipeline module prior to the filesForImport() call.
+        // that are called in the pipeline step prior to the filesForImport() call.
         Files.delete(dataImporterPath.resolve("datastore-directory-definition-manifest.xml"));
         List<Path> filesForImport = dataReceiptDefinition.modelFilesForImport();
         assertTrue(filesForImport.contains(modelFile1));

@@ -18,7 +18,7 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
  * @author Bill Wohler
  */
 public class TasksDisplayModel extends DisplayModel {
-    private static final String[] COLUMN_NAMES = { "ID", "Module", "UOW", "Worker", "Status",
+    private static final String[] COLUMN_NAMES = { "ID", "Node", "UOW", "Worker", "Status",
         "Subtasks", "Time" };
     public static final int[] COLUMN_WIDTHS = { ZiggySwingUtils.textWidth(new JLabel(), "123456"),
         ZiggySwingUtils.textWidth(new JLabel(), "123456789012345"),
@@ -67,7 +67,7 @@ public class TasksDisplayModel extends DisplayModel {
 
         String value = switch (columnIndex) {
             case 0 -> Long.toString(task.getPipelineTaskId());
-            case 1 -> task.getModuleName();
+            case 1 -> task.getPipelineStepName();
             case 2 -> task.getBriefState();
             case 3 -> task.getWorkerName();
             case 4 -> task.getDisplayProcessingStep();

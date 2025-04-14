@@ -16,7 +16,7 @@ import org.mockito.Mockito;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.uow.UnitOfWork;
@@ -46,23 +46,24 @@ public class DataReceiptExternalDefinitionTest {
         .around(dataReceiptDirRule);
 
     private PipelineTask pipelineTask;
-    private TestDataReceiptPipelineModule module;
+    private TestDataReceiptPipelineStepExecutor pipelineStepExecutor;
 
     @Before
     public void setUp() {
         pipelineTask = Mockito.mock(PipelineTask.class);
         Mockito.when(pipelineTask.getUnitOfWork()).thenReturn(new UnitOfWork());
-        module = new TestDataReceiptPipelineModule(pipelineTask, RunMode.STANDARD);
-        module = Mockito.spy(module);
-        Mockito.doNothing().when(module).incrementProcessingStep();
+        pipelineStepExecutor = new TestDataReceiptPipelineStepExecutor(pipelineTask,
+            RunMode.STANDARD);
+        pipelineStepExecutor = Mockito.spy(pipelineStepExecutor);
+        Mockito.doNothing().when(pipelineStepExecutor).incrementProcessingStep();
     }
 
     @Test
     public void testExternalDataReceiptDefinition() {
 
         // Start with the things that are done in the executing task action.
-        module.executingTaskAction();
-        DataReceiptDefinition dataReceiptDefinition = module.dataReceiptDefinition();
+        pipelineStepExecutor.executingTaskAction();
+        DataReceiptDefinition dataReceiptDefinition = pipelineStepExecutor.dataReceiptDefinition();
         assertEquals(ExternalDataReceiptDefinition.class, dataReceiptDefinition.getClass());
         ExternalDataReceiptDefinition externalDefinition = (ExternalDataReceiptDefinition) dataReceiptDefinition;
         assertTrue(externalDefinition.isPipelineTaskSet());
@@ -76,16 +77,16 @@ public class DataReceiptExternalDefinitionTest {
         assertFalse(externalDefinition.isDataReceiptDirectoryCleaningChecked());
 
         // Move on to the storing task action.
-        module.storingTaskAction();
+        pipelineStepExecutor.storingTaskAction();
         assertTrue(externalDefinition.isFilesImported());
         assertTrue(externalDefinition.isSuccessfulImportsDetermined());
         assertTrue(externalDefinition.isFailedImportsDetermined());
         assertTrue(externalDefinition.isDataReceiptDirectoryCleaningChecked());
     }
 
-    private class TestDataReceiptPipelineModule extends DataReceiptPipelineModule {
+    private class TestDataReceiptPipelineStepExecutor extends DataReceiptPipelineStepExecutor {
 
-        public TestDataReceiptPipelineModule(PipelineTask pipelineTask, RunMode runMode) {
+        public TestDataReceiptPipelineStepExecutor(PipelineTask pipelineTask, RunMode runMode) {
             super(pipelineTask, runMode);
         }
 
@@ -95,7 +96,7 @@ public class DataReceiptExternalDefinitionTest {
         }
 
         @Override
-        Path dataImportPathForTask(UnitOfWork uow) {
+        protected Path dataImportPathForTask(UnitOfWork uow) {
             return directoryRule.directory();
         }
     }

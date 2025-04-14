@@ -13,12 +13,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
@@ -99,7 +99,7 @@ public class PostgresqlController extends DatabaseController {
         }
 
         if (!isSystemDatabase()) {
-            log.info("Creating database");
+            log.info("Creating database...");
             CommandLine createCommand = new CommandLine(commandStringWithPath(CREATEDB));
             createCommand.addArgument("-h").addArgument(host());
             createCommand.addArgument("-p");
@@ -112,7 +112,7 @@ public class PostgresqlController extends DatabaseController {
             log.info("Creating database...done");
         }
 
-        log.info("Setting up database");
+        log.info("Setting up database...");
         try {
             CommandLine schemaCommand = psqlCommand();
             schemaCommand.addArgument("-f");
@@ -146,7 +146,7 @@ public class PostgresqlController extends DatabaseController {
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void initializeDatabase() {
 
-        log.info("Initializing database");
+        log.info("Initializing database...");
         CommandLine commandLine = new CommandLine(commandStringWithPath(INITDB));
         commandLine.addArgument("-D");
         commandLine.addArgument(dataDir().toString());
@@ -170,7 +170,7 @@ public class PostgresqlController extends DatabaseController {
 
         // Append to the postgresql.conf file an optional inclusion of the user's
         // config file and a setting of the lock file directory.
-        log.info("Creating configuration file in {}", dataDir().toString());
+        log.info("Creating configuration file in {}...", dataDir().toString());
         Path configPath = dataDir().resolve(CONFIG_FILE_NAME);
 
         try {

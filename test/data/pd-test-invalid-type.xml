@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipelineDefinition>
+
+  <dataFileType name="TCE"
+                location="no/such/location" 
+                fileNameRegexp="[1-4]:[1-4]:[A-D]-calibrated-pixels.h5"/>
+
+</pipelineDefinition>

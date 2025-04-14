@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.supervisor;
 
-import static gov.nasa.ziggy.module.AlgorithmExecutor.ZIGGY_PROGRAM;
+import static gov.nasa.ziggy.pipeline.step.AlgorithmExecutor.ZIGGY_PROGRAM;
 
 import java.util.Set;
 import java.util.TreeSet;
@@ -24,7 +24,7 @@ import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
-import gov.nasa.ziggy.services.logging.TaskLog;
+import gov.nasa.ziggy.services.logging.ZiggyLog;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.services.process.ExternalProcessUtils;
@@ -53,7 +53,7 @@ public class TaskRequestHandler implements Runnable, Requestor {
     /** For testing only. */
     private final Set<TaskRequest> taskRequests = new TreeSet<>();
 
-    private final long pipelineDefinitionNodeId;
+    private final long pipelineNodeId;
     private final CountDownLatch taskRequestThreadCountdownLatch;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
@@ -64,13 +64,13 @@ public class TaskRequestHandler implements Runnable, Requestor {
     private volatile boolean pipelineInstanceFinished;
 
     public TaskRequestHandler(int workerId, int workerCount, int heapSizeMb,
-        PriorityBlockingQueue<TaskRequest> taskRequestQueue, long pipelineDefinitionNodeId,
+        PriorityBlockingQueue<TaskRequest> taskRequestQueue, long pipelineNodeId,
         CountDownLatch taskRequestThreadCountdownLatch) {
         this.workerId = workerId;
         this.workerCount = workerCount;
         this.heapSizeMb = heapSizeMb;
         this.taskRequestQueue = taskRequestQueue;
-        this.pipelineDefinitionNodeId = pipelineDefinitionNodeId;
+        this.pipelineNodeId = pipelineNodeId;
         this.taskRequestThreadCountdownLatch = taskRequestThreadCountdownLatch;
     }
 
@@ -79,10 +79,10 @@ public class TaskRequestHandler implements Runnable, Requestor {
      * becomes available, creates a {@link PipelineWorker} in an {@link ExternalProcess} to process
      * the task.
      * <p>
-     * The {@link TaskRequestHandler} instance lasts for as long as a given pipeline module is
-     * processing. At the end of processing a module, all the worker threads are destroyed. New
+     * The {@link TaskRequestHandler} instance lasts for as long as a given pipeline step is
+     * processing. At the end of processing a step, all the worker threads are destroyed. New
      * threads with new instances of {@link TaskRequestHandler} are constructed when the next
-     * pipeline module begins processing.
+     * pipeline step begins processing.
      */
     @Override
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
@@ -99,17 +99,17 @@ public class TaskRequestHandler implements Runnable, Requestor {
                 TaskRequest taskRequest = taskRequestQueue.take();
                 blocked = false;
 
-                // If the pipeline definition node ID has changed, it means that the next tasks
-                // in the queue belong to a different {@link PipelineDefinitionNode}. The only way
+                // If the pipeline node ID has changed, it means that the next tasks
+                // in the queue belong to a different {@link PipelineNode}. The only way
                 // that this can happen is if multiple pipelines are executing simultaneously and
-                // one of them has queued up tasks for a new pipeline definition node and the others
+                // one of them has queued up tasks for a new pipeline node and the others
                 // have not. Given that the node for the new task requests may need a different
                 // number of workers, all the TaskRequestHandlers should shut down when they see
                 // that this has happened.
-                if (taskRequest.getPipelineDefinitionNodeId() != pipelineDefinitionNodeId) {
+                if (taskRequest.getPipelineNodeId() != pipelineNodeId) {
                     log.info(
-                        "Transitioning to pipeline definition node {} so shutting down task request handler",
-                        taskRequest.getPipelineDefinitionNodeId());
+                        "Transitioning to pipeline node {} so shutting down task request handler",
+                        taskRequest.getPipelineNodeId());
 
                     // Also, in this case, the task has to be put back onto the queue.
                     taskRequestQueue.put(taskRequest);
@@ -119,9 +119,9 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
                 taskRequests.add(taskRequest);
 
-                // For testing purposes, we can allow negative values for the pipeline definition
+                // For testing purposes, we can allow negative values for the pipeline
                 // node id.
-                if (taskRequest.getPipelineDefinitionNodeId() > 0) {
+                if (taskRequest.getPipelineNodeId() > 0) {
                     processTaskRequest(taskRequest);
                 }
             }
@@ -190,7 +190,7 @@ public class TaskRequestHandler implements Runnable, Requestor {
         log.info("task={}, retried={}, errored={}", pipelineTask,
             pipelineTaskDataOperations().retrying(pipelineTask), taskErrored);
 
-        Memdrone memdrone = new Memdrone(pipelineTask.getModuleName(),
+        Memdrone memdrone = new Memdrone(pipelineTask.getPipelineStepName(),
             pipelineTask.getPipelineInstanceId());
         if (Memdrone.memdroneEnabled()) {
             memdrone.createStatsCache();
@@ -227,14 +227,14 @@ public class TaskRequestHandler implements Runnable, Requestor {
         PipelineInstanceNode pipelineInstanceNode = nodeInformation.getPipelineInstanceNode();
         TaskCounts taskCounts = nodeInformation.getTaskCounts();
         if (taskCounts.isPipelineTasksExecutionComplete()) {
-            log.info("Node {} execution complete", pipelineInstanceNode.getModuleName());
+            log.info("Node {} execution complete", pipelineInstanceNode.getPipelineStepName());
 
             log.info("{}", taskCounts);
             if (taskCounts.isPipelineTasksComplete()) {
                 pipelineExecutor.transitionToNextInstanceNode(pipelineInstanceNode);
             } else {
                 log.error("Halting pipeline execution due to errors in node {}",
-                    pipelineInstanceNode.getModuleName());
+                    pipelineInstanceNode.getPipelineStepName());
             }
 
             // Log the pipeline instance state.
@@ -267,13 +267,14 @@ public class TaskRequestHandler implements Runnable, Requestor {
         // Next come the JVM arguments -- note that we don't need to set the
         // classpath to include both Ziggy and pipelines because the ziggy program
         // handles that automatically.
-        commandLine.addArgument(ExternalProcessUtils.log4jConfigString());
+        commandLine.addArgument(ZiggyLog.log4jConfigString());
         commandLine.addArgument(ExternalProcessUtils.javaLibraryPath());
 
         int processHeapSizeMb = Math.round((float) heapSizeMb / workerCount);
         commandLine.addArgument("-Xmx" + Integer.toString(processHeapSizeMb) + "M");
         PipelineTask pipelineTask = taskRequest.getPipelineTask();
-        commandLine.addArgument(TaskLog.ziggyLogFileSystemProperty(pipelineTask));
+        commandLine.addArgument(ZiggyLog.ziggyLogFileSystemProperty(pipelineTask));
+        commandLine.addArgument(ZiggyLog.singleFileAppenderSystemProperty());
         // Now for the worker process fully qualified class name
         commandLine.addArgument("--class=" + PipelineWorker.class.getName());
 

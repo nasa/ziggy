@@ -60,9 +60,9 @@ public class TaskMetricsTest {
         taskMetrics.calculate();
         Map<String, TimeAndPercentile> categoryMetrics = taskMetrics.getCategoryMetrics();
         assertEquals(3, categoryMetrics.size());
-        checkCategoryMetrics(categoryMetrics.get("module0"));
-        checkCategoryMetrics(categoryMetrics.get("module1"));
-        checkCategoryMetrics(categoryMetrics.get("module2"));
+        checkCategoryMetrics(categoryMetrics.get("node0"));
+        checkCategoryMetrics(categoryMetrics.get("node1"));
+        checkCategoryMetrics(categoryMetrics.get("node2"));
     }
 
     private void checkCategoryMetrics(TimeAndPercentile timeAndPercentile) {
@@ -99,20 +99,20 @@ public class TaskMetricsTest {
         for (int i = 0; i < taskCount; i++) {
             long duration = (i + 1) * HOUR_MILLIS;
             totalDuration += duration;
-            pipelineTasks.add(
-                pipelineTask("module" + i, new Date(startTime), new Date(startTime + duration)));
+            pipelineTasks
+                .add(pipelineTask("node" + i, new Date(startTime), new Date(startTime + duration)));
             startTime += duration + HOUR_MILLIS;
         }
         return pipelineTasks;
     }
 
-    private PipelineTaskDisplayData pipelineTask(String moduleName, Date start, Date end) {
+    private PipelineTaskDisplayData pipelineTask(String pipelineStepName, Date start, Date end) {
         PipelineTask pipelineTask = Mockito
-            .spy(new PipelineTask(null, null, new UnitOfWork(moduleName)));
+            .spy(new PipelineTask(null, null, new UnitOfWork(pipelineStepName)));
         doReturn(42L).when(pipelineTask).getId();
 
         PipelineTaskData pipelineTaskData = new PipelineTaskData(pipelineTask);
-        pipelineTaskData.setPipelineTaskMetrics(pipelineTaskMetrics(moduleName));
+        pipelineTaskData.setPipelineTaskMetrics(pipelineTaskMetrics(pipelineStepName));
         PipelineTaskDisplayData pipelineTaskDisplayData = new PipelineTaskDisplayData(
             pipelineTaskData);
         SystemProxy.setUserTime(start.getTime());
@@ -123,7 +123,7 @@ public class TaskMetricsTest {
         return pipelineTaskDisplayData;
     }
 
-    private List<PipelineTaskMetric> pipelineTaskMetrics(String moduleName) {
-        return List.of(new PipelineTaskMetric(moduleName, 42, Units.TIME));
+    private List<PipelineTaskMetric> pipelineTaskMetrics(String pipelineStepName) {
+        return List.of(new PipelineTaskMetric(pipelineStepName, 42, Units.TIME));
     }
 }

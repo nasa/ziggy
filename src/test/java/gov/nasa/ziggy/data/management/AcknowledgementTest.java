@@ -10,7 +10,6 @@ import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
@@ -18,8 +17,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,7 +44,6 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 public class AcknowledgementTest {
 
     public static final String TEST_DATA_DIR = "manifest";
-    public static final String TEST_DATA_SRC = TEST_DATA.resolve("configuration").toString();
 
     private Path testDataDir;
 
@@ -61,8 +59,9 @@ public class AcknowledgementTest {
         DATASTORE_ROOT_DIR, "/dev/null");
 
     @Before
-    public void setUp() {
+    public void setUp() throws IOException {
         testDataDir = dirRule.directory().resolve(TEST_DATA_DIR);
+        Files.createDirectories(testDataDir);
         AlertService.setInstance(Mockito.mock(AlertService.class));
     }
 
@@ -75,14 +74,17 @@ public class AcknowledgementTest {
     public void testGenerateAcknowledgement() throws IOException {
 
         // Copy all the files from the source directory
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), testDataDir.toFile());
+        Set<Path> xmlFiles = ZiggyFileUtils.listFiles(TEST_DATA, "\\S+\\.xml");
+        for (Path xmlFile : xmlFiles) {
+            Files.copy(xmlFile, testDataDir.resolve(xmlFile.getFileName()));
+        }
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(17, ack.getFileCount());
+        assertEquals(27, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         validateAckFiles(manifest.fileNameToManifestEntry(), ack.fileNameToAckEntry(), null);
         assertEquals(DataReceiptStatus.VALID, ack.getTransferStatus());
@@ -93,41 +95,54 @@ public class AcknowledgementTest {
     public void testGenerateAcknowledgementFromSymlinks() throws IOException {
 
         // Symlink all the files from the source directory
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        Set<Path> xmlFiles = ZiggyFileUtils.listFiles(TEST_DATA, "\\S+\\.xml");
+        symlinkFilesToTestDataDir(xmlFiles);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            testDataDir.resolve("sub-directory"));
+        createSubdirectoryWithContent("sub-directory", xmlFiles);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(34, ack.getFileCount());
+        assertEquals(54, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         validateAckFiles(manifest.fileNameToManifestEntry(), ack.fileNameToAckEntry(), null);
         assertEquals(DataReceiptStatus.VALID, ack.getTransferStatus());
         assertEquals(DataReceiptStatus.VALID, manifest.getStatus());
     }
 
+    private void symlinkFilesToTestDataDir(Set<Path> xmlFiles) throws IOException {
+        for (Path xmlFile : xmlFiles) {
+            Path destPath = testDataDir.resolve(xmlFile.getFileName());
+            Files.createSymbolicLink(destPath, xmlFile);
+        }
+    }
+
+    private void createSubdirectoryWithContent(String subdirectoryName, Set<Path> xmlFiles)
+        throws IOException {
+        Files.createDirectory(testDataDir.resolve(subdirectoryName));
+        for (Path xmlFile : xmlFiles) {
+            Path destPath = testDataDir.resolve(subdirectoryName).resolve(xmlFile.getFileName());
+            Files.createSymbolicLink(destPath, xmlFile);
+        }
+    }
+
     @Test
     public void testFailedTransferStatus() throws IOException {
 
-        // Symlink all the files from the source directory
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        Set<Path> xmlFiles = ZiggyFileUtils.listFiles(TEST_DATA, "\\S+\\.xml");
+        symlinkFilesToTestDataDir(xmlFiles);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            testDataDir.resolve("sub-directory"));
+        createSubdirectoryWithContent("sub-directory", xmlFiles);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -135,7 +150,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(34, ack.getFileCount());
+        assertEquals(54, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -152,16 +167,14 @@ public class AcknowledgementTest {
     @Test
     public void testFailedSizeValidation() throws IOException {
 
-        // Symlink all the files from the source directory
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        Set<Path> xmlFiles = ZiggyFileUtils.listFiles(TEST_DATA, "\\S+\\.xml");
+        symlinkFilesToTestDataDir(xmlFiles);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            testDataDir.resolve("sub-directory"));
+        createSubdirectoryWithContent("sub-directory", xmlFiles);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -171,7 +184,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(34, ack.getFileCount());
+        assertEquals(54, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -188,16 +201,14 @@ public class AcknowledgementTest {
     @Test
     public void testFailedChecksumValidation() throws IOException {
 
-        // Symlink all the files from the source directory
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC), testDataDir);
+        Set<Path> xmlFiles = ZiggyFileUtils.listFiles(TEST_DATA, "\\S+\\.xml");
+        symlinkFilesToTestDataDir(xmlFiles);
 
         // Create a file that should not be in the manifest
         Files.createFile(testDataDir.resolve(".hidden-file"));
 
         // Generate a directory with content
-        Files.createDirectory(testDataDir.resolve("sub-directory"));
-        ZiggyFileUtils.symlinkDirectoryContents(Paths.get(TEST_DATA_SRC),
-            testDataDir.resolve("sub-directory"));
+        createSubdirectoryWithContent("sub-directory", xmlFiles);
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         manifest.setName("test-manifest.xml");
@@ -207,7 +218,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(34, ack.getFileCount());
+        assertEquals(54, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -228,7 +239,10 @@ public class AcknowledgementTest {
         NoSuchMethodException, SecurityException {
 
         // Copy all the files from the source directory
-        FileUtils.copyDirectory(new File(TEST_DATA_SRC), testDataDir.toFile());
+        Set<Path> xmlFiles = ZiggyFileUtils.listFiles(TEST_DATA, "\\S+\\.xml");
+        for (Path xmlFile : xmlFiles) {
+            Files.copy(xmlFile, testDataDir.resolve(xmlFile.getFileName()));
+        }
 
         // Create a manifest based on the directory contents
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
@@ -261,42 +275,47 @@ public class AcknowledgementTest {
             new Acknowledgement().getXmlSchemaFilename());
         List<String> schemaContent = Files.readAllLines(schemaPath, ZiggyFileUtils.ZIGGY_CHARSET);
 
-        assertContains(schemaContent,
-            "<xs:element name=\"acknowledgement\" type=\"acknowledgement\"/>");
+        assertContains("<xs:element name=\"acknowledgement\" type=\"acknowledgement\"/>",
+            schemaContent);
 
         List<String> complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"acknowledgement\">");
-        assertContains(complexTypeContent,
-            "<xs:element name=\"file\" type=\"acknowledgementEntry\" maxOccurs=\"unbounded\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"datasetId\" type=\"xs:long\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"fileCount\" type=\"xs:int\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"transferStatus\" type=\"xs:string\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"checksumType\" type=\"checksumType\" use=\"required\"/>");
+        assertContains(
+            "<xs:element name=\"file\" type=\"acknowledgementEntry\" maxOccurs=\"unbounded\"/>",
+            complexTypeContent);
+        assertContains("<xs:attribute name=\"datasetId\" type=\"xs:long\" use=\"required\"/>",
+            complexTypeContent);
+        assertContains("<xs:attribute name=\"fileCount\" type=\"xs:int\" use=\"required\"/>",
+            complexTypeContent);
+        assertContains(
+            "<xs:attribute name=\"transferStatus\" type=\"xs:string\" use=\"required\"/>",
+            complexTypeContent);
+        assertContains(
+            "<xs:attribute name=\"checksumType\" type=\"checksumType\" use=\"required\"/>",
+            complexTypeContent);
 
         complexTypeContent = complexTypeContent(schemaContent,
             "<xs:complexType name=\"acknowledgementEntry\">");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"size\" type=\"xs:long\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"checksum\" type=\"xs:string\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"transferStatus\" type=\"xs:string\" use=\"required\"/>");
-        assertContains(complexTypeContent,
-            "<xs:attribute name=\"validationStatus\" type=\"xs:string\" use=\"required\"/>");
+        assertContains("<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>",
+            complexTypeContent);
+        assertContains("<xs:attribute name=\"size\" type=\"xs:long\" use=\"required\"/>",
+            complexTypeContent);
+        assertContains("<xs:attribute name=\"checksum\" type=\"xs:string\" use=\"required\"/>",
+            complexTypeContent);
+        assertContains(
+            "<xs:attribute name=\"transferStatus\" type=\"xs:string\" use=\"required\"/>",
+            complexTypeContent);
+        assertContains(
+            "<xs:attribute name=\"validationStatus\" type=\"xs:string\" use=\"required\"/>",
+            complexTypeContent);
 
         complexTypeContent = simpleTypeContent(schemaContent,
             "<xs:simpleType name=\"checksumType\">");
-        assertContains(complexTypeContent, "<xs:restriction base=\"xs:string\">");
-        assertContains(complexTypeContent, "<xs:enumeration value=\"MD5\"/>");
-        assertContains(complexTypeContent, "<xs:enumeration value=\"SHA1\"/>");
-        assertContains(complexTypeContent, "<xs:enumeration value=\"SHA256\"/>");
-        assertContains(complexTypeContent, "<xs:enumeration value=\"SHA512\"/>");
+        assertContains("<xs:restriction base=\"xs:string\">", complexTypeContent);
+        assertContains("<xs:enumeration value=\"MD5\"/>", complexTypeContent);
+        assertContains("<xs:enumeration value=\"SHA1\"/>", complexTypeContent);
+        assertContains("<xs:enumeration value=\"SHA256\"/>", complexTypeContent);
+        assertContains("<xs:enumeration value=\"SHA512\"/>", complexTypeContent);
     }
 
     private void testAcknowledgementFiles(Map<String, AcknowledgementEntry> aFileMap,

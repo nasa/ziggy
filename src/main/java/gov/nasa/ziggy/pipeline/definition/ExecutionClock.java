@@ -23,6 +23,9 @@ public class ExecutionClock {
     /** Timestamp that processing most recently started. */
     private long startProcessingTime;
 
+    /** Timestamp that processing most recently ended. */
+    private long mostRecentEndProcessingTime;
+
     /** Total time spent processing prior execution attempts. */
     private long priorProcessingExecutionTime;
 
@@ -60,7 +63,8 @@ public class ExecutionClock {
             return;
         }
 
-        priorProcessingExecutionTime += SystemProxy.currentTimeMillis() - startProcessingTime;
+        mostRecentEndProcessingTime = SystemProxy.currentTimeMillis();
+        priorProcessingExecutionTime += mostRecentEndProcessingTime - startProcessingTime;
         running = false;
     }
 
@@ -82,9 +86,18 @@ public class ExecutionClock {
         return running;
     }
 
+    public long getStartProcessingTime() {
+        return startProcessingTime;
+    }
+
+    public long getMostRecentEndProcessingTime() {
+        return mostRecentEndProcessingTime;
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hash(priorProcessingExecutionTime, running, startProcessingTime);
+        return Objects.hash(mostRecentEndProcessingTime, priorProcessingExecutionTime, running,
+            startProcessingTime);
     }
 
     @Override
@@ -96,7 +109,8 @@ public class ExecutionClock {
             return false;
         }
         ExecutionClock other = (ExecutionClock) obj;
-        return priorProcessingExecutionTime == other.priorProcessingExecutionTime
+        return mostRecentEndProcessingTime == other.mostRecentEndProcessingTime
+            && priorProcessingExecutionTime == other.priorProcessingExecutionTime
             && running == other.running && startProcessingTime == other.startProcessingTime;
     }
 

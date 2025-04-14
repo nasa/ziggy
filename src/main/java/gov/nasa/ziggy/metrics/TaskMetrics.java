@@ -22,8 +22,8 @@ public class TaskMetrics {
     private long totalProcessingTimeMillis;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
 
-    public TaskMetrics(List<PipelineTaskDisplayData> taskListForModule) {
-        pipelineTasks = taskListForModule;
+    public TaskMetrics(List<PipelineTaskDisplayData> pipelineTasks) {
+        this.pipelineTasks = pipelineTasks;
     }
 
     public void calculate() {

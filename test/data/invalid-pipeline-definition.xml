@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+  <step description="Hyperion importer"
+          exeTimeoutSecs="2000000" minMemoryMegaBytes="0"
+          pipelineModuleClass="gov.nasa.sbg.hyperion.importer.HyperionImporterPipelineModule" />
+  <step name="modelimporter" description="Hyperion model importer"
+          exeTimeoutSecs="2000000" minMemoryMegaBytes="0"
+          pipelineModuleClass="gov.nasa.sbg.hyperion.importer.HyperionModelImporterPipelineModule"/>
+  <step name="level0" description="Hyperion L0 -> L1R"
+          exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+  <step name="level1" description="Hyperion L1R -> L2"
+          exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+
+  <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer"
+            instancePriority="LOWEST">
+    <node name="importer" childNodeNames="modelimporter"/>
+    <node name="modelimporter" childNodeNames="level0"/>
+    <node name="level0" childNodeNames="level1">
+      <parameterSet name="New Remote Hyperion L0"/>
+      <parameterSet name="Hyperion L0 Task Configuration"/>
+      <parameterSet name="Sample classless parameter set"/>
+      <inputDataFileType name="Hyperion L0"/>
+      <outputDataFileType name="Hyperion L1R"/>
+      <modelType name="bandwidth"/>
+      <modelType name="template"/>
+      <modelType name="gain"/>
+      <modelType name="ratio"/>
+      <modelType name="metadata-updates"/>
+      <modelType name="spectra"/>
+      <modelType name="L0 attributes"/>
+    </node>
+    <node name="level1" childNodeNames="">
+      <parameterSet name="Hyperion L0 Task Configuration"/>
+      <parameterSet name="ISOFIT algorithm parameters"/>
+      <parameterSet name="Remote Hyperion L1"/>
+      <inputDataFileType name="Hyperion L1R"/>
+      <outputDataFileType name="Hyperion L2"/>
+      <modelType name="sRTM neural network"/>
+      <modelType name="surface"/>
+      <modelType name="dem"/>
+    </node>
+  </pipeline>
+
+</pipelineDefinition>

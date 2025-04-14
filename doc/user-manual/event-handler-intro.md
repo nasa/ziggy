@@ -6,7 +6,7 @@
 
 ## Introduction to Event Handlers
 
-Ziggy's predecessors in the pipeline infrastructure field (the Kepler SOC's PI module and TESS SPOC's Spiffy)  were designed to require a lot of in-person handling by pipeline users. In particular, they had no capacity to take actions without somebody, somewhere, issuing a command or pressing a button on the console.
+Ziggy's predecessors in the pipeline infrastructure field (the Kepler SOC's PI software component and TESS SPOC's Spiffy)  were designed to require a lot of in-person handling by pipeline users. In particular, they had no capacity to take actions without somebody, somewhere, issuing a command or pressing a button on the console.
 
 This design choice was acceptable for the aforementioned Kepler and TESS missions, which had data deliveries approximately once a month and always followed a constant sequence of processing activities. For future missions with much larger data rates, data deliveries are likely to be much more frequent, potentially every day or even more often. Future missions are also likely to have non-standard, high urgency processing requirements arise at unpredictable intervals (something along the lines of, "We need to process this chunk of data through this special-purpose pipeline, and we need to get it turned around in 12 hours"). Both of these expectations led to the decision that Ziggy required some means of taking autonomous action. In short, it needs an event handler: a system that allows the user to define some form of event that Ziggy should watch for, and an action that it should take when the event happens.
 

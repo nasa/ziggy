@@ -6,7 +6,7 @@ import java.util.Set;
 import org.apache.commons.collections4.CollectionUtils;
 
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
@@ -27,7 +27,7 @@ public class PipelineInstanceOperations extends DatabaseOperations {
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
-    private PipelineDefinitionCrud pipelineDefinitionCrud = new PipelineDefinitionCrud();
+    private PipelineCrud pipelineCrud = new PipelineCrud();
     private ParametersOperations parametersOperations = new ParametersOperations();
 
     public List<PipelineInstance> pipelineInstances() {
@@ -107,15 +107,15 @@ public class PipelineInstanceOperations extends DatabaseOperations {
         });
     }
 
-    public PipelineInstance bindParameterSets(PipelineDefinition pipelineDefinition,
+    public PipelineInstance bindParameterSets(Pipeline pipeline,
         PipelineInstance pipelineInstance) {
         return performTransaction(() -> {
             PipelineInstance databaseInstance = pipelineInstance.getId() == null
                 ? merge(pipelineInstance)
                 : pipelineInstance(pipelineInstance.getId());
-            PipelineDefinition databaseDefinition = pipelineDefinitionCrud()
-                .retrieve(pipelineDefinition.getName(), pipelineDefinition.getVersion());
-            parametersOperations().bindParameterSets(databaseDefinition.getParameterSetNames(),
+            Pipeline localPipeline = pipelineCrud().retrieve(pipeline.getName(),
+                pipeline.getVersion());
+            parametersOperations().bindParameterSets(localPipeline.getParameterSetNames(),
                 databaseInstance.getParameterSets());
             return merge(databaseInstance);
         });
@@ -126,19 +126,19 @@ public class PipelineInstanceOperations extends DatabaseOperations {
             && pipelineInstanceId <= pipelineInstanceCrud().retrieveMaxInstanceId());
     }
 
-    public long instanceId(long pipelineInstanceId, String moduleName) {
+    public long instanceId(long pipelineInstanceId, String pipelineStepName) {
         return validInstanceId(pipelineInstanceId) ? pipelineInstanceId
-            : performTransaction(
-                () -> pipelineInstanceCrud().retrieveInstanceIdOfLatestForModule(moduleName));
+            : performTransaction(() -> pipelineInstanceCrud()
+                .retrieveInstanceIdOfLatestForPipelineStep(pipelineStepName));
     }
 
-    public boolean tasksInInstance(long pipelineInstanceId, String moduleName) {
+    public boolean tasksInInstance(long pipelineInstanceId, String pipelineStepName) {
         if (validInstanceId(pipelineInstanceId)) {
             return performTransaction(() -> !CollectionUtils.isEmpty(pipelineTaskCrud()
-                .retrieveTasksForModuleAndInstance(moduleName, pipelineInstanceId)));
+                .retrieveTasksForPipelineStepAndInstance(pipelineStepName, pipelineInstanceId)));
         }
         return performTransaction(
-            () -> pipelineTaskCrud().retrieveLatestForModule(moduleName) != null);
+            () -> pipelineTaskCrud().retrieveLatestForPipelineStep(pipelineStepName) != null);
     }
 
     PipelineInstanceCrud pipelineInstanceCrud() {
@@ -161,8 +161,8 @@ public class PipelineInstanceOperations extends DatabaseOperations {
         return pipelineTaskDisplayDataOperations;
     }
 
-    PipelineDefinitionCrud pipelineDefinitionCrud() {
-        return pipelineDefinitionCrud;
+    PipelineCrud pipelineCrud() {
+        return pipelineCrud;
     }
 
     ParametersOperations parametersOperations() {

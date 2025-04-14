@@ -1,8 +1,8 @@
 package gov.nasa.ziggy.services.messages;
 
-import gov.nasa.ziggy.module.AlgorithmMonitor;
-import gov.nasa.ziggy.module.TaskMonitor;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.step.AlgorithmMonitor;
+import gov.nasa.ziggy.pipeline.step.TaskMonitor;
 
 /**
  * Message from the {@link AlgorithmMonitor} that notifies the {@link TaskMonitor} that all the

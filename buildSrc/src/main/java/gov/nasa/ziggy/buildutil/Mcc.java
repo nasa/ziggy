@@ -42,6 +42,10 @@ import org.slf4j.LoggerFactory;
  * <p>
  * This class puts the variable MCC_DIR into the environment and sets it to the directory of the
  * project that has invoked this task.
+ * <p>
+ * To use this class, it is necessary for the MATLAB_HOME environment variable to be set. This is
+ * then used by the {@link TessExecTask#matlabHome()} method to determine the location of the mcc
+ * executable. MATLAB_HOME must be set to the top-level MATLAB directory.
  *
  * @author Bill Wohler
  * @author Sean McCauliff
@@ -51,13 +55,23 @@ public class Mcc extends TessExecTask {
 
     private static final Logger log = LoggerFactory.getLogger(Mcc.class);
 
+    private static final String MCC_NAME = "mcc";
+
     private FileCollection controllerFiles;
     private FileCollection additionalFiles; // added with mcc -a option
     private File outputExecutable;
     private boolean singleThreaded = true;
+    private String projectDir;
+    private File buildDir;
 
     public Mcc() {
         setEnabled(isMccEnabled());
+        try {
+            projectDir = getProject().getProjectDir().getCanonicalPath();
+        } catch (IOException e) {
+            log.error("Could not obtain directory for MCC_DIR: {}", e.getMessage(), e);
+        }
+        buildDir = getProject().getLayout().getBuildDirectory().getAsFile().get();
     }
 
     @InputFiles
@@ -128,9 +142,9 @@ public class Mcc extends TessExecTask {
     public void action() {
         log.info("{}.action()", this.getClass().getSimpleName());
         File matlabHome = matlabHome();
-
-        File buildBinDir = new File(getProject().getBuildDir(), "bin");
-        List<String> command = new ArrayList<>(Arrays.asList("mcc", "-v", "-m", "-N", "-d",
+        String mcc = matlabHome.toPath().resolve("bin").resolve(MCC_NAME).toString();
+        File buildBinDir = new File(buildDir, "bin");
+        List<String> command = new ArrayList<>(Arrays.asList(mcc, "-v", "-m", "-N", "-d",
             buildBinDir.toString(), "-R", "-nodisplay", "-R", "-nodesktop"));
 
         if (isSingleThreaded()) {
@@ -196,12 +210,7 @@ public class Mcc extends TessExecTask {
         log.info(cmd);
 
         ProcessBuilder processBuilder = new ProcessBuilder(fullCommand);
-        try {
-            processBuilder.environment()
-                .put("MCC_DIR", getProject().getProjectDir().getCanonicalPath());
-        } catch (IOException e) {
-            log.error("Could not set MCC_DIR: {}", e.getMessage(), e);
-        }
+        processBuilder.environment().put("MCC_DIR", projectDir);
         execProcess(processBuilder);
 
         Set<PosixFilePermission> neededPermissions = new HashSet<>(

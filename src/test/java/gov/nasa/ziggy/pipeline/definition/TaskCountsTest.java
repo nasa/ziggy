@@ -64,33 +64,33 @@ public class TaskCountsTest {
     }
 
     @Test
-    public void testGetModuleCounts() {
+    public void testGetPipelineStepCounts() {
         TaskCounts taskCounts = new TaskCounts();
-        assertEquals(new HashMap<>(), taskCounts.getModuleCounts());
+        assertEquals(new HashMap<>(), taskCounts.getPipelineStepCounts());
 
         taskCounts = new TaskCounts(pipelineOperationsTestUtils.getPipelineTaskDisplayData());
-        Map<String, Counts> moduleCounts = taskCounts.getModuleCounts();
-        assertEquals(5, moduleCounts.size());
+        Map<String, Counts> pipelineStepCounts = taskCounts.getPipelineStepCounts();
+        assertEquals(5, pipelineStepCounts.size());
 
-        testCounts(1, 0, 0, 0, 10, 9, 1, moduleCounts.get("module1"));
-        testCounts(1, 0, 0, 0, 20, 18, 2, moduleCounts.get("module2"));
-        testCounts(0, 1, 0, 0, 30, 27, 3, moduleCounts.get("module3"));
-        testCounts(0, 0, 0, 1, 40, 36, 4, moduleCounts.get("module4"));
-        testCounts(0, 0, 1, 0, 50, 45, 5, moduleCounts.get("module5"));
+        testCounts(1, 0, 0, 0, 10, 9, 1, pipelineStepCounts.get("step1"));
+        testCounts(1, 0, 0, 0, 20, 18, 2, pipelineStepCounts.get("step2"));
+        testCounts(0, 1, 0, 0, 30, 27, 3, pipelineStepCounts.get("step3"));
+        testCounts(0, 0, 0, 1, 40, 36, 4, pipelineStepCounts.get("step4"));
+        testCounts(0, 0, 1, 0, 50, 45, 5, pipelineStepCounts.get("step5"));
     }
 
     @Test
-    public void testGetModuleNames() {
+    public void testGetPipelineStepNames() {
         TaskCounts taskCounts = new TaskCounts();
-        assertEquals(new ArrayList<>(), taskCounts.getModuleNames());
+        assertEquals(new ArrayList<>(), taskCounts.getPipelineStepNames());
 
         taskCounts = new TaskCounts(pipelineOperationsTestUtils.getPipelineTaskDisplayData());
-        assertEquals(5, taskCounts.getModuleNames().size());
-        assertEquals("module1", taskCounts.getModuleNames().get(0));
-        assertEquals("module2", taskCounts.getModuleNames().get(1));
-        assertEquals("module3", taskCounts.getModuleNames().get(2));
-        assertEquals("module4", taskCounts.getModuleNames().get(3));
-        assertEquals("module5", taskCounts.getModuleNames().get(4));
+        assertEquals(5, taskCounts.getPipelineStepNames().size());
+        assertEquals("step1", taskCounts.getPipelineStepNames().get(0));
+        assertEquals("step2", taskCounts.getPipelineStepNames().get(1));
+        assertEquals("step3", taskCounts.getPipelineStepNames().get(2));
+        assertEquals("step4", taskCounts.getPipelineStepNames().get(3));
+        assertEquals("step5", taskCounts.getPipelineStepNames().get(4));
     }
 
     @Test

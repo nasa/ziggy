@@ -22,7 +22,7 @@ Watch what Ziggy is doing in real time.
 
 There's no law that says you have to run the pipeline straight through from its first node to its last.
 
-### [Changing Module Parameter Values](change-param-values.md)
+### [Changing Algorithm Parameter Values](change-param-values.md)
 
 How the user adjusts the user-adjustable parameters.
 

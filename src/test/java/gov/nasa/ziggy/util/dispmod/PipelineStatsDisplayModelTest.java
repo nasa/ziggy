@@ -39,18 +39,17 @@ public class PipelineStatsDisplayModelTest {
         // The first task took two hours and the second task started after the first and took one
         // hour.
         return List.of(
-            pipelineTask("module1", new Date(START_MILLIS),
-                new Date(START_MILLIS + 2 * HOUR_MILLIS)),
-            pipelineTask("module2", new Date(START_MILLIS + 4 * HOUR_MILLIS),
+            pipelineTask("node1", new Date(START_MILLIS), new Date(START_MILLIS + 2 * HOUR_MILLIS)),
+            pipelineTask("node2", new Date(START_MILLIS + 4 * HOUR_MILLIS),
                 new Date(START_MILLIS + 5 * HOUR_MILLIS)),
-            pipelineTask("module3", new Date(0), new Date(0)));
+            pipelineTask("node3", new Date(0), new Date(0)));
     }
 
-    private PipelineTaskDisplayData pipelineTask(String moduleName, Date start, Date end) {
+    private PipelineTaskDisplayData pipelineTask(String pipelineStepName, Date start, Date end) {
         PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
         doReturn((long) 1).when(pipelineTask).getId();
         doReturn(start).when(pipelineTask).getCreated();
-        doReturn(new UnitOfWork(moduleName)).when(pipelineTask).getUnitOfWork();
+        doReturn(new UnitOfWork(pipelineStepName)).when(pipelineTask).getUnitOfWork();
 
         PipelineTaskDisplayData pipelineTaskDisplayData = new PipelineTaskDisplayData(
             new PipelineTaskData(pipelineTask));

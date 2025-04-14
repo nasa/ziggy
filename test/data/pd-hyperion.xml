@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+  <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="level0"
+            instancePriority="LOWEST">
+    <node name="level0"
+          childNodeNames="level1">
+      <parameterSet name="New Remote Hyperion L0"/>
+      <parameterSet name="Hyperion L0 Task Configuration"/>
+      <parameterSet name="Sample classless parameter set"/>
+      <inputDataFileType name="Hyperion L0"/>
+      <outputDataFileType name="Hyperion L1R"/>
+      <modelType name="bandwidth"/>
+      <modelType name="template"/>
+      <modelType name="gain"/>
+      <modelType name="ratio"/>
+      <modelType name="metadata-updates"/>
+      <modelType name="spectra"/>
+      <modelType name="L0 attributes"/>
+    </node>
+    <node name="level1"
+          childNodeNames="" singleSubtask="true">
+      <parameterSet name="Hyperion L0 Task Configuration"/>
+      <parameterSet name="ISOFIT algorithm parameters"/>
+      <parameterSet name="Remote Hyperion L1"/>
+      <inputDataFileType name="Hyperion L1R"/>
+      <outputDataFileType name="Hyperion L2"/>
+      <modelType name="sRTM neural network"/>
+      <modelType name="surface"/>
+      <modelType name="dem"/>
+    </node>
+  </pipeline>
+
+  <step name="level0" description="Hyperion L0 -> L1R"
+          exeTimeoutSecs="2000000" minMemoryMegabytes="0" />
+  <step name="level1" description="Hyperion L1R -> L2"
+          exeTimeoutSecs="2000000" minMemoryMegabytes="0" />
+          
+  <datastoreRegexp name="year" value="[0-9]{4}"/>
+  <datastoreRegexp name="chunk" value="[0-9]{2}"/>
+  
+  <datastoreNode name="hyperion" nodes="year">
+  	<datastoreNode name="year" isRegexp="true" nodes="L0, L1R, L2"/>
+  	<datastoreNode name="L0" nodes="chunk"/>
+  	<datastoreNode name="chunk" isRegexp="true"/>
+  	<datastoreNode name="L1R"/>
+  	<datastoreNode name="L2"/>
+  </datastoreNode>
+
+  <dataFileType name="Hyperion L0"
+                fileNameRegexp="EO1H([0-9]{6})([0-9]{4})([0-9]{2})([0-9]{1})([A-Za-z0-9]{5})_([A-Z0-9]{3})_([0-9]{2})"
+                location="hyperion/year/L0/chunk"/>
+  <dataFileType name="Hyperion L1R"
+                fileNameRegexp="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L1R"
+                location="hyperion/year/L1R"/>
+  <dataFileType name="Hyperion L2"
+                fileNameRegexp="EO1H([0-9]{6})([0-9]{4})([0-9]{3})([A-Za-z0-9]{5}).L2.tgz"
+                location="hyperion/year/L2"/>
+
+  <modelType type="metadata-updates" fileNameRegex="([0-9]{4}-[0-9]+)_eo1hyp_metadata_updates([0-9]+).xlsx"
+             versionNumberGroup="2" timestampGroup="1"/>
+  <modelType type="bandwidth" fileNameRegex="BandwidthL0_revA.([0-9]+).dat"/>
+  <modelType type="template" fileNameRegex="EO1Htemplate.L1R"/>
+  <modelType type="gain" fileNameRegex="HypGain_rev([A-Z]+).csv"/>
+  <modelType type="ratio" fileNameRegex="ratio_rev([A-Z]+).csv" />
+  <modelType type="spectra" fileNameRegex="SpectralL0_rev([A-Z]+).([0-9]+).dat"
+             versionNumberGroup="2"/>
+  <modelType type="L0 attributes" fileNameRegex="attributes.csv"/>
+  <modelType type="sRTM neural network" fileNameRegex="sRTMnet"/>
+  <modelType type="surface" fileNameRegex="surface"/>
+  <modelType type="dem" fileNameRegex="dem"/>
+
+  <parameterSet name="New Remote Hyperion L0">
+    <parameter name="enabled" value="false" type="boolean"/>
+    <parameter name="gigsPerSubtask" value="10" type="int"/>
+    <parameter name="subtaskMaxWallTimeHours" value="0.15" type="float"/>
+    <parameter name="subtaskTypicalWallTimeHours" value="0.15" type="float"/>
+    <parameter name="optimizer" value="COST" type="string"/>
+    <parameter name="nodeSharing" value="true" type="boolean"/>
+    <parameter name="wallTimeScaling" value="false" type="boolean"/>
+  </parameterSet>
+
+  <parameterSet name="Remote Hyperion L1">
+    <parameter name="enabled" value="false" type="boolean"/>
+    <parameter name="gigsPerSubtask" value="0.1" type="float"/>
+    <parameter name="subtaskMaxWallTimeHours" value="2.1" type="float"/>
+    <parameter name="subtaskTypicalWallTimeHours" value="2.1" type="float"/>
+    <parameter name="optimizer" value="COST" type="string"/>
+    <parameter name="nodeSharing" value="false" type="boolean"/>
+    <parameter name="wallTimeScaling" value="true" type="boolean"/>
+  </parameterSet>
+
+  <parameterSet name="Hyperion L0 Task Configuration">
+    <parameter name="taskDirectoryRegex" value="hyperion/([0-9]{4})" type="string"/>
+    <parameter name="singleSubtask" value="false" type="boolean"/>
+    <parameter name="maxFailedSubtaskCount" value="0" type="int"/>
+    <parameter name="reprocess" value="true" type="boolean"/>
+    <parameter name="reprocessingTasksExclude" value="0" type="int"/>
+  </parameterSet>
+
+  <parameterSet name="Sample classless parameter set">
+    <parameter name="z1" value="100" type="int"/>
+    <parameter name="z2" value="28.56, 57.12" type="floatarray"/>
+    <parameter name="z3" value="some text" type="string"/>
+  </parameterSet>
+
+  <parameterSet name="ISOFIT algorithm parameters" >
+    <parameter name="n_cores" value="4" type="int"/>
+    <parameter name="use_hyperthreading" value="false" type="boolean"/>
+    <parameter name="presolve" value="true" type="boolean"/>
+    <parameter name="empirical_line" value="true" type="boolean"/>
+  </parameterSet>
+
+  <pipelineEvent name="data-receipt" pipelineName="hyperion"
+                 enableOnClusterStart="true" directory="/some/directory/or/other"/>
+
+  <pipelineEvent name="another-event-handler" pipelineName="hyperion"
+                 enableOnClusterStart="false" directory="/yet/another/directory" />
+
+  <pipelineEvent name="broken-event-handler" pipelineName="broken"
+                 enableOnClusterStart="false" directory="/yet/another/directory" />
+
+  <remoteEnvironment name="nas" batchSystem="pbs" costUnit="SBU" description="The NAS">
+  	<architecture name="has" description="Haswell" cores="24" ramGigabytes="128" cost="0.8"/>
+  	<architecture name="bro" description="Broadwell" cores="28" ramGigabytes="128" cost="1.0"/>
+  	<queue name="debug" description="Debugging" autoSelectable="false" maxWallTimeHours="2"
+  		maxNodes="2"/>
+  	<queue name="reserved" description="Reserved" autoSelectable="false" reserved="true"/>
+  	<queue name="normal" description="Normal" maxWallTimeHours="8"/>
+  </remoteEnvironment>
+  
+  <remoteEnvironment name="bauhaus" batchSystem="pbs" costUnit="$" description="Lagartija">
+  	<architecture name="ilc" description="Collider" cores="16" ramGigabytes="256" cost="1"
+  		bandwidthGbps="10" nodeCollectionNamesFile="/path/to/file"/>
+  	<architecture name="bro" description="Broadwell" cores="16" ramGigabytes="32" cost="0.5"/>
+  	<queue name="normal" description="Normal" maxWallTimeHours="24"/>
+  </remoteEnvironment>  	
+
+</pipelineDefinition>

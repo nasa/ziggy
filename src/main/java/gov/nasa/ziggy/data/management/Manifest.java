@@ -59,13 +59,13 @@ import org.apache.commons.cli.ParseException;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.data.management.Acknowledgement.AcknowledgementEntry;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.xml.HasXmlSchemaFilename;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import jakarta.persistence.Column;

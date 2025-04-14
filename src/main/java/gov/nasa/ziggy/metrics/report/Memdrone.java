@@ -47,13 +47,13 @@ import gov.nasa.ziggy.util.SpotBugsUtils;
  * Manages the generation and capture of memory usage statistics. A configuration property is used
  * to indicate whether such statistics are to be generated and captured. If so, they are stored in
  * text files in the logs/memdrone directory under the pipeline results directory, with directories
- * for each pipeline module in each instance; the directories also have timestamps so that the most
+ * for each pipeline node in each instance; the directories also have timestamps so that the most
  * recent directory can be identified.
  * <p>
  * Within a directory, memory statistics are stored in a text file, one per server / compute node.
- * The memory use of each process with the specified module name is determined using the ps command
- * at a user-specified interval. This is accomplished by running a shell script that performs the ps
- * command and appends it to the appropriate text file.
+ * The memory use of each process with the specified pipeline step name is determined using the ps
+ * command at a user-specified interval. This is accomplished by running a shell script that
+ * performs the ps command and appends it to the appropriate text file.
  *
  * @author PT
  */
@@ -76,6 +76,13 @@ public class Memdrone {
     private final String nameRoot;
     private Date date;
 
+    public Memdrone(String binaryName, long instanceId) {
+        this.binaryName = binaryName;
+        this.instanceId = instanceId;
+        memdroneRootPath = DirectoryProperties.memdroneDir();
+        nameRoot = memdroneNameInvariantPart();
+    }
+
     /**
      * Uses the {@link ConfigurationService} to determine whether memory usage statistics should be
      * obtained.
@@ -85,16 +92,9 @@ public class Memdrone {
             .getBoolean(PropertyName.MEMDRONE_ENABLED.property(), false);
     }
 
-    public Memdrone(String binaryName, long instanceId) {
-        this.binaryName = binaryName;
-        this.instanceId = instanceId;
-        memdroneRootPath = DirectoryProperties.memdroneDir();
-        nameRoot = memdroneNameInvariantPart();
-    }
-
     /**
-     * Creates a new directory for the specified module name and instance ID. The directory is
-     * created with the current time as its timestamp and is returned as a {@link Path} instance.
+     * Creates a new directory for the specified pipeline step name and instance ID. The directory
+     * is created with the current time as its timestamp and is returned as a {@link Path} instance.
      *
      * @return the {@link Path} for the new directory.
      */
@@ -113,8 +113,8 @@ public class Memdrone {
 
     /**
      * Determines the latest directory for memory statistics by listing all the directories that
-     * match the module name and instance ID, and returning the one with the most recent timestamp
-     * in its name.
+     * match the pipeline step name and instance ID, and returning the one with the most recent
+     * timestamp in its name.
      *
      * @return {@link Path} for the most recent memory statistics directory
      */
@@ -165,11 +165,12 @@ public class Memdrone {
         Path memdronePath = latestMemdronePath();
         commandLine.addArgument(memdronePath.toString());
         if (watchdogMap.containsKey(nameRoot)) {
-            log.info("Memdrone for module {}, instance {} already running", binaryName, instanceId);
+            log.info("Memdrone for pipeline step {}, instance {} already running", binaryName,
+                instanceId);
             return;
         }
 
-        log.info("Starting memdrone for module {} in instance {}", binaryName, instanceId);
+        log.info("Starting memdrone for pipeline step {} in instance {}", binaryName, instanceId);
         ExternalProcess memdroneProcess = ExternalProcess.simpleExternalProcess(commandLine);
         memdroneProcess.execute(false);
         watchdogMap.put(nameRoot, memdroneProcess.getWatchdog());
@@ -180,13 +181,14 @@ public class Memdrone {
      */
     public void stopMemdrone() {
         if (watchdogMap.containsKey(nameRoot)) {
-            log.info("Stopping memdrone for module {} in instance {}", binaryName, instanceId);
+            log.info("Stopping memdrone for pipeline step {} in instance {}", binaryName,
+                instanceId);
             watchdogMap.get(nameRoot).destroyProcess();
             log.info("Memdrone stopped");
             watchdogMap.remove(nameRoot);
         } else {
-            log.info("No memdrone script was running for module {} in instance {}", binaryName,
-                instanceId);
+            log.info("No memdrone script was running for pipeline step {} in instance {}",
+                binaryName, instanceId);
         }
     }
 

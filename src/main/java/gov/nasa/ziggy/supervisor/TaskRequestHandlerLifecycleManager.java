@@ -15,7 +15,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
@@ -27,6 +26,7 @@ import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
 import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.worker.WorkerResources;
 
@@ -36,9 +36,9 @@ import gov.nasa.ziggy.worker.WorkerResources;
  * The initial state of the pipeline is one in which there are no {@link TaskRequestHandler}s, but
  * there is a method that blocks until a {@link TaskRequest} arrives. At that time the class
  * instantiates a number of {@link TaskRequestHandler}s based on the worker count specified for the
- * pipeline definition node of the task. Those {@link TaskRequestHandler}s continue to run until the
- * tasks for that pipeline definition node have all completed execution. At that time, the
- * {@link TaskRequestHandler}s are shut down and the class resumes waiting for new task request.
+ * pipeline node of the task. Those {@link TaskRequestHandler}s continue to run until the tasks for
+ * that pipeline node have all completed execution. At that time, the {@link TaskRequestHandler}s
+ * are shut down and the class resumes waiting for new task request.
  * <p>
  * The {@link TaskRequestHandlerLifecycleManager} is meant to be a singleton instance. One and only
  * one instance should be constructed and stored in {@link PipelineSupervisor}.
@@ -58,7 +58,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     private final PriorityBlockingQueue<TaskRequest> taskRequestQueue = new PriorityBlockingQueue<>();
 
     // Use a wrapper class so it can be null.
-    private Long pipelineDefinitionNodeId;
+    private Long pipelineNodeId;
 
     private ThreadPoolExecutor taskRequestThreadPool;
     private Queue<TaskRequestHandler> activeTaskRequestHandlers = new ConcurrentLinkedQueue<>();
@@ -206,11 +206,11 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                 // Wait for a task request to arrive.
                 TaskRequest initialRequest = taskRequestQueue.take();
 
-                // Set the pipeline definition node that all the workers are supposed
+                // Set the pipeline node that all the workers are supposed
                 // to be handling.
-                log.info("Setting supported pipeline definition node ID to {}",
-                    initialRequest.getPipelineDefinitionNodeId());
-                pipelineDefinitionNodeId = initialRequest.getPipelineDefinitionNodeId();
+                log.info("Setting supported pipeline node ID to {}",
+                    initialRequest.getPipelineNodeId());
+                pipelineNodeId = initialRequest.getPipelineNodeId();
 
                 workerResources = workerResources(initialRequest);
                 int workerCount = workerResources.getMaxWorkerCount();
@@ -246,8 +246,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                 for (int i = 1; i <= workerCount; i++) {
                     log.info("Starting worker {} of {}", i, workerCount);
                     TaskRequestHandler handler = new TaskRequestHandler(i, workerCount, heapSizeMb,
-                        taskRequestQueue, pipelineDefinitionNodeId,
-                        taskRequestThreadCountdownLatch);
+                        taskRequestQueue, pipelineNodeId, taskRequestThreadCountdownLatch);
                     taskRequestThreadPool.submit(handler);
                     activeTaskRequestHandlers.add(handler);
                     handlers.add(handler);
@@ -258,7 +257,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
 
                 // Wait for the countdown latch to hit zero, then loop back to
                 // process tasks for some other pipeline instance node.
-                log.info("Waiting for workers to exit");
+                log.info("Waiting for workers to exit...");
                 taskRequestThreadCountdownLatch.await();
                 log.info("Waiting for workers to exit...done");
             }
@@ -281,8 +280,8 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     }
 
     /**
-     * Gets the actual resources for the current pipeline definition node, including default values
-     * as appropriate.
+     * Gets the actual resources for the current pipeline node, including default values as
+     * appropriate.
      */
     WorkerResources workerResources(TaskRequest taskRequest) {
         WorkerResources databaseResources = pipelineTaskOperations()
@@ -335,7 +334,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     }
 
     /** For testing only. */
-    Long getPipelineDefinitionNodeId() {
-        return pipelineDefinitionNodeId;
+    Long getPipelineNodeId() {
+        return pipelineNodeId;
     }
 }

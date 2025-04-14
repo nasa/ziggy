@@ -112,7 +112,7 @@ public class SampleList {
         double sum = 0.0;
         double count = 0.0;
 
-        log.info("Binning {} samples", samples.size());
+        log.info("Binning {} samples...", samples.size());
 
         while (thisBinStart < lastSampleTime) {
             if (currentSample.time >= nextBinStart) {
@@ -167,13 +167,8 @@ public class SampleList {
         samples = newList;
     }
 
-    /**
-     * @param name
-     * @return
-     */
     public TimeSeries asTimeSeries(String name) {
-        @SuppressWarnings("deprecation")
-        TimeSeries series = new TimeSeries(name, Millisecond.class);
+        TimeSeries series = new TimeSeries(name);
 
         for (Sample sample : samples) {
             series.addOrUpdate(new Millisecond(new Date(sample.time)), sample.value);

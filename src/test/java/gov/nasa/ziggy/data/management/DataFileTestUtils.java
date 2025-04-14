@@ -4,9 +4,9 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
-import gov.nasa.ziggy.module.DatastoreDirectoryPipelineInputs;
-import gov.nasa.ziggy.module.DatastoreDirectoryPipelineOutputs;
-import gov.nasa.ziggy.module.TaskConfiguration;
+import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
+import gov.nasa.ziggy.pipeline.step.io.DatastoreDirectoryPipelineInputs;
+import gov.nasa.ziggy.pipeline.step.io.DatastoreDirectoryPipelineOutputs;
 
 /**
  * Test utilities for the data management package. In the main this is class definitions that the
@@ -22,7 +22,7 @@ public class DataFileTestUtils {
 
         /**
          * Since the populateSubtaskInputs() method can do anything, we'll just have it set the
-         * dvalue
+         * dvalue.
          */
         public void populateSubtaskInputs() {
             dvalue = 105.3;
@@ -38,7 +38,7 @@ public class DataFileTestUtils {
         }
     }
 
-    public static class PipelineOutputsSample1 extends DatastoreDirectoryPipelineOutputs {
+    public static class PipelineOutputsSample extends DatastoreDirectoryPipelineOutputs {
 
         @Override
         public Set<Path> copyTaskFilesToDatastore() {

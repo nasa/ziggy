@@ -16,7 +16,7 @@ import gov.nasa.ziggy.services.process.StatusMessage;
  * @author Bill Wohler
  */
 public class WorkerStatusMessage extends StatusMessage implements Comparable<WorkerStatusMessage> {
-    private static final long serialVersionUID = 20240909L;
+    private static final long serialVersionUID = 20250312L;
 
     public static Logger log = LoggerFactory.getLogger(WorkerStatusMessage.class);
 
@@ -24,22 +24,22 @@ public class WorkerStatusMessage extends StatusMessage implements Comparable<Wor
     private final String state;
     private final String instanceId;
     private final PipelineTask pipelineTask;
-    private final String module;
-    private final String moduleUow;
+    private final String pipelineStepName;
+    private final String unitOfWork;
     private final long processingStartTime;
     private final boolean lastMessageFromWorker;
 
     // Cached value of database lookup.
 
     public WorkerStatusMessage(int workerNumber, String state, String instanceId,
-        PipelineTask pipelineTask, String module, String moduleUow, long processingStartTime,
-        boolean lastMessageFromWorker) {
+        PipelineTask pipelineTask, String pipelineStepName, String unitOfWork,
+        long processingStartTime, boolean lastMessageFromWorker) {
         this.workerNumber = workerNumber;
         this.state = state;
         this.instanceId = instanceId;
         this.pipelineTask = pipelineTask;
-        this.module = module;
-        this.moduleUow = moduleUow;
+        this.pipelineStepName = pipelineStepName;
+        this.unitOfWork = unitOfWork;
         this.processingStartTime = processingStartTime;
         this.lastMessageFromWorker = lastMessageFromWorker;
     }
@@ -49,8 +49,8 @@ public class WorkerStatusMessage extends StatusMessage implements Comparable<Wor
         return super.uniqueKey() + ":" + workerNumber;
     }
 
-    public String getModule() {
-        return module;
+    public String getPipelineStepName() {
+        return pipelineStepName;
     }
 
     public long getProcessingStartTime() {
@@ -61,8 +61,8 @@ public class WorkerStatusMessage extends StatusMessage implements Comparable<Wor
         return state;
     }
 
-    public String getModuleUow() {
-        return moduleUow;
+    public String getUnitOfWork() {
+        return unitOfWork;
     }
 
     public int getWorkerNumber() {
@@ -72,8 +72,8 @@ public class WorkerStatusMessage extends StatusMessage implements Comparable<Wor
     @Override
     public String briefStatus() {
         return "WS:" + super.briefStatus() + "(" + workerNumber + "):" + "[" + state + ":"
-            + instanceId + "-" + pipelineTask.getId() + ":" + module + "{" + moduleUow + "}:since "
-            + new Date(processingStartTime) + "]";
+            + instanceId + "-" + pipelineTask.getId() + ":" + pipelineStepName + "{" + unitOfWork
+            + "}:since " + new Date(processingStartTime) + "]";
     }
 
     public PipelineTask getPipelineTask() {

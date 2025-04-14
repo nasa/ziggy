@@ -13,9 +13,9 @@ import org.junit.Test;
 import org.xml.sax.SAXException;
 
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionFile;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.util.PipelineException;
 import jakarta.xml.bind.JAXBException;
 
 /**
@@ -34,10 +34,9 @@ public class ValidatingXmlManagerTest {
 
     @Before
     public void setUp() {
-        Path invalidXmlPath = Paths.get("test", "data", "configuration",
-            "invalid-pipeline-definition.xml");
+        Path invalidXmlPath = Paths.get("test", "data", "invalid-pipeline-definition.xml");
         invalidXmlFile = invalidXmlPath.toFile();
-        Path validXmlPath = Paths.get("test", "data", "configuration", "pd-hyperion.xml");
+        Path validXmlPath = Paths.get("test", "data", "pd-hyperion.xml");
         validXmlFile = validXmlPath.toFile();
     }
 

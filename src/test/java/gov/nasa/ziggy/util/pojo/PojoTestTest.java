@@ -2,7 +2,7 @@ package gov.nasa.ziggy.util.pojo;
 
 import org.junit.Test;
 
-import gov.nasa.ziggy.module.io.ProxyIgnore;
+import gov.nasa.ziggy.util.io.ProxyIgnore;
 
 /**
  * Tests {@link PojoTest}.

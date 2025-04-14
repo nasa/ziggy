@@ -38,22 +38,7 @@ The `Import` and `Export` buttons control relations between the cluster and para
 
 #### Parameter Export
 
-The `Export` button writes the current state of the parameter library to an XML file, in the same format used for the initial definition of the parameter library (see [the article on module parameters](module-parameters.md) for more information). You'll get a `Save As`-style dialog box that allows you to select the directory and the filename for the export.
-
-The exported file will provide a modicum of additional information relative to the original XML you used to import the parameters. To see what I mean, let's look at the representation of the `Algorithm Parameters` parameter set in the export file:
-
-```XML
-<parameter-set name="Algorithm Parameters">
-    <parameter name="produce output subtask 1" value="true" type="boolean"/>
-    <parameter name="execution pause seconds" value="0" type="int"/>
-    <parameter name="dummy array parameter" value="1,2,3" type="intarray"/>
-    <parameter name="throw exception subtask 0" value="false" type="boolean"/>
-</parameter-set>
-```
-
-One thing you see is that Ziggy includes the Java class that supports the parameter set. In this case, that's the `DefaultParameters` class. As we saw earlier, parameter sets like `Algorithm Parameters` don't need to specify their Java class, because Ziggy knows that if there's no class specified, it should use `DefaultParameters`. Nonetheless, on export Ziggy always specified the Java class, even for parameter sets where the user didn't need to define the class during import.
-
-The other thing you notice is that the version number and the lock state are explicitly shown.
+The `Export` button writes the current state of the parameter library to an XML file, in the same format used for the initial definition of the parameter library (see [the article on algorithm parameters](algorithm-parameters.md) for more information). You'll get a `Save As`-style dialog box that allows you to select the directory and the filename for the export.
 
 #### Parameter Import
 
@@ -72,14 +57,6 @@ The `Action` column tells you how, if at all, each parameter set differs from th
 - `LIBRARY_ONLY`: the parameter set exists in the database but not in the XML file. Obviously, if you "import" this parameter set, nothing will happen because there's nothing to import.
 
 The `Include` column lets you select exactly which parameter sets you're going to import. This means that if you have an XML file that has a bunch of changed parameter sets, you can pick and choose which ones will be imported and which will be left as-is in the database.
-
-### Modifying an Existing Parameter Set
-
-Recall that, for parameter sets supported by the DefaultParameters Java class, the user can specify any parameters they like, in any of the supported classes (`boolean, byte, short, int, long, float, double, string`), and can specify them to be scalars or 1-d arrays. Thus, for example, the `Algorithm Parameters` set doesn't have to conform to any particular combination of parameters. This is different from parameters like the `RemoteParameters` instances, where the parameters need to match the ones in the underlying Java class.
-
-Users are generally going to be more involved with instances of `DefaultParameters`, because these are the parameter sets that are needed by the algorithms. That said: as time passes, the algorithms change, and that may mean that they need different parameters in their parameter sets! What's to be done in this case?
-
-As it happens, this capability is broken, too. We'll let you know when it's fixed.
 
 [[Previous]](more-rdbms.md)
 [[Up]](dusty-corners.md)

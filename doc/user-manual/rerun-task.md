@@ -44,7 +44,7 @@ The other option, when you know that you want to restart all the failed tasks, i
 
 ### Restarting Failed Transitions
 
-In the rare case that a pipeline module fails to transition to the next module, the state of the instance is set to `TRANSITION_FAILED.` If this happens to you, you can use the `Restart` command in the instance table context menu to retry the failed transition again.
+In the rare case that a pipeline node fails to transition to the next node, the state of the instance is set to `TRANSITION_FAILED.` If this happens to you, you can use the `Restart` command in the instance table context menu to retry the failed transition again.
 
 
 ### Note on Restarting the Failed Permuter Task
@@ -53,11 +53,11 @@ Remember how we started all this by ordering subtask 0 in each `permuter` task t
 
 Why not?
 
-If the subtask had failed because of a real problem, we would be able to fix the problem and resubmit the task, or restart from the beginning. But what actually happened is that we set a module parameter that told `permuter` to throw an exception in subtask 0.
+If the subtask had failed because of a real problem, we would be able to fix the problem and resubmit the task, or restart from the beginning. But what actually happened is that we set a algorithm parameter that told `permuter` to throw an exception in subtask 0.
 
 If we re-run the task, it will re-run with the same values for all parameters. This means that the `throw exception subtask 0 parameter` will still be true, and subtask 0 will fail again.
 
-In real life, it's possible that you'll encounter a situation like this one, in which a task fails and the only way to get it to run successfully is to change the values of some module parameters. In that case, you won't be able to re-run because re-run doesn't let you change the parameters. In that case, you'll need to change the parameters and use the pipelines panel to start a new pipeline instance. In the more common cases (software bug that had to be fixed, failure due to some sort of hardware problem, etc.), re-running a task offers the possibility of getting failed subtasks to run to completion. For example, in this case we could simulate "fixing" the problem updating the code to ignore the `throw exception subtask 0 parameter`.
+In real life, it's possible that you'll encounter a situation like this one, in which a task fails and the only way to get it to run successfully is to change the values of some algorithm parameters. In that case, you won't be able to re-run because re-run doesn't let you change the parameters. In that case, you'll need to change the parameters and use the pipelines panel to start a new pipeline instance. In the more common cases (software bug that had to be fixed, failure due to some sort of hardware problem, etc.), re-running a task offers the possibility of getting failed subtasks to run to completion. For example, in this case we could simulate "fixing" the problem updating the code to ignore the `throw exception subtask 0 parameter`.
 
 [[Previous]](display-logs.md)
 [[Up]](ziggy-gui-troubleshooting.md)

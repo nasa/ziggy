@@ -22,12 +22,12 @@ import gov.nasa.ziggy.IntegrationTestCategory;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Test the {@link ParametersOperations} class.
@@ -221,7 +221,7 @@ public class ParametersOperationsTest {
         // be returned from the merge() method. If you take out either of these things,
         // the test of parameter p1 value, below, will fail -- the value will be 77,
         // which is the pre-merge value!
-        ParameterSet z = testOperations.merge(paramSet);
+        testOperations.merge(paramSet);
 
         ParameterSet psMerged = parametersOperations.parameterSet(TEST_PARAMETERS_FOO);
 
@@ -267,7 +267,7 @@ public class ParametersOperationsTest {
     @Test
     public void testParametersPersistedPipelineInstance() {
         PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
-        pipelineOperationsTestUtils.setUpSingleModulePipeline();
+        pipelineOperationsTestUtils.setUpSingleNodePipeline();
         PipelineInstanceNode pipelineInstanceNode = pipelineOperationsTestUtils
             .pipelineInstanceNode();
 
@@ -275,17 +275,15 @@ public class ParametersOperationsTest {
         setUpParameterSetsForPipelineOpsTestUtils();
 
         // The parameter sets aren't bound, so we don't expect any parameter sets to be returned.
-        Set<ParameterSet> parameterSets = parametersOperations
-            .parameterSets(pipelineInstanceNode);
+        Set<ParameterSet> parameterSets = parametersOperations.parameterSets(pipelineInstanceNode);
         assertTrue(CollectionUtils.isEmpty(parameterSets));
 
         // Now bind the parameter sets to their database objects.
-        new PipelineInstanceOperations().bindParameterSets(
-            pipelineOperationsTestUtils.pipelineDefinition(),
+        new PipelineInstanceOperations().bindParameterSets(pipelineOperationsTestUtils.pipeline(),
             pipelineOperationsTestUtils.pipelineInstance());
 
-        new PipelineInstanceNodeOperations().bindParameterSets(
-            pipelineOperationsTestUtils.pipelineDefinitionNode(), pipelineInstanceNode);
+        new PipelineInstanceNodeOperations()
+            .bindParameterSets(pipelineOperationsTestUtils.pipelineNode(), pipelineInstanceNode);
 
         // Now the parameter sets should show up.
         parameterSets = parametersOperations.parameterSets(pipelineInstanceNode);
@@ -316,19 +314,17 @@ public class ParametersOperationsTest {
     @Test
     public void testParametersTransientPipelineInstance() {
         PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
-        pipelineOperationsTestUtils.setUpSingleModulePipeline();
+        pipelineOperationsTestUtils.setUpSingleNodePipeline();
 
         // Add the parameter sets to the database.
         setUpParameterSetsForPipelineOpsTestUtils();
 
         // Create a transient PipelineInstanceNode.
         PipelineInstanceNode pipelineInstanceNode = new PipelineInstanceNode(
-            pipelineOperationsTestUtils.pipelineDefinitionNode(),
-            pipelineOperationsTestUtils.pipelineModuleDefinition());
+            pipelineOperationsTestUtils.pipelineNode(), pipelineOperationsTestUtils.pipelineStep());
 
         // The parameter sets should be returned even without any kind of binding.
-        Set<ParameterSet> parameterSets = parametersOperations
-            .parameterSets(pipelineInstanceNode);
+        Set<ParameterSet> parameterSets = parametersOperations.parameterSets(pipelineInstanceNode);
         assertFalse(CollectionUtils.isEmpty(parameterSets));
 
         Map<String, ParameterSet> parameterSetByName = ParameterSet

@@ -6,7 +6,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,13 +19,10 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
-import gov.nasa.ziggy.module.AlgorithmType;
-import gov.nasa.ziggy.module.remote.QueueCommandManager;
-import gov.nasa.ziggy.module.remote.QueueCommandManagerTest;
-import gov.nasa.ziggy.module.remote.RemoteJobInformation;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
@@ -36,6 +32,8 @@ import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.TaskCountsTest;
 import gov.nasa.ziggy.pipeline.definition.TaskExecutionLog;
+import gov.nasa.ziggy.pipeline.step.remote.BatchManager;
+import gov.nasa.ziggy.pipeline.step.remote.RemoteJobInformation;
 
 public class PipelineTaskDataOperationsTest {
 
@@ -47,19 +45,16 @@ public class PipelineTaskDataOperationsTest {
     private PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations;
     private PipelineTaskOperationsTest pipelineTaskOperationsTest;
     private PipelineOperationsTestUtils pipelineOperationsTestUtils;
-    private QueueCommandManager cmdManager;
 
     @Before
     public void setUp() {
         pipelineTaskOperationsTest = new PipelineTaskOperationsTest();
         pipelineTaskOperationsTest.setUp();
-        cmdManager = spy(QueueCommandManager.newInstance());
         pipelineTaskDataOperations = Mockito.spy(PipelineTaskDataOperations.class);
-        when(pipelineTaskDataOperations.queueCommandManager()).thenReturn(cmdManager);
         pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
         pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
-        pipelineOperationsTestUtils.setUpSingleModulePipeline();
+        pipelineOperationsTestUtils.setUpSingleNodePipeline();
     }
 
     @Test
@@ -198,22 +193,15 @@ public class PipelineTaskDataOperationsTest {
     }
 
     @Test
-    public void testAlgorithmType() {
-        PipelineTask pipelineTask = pipelineOperationsTestUtils.getPipelineTasks().get(0);
-        pipelineTaskDataOperations.updateAlgorithmType(pipelineTask, AlgorithmType.REMOTE);
-        assertEquals(AlgorithmType.REMOTE, pipelineTaskDataOperations.algorithmType(pipelineTask));
-    }
-
-    @Test
     public void testIncrementTaskLogIndex() {
         PipelineTask pipelineTask = pipelineOperationsTestUtils.getPipelineTasks().get(0);
-        assertEquals("1-1-module1.42-0.log",
+        assertEquals("1-1-step1.42-0.log",
             pipelineTaskDataOperations.logFilename(pipelineTask, 42));
         pipelineTaskDataOperations.incrementTaskLogIndex(pipelineTask);
         pipelineTaskDataOperations.incrementTaskLogIndex(pipelineTask);
-        assertEquals("1-1-module1.42-2.log",
+        assertEquals("1-1-step1.42-2.log",
             pipelineTaskDataOperations.logFilename(pipelineTask, 42));
-        assertEquals("1-1-module1.42-24.log",
+        assertEquals("1-1-step1.42-24.log",
             pipelineTaskDataOperations.logFilename(pipelineTask, 42, 24));
     }
 
@@ -353,7 +341,7 @@ public class PipelineTaskDataOperationsTest {
     }
 
     @Test
-    public void testCreateRemoteJobsFromQstat() {
+    public void testAddRemoteJobs() {
 
         PipelineTask task = pipelineTaskOperationsTest.createPipelineTask();
         List<RemoteJobInformation> remoteJobsInformation = remoteJobsInformation();
@@ -386,10 +374,10 @@ public class PipelineTaskDataOperationsTest {
         List<RemoteJob> remoteJobs = new ArrayList<>(pipelineTaskDataOperations.remoteJobs(task));
         RemoteJob job = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(9101154)));
         assertTrue(job.isFinished());
-        assertEquals(20.0, job.getCostEstimate(), 1e-9);
+        assertEquals(10.0, job.getCostEstimate(), 1e-9);
         job = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(9102337)));
         assertFalse(job.isFinished());
-        assertEquals(8.0, job.getCostEstimate(), 1e-9);
+        assertEquals(4.0, job.getCostEstimate(), 1e-9);
         job = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(6020203)));
         assertFalse(job.isFinished());
         assertEquals(0, job.getCostEstimate(), 1e-9);
@@ -419,10 +407,10 @@ public class PipelineTaskDataOperationsTest {
         List<RemoteJob> remoteJobs = new ArrayList<>(pipelineTaskDataOperations.remoteJobs(task));
         RemoteJob job = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(9101154)));
         assertTrue(job.isFinished());
-        assertEquals(20.0, job.getCostEstimate(), 1e-9);
+        assertEquals(10.0, job.getCostEstimate(), 1e-9);
         job = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(9102337)));
         assertFalse(job.isFinished());
-        assertEquals(8.0, job.getCostEstimate(), 1e-9);
+        assertEquals(4.0, job.getCostEstimate(), 1e-9);
         job = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(6020203)));
         assertFalse(job.isFinished());
         assertEquals(0, job.getCostEstimate(), 1e-9);
@@ -431,38 +419,33 @@ public class PipelineTaskDataOperationsTest {
     private List<RemoteJobInformation> remoteJobsInformation() {
         List<RemoteJobInformation> remoteJobsInformation = new ArrayList<>();
         RemoteJobInformation remoteJobInformation = new RemoteJobInformation("pbsLogfile",
-            "1-1-tps.0");
+            "1-1-tps.0", "hecc");
         remoteJobInformation.setJobId(9101154);
         remoteJobsInformation.add(remoteJobInformation);
-        remoteJobInformation = new RemoteJobInformation("pbsLogfile", "1-1-tps.1");
+        remoteJobInformation = new RemoteJobInformation("pbsLogfile", "1-1-tps.1", "hecc");
         remoteJobInformation.setJobId(9102337);
         remoteJobsInformation.add(remoteJobInformation);
-        remoteJobInformation = new RemoteJobInformation("pbsLogfile", "1-1-tps.2");
+        remoteJobInformation = new RemoteJobInformation("pbsLogfile", "1-1-tps.2", "hecc");
         remoteJobInformation.setJobId(6020203);
         remoteJobsInformation.add(remoteJobInformation);
         return remoteJobsInformation;
     }
 
     private void mockRemoteJobUpdates() {
+        BatchManager<?> batchManager = Mockito.mock(BatchManager.class);
+        Mockito.doReturn(batchManager)
+            .when(pipelineTaskDataOperations)
+            .batchManager(ArgumentMatchers.any(RemoteJob.class));
+        RemoteJob job9101154 = new RemoteJob(9101154, "hecc", 1.0);
+        RemoteJob job9102337 = new RemoteJob(9102337, "hecc", 0.8);
+        RemoteJob job6020203 = new RemoteJob(6020203, "hecc", 0.8);
 
-        // Set up the QueueCommandManager to inform the operations class that
-        // one of the tasks is complete, one is running, and one is still queued
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 9101154",
-            new String[] { "Exit_status" }, "    Exit_status = 0");
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 9102337",
-            new String[] { "Exit_status" }, "");
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 6020203",
-            new String[] { "Exit_status" }, "");
+        Mockito.when(batchManager.isFinished(job9101154)).thenReturn(true);
+        Mockito.when(batchManager.isFinished(job9102337)).thenReturn(false);
+        Mockito.when(batchManager.isFinished(job6020203)).thenReturn(false);
 
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 9101154",
-            new String[] { QueueCommandManager.SELECT, QueueCommandManager.WALLTIME },
-            "    " + QueueCommandManager.WALLTIME + " = 10:00:00",
-            "    " + QueueCommandManager.SELECT + " = 2:model=bro");
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 9102337",
-            new String[] { QueueCommandManager.SELECT, QueueCommandManager.WALLTIME },
-            "    " + QueueCommandManager.WALLTIME + " = 05:00:00",
-            "    " + QueueCommandManager.SELECT + " = 2:model=has");
-        QueueCommandManagerTest.mockQstatCall(cmdManager, "-xf 6020203",
-            new String[] { QueueCommandManager.SELECT, QueueCommandManager.WALLTIME }, "");
+        Mockito.when(batchManager.getUpdatedCostEstimate(job9101154)).thenReturn(10.0);
+        Mockito.when(batchManager.getUpdatedCostEstimate(job9102337)).thenReturn(4.0);
+        Mockito.when(batchManager.getUpdatedCostEstimate(job6020203)).thenReturn(0.0);
     }
 }

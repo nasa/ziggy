@@ -61,7 +61,7 @@ public class StartPipelineRequestManager {
     private synchronized void processRequest(StartPipelineRequest request) {
         log.info("Got a message, processing...");
         pipelineManagerThreads.execute(() -> {
-            new PipelineInstanceManager(request).fireTrigger();
+            new PipelineInstanceManager(request).startPipeline();
         });
     }
 

@@ -12,13 +12,13 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.util.PipelineException;
 
 // TODO Rename to AlertLogOperationsTest and adjust
 //

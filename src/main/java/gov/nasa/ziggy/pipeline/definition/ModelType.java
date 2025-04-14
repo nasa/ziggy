@@ -4,9 +4,10 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import gov.nasa.ziggy.module.io.ProxyIgnore;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile.PipelineDefinitionElement;
 import gov.nasa.ziggy.util.RegexBackslashManager;
 import gov.nasa.ziggy.util.RegexGroupCounter;
+import gov.nasa.ziggy.util.io.ProxyIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -36,7 +37,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
 @Table(name = "ziggy_ModelType")
-public class ModelType implements Comparable<ModelType> {
+public class ModelType implements Comparable<ModelType>, PipelineDefinitionElement {
 
     @XmlAttribute(required = true)
     @Id

@@ -51,8 +51,8 @@ public class MetricsChartPanel extends ChartPanel {
 
         if (r instanceof XYLineAndShapeRenderer) {
             XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) r;
-            renderer.setBaseShapesVisible(true);
-            renderer.setBaseShapesFilled(true);
+            renderer.setDefaultShapesVisible(true);
+            renderer.setDefaultShapesFilled(true);
         }
 
         chart.setBackgroundPaint(getBackground());

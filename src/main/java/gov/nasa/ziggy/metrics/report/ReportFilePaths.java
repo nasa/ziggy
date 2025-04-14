@@ -20,7 +20,7 @@ public class ReportFilePaths {
         return DirectoryProperties.reportsDir().resolve(filename);
     }
 
-    public static Path triggerReportPath(String pipelineName) {
+    public static Path pipelineReportPath(String pipelineName) {
         String filename = "pipeline-" + pipelineName.replace(" ", "_") + "-"
             + Iso8601Formatter.dateTimeLocalFormatter().format(new Date()) + ".txt";
         return DirectoryProperties.reportsDir().resolve(filename);

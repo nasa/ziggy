@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pipelineDefinition>
+
+  <!-- Remote environment that's used to demonstrate how Ziggy manages multiple
+       remote environments. -->
+
+  <remoteEnvironment name="sample" batchSystem="pbs" costUnit="$" description="Sample">
+    <architecture name="vax" description="VAX" cores="4" ramGigabytes="1" cost="1"
+                  bandwidthGbps="10"/>
+    <architecture name="alpha" description="Alpha" cores="16" ramGigabytes="4" cost="4"/>
+    <queue name="dec" description="DEC" maxWallTimeHours="8"/>
+    <queue name="compaq" description="Compaq" maxWallTimeHours="24"/>
+    <queue name="hpe" description="HPE" maxWallTimeHours="72"/>
+  </remoteEnvironment>
+
+</pipelineDefinition>

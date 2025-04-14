@@ -57,14 +57,14 @@ public class InstanceReporter {
             taskSummaryDisplayModel.print(printStream, "Instance Task Summary");
 
             TaskCounts taskCounts = taskSummaryDisplayModel.getTaskCounts();
-            List<String> orderedModuleNames = taskCounts.getModuleNames();
+            List<String> orderedPipelineStepNames = taskCounts.getPipelineStepNames();
 
             PipelineStatsDisplayModel pipelineStatsDisplayModel = new PipelineStatsDisplayModel(
-                tasks, orderedModuleNames);
+                tasks, orderedPipelineStepNames);
             pipelineStatsDisplayModel.print(printStream, "Processing Time Statistics");
 
             TaskMetricsDisplayModel taskMetricsDisplayModel = new TaskMetricsDisplayModel(tasks,
-                orderedModuleNames);
+                orderedPipelineStepNames);
             taskMetricsDisplayModel.print(printStream,
                 "Processing Time Breakdown (completed tasks only)");
         } catch (FileNotFoundException | UnsupportedEncodingException e) {

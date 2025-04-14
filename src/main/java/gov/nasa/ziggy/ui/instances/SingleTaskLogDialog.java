@@ -179,7 +179,7 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
                     .appendBold(" WORKER: ")
                     .append(pipelineTaskDisplayData.getWorkerName())
                     .appendBold(" TASK: ")
-                    .append(pipelineTaskDisplayData.getModuleName())
+                    .append(pipelineTaskDisplayData.getPipelineStepName())
                     .append(" [")
                     .append(pipelineTaskDisplayData.getBriefState())
                     .append("] ")

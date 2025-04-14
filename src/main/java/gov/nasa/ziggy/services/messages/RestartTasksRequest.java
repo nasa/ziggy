@@ -2,7 +2,7 @@ package gov.nasa.ziggy.services.messages;
 
 import java.util.List;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**

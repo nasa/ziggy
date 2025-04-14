@@ -2,7 +2,7 @@ package gov.nasa.ziggy.worker;
 
 import java.io.Serializable;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.util.HumanReadableHeapSize;
@@ -12,8 +12,8 @@ import gov.nasa.ziggy.util.HumanReadableHeapSize;
  * <p>
  * Note that any particular instance of {@link WorkerResources} can be one of the following:
  * <ol>
- * <li>The configured resources for a particular {@link PipelineDefinitionNode} instance, in which
- * case one or both of the values can be null, indicating that the default values should be used.
+ * <li>The configured resources for a particular {@link PipelineNode} instance, in which case one or
+ * both of the values can be null, indicating that the default values should be used.
  * <li>The default values, which were set when the {@link PipelineSupervisor} was instantiated.
  * <li>A composite of the above, in which null values from the node's resources are replaced by the
  * corresponding values from the default resources. This defines the current resources available to

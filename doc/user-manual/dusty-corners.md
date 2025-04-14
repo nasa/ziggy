@@ -32,12 +32,12 @@ Make it easier to run those Java programs you've written.
 
 There's more flexibility to the unit of work infrastructure than we've let on.
 
-[[Previous]](console-cli.md)
-[[Up]](user-manual.md)
-[[Next]](more-rdbms.md)
-
 <!--
 ### [Customizing Ziggy](customizing-ziggy.md)
 
 Add your own parameter set types and more.
 -->
+
+[[Previous]](console-cli.md)
+[[Up]](user-manual.md)
+[[Next]](more-rdbms.md)

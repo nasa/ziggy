@@ -21,11 +21,11 @@ public class TaskSummaryDisplayModelTest {
         TaskCounts taskCounts = new TaskCounts(pipelineTasks);
         TaskSummaryDisplayModel model = new TaskSummaryDisplayModel(taskCounts);
         assertEquals(6, model.getColumnCount());
-        assertEquals("Module", model.getColumnName(0));
+        assertEquals("Node", model.getColumnName(0));
         assertEquals(pipelineTasks.size() + 1, model.getRowCount()); // a row for the total is added
 
-        assertEquals(taskCounts.getModuleCounts().get("module1"), model.getContentAtRow(0));
-        assertEquals("module1", model.getValueAt(0, 0));
+        assertEquals(taskCounts.getPipelineStepCounts().get("step1"), model.getContentAtRow(0));
+        assertEquals("step1", model.getValueAt(0, 0));
         assertEquals(1, model.getValueAt(0, 1));
         assertEquals(0, model.getValueAt(0, 2));
         assertEquals(0, model.getValueAt(0, 3));

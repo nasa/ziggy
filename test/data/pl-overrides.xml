@@ -1,0 +1,16 @@
+<pipelineDefinition>
+
+  <parameterSet name="Sample classless parameter set" partial="true">
+    <parameter name="z1" value="100"/>
+  </parameterSet>
+
+  <parameterSet name="ISOFIT algorithm parameters" partial="true">
+    <parameter name="n_cores" value="8"/>
+  </parameterSet>
+  
+  <parameterSet name="Multiple subtask configuration" partial="true">
+    <parameter name="reprocessingTasksExclude" value="1, 2, 3"/>
+  </parameterSet>
+
+
+</pipelineDefinition>

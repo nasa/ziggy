@@ -5,10 +5,13 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
 
 /**
@@ -22,53 +25,57 @@ public class PipelineDefinitionExporter {
 
     private ValidatingXmlManager<PipelineDefinitionFile> xmlManager = new ValidatingXmlManager<>(
         PipelineDefinitionFile.class);
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+    private PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
 
-    /**
-     * Export the specified pipelines and all module definitions referenced by those pipelines to
-     * the specified file.
-     *
-     * @param pipelines
-     * @param destinationPath
-     */
-    public void exportPipelineConfiguration(List<PipelineDefinition> pipelines,
-        String destinationPath) {
+    public void exportPipelineConfiguration(List<Pipeline> pipelines,
+        List<ParameterSet> parameterSets, String destinationPath) {
         File destinationFile = new File(destinationPath);
         if (destinationFile.exists() && destinationFile.isDirectory()) {
             throw new IllegalArgumentException(
                 "destinationPath exists and is a directory: " + destinationFile);
         }
 
-        log.info("Exporting {} pipelines to: {}", pipelines.size(), destinationFile);
-
         PipelineDefinitionFile pipelineDefinitionFile = new PipelineDefinitionFile();
-        populatePiplineDefinitionFile(pipelines, pipelineDefinitionFile);
+        populatePipelineDefinitionFile(pipelines, parameterSets, pipelineDefinitionFile);
+        log.info("Exporting to file {}", destinationFile.getAbsolutePath());
         xmlManager.marshal(pipelineDefinitionFile, destinationFile);
     }
 
     /**
-     * Generates the content for the XML document.
+     * Generates the content for the XML document. Only the {@link Pipeline} and
+     * {@link ParameterSet} instances are needed as arguments because the rest of the pipeline
+     * definition content can be obtained from the contents of those elements.
      */
-    private void populatePiplineDefinitionFile(List<PipelineDefinition> pipelines,
-        PipelineDefinitionFile pipelineDefinitionFile) {
-        List<String> moduleNames = new LinkedList<>();
+    private void populatePipelineDefinitionFile(List<Pipeline> pipelines,
+        List<ParameterSet> parameterSets, PipelineDefinitionFile pipelineDefinitionFile) {
+        List<String> pipelineStepNames = new LinkedList<>();
 
-        for (PipelineDefinition pipeline : pipelines) {
-            pipelineDefinitionFile.getPipelines().add(pipeline);
-            for (PipelineDefinitionNode node : pipeline.getNodes()) {
-                moduleNames.add(node.getModuleName());
+        if (!CollectionUtils.isEmpty(pipelines)) {
+            log.info("Adding {} pipelines to export", pipelines.size());
+
+            for (Pipeline pipeline : pipelines) {
+                pipelineDefinitionFile.getPipelineElements().add(pipeline);
+                for (PipelineNode node : pipeline.getNodes()) {
+                    pipelineStepNames.add(node.getPipelineStepName());
+                }
+                pipeline.populateXmlFields();
             }
-            pipeline.populateXmlFields();
+            Collections.sort(pipelineStepNames);
+            for (String pipelineStepName : pipelineStepNames) {
+                PipelineStep pipelineStep = pipelineStepOperations().pipelineStep(pipelineStepName);
+                pipelineDefinitionFile.getPipelineElements().add(pipelineStep);
+            }
         }
-        Collections.sort(moduleNames);
-        for (String moduleName : moduleNames) {
-            PipelineModuleDefinition module = pipelineModuleDefinitionOperations()
-                .pipelineModuleDefinition(moduleName);
-            pipelineDefinitionFile.getModules().add(module);
+        if (!CollectionUtils.isEmpty(parameterSets)) {
+            log.info("Adding {} parameter sets to export", parameterSets.size());
+            for (ParameterSet parameterSet : parameterSets) {
+                parameterSet.populateXmlFields();
+                pipelineDefinitionFile.getPipelineElements().add(parameterSet);
+            }
         }
     }
 
-    PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
-        return pipelineModuleDefinitionOperations;
+    PipelineStepOperations pipelineStepOperations() {
+        return pipelineStepOperations;
     }
 }

@@ -32,7 +32,7 @@ import org.junit.rules.RuleChain;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
@@ -40,7 +40,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskData_;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.UniqueNameVersionPipelineComponent_;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionCrud;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
@@ -90,8 +90,8 @@ public class ZiggyQueryTest {
     public ZiggyPropertyRule log4jConfigProperty = new ZiggyPropertyRule(
         PropertyName.LOG4J2_CONFIGURATION_FILE, Paths.get("etc").resolve("log4j2.xml").toString());
 
-    public ZiggyPropertyRule log4jLogFileProperty = new ZiggyPropertyRule("ziggy.logFile",
-        directoryRule, HIBERNATE_LOG_FILE_NAME);
+    public ZiggyPropertyRule log4jLogFileProperty = new ZiggyPropertyRule(
+        PropertyName.ZIGGY_LOG_SINGLE_FILE, directoryRule, HIBERNATE_LOG_FILE_NAME);
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -640,28 +640,25 @@ public class ZiggyQueryTest {
     @Test
     public void testSubquery() {
         PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
-        pipelineOperationsTestUtils.setUpSingleModulePipeline();
-        ZiggyQuery<PipelineDefinition, PipelineDefinition> query = crud
-            .createZiggyQuery(PipelineDefinition.class);
+        pipelineOperationsTestUtils.setUpSingleNodePipeline();
+        ZiggyQuery<Pipeline, Pipeline> query = crud.createZiggyQuery(Pipeline.class);
 
         // Find the maximum index of the selected name via a subquery. We need to use a
         // subquery because the max() method automatically implements a select of the column
         // that's being searched.
-        ZiggyQuery<PipelineDefinition, Integer> subquery = query
-            .ziggySubquery(PipelineDefinition.class, Integer.class);
+        ZiggyQuery<Pipeline, Integer> subquery = query.ziggySubquery(Pipeline.class, Integer.class);
         subquery.column(UniqueNameVersionPipelineComponent_.NAME)
-            .in(pipelineOperationsTestUtils.pipelineDefinition().getName());
+            .in(pipelineOperationsTestUtils.pipeline().getName());
         subquery.column(UniqueNameVersionPipelineComponent_.VERSION).max();
 
-        // Use the subquery result to find the correct pipeline definition version.
+        // Use the subquery result to find the correct pipeline version.
         query.column(UniqueNameVersionPipelineComponent_.NAME)
-            .in(pipelineOperationsTestUtils.pipelineDefinition().getName());
+            .in(pipelineOperationsTestUtils.pipeline().getName());
         query.column(UniqueNameVersionPipelineComponent_.VERSION).in(subquery);
-        PipelineDefinition retrievedDefinition = testOperations
-            .performUniqueResultQueryOnPipelineDefinitionTable(query);
-        assertNotNull(retrievedDefinition);
-        assertEquals(1L, retrievedDefinition.getId().longValue());
-        assertEquals(0, retrievedDefinition.getVersion());
+        Pipeline retrievedPipeline = testOperations.performUniqueResultQueryOnPipelineTable(query);
+        assertNotNull(retrievedPipeline);
+        assertEquals(1L, retrievedPipeline.getId().longValue());
+        assertEquals(0, retrievedPipeline.getVersion());
     }
 
     private List<String> logFileContents() throws IOException {
@@ -735,9 +732,8 @@ public class ZiggyQueryTest {
             return performTransaction(() -> new PipelineInstanceNodeCrud().list(query));
         }
 
-        public <T> T performUniqueResultQueryOnPipelineDefinitionTable(
-            ZiggyQuery<PipelineDefinition, T> query) {
-            return performTransaction(() -> new PipelineDefinitionCrud().uniqueResult(query));
+        public <T> T performUniqueResultQueryOnPipelineTable(ZiggyQuery<Pipeline, T> query) {
+            return performTransaction(() -> new PipelineCrud().uniqueResult(query));
         }
 
         protected PipelineTask persistPipelineTask(PipelineTask pipelineTask,

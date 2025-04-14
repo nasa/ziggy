@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.TimeZone;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -15,9 +16,15 @@ public class Iso8601FormatterTest {
     @Before
     public void setUp() {
         Calendar calendar = Calendar.getInstance();
+        calendar.setTimeZone(TimeZone.getTimeZone("America/Los_Angeles"));
         calendar.set(2024, 00, 03, 16, 52, 40); // local time
         calendar.set(Calendar.MILLISECOND, 0);
         date = calendar.getTime();
+
+        System.setProperty("user.timezone", "America/Los_Angeles");
+
+        // Clear out the cached timezone so that the user.timezone setting takes effect.
+        TimeZone.setDefault(null);
     }
 
     @Test

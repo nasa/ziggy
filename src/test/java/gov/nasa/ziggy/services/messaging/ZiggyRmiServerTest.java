@@ -22,7 +22,7 @@ public class ZiggyRmiServerTest {
     @Test
     public void testServerStartStop() {
         ZiggyRmiServer.start();
-        TestEventDetector.detectTestEvent(1000L, () -> ZiggyRmiServer.isInitialized());
+        TestEventDetector.detectTestEvent(1000L, ZiggyRmiServer::isInitialized);
         assertNotNull(ZiggyRmiServer.serverInstance().getBroadcastThread());
 
         ZiggyRmiServer.shutdown();
@@ -35,7 +35,7 @@ public class ZiggyRmiServerTest {
     @Test
     public void testServerStartTwice() {
         ZiggyRmiServer.start();
-        TestEventDetector.detectTestEvent(1000L, () -> ZiggyRmiServer.isInitialized());
+        TestEventDetector.detectTestEvent(1000L, ZiggyRmiServer::isInitialized);
         ZiggyRmiServer instance = ZiggyRmiServer.serverInstance();
 
         ZiggyRmiServer.start();

@@ -7,9 +7,9 @@ import java.nio.file.Files;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Some additional operations over a Configuration object.

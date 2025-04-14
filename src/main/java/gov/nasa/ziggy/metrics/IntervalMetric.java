@@ -3,9 +3,9 @@ package gov.nasa.ziggy.metrics;
 import java.io.Serializable;
 import java.util.concurrent.Callable;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.SystemProxy;
 
 /**

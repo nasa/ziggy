@@ -22,24 +22,24 @@ import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskData_;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCountsTest;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations.ClearStaleStateResults;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
+import gov.nasa.ziggy.util.PipelineException;
 
 // TODO Break up into multiple <Class>OperationsTest classes
 
@@ -61,11 +61,11 @@ public class PipelineInstanceTaskCrudTest {
     @SuppressWarnings("unused")
     private static final String TEST_WORKER_NAME = "TestWorker";
 
-    private PipelineDefinitionCrud pipelineDefinitionCrud;
+    private PipelineCrud pipelineCrud;
     private PipelineInstanceCrud pipelineInstanceCrud;
     private PipelineInstanceNodeCrud pipelineInstanceNodeCrud;
     private PipelineTaskCrud pipelineTaskCrud;
-    private PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud;
+    private PipelineStepCrud pipelineStepCrud;
     private ParameterSetCrud parameterSetCrud;
     private PipelineTaskOperations pipelineTaskOperations;
     private PipelineTaskDataOperations pipelineTaskDataOperations;
@@ -79,11 +79,11 @@ public class PipelineInstanceTaskCrudTest {
     private PipelineTask pipelineTask3;
     private PipelineTask pipelineTask4;
 
-    private PipelineDefinition pipelineDef;
-    private PipelineDefinitionNode pipelineDefNode1;
-    private PipelineDefinitionNode pipelineDefNode2;
+    private Pipeline pipeline;
+    private PipelineNode pipelineDefNode1;
+    private PipelineNode pipelineDefNode2;
     private ParameterSet parameterSet;
-    private PipelineModuleDefinition moduleDef;
+    private PipelineStep pipelineStep;
     private TestOperations testOperations;
 
     @Rule
@@ -92,11 +92,11 @@ public class PipelineInstanceTaskCrudTest {
     @Before
     public void setUp() {
 
-        pipelineDefinitionCrud = new PipelineDefinitionCrud();
+        pipelineCrud = new PipelineCrud();
         pipelineInstanceCrud = new PipelineInstanceCrud();
         pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
         pipelineTaskCrud = new PipelineTaskCrud();
-        pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
+        pipelineStepCrud = new PipelineStepCrud();
         parameterSetCrud = new ParameterSetCrud();
         pipelineTaskOperations = new PipelineTaskOperations();
         pipelineTaskDataOperations = new PipelineTaskDataOperations();
@@ -105,14 +105,14 @@ public class PipelineInstanceTaskCrudTest {
     }
 
     private PipelineInstance createPipelineInstance() throws PipelineException {
-        PipelineInstance pipelineInstance = new PipelineInstance(pipelineDef);
+        PipelineInstance pipelineInstance = new PipelineInstance(pipeline);
         pipelineInstance.addParameterSet(parameterSet);
         return pipelineInstance;
     }
 
-    private PipelineInstanceNode createPipelineInstanceNode(PipelineDefinitionNode pipelineDefNode)
+    private PipelineInstanceNode createPipelineInstanceNode(PipelineNode pipelineDefNode)
         throws PipelineException {
-        return new PipelineInstanceNode(pipelineDefNode, moduleDef);
+        return new PipelineInstanceNode(pipelineDefNode, pipelineStep);
     }
 
     private PipelineTask createPipelineTask(PipelineInstanceNode parentPipelineInstanceNode)
@@ -174,28 +174,24 @@ public class PipelineInstanceTaskCrudTest {
         PipelineInstance actualPipelineInstance = testOperations
             .retrieveAndInitializePipelineInstance(pipelineInstance.getId());
 
-        ReflectionEquals comparer = new ReflectionEquals();
-        comparer.excludeField(".*\\.lastChangedUser");
-        comparer.excludeField(".*\\.lastChangedTime");
-        comparer.excludeField(".*\\.summaryMetrics");
-        comparer.excludeField(".*\\.execLog");
-        comparer.excludeField(".*\\.producerTaskIds");
-        comparer.excludeField(".*\\.remoteJobs");
-        comparer.excludeField(".*\\.pipelineDefinition");
-        comparer.excludeField(".*\\.moduleParameterSets");
-        comparer.excludeField(".*\\.nextNodes");
-        comparer.excludeField(".*\\.pipelineTasks");
-        comparer.excludeField(".*\\.inputDataFileTypes");
-        comparer.excludeField(".*\\.outputDataFileTypes");
-        comparer.excludeField(".*\\.modelTypes");
-        comparer.excludeField(".*\\.obsoleteModuleParameterSetNames");
-        comparer.excludeField(".*\\.obsoleteModuleParameterSets");
-        comparer.excludeField(".*\\.parameterSets");
-        comparer.excludeField(".*\\.parameterSetNames");
+        ReflectionEquals comparer = createInstanceComparer();
         comparer.assertEquals("PipelineInstance", pipelineInstance, actualPipelineInstance);
 
         assertEquals("PipelineInstance count", 1, pipelineInstanceCount());
         assertEquals("PipelineTask count", 4, pipelineTaskCount());
+    }
+
+    private ReflectionEquals createInstanceComparer() {
+        ReflectionEquals comparer = new ReflectionEquals();
+        comparer.excludeField(".*\\.created");
+        comparer.excludeField(".*\\.id");
+        comparer.excludeField(".*\\.inputDataFileTypes");
+        comparer.excludeField(".*\\.modelTypes");
+        comparer.excludeField(".*\\.nextNodes");
+        comparer.excludeField(".*\\.outputDataFileTypes");
+        comparer.excludeField(".*\\.parameterSets");
+        comparer.excludeField(".*\\.pipelineTasks");
+        return comparer;
     }
 
     /**
@@ -212,19 +208,7 @@ public class PipelineInstanceTaskCrudTest {
         PipelineInstanceNode actualPipelineInstanceNode = testOperations
             .retrieveAndInitializePipelineInstanceNode(pipelineInstanceNode1.getId());
 
-        ReflectionEquals comparer = new ReflectionEquals();
-        comparer.excludeField(".*\\.lastChangedUser");
-        comparer.excludeField(".*\\.lastChangedTime");
-        comparer.excludeField(".*\\.summaryMetrics");
-        comparer.excludeField(".*\\.execLog");
-        comparer.excludeField(".*\\.producerTaskIds");
-        comparer.excludeField(".*\\.remoteJobs");
-        comparer.excludeField(".*\\.inputDataFileTypes");
-        comparer.excludeField(".*\\.outputDataFileTypes");
-        comparer.excludeField(".*\\.modelTypes");
-        comparer.excludeField(".*\\.obsoleteModuleParameterSetNames");
-        comparer.excludeField(".*\\.parameterSets");
-        comparer.excludeField(".*\\.parameterSetNames");
+        ReflectionEquals comparer = createInstanceComparer();
         comparer.assertEquals("PipelineInstanceNode", pipelineInstanceNode1,
             actualPipelineInstanceNode);
     }
@@ -246,19 +230,7 @@ public class PipelineInstanceTaskCrudTest {
         assertEquals("actualPipelineInstanceNodes.size() == 2", 2,
             actualPipelineInstanceNodes.size());
 
-        ReflectionEquals comparer = new ReflectionEquals();
-        comparer.excludeField(".*\\.lastChangedUser");
-        comparer.excludeField(".*\\.lastChangedTime");
-        comparer.excludeField(".*\\.summaryMetrics");
-        comparer.excludeField(".*\\.execLog");
-        comparer.excludeField(".*\\.producerTaskIds");
-        comparer.excludeField(".*\\.remoteJobs");
-        comparer.excludeField(".*\\.inputDataFileTypes");
-        comparer.excludeField(".*\\.outputDataFileTypes");
-        comparer.excludeField(".*\\.modelTypes");
-        comparer.excludeField(".*\\.obsoleteModuleParameterSetNames");
-        comparer.excludeField(".*\\.parameterSets");
-        comparer.excludeField(".*\\.parameterSetNames");
+        ReflectionEquals comparer = createInstanceComparer();
 
         comparer.assertEquals("PipelineInstanceNode", pipelineInstanceNode1,
             actualPipelineInstanceNodes.get(0));
@@ -346,21 +318,7 @@ public class PipelineInstanceTaskCrudTest {
         expectedPipelineInstance.addPipelineInstanceNode(pipelineInstanceNode1);
         expectedPipelineInstance.addPipelineInstanceNode(pipelineInstanceNode2);
 
-        ReflectionEquals comparer = new ReflectionEquals();
-        comparer.excludeField(".*\\.id");
-        comparer.excludeField(".*\\.created");
-        comparer.excludeField(".*\\.lastChangedTime");
-        comparer.excludeField(".*\\.pipelineDefinition");
-        comparer.excludeField(".*\\.moduleParameterSets");
-        comparer.excludeField(".*\\.nextNodes");
-        comparer.excludeField(".*\\.pipelineTasks");
-        comparer.excludeField(".*\\.inputDataFileTypes");
-        comparer.excludeField(".*\\.outputDataFileTypes");
-        comparer.excludeField(".*\\.modelTypes");
-        comparer.excludeField(".*\\.obsoleteModuleParameterSetNames");
-        comparer.excludeField(".*\\.obsoleteModuleParameterSets");
-        comparer.excludeField(".*\\.parameterSets");
-        comparer.excludeField(".*\\.parameterSetNames");
+        ReflectionEquals comparer = createInstanceComparer();
         comparer.assertEquals("PipelineInstance", expectedPipelineInstance, actualPipelineInstance);
 
         assertEquals("PipelineInstance count", 1, pipelineInstanceCount());
@@ -371,9 +329,7 @@ public class PipelineInstanceTaskCrudTest {
     }
 
     /**
-     * simulate modifications made by a user
-     *
-     * @param pipelineDef
+     * Simulate modifications made by a user.
      */
     private void editPipelineInstance(PipelineInstance pipelineInstance) {
         pipelineInstance.setState(PipelineInstance.State.COMPLETED);
@@ -437,16 +393,17 @@ public class PipelineInstanceTaskCrudTest {
     }
 
     @Test
-    public void testInstanceIdsForModuleName() {
+    public void testInstanceIdsForPipelineStepName() {
         testOperations.populateObjects();
 
-        // If I use the named module, I should get back 1 instance.
-        List<PipelineInstance> instances = testOperations.pipelineInstancesForModuleName("Test-1");
+        // If I use the named pipeline step, I should get back 1 instance.
+        List<PipelineInstance> instances = testOperations
+            .pipelineInstancesForPipelineStepName("Test-1");
         assertEquals(1, instances.size());
         assertEquals(Long.valueOf(1L), instances.get(0).getId());
 
-        // If I use a module name that has no instances, I should get an empty result.
-        instances = testOperations.pipelineInstancesForModuleName("Test-2");
+        // If I use a pipeline step name that has no instances, I should get an empty result.
+        instances = testOperations.pipelineInstancesForPipelineStepName("Test-2");
         assertEquals(0, instances.size());
     }
 
@@ -455,30 +412,28 @@ public class PipelineInstanceTaskCrudTest {
         public void populateObjects() {
 
             performTransaction(() -> {
-                // create a module param set def
+                // Create an algorithm parameter set.
                 parameterSet = new ParameterSet("test mps1");
                 parameterSet.getParameters()
                     .add(new Parameter("value", "42", ZiggyDataType.ZIGGY_INT));
                 parameterSet = parameterSetCrud.merge(parameterSet);
 
-                // create a module def
-                moduleDef = new PipelineModuleDefinition("Test-1");
-                moduleDef = pipelineModuleDefinitionCrud.merge(moduleDef);
+                // Create a pipeline step.
+                pipelineStep = new PipelineStep("Test-1");
+                pipelineStep = pipelineStepCrud.merge(pipelineStep);
 
-                // Create a pipeline definition.
-                pipelineDef = new PipelineDefinition(TEST_PIPELINE_NAME);
+                // Create a pipeline.
+                pipeline = new Pipeline(TEST_PIPELINE_NAME);
 
-                // create some pipeline def nodes
-                pipelineDefNode1 = new PipelineDefinitionNode(moduleDef.getName(),
-                    pipelineDef.getName());
+                // Create some pipeline nodes.
+                pipelineDefNode1 = new PipelineNode(pipelineStep.getName(), pipeline.getName());
 
-                pipelineDefNode2 = new PipelineDefinitionNode(moduleDef.getName(),
-                    pipelineDef.getName());
+                pipelineDefNode2 = new PipelineNode(pipelineStep.getName(), pipeline.getName());
 
-                pipelineDef.getRootNodes().add(pipelineDefNode1);
+                pipeline.getRootNodes().add(pipelineDefNode1);
                 pipelineDefNode1.getNextNodes().add(pipelineDefNode2);
 
-                pipelineDef = pipelineDefinitionCrud.merge(pipelineDef);
+                pipeline = pipelineCrud.merge(pipeline);
 
                 pipelineInstance = pipelineInstanceCrud.merge(createPipelineInstance());
                 pipelineInstanceNode1 = pipelineInstanceNodeCrud
@@ -568,9 +523,10 @@ public class PipelineInstanceTaskCrudTest {
             });
         }
 
-        public List<PipelineInstance> pipelineInstancesForModuleName(String moduleName) {
+        public List<PipelineInstance> pipelineInstancesForPipelineStepName(
+            String pipelineStepName) {
             return performTransaction(
-                () -> pipelineInstanceCrud.pipelineInstancesForModule(moduleName));
+                () -> pipelineInstanceCrud.pipelineInstancesForPipelineStep(pipelineStepName));
         }
     }
 }

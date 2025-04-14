@@ -45,9 +45,9 @@ import org.netbeans.swing.etable.ETable;
 
 import com.jgoodies.looks.plastic.theme.SkyBluer;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.ui.util.table.TableMouseListener;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**

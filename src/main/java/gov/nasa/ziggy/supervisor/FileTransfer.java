@@ -2,7 +2,7 @@ package gov.nasa.ziggy.supervisor;
 
 /**
  * Models a file to be transfered to a worker process using the Messaging Service. Typical use case
- * is for updating code, config files, module shared libraries, etc. on workers from a central
+ * is for updating code, config files, step shared libraries, etc. on workers from a central
  * console/GUI
  *
  * @author Todd Klaus

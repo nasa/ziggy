@@ -20,7 +20,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.DisplayModel;
-import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.ModuleTaskMetrics;
+import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.PipelineStepTaskMetrics;
 
 /**
  * @author Todd Klaus
@@ -53,41 +53,41 @@ public class TaskInfoDialog extends javax.swing.JDialog {
     }
 
     private JPanel createDataPanel() {
-        JLabel idLabel = boldLabel("ID:");
+        JLabel id = boldLabel("ID:");
         JLabel idTextField = new JLabel(Long.toString(pipelineTask.getPipelineTaskId()));
 
-        JLabel stateLabel = boldLabel("Processing step:");
+        JLabel state = boldLabel("Processing step:");
         JLabel stateTextField = new JLabel(HtmlBuilder.htmlBuilder()
             .appendBoldColor(pipelineTask.getDisplayProcessingStep(),
                 pipelineTask.isError() ? "red" : "green")
             .toString());
 
-        JLabel moduleLabel = boldLabel("Module:");
-        JLabel moduleTextField = new JLabel(pipelineTask.getModuleName());
+        JLabel node = boldLabel("Node:");
+        JLabel nodeTextField = new JLabel(pipelineTask.getPipelineStepName());
 
-        JLabel uowLabel = boldLabel("Unit of work:");
+        JLabel uow = boldLabel("Unit of work:");
         JLabel uowTextField = new JLabel(pipelineTask.getBriefState());
 
-        JLabel workerLabel = boldLabel("Worker:");
+        JLabel worker = boldLabel("Worker:");
         JLabel workerTextField = new JLabel(pipelineTask.getWorkerName());
-        JLabel workerHelpLabel = new JLabel("(host:thread)");
+        JLabel workerHelp = new JLabel("(host:thread)");
 
-        JLabel createdLabel = boldLabel("Created:");
+        JLabel created = boldLabel("Created:");
         JLabel createdTextField = new JLabel(DisplayModel.formatDate(pipelineTask.getCreated()));
 
-        JLabel durationLabel = boldLabel("Duration:");
+        JLabel duration = boldLabel("Duration:");
         JLabel durationTextField = new JLabel(pipelineTask.getExecutionClock().toString());
 
-        JLabel ziggyRevisionLabel = boldLabel("Ziggy software revision:");
+        JLabel ziggyRevision = boldLabel("Ziggy software revision:");
         JLabel ziggyRevisionTextField = new JLabel(pipelineTask.getZiggySoftwareRevision());
 
-        JLabel pipelineRevisionLabel = boldLabel("Pipeline software revision:");
+        JLabel pipelineRevision = boldLabel("Pipeline software revision:");
         JLabel pipelineRevisionTextField = new JLabel(pipelineTask.getPipelineSoftwareRevision());
 
-        JLabel failureCountLabel = boldLabel("Failure count:");
+        JLabel failureCount = boldLabel("Failure count:");
         JLabel failureCountTextField = new JLabel(Integer.toString(pipelineTask.getFailureCount()));
 
-        ZiggyTable<ModuleTaskMetrics> processingBreakdownTable = createProcessingBreakdownTable();
+        ZiggyTable<PipelineStepTaskMetrics> processingBreakdownTable = createProcessingBreakdownTable();
         JScrollPane processingBreakdownTableScrollPane = new JScrollPane(
             processingBreakdownTable.getTable());
 
@@ -101,25 +101,25 @@ public class TaskInfoDialog extends javax.swing.JDialog {
             .addGroup(dataPanelLayout.createParallelGroup()
                 .addGroup(dataPanelLayout.createSequentialGroup()
                     .addGroup(dataPanelLayout.createParallelGroup()
-                        .addComponent(idLabel)
-                        .addComponent(stateLabel)
-                        .addComponent(moduleLabel)
-                        .addComponent(uowLabel)
-                        .addComponent(workerLabel)
-                        .addComponent(durationLabel)
-                        .addComponent(createdLabel)
-                        .addComponent(ziggyRevisionLabel)
-                        .addComponent(pipelineRevisionLabel)
-                        .addComponent(failureCountLabel))
+                        .addComponent(id)
+                        .addComponent(state)
+                        .addComponent(node)
+                        .addComponent(uow)
+                        .addComponent(worker)
+                        .addComponent(duration)
+                        .addComponent(created)
+                        .addComponent(ziggyRevision)
+                        .addComponent(pipelineRevision)
+                        .addComponent(failureCount))
                     .addPreferredGap(ComponentPlacement.RELATED)
                     .addGroup(dataPanelLayout.createParallelGroup()
                         .addComponent(idTextField)
                         .addComponent(stateTextField)
-                        .addComponent(moduleTextField)
+                        .addComponent(nodeTextField)
                         .addComponent(uowTextField)
                         .addGroup(dataPanelLayout.createSequentialGroup()
                             .addComponent(workerTextField)
-                            .addComponent(workerHelpLabel))
+                            .addComponent(workerHelp))
                         .addComponent(durationTextField)
                         .addComponent(createdTextField)
                         .addComponent(ziggyRevisionTextField)
@@ -128,36 +128,34 @@ public class TaskInfoDialog extends javax.swing.JDialog {
                 .addComponent(processingBreakdownTableScrollPane)));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
+            .addGroup(
+                dataPanelLayout.createParallelGroup().addComponent(id).addComponent(idTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(idLabel)
-                .addComponent(idTextField))
-            .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(stateLabel)
+                .addComponent(state)
                 .addComponent(stateTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(moduleLabel)
-                .addComponent(moduleTextField))
+                .addComponent(node)
+                .addComponent(nodeTextField))
+            .addGroup(
+                dataPanelLayout.createParallelGroup().addComponent(uow).addComponent(uowTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(uowLabel)
-                .addComponent(uowTextField))
-            .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(workerLabel)
+                .addComponent(worker)
                 .addComponent(workerTextField)
-                .addComponent(workerHelpLabel))
+                .addComponent(workerHelp))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(durationLabel)
+                .addComponent(duration)
                 .addComponent(durationTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(createdLabel)
+                .addComponent(created)
                 .addComponent(createdTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(ziggyRevisionLabel)
+                .addComponent(ziggyRevision)
                 .addComponent(ziggyRevisionTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(pipelineRevisionLabel)
+                .addComponent(pipelineRevision)
                 .addComponent(pipelineRevisionTextField))
             .addGroup(dataPanelLayout.createParallelGroup()
-                .addComponent(failureCountLabel)
+                .addComponent(failureCount)
                 .addComponent(failureCountTextField))
             .addPreferredGap(ComponentPlacement.UNRELATED)
             .addComponent(processingBreakdownTableScrollPane));
@@ -165,9 +163,9 @@ public class TaskInfoDialog extends javax.swing.JDialog {
         return dataPanel;
     }
 
-    private ZiggyTable<ModuleTaskMetrics> createProcessingBreakdownTable() {
+    private ZiggyTable<PipelineStepTaskMetrics> createProcessingBreakdownTable() {
         TaskMetricsTableModel processingBreakdownTableModel = new TaskMetricsTableModel(
-            List.of(pipelineTask), List.of(pipelineTask.getModuleName()), false);
+            List.of(pipelineTask), List.of(pipelineTask.getPipelineStepName()), false);
         return new ZiggyTable<>(processingBreakdownTableModel);
     }
 

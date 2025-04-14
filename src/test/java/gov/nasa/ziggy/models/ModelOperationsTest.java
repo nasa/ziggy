@@ -15,17 +15,20 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import com.google.common.collect.ImmutableList;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
+import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
-import gov.nasa.ziggy.data.datastore.DatastoreConfigurationImporter;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.database.ModelCrud;
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionImporter;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 
 /**
@@ -36,8 +39,15 @@ import gov.nasa.ziggy.services.database.DatabaseOperations;
 public class ModelOperationsTest {
 
     // The easiest way to get the model definitions into the database is to import them from a file.
-    private static final Path DATASTORE = TEST_DATA.resolve("datastore");
-    private static final String FILE_1 = DATASTORE.resolve("pd-test-1.xml").toString();
+    private static final Path FILE_1 = TEST_DATA.resolve("pd-test-1.xml");
+
+    public ZiggyDirectoryRule ziggyDirectoryRule = new ZiggyDirectoryRule();
+    public ZiggyPropertyRule datastorePropertyRule = new ZiggyPropertyRule(
+        PropertyName.DATASTORE_ROOT_DIR, ziggyDirectoryRule, "datastore");
+
+    @Rule
+    public RuleChain ruleChain = RuleChain.outerRule(ziggyDirectoryRule)
+        .around(datastorePropertyRule);
 
     private ModelOperations modelOperations;
 
@@ -51,9 +61,7 @@ public class ModelOperationsTest {
     @Before
     public void setUp() {
         modelOperations = new ModelOperations();
-        DatastoreConfigurationImporter dataFileImporter = new DatastoreConfigurationImporter(
-            ImmutableList.of(FILE_1), false);
-        dataFileImporter.importConfiguration();
+        new PipelineDefinitionImporter(ImmutableList.of(FILE_1)).importPipelineDefinitions();
     }
 
     @Test

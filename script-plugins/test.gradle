@@ -2,9 +2,16 @@ test {
     systemProperty "java.library.path", "$outsideDir/lib"
     maxHeapSize = "1024m"
 
+    // Avoid the warning "OpenJDK 64-Bit Server VM warning: Sharing is
+    // only supported for boot loader classes because bootstrap
+    // classpath has been appended". See
+    // https://github.com/mockito/mockito/issues/3111.
+    jvmArgs(['-Xshare:off'])
+
     testLogging {
         events "failed", "skipped"
     }
+
     useJUnit {
         // If a code coverage report that incudes the integration tests is desired, then comment
         // out the IntegrationTestCategory line and uncomment the RunByNameTestCategory line. When
@@ -23,6 +30,9 @@ test {
 
 // Execute tests marked with @Category(IntegrationTestCategory.class).
 task integrationTest(type: Test) {
+    testClassesDirs = testing.suites.test.sources.output.classesDirs
+    classpath = testing.suites.test.sources.runtimeClasspath
+
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
     systemProperty "ziggy.logfile", "$buildDir/build.log"
     systemProperty "java.library.path", "$outsideDir/lib"
@@ -30,11 +40,14 @@ task integrationTest(type: Test) {
     testLogging {
         events "failed", "skipped"
     }
+
     useJUnit {
         includeCategories 'gov.nasa.ziggy.IntegrationTestCategory'
         excludeCategories 'gov.nasa.ziggy.FlakyTestCategory'
         excludeCategories 'gov.nasa.ziggy.RunByNameTestCategory'
     }
+
+    jvmArgs(['-Xshare:off'])
 }
 
 check.dependsOn integrationTest
@@ -42,6 +55,9 @@ cleanTest.dependsOn cleanIntegrationTest
 
 // Execute tests marked with @Category(FlakyTestCategory.class).
 task flakyTest(type: Test) {
+    testClassesDirs = testing.suites.test.sources.output.classesDirs
+    classpath = testing.suites.test.sources.runtimeClasspath
+
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
     systemProperty "ziggy.logfile", "$buildDir/build.log"
     systemProperty "java.library.path", "$outsideDir/lib"
@@ -49,6 +65,8 @@ task flakyTest(type: Test) {
     useJUnit {
         includeCategories 'gov.nasa.ziggy.FlakyTestCategory'
     }
+
+    jvmArgs(['-Xshare:off'])
 }
 
 check.dependsOn flakyTest
@@ -59,6 +77,9 @@ cleanTest.dependsOn cleanFlakyTest
 // since they don't play well with others. For example:
 // gradle runByNameTests --tests *RmiInterProcessCommunicationTest
 task runByNameTest(type: Test) {
+    testClassesDirs = testing.suites.test.sources.output.classesDirs
+    classpath = testing.suites.test.sources.runtimeClasspath
+
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
     systemProperty "ziggy.logfile", "$buildDir/build.log"
     systemProperty "java.library.path", "$outsideDir/lib"
@@ -66,6 +87,8 @@ task runByNameTest(type: Test) {
     useJUnit {
         includeCategories 'gov.nasa.ziggy.RunByNameTestCategory'
     }
+
+    jvmArgs(['-Xshare:off'])
 }
 
 /**

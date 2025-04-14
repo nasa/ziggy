@@ -6,8 +6,8 @@ import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.border.BevelBorder;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 
 /**
@@ -17,13 +17,13 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 public class PipelineNodeWidget extends javax.swing.JPanel {
     private JLabel label;
 
-    private final PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+    private final PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
 
     public PipelineNodeWidget() {
         this(null);
     }
 
-    public PipelineNodeWidget(PipelineDefinitionNode pipelineNode) {
+    public PipelineNodeWidget(PipelineNode pipelineNode) {
         buildComponent(pipelineNode);
     }
 
@@ -31,14 +31,14 @@ public class PipelineNodeWidget extends javax.swing.JPanel {
         return label.getText();
     }
 
-    private void buildComponent(PipelineDefinitionNode pipelineNode) {
+    private void buildComponent(PipelineNode pipelineNode) {
         label = createLabel(pipelineNode);
         setPreferredSize(label.getPreferredSize());
         setBorder(BorderFactory.createEtchedBorder(BevelBorder.LOWERED));
         add(label);
     }
 
-    private JLabel createLabel(PipelineDefinitionNode pipelineNode) {
+    private JLabel createLabel(PipelineNode pipelineNode) {
         JLabel label = new JLabel();
         if (pipelineNode == null) {
             // START node
@@ -47,20 +47,20 @@ public class PipelineNodeWidget extends javax.swing.JPanel {
         } else {
             String uowGeneratorName = "-";
             try {
-                uowGeneratorName = pipelineModuleDefinitionOperations()
-                    .unitOfWorkGenerator(pipelineNode.getModuleName())
+                uowGeneratorName = pipelineStepOperations()
+                    .unitOfWorkGenerator(pipelineNode.getPipelineStepName())
                     .newInstance()
                     .getClass()
                     .getSimpleName();
             } catch (Exception e) {
             }
-            label.setText(pipelineNode.getModuleName() + " (" + uowGeneratorName + ")");
+            label.setText(pipelineNode.getPipelineStepName() + " (" + uowGeneratorName + ")");
         }
         return label;
     }
 
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
-        return pipelineModuleDefinitionOperations;
+    private PipelineStepOperations pipelineStepOperations() {
+        return pipelineStepOperations;
     }
 
     public static void main(String[] args) {

@@ -7,7 +7,9 @@ task copyPrograms(type: Copy) {
         include('*.pl')
         rename('(.+)\\.pl$', '$1')
     }
-    fileMode(0755)
+    filePermissions {
+        unix 0755
+    }
     into "$buildDir/bin"
 }
 
@@ -49,7 +51,9 @@ assemble.dependsOn copyBuildSrc
 // The relative path to testJar is used because it hasn't been defined yet.
 task copyLibs(type: Copy, dependsOn: [copyOutsideLibs, jar, 'testJar', sourcesJar]) {
     from(configurations.runtimeClasspath) {
-        fileMode(0644)
+        filePermissions {
+            unix 0644
+        }
     }
     from("$projectDir/src/main/python") {
         include "hdf5mi/**"

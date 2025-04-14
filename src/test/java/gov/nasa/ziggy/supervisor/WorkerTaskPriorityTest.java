@@ -10,7 +10,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 

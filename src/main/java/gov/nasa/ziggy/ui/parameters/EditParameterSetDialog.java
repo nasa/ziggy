@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.ui.parameters;
 
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CANCEL;
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.CLOSE;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.RESTORE_DEFAULTS;
 import static gov.nasa.ziggy.ui.ZiggyGuiConstants.SAVE;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.boldLabel;
@@ -10,7 +11,6 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
@@ -25,7 +25,6 @@ import javax.swing.SwingWorker;
 
 import com.l2fprod.common.propertysheet.PropertySheetPanel;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
@@ -33,6 +32,7 @@ import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.PropertySheetHelper;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * @author Todd Klaus
@@ -40,34 +40,39 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
  */
 @SuppressWarnings("serial")
 public class EditParameterSetDialog extends javax.swing.JDialog {
+    private enum DismissOption {
+        SAVE, CLOSE
+    }
+
     private final ParameterSet parameterSet;
-    private Set<Parameter> currentParams;
-    private PropertySheetPanel paramsPropPanel;
+    private PropertySheetPanel propertySheetPanel;
 
     private boolean cancelled;
-    private boolean isNew;
 
     private final ParametersOperations parametersOperations = new ParametersOperations();
 
-    public EditParameterSetDialog(Window owner, ParameterSet parameterSet, boolean isNew) {
+    public EditParameterSetDialog(Window owner, ParameterSet parameterSet) {
+        this(owner, parameterSet, DismissOption.SAVE);
+    }
+
+    public EditParameterSetDialog(Window owner, ParameterSet parameterSet,
+        DismissOption dismissOption) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.parameterSet = parameterSet;
-        this.isNew = isNew;
 
-        currentParams = parameterSet.copyOfParameters();
-
-        buildComponent();
+        buildComponent(dismissOption);
         setLocationRelativeTo(owner);
     }
 
-    private void buildComponent() {
+    private void buildComponent(DismissOption dismissOption) {
         setTitle("Edit parameter set");
 
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
         getContentPane().add(
-            createButtonPanel(createButton(SAVE, this::save), createButton(CANCEL, this::cancel)),
+            createButtonPanel(dismissOption == DismissOption.SAVE ? createButton(SAVE, this::save)
+                : createButton(CLOSE, this::close), createButton(CANCEL, this::cancel)),
             BorderLayout.SOUTH);
-        populateParamsPropertySheet();
+        populatePropertySheetPanel();
 
         pack();
     }
@@ -89,7 +94,7 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
             ZiggySwingUtils.createButton(RESTORE_DEFAULTS, this::defaults));
 
         JLabel parameters = boldLabel("Parameters");
-        paramsPropPanel = new PropertySheetPanel();
+        propertySheetPanel = new PropertySheetPanel();
 
         JPanel dataPanel = new JPanel();
         GroupLayout dataPanelLayout = new GroupLayout(dataPanel);
@@ -105,7 +110,7 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
             .addComponent(descriptionScrollPane)
             .addComponent(parameters)
             .addComponent(buttonPanel)
-            .addComponent(paramsPropPanel));
+            .addComponent(propertySheetPanel));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
             .addComponent(name)
@@ -122,21 +127,20 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
             .addComponent(parameters)
             .addComponent(buttonPanel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
                 GroupLayout.PREFERRED_SIZE)
-            .addComponent(paramsPropPanel));
+            .addComponent(propertySheetPanel));
 
         return dataPanel;
     }
 
     private void defaults(ActionEvent evt) {
-        paramsPropPanel.readFromObject(currentParams);
+        propertySheetPanel.readFromObject(parameterSet);
     }
 
     private void save(ActionEvent evt) {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                paramsPropPanel.writeToObject(currentParams);
-                parametersOperations().updateParameterSet(parameterSet, currentParams, isNew);
+                parametersOperations().updateParameterSet(parameterSet, getParameterSet(), false);
                 return null;
             }
 
@@ -152,15 +156,28 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
         }.execute();
     }
 
+    public ParameterSet getParameterSet() throws PipelineException {
+        if (cancelled) {
+            return null;
+        }
+        ParameterSet currentParameterSet = new ParameterSet(parameterSet);
+        propertySheetPanel.writeToObject(currentParameterSet.getParameters());
+        return currentParameterSet;
+    }
+
+    private void close(ActionEvent actionevent1) {
+        setVisible(false);
+    }
+
     private void cancel(ActionEvent evt) {
         cancelled = true;
         setVisible(false);
     }
 
-    private void populateParamsPropertySheet() {
-        if (currentParams != null) {
+    private void populatePropertySheetPanel() {
+        if (parameterSet != null) {
             try {
-                PropertySheetHelper.populatePropertySheet(currentParams, paramsPropPanel);
+                PropertySheetHelper.populatePropertySheet(parameterSet, propertySheetPanel);
             } catch (Exception e) {
                 throw new PipelineException("Failed to populate property sheet from parameters", e);
             }
@@ -171,13 +188,21 @@ public class EditParameterSetDialog extends javax.swing.JDialog {
         return cancelled;
     }
 
+    public static ParameterSet editParameterSet(Window owner, ParameterSet parameterSet) {
+        EditParameterSetDialog dialog = new EditParameterSetDialog(owner, parameterSet,
+            DismissOption.CLOSE);
+        dialog.setVisible(true);
+        return dialog.getParameterSet();
+    }
+
     private ParametersOperations parametersOperations() {
         return parametersOperations;
     }
 
     public static void main(String[] args) {
         ParameterSet parameters = new ParameterSet("test");
-        parameters.setParameters(new HashSet<>());
-        ZiggySwingUtils.displayTestDialog(new EditParameterSetDialog(null, parameters, false));
+        parameters.setParameters(
+            Set.of(new Parameter("c", "z"), new Parameter("b", "y"), new Parameter("a", "x")));
+        ZiggySwingUtils.displayTestDialog(new EditParameterSetDialog(null, parameters));
     }
 }

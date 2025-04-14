@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -31,19 +32,18 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.MetricsDumper;
 import gov.nasa.ziggy.metrics.report.Memdrone;
-import gov.nasa.ziggy.module.AlgorithmMonitor;
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.module.remote.QueueCommandManager;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.step.AlgorithmMonitor;
+import gov.nasa.ziggy.pipeline.step.remote.BatchManager;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
@@ -52,7 +52,7 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler.ZiggyEventHandlerInfoForDisplay;
 import gov.nasa.ziggy.services.events.ZiggyEventOperations;
-import gov.nasa.ziggy.services.logging.TaskLog;
+import gov.nasa.ziggy.services.logging.ZiggyLog;
 import gov.nasa.ziggy.services.messages.EventHandlerRequest;
 import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
@@ -74,12 +74,12 @@ import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
 import gov.nasa.ziggy.services.process.AbstractPipelineProcess;
-import gov.nasa.ziggy.services.process.ExternalProcessUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.WrapperUtils;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import gov.nasa.ziggy.worker.WorkerResources;
 import hdf.hdf5lib.H5;
 
@@ -109,12 +109,11 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     private static WorkerResources defaultResources;
 
     private ScheduledExecutorService heartbeatExecutor;
-    private QueueCommandManager queueCommandManager = QueueCommandManager.newInstance();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private PipelineExecutor pipelineExecutor = new PipelineExecutor();
-    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private PipelineOperations pipelineOperations = new PipelineOperations();
     private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
     private AlgorithmMonitor algorithmMonitor;
@@ -137,7 +136,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     public void initialize() {
         try {
             super.initialize();
-            clearStaleTaskStates();
 
             // if HDF5 is to be used as the default binfile format (or indeed at all),
             // load the library now -- note that (a) this is necessary because in linux
@@ -150,7 +148,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
             H5.loadH5Lib();
 
-            log.info("Subscribing to messages");
+            log.info("Subscribing to messages...");
             subscribe();
             StartPipelineRequestManager.start();
             log.info("Subscribing to messages...done");
@@ -174,22 +172,23 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                     HeartbeatMessage.heartbeatIntervalMillis(), TimeUnit.MILLISECONDS);
             }
             ZiggyShutdownHook.addShutdownHook(() -> {
-                log.info("Shutting down heartbeat executor");
+                log.info("Shutting down heartbeat executor...");
                 heartbeatExecutor.shutdownNow();
                 log.info("Shutting down heartbeat executor...done");
             });
 
             // Start the algorithm monitor.
-            log.info("Starting algorithm monitor");
+            log.info("Starting algorithm monitor...");
             algorithmMonitor = new AlgorithmMonitor();
             log.info("starting algorithm monitor...done");
+            clearStaleTaskStates();
 
             // Start the task request handler lifecycle manager.
-            log.info("Starting task request handler lifecycle manager");
+            log.info("Starting task request handler lifecycle manager...");
             TaskRequestHandlerLifecycleManager.initializeInstance();
             log.info("Starting task request handler lifecycle manager...done");
 
-            log.info("Starting metrics dumper thread");
+            log.info("Starting metrics dumper thread...");
             MetricsDumper metricsDumper = new MetricsDumper(
                 AbstractPipelineProcess.getProcessInfo().getPid());
             Thread metricsDumperThread = new Thread(metricsDumper, "MetricsDumper");
@@ -197,7 +196,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             metricsDumperThread.start();
             log.info("Starting metrics dumper thread...done");
 
-            log.info("Loading event handlers");
+            log.info("Loading event handlers...");
             ziggyEventHandlers.addAll(ziggyEventOperations().eventHandlers());
             for (ZiggyEventHandler handler : ziggyEventHandlers) {
                 if (handler.isEnableOnClusterStart()) {
@@ -205,10 +204,35 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                 }
             }
             log.info("Loading event handlers...done");
+            clearMcrCache();
         } catch (Exception e) {
             log.error("Initialization failed!", e);
             System.exit(-1);
         }
+    }
+
+    /**
+     * Delete MCR caches.
+     * <p>
+     * At startup time, any caches remaining in the user's cache directory are leftovers from a
+     * previous run. They are not needed now, as all tasks halt execution when a supervisor is shut
+     * down.
+     */
+    private void clearMcrCache() {
+        Path mcrCacheDirParent = PipelineExecutor.mcrCacheDirParent();
+        if (!Files.exists(mcrCacheDirParent)) {
+            return;
+        }
+        Set<Path> mcrCaches = ZiggyFileUtils.listFiles(mcrCacheDirParent,
+            PipelineExecutor.MCR_CACHE_DIR_PREFIX + "\\S+");
+        if (mcrCaches.isEmpty()) {
+            return;
+        }
+        log.info("Deleting obsolete MCR caches...");
+        for (Path mcrCache : mcrCaches) {
+            ZiggyFileUtils.deleteDirectoryTree(mcrCache);
+        }
+        log.info("Deleting obsolete MCR caches...done");
     }
 
     /**
@@ -243,11 +267,11 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                 PipelineSupervisor.serializableZiggyEventHandlers()));
         });
         ZiggyMessenger.subscribe(StartMemdroneRequest.class, message -> {
-            new Memdrone(message.getModuleName(), message.getInstanceId()).startMemdrone();
+            new Memdrone(message.getPipelineStepName(), message.getInstanceId()).startMemdrone();
         });
         ZiggyMessenger.subscribe(TaskLogInformationRequest.class, message -> {
             ZiggyMessenger.publish(new TaskLogInformationMessage(message,
-                TaskLog.searchForLogFiles(message.getPipelineTask())));
+                ZiggyLog.searchForLogFiles(message.getPipelineTask())));
         });
         ZiggyMessenger.subscribe(SingleTaskLogRequest.class, message -> {
             ZiggyMessenger.publish(new SingleTaskLogMessage(message, taskLogContents(message)));
@@ -306,11 +330,12 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             return;
         }
         for (PipelineTask pipelineTask : message.getPipelineTasks()) {
+            BatchManager<?> batchManager = batchManager(pipelineTask);
             List<Long> jobIds = jobIdsByTask.get(pipelineTask);
             if (CollectionUtils.isEmpty(jobIds)) {
                 continue;
             }
-            if (queueCommandManager().deleteJobsByJobId(jobIds) == 0) {
+            if (batchManager.deleteJobs(pipelineTask) == 0) {
                 publishTaskHaltedMessage(pipelineTask);
             }
         }
@@ -388,7 +413,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                 "Multiple instance nodes with failed transitions in instance"
                     + message.getPipelineInstanceId() + ": "
                     + nodesWithFailedTransitions.stream()
-                        .map(PipelineInstanceNode::getModuleName)
+                        .map(PipelineInstanceNode::getPipelineStepName)
                         .collect(Collectors.toList())
                         .toString());
         }
@@ -416,9 +441,9 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                 .addArgument(wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1,
                     DirectoryProperties.ziggyLibDir().toString()))
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
-                    ExternalProcessUtils.log4jConfigString()))
+                    ZiggyLog.log4jConfigString()))
                 .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
-                    ExternalProcessUtils.ziggyLog(supervisorLogFilename(false))))
+                    ZiggyLog.rollingFileSystemProperty(supervisorLogFilename(false))))
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 2,
                     Integer.toString(workerCount)))
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 3,
@@ -445,7 +470,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
      * The log file name used by the supervisor.
      */
     public static String supervisorLogFilename(boolean wrapper) {
-        String filename = WrapperUtils.logFilename(SUPERVISOR_BIN_NAME, wrapper);
+        String filename = ZiggyLog.logFilename(SUPERVISOR_BIN_NAME, wrapper);
         return DirectoryProperties.supervisorLogDir().resolve(filename).toString();
     }
 
@@ -475,11 +500,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         return algorithmMonitor.jobIdsByTaskId(pipelineTasks);
     }
 
-    // Package scoped for testing purposes.
-    QueueCommandManager queueCommandManager() {
-        return queueCommandManager;
-    }
-
     AlertService alertService() {
         return AlertService.getInstance();
     }
@@ -500,8 +520,8 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         return pipelineExecutor;
     }
 
-    PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
     ZiggyEventOperations ziggyEventOperations() {
@@ -510,6 +530,13 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     PipelineInstanceNodeOperations pipelineInstanceNodeOperations() {
         return pipelineInstanceNodeOperations;
+    }
+
+    BatchManager<?> batchManager(PipelineTask pipelineTask) {
+        return pipelineTaskOperations().executionResources(pipelineTask)
+            .getRemoteEnvironment()
+            .getBatchSystem()
+            .batchManager();
     }
 
     public static void main(String[] args) {

@@ -35,8 +35,8 @@ public class NodeReport extends Report {
     }
 
     public void generateReport(PipelineInstanceNode node) {
-        String moduleName = node.getModuleName();
-        pdfRenderer.printText("Pipeline Module: " + moduleName, PdfRenderer.h1Font);
+        String pipelineStepName = node.getPipelineStepName();
+        pdfRenderer.printText("Pipeline Step: " + pipelineStepName, PdfRenderer.h1Font);
 
         categoryStats = new HashMap<>();
         categoryTopTen = new HashMap<>();

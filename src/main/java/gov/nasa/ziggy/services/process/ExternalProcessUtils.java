@@ -14,23 +14,6 @@ import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 public class ExternalProcessUtils {
 
     /**
-     * The Log4j configuration file as a JVM argument.
-     */
-    public static String log4jConfigString() {
-        return "-D" + PropertyName.LOG4J2_CONFIGURATION_FILE + "="
-            + DirectoryProperties.ziggyHomeDir() + "/etc/log4j2.xml";
-    }
-
-    /**
-     * The log file as a JVM argument.
-     *
-     * @see "etc/log4j2.xml"
-     */
-    public static String ziggyLog(String logFile) {
-        return "-D" + PropertyName.ZIGGY_LOG_FILE + "=" + logFile;
-    }
-
-    /**
      * The Java library path as a JVM argument.
      */
     public static String javaLibraryPath() {

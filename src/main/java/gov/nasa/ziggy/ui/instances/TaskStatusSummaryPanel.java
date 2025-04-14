@@ -76,8 +76,8 @@ public class TaskStatusSummaryPanel extends javax.swing.JPanel {
 
         private List<Counts> taskCountsToCountList(TaskCounts taskCounts) {
             List<Counts> counts = new ArrayList<>();
-            for (String moduleName : taskCounts.getModuleNames()) {
-                counts.add(taskCounts.getModuleCounts().get(moduleName));
+            for (String pipelineStepName : taskCounts.getPipelineStepNames()) {
+                counts.add(taskCounts.getPipelineStepCounts().get(pipelineStepName));
             }
             counts.add(taskCounts.getTotalCounts());
             return counts;

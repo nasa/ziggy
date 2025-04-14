@@ -37,16 +37,16 @@ public class AuditInfo {
     private final Date lastChangedTime;
 
     /**
-     * Creates a new instance with  last changed time equal to the current time.
+     * Creates a new instance with last changed time equal to the current time.
      */
     public AuditInfo() {
-        this.lastChangedTime = new Date(SystemProxy.currentTimeMillis());
+        lastChangedTime = new Date(SystemProxy.currentTimeMillis());
         lastChangedUser = getUser();
     }
 
     /**
-     * Gets the current user, or a default value if the user cannot be determined.
-     * Logs any errors while determining the user.
+     * Gets the current user, or a default value if the user cannot be determined. Logs any errors
+     * while determining the user.
      *
      * @return the current user name, as a string, or a default value
      */
@@ -110,11 +110,10 @@ public class AuditInfo {
     }
 
     /**
-     * Gets the current effective user from the system process handle.
-     * Note that this throws <code>Throwable</code> rather than a specified
-     * exception, because a bug in OS X Java 17 causes a throw from the
-     * <code>info()</code> method which is not documented. Default scope
-     * for overriding during unit testing.
+     * Gets the current effective user from the system process handle. Note that this throws
+     * <code>Throwable</code> rather than a specified exception, because a bug in OS X Java 17
+     * causes a throw from the <code>info()</code> method which is not documented. Default scope for
+     * overriding during unit testing.
      *
      * @return the current effective user name
      * @throws Throwable if there is an error accessing the process info
@@ -124,8 +123,7 @@ public class AuditInfo {
     }
 
     /**
-     * Gets the user from the system properties. Default scope for overriding
-     * during unit testing.
+     * Gets the user from the system properties. Default scope for overriding during unit testing.
      *
      * @return the user name
      * @throws SecurityException if the system property cannot be accessed

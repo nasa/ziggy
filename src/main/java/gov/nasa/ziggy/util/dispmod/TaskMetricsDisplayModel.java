@@ -16,61 +16,62 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 
 /**
- * Display a table containing a row for each pipeline module and a column for each category defined
- * in PipelineTask.pipelineTaskMetrics.
+ * Display a table containing a row for each pipeline node and a column for each category defined in
+ * PipelineTask.pipelineTaskMetrics.
  * <p>
  * The cells of the table contain the total time spent on each category for all tasks for the
- * pipeline module and the percentage of the total processing time for all of the tasks.
+ * pipeline node and the percentage of the total processing time for all of the tasks.
  *
  * @author Todd Klaus
  */
 public class TaskMetricsDisplayModel extends DisplayModel {
 
-    private List<ModuleTaskMetrics> categorySummariesByModule = new LinkedList<>();
+    private List<PipelineStepTaskMetrics> categorySummariesByNode = new LinkedList<>();
     private List<String> seenCategories = new ArrayList<>();
     private int numColumns = 0;
 
     private boolean completedTasksOnly = false;
 
     public TaskMetricsDisplayModel(List<PipelineTaskDisplayData> tasks,
-        List<String> orderedModuleNames) {
-        this(tasks, orderedModuleNames, true);
+        List<String> orderedPipelineStepNames) {
+        this(tasks, orderedPipelineStepNames, true);
     }
 
     public TaskMetricsDisplayModel(List<PipelineTaskDisplayData> tasks,
-        List<String> orderedModuleNames, boolean completedTasksOnly) {
+        List<String> orderedPipelineStepNames, boolean completedTasksOnly) {
         this.completedTasksOnly = completedTasksOnly;
 
-        update(tasks, orderedModuleNames);
+        update(tasks, orderedPipelineStepNames);
     }
 
-    private void update(List<PipelineTaskDisplayData> tasks, List<String> orderedModuleNames) {
-        categorySummariesByModule = new LinkedList<>();
+    private void update(List<PipelineTaskDisplayData> tasks,
+        List<String> orderedPipelineStepNames) {
+        categorySummariesByNode = new LinkedList<>();
         seenCategories = new ArrayList<>();
 
-        Map<String, List<PipelineTaskDisplayData>> tasksByModule = new HashMap<>();
+        Map<String, List<PipelineTaskDisplayData>> tasksByNode = new HashMap<>();
 
-        // partition the tasks by module
+        // Partition the tasks by node.
         for (PipelineTaskDisplayData task : tasks) {
             if (!completedTasksOnly || task.getProcessingStep() == ProcessingStep.COMPLETE) {
-                String moduleName = task.getModuleName();
+                String pipelineStepName = task.getPipelineStepName();
 
-                List<PipelineTaskDisplayData> taskListForModule = tasksByModule.get(moduleName);
-                if (taskListForModule == null) {
-                    taskListForModule = new LinkedList<>();
-                    tasksByModule.put(moduleName, taskListForModule);
+                List<PipelineTaskDisplayData> tasksForNode = tasksByNode.get(pipelineStepName);
+                if (tasksForNode == null) {
+                    tasksForNode = new LinkedList<>();
+                    tasksByNode.put(pipelineStepName, tasksForNode);
                 }
-                taskListForModule.add(task);
+                tasksForNode.add(task);
             }
         }
 
-        // for each module, aggregate the summary metrics by category
-        // and build a list of categories
-        for (String moduleName : orderedModuleNames) {
-            List<PipelineTaskDisplayData> taskListForModule = tasksByModule.get(moduleName);
-            TaskMetrics taskMetrics = new TaskMetrics(taskListForModule);
+        // For each node, aggregate the summary metrics by category
+        // and build a list of categories.
+        for (String pipelineStepName : orderedPipelineStepNames) {
+            List<PipelineTaskDisplayData> tasksForNode = tasksByNode.get(pipelineStepName);
+            TaskMetrics taskMetrics = new TaskMetrics(tasksForNode);
             taskMetrics.calculate();
-            categorySummariesByModule.add(new ModuleTaskMetrics(moduleName, taskMetrics));
+            categorySummariesByNode.add(new PipelineStepTaskMetrics(pipelineStepName, taskMetrics));
 
             Set<String> categories = taskMetrics.getCategoryMetrics().keySet();
             for (String category : categories) {
@@ -90,7 +91,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
     @Override
     public String getColumnName(int column) {
         if (column == 0) {
-            return "Module";
+            return "Node";
         }
         if (column == 1) {
             return "Total";
@@ -103,18 +104,18 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
     @Override
     public int getRowCount() {
-        return categorySummariesByModule.size();
+        return categorySummariesByNode.size();
     }
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        ModuleTaskMetrics row = categorySummariesByModule.get(rowIndex);
+        PipelineStepTaskMetrics row = categorySummariesByNode.get(rowIndex);
 
         if (columnIndex == 0) {
-            return row.getModuleName(); // module name
+            return row.getPipelineStepName();
         }
         if (columnIndex == 1) {
-            return formatDuration(row.getTaskMetrics().getTotalProcessingTimeMillis()); // total
+            return formatDuration(row.getTaskMetrics().getTotalProcessingTimeMillis());
         }
         if (columnIndex == numColumns - 1) {
             return categoryValuesString(row.getTaskMetrics().getUnallocatedTime());
@@ -139,18 +140,18 @@ public class TaskMetricsDisplayModel extends DisplayModel {
             : Long.toString(durationMillis / 1000);
     }
 
-    public static class ModuleTaskMetrics {
+    public static class PipelineStepTaskMetrics {
 
-        private final String moduleName;
+        private final String pipelineStepName;
         private final TaskMetrics taskMetrics;
 
-        public ModuleTaskMetrics(String moduleName, TaskMetrics taskMetrics) {
-            this.moduleName = moduleName;
+        public PipelineStepTaskMetrics(String pipelineStepName, TaskMetrics taskMetrics) {
+            this.pipelineStepName = pipelineStepName;
             this.taskMetrics = taskMetrics;
         }
 
-        public String getModuleName() {
-            return moduleName;
+        public String getPipelineStepName() {
+            return pipelineStepName;
         }
 
         public TaskMetrics getTaskMetrics() {
@@ -159,7 +160,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
         @Override
         public int hashCode() {
-            return Objects.hash(moduleName, taskMetrics);
+            return Objects.hash(pipelineStepName, taskMetrics);
         }
 
         @Override
@@ -170,8 +171,8 @@ public class TaskMetricsDisplayModel extends DisplayModel {
             if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
-            ModuleTaskMetrics other = (ModuleTaskMetrics) obj;
-            return Objects.equals(moduleName, other.moduleName)
+            PipelineStepTaskMetrics other = (PipelineStepTaskMetrics) obj;
+            return Objects.equals(pipelineStepName, other.pipelineStepName)
                 && Objects.equals(taskMetrics, other.taskMetrics);
         }
     }

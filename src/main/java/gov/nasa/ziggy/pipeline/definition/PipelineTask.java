@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import jakarta.persistence.Embedded;
@@ -24,8 +25,8 @@ import jakarta.persistence.Table;
 
 /**
  * Represents a single pipeline unit of work associated with a {@link PipelineInstance}, a
- * {@link PipelineDefinitionNode} (which is associated with a {@link PipelineModuleDefinition}), and
- * a {@link UnitOfWorkGenerator} that represents the unit of work.
+ * {@link PipelineNode} (which is associated with a {@link PipelineStep}), and a
+ * {@link UnitOfWorkGenerator} that represents the unit of work.
  * <p>
  * This class is immutable and is a suitable handle for code that operates on a pipeline task.
  * Mutable fields associated with a {@code PipelineTask} are found in {@code PipelineTaskData}.
@@ -55,7 +56,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
 
     private long pipelineInstanceId;
 
-    private String moduleName;
+    private String pipelineStepName;
 
     private String executableName;
 
@@ -76,7 +77,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
 
         // The pipelineInstanceNode can be null in tests.
         if (pipelineInstanceNode != null) {
-            moduleName = pipelineInstanceNode.getModuleName();
+            pipelineStepName = pipelineInstanceNode.getPipelineStepName();
             executableName = pipelineInstanceNode.getExecutableName();
         }
 
@@ -89,7 +90,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
     }
 
     public String taskBaseName() {
-        return getPipelineInstanceId() + "-" + getId() + "-" + getModuleName();
+        return getPipelineInstanceId() + "-" + getId() + "-" + getPipelineStepName();
     }
 
     public Long getId() {
@@ -100,8 +101,8 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
         return pipelineInstanceId;
     }
 
-    public String getModuleName() {
-        return moduleName;
+    public String getPipelineStepName() {
+        return pipelineStepName;
     }
 
     public String getExecutableName() {
@@ -139,8 +140,8 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
     }
 
     public String toFullString() {
-        return "IID=" + getPipelineInstanceId() + ", TID=" + getId() + ", M=" + getModuleName()
-            + ", UOW=" + getUnitOfWork().briefState();
+        return "IID=" + getPipelineInstanceId() + ", TID=" + getId() + ", M="
+            + getPipelineStepName() + ", UOW=" + getUnitOfWork().briefState();
     }
 
     @Override
@@ -151,7 +152,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
     public static final class TaskBaseNameMatcher {
         public static final int INSTANCE_ID_GROUP = 1;
         public static final int TASK_ID_GROUP = 2;
-        public static final int MODULE_NAME_GROUP = 3;
+        public static final int PIPELINE_STEP_NAME_GROUP = 3;
         public static final int JOB_INDEX_GROUP = 5;
         public static final String regex = "(\\d+)-(\\d+)-([^\\s\\.]+){1}?(\\.(\\d+))?";
         public static final Pattern pattern = Pattern.compile(regex);
@@ -160,7 +161,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
         private boolean matches;
         private long instanceId;
         private long taskId;
-        private String moduleName;
+        private String pipelineStepName;
         private boolean hasJobIndex;
         private int jobIndex;
 
@@ -171,7 +172,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
             if (matches) {
                 instanceId = Long.parseLong(matcher.group(INSTANCE_ID_GROUP));
                 taskId = Long.parseLong(matcher.group(TASK_ID_GROUP));
-                moduleName = matcher.group(MODULE_NAME_GROUP);
+                pipelineStepName = matcher.group(PIPELINE_STEP_NAME_GROUP);
                 hasJobIndex = matcher.group(JOB_INDEX_GROUP) != null;
                 if (hasJobIndex) {
                     jobIndex = Integer.parseInt(matcher.group(JOB_INDEX_GROUP));
@@ -197,9 +198,9 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
             return taskId;
         }
 
-        public String moduleName() {
+        public String pipelineStepName() {
             checkMatch();
-            return moduleName;
+            return pipelineStepName;
         }
 
         public boolean hasJobIndex() {

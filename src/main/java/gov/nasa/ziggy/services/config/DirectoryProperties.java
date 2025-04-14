@@ -23,10 +23,11 @@ public class DirectoryProperties {
     private static final String SUPERVISOR_LOG_FILES_RELATIVE_PATH = "supervisor";
     private static final String PI_LOG_FILES_RELATIVE_PATH = "pi";
     private static final String SCHEMA_DIR_RELATIVE_PATH = "schema";
-    private static final String CONFIG_DIR_RELATIVE_PATH = "config";
+    private static final String DEFINITION_DIR_RELATIVE_PATH = "ziggy.d";
     private static final String MANIFESTS_RELATIVE_PATH = "manifests";
     private static final String MEMDRONE_RELATIVE_PATH = "memdrone";
     private static final String REPORTS_DIR_RELATIVE_PATH = "reports";
+    private static final String PYTHON_VENV_RELATIVE_PATH = "env";
 
     /**
      * Location of the bin directory relative to either {@link PropertyName#PIPELINE_HOME_DIR} or
@@ -44,7 +45,7 @@ public class DirectoryProperties {
      * Location of the etc directory relative to either {@link PropertyName#PIPELINE_HOME_DIR} or
      * {@link PropertyName#ZIGGY_HOME_DIR}.
      */
-    private static final Path ETC_DIR_RELATIVE_PATH = null;
+    private static final String ETC_DIR_RELATIVE_PATH = "etc";
 
     private static final String BUILD = "build";
 
@@ -97,10 +98,6 @@ public class DirectoryProperties {
         return pipelineHomeDir().resolve(BIN_DIR_RELATIVE_PATH);
     }
 
-    public static Path pipelineConfigDir() {
-        return pipelineHomeDir().resolve(CONFIG_DIR_RELATIVE_PATH);
-    }
-
     public static Path ziggyHomeDir() {
         return Paths.get(ZiggyConfiguration.getInstance()
             .getString(PropertyName.ZIGGY_HOME_DIR.property(),
@@ -117,6 +114,10 @@ public class DirectoryProperties {
 
     public static Path ziggyEtcDir() {
         return ziggyHomeDir().resolve(ETC_DIR_RELATIVE_PATH);
+    }
+
+    public static Path ziggyDefinitionDir() {
+        return ziggyEtcDir().resolve(DEFINITION_DIR_RELATIVE_PATH);
     }
 
     public static Path ziggySchemaDir() {
@@ -229,5 +230,10 @@ public class DirectoryProperties {
     public static Path dataReceiptDir() {
         return Paths.get(
             ZiggyConfiguration.getInstance().getString(PropertyName.DATA_RECEIPT_DIR.property()));
+    }
+
+    /** Location where Ziggy looks for Python virtual environments. */
+    public static Path pythonEnvDir() {
+        return pipelineHomeDir().resolve(PYTHON_VENV_RELATIVE_PATH);
     }
 }

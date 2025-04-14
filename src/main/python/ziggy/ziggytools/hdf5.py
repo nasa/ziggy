@@ -1,12 +1,12 @@
 """
-HDF5 module interface
+HDF5 algorithm interface
 
 Provides import and export services for HDF5 files that conform to the HDF5 Persistable
 standard. HDF5 files are read into a Python dictionary; similarly, Python dictionaries
 can be written to HDF5 files. The necessary metadata and organization for the HDF5
 Persistable standard can thus be applied or interpreted as necessary. 
 
-The dictionary returned from Hdf5ModuleInterface uses Python built-in data structures
+The dictionary returned from Hdf5AlgorithmInterface uses Python built-in data structures
 to represent all the data in the HDF5 file. Specifically: data that would be represented
 as a struct in another language will be represented here as a dictionary; data that would
 be represented as an array in another language will be represented here as a tuple (or a
@@ -27,7 +27,7 @@ from numpy import int8
 from operator import mul
 from functools import reduce
 
-class Hdf5ModuleInterface:
+class Hdf5AlgorithmInterface:
     
     def __init__(self):
         
@@ -59,9 +59,9 @@ class Hdf5ModuleInterface:
         
     # returns the constant mapping from HDF5 native types to the value stored in the
     # type attribute of an HDF5 array. This mapping must match what is used in all other
-    # HDF5 module interface packages (currently MATLAB, C++, and Java). Someday mayble
+    # HDF5 algorithm interface packages (currently MATLAB, C++, and Java). Someday mayble
     # this will be converted to a set of constants defined in a single place that all
-    # HDF5 module interface implementations can share. 
+    # HDF5 algorithm interface implementations can share.
     def _type_attribute_map(self):
         
         type_attribute_map = {"int8"    : 2,
@@ -675,14 +675,3 @@ class Hdf5ModuleInterface:
             specific_name = specific_name + "-" + str(subscript)
             
         return specific_name
-            
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        

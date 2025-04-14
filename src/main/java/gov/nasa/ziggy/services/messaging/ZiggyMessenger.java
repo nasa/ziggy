@@ -120,7 +120,7 @@ public class ZiggyMessenger {
     private void publishMessage(Message message) {
         CountDownLatch latch = messageCountdownLatches.remove(message.getPipelineMessage());
         if (ZiggyRmiClient.isInitialized() && message.isBroadcastOverRmi()) {
-            log.debug("Sending message {}", message);
+            log.debug("Sending message {}...", message);
             ZiggyRmiClient.send(message.getPipelineMessage(), latch);
             log.debug("Sending message {}...done", message);
         } else {
@@ -139,7 +139,7 @@ public class ZiggyMessenger {
             return;
         }
         for (MessageAction<?> action : actions) {
-            log.debug("Dispatching {} to {}", message, action.getClass().getSimpleName());
+            log.debug("Dispatching {} to {}...", message, action.getClass().getSimpleName());
             ((MessageAction<T>) action).action(message);
             log.debug("Dispatching {} to {}...done", message, action.getClass().getSimpleName());
         }

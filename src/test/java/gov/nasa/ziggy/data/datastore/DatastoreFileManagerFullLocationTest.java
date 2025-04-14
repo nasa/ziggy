@@ -28,13 +28,13 @@ import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionProcessingOptions.ProcessingMode;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions.ProcessingMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -74,7 +74,7 @@ public class DatastoreFileManagerFullLocationTest {
     private Map<String, DatastoreRegexp> regexpsByName;
     private DatastoreWalker datastoreWalker;
     private Path taskDirectory;
-    private PipelineDefinitionNode pipelineDefinitionNode;
+    private PipelineNode pipelineNode;
     private PipelineInstanceNode pipelineInstanceNode;
     private ModelRegistry modelRegistry;
     private ModelMetadata modelMetadata;
@@ -82,10 +82,9 @@ public class DatastoreFileManagerFullLocationTest {
 
     private PipelineTaskOperations pipelineTaskOperations = Mockito
         .mock(PipelineTaskOperations.class);
-    private PipelineDefinitionOperations pipelineDefinitionOperations = Mockito
-        .mock(PipelineDefinitionOperations.class);
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = Mockito
-        .mock(PipelineDefinitionNodeOperations.class);
+    private PipelineOperations pipelineOperations = Mockito.mock(PipelineOperations.class);
+    private PipelineNodeOperations pipelineNodeOperations = Mockito
+        .mock(PipelineNodeOperations.class);
 
     @Before
     public void setUp() throws IOException {
@@ -124,19 +123,14 @@ public class DatastoreFileManagerFullLocationTest {
         Mockito.doReturn(pipelineTaskOperations)
             .when(datastoreFileManager)
             .pipelineTaskOperations();
-        Mockito
-            .when(pipelineTaskOperations
-                .pipelineDefinitionName(ArgumentMatchers.any(PipelineTask.class)))
+        Mockito.when(pipelineTaskOperations.pipelineName(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn("test pipeline");
-        Mockito.doReturn(pipelineDefinitionOperations)
-            .when(datastoreFileManager)
-            .pipelineDefinitionOperations();
-        Mockito
-            .when(pipelineDefinitionOperations.processingMode(ArgumentMatchers.any(String.class)))
+        Mockito.doReturn(pipelineOperations).when(datastoreFileManager).pipelineOperations();
+        Mockito.when(pipelineOperations.processingMode(ArgumentMatchers.any(String.class)))
             .thenReturn(ProcessingMode.PROCESS_ALL);
-        Mockito.doReturn(pipelineDefinitionNodeOperations)
+        Mockito.doReturn(pipelineNodeOperations)
             .when(datastoreFileManager)
-            .pipelineDefinitionNodeOperations();
+            .pipelineNodeOperations();
 
         // Construct the Map from regexp name to value. Note that we need to include the pixel type
         // in the way that DatastoreWalker would include it.
@@ -171,12 +165,10 @@ public class DatastoreFileManagerFullLocationTest {
 
         // Set up the pipeline task.
         pipelineInstanceNode = Mockito.mock(PipelineInstanceNode.class);
-        pipelineDefinitionNode = Mockito.mock(PipelineDefinitionNode.class);
-        Mockito
-            .when(pipelineTaskOperations
-                .pipelineDefinitionNode(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(pipelineDefinitionNode);
-        Mockito.when(pipelineDefinitionNode.getPipelineName()).thenReturn("test pipeline");
+        pipelineNode = Mockito.mock(PipelineNode.class);
+        Mockito.when(pipelineTaskOperations.pipelineNode(ArgumentMatchers.any(PipelineTask.class)))
+            .thenReturn(pipelineNode);
+        Mockito.when(pipelineNode.getPipelineName()).thenReturn("test pipeline");
         Mockito
             .when(
                 pipelineTaskOperations.inputDataFileTypes(ArgumentMatchers.any(PipelineTask.class)))
@@ -194,8 +186,8 @@ public class DatastoreFileManagerFullLocationTest {
         Mockito.when(pipelineTaskOperations.modelTypes(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn(Set.of(modelType));
         Mockito
-            .when(pipelineDefinitionNodeOperations
-                .inputDataFileTypes(ArgumentMatchers.any(PipelineDefinitionNode.class)))
+            .when(
+                pipelineNodeOperations.inputDataFileTypes(ArgumentMatchers.any(PipelineNode.class)))
             .thenReturn(Set.of(uncalibratedSciencePixelDataFileType,
                 uncalibratedCollateralPixelDataFileType, allFilesAllSubtasksDataFileType));
 
@@ -203,10 +195,8 @@ public class DatastoreFileManagerFullLocationTest {
         DatastoreDirectoryUnitOfWorkGenerator uowGenerator = Mockito
             .spy(DatastoreDirectoryUnitOfWorkGenerator.class);
         Mockito.doReturn(datastoreWalker).when(uowGenerator).datastoreWalker();
-        Mockito.when(pipelineInstanceNode.getPipelineDefinitionNode())
-            .thenReturn(pipelineDefinitionNode);
-        Mockito.when(uowGenerator.pipelineDefinitionNodeOperations())
-            .thenReturn(pipelineDefinitionNodeOperations);
+        Mockito.when(pipelineInstanceNode.getPipelineNode()).thenReturn(pipelineNode);
+        Mockito.when(uowGenerator.pipelineNodeOperations()).thenReturn(pipelineNodeOperations);
 
         List<UnitOfWork> uows = PipelineExecutor.generateUnitsOfWork(uowGenerator,
             pipelineInstanceNode);

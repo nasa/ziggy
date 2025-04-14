@@ -10,7 +10,7 @@ import java.util.Set;
 import org.apache.commons.collections4.CollectionUtils;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 
-import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.PipelineException;
 import jakarta.persistence.criteria.AbstractQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;

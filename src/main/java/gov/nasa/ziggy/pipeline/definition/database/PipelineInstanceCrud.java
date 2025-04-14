@@ -111,12 +111,12 @@ public class PipelineInstanceCrud extends AbstractCrud<PipelineInstance> {
     }
 
     /**
-     * Returns all pipeline instances in which a specified pipeline module was run.
+     * Returns all pipeline instances in which a specified pipeline step was run.
      */
-    public List<PipelineInstance> pipelineInstancesForModule(String moduleName) {
+    public List<PipelineInstance> pipelineInstancesForPipelineStep(String pipelineStepName) {
         ZiggyQuery<PipelineInstanceNode, PipelineInstanceNode> nodeQuery = createZiggyQuery(
             PipelineInstanceNode.class);
-        nodeQuery.column(PipelineInstanceNode_.moduleName).in(moduleName);
+        nodeQuery.column(PipelineInstanceNode_.pipelineStepName).in(pipelineStepName);
         List<PipelineInstanceNode> instanceNodes = list(nodeQuery);
 
         ZiggyQuery<PipelineInstance, PipelineInstance> query = createZiggyQuery(
@@ -179,12 +179,12 @@ public class PipelineInstanceCrud extends AbstractCrud<PipelineInstance> {
         return uniqueResult(query);
     }
 
-    public long retrieveInstanceIdOfLatestForModule(String moduleName) {
+    public long retrieveInstanceIdOfLatestForPipelineStep(String pipelineStepName) {
         ZiggyQuery<PipelineTask, PipelineTask> query = createZiggyQuery(PipelineTask.class);
-        query.column(PipelineTask_.moduleName).in(moduleName);
+        query.column(PipelineTask_.pipelineStepName).in(pipelineStepName);
         ZiggyQuery<PipelineTask, Long> idSubquery = query.ziggySubquery(PipelineTask.class,
             Long.class);
-        idSubquery.column(PipelineTask_.moduleName).in(moduleName);
+        idSubquery.column(PipelineTask_.pipelineStepName).in(pipelineStepName);
         idSubquery.column(PipelineTask_.id).max();
         query.column(PipelineTask_.id).in(idSubquery);
         PipelineTask pipelineTask = uniqueResult(query);

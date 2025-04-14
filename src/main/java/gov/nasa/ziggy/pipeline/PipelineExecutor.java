@@ -1,7 +1,5 @@
 package gov.nasa.ziggy.pipeline;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,37 +12,38 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.models.ModelOperations;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionNodeOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineModuleDefinitionOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.database.RuntimeObjectFactory;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.events.ZiggyEventHandler;
 import gov.nasa.ziggy.services.messages.RemoveTaskFromKilledTasksMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
@@ -53,18 +52,11 @@ import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /***
  * Encapsulates the launch and transition logic for pipelines.
- * <p>
- * Note that the methods {@link #launch(PipelineDefinition, String, PipelineDefinitionNode,
- * PipelineDefinitionNode, Set<String>)} and
- * {@link #transitionToNextInstanceNode(PipelineInstanceNode)} must not be run in the context of a
- * transaction; these methods provide their own transactions in order to ensure that the
- * transactions are completed before any task requests can be sent. Other methods, including
- * {@link #restartFailedTasks(Collection, boolean, RunMode)}, can (or in some cases must) be run in
- * a transaction context.
  *
  * @author Todd Klaus
  * @author PT
@@ -72,7 +64,7 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 public class PipelineExecutor {
     private static final Logger log = LoggerFactory.getLogger(PipelineExecutor.class);
     private static final Path MCR_CACHE_PARENT_DIR = Paths.get("/tmp");
-    private static final String MCR_CACHE_DIR_PREFIX = "mcr_cache_";
+    public static final String MCR_CACHE_DIR_PREFIX = "mcr_cache_";
 
     /** Map from pipeline instance ID to event labels. */
     private static Map<Long, Set<String>> instanceEventLabels = new HashMap<>();
@@ -83,9 +75,9 @@ public class PipelineExecutor {
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
     private ModelOperations modelOperations = new ModelOperations();
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
-    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private PipelineNodeOperations pipelineNodeOperations = new PipelineNodeOperations();
+    private PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
+    private PipelineOperations pipelineOperations = new PipelineOperations();
     private RuntimeObjectFactory objectFactory = new RuntimeObjectFactory();
 
     // Fields used for debugging.
@@ -93,13 +85,13 @@ public class PipelineExecutor {
     private List<TaskRequest> taskRequests = new ArrayList<>();
 
     /**
-     * Launch a new {@link PipelineInstance} for this {@link PipelineDefinition} with optional
-     * startNode and/or endNode, plus an optional {@link String} for the name of a
-     * {@link ParameterSet} created by a {@link ZiggyEventHandler}. This allows the event handler to
-     * transfer information to the pipeline that it needs at runtime.
+     * Launch a new {@link PipelineInstance} for this {@link Pipeline} with optional startNode
+     * and/or endNode, plus an optional {@link String} for the name of a {@link ParameterSet}
+     * created by a {@link ZiggyEventHandler}. This allows the event handler to transfer information
+     * to the pipeline that it needs at runtime.
      */
-    public PipelineInstance launch(PipelineDefinition pipeline, String instanceName,
-        PipelineDefinitionNode startNode, PipelineDefinitionNode endNode, Set<String> eventLabels) {
+    public PipelineInstance launch(Pipeline pipeline, String instanceName, PipelineNode startNode,
+        PipelineNode endNode, Set<String> eventLabels) {
 
         List<PipelineInstanceNode> nodesForLaunch = new ArrayList<>();
 
@@ -112,8 +104,8 @@ public class PipelineExecutor {
             modelRegistry);
 
         // Construct the instance nodes for launch.
-        List<PipelineDefinitionNode> startNodes = startNode != null ? List.of(startNode)
-            : pipelineDefinitionOperations().rootNodes(pipeline);
+        List<PipelineNode> startNodes = startNode != null ? List.of(startNode)
+            : pipelineOperations().rootNodes(pipeline);
         nodesForLaunch
             .addAll(objectFactory().newInstanceNodes(pipeline, instance, startNodes, endNode));
 
@@ -130,15 +122,18 @@ public class PipelineExecutor {
     }
 
     /**
-     * The transition logic generates the worker task request messages for the next module in this
+     * The transition logic generates the worker task request messages for the next node in this
      * pipeline. This method only executes if the task in question completed successfully.
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void transitionToNextInstanceNode(PipelineInstanceNode instanceNode) {
 
         try {
-            log.debug("Deleting MCR cache directory tree");
-            ZiggyFileUtils.deleteDirectoryTree(mcrCacheDir(instanceNode.getModuleName()), false);
+            Path instanceNodeMcrCacheDir = mcrCacheDir(instanceNode.getPipelineStepName());
+            if (Files.exists(instanceNodeMcrCacheDir)) {
+                log.debug("Deleting MCR cache directory tree");
+                ZiggyFileUtils.deleteDirectoryTree(instanceNodeMcrCacheDir, false);
+            }
             List<PipelineInstanceNode> nodesForLaunch = pipelineInstanceNodeOperations()
                 .nextPipelineInstanceNodes(instanceNode.getId());
 
@@ -148,6 +143,8 @@ public class PipelineExecutor {
             pipelineInstanceNodeOperations()
                 .markInstanceNodeTransitionComplete(instanceNode.getId());
         } catch (RuntimeException e) {
+            log.error("Pipeline transition from {} to next node failed",
+                instanceNode.getPipelineStepName(), e);
             pipelineInstanceNodeOperations().markInstanceNodeTransitionFailed(instanceNode);
         }
     }
@@ -206,7 +203,7 @@ public class PipelineExecutor {
         PipelineInstanceNode node = entry.getKey();
         List<PipelineTask> tasks = entry.getValue();
         log.info("Restarting {} tasks for instance node {} ({})", tasks.size(), node.getId(),
-            node.getModuleName());
+            node.getPipelineStepName());
 
         pipelineTaskDisplayDataOperations().taskCounts(node);
         logInstanceNodeCounts(node, "initial");
@@ -258,31 +255,24 @@ public class PipelineExecutor {
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void launchNode(PipelineInstanceNode instanceNode) {
         ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator = unitOfWorkGenerator(
-            instanceNode.getPipelineDefinitionNode());
+            instanceNode.getPipelineNode());
 
         if (!unitOfWorkGenerator.isInitialized()) {
             throw new PipelineException(
                 "Configuration Error: Unable to launch node because no UnitOfWorkGenerator class is defined");
         }
 
-        log.debug("Creating MCR cache directory");
-        try {
-            Files.createDirectories(mcrCacheDir(instanceNode.getModuleName()));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-
         log.debug("Generating tasks");
         PipelineInstance instance = pipelineInstanceNodeOperations().pipelineInstance(instanceNode);
         List<UnitOfWork> unitsOfWork = generateUnitsOfWork(unitOfWorkGenerator.newInstance(),
             instanceNode, instance);
-        log.info("Generated {} tasks for pipeline definition node {}", unitsOfWork.size(),
-            instanceNode.getModuleName());
+        log.info("Generated {} tasks for pipeline node {}", unitsOfWork.size(),
+            instanceNode.getPipelineStepName());
 
         if (unitsOfWork.isEmpty()) {
             AlertService.getInstance()
                 .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK, Severity.ERROR,
-                    "No tasks generated for " + instanceNode.getModuleName());
+                    "No tasks generated for " + instanceNode.getPipelineStepName());
             pipelineInstanceOperations().setInstanceToErrorsStalledState(instance);
             throw new PipelineException("Task generation did not generate any tasks!  UOW class: "
                 + unitOfWorkGenerator.getClassName());
@@ -293,8 +283,8 @@ public class PipelineExecutor {
         List<PipelineTask> existingTasks = pipelineInstanceNodeOperations()
             .pipelineTasks(List.of(instanceNode));
         if (!CollectionUtils.isEmpty(existingTasks)) {
-            log.info("Retrieved {} pre-existing tasks for module {}", existingTasks.size(),
-                instanceNode.getModuleName());
+            log.info("Retrieved {} pre-existing tasks for step {}", existingTasks.size(),
+                instanceNode.getPipelineStepName());
             List<String> existingUowBriefStates = existingTasks.stream()
                 .map(s -> s.getUnitOfWork().briefState())
                 .collect(Collectors.toList());
@@ -306,8 +296,8 @@ public class PipelineExecutor {
         launchTasks(instanceNode, instance, unitsOfWork);
     }
 
-    public ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator(PipelineDefinitionNode node) {
-        return pipelineModuleDefinitionOperations().unitOfWorkGenerator(node.getModuleName());
+    public ClassWrapper<UnitOfWorkGenerator> unitOfWorkGenerator(PipelineNode node) {
+        return pipelineStepOperations().unitOfWorkGenerator(node.getPipelineStepName());
     }
 
     /**
@@ -339,13 +329,13 @@ public class PipelineExecutor {
             return;
         }
 
-        log.debug("Generating worker task message for task {}, module {}", task,
-            task.getModuleName());
+        log.debug("Generating worker task message for task {}, step {}", task,
+            task.getPipelineStepName());
 
         TaskRequest taskRequest = new TaskRequest(task.getPipelineInstanceId(),
             pipelineTaskOperations().pipelineInstanceNodeId(task),
-            pipelineTaskOperations().pipelineDefinitionNode(task).getId(), task, priority,
-            doTransitionOnly, runMode);
+            pipelineTaskOperations().pipelineNode(task).getId(), task, priority, doTransitionOnly,
+            runMode);
 
         ZiggyMessenger.publish(taskRequest);
         if (storeTaskRequests()) {
@@ -366,7 +356,7 @@ public class PipelineExecutor {
      */
     public static List<UnitOfWork> generateUnitsOfWork(UnitOfWorkGenerator uowGenerator,
         PipelineInstanceNode pipelineInstanceNode, PipelineInstance instance) {
-        log.debug("Generating UOWs");
+        log.debug("Generating UOWs...");
         // Produce the tasks.
         Set<String> eventLabels = instance != null ? instanceEventLabels.get(instance.getId())
             : null;
@@ -385,8 +375,14 @@ public class PipelineExecutor {
     }
 
     /** Returns the {@link Path} for the MATLAB Compiler Runtime (MCR) cache. */
-    public static Path mcrCacheDir(String moduleName) {
-        return MCR_CACHE_PARENT_DIR.resolve(MCR_CACHE_DIR_PREFIX + moduleName);
+    public static Path mcrCacheDir(String pipelineStepName) {
+        return mcrCacheDirParent().resolve(MCR_CACHE_DIR_PREFIX + pipelineStepName);
+    }
+
+    /** Returns the {@link Path} that holds all MCR cache directories. */
+    public static Path mcrCacheDirParent() {
+        return MCR_CACHE_PARENT_DIR
+            .resolve(ZiggyConfiguration.getInstance().getString(PropertyName.USER_NAME.property()));
     }
 
     public PipelineTaskOperations pipelineTaskOperations() {
@@ -405,8 +401,8 @@ public class PipelineExecutor {
         return modelOperations;
     }
 
-    PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations() {
-        return pipelineDefinitionNodeOperations;
+    PipelineNodeOperations pipelineNodeOperations() {
+        return pipelineNodeOperations;
     }
 
     PipelineInstanceOperations pipelineInstanceOperations() {
@@ -417,12 +413,12 @@ public class PipelineExecutor {
         return pipelineInstanceNodeOperations;
     }
 
-    PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
-        return pipelineModuleDefinitionOperations;
+    PipelineStepOperations pipelineStepOperations() {
+        return pipelineStepOperations;
     }
 
-    PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
     RuntimeObjectFactory objectFactory() {

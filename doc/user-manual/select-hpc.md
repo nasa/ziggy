@@ -30,7 +30,7 @@ Depending on your parameters, it's often the case that your remote execution of 
 
 The reason we do it this way is that it improves throughput: if the HPC system has a single available node, and it has a job that only needs 1 node, it will often allocate that node to that job. If, on the other hand, you have a job that needs 10 nodes, you wind up waiting until 10 nodes are available. With more small jobs you spend less time waiting for execution to begin.
 
-For the most part, you don't really need to know about this except for the fact that each of the jobs has its own algorithm log file. If you have, say, 10 jobs that are processing task 12 in instance 3, and the module is permuter, then the algorithm logs will be `3-12-permuter.0-1.log`, `3-12-permuter.1-1.log`, ... `3-12-permuter.9-1.log`. When you use the GUI to display logs, all of these logs will appear as separate entries.
+For the most part, you don't really need to know about this except for the fact that each of the jobs has its own algorithm log file. If you have, say, 10 jobs that are processing task 12 in instance 3, and the node is permuter, then the algorithm logs will be `3-12-permuter.0-1.log`, `3-12-permuter.1-1.log`, ... `3-12-permuter.9-1.log`. When you use the GUI to display logs, all of these logs will appear as separate entries.
 
 #### When Your Jobs Time Out
 
@@ -57,6 +57,23 @@ At this point, we need to reiterate the warning in the TaskConfigurationParamete
 Second: Ziggy allows you to automate the decision on whether a given number of subtasks is too small to bother with remote execution. The automation is a bit crude: as shown in [the Remote Execution dialog box article](remote-dialog.md), there is an option, `minSubtasksForRemoteExecution`. This option does what it says: it sets the minimum number of subtasks that are needed to send a task to remote execution; if the number of subtasks is below this number, the task will run locally, **even if enabled is set to true**!
 
 By using these two parameters, you can, in effect, tell Ziggy in advance about your decisions about whether to resubmit a task and whether to use remote execution even if the number of subtasks to process is fairly small.
+
+#### Setting the Username, Hostname, Group for Remote Execution
+
+All the remote execution environments we know of need some additional information before they can submit a job. Most notably, they need to know where to send the bill! This can involve the use of a group name, but may also require the name of the user who's doing the submission, or even the name of the computer that the job got submitted from.
+
+Ziggy allows you to set this up in the properties file. Let's take a look:
+
+```
+ziggy.remote.hecc.group = phony
+ziggy.remote.hecc.user = phony
+ziggy.remote.sample.group = alsophony
+ziggy.remote.sample.user = alsophony
+```
+
+If we were foolish enough to try to run the sample pipeline on the `HECC` environment, it would use `phony` for the group name that's to be billed (it would also use that for the user and the host, but the HECC batch system doesn't use either of those parameters). If we were even more foolish and attempted to run on the nonexistent `sample` remote environment, it would use `alsophony` for the group, user, and host. 
+
+Note that the environment name in these properties is not case-sensitive. The `HECC` environment is defined with a capitalized name, but the lower-case `hecc` in the properties will still match the environment.
 
 [[Previous]](halt-tasks.md)
 [[Up]](user-manual.md)

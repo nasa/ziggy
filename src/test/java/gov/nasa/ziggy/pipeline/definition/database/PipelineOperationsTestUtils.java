@@ -11,11 +11,10 @@ import java.util.Set;
 
 import org.mockito.Mockito;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
@@ -24,6 +23,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.util.ZiggyCollectionUtils;
@@ -36,9 +36,9 @@ import gov.nasa.ziggy.util.ZiggyCollectionUtils;
  */
 public class PipelineOperationsTestUtils extends DatabaseOperations {
 
-    private List<PipelineModuleDefinition> pipelineModuleDefinitions;
-    private List<PipelineDefinition> pipelineDefinitions;
-    private List<PipelineDefinitionNode> pipelineDefinitionNodes;
+    private List<PipelineStep> pipelineSteps;
+    private List<Pipeline> pipelines;
+    private List<PipelineNode> pipelineNodes;
     private List<PipelineInstance> pipelineInstances;
     private List<PipelineInstanceNode> pipelineInstanceNodes;
     private List<PipelineTask> pipelineTasks;
@@ -46,50 +46,46 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
     private List<PipelineTaskDisplayData> pipelineTaskDisplayData;
 
     /**
-     * Generates and persists a pipeline definition with a single module and two tasks. Its name is
-     * module1 and its pipeline definition's name is pipeline1. The pipeline definition has two
-     * parameters parameter1 and parameter2 and the module definition has two parameters parameter3
-     * and parameter4.
+     * Generates and persists a pipeline with a single node and two tasks. The node's name is step1
+     * and the pipeline's name is pipeline1. The pipeline has two parameters parameter1 and
+     * parameter2 and the node has two parameters parameter3 and parameter4.
      */
-    public void setUpSingleModulePipeline() {
-        generateSingleModulePipeline(true);
+    public void setUpSingleNodePipeline() {
+        generateSingleNodePipeline(true);
     }
 
     /**
-     * Generates and optionally persists a pipeline definition with a single module and two tasks.
-     * Its name is module1 and its pipeline definition's name is pipeline1. The pipeline definition
-     * has two parameters parameter1 and parameter2 and the module definition has two parameters
-     * parameter3 and parameter4.
+     * Generates and optionally persists a pipeline with a single node and two tasks. The node's
+     * name is step1 and the pipeline's name is pipeline1. The pipeline has two parameters
+     * parameter1 and parameter2 and the node has two parameters parameter3 and parameter4.
      */
-    public void generateSingleModulePipeline(boolean persist) {
-        PipelineModuleDefinition moduleDefinition = new PipelineModuleDefinition("module1");
-        PipelineDefinitionNode definitionNode = new PipelineDefinitionNode("module1", "pipeline1");
-        PipelineDefinition pipelineDefinition = new PipelineDefinition("pipeline1");
-        pipelineDefinition.addRootNode(definitionNode);
-        pipelineDefinition
+    public void generateSingleNodePipeline(boolean persist) {
+        PipelineStep pipelineStep = new PipelineStep("step1");
+        PipelineNode pipelineNode = new PipelineNode("step1", "pipeline1");
+        Pipeline pipeline = new Pipeline("pipeline1");
+        pipeline.addRootNode(pipelineNode);
+        pipeline
             .setParameterSetNames(ZiggyCollectionUtils.mutableSetOf("parameter1", "parameter2"));
-        definitionNode
+        pipelineNode
             .setParameterSetNames(ZiggyCollectionUtils.mutableSetOf("parameter3", "parameter4"));
-        PipelineInstance pipelineInstance = new PipelineInstance(pipelineDefinition);
-        PipelineInstanceNode instanceNode = new PipelineInstanceNode(definitionNode,
-            moduleDefinition);
+        PipelineInstance pipelineInstance = new PipelineInstance(pipeline);
+        PipelineInstanceNode instanceNode = new PipelineInstanceNode(pipelineNode, pipelineStep);
 
         // Add the one-to-many relationships between the different objects. This requires a
         // fairly complicated set of operations for the case in which we want all the
         // objects persisted in their final state, and those final states reflected in the
         // fields of this object.
         if (persist) {
-            pipelineModuleDefinitions = ZiggyCollectionUtils.mutableListOf(performTransaction(
-                () -> new PipelineModuleDefinitionCrud().merge(moduleDefinition)));
-            pipelineDefinitions = ZiggyCollectionUtils.mutableListOf(
-                performTransaction(() -> new PipelineDefinitionCrud().merge(pipelineDefinition)));
-            pipelineDefinitionNodes = ZiggyCollectionUtils
-                .mutableListOf(pipelineDefinitions.get(0).getRootNodes().get(0));
+            pipelineSteps = ZiggyCollectionUtils.mutableListOf(
+                performTransaction(() -> new PipelineStepCrud().merge(pipelineStep)));
+            pipelines = ZiggyCollectionUtils
+                .mutableListOf(performTransaction(() -> new PipelineCrud().merge(pipeline)));
+            pipelineNodes = ZiggyCollectionUtils
+                .mutableListOf(pipelines.get(0).getRootNodes().get(0));
             pipelineInstances = List
                 .of(performTransaction(() -> new PipelineInstanceCrud().merge(pipelineInstance)));
 
-            // Persist the instance node and add it to the definition node, instance, and
-            // module definitions. Then replace the existing instance fields in each case.
+            // Persist the instance nodes and associated nodes and steps.
             pipelineInstanceNodes = List
                 .of(performTransaction(() -> new PipelineInstanceNodeCrud().merge(instanceNode)));
             pipelineInstances.get(0).addRootNode(pipelineInstanceNodes.get(0));
@@ -97,10 +93,10 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
             pipelineInstances.get(0).addPipelineInstanceNode(pipelineInstanceNodes.get(0));
             pipelineInstances = ZiggyCollectionUtils.mutableListOf(performTransaction(
                 () -> new PipelineInstanceCrud().merge(pipelineInstances.get(0))));
-            pipelineDefinitionNodes = ZiggyCollectionUtils.mutableListOf(performTransaction(
-                () -> new PipelineDefinitionNodeCrud().merge(pipelineDefinitionNodes.get(0))));
-            pipelineModuleDefinitions = ZiggyCollectionUtils.mutableListOf(performTransaction(
-                () -> new PipelineModuleDefinitionCrud().merge(pipelineModuleDefinitions.get(0))));
+            pipelineNodes = ZiggyCollectionUtils.mutableListOf(
+                performTransaction(() -> new PipelineNodeCrud().merge(pipelineNodes.get(0))));
+            pipelineSteps = ZiggyCollectionUtils.mutableListOf(
+                performTransaction(() -> new PipelineStepCrud().merge(pipelineSteps.get(0))));
 
             // Persist the pipeline tasks and update the pipeline instance node.
             List<UnitOfWork> unitsOfWork = List.of(new UnitOfWork("brief0"),
@@ -111,9 +107,9 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         } else {
             PipelineTask task1 = new PipelineTask(pipelineInstance, instanceNode, null);
             PipelineTask task2 = new PipelineTask(pipelineInstance, instanceNode, null);
-            pipelineModuleDefinitions = ZiggyCollectionUtils.mutableListOf(moduleDefinition);
-            pipelineDefinitions = ZiggyCollectionUtils.mutableListOf(pipelineDefinition);
-            pipelineDefinitionNodes = List.of(definitionNode);
+            pipelineSteps = ZiggyCollectionUtils.mutableListOf(pipelineStep);
+            pipelines = ZiggyCollectionUtils.mutableListOf(pipeline);
+            pipelineNodes = List.of(pipelineNode);
             pipelineInstances = ZiggyCollectionUtils.mutableListOf(pipelineInstance);
             pipelineInstanceNodes = List.of(instanceNode);
             pipelineTasks = ZiggyCollectionUtils.mutableListOf(task1, task2);
@@ -159,7 +155,8 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
 
         // Carry on, using our saved pipeline tasks and pipeline task data.
         assertEquals(pipelineTask.getCreated(), pipelineTaskDisplayData.getCreated());
-        assertEquals(pipelineTask.getModuleName(), pipelineTaskDisplayData.getModuleName());
+        assertEquals(pipelineTask.getPipelineStepName(),
+            pipelineTaskDisplayData.getPipelineStepName());
         assertEquals(pipelineTask.getUnitOfWork().briefState(),
             pipelineTaskDisplayData.getBriefState());
 
@@ -187,74 +184,66 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
     }
 
     /**
-     * Generates and persists a pipeline definition with a four modules and no tasks. The names are
-     * module1 through module4 and its pipeline definition's name is pipeline1.
+     * Generates and persists a pipeline with a four nodes and no tasks. The names are step1 through
+     * step4 and the pipeline's name is pipeline1.
      */
-    public void setUpFourModulePipeline() {
+    public void setUpFourNodePipeline() {
         performTransaction(() -> {
-            PipelineModuleDefinitionCrud pipelineModuleDefinitionCrud = new PipelineModuleDefinitionCrud();
-            PipelineDefinitionCrud pipelineDefinitionCrud = new PipelineDefinitionCrud();
-            PipelineDefinitionNodeCrud pipelineDefinitionNodeCrud = new PipelineDefinitionNodeCrud();
+            PipelineStepCrud pipelineStepCrud = new PipelineStepCrud();
+            PipelineCrud pipelineCrud = new PipelineCrud();
+            PipelineNodeCrud pipelineNodeCrud = new PipelineNodeCrud();
             PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
 
-            PipelineModuleDefinition moduleDefinition = pipelineModuleDefinitionCrud
-                .merge(new PipelineModuleDefinition("module1"));
-            PipelineModuleDefinition moduleDefinition2 = pipelineModuleDefinitionCrud
-                .merge(new PipelineModuleDefinition("module2"));
-            PipelineModuleDefinition moduleDefinition3 = pipelineModuleDefinitionCrud
-                .merge(new PipelineModuleDefinition("module3"));
-            PipelineModuleDefinition moduleDefinition4 = pipelineModuleDefinitionCrud
-                .merge(new PipelineModuleDefinition("module4"));
-            PipelineDefinitionNode definitionNode = pipelineDefinitionNodeCrud
-                .merge(new PipelineDefinitionNode("module1", "pipeline1"));
-            PipelineDefinitionNode definitionNode2 = pipelineDefinitionNodeCrud
-                .merge(new PipelineDefinitionNode("module2", "pipeline1"));
-            PipelineDefinitionNode definitionNode3 = pipelineDefinitionNodeCrud
-                .merge(new PipelineDefinitionNode("module3", "pipeline1"));
-            PipelineDefinitionNode definitionNode4 = pipelineDefinitionNodeCrud
-                .merge(new PipelineDefinitionNode("module4", "pipeline1"));
+            PipelineStep pipelineStep = pipelineStepCrud.merge(new PipelineStep("step1"));
+            PipelineStep pipelineStep2 = pipelineStepCrud.merge(new PipelineStep("step2"));
+            PipelineStep pipelineStep3 = pipelineStepCrud.merge(new PipelineStep("step3"));
+            PipelineStep pipelineStep4 = pipelineStepCrud.merge(new PipelineStep("step4"));
+            PipelineNode pipelineNode = pipelineNodeCrud
+                .merge(new PipelineNode("step1", "pipeline1"));
+            PipelineNode pipelineNode2 = pipelineNodeCrud
+                .merge(new PipelineNode("step2", "pipeline1"));
+            PipelineNode pipelineNode3 = pipelineNodeCrud
+                .merge(new PipelineNode("step3", "pipeline1"));
+            PipelineNode pipelineNode4 = pipelineNodeCrud
+                .merge(new PipelineNode("step4", "pipeline1"));
 
-            definitionNode.addNextNode(definitionNode2);
-            definitionNode2.addNextNode(definitionNode3);
-            definitionNode3.addNextNode(definitionNode4);
-            PipelineDefinition pipelineDefinition = new PipelineDefinition("pipeline1");
-            pipelineDefinition.addRootNode(definitionNode);
-            new PipelineDefinitionCrud().persist(pipelineDefinition);
+            pipelineNode.addNextNode(pipelineNode2);
+            pipelineNode2.addNextNode(pipelineNode3);
+            pipelineNode3.addNextNode(pipelineNode4);
+            Pipeline pipeline = new Pipeline("pipeline1");
+            pipeline.addRootNode(pipelineNode);
+            new PipelineCrud().persist(pipeline);
             PipelineInstance pipelineInstance = pipelineInstanceCrud
-                .merge(new PipelineInstance(pipelineDefinition));
-            pipelineDefinition = pipelineDefinitionCrud.merge(pipelineDefinition);
-            pipelineModuleDefinitions = ZiggyCollectionUtils.mutableListOf(moduleDefinition,
-                moduleDefinition2, moduleDefinition3, moduleDefinition4);
-            pipelineDefinitionNodes = ZiggyCollectionUtils.mutableListOf(definitionNode,
-                definitionNode2, definitionNode3, definitionNode4);
-            pipelineDefinitions = ZiggyCollectionUtils.mutableListOf(pipelineDefinition);
+                .merge(new PipelineInstance(pipeline));
+            pipeline = pipelineCrud.merge(pipeline);
+            pipelineSteps = ZiggyCollectionUtils.mutableListOf(pipelineStep, pipelineStep2,
+                pipelineStep3, pipelineStep4);
+            pipelineNodes = ZiggyCollectionUtils.mutableListOf(pipelineNode, pipelineNode2,
+                pipelineNode3, pipelineNode4);
+            pipelines = ZiggyCollectionUtils.mutableListOf(pipeline);
             pipelineInstances = ZiggyCollectionUtils.mutableListOf(pipelineInstance);
             pipelineInstanceNodes = new ArrayList<>();
             pipelineTasks = new ArrayList<>();
         });
     }
 
-    public void setUpFourModulePipelineWithInstanceNodes() {
-        setUpFourModulePipeline();
+    public void setUpFourNodePipelineWithInstanceNodes() {
+        setUpFourNodePipeline();
         performTransaction(() -> {
             PipelineInstanceNode instanceNode1 = new PipelineInstanceNodeCrud()
-                .merge(new PipelineInstanceNode(pipelineDefinitionNodes.get(0),
-                    pipelineModuleDefinitions.get(0)));
+                .merge(new PipelineInstanceNode(pipelineNodes.get(0), pipelineSteps.get(0)));
             pipelineInstance().addRootNode(instanceNode1);
             pipelineInstance().addPipelineInstanceNode(instanceNode1);
             PipelineInstanceNode instanceNode2 = new PipelineInstanceNodeCrud()
-                .merge(new PipelineInstanceNode(pipelineDefinitionNodes.get(1),
-                    pipelineModuleDefinitions.get(1)));
+                .merge(new PipelineInstanceNode(pipelineNodes.get(1), pipelineSteps.get(1)));
             instanceNode1.getNextNodes().add(instanceNode2);
             pipelineInstance().addPipelineInstanceNode(instanceNode2);
             PipelineInstanceNode instanceNode3 = new PipelineInstanceNodeCrud()
-                .merge(new PipelineInstanceNode(pipelineDefinitionNodes.get(2),
-                    pipelineModuleDefinitions.get(2)));
+                .merge(new PipelineInstanceNode(pipelineNodes.get(2), pipelineSteps.get(2)));
             instanceNode2.getNextNodes().add(instanceNode3);
             pipelineInstance().addPipelineInstanceNode(instanceNode3);
             PipelineInstanceNode instanceNode4 = new PipelineInstanceNodeCrud()
-                .merge(new PipelineInstanceNode(pipelineDefinitionNodes.get(3),
-                    pipelineModuleDefinitions.get(3)));
+                .merge(new PipelineInstanceNode(pipelineNodes.get(3), pipelineSteps.get(3)));
             instanceNode3.getNextNodes().add(instanceNode4);
             pipelineInstance().addPipelineInstanceNode(instanceNode4);
             new PipelineInstanceCrud().merge(pipelineInstance());
@@ -265,43 +254,41 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         });
     }
 
-    public void setUpTwoPipelineDefinitionsTwoInstancesEach() {
+    public void setUpTwoPipelinesTwoInstancesEach() {
         pipelineInstances = new ArrayList<>();
-        pipelineDefinitions = new ArrayList<>();
+        pipelines = new ArrayList<>();
         performTransaction(() -> {
-            PipelineDefinition pipelineDefinition1 = new PipelineDefinitionCrud()
-                .merge(new PipelineDefinition("module1"));
+            Pipeline pipeline1 = new PipelineCrud().merge(new Pipeline("step1"));
             PipelineInstance pipelineInstance1 = new PipelineInstanceCrud()
-                .merge(new PipelineInstance(pipelineDefinition1));
+                .merge(new PipelineInstance(pipeline1));
             PipelineInstance pipelineInstance2 = new PipelineInstanceCrud()
-                .merge(new PipelineInstance(pipelineDefinition1));
-            pipelineDefinition1 = new PipelineDefinitionCrud().merge(pipelineDefinition1);
+                .merge(new PipelineInstance(pipeline1));
+            pipeline1 = new PipelineCrud().merge(pipeline1);
             pipelineInstances.add(pipelineInstance1);
             pipelineInstances.add(pipelineInstance2);
-            pipelineDefinitions.add(pipelineDefinition1);
+            pipelines.add(pipeline1);
         });
 
         performTransaction(() -> {
-            PipelineDefinition pipelineDefinition1 = new PipelineDefinitionCrud()
-                .merge(new PipelineDefinition("module2"));
+            Pipeline pipeline1 = new PipelineCrud().merge(new Pipeline("step2"));
             PipelineInstance pipelineInstance1 = new PipelineInstanceCrud()
-                .merge(new PipelineInstance(pipelineDefinition1));
+                .merge(new PipelineInstance(pipeline1));
             PipelineInstance pipelineInstance2 = new PipelineInstanceCrud()
-                .merge(new PipelineInstance(pipelineDefinition1));
-            pipelineDefinition1 = new PipelineDefinitionCrud().merge(pipelineDefinition1);
+                .merge(new PipelineInstance(pipeline1));
+            pipeline1 = new PipelineCrud().merge(pipeline1);
             pipelineInstances.add(pipelineInstance1);
             pipelineInstances.add(pipelineInstance2);
-            pipelineDefinitions.add(pipelineDefinition1);
+            pipelines.add(pipeline1);
         });
     }
 
     /**
-     * Creates five modules (module1 .. module5) in a single pipeline (pipeline1). These are not
-     * saved to the database, so this call is fast. For testing purposes, here are the values
-     * assigned to the pipeline tasks associated with these modules.
+     * Creates five nodes (step1 .. step5) in a single pipeline (pipeline1). These are not saved to
+     * the database, so this call is fast. For testing purposes, here are the values assigned to the
+     * pipeline tasks associated with these nodes.
      * <table>
      * <tr>
-     * <td><b>Module</b></td>
+     * <td><b>Node</b></td>
      * <td><b>Task ID</b></td>
      * <td><b>Processing Step</b></td>
      * <td><b>State</b></td>
@@ -310,7 +297,7 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
      * <td><b>Subtasks Failed</b></td>
      * </tr>
      * <tr>
-     * <td>module1</td>
+     * <td>step1</td>
      * <td>1</td>
      * <td>INITIALIZING</td>
      * <td>INITIALIZED</td>
@@ -319,7 +306,7 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
      * <td>1</td>
      * </tr>
      * <tr>
-     * <td>module2</td>
+     * <td>step2</td>
      * <td>2</td>
      * <td>WAITING_TO_RUN</td>
      * <td>SUBMITTED</td>
@@ -328,7 +315,7 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
      * <td>2</td>
      * </tr>
      * <tr>
-     * <td>module3</td>
+     * <td>step3</td>
      * <td>3</td>
      * <td>EXECUTING</td>
      * <td>PROCESSING</td>
@@ -337,7 +324,7 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
      * <td>3</td>
      * </tr>
      * <tr>
-     * <td>module4</td>
+     * <td>step4</td>
      * <td>4</td>
      * <td>EXECUTING</td>
      * <td>PROCESSING</td>
@@ -346,7 +333,7 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
      * <td>4</td>
      * </tr>
      * <tr>
-     * <td>module5</td>
+     * <td>step5</td>
      * <td>5</td>
      * <td>COMPLETE</td>
      * <td>COMPLETED</td>
@@ -355,26 +342,26 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
      * <td>5</td>
      * </tr>
      * </table>
-     * Note that pipelineTask("module4").isError() is true.
+     * Note that pipelineTask("step4").isError() is true.
      */
     public void setUpFivePipelineTasks() {
         pipelineTasks = new ArrayList<>();
-        pipelineTasks.add(pipelineTask("module1", 1L, 10, ProcessingStep.INITIALIZING));
-        pipelineTasks.add(pipelineTask("module2", 2L, 20, ProcessingStep.WAITING_TO_RUN));
-        pipelineTasks.add(pipelineTask("module3", 3L, 30, ProcessingStep.EXECUTING));
-        pipelineTasks.add(pipelineTask("module4", 4L, 40, ProcessingStep.EXECUTING, true));
-        pipelineTasks.add(pipelineTask("module5", 5L, 50, ProcessingStep.COMPLETE));
+        pipelineTasks.add(pipelineTask("step1", 1L, 10, ProcessingStep.INITIALIZING));
+        pipelineTasks.add(pipelineTask("step2", 2L, 20, ProcessingStep.WAITING_TO_RUN));
+        pipelineTasks.add(pipelineTask("step3", 3L, 30, ProcessingStep.EXECUTING));
+        pipelineTasks.add(pipelineTask("step4", 4L, 40, ProcessingStep.EXECUTING, true));
+        pipelineTasks.add(pipelineTask("step5", 5L, 50, ProcessingStep.COMPLETE));
     }
 
-    private PipelineTask pipelineTask(String moduleName, Long id, int attributeSeed,
+    private PipelineTask pipelineTask(String pipelineStepName, Long id, int attributeSeed,
         ProcessingStep processingStep) {
-        return pipelineTask(moduleName, id, attributeSeed, processingStep, false);
+        return pipelineTask(pipelineStepName, id, attributeSeed, processingStep, false);
     }
 
-    private PipelineTask pipelineTask(String moduleName, Long id, int attributeSeed,
+    private PipelineTask pipelineTask(String pipelineStepName, Long id, int attributeSeed,
         ProcessingStep processingStep, boolean error) {
         PipelineInstanceNode pipelineInstanceNode = new PipelineInstanceNode();
-        pipelineInstanceNode.setPipelineModuleDefinition(new PipelineModuleDefinition(moduleName));
+        pipelineInstanceNode.setPipelineStep(new PipelineStep(pipelineStepName));
         PipelineTask pipelineTask = Mockito.spy(new PipelineTask(null, pipelineInstanceNode, null));
         Mockito.doReturn(id).when(pipelineTask).getId();
 
@@ -390,27 +377,27 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
     public void setUpFivePipelineTaskDisplayData() {
         pipelineTaskDisplayData = new ArrayList<>();
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("module1", 1L, 10, ProcessingStep.INITIALIZING));
+            .add(pipelineTaskDisplayData("step1", 1L, 10, ProcessingStep.INITIALIZING));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("module2", 2L, 20, ProcessingStep.WAITING_TO_RUN));
+            .add(pipelineTaskDisplayData("step2", 2L, 20, ProcessingStep.WAITING_TO_RUN));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("module3", 3L, 30, ProcessingStep.EXECUTING));
+            .add(pipelineTaskDisplayData("step3", 3L, 30, ProcessingStep.EXECUTING));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("module4", 4L, 40, ProcessingStep.EXECUTING, true));
+            .add(pipelineTaskDisplayData("step4", 4L, 40, ProcessingStep.EXECUTING, true));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("module5", 5L, 50, ProcessingStep.COMPLETE));
+            .add(pipelineTaskDisplayData("step5", 5L, 50, ProcessingStep.COMPLETE));
     }
 
-    private PipelineTaskDisplayData pipelineTaskDisplayData(String moduleName, Long id,
+    private PipelineTaskDisplayData pipelineTaskDisplayData(String pipelineStepName, Long id,
         int attributeSeed, ProcessingStep processingStep) {
-        return pipelineTaskDisplayData(moduleName, id, attributeSeed, processingStep, false);
+        return pipelineTaskDisplayData(pipelineStepName, id, attributeSeed, processingStep, false);
     }
 
-    private PipelineTaskDisplayData pipelineTaskDisplayData(String moduleName, Long id,
+    private PipelineTaskDisplayData pipelineTaskDisplayData(String pipelineStepName, Long id,
         int attributeSeed, ProcessingStep processingStep, boolean error) {
         PipelineInstanceNode pipelineInstanceNode = new PipelineInstanceNode();
-        pipelineInstanceNode.setPipelineModuleDefinition(new PipelineModuleDefinition(moduleName));
-        UnitOfWork unitOfWork = new UnitOfWork(moduleName);
+        pipelineInstanceNode.setPipelineStep(new PipelineStep(pipelineStepName));
+        UnitOfWork unitOfWork = new UnitOfWork(pipelineStepName);
         PipelineTask pipelineTask = Mockito
             .spy(new PipelineTask(null, pipelineInstanceNode, unitOfWork));
         Mockito.doReturn(id).when(pipelineTask).getId();
@@ -425,16 +412,16 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         return new PipelineTaskDisplayData(pipelineTaskData);
     }
 
-    public List<PipelineModuleDefinition> getPipelineModuleDefinitions() {
-        return pipelineModuleDefinitions;
+    public List<PipelineStep> getPipelineSteps() {
+        return pipelineSteps;
     }
 
-    public List<PipelineDefinition> getPipelineDefinitions() {
-        return pipelineDefinitions;
+    public List<Pipeline> getPipelines() {
+        return pipelines;
     }
 
-    public List<PipelineDefinitionNode> getPipelineDefinitionNodes() {
-        return pipelineDefinitionNodes;
+    public List<PipelineNode> getPipelineNodes() {
+        return pipelineNodes;
     }
 
     public List<PipelineInstance> getPipelineInstances() {
@@ -457,19 +444,19 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
     // in a list. The "get" prefix is not used because these do not get a field of the
     // instance.
 
-    public PipelineModuleDefinition pipelineModuleDefinition() {
-        checkState(pipelineModuleDefinitions.size() == 1, "PipelineModuleDefinitions size != 1");
-        return pipelineModuleDefinitions.get(0);
+    public PipelineStep pipelineStep() {
+        checkState(pipelineSteps.size() == 1, "PipelineSteps size != 1");
+        return pipelineSteps.get(0);
     }
 
-    public PipelineDefinition pipelineDefinition() {
-        checkState(pipelineDefinitions.size() == 1, "PipelineDefinitions size != 1");
-        return pipelineDefinitions.get(0);
+    public Pipeline pipeline() {
+        checkState(pipelines.size() == 1, "Pipelines size != 1");
+        return pipelines.get(0);
     }
 
-    public PipelineDefinitionNode pipelineDefinitionNode() {
-        checkState(pipelineDefinitionNodes.size() == 1, "PipelineDefinitionNodes size != 1");
-        return pipelineDefinitionNodes.get(0);
+    public PipelineNode pipelineNode() {
+        checkState(pipelineNodes.size() == 1, "PipelineNodes size != 1");
+        return pipelineNodes.get(0);
     }
 
     public PipelineInstance pipelineInstance() {
@@ -493,7 +480,7 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
                     .retrievePipelineTaskData(pipelineTask);
 
                 pipelineTaskData.setPipelineTaskMetrics(
-                    createPipelineTaskMetrics(pipelineTask.getModuleName()));
+                    createPipelineTaskMetrics(pipelineTask.getPipelineStepName()));
                 pipelineTaskData.setRemoteJobs(createRemoteJobs(pipelineTask));
                 pipelineTaskData.setZiggySoftwareRevision("ziggy software revision 1");
                 pipelineTaskData.setPipelineSoftwareRevision("pipeline software revision 1");
@@ -506,8 +493,9 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
             return pipelineTaskDataList;
         }
 
-        private List<PipelineTaskMetric> createPipelineTaskMetrics(String moduleName) {
-            return new ArrayList<>(List.of(new PipelineTaskMetric(moduleName, 42, Units.TIME)));
+        private List<PipelineTaskMetric> createPipelineTaskMetrics(String pipelineStepName) {
+            return new ArrayList<>(
+                List.of(new PipelineTaskMetric(pipelineStepName, 42, Units.TIME)));
         }
 
         private Set<RemoteJob> createRemoteJobs(PipelineTask pipelineTask) {

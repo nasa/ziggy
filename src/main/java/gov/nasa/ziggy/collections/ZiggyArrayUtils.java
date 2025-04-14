@@ -28,9 +28,9 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.primitives.Longs;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Utility methods for single- and multi-dimensional arrays, with a few utilities for primitive

@@ -45,8 +45,8 @@ public interface DataReceiptDefinition {
 
     /**
      * Ensures that each file in the delivery conforms to any requirements of the data receipt
-     * system. The {@link DataReceiptPipelineModule} will loop over the files in the data receipt
-     * directory, test each of them, and send a list of nonconforming files to the task log.
+     * system. The {@link DataReceiptPipelineStepExecutor} will loop over the files in the data
+     * receipt directory, test each of them, and send a list of nonconforming files to the task log.
      */
     boolean isConformingFile(Path dataFile);
 
@@ -70,10 +70,10 @@ public interface DataReceiptDefinition {
     void setPipelineTask(PipelineTask pipelineTask);
 
     /**
-     * Tells {@link DataReceiptPipelineModule} whether to clean the DR directories after import. The
-     * default is true (i.e., do clean the DR directories). Override in order to either preserve the
-     * DR directories after import, or implement a programmatic decision on whether to clean or
-     * preserve the directories.
+     * Tells {@link DataReceiptPipelineStepExecutor} whether to clean the DR directories after
+     * import. The default is true (i.e., do clean the DR directories). Override in order to either
+     * preserve the DR directories after import, or implement a programmatic decision on whether to
+     * clean or preserve the directories.
      */
     default boolean cleanDataReceiptDirectories() {
         return true;

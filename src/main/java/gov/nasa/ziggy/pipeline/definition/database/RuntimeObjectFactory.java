@@ -6,13 +6,13 @@ import java.util.List;
 import java.util.Map;
 
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
-import gov.nasa.ziggy.pipeline.definition.PipelineModuleDefinition;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
@@ -20,52 +20,50 @@ import gov.nasa.ziggy.uow.UnitOfWork;
  * Provides methods to construct new objects of the {@link PipelineInstance},
  * {@link PipelineInstanceNode}, and {@link PipelineTask} classes.
  * <p>
- * The runtime classes require numerous relationships with one another and with the pipeline
- * definition classes ({@link PipelineDefinition}, {@link PipelineDefinitionNode},
- * {@link PipelineModuleDefinition}). For this reason, construction of new objects of the runtime
- * classes is complex and requires interacting with instances of multiple other classes.
- * {@link RuntimeObjectFactory} provides methods that produce those instances and correctly update
- * all relationships.
+ * The runtime classes require numerous relationships with one another and with the pipeline classes
+ * ({@link Pipeline}, {@link PipelineNode}, {@link PipelineStep}). For this reason, construction of
+ * new objects of the runtime classes is complex and requires interacting with instances of multiple
+ * other classes. {@link RuntimeObjectFactory} provides methods that produce those instances and
+ * correctly update all relationships.
  *
  * @author PT
  */
 public class RuntimeObjectFactory extends DatabaseOperations {
 
     private ParametersOperations parametersOperations = new ParametersOperations();
-    private PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations = new PipelineDefinitionNodeOperations();
-    private PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations = new PipelineModuleDefinitionOperations();
+    private PipelineNodeOperations pipelineNodeOperations = new PipelineNodeOperations();
+    private PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
-    private PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private PipelineOperations pipelineOperations = new PipelineOperations();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
     /**
-     * Creates {@link PipelineInstanceNode} instances for the initial
-     * {@link PipelineDefinitionNode}s of a given pipeline run. Pipeline instance nodes are also
-     * created for all subsequent pipeline definition nodes in the run and stored in the database;
-     * however, only the instance nodes for the starting pipeline definition nodes are returned.
-     * This signature is used when starting at the first node or nodes that are to be run in the
-     * given pipeline instance, so there is no parent instance node.
+     * Creates {@link PipelineInstanceNode} instances for the initial {@link PipelineNode}s of a
+     * given pipeline run. Pipeline instance nodes are also created for all subsequent pipeline
+     * nodes in the run and stored in the database; however, only the instance nodes for the
+     * starting pipeline nodes are returned. This signature is used when starting at the first node
+     * or nodes that are to be run in the given pipeline instance, so there is no parent instance
+     * node.
      */
-    public List<PipelineInstanceNode> newInstanceNodes(PipelineDefinition pipelineDefinition,
-        PipelineInstance pipelineInstance, List<PipelineDefinitionNode> startNodes,
-        PipelineDefinitionNode endNode) {
-        return newInstanceNodes(pipelineDefinition, pipelineInstance, startNodes, endNode, null);
+    public List<PipelineInstanceNode> newInstanceNodes(Pipeline pipeline,
+        PipelineInstance pipelineInstance, List<PipelineNode> startNodes, PipelineNode endNode) {
+        return newInstanceNodes(pipeline, pipelineInstance, startNodes, endNode, null);
     }
 
     /**
-     * Creates {@link PipelineInstanceNode} instances for the initial
-     * {@link PipelineDefinitionNode}s of a given pipeline run. Pipeline instance nodes are also
-     * created for all subsequent pipeline definition nodes in the run and stored in the database;
-     * however, only the instance nodes for the starting pipeline definition nodes are returned.
+     * Creates {@link PipelineInstanceNode} instances for the initial {@link PipelineNode}s of a
+     * given pipeline run. Pipeline instance nodes are also created for all subsequent pipeline
+     * nodes in the run and stored in the database; however, only the instance nodes for the
+     * starting pipeline nodes are returned.
      */
-    private List<PipelineInstanceNode> newInstanceNodes(PipelineDefinition pipelineDefinition,
-        PipelineInstance pipelineInstance, List<PipelineDefinitionNode> pipelineDefinitionNodes,
-        PipelineDefinitionNode endNode, PipelineInstanceNode parentInstanceNode) {
+    private List<PipelineInstanceNode> newInstanceNodes(Pipeline pipeline,
+        PipelineInstance pipelineInstance, List<PipelineNode> pipelineNodes, PipelineNode endNode,
+        PipelineInstanceNode parentInstanceNode) {
 
-        Map<PipelineDefinitionNode, List<PipelineDefinitionNode>> nextNodesByCurrentNode = new HashMap<>();
-        Map<PipelineDefinitionNode, PipelineInstanceNode> instanceNodeByPipelineDefinitionNode = new HashMap<>();
+        Map<PipelineNode, List<PipelineNode>> nextNodesByCurrentNode = new HashMap<>();
+        Map<PipelineNode, PipelineInstanceNode> instanceNodeByPipelineNode = new HashMap<>();
 
         // Note that all the following takes place in one transaction. Although the operations
         // class methods nominally have their own transaction boundaries, in the case of nested
@@ -74,22 +72,22 @@ public class RuntimeObjectFactory extends DatabaseOperations {
         List<PipelineInstanceNode> pipelineInstanceNodes = performTransaction(() -> {
 
             List<PipelineInstanceNode> instanceNodes = new ArrayList<>();
-            for (PipelineDefinitionNode pipelineDefinitionNode : pipelineDefinitionNodes) {
+            for (PipelineNode pipelineNode : pipelineNodes) {
 
-                // Update the Map from parent to child definition nodes.
-                nextNodesByCurrentNode.put(pipelineDefinitionNode,
-                    pipelineDefinitionNodeOperations().nextNodes(pipelineDefinitionNode));
+                // Update the Map from parent to child nodes.
+                nextNodesByCurrentNode.put(pipelineNode,
+                    pipelineNodeOperations().nextNodes(pipelineNode));
 
-                // Get the pipeline module definition and lock it.
-                PipelineModuleDefinition moduleDefinition = pipelineModuleDefinitionOperations()
-                    .pipelineModuleDefinition(pipelineDefinitionNode.getModuleName());
-                pipelineModuleDefinitionOperations().lock(moduleDefinition);
+                // Get the pipeline step and lock it.
+                PipelineStep pipelineStep = pipelineStepOperations()
+                    .pipelineStep(pipelineNode.getPipelineStepName());
+                pipelineStepOperations().lock(pipelineStep);
 
                 // Construct the new pipeline instance node and put it into the Map.
-                PipelineInstanceNode instanceNode = new PipelineInstanceNode(pipelineDefinitionNode,
-                    moduleDefinition);
+                PipelineInstanceNode instanceNode = new PipelineInstanceNode(pipelineNode,
+                    pipelineStep);
                 instanceNode = pipelineInstanceNodeOperations().merge(instanceNode);
-                instanceNodeByPipelineDefinitionNode.put(pipelineDefinitionNode, instanceNode);
+                instanceNodeByPipelineNode.put(pipelineNode, instanceNode);
 
                 if (parentInstanceNode == null) {
                     pipelineInstanceOperations().addRootNode(pipelineInstance, instanceNode);
@@ -98,9 +96,8 @@ public class RuntimeObjectFactory extends DatabaseOperations {
                         instanceNode);
                 }
 
-                // Bind the module parameter sets to the instance node.
-                pipelineInstanceNodeOperations().bindParameterSets(pipelineDefinitionNode,
-                    instanceNode);
+                // Bind the node parameter sets to the instance node.
+                pipelineInstanceNodeOperations().bindParameterSets(pipelineNode, instanceNode);
                 instanceNodes.add(instanceNode);
             }
             if (parentInstanceNode != null) {
@@ -109,29 +106,29 @@ public class RuntimeObjectFactory extends DatabaseOperations {
             return instanceNodes;
         });
 
-        // Recursively create instance nodes for the child nodes of each pipeline definition
+        // Recursively create instance nodes for the child nodes of each pipeline
         // node, unless the node in question is the end node. Note that we need to create these
         // but do not need to return them.
-        for (Map.Entry<PipelineDefinitionNode, List<PipelineDefinitionNode>> entry : nextNodesByCurrentNode
+        for (Map.Entry<PipelineNode, List<PipelineNode>> entry : nextNodesByCurrentNode
             .entrySet()) {
             if (endNode != null && entry.getKey().getId().longValue() == endNode.getId().longValue()
                 || entry.getValue().isEmpty()) {
                 continue;
             }
-            newInstanceNodes(pipelineDefinition, pipelineInstance, entry.getValue(), endNode,
-                instanceNodeByPipelineDefinitionNode.get(entry.getKey()));
+            newInstanceNodes(pipeline, pipelineInstance, entry.getValue(), endNode,
+                instanceNodeByPipelineNode.get(entry.getKey()));
         }
         return pipelineInstanceNodes;
     }
 
     /** Creates a new pipeline instance in state PROCESSING with its execution clock started. */
-    public PipelineInstance newPipelineInstance(String name, PipelineDefinition pipeline,
+    public PipelineInstance newPipelineInstance(String name, Pipeline pipeline,
         ModelRegistry modelRegistry) {
         return performTransaction(() -> {
             PipelineInstance instance = new PipelineInstance(pipeline);
             instance.setName(name);
-            instance.setPipelineDefinition(pipeline);
-            pipelineDefinitionOperations().lock(pipeline);
+            instance.setPipeline(pipeline);
+            pipelineOperations().lock(pipeline);
             instance.setState(PipelineInstance.State.PROCESSING);
             instance.startExecutionClock();
             instance.setPriority(pipeline.getInstancePriority());
@@ -164,12 +161,12 @@ public class RuntimeObjectFactory extends DatabaseOperations {
         return parametersOperations;
     }
 
-    PipelineDefinitionNodeOperations pipelineDefinitionNodeOperations() {
-        return pipelineDefinitionNodeOperations;
+    PipelineNodeOperations pipelineNodeOperations() {
+        return pipelineNodeOperations;
     }
 
-    PipelineModuleDefinitionOperations pipelineModuleDefinitionOperations() {
-        return pipelineModuleDefinitionOperations;
+    PipelineStepOperations pipelineStepOperations() {
+        return pipelineStepOperations;
     }
 
     PipelineInstanceOperations pipelineInstanceOperations() {
@@ -180,8 +177,8 @@ public class RuntimeObjectFactory extends DatabaseOperations {
         return pipelineInstanceNodeOperations;
     }
 
-    PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
     PipelineTaskOperations pipelineTaskOperations() {

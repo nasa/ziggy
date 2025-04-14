@@ -54,7 +54,7 @@ public class InstancesDisplayModel extends DisplayModel {
 
         return switch (columnIndex) {
             case 0 -> instance.getId();
-            case 1 -> instance.getPipelineDefinition().getName()
+            case 1 -> instance.getPipeline().getName()
                 + (StringUtils.isBlank(instance.getName()) ? "" : ": " + instance.getName());
             case 2 -> getStateString(instance.getState());
             case 3 -> instance.getCreated();

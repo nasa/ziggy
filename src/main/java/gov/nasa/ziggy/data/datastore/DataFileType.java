@@ -3,6 +3,7 @@ package gov.nasa.ziggy.data.datastore;
 import java.io.Serializable;
 import java.util.Objects;
 
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile.PipelineDefinitionElement;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -12,7 +13,7 @@ import jakarta.xml.bind.annotation.XmlAttribute;
 
 /**
  * Defines a data file type for a pipeline. Data file types are used as input or output file types
- * for each pipeline module.
+ * for each pipeline step executor.
  * <p>
  * Data file types are defined by a location in the datastore, where the location is defined as:
  *
@@ -28,8 +29,8 @@ import jakarta.xml.bind.annotation.XmlAttribute;
  * elements must correspond to the full path of a datastore node in the database.
  * <p>
  * Ziggy uses the location of a {@link DataFileType} to identify all the directories that
- * potentially have data that can be used in processing in a particular module, or to find the
- * destination of any output files from a given pipeline module.
+ * potentially have data that can be used in processing in a particular step executor, or to find
+ * the destination of any output files from a given pipeline step executor.
  * <p>
  * The {@link DataFileType} also requires a String that is a regular expression for the data file
  * names that correspond to this data file type.
@@ -53,7 +54,7 @@ import jakarta.xml.bind.annotation.XmlAttribute;
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
 @Table(name = "ziggy_DataFileType")
-public class DataFileType implements Serializable {
+public class DataFileType implements Serializable, PipelineDefinitionElement {
 
     private static final long serialVersionUID = 20240122L;
 

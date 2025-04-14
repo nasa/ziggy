@@ -20,6 +20,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 
 /**
@@ -169,12 +170,21 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
 
         // Find and return the files that were consumed by the tasks that produced the
         // outputs.
-        ZiggyQuery<DatastoreProducerConsumer, String> query = createZiggyQuery(
-            DatastoreProducerConsumer.class, String.class)
-                .column(DatastoreProducerConsumer_.filename)
-                .select();
-        addConsumerIdPredicates(query, producerIds);
-        return list(query);
+        return findConsumedBy(producerIds);
+    }
+
+    List<String> findConsumedBy(Collection<Long> consumerIds) {
+        List<String> consumedBy = new ArrayList<>();
+        for (long consumerId : consumerIds) {
+            ZiggyQuery<DatastoreProducerConsumer, String> query = createZiggyQuery(
+                DatastoreProducerConsumer.class, String.class);
+            query.column(DatastoreProducerConsumer_.filename).select().distinct(true);
+            Join<DatastoreProducerConsumer, Long> idJoin = query.getRoot()
+                .join(DatastoreProducerConsumer_.consumers);
+            query.where(query.getBuilder().equal(idJoin, consumerId));
+            consumedBy.addAll(list(query));
+        }
+        return consumedBy;
     }
 
     /** Adds a consumer to each of a set of datastore files. */
@@ -269,8 +279,9 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
     public List<DatastoreProducerConsumer> retrieveForInstance(long pipelineInstanceId) {
 
         // Start with task IDs
-        List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForModuleAndInstance(
-            DataReceiptPipelineModule.DATA_RECEIPT_MODULE_NAME, pipelineInstanceId);
+        List<PipelineTask> tasks = new PipelineTaskCrud().retrieveTasksForPipelineStepAndInstance(
+            DataReceiptPipelineStepExecutor.DATA_RECEIPT_PIPELINE_STEP_EXECUTOR_NAME,
+            pipelineInstanceId);
         Set<Long> taskIds = tasks.stream().map(PipelineTask::getId).collect(Collectors.toSet());
 
         ZiggyQuery<DatastoreProducerConsumer, DatastoreProducerConsumer> query = createZiggyQuery(

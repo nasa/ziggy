@@ -11,9 +11,9 @@ task testJar(type: Jar, dependsOn: testClasses) {
 publishing {
     publications {
         ziggy(MavenPublication) {
-            groupId group
+            groupId = group
             from components.java
-            version version
+            version = version
 
             // Maven doesn't understand 2.17.+ notation.
             suppressPomMetadataWarningsFor('runtimeElements')
@@ -49,10 +49,10 @@ publishing {
         }
 
         ziggyTest(MavenPublication) {
-            groupId group
-            artifactId "${project.name}-test"
+            groupId = group
+            artifactId = "${project.name}-test"
             artifact testJar
-            version version
+            version = version
 
             // Maven doesn't understand 2.17.+ notation.
             suppressPomMetadataWarningsFor('runtimeElements')
@@ -88,10 +88,10 @@ publishing {
         }
 
         hdf5(MavenPublication) {
-            groupId "$outsideGroup"
-            artifactId "jarhdf5"
+            groupId = "$outsideGroup"
+            artifactId = "jarhdf5"
             artifact "${outsideGroupDir}/jarhdf5-${hdf5Version}.jar"
-            version "$hdf5Version"
+            version = "$hdf5Version"
             pom {
                 name = 'HDF5'
                 description = 'HDF5'
@@ -100,10 +100,10 @@ publishing {
         }
 
         wrapper(MavenPublication) {
-            groupId "$outsideGroup"
-            artifactId "wrapper"
+            groupId = "$outsideGroup"
+            artifactId = "wrapper"
             artifact "${outsideGroupDir}/wrapper-${wrapperVersion}.jar"
-            version "$wrapperVersion"
+            version = "$wrapperVersion"
             pom {
                 name = 'Wrapper'
                 description = 'Java Service Wrapper'

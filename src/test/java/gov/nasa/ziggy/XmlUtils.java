@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import gov.nasa.ziggy.pipeline.xml.XmlReference;
 
@@ -61,7 +62,7 @@ public class XmlUtils {
             }
         }
         assertFalse(xmlElementContents.isEmpty());
-        assertContains(xmlElementContents, elementEndText);
+        assertContains(elementEndText, xmlElementContents);
         return xmlElementContents;
     }
 
@@ -74,15 +75,15 @@ public class XmlUtils {
      * object of the {@link List#contains(Object)} does not need to be exactly matched; a match that
      * differs only by leading or trailing whitespace will be accepted.
      */
-    public static void assertContains(List<String> contents, String contentToFind) {
+    public static void assertContains(String expected, List<String> actual) {
         boolean contains = false;
-        for (String content : contents) {
-            if (content.trim().equals(contentToFind.trim())) {
+        for (String content : actual) {
+            if (content.trim().equals(expected.trim())) {
                 contains = true;
                 break;
             }
         }
-        assertTrue(contentToFind, contains);
+        assertTrue(expected, contains);
     }
 
     public static boolean containsAllElements(List<String> xmlStringElements,
@@ -125,6 +126,21 @@ public class XmlUtils {
     public static List<String> complexTypeContent(List<String> allContents,
         String pipelineDefinitionLine) {
         return xmlElementContent(allContents, pipelineDefinitionLine, "</xs:complexType>");
+    }
+
+    /** The number of {@link String}s that represent an XML element definition. */
+    public static int elementCount(List<String> complexTypeContent) {
+        return xmlCount(complexTypeContent, "<xs:element");
+    }
+
+    /** The number of {@link String}s that represent an XML attribute definition. */
+    public static int attributeCount(List<String> complexTypeContent) {
+        return xmlCount(complexTypeContent, "<xs:attribute");
+    }
+
+    /** The number of {@link String}s that contain a specific value. */
+    private static int xmlCount(List<String> content, String value) {
+        return content.stream().filter(s -> s.contains(value)).collect(Collectors.toList()).size();
     }
 
     /**

@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
+import gov.nasa.ziggy.ui.parameters.EditParameterSetDialog;
 import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
@@ -35,9 +36,7 @@ import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
- * Edit/view all of the {@link ParameterSet}s for a pipeline or node. This panel is the one that
- * appears when the operator goes to the Pipelines panel, selects a pipeline, and selects a
- * parameter set or pipeline module from the resulting Edit Pipeline dialog box.
+ * Edit/view all of the {@link ParameterSet}s for a pipeline or node.
  *
  * @author Todd Klaus
  * @author Bill Wohler
@@ -52,7 +51,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
     private int selectedModelIndex = -1;
     private JPopupMenu contextMenu;
 
-    private Map<String, ParameterSet> moduleParameterSetByName;
+    private Map<String, ParameterSet> nodeParameterSetByName;
     private Map<String, ParameterSet> pipelineParameterSetByName;
     private Map<String, ParameterSet> editedParameterSetByName;
 
@@ -60,15 +59,15 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
 
     private final ParametersOperations parametersOperations = new ParametersOperations();
 
-    public ParameterSetMapEditorPanel(Map<String, ParameterSet> moduleParameterSetByName,
+    public ParameterSetMapEditorPanel(Map<String, ParameterSet> nodeParameterSetByName,
         Map<String, ParameterSet> editedParameterSets) {
-        this(moduleParameterSetByName, new HashMap<>(), editedParameterSets);
+        this(nodeParameterSetByName, new HashMap<>(), editedParameterSets);
     }
 
-    public ParameterSetMapEditorPanel(Map<String, ParameterSet> moduleParameterSetByName,
+    public ParameterSetMapEditorPanel(Map<String, ParameterSet> nodeParameterSetByName,
         Map<String, ParameterSet> pipelineParameterSetByName,
         Map<String, ParameterSet> editedParameterSetByName) {
-        this.moduleParameterSetByName = moduleParameterSetByName;
+        this.nodeParameterSetByName = nodeParameterSetByName;
         this.pipelineParameterSetByName = pipelineParameterSetByName;
         this.editedParameterSetByName = editedParameterSetByName;
 
@@ -80,7 +79,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
             createButton(EDIT, "Edit this parameter set.", this::editParamValues));
 
         contextMenu = ZiggySwingUtils.createPopupMenu(createMenuItem(EDIT + DIALOG, this::edit));
-        paramSetMapTableModel = new ParameterSetNamesTableModel(moduleParameterSetByName,
+        paramSetMapTableModel = new ParameterSetNamesTableModel(nodeParameterSetByName,
             pipelineParameterSetByName);
         ziggyTable = new ZiggyTable<>(paramSetMapTableModel);
         JScrollPane parameterSets = new JScrollPane(ziggyTable.getTable());
@@ -133,8 +132,8 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
         edit(selectedModelIndex);
     }
 
-    private void edit(int modelIndex) {
-        String name = paramSetMapTableModel.getParamSetAtRow(modelIndex);
+    private void edit(int row) {
+        String name = paramSetMapTableModel.getParamSetAtRow(row);
         if (name == null) {
             return;
         }
@@ -156,8 +155,8 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
                     if (parameters == null) {
                         return;
                     }
-                    ParameterSet newParameters = EditParametersDialog.editParameters(
-                        SwingUtilities.getWindowAncestor(ParameterSetMapEditorPanel.this), name,
+                    ParameterSet newParameters = EditParameterSetDialog.editParameterSet(
+                        SwingUtilities.getWindowAncestor(ParameterSetMapEditorPanel.this),
                         parameters);
                     if (newParameters != null) {
                         editedParameterSetByName.put(name, newParameters);
@@ -178,8 +177,8 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
         this.mapListener = mapListener;
     }
 
-    public Map<String, ParameterSet> getModuleParameterSetByName() {
-        return moduleParameterSetByName;
+    public Map<String, ParameterSet> getPipelineParameterSetByName() {
+        return nodeParameterSetByName;
     }
 
     private ParametersOperations parametersOperations() {

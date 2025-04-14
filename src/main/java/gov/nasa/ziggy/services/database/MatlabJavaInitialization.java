@@ -17,13 +17,13 @@ import org.apache.logging.log4j.core.config.xml.XmlConfigurationFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.BuildInfo;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
@@ -85,7 +85,7 @@ public class MatlabJavaInitialization {
                 // statement will have no effect. Consider rearchitecting so that this property
                 // is already set before the MATLAB binary is started, presuming this property
                 // is even used.
-                System.setProperty(PropertyName.ZIGGY_LOG_FILE.property(), MATLAB_LOG_FILE);
+                System.setProperty(PropertyName.ZIGGY_LOG_SINGLE_FILE.property(), MATLAB_LOG_FILE);
                 ConfigurationFactory.setConfigurationFactory(new XmlConfigurationFactory());
                 try {
                     Configurator.reconfigure(new URI(log4jConfigFile));

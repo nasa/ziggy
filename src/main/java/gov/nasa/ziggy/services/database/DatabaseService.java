@@ -6,7 +6,7 @@ import java.util.Collection;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 
-import gov.nasa.ziggy.module.PipelineException;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Interface used by CRUD classes to initialize and access the persistence layer.

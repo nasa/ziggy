@@ -135,10 +135,9 @@ public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {
      * Retrieves the list of distinct softwareRevisions for the specified node.
      */
     List<String> distinctSoftwareRevisions(PipelineInstanceNode pipelineInstanceNode) {
-        List<String> distinctSoftwareRevisions = new ArrayList<>();
-
-        distinctSoftwareRevisions.addAll(list(
+        List<String> distinctSoftwareRevisions = new ArrayList<>(list(
             softwareRevisionQuery(pipelineInstanceNode, PipelineTaskData_.ziggySoftwareRevision)));
+
         distinctSoftwareRevisions.addAll(list(softwareRevisionQuery(pipelineInstanceNode,
             PipelineTaskData_.pipelineSoftwareRevision)));
         return distinctSoftwareRevisions;
@@ -169,9 +168,7 @@ public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {
      * Retrieves the list of distinct softwareRevisions for the specified pipeline instance.
      */
     List<String> distinctSoftwareRevisions(PipelineInstance pipelineInstance) {
-        List<String> distinctSoftwareRevisions = new ArrayList<>();
-        distinctSoftwareRevisions.addAll(
-            list(softwareRevisionQuery(pipelineInstance, PipelineTaskData_.ziggySoftwareRevision)));
+        List<String> distinctSoftwareRevisions = new ArrayList<>(list(softwareRevisionQuery(pipelineInstance, PipelineTaskData_.ziggySoftwareRevision)));
         distinctSoftwareRevisions.addAll(list(
             softwareRevisionQuery(pipelineInstance, PipelineTaskData_.pipelineSoftwareRevision)));
         return distinctSoftwareRevisions;

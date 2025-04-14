@@ -4,6 +4,7 @@ import java.util.Objects;
 
 import org.apache.commons.lang3.StringUtils;
 
+import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile.PipelineDefinitionElement;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -34,7 +35,7 @@ import jakarta.xml.bind.annotation.XmlTransient;
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
 @Table(name = "ziggy_DatastoreRegexp")
-public class DatastoreRegexp {
+public class DatastoreRegexp implements PipelineDefinitionElement {
 
     @Id
     @XmlAttribute(required = true)
@@ -80,11 +81,7 @@ public class DatastoreRegexp {
         return value;
     }
 
-    /**
-     * Package scoped because only the {@link DatastoreConfigurationImporter} should be able to
-     * change this.
-     */
-    void setValue(String value) {
+    public void setValue(String value) {
         this.value = value;
     }
 

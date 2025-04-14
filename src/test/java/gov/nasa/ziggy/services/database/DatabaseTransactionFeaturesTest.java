@@ -14,9 +14,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.database.DatabaseOperations.NonReturningDatabaseTransaction;
 import gov.nasa.ziggy.services.database.DatabaseOperations.ReturningDatabaseTransaction;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Unit test class for {@link DatabaseTransactionFeatures}.

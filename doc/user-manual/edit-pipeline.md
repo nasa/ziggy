@@ -6,7 +6,7 @@
 
 ## The Edit Pipeline Dialog Box
 
-The Edit Pipeline dialog box is used to edit pipeline parameter sets and modules, and to configure the quantity of resources each pipeline module in a given pipeline can use. 
+The Edit Pipeline dialog box is used to edit pipeline parameter sets and nodes, and to configure the quantity of resources each pipeline node in a given pipeline can use.
 
 To get to this dialog box, open the pipelines panel and double-click the pipeline you're interested in. You'll see this:
 
@@ -18,9 +18,9 @@ What does all this stuff do? Let's go through it from the top to the bottom ("Hm
 
 The actions you can take from this section include setting the priority and processing mode of the pipeline and viewing and exporting its parameters.
 
-The `Report` button brings up a new window that shows the modules and parameter sets for this pipeline. The report can also be saved to a text file. This dialog is mainly useful in the context of a fairly complex system, in which you want to isolate the bits and pieces of a specified pipeline from the general mass of bits and pieces in the system.
+The `Report` button brings up a new window that shows the nodes and parameter sets for this pipeline. The report can also be saved to a text file. This dialog is mainly useful in the context of a fairly complex system, in which you want to isolate the bits and pieces of a specified pipeline from the general mass of bits and pieces in the system.
 
-The `Priority` field takes a little more explanation. We've discussed in the past the fact that Ziggy sometimes faces a situation in which Ziggy has more tasks waiting for attention than it has worker processes ready to service the tasks. In this case, Ziggy has to prioritize the tasks to ensure that the most critical ones get attention first. The pipeline priority is one way this sorting occurs. Tasks with higher priority get to leap ahead of tasks with lower priority in the queue. The available priorities are LOWEST, LOW, NORMAL, HIGHEST, HIGH. 
+The `Priority` field takes a little more explanation. We've discussed in the past the fact that Ziggy sometimes faces a situation in which it has more tasks waiting for attention than it has worker processes ready to service the tasks. In this case, Ziggy has to prioritize the tasks to ensure that the most critical ones get attention first. The pipeline priority is one way this sorting occurs. Tasks with higher priority get to leap ahead of tasks with lower priority in the queue. The available priorities are LOWEST, LOW, NORMAL, HIGHEST, HIGH. 
 
 So how to tasks get assigned a priority?
 
@@ -32,7 +32,7 @@ One case where this isn't true is missions that have occasional need for much fa
 
 #### Processing mode
 
-The `Processing mode` radio button section has two options: `Process all data` versus `Process new data`. This option is pretty much exactly what it sounds like. Specifically: the `Process all data` option tells Ziggy that each pipeline module should process all the data it finds, whether that data has already been processed or not; the `Process new data` only processes data files that have never before been processed. For a mission that's currently acquiring data, it's likely that most of the time you'll want to set the `Process new data` option, since it will save time by not processing data that's already been processed. At intervals, the mission may decide to do a uniform reprocessing of all data (to take advantage of algorithm improvements, etc.) For this activity, `Process all data` is the correct option.
+The `Processing mode` radio button section has two options: `Process all data` versus `Process new data`. This option is pretty much exactly what it sounds like. Specifically: the `Process all data` option tells Ziggy that each pipeline node should process all the data it finds, whether that data has already been processed or not; the `Process new data` only processes data files that have never before been processed. For a mission that's currently acquiring data, it's likely that most of the time you'll want to set the `Process new data` option, since it will save time by not processing data that's already been processed. At intervals, the mission may decide to do a uniform reprocessing of all data (to take advantage of algorithm improvements, etc.) For this activity, `Process all data` is the correct option.
 
 ### Pipeline Parameter Sets Section
 
@@ -40,25 +40,25 @@ Say that five times fast.
 
 Anyway.
 
-This section shows a list of the parameter sets that are assigned at the pipeline level (that is to say, parameter sets that are made available to every task regardless of which processing module it uses). The `New` button allows you to select any parameter set in the parameter library and make it a pipeline parameter set for this pipeline. The `Edit` button allows you to change the values of the parameters in a given set.
+This section shows a list of the parameter sets that are assigned at the pipeline level (that is to say, parameter sets that are made available to every task regardless of which node it comes from). The `New` button allows you to select any parameter set in the parameter library and make it a pipeline parameter set for this pipeline. The `Edit` button allows you to change the values of the parameters in a given set.
 
 Given that the parameter library panel already allows you to view and edit parameters, why is it useful to have this section on this dialog box? Again -- in the case where you have a lot of pipelines and a lot of parameters, it's useful to be able to view the parameters for a given pipeline in isolation. This allows you to avoid confusion about which parameters go to which pipelines.
 
-### Modules Section
+### Nodes Section
 
-The `Modules` section offers functions that address the pipeline modules within a given pipeline.
+The `Nodes` section offers functions that address the pipeline nodes within a given pipeline.
 
-The display shows the modules in the pipeline, sorted in execution order. You can select a module and press one of the following buttons:
+The display shows the nodes in the pipeline, sorted in execution order. You can select a node and press one of the following buttons:
 
 #### Task Information Button
 
-This button produces a table of the tasks that Ziggy will produce for the specified module if you start the pipeline. This takes into account whether the module is configured to process all data or to process only new data, plus the settings of the [datastore regexps](datastore-regexp.md). For each task, the task's unit of work description and number of subtasks are shown. If the table is empty, it means that the relevant files in the datastore are missing. The datastore is populated by [Data Receipt](data-receipt.md); that article will help you ingest your data into the datastore so that the task information table can calculate the number of tasks and subtasks the input data will generate.
+This button produces a table of the tasks that Ziggy will produce for the specified node if you start the pipeline. This takes into account whether the node is configured to process all data or to process only new data, plus the settings of the [datastore regexps](datastore-regexp.md). For each task, the task's unit of work description and number of subtasks are shown. If the table is empty, it means that the relevant files in the datastore are missing. The datastore is populated by [Data Receipt](data-receipt.md); that article will help you ingest your data into the datastore so that the task information table can calculate the number of tasks and subtasks the input data will generate.
 
 #### Resources Button
 
-If you look back at [the article on running the cluster](running-pipeline.md), you'll note that we promised that there was a way to set a different limit on the number of workers for each pipeline module. This button is that way! 
+If you look back at [the article on running the cluster](running-pipeline.md), you'll note that we promised that there was a way to set a different limit on the number of workers for each node. This button is that way! 
 
-More specifically, if you select a module and press the `Resources` button, you'll get the `Edit worker resources` dialog box that displays a number of resource settings:
+More specifically, if you select a node and press the `Resources` button, you'll get the `Edit worker resources` dialog box that displays a number of resource settings:
 
 <img src="images/resources-initial.png" style="width:6cm;" />
 
@@ -66,11 +66,11 @@ Let's take these in order, again from top to bottom:
 
 ##### Maximum workers
 
-This allows you to set the number of worker processes each pipeline module can spin up. Spinning up more can allow more tasks to run in parallel to one another, but may also cause the tasks to consume more memory than is available. The `Default` check box tells Ziggy to use the default value for the maximum worker processes on this module. The default is the value of the `ziggy.worker.count` property in [the properties file](properties.md), unless you overrode this value by using the `--workerCount` option when you [started the cluster](running-pipeline.md).
+This allows you to set the number of worker processes each node can spin up. Spinning up more can allow more tasks to run in parallel to one another, but may also cause the tasks to consume more memory than is available. The `Default` check box tells Ziggy to use the default value for the maximum worker processes on this node. The default is the value of the `ziggy.worker.count` property in [the properties file](properties.md), unless you overrode this value by using the `--workerCount` option when you [started the cluster](running-pipeline.md).
 
 ##### Maximum heap size
 
-This allows you to set the maximum total Java heap size used by the workers for this pipeline module. As described before, Ziggy will take the maximum heap size for a module and divide it up evenly between the worker processes. Thus, in this case the default of 2 workers and 12 GB heap size means that every worker gets 6 GB of Java heap. As with the `Maximum workers` option, the user can use the `Default` check box to get the default value, or uncheck it to enter a custom value:
+This allows you to set the maximum total Java heap size used by the workers for this node. As described before, Ziggy will take the maximum heap size for a node and divide it up evenly between the worker processes. Thus, in this case the default of 2 workers and 12 GB heap size means that every worker gets 6 GB of Java heap. As with the `Maximum workers` option, the user can use the `Default` check box to get the default value, or uncheck it to enter a custom value:
 
 <img src="images/resources-updated.png" style="width:6cm;" />
 
@@ -78,7 +78,7 @@ As with the worker count, the default heap size is the value specified by the `z
 
 ##### Maximum failed subtasks
 
-As a pipeline module executes its assorted subtasks, it is possible that not every subtask will run to completion. Most vexingly, it is possible that some of the subtasks will fail due to various errors in the code or features of the data, while others complete successfully. Under ordinary circumstances, if even one subtask fails, the entire task will be marked as failed and the pipeline will halt until the issue is addressed.
+As a node executes its assorted subtasks, it is possible that not every subtask will run to completion. Most vexingly, it is possible that some of the subtasks will fail due to various errors in the code or features of the data, while others complete successfully. Under ordinary circumstances, if even one subtask fails, the entire task will be marked as failed and the pipeline will halt until the issue is addressed.
 
 The `Maximum failed subtasks` tells Ziggy that, in the event that some subtasks do fail, if the number of subtasks falls below the value of `Maximum failed subtasks`, Ziggy should mark the task as complete rather than failed. Note that this can be set after the fact! Say for example that a task has 100 subtasks, of which 95 succeed and 5 fail. If the mission decides to not try to rescue the 5 failed subtasks right now, you can set `Maximum failed subtasks` to 5 and then resubmit the task. Ziggy will detect that the number of failed subtasks is below the limit and will mark the task as completed. 
 
@@ -90,7 +90,7 @@ Note that this option can potentially be dangerous. In particular, if a task fai
 
 #### Parameters Button
 
-This button brings up the `Edit parameter sets` dialog box that displays a table of module-level parameter sets. The user can edit the existing parameter sets, or add a parameter set to a given module. The not-useful `Select` and `Auto-assign` buttons are also present.
+This button brings up the `Edit parameter sets` dialog box that displays a table of node-level parameter sets. The user can edit the existing parameter sets, or add a parameter set to a given node. 
 
 #### Remote Execution Button
 
@@ -105,7 +105,7 @@ To save changes that you've made on the `Edit pipeline` dialog box, or any other
 The points I'm trying to make here are twofold:
 
 1. Anything you do after you launch the `Edit pipeline` dialog box can be discarded, and will only be preserved when you press `Save`.
-2. The `Save` and `Cancel` buttons on the `Edit pipeline` dialog box also apply to changes made on the `Edit remote execution parameters` dialog box, the `Edit parameter sets` dialog box, etc.
+2. The `Save` and `Cancel` buttons on the `Edit pipeline` dialog box also apply to changes made on the `Edit remote execution parameters` dialog box, the `Edit parameter sets` dialog box, etc. That is to say, if you make a bunch of changes on the `Edit parameter sets` dialog box, hit the `Close` button, then hit the `Cancel` button on the `Edit pipeline` dialog, your changes to the parameter sets will be discarded. If instead you hit `Save` on the `Edit pipeline` dialog, they'll be kept. 
 
 [[Previous]](organizing-tables.md)
 [[Up]](ziggy-gui.md)

@@ -7,7 +7,7 @@ import java.util.Objects;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.Priority;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 
 /**
@@ -18,11 +18,11 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
  * @author Bill Wohler
  */
 public class TaskRequest extends PipelineMessage implements Comparable<TaskRequest> {
-    private static final long serialVersionUID = 20240909L;
+    private static final long serialVersionUID = 20250307L;
 
     private final long instanceId;
     private final long instanceNodeId;
-    private final long pipelineDefinitionNodeId;
+    private final long pipelineNodeId;
     private final PipelineTask pipelineTask;
     private final Priority priority;
     private final RunMode runMode;
@@ -33,11 +33,11 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
      */
     private final boolean doTransitionOnly;
 
-    public TaskRequest(long instanceId, long instanceNodeId, long pipelineDefinitionNodeId,
+    public TaskRequest(long instanceId, long instanceNodeId, long pipelineNodeId,
         PipelineTask pipelineTask, Priority priority, boolean doTransitionOnly, RunMode runMode) {
         this.instanceId = instanceId;
         this.instanceNodeId = instanceNodeId;
-        this.pipelineDefinitionNodeId = pipelineDefinitionNodeId;
+        this.pipelineNodeId = pipelineNodeId;
         this.pipelineTask = pipelineTask;
         this.doTransitionOnly = doTransitionOnly;
         this.priority = priority;
@@ -52,8 +52,8 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
         return instanceNodeId;
     }
 
-    public long getPipelineDefinitionNodeId() {
-        return pipelineDefinitionNodeId;
+    public long getPipelineNodeId() {
+        return pipelineNodeId;
     }
 
     public PipelineTask getPipelineTask() {
@@ -76,7 +76,7 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        return prime * result + Objects.hash(pipelineDefinitionNodeId, pipelineTask, priority);
+        return prime * result + Objects.hash(pipelineNodeId, pipelineTask, priority);
     }
 
     @Override
@@ -88,7 +88,7 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
             return false;
         }
         TaskRequest other = (TaskRequest) obj;
-        return pipelineDefinitionNodeId == other.pipelineDefinitionNodeId
+        return pipelineNodeId == other.pipelineNodeId
             && Objects.equals(pipelineTask, other.pipelineTask) && priority == other.priority;
     }
 
@@ -96,20 +96,20 @@ public class TaskRequest extends PipelineMessage implements Comparable<TaskReque
      * Implements prioritization for {@link TaskRequest} instances. The prioritization scheme is as
      * follows:
      * <ol>
-     * <li>Tasks are first ordered by pipeline definition node ID. This is done because the worker
-     * count and worker heap size are set on a per-pipeline-definition-node basis. By forcing the
-     * tasks to sort first by pipeline definition node, we avoid a lot of thrashing between
-     * different worker configurations as tasks for assorted pipeline definition nodes execute.
-     * <li>For tasks with a common pipeline definition node ID, the tasks are sorted so that higher
-     * priority tasks execute earlier.
-     * <li>For tasks with a common pipeline definition node ID and priority, the tasks are sorted in
-     * order of task ID.
+     * <li>Tasks are first ordered by pipeline node ID. This is done because the worker count and
+     * worker heap size are set on a per-pipeline-node basis. By forcing the tasks to sort first by
+     * pipeline node, we avoid a lot of thrashing between different worker configurations as tasks
+     * for assorted pipeline nodes execute.
+     * <li>For tasks with a common pipeline node ID, the tasks are sorted so that higher priority
+     * tasks execute earlier.
+     * <li>For tasks with a common pipeline node ID and priority, the tasks are sorted in order of
+     * task ID.
      * </ol>
      */
     @Override
     public int compareTo(TaskRequest o) {
-        if (pipelineDefinitionNodeId != o.getPipelineDefinitionNodeId()) {
-            return (int) (pipelineDefinitionNodeId - o.getPipelineDefinitionNodeId());
+        if (pipelineNodeId != o.getPipelineNodeId()) {
+            return (int) (pipelineNodeId - o.getPipelineNodeId());
         }
         if (priority != o.getPriority()) {
             return priority.compareTo(o.getPriority());

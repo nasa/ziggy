@@ -92,10 +92,10 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         JLabel pipelineParametersGroup = boldLabel("Pipeline parameter sets", LabelType.HEADING1);
         ParameterSetViewPanel pipelineParameterSetsPanel = new ParameterSetViewPanel(
             pipelineInstanceOperations().parameterSets(pipelineInstance));
-        JLabel modulesGroup = boldLabel("Modules", LabelType.HEADING1);
-        JPanel modulesButtonPanel = createButtonPanel(ButtonPanelContext.TOOL_BAR,
-            createButton("View module parameters", this::viewModuleParameters));
-        ziggyTable = new ZiggyTable<>(new InstanceModulesTableModel(pipelineInstance));
+        JLabel nodesGroup = boldLabel("Nodes", LabelType.HEADING1);
+        JPanel nodesButtonPanel = createButtonPanel(ButtonPanelContext.TOOL_BAR,
+            createButton("View node parameters", this::viewNodeParameters));
+        ziggyTable = new ZiggyTable<>(new InstanceNodesTableModel(pipelineInstance));
         JScrollPane tableScrollPane = new JScrollPane(ziggyTable.getTable());
 
         JPanel dataPanel = new JPanel();
@@ -120,8 +120,8 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
                     .addComponent(totalText)))
             .addComponent(pipelineParametersGroup)
             .addComponent(pipelineParameterSetsPanel)
-            .addComponent(modulesGroup)
-            .addComponent(modulesButtonPanel)
+            .addComponent(nodesGroup)
+            .addComponent(nodesButtonPanel)
             .addComponent(tableScrollPane));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
@@ -142,20 +142,20 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(pipelineParameterSetsPanel)
             .addGap(ZiggyGuiConstants.GROUP_GAP)
-            .addComponent(modulesGroup)
+            .addComponent(nodesGroup)
             .addPreferredGap(ComponentPlacement.RELATED)
-            .addComponent(modulesButtonPanel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
+            .addComponent(nodesButtonPanel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
                 GroupLayout.PREFERRED_SIZE)
             .addComponent(tableScrollPane));
 
         return dataPanel;
     }
 
-    private void viewModuleParameters(ActionEvent evt) {
+    private void viewNodeParameters(ActionEvent evt) {
         int selectedRow = ziggyTable.getSelectedRow();
 
         if (selectedRow == -1) {
-            MessageUtils.showError(this, "No module selected");
+            MessageUtils.showError(this, "No node selected");
         } else {
             PipelineInstanceNode node = ziggyTable.getContentAtViewRow(selectedRow);
             new SwingWorker<Set<ParameterSet>, Void>() {
@@ -210,10 +210,10 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         return pipelineInstanceOperations;
     }
 
-    private static class InstanceModulesTableModel
+    private static class InstanceNodesTableModel
         extends AbstractZiggyTableModel<PipelineInstanceNode> {
 
-        private static final String[] COLUMN_NAMES = { "Module", "Tasks", "Waiting to run",
+        private static final String[] COLUMN_NAMES = { "Node", "Tasks", "Waiting to run",
             "Completed", "Failed" };
 
         private List<PipelineInstanceNode> pipelineInstanceNodes = new LinkedList<>();
@@ -222,7 +222,7 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         private final PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
         private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
-        public InstanceModulesTableModel(PipelineInstance instance) {
+        public InstanceNodesTableModel(PipelineInstance instance) {
             if (instance == null) {
                 return;
             }
@@ -250,7 +250,7 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
             TaskCounts taskCounts = nodeTaskCounts.get(node);
 
             return switch (columnIndex) {
-                case 0 -> node.getModuleName();
+                case 0 -> node.getPipelineStepName();
                 case 1 -> taskCounts.getTaskCount();
                 case 2 -> taskCounts.getTotalCounts().getWaitingToRunTaskCount();
                 case 3 -> taskCounts.getTotalCounts().getCompletedTaskCount();

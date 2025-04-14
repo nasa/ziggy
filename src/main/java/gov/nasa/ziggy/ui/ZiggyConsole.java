@@ -57,17 +57,16 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.PerformanceReport;
 import gov.nasa.ziggy.models.ModelOperations;
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinitionNode;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineModule.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineDefinitionOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
@@ -77,11 +76,12 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
-import gov.nasa.ziggy.ui.util.TaskHalter;
-import gov.nasa.ziggy.ui.util.TaskRestarter;
+import gov.nasa.ziggy.ui.instances.TaskHalter;
+import gov.nasa.ziggy.ui.instances.TaskRestarter;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.BuildInfo;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.dispmod.AlertLogDisplayModel;
@@ -161,7 +161,7 @@ public class ZiggyConsole {
 
     private final AlertLogOperations alertLogOperations = new AlertLogOperations();
     private final ModelOperations modelOperations = new ModelOperations();
-    private final PipelineDefinitionOperations pipelineDefinitionOperations = new PipelineDefinitionOperations();
+    private final PipelineOperations pipelineOperations = new PipelineOperations();
     private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private final PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
@@ -382,14 +382,14 @@ public class ZiggyConsole {
                 break;
             case PIPELINE:
                 System.out.println("Pipeline Configuration(s)\n");
-                List<PipelineDefinition> pipelines;
+                List<Pipeline> pipelines;
                 if (cmdLine.hasOption(PIPELINE_OPTION)) {
-                    pipelines = pipelineDefinitionOperations()
-                        .allPipelineDefinitionsForName(cmdLine.getOptionValue(PIPELINE_OPTION));
+                    pipelines = pipelineOperations()
+                        .allPipelinesForName(cmdLine.getOptionValue(PIPELINE_OPTION));
                 } else {
-                    pipelines = pipelineDefinitionOperations().pipelineDefinitions();
+                    pipelines = pipelineOperations().pipelines();
                 }
-                for (PipelineDefinition pipeline : pipelines) {
+                for (Pipeline pipeline : pipelines) {
                     System.out
                         .println(new PipelineReportGenerator().generatePipelineReport(pipeline));
                 }
@@ -427,16 +427,15 @@ public class ZiggyConsole {
 
         try {
 
-            PipelineDefinition pipelineDefinition = pipelineDefinitionOperations()
-                .pipelineDefinition(pipelineName);
-            if (pipelineDefinition == null) {
+            Pipeline pipeline = pipelineOperations().pipeline(pipelineName);
+            if (pipeline == null) {
                 System.err.println("Pipeline " + pipelineName + " not found");
                 return false;
             }
 
             System.out.println("Nodes for pipeline " + pipelineName + ":");
             int index = 1;
-            for (PipelineDefinitionNode node : pipelineDefinition.getRootNodes()) {
+            for (PipelineNode node : pipeline.getRootNodes()) {
                 index += showPipelineNode(node, index);
             }
         } catch (Throwable e) {
@@ -445,10 +444,10 @@ public class ZiggyConsole {
         return true;
     }
 
-    private int showPipelineNode(PipelineDefinitionNode node, int index) {
+    private int showPipelineNode(PipelineNode node, int index) {
         int count = 1;
-        System.out.println(String.format("%6d: %s", index, node.getModuleName()));
-        for (PipelineDefinitionNode sibling : node.getNextNodes()) {
+        System.out.println(String.format("%6d: %s", index, node.getPipelineStepName()));
+        for (PipelineNode sibling : node.getNextNodes()) {
             count += showPipelineNode(sibling, index + count);
         }
 
@@ -559,14 +558,15 @@ public class ZiggyConsole {
     private boolean displayStatistics(PipelineInstance instance) {
         List<PipelineTaskDisplayData> tasks = pipelineTaskDisplayDataOperations()
             .pipelineTaskDisplayData(instance);
-        List<String> orderedModuleNames = displayTaskSummary(instance, false).getModuleNames();
+        List<String> orderedPipelineStepNames = displayTaskSummary(instance, false)
+            .getPipelineStepNames();
 
         PipelineStatsDisplayModel pipelineStatsDisplayModel = new PipelineStatsDisplayModel(tasks,
-            orderedModuleNames);
+            orderedPipelineStepNames);
         pipelineStatsDisplayModel.print(System.out, "Processing Time Statistics");
 
         TaskMetricsDisplayModel taskMetricsDisplayModel = new TaskMetricsDisplayModel(tasks,
-            orderedModuleNames);
+            orderedPipelineStepNames);
         taskMetricsDisplayModel.print(System.out,
             "Processing Time Breakdown (completed tasks only)");
         return true;
@@ -763,8 +763,8 @@ public class ZiggyConsole {
         return modelOperations;
     }
 
-    private PipelineDefinitionOperations pipelineDefinitionOperations() {
-        return pipelineDefinitionOperations;
+    private PipelineOperations pipelineOperations() {
+        return pipelineOperations;
     }
 
     private PipelineInstanceOperations pipelineInstanceOperations() {

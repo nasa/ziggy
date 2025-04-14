@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.Metric;
-import gov.nasa.ziggy.module.SubtaskDirectoryIterator;
+import gov.nasa.ziggy.pipeline.step.subtask.SubtaskDirectoryIterator;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.SpotBugsUtils;
@@ -34,7 +34,7 @@ public class MatlabMetrics {
     private static final String MATLAB_CONTROLLER_EXEC_TIME_METRIC = "pipeline.module.executeAlgorithm.matlab.controller.execTime";
 
     private final File taskFilesDir;
-    private final String moduleName;
+    private final String pipelineStepName;
 
     private boolean cacheResults = true;
 
@@ -43,9 +43,9 @@ public class MatlabMetrics {
     private HashMap<String, DescriptiveStatistics> functionStats;
     private TopNList topTen;
 
-    public MatlabMetrics(File taskFilesDir, String moduleName) {
+    public MatlabMetrics(File taskFilesDir, String pipelineStepName) {
         this.taskFilesDir = taskFilesDir;
-        this.moduleName = moduleName;
+        this.pipelineStepName = pipelineStepName;
     }
 
     private static final class CacheContents implements Serializable {
@@ -80,7 +80,7 @@ public class MatlabMetrics {
                 } else { // no cache
                     log.info("No cache file found, parsing files");
                     File[] taskDirs = taskFilesDir
-                        .listFiles((FileFilter) f -> f.getName().startsWith(moduleName + "-")
+                        .listFiles((FileFilter) f -> f.getName().startsWith(pipelineStepName + "-")
                             && f.isDirectory());
 
                     for (File taskDir : taskDirs) {

@@ -8,9 +8,9 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.services.logging.TaskLog.LogType;
+import gov.nasa.ziggy.services.logging.ZiggyLog.TaskLogType;
 import gov.nasa.ziggy.util.IntegerFormatter;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Provides an assortment of information about a task log file. This provides support for the Ziggy
@@ -43,14 +43,14 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
     private final long logSizeBytes;
     private final String filename;
     private final String fullPath;
-    private final LogType logType;
+    private final TaskLogType taskLogType;
     private final long lastModified;
 
     public TaskLogInformation(File taskFile) {
 
         filename = taskFile.getName();
-        logType = logType(taskFile);
-        if (logType == null) {
+        taskLogType = taskLogType(taskFile);
+        if (taskLogType == null) {
             throw new PipelineException("File " + filename + " does not match any log type");
         }
         Matcher matcher = LOG_FILE_NAME_PATTERN.matcher(filename);
@@ -64,16 +64,16 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         lastModified = taskFile.lastModified();
     }
 
-    public static LogType logType(File taskFile) {
-        LogType logType = null;
+    public static TaskLogType taskLogType(File taskFile) {
+        TaskLogType taskLogType = null;
         File taskFileDir = taskFile.getAbsoluteFile().getParentFile();
-        for (LogType type : LogType.values()) {
+        for (TaskLogType type : TaskLogType.values()) {
             if (taskFileDir.equals(type.logDir().toFile().getAbsoluteFile())) {
-                logType = type;
+                taskLogType = type;
                 break;
             }
         }
-        return logType;
+        return taskLogType;
     }
 
     /**
@@ -120,8 +120,8 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         return fullPath;
     }
 
-    public LogType getLogType() {
-        return logType;
+    public TaskLogType getTaskLogType() {
+        return taskLogType;
     }
 
     public long getLastModified() {

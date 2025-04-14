@@ -20,8 +20,8 @@ import java.util.List;
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Test;
 
-import gov.nasa.ziggy.module.PipelineException;
-import gov.nasa.ziggy.module.hdf5.EnumTest;
+import gov.nasa.ziggy.pipeline.step.hdf5.EnumTest;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Test class for ZiggyArrayUtils class.
@@ -158,8 +158,7 @@ public class ZiggyArrayUtilsTest {
 
     @Test
     public void testConstructPrimitiveArray() {
-        Object[] returnObject;
-        returnObject = (Object[]) ZiggyArrayUtils.constructPrimitiveArray(3, 2, ZIGGY_BOOLEAN);
+        Object[] returnObject = (Object[]) ZiggyArrayUtils.constructPrimitiveArray(3, 2, ZIGGY_BOOLEAN);
         assertEquals("[[[Z", returnObject.getClass().getName());
         assertEquals(2, returnObject.length);
         assertNull(returnObject[0]);
@@ -216,8 +215,7 @@ public class ZiggyArrayUtilsTest {
 
     @Test
     public void testConstructBoxedArray() {
-        Object[] returnObject;
-        returnObject = (Object[]) ZiggyArrayUtils.constructBoxedArray(3, 2, ZIGGY_BOOLEAN);
+        Object[] returnObject = (Object[]) ZiggyArrayUtils.constructBoxedArray(3, 2, ZIGGY_BOOLEAN);
         assertEquals("[[[Ljava.lang.Boolean;", returnObject.getClass().getName());
         assertEquals(2, returnObject.length);
         assertNull(returnObject[0]);
@@ -274,10 +272,9 @@ public class ZiggyArrayUtilsTest {
 
     @Test
     public void testConstructFullArrays() {
-        Object[] returnObject;
+        Object[] returnObject = (Object[]) ZiggyArrayUtils
+                    .constructFullPrimitiveArray(new long[] { 3, 4, 5 }, ZIGGY_INT);
 
-        returnObject = (Object[]) ZiggyArrayUtils
-            .constructFullPrimitiveArray(new long[] { 3, 4, 5 }, ZIGGY_INT);
         assertEquals("[[[I", returnObject.getClass().getName());
         assertEquals(3, returnObject.length);
         for (int i = 0; i < 3; i++) {

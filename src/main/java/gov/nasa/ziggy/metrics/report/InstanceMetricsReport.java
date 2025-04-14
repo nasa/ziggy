@@ -229,8 +229,8 @@ public class InstanceMetricsReport {
         dataset.addSeries("execTime", values, NUM_BINS);
 
         JFreeChart chart = ChartFactory.createHistogram("Algorithm Run-time (" + label + ")",
-            "execTime (hours)", "Number of Subtasks", dataset, PlotOrientation.VERTICAL, true,
-            true, false);
+            "execTime (hours)", "Number of Subtasks", dataset, PlotOrientation.VERTICAL, true, true,
+            false);
         XYPlot plot = (XYPlot) chart.getPlot();
         plot.setDomainPannable(true);
         plot.setRangePannable(true);

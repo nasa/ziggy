@@ -15,7 +15,6 @@ import java.util.concurrent.CountDownLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.PipelineException;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
@@ -24,6 +23,7 @@ import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.ui.ZiggyConsole;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyUtils;
 import gov.nasa.ziggy.util.os.ProcessUtils;
 import gov.nasa.ziggy.worker.PipelineWorker;
@@ -105,12 +105,12 @@ public class ZiggyRmiClient implements ZiggyRmiClientService {
             return;
         }
 
-        log.info("Starting ZiggyRmiClient instance with registry for {} on port {}", clientType,
+        log.info("Starting ZiggyRmiClient instance with registry for {} on port {}...", clientType,
             ZiggyRmiServer.rmiPort());
 
         // Set the RMI server hostname, if specfied in the pipeline properties.
-        String rmiServerHostname = ZiggyConfiguration.getInstance().getString(
-            PropertyName.JAVA_RMI_SERVER_HOSTNAME.property(), null);
+        String rmiServerHostname = ZiggyConfiguration.getInstance()
+            .getString(PropertyName.JAVA_RMI_SERVER_HOSTNAME.property(), null);
         if (rmiServerHostname != null) {
             System.setProperty("java.rmi.server.hostname", rmiServerHostname);
         }

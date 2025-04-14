@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Pipeline definition file for Ziggy sample pipeline. This is where it all comes
+together. Here we define the pipeline steps (the actual things that get
+executed), then the pipeline or pipelines. Each pipeline contains a sequence of
+nodes, where a node is a combination of a pipeline step, information about inputs
+and outputs, information about models, and parameter sets. Enjoy! -->
+
+<pipelineDefinition>
+
+  <!-- Pipeline steps. The name of each step must correspond to
+       the name of a program that can execute from the command line;
+       the program has to be on the path set by property
+       ziggy.pipeline.binPath. -->
+  <step name="permuter" file="major_tom/major_tom.py" description="Color Permuter"/>
+  <step name="flip" file="major_tom/major_tom.py" description="Flip Up-Down and Left-Right"/>
+  <step name="averaging" file="major_tom/major_tom.py" description="Average Images Together"/>
+
+  <!-- Here's the pipeline definition. Note that we could have defined multiple
+       pipelines in this file, but this is just the simplest sample pipeline
+       imaginable, hence only one pipeline definition. -->
+  <pipeline name="sample" description="Sample Pipeline" rootNodeNames="data-receipt">
+
+    <!-- Pipeline parameter sets are applied to every node in the
+         pipeline. -->
+    <parameterSet name="Algorithm Parameters"/>
+
+    <!-- Data receipt is the exception to the requirement that the node has to
+         be a user-defined step. Ziggy provides data receipt "for free" as a
+         tool to get files into the datastore. The user does have to define the
+         data types that will be imported. The model types can be defined if
+         desired; if not, the assumption will be that all model types can be
+         imported. There's also a task configuration parameter set so that the
+         user can define which data receipt tasks are to be performed. -->
+    <node name="data-receipt" childNodeNames="permuter">
+      <inputDataFileType name="raw data"/>
+    </node>
+
+    <node name="permuter" childNodeNames="flip">
+      <inputDataFileType name="raw data"/>
+      <outputDataFileType name="permuted colors"/>
+      <modelType name="dummy model"/>
+    </node>
+
+    <!-- Here's an example of a node with one input, two outputs. -->
+    <node name="flip">
+      <inputDataFileType name="permuted colors"/>
+      <outputDataFileType name="left-right flipped"/>
+      <outputDataFileType name="up-down flipped"/>
+    </node>
+
+  </pipeline>
+
+  <!-- Event definition: allows Ziggy to automatically import new data files -->
+  <pipelineEvent name="data-receipt" pipelineName="sample"
+                 enableOnClusterStart="false"
+                 directory="${ziggy.pipeline.data.receipt.dir}"/>
+
+  <!-- This emulates a parameter set that's used by the algorithms. In this case, we're
+       telling the algorithms whether to emulate an exception that occurs in processing,
+       and whether to emulate a processing action that runs successfully but produces
+       no output. This uses Ziggy's DefaultParameters class. Parameter sets of this
+       type need to specify the name, default value, and data type of each parameter. -->
+  <parameterSet name="Algorithm Parameters">
+    <parameter name="throw exception subtask 0" value="false" type="boolean"/>
+    <parameter name="produce output subtask 1" value="true" type="boolean"/>
+    <parameter name="dummy array parameter" value="1, 2, 3" type="intarray"/>
+    <parameter name="execution pause seconds" value="0" type="int"/>
+  </parameterSet>
+
+  <!-- Datastore regular expressions. -->
+  <datastoreRegexp name="dataset" value="set-[0-9]"/>
+
+  <!-- Datastore node definitions. -->
+  <datastoreNode name="dataset" isRegexp="true" nodes="L0, L1, L2A, L2B, L3">
+    <datastoreNode name="L0"/>
+    <datastoreNode name="L1"/>
+    <datastoreNode name="L2A"/>
+    <datastoreNode name="L2B"/>
+    <datastoreNode name="L3"/>
+  </datastoreNode>
+
+  <!-- Data file type definitions. -->
+
+  <!-- The raw data. this is in the L0 subdir of the dataset
+       directory, with a file name regular expression of
+       "(nasa-logo-file-[0-9]).png" -->
+  <dataFileType name="raw data" location="dataset/L0"
+                fileNameRegexp="(nasa-logo-file-[0-9])\.png"/>
+
+  <!-- Results from the first processing step. This goes in the L1 subdir
+       of the dataset directory, with a file name regular expression of
+       "(nasa-logo-file-[0-9])\.perm\.png" -->
+  <dataFileType name="permuted colors" location="dataset/L1"
+                fileNameRegexp="(nasa-logo-file-[0-9])\.perm\.png"/>
+
+  <!-- Results from processing step 2A (LR flip). -->
+  <dataFileType name="left-right flipped" location="dataset/L2A"
+                fileNameRegexp="(nasa-logo-file-[0-9])\.fliplr\.png"/>
+
+  <!-- Results from processing step 2B (UD flip). -->
+  <dataFileType name="up-down flipped" location="dataset/L2B"
+                fileNameRegexp="(nasa-logo-file-[0-9])\.flipud\.png"/>
+
+  <!-- Results from the final processing step. -->
+  <dataFileType name="averaged image" location="dataset/L3"
+                fileNameRegexp="nasa-logo-averaged\.png"/>
+
+  <!-- Model type definition. -->
+  <modelType type="dummy model" fileNameRegex="sample-model\.txt"/>
+
+</pipelineDefinition>
+

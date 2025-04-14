@@ -24,13 +24,13 @@ methods
             lastError = lasterror;
         end
         
-        % get the module name from the directory
+        % get the pipeline step name from the directory
         [filePath, ~, ~] = fileparts(pwd);
         [~, taskDir, ~] = fileparts(filePath);
         taskDirParts = split(taskDir, '-');
-        moduleName = taskDirParts{3};
+        pipelineStepName = taskDirParts{3};
         
-        errorFileName = [moduleName, '-error.h5'];
+        errorFileName = [pipelineStepName, '-error.h5'];
         
         % populate the members of this object
         obj.message = lastError.message;

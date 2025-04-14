@@ -12,9 +12,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.module.AlgorithmType;
-import gov.nasa.ziggy.module.remote.QueueCommandManager;
-import gov.nasa.ziggy.module.remote.RemoteJobInformation;
 import gov.nasa.ziggy.pipeline.definition.ExecutionClock;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
@@ -24,10 +21,14 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskData;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
-import gov.nasa.ziggy.pipeline.definition.RemoteJob.RemoteJobQstatInfo;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskExecutionLog;
+import gov.nasa.ziggy.pipeline.step.remote.BatchManager;
+import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
+import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironmentOperations;
+import gov.nasa.ziggy.pipeline.step.remote.RemoteJobInformation;
+import gov.nasa.ziggy.pipeline.step.remote.batch.SupportedBatchSystem;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.services.messages.PipelineInstanceFinishedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -44,7 +45,7 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
 
     /**
      * Log filename format. This is used by {@link MessageFormat} to produce the filename for a log
-     * file. The first element is the basename, "instanceId-taskId-moduleName" (i.e.,
+     * file. The first element is the basename, "instanceId-taskId-pipelineStepName" (i.e.,
      * "100-200-foo"). The second element is a job index, needed when running tasks on a remote
      * system that can produce multiple log files per task (i.e., one per remote job). The final
      * element is the task log index, a value that increments as a task gets executed or rerun,
@@ -57,6 +58,8 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
     private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
     private final PipelineInstanceCrud pipelineInstanceCrud = new PipelineInstanceCrud();
     private final PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
+    private final RemoteEnvironmentOperations remoteEnvironmentOperations = new RemoteEnvironmentOperations();
+    private Map<String, RemoteEnvironment> remoteEnvironmentByName;
 
     public void createPipelineTaskData(PipelineTask pipelineTask, ProcessingStep processingStep) {
         PipelineTaskData pipelineTaskData = new PipelineTaskData(pipelineTask);
@@ -356,21 +359,6 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
         });
     }
 
-    public AlgorithmType algorithmType(PipelineTask pipelineTask) {
-        return performTransaction(
-            () -> pipelineTaskDataCrud().retrievePipelineTaskData(pipelineTask).getAlgorithmType());
-    }
-
-    /** Sets the algorithm type for the given pipeline task. The task log index is incremented. */
-    public void updateAlgorithmType(PipelineTask pipelineTask, AlgorithmType algorithmType) {
-        performTransaction(() -> {
-            PipelineTaskData pipelineTaskData = pipelineTaskDataCrud()
-                .retrievePipelineTaskData(pipelineTask);
-            pipelineTaskData.setAlgorithmType(algorithmType);
-            pipelineTaskData.incrementTaskLogIndex();
-        });
-    }
-
     public void incrementTaskLogIndex(PipelineTask pipelineTask) {
         performTransaction(() -> {
             PipelineTaskData pipelineTaskData = pipelineTaskDataCrud()
@@ -381,7 +369,7 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
 
     /**
      * Produces a file name for log files of the following form: {@code
-     * <instanceId>-<taskId>-<moduleName>.<jobIndex>-<taskLogIndex>.log
+     * <instanceId>-<taskId>-<pipelineStepName>.<jobIndex>-<taskLogIndex>.log
      * }
      *
      * @param jobIndex index for the current job. Each pipeline task's algorithm execution can be
@@ -478,14 +466,6 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
         return performTransaction(() -> pipelineTaskDataCrud().retrieveRemoteJobs(pipelineTask));
     }
 
-    public void updateRemoteJobs(PipelineTask pipelineTask, Set<RemoteJob> remoteJobs) {
-        performTransaction(() -> {
-            PipelineTaskData pipelineTaskData = pipelineTaskDataCrud()
-                .retrievePipelineTaskData(pipelineTask);
-            pipelineTaskData.setRemoteJobs(remoteJobs);
-        });
-    }
-
     /**
      * Updates all of the {@link PipelineTask} instances associated with a particular
      * {@link PipelineInstance}.
@@ -512,17 +492,20 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
      * recorded as complete.
      */
     public void updateJobs(PipelineTask pipelineTask, boolean markJobsCompleted) {
-        QueueCommandManager queueCommandManager = queueCommandManager();
         Set<RemoteJob> remoteJobs = remoteJobs(pipelineTask);
         for (RemoteJob job : remoteJobs) {
             if (job.isFinished()) {
                 continue;
             }
-            RemoteJobQstatInfo jobInfo = queueCommandManager.remoteJobQstatInfo(job.getJobId());
-            job.setCostEstimate(jobInfo.costEstimate());
+            BatchManager<?> batchManager = batchManager(job);
+            if (batchManager == null) {
+                throw new IllegalStateException(
+                    "Remote environment " + job.getRemoteEnvironmentName() + "not supported");
+            }
+            job.setCostEstimate(batchManager.getUpdatedCostEstimate(job));
 
             // Is the job finished?
-            if (markJobsCompleted ? true : queueCommandManager.exitStatus(job.getJobId()) != null) {
+            if (markJobsCompleted ? true : batchManager.isFinished(job)) {
                 log.info("Job {} marked as finished", job.getJobId());
                 job.setFinished(true);
                 log.info("Job {} cost estimate is {}", job.getJobId(), job.getCostEstimate());
@@ -531,7 +514,6 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
                     job.getCostEstimate());
             }
         }
-
         updateRemoteJobs(pipelineTask, remoteJobs);
     }
 
@@ -544,9 +526,31 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
         List<RemoteJobInformation> remoteJobsInformation) {
         Set<RemoteJob> remoteJobs = remoteJobs(pipelineTask);
         for (RemoteJobInformation remoteJobInformation : remoteJobsInformation) {
-            remoteJobs.add(new RemoteJob(remoteJobInformation.getJobId()));
+            remoteJobs.add(new RemoteJob(remoteJobInformation.getJobId(),
+                remoteJobInformation.getRemoteEnvironmentName(),
+                remoteJobInformation.getCostFactor()));
         }
         updateRemoteJobs(pipelineTask, remoteJobs);
+    }
+
+    void updateRemoteJobs(PipelineTask pipelineTask, Set<RemoteJob> remoteJobs) {
+        performTransaction(() -> {
+            PipelineTaskData pipelineTaskData = pipelineTaskDataCrud()
+                .retrievePipelineTaskData(pipelineTask);
+            pipelineTaskData.setRemoteJobs(remoteJobs);
+        });
+    }
+
+    public long startTimestamp(PipelineTask pipelineTask) {
+        return performTransaction(() -> pipelineTaskDataCrud().retrieveExecutionClock(pipelineTask)
+            .getStartProcessingTime());
+    }
+
+    public long endTimestamp(PipelineTask pipelineTask) {
+        return performTransaction(() -> {
+            ExecutionClock clock = pipelineTaskDataCrud().retrieveExecutionClock(pipelineTask);
+            return clock.getMostRecentEndProcessingTime();
+        });
     }
 
     PipelineTaskCrud pipelineTaskCrud() {
@@ -569,7 +573,13 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
         return pipelineInstanceNodeCrud;
     }
 
-    QueueCommandManager queueCommandManager() {
-        return QueueCommandManager.newInstance();
+    BatchManager<?> batchManager(RemoteJob remoteJob) {
+        if (remoteEnvironmentByName == null) {
+            remoteEnvironmentByName = remoteEnvironmentOperations.remoteEnvironmentByName();
+        }
+        SupportedBatchSystem batchSystem = remoteEnvironmentByName
+            .get(remoteJob.getRemoteEnvironmentName())
+            .getBatchSystem();
+        return batchSystem != null ? batchSystem.batchManager() : null;
     }
 }

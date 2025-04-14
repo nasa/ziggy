@@ -10,16 +10,18 @@ Before you start, you should check out the [system requirements](system-requirem
 
 ### Downloading Ziggy
 
-Ziggy's source code is stored on GitHub, which you probably know already since you're reading this document, which is also stored on GitHub along with Ziggy. From Ziggy's [home page](https://github.com/nasa/ziggy), you can download the code using your favorite method. You can press the green Code button to obtain the URL to clone the repository with, for example, `git clone https://github.com/nasa/ziggy.git`. You can view the latest release in the [Releases](https://github.com/nasa/ziggy/releases), download the tarball using the link at the bottom of the release notes, and extract it with, for example, `tar -xf ziggy-0.2.0.tar.gz`).
+Ziggy's source code is stored on GitHub, which you probably know already since you're reading this document, which is also stored on GitHub along with Ziggy. From Ziggy's [home page](https://github.com/nasa/ziggy), you can download the code using your favorite method. You can press the green Code button to obtain the URL to clone the repository with, for example, `git clone https://github.com/nasa/ziggy.git`. You can view the latest release in the [Releases](https://github.com/nasa/ziggy/releases), download the tarball using the link at the bottom of the release notes, and extract it with, for example, `tar -xf ziggy-0.8.0.tar.gz`).
 
-Once you've done that, you should see something like this in your Ziggy folder:
+Once you've done that, you should see something like this in your `ziggy` folder:
 
 ```console
 ziggy$ ls
-LICENSE.pdf     doc                  gradlew            script-plugins
-README.md       etc                  ide                settings.gradle
-build.gradle    gradle               licenses           src
-buildSrc        gradle.properties    sample-pipeline    test
+CITATION.cff            doc                     licenses
+LICENSE.pdf             etc                     sample-pipeline
+README.md               gradle                  script-plugins
+RELEASE-NOTES.md        gradle.properties       settings.gradle
+build.gradle            gradlew                 src
+buildSrc                ide                     test
 ziggy$
 ```
 
@@ -68,16 +70,19 @@ BUILD SUCCESSFUL in 14s
 ziggy$
 ```
 
-At this point, it's probably worthwhile to run Ziggy's unit tests to make sure nothing has gone wrong. To do this, at the command line type `./gradlew test`. The system will run through a large number of tests (around 700) over the course of about a minute, and hopefully you'll get another "BUILD SUCCESSFUL" message at the end.
+At this point, it's probably worthwhile to run Ziggy's unit tests to make sure nothing has gone wrong. To do this, at the command line type `./gradlew test`. The system will run through a large number of tests (around 950) over the course of about a minute, and hopefully you'll get another "BUILD SUCCESSFUL" message at the end.
 
 If you look at the Ziggy folder now, you'll see the following:
 
 ```console
 ziggy$ ls
-LICENSE.pdf     buildSrc    gradle.properties    sample-pipeline    test
-README.md       doc         gradlew              script-plugins
-build           etc         ide                  settings.gradle
-build.gradle    gradle      licenses             src
+CITATION.cff            doc                     outside
+LICENSE.pdf             etc                     sample-pipeline
+README.md               gradle                  script-plugins
+RELEASE-NOTES.md        gradle.properties       settings.gradle
+build                   gradlew                 src
+build.gradle            ide                     test
+buildSrc                licenses
 ziggy$
 ```
 
@@ -85,8 +90,10 @@ Pretty much the same, except that now there's a `build` folder. What's in the `b
 
 ```console
 build$ ls
-bin        etc        lib     obj          schema    tmp
-classes    include    libs    resources    src
+bin             include         obj             resources       test-results
+classes         jacoco          publications    schema          tmp
+etc             lib             reports         src
+generated       libs            repository      test
 build$
 ```
 
@@ -102,7 +109,7 @@ Everything that Ziggy uses in execution comes from the subfolders of `build`. Th
 Before we move on, a few useful details about building Ziggy:
 
 - Ziggy makes use of a number of dependencies. Most of them are Jarfiles, which means that they can be downloaded and used without further ado, but at least one, the [HDF5 library](https://www.hdfgroup.org/solutions/hdf5/), requires compilation via the C++ compiler. This is the most time-consuming part of the build.
-- The first time you run `./gradlew`, the dependencies will be automatically downloaded. On subsequent builds with `./gradlew`, the dependencies will mostly not be downloaded, but instead cached copies will be used. This means that the subsequent uses are much faster.
+- The first time you run `./gradlew`, the dependencies will be automatically downloaded. On subsequent builds with `./gradlew`, the dependencies will mostly not be downloaded, but instead cached copies will be used. This means that the subsequent builds are much faster.
 - Why "mostly not ... downloaded?" Well, the build system checks the dependencies to see whether any new versions have come out. New versions of the third party libraries are automatically downloaded in order to ensure that Ziggy remains up-to-date with security patches. So on any given invocation of `./gradlew`, there might be a library or two that gets updated.
 - Gradle has lots of commands (known in the lingo as "tasks") other than `test`. Most notably, the `./gradlew clean` command will delete the build directory so you can start the build over from the beginning. The `./gradlew build` command will first build the code and then run the unit tests.
 

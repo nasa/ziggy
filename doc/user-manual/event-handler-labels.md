@@ -14,7 +14,7 @@ If that's the case for your application, we've got you covered.
 
 Recall that every subtask has its own inputs file, in HDF5 format (see the article on [Configuring a Pipeline](configuring-pipeline.md) for more information). Thus each permuter subtask has its own `permuter-inputs-0.h5` file.
 
-When a task is created by a pipeline that started in response to an event, the `moduleParameters` field in that task's inputs has a subfield named `ZiggyEventLabels`. The `ZiggyEventLabels` parameter set has, in turn, the following fields:
+When a task is created by a pipeline that started in response to an event, the `algorithmParameters` field in that task's inputs has a subfield named `ZiggyEventLabels`. The `ZiggyEventLabels` parameter set has, in turn, the following fields:
 
 - `eventHandlerName`: the name of the event handler that kicked off this processing activity (in the case of our examples, `data-receipt`).
 - `eventName`: the value of the name portion of the ready files (in our examples, `test1` and `test2`).

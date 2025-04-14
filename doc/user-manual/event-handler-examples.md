@@ -113,7 +113,7 @@ There are two data receipt tasks, `sample-1` and `sample-2`. These are the tasks
 
 #### Permuter Tasks for UOWs 3, 4, 5, and 6
 
-The two directories that were imported by data receipt contained a total of 4 data sets: `set-3`, `set-4`, `set-5`, and `set-6`. These ran with task IDs 12, 13, 14, and 15. As a general matter, when Ziggy needs to make multiple tasks for a given pipeline module, it creates them in no particular order, so you can wind up with situations where the units of work do not appear in order.
+The two directories that were imported by data receipt contained a total of 4 data sets: `set-3`, `set-4`, `set-5`, and `set-6`. These ran with task IDs 12, 13, 14, and 15. As a general matter, when Ziggy needs to make multiple tasks for a given pipeline node, it creates them in no particular order, so you can wind up with situations where the units of work do not appear in order.
 
 If you have more tasks than workers, you will see that some tasks will get as far as `WAITING_TO_STORE` (see the article on the [Instances Panel](instances-panel.md) for more information). At that point, we would expect those tasks to store outputs and then go to the final processing step `COMPLETE`. Instead, those tasks will wait in the `WAITING_TO_STORE` step while other tasks execute their algorithms. Why is that?
 
@@ -129,7 +129,7 @@ ziggy.worker.count = 6
 
 #### Permuter Task for UOW 2
 
-Meanwhile, before any of the `sample-1` or `sample-2` data sets got processed, we see two tasks with ID 10 and 11, permuter module, running on data sets 1 and 2. Oddly, the subtask "scoreboards" are `0/0`. What happened?!?!
+Meanwhile, before any of the `sample-1` or `sample-2` data sets got processed, we see two tasks with ID 10 and 11, permuter node, running on data sets 1 and 2. Oddly, the subtask "scoreboards" are `0/0`. What happened?!?!
 
 Well -- remember that we set up this example so that it wouldn't process any data that got processed before (i.e., we are doing "keep-up" processing, not reprocessing). All of the data in `set-1` and `set-2` was processed in the first example, so there were no `set-1` or `set-2` subtasks that needed to be processed in this example.
 

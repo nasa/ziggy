@@ -53,7 +53,7 @@ public class Parameter extends AbstractProperty implements Comparable<Parameter>
     @Column(length = 1000)
     private String name;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "varchar")
     private String stringValue;
 
     @Enumerated(EnumType.STRING)
@@ -235,9 +235,7 @@ public class Parameter extends AbstractProperty implements Comparable<Parameter>
             if (isScalar()) {
                 return emptyValue;
             }
-            Object returnArray = ZiggyArrayUtils.constructFullPrimitiveArray(new long[] { 0 },
-                dataType);
-            return returnArray;
+            return ZiggyArrayUtils.constructFullPrimitiveArray(new long[] { 0 }, dataType);
         }
 
         // split the value string at any commas and check that the result is compatible with the
@@ -386,7 +384,6 @@ public class Parameter extends AbstractProperty implements Comparable<Parameter>
         // the following code isn't as screwy as it looks.
         parameterSet.getParameters().remove(this);
         parameterSet.getParameters().add(this);
-        return;
     }
 
     @Override
@@ -395,9 +392,9 @@ public class Parameter extends AbstractProperty implements Comparable<Parameter>
     }
 
     public String nameAndDataType() {
-        String dataTypeWithArrayFlag = scalar ? dataType.toString()
-            : dataType.toString() + " " + ARRAY_TYPE_SUFFIX;
-        return dataTypeWithArrayFlag + " " + name;
+        String dataTypeWithArrayFlag = scalar ? dataType.getJavaClass().getName()
+            : dataType.getJavaClass().getName() + " " + ARRAY_TYPE_SUFFIX;
+        return dataTypeWithArrayFlag + ": " + name;
     }
 
     public static boolean identicalParameters(Collection<Parameter> parameters1,
@@ -405,10 +402,7 @@ public class Parameter extends AbstractProperty implements Comparable<Parameter>
         if (parameters1 == null) {
             return parameters2 == null;
         }
-        if (parameters2 == null) {
-            return false;
-        }
-        if (parameters1.size() != parameters2.size()) {
+        if ((parameters2 == null) || (parameters1.size() != parameters2.size())) {
             return false;
         }
         Map<String, Parameter> parameters1ByName = parametersByName(parameters1);

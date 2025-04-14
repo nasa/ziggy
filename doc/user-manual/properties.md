@@ -78,7 +78,7 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | ziggy.pipeline.data.receipt.validation.maxFailurePercentage | Maximum percentage of files that can fail validation before DR throws an exception | 100 |
 | ziggy.pipeline.datastore.dir | Root directory for datastore | None |
 | ziggy.pipeline.definition.dir | Location for XML files that define the pipeline | None |
-| ziggy.pipeline.environment | Comma-separated list of name-value pairs of environment variables that should be provided to the algorithm at runtime. Note that whitespace around the commands is not allowed. | "" |
+| ziggy.pipeline.environment | Comma-separated list of name-value pairs of environment variables that should be provided to the algorithm at runtime. Note that whitespace within a name-value pair is not allowed. | "" |
 | ziggy.pipeline.home.dir | Top-level directory for the pipeline code. | None |
 | ziggy.pipeline.libPath | Colon-separated list of directories to search for shared libraries such as files with .so or .dylib suffix (LD_LIBRARY_PATH is ignored by Ziggy) | "" |
 | ziggy.pipeline.mcrRoot | Location of the MATLAB Compiler Runtime (MCR), including the version, if MATLAB algorithm executables are used | "" |
@@ -86,20 +86,18 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | ziggy.pipeline.memdrone.sleepSeconds | Sample interval for memory consumption tracker | 60 |
 | ziggy.pipeline.processing.halt.step | Automatically halt pipeline after a given processing step (marshaling, submitting, etc.). Mainly for debugging. See the article on [The Instances Panel](instances-panel.md) for more about processing steps. | complete |
 | ziggy.pipeline.results.dir | Location for working directories, log files, etc. | None |
-| ziggy.pipeline.uow.defaultIdentifier.classname | Class used to identify default UOWs that are defined in the pipeline (not Ziggy) | DatastoreDirectoryUnitOfWorkGenerator.class or DataReceiptUnitOfWorkGenerator.class as appropriate |
-| ziggy.pipeline.useSymlinks | Use symbolic links rather than copies when staging files to working directory | false |
-| ziggy.remote.cluster.name | Flavor of remote system used. Supported values are "NAS" (i.e., the HPC facility at NASA Ames Research Center), "AWS" (i.e., Amazon Web Services). | NAS |
-| ziggy.remote.group | Group ID to be used when submitting jobs to batch system | "" |
-| ziggy.remote.host | Colon-separated list of remote host names, in order from most- to least-desired | "" |
+| ziggy.remote.environment.names | Comma-separated list of supported remote environments (see `remoteEnvironment` elements in `etc/*-environment.xml`) | None |
+| ziggy.remote.<envname>.group | Group ID to be used when submitting jobs to remote environment <envname> | "" |
+| ziggy.remote.<envname>.user | Username to be used when submitting jobs to remote environment <envname> | $USER |
 | ziggy.remote.nasa.directorate | NASA directorate to be used for calculating likely NAS queue wait times | SMD |
-| ziggy.remote.queuecommand.classname | Implementation class of QueueCommandManager for use by Ziggy | gov.nasa.ziggy.module.remote.QueueLocalCommandManager |
-| ziggy.remote.user | Username to be used when submitting jobs to batch system | "" |
 | ziggy.test.working.dir | Allows the user to specify a working directory other than user.dir. For testing only. | ${user.dir} |
 | ziggy.worker.allowPartialTasks | Allow persisting to continue although one or more subtasks failed | true |
 | ziggy.worker.heapSize | Maximum cumulative size of the Java heap for all worker processes, in MB (can be overridden by the `--workerHeapSize` option in `ziggy cluster start`) | 16,000 |
 | ziggy.supervisor.heartbeat.interval.millis | Interval between messages from the supervisor to RMI clients to ensure that connections remain intact | 15,000 |
 | ziggy.supervisor.port | Port used for connections between supervisor, worker, and UI. Same conditions as for the database port (i.e., each cluster must have a port that's unique and not in use by some other joker). | 1099 |
 | ziggy.worker.count | Maximum number of workers (can be overridden by the `--workerCount` option in `ziggy cluster start`); set to zero to have 1 worker per CPU "core" | 1 |
+
+
 
 [[Previous]](contact-us.md)
 [[Up]](user-manual.md)

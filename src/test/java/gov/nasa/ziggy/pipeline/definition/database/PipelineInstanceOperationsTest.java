@@ -16,7 +16,7 @@ import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
-import gov.nasa.ziggy.pipeline.definition.PipelineDefinition;
+import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
@@ -37,15 +37,15 @@ public class PipelineInstanceOperationsTest {
         pipelineInstanceOperations = Mockito.spy(PipelineInstanceOperations.class);
     }
 
-    private void setUpSingleModulePipeline() {
+    private void setUpSingleNodePipeline() {
         PipelineOperationsTestUtils testUtils = new PipelineOperationsTestUtils();
-        testUtils.setUpSingleModulePipeline();
+        testUtils.setUpSingleNodePipeline();
         pipelineInstance = testUtils.pipelineInstance();
     }
 
     @Test
     public void testSetInstanceToErrorsStalledState() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         pipelineInstanceOperations.setInstanceToErrorsStalledState(pipelineInstance);
         PipelineInstance databaseInstance = testOperations.pipelineInstance(1L);
         assertEquals(PipelineInstance.State.ERRORS_STALLED, databaseInstance.getState());
@@ -53,7 +53,7 @@ public class PipelineInstanceOperationsTest {
 
     @Test
     public void testRootNodes() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         List<PipelineInstanceNode> rootNodes = pipelineInstanceOperations
             .rootNodes(pipelineInstance);
         assertEquals(1L, rootNodes.get(0).getId().longValue());
@@ -62,7 +62,7 @@ public class PipelineInstanceOperationsTest {
 
     @Test
     public void testAddRootNode() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         List<PipelineInstanceNode> rootNodes = pipelineInstanceOperations
             .rootNodes(pipelineInstance);
         assertEquals(1L, rootNodes.get(0).getId().longValue());
@@ -86,7 +86,7 @@ public class PipelineInstanceOperationsTest {
 
     @Test
     public void testAddPipelineInstanceNode() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         List<PipelineInstanceNode> rootNodes = pipelineInstanceOperations
             .rootNodes(pipelineInstance);
         assertEquals(1L, rootNodes.get(0).getId().longValue());
@@ -109,11 +109,11 @@ public class PipelineInstanceOperationsTest {
 
     @Test
     public void testBindParameters() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         testOperations.configurePipelineParameterSets(pipelineInstance.getId());
         PipelineInstance databaseInstance = pipelineInstanceOperations
             .pipelineInstance(pipelineInstance.getId());
-        pipelineInstanceOperations.bindParameterSets(databaseInstance.getPipelineDefinition(),
+        pipelineInstanceOperations.bindParameterSets(databaseInstance.getPipeline(),
             databaseInstance);
         Set<ParameterSet> parameterSets = pipelineInstanceOperations
             .parameterSets(pipelineInstance);
@@ -125,25 +125,25 @@ public class PipelineInstanceOperationsTest {
 
     @Test
     public void testValidInstanceId() {
-        setUpSingleModulePipeline();
+        setUpSingleNodePipeline();
         assertTrue(new PipelineInstanceOperations().validInstanceId(pipelineInstance.getId()));
         assertFalse(new PipelineInstanceOperations().validInstanceId(pipelineInstance.getId() + 1));
     }
 
     @Test
     public void testInstanceId() {
-        setUpSingleModulePipeline();
-        assertEquals(1, new PipelineInstanceOperations().instanceId(0, "module1"));
+        setUpSingleNodePipeline();
+        assertEquals(1, new PipelineInstanceOperations().instanceId(0, "step1"));
         assertEquals(1, new PipelineInstanceOperations().instanceId(1, null));
-        assertEquals(0, new PipelineInstanceOperations().instanceId(0, "module2"));
+        assertEquals(0, new PipelineInstanceOperations().instanceId(0, "step2"));
     }
 
     @Test
     public void testTasksInInstance() {
-        setUpSingleModulePipeline();
-        assertTrue(new PipelineInstanceOperations().tasksInInstance(0, "module1"));
-        assertTrue(new PipelineInstanceOperations().tasksInInstance(1, "module1"));
-        assertFalse(new PipelineInstanceOperations().tasksInInstance(1, "module2"));
+        setUpSingleNodePipeline();
+        assertTrue(new PipelineInstanceOperations().tasksInInstance(0, "step1"));
+        assertTrue(new PipelineInstanceOperations().tasksInInstance(1, "step1"));
+        assertFalse(new PipelineInstanceOperations().tasksInInstance(1, "step2"));
     }
 
     private class TestOperations extends DatabaseOperations {
@@ -169,13 +169,13 @@ public class PipelineInstanceOperationsTest {
         public void configurePipelineParameterSets(long instanceId) {
             performTransaction(() -> {
                 PipelineInstance instance = new PipelineInstanceCrud().retrieve(instanceId);
-                PipelineDefinition pipelineDefinition = instance.getPipelineDefinition();
-                pipelineDefinition.getParameterSetNames().clear();
-                pipelineDefinition.getParameterSetNames().add("dummy100");
+                Pipeline pipeline = instance.getPipeline();
+                pipeline.getParameterSetNames().clear();
+                pipeline.getParameterSetNames().add("dummy100");
                 ParameterSet parameterSet = new ParameterSet();
                 parameterSet.setName("dummy100");
                 new ParameterSetCrud().persist(parameterSet);
-                new PipelineDefinitionCrud().merge(pipelineDefinition);
+                new PipelineCrud().merge(pipeline);
                 new PipelineInstanceCrud().merge(instance);
             });
         }

@@ -151,7 +151,7 @@ public class WorkerStatusPanel extends JPanel {
         private static final long serialVersionUID = 20230511L;
 
         private static final String[] COLUMN_NAMES = { "Worker", "Status", "Age", "Instance",
-            "Task", "Module", "UOW" };
+            "Task", "Node", "UOW" };
 
         /**
          * Status messages in the model. The {@link Boolean} component of the {@link Map} indicates
@@ -241,8 +241,8 @@ public class WorkerStatusPanel extends JPanel {
                     System.currentTimeMillis());
                 case 3 -> message.getInstanceId();
                 case 4 -> message.getPipelineTask();
-                case 5 -> message.getModule();
-                case 6 -> message.getModuleUow();
+                case 5 -> message.getPipelineStepName();
+                case 6 -> message.getUnitOfWork();
                 default -> "";
             };
         }
