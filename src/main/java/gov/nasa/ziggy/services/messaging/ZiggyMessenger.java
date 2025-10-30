@@ -56,6 +56,13 @@ public class ZiggyMessenger {
     private LinkedBlockingQueue<Message> outgoingMessageQueue = new LinkedBlockingQueue<>();
 
     /**
+     * Blocking queue for incoming messages. Messages are put onto this queue by the RMI client. A
+     * dedicated message action thread in the singleton instance then takes the messages and
+     * executes the subscription actions for each message.
+     */
+    private LinkedBlockingQueue<PipelineMessage> incomingMessageQueue = new LinkedBlockingQueue<>();
+
+    /**
      * Dedicated thread for pulling messages off the blocking queue and giving them to the
      * {@link ZiggyMessenger#publishMessage(PipelineMessage)} instance method.
      * <p>
@@ -69,6 +76,16 @@ public class ZiggyMessenger {
      * that the instance call to {@link #takeAction(PipelineMessage)} can also return.
      */
     private Thread outgoingMessageThread;
+
+    /**
+     * Dedicated thread that pulls messages out of the {@link #incomingMessageQueue} and executes
+     * the actions required by said messages.
+     * <p>
+     * The use of the separate thread ensures that all message actions take place in the process
+     * that receives the message, rather than via an RMI call from one process to another. The
+     * latter are fraught with danger and also result in uninformative log messages.
+     */
+    private Thread messageActionThread;
 
     /**
      * Stores the mapping between a message class and the actions that must be taken when such a
@@ -85,18 +102,29 @@ public class ZiggyMessenger {
 
     /**
      * Determines whether messages are stored when they are sent out from the message queue. Use
-     * {@link #getMessagesFromOutgoingQueue()} to retrieve them. For testing only.
+     * {@link #getMessagesFromQueue()} to retrieve them. For testing only.
      */
     private boolean storeMessages;
 
     /** For testing only. */
-    private List<PipelineMessage> messagesFromOutgoingQueue = new ArrayList<>();
+    private List<PipelineMessage> messagesFromQueue = new ArrayList<>();
+
+    /**
+     * Determines whether exceptions thrown in the message handler array are stored. For testing
+     * only.
+     */
+    private boolean storeExceptions;
+    /** For testing only. */
+
+    private List<Exception> exceptionsThrown = new ArrayList<>();
 
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private ZiggyMessenger() {
         startOutgoingMessageThread();
+        startMessageActionThread();
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private void startOutgoingMessageThread() {
         outgoingMessageThread = new Thread(() -> {
             Thread.currentThread().setName("Message Publisher");
@@ -105,7 +133,7 @@ public class ZiggyMessenger {
                     log.debug("Waiting for message to send");
                     Message message = outgoingMessageQueue.take();
                     if (storeMessages) {
-                        messagesFromOutgoingQueue.add(message.getPipelineMessage());
+                        messagesFromQueue.add(message.getPipelineMessage());
                     }
                     publishMessage(message);
                 } catch (InterruptedException e) {
@@ -115,6 +143,35 @@ public class ZiggyMessenger {
         });
         outgoingMessageThread.setDaemon(true);
         outgoingMessageThread.start();
+    }
+
+    @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    private void startMessageActionThread() {
+        messageActionThread = new Thread(() -> {
+            Thread.currentThread().setName("Message Receiver");
+            PipelineMessage message = null;
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    log.debug("Waiting for message to arrive");
+                    message = incomingMessageQueue.take();
+                    if (storeMessages) {
+                        messagesFromQueue.add(message);
+                    }
+                    takeAction(message);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (Exception e) {
+                    if (storeExceptions) {
+                        exceptionsThrown.add(e);
+                    }
+                    // Don't allow the message action thread to error out!
+                    log.error("Error occurred when processing message {}", message.getClass(), e);
+                }
+            }
+        });
+        messageActionThread.setDaemon(true);
+        messageActionThread.start();
     }
 
     private void publishMessage(Message message) {
@@ -217,18 +274,25 @@ public class ZiggyMessenger {
      * {@link ZiggyRmiClient} should use this method.
      */
     static void actOnMessage(PipelineMessage message) {
-        instance.takeAction(message);
+        try {
+            instance.incomingMessageQueue.put(message);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** For testing only. */
     static void reset() {
         instance.outgoingMessageThread.interrupt();
+        instance.messageActionThread.interrupt();
         getOutgoingMessageQueue().clear();
         getSubscriptions().clear();
         setStoreMessages(false);
-        instance.messagesFromOutgoingQueue.clear();
+        instance.messagesFromQueue.clear();
         instance.messageCountdownLatches.clear();
+        instance.incomingMessageQueue.clear();
         instance.startOutgoingMessageThread();
+        instance.startMessageActionThread();
     }
 
     /** For testing only. */
@@ -247,8 +311,22 @@ public class ZiggyMessenger {
     }
 
     /** For testing only. */
-    static List<PipelineMessage> getMessagesFromOutgoingQueue() {
-        return instance.messagesFromOutgoingQueue;
+    static List<PipelineMessage> getMessagesFromQueue() {
+        return instance.messagesFromQueue;
+    }
+
+    /** For testing only. */
+    static void setStoreExceptions(boolean storeExceptions) {
+        instance.storeExceptions = storeExceptions;
+    }
+
+    /** For testing only. */
+    static List<Exception> getExceptionsThrown() {
+        return instance.exceptionsThrown;
+    }
+
+    static boolean isMessageActionThreadAlive() {
+        return instance.messageActionThread.isAlive();
     }
 
     private static class Message {

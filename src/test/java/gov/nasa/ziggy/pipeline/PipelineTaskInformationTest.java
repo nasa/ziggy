@@ -32,6 +32,7 @@ import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.pipeline.step.io.DatastoreDirectoryPipelineInputs;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputs;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskInformation;
+import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
@@ -55,6 +56,7 @@ public class PipelineTaskInformationTest {
     private SubtaskInformation s1, s2;
     private PipelineNode node;
     private Pipeline pipeline;
+    private PipelineStep pipelineStep;
     private ClassWrapper<UnitOfWorkGenerator> uowGenerator = new ClassWrapper<>(
         UnitOfWorkGenerator.class);
 
@@ -68,7 +70,7 @@ public class PipelineTaskInformationTest {
 
         // Construct the instances of pipeline infrastructure needed for these tests.
         node = new PipelineNode();
-        PipelineStep pipelineStep = new PipelineStep("step");
+        pipelineStep = new PipelineStep("step");
         ClassWrapper<PipelineInputs> inputsClass = new ClassWrapper<>(
             DatastoreDirectoryPipelineInputs.class);
         pipelineStep.setInputsClass(inputsClass);
@@ -88,6 +90,10 @@ public class PipelineTaskInformationTest {
         // Set up node-level parameters.
         when(pipelineStepOperations.pipelineStep(pipelineStep.getName())).thenReturn(pipelineStep);
         node.getParameterSetNames().add(algorithmParsName);
+    }
+
+    @Test
+    public void testBasicFunctionality() {
 
         // Set up unit of work generation.
         doReturn(uowGenerator).when(pipelineTaskInformation).unitOfWorkGenerator(node);
@@ -116,10 +122,6 @@ public class PipelineTaskInformationTest {
         s2 = new SubtaskInformation("node", "u2", 5);
         doReturn(s1).when(pipelineTaskInformation).subtaskInformation(pipelineStep, p1, node);
         doReturn(s2).when(pipelineTaskInformation).subtaskInformation(pipelineStep, p2, node);
-    }
-
-    @Test
-    public void testBasicFunctionality() {
 
         // At the start, the has-information query should return false
         assertFalse(PipelineTaskInformation.hasPipelineNode(node));
@@ -134,5 +136,19 @@ public class PipelineTaskInformationTest {
         // Resetting it should cause it to disappear again
         PipelineTaskInformation.reset(node);
         assertFalse(PipelineTaskInformation.hasPipelineNode(node));
+    }
+
+    @Test
+    public void testSingleUnitOfWork() {
+        ClassWrapper<UnitOfWorkGenerator> uowGenerator = new ClassWrapper<>(
+            SingleUnitOfWorkGenerator.class);
+        pipelineStep.setUnitOfWorkGenerator(uowGenerator);
+        doReturn(uowGenerator).when(pipelineTaskInformation).unitOfWorkGenerator(node);
+        List<SubtaskInformation> subtaskInfo = PipelineTaskInformation.subtaskInformation(node);
+        assertEquals(1, subtaskInfo.size());
+        SubtaskInformation subtaskInformation = subtaskInfo.get(0);
+        assertEquals(pipelineStep.getName(), subtaskInformation.getPipelineStepName());
+        assertEquals(SingleUnitOfWorkGenerator.BRIEF_STATE, subtaskInformation.getUowBriefState());
+        assertEquals(1, subtaskInformation.getSubtaskCount());
     }
 }

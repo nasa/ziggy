@@ -69,9 +69,9 @@ public class ComputeNodeMasterTest {
     private final long TASK_ID = 20;
     private final String TASK_DIR_NAME = Long.toString(INSTANCE_ID) + "-" + Long.toString(TASK_ID)
         + "-" + NODE_NAME;
-    private final long WALL_TIME_REQUEST = 1800L;
+    private final int WALL_TIME_REQUEST = 1800;
 
-    private TaskConfiguration inputsHandler;
+    private TaskConfiguration taskConfiguration;
     private SubtaskServer subtaskServer;
     private ExecutorService subtaskMasterThreadPool;
     private ComputeNodeMaster computeNodeMaster;
@@ -96,20 +96,18 @@ public class ComputeNodeMasterTest {
         Files.createDirectories(DirectoryProperties.algorithmLogsDir());
 
         // Create mocked instances
-        inputsHandler = mock(TaskConfiguration.class);
+        taskConfiguration = mock(TaskConfiguration.class);
         subtaskServer = mock(SubtaskServer.class);
         subtaskMasterThreadPool = mock(ExecutorService.class);
-
-        // Create the wall time and active cores files.
-        AlgorithmExecutor.writeActiveCoresFile(taskDir, Integer.toString(CORES_PER_NODE));
-        AlgorithmExecutor.writeWallTimeFile(taskDir, Long.toString(WALL_TIME_REQUEST));
 
         // Create the ComputeNodeMaster. To be precise, create an instance of the
         // class that is a Mockito spy.
         computeNodeMaster = Mockito.spy(new ComputeNodeMaster(taskDir.toString()));
-        doReturn(inputsHandler).when(computeNodeMaster).getTaskConfiguration();
+        doReturn(taskConfiguration).when(computeNodeMaster).getTaskConfiguration();
         doReturn(subtaskServer).when(computeNodeMaster).subtaskServer();
         doReturn(subtaskMasterThreadPool).when(computeNodeMaster).subtaskMasterThreadPool();
+        Mockito.when(taskConfiguration.getRequestedTimeSeconds()).thenReturn(WALL_TIME_REQUEST);
+        Mockito.when(taskConfiguration.getActiveCores()).thenReturn(CORES_PER_NODE);
 
         // Create the version information properties file.
         new BuildInfo(BuildType.ZIGGY).writeBuildFile();

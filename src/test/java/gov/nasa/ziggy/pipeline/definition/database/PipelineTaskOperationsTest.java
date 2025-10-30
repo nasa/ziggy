@@ -148,7 +148,7 @@ public class PipelineTaskOperationsTest {
         for (PipelineTask task : submittedTasks) {
             assertEquals(ProcessingStep.WAITING_TO_RUN,
                 pipelineTaskDataOperations.processingStep(task));
-            assertTrue(pipelineTaskDataOperations.executionClock(task).isRunning());
+            assertFalse(pipelineTaskDataOperations.executionClock(task).isRunning());
         }
         instance = testOperations.allPipelineInstances().get(0);
         assertEquals(PipelineInstance.State.PROCESSING, instance.getState());
@@ -201,7 +201,7 @@ public class PipelineTaskOperationsTest {
         counts = pipelineTaskDisplayDataOperations
             .taskCounts(pipelineTaskOperations.pipelineInstanceNode(pipelineTask));
         TaskCountsTest.testTaskCounts(2, 2, 0, 0, counts);
-        assertTrue(pipelineTaskDataOperations.executionClock(pipelineTask).isRunning());
+        assertFalse(pipelineTaskDataOperations.executionClock(pipelineTask).isRunning());
         assertTrue(pipelineInstance.getExecutionClock().isRunning());
     }
 

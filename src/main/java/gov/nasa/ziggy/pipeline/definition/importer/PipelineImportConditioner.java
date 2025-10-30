@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.data.datastore.DatastoreOperations;
+import gov.nasa.ziggy.data.management.DataReceiptPipelineStepExecutor;
 import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.Pipeline;
@@ -175,6 +176,13 @@ public class PipelineImportConditioner {
             }
             xmlNode.setPipelineName(pipelineName);
 
+            // Special case: the user is not required to know that data receipt nodes are
+            // always single-subtask.
+            if (xmlNode.getPipelineStepName()
+                .equals(DataReceiptPipelineStepExecutor.DATA_RECEIPT_PIPELINE_STEP_EXECUTOR_NAME)) {
+                xmlNode.setSingleSubtask(true);
+            }
+
             // Node-level parameters
             setNodeParameterSetNames(xmlNode);
 
@@ -194,8 +202,8 @@ public class PipelineImportConditioner {
             // PipelineNodeExecutionResources.
             PipelineNodeExecutionResources executionResources = pipelineNodeOperations()
                 .pipelineNodeExecutionResources(xmlNode);
-            if (xmlNode.getHeapSizeMb() != null) {
-                executionResources.setHeapSizeMb(xmlNode.getHeapSizeMb());
+            if (xmlNode.getHeapSizeGigabytes() != null) {
+                executionResources.setHeapSizeGigabytes(xmlNode.getHeapSizeGigabytes());
             }
             if (xmlNode.getMaxWorkerCount() != null) {
                 executionResources.setMaxWorkerCount(xmlNode.getMaxWorkerCount());

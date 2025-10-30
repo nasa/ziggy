@@ -102,16 +102,13 @@ public class LocalAlgorithmExecutor extends AlgorithmExecutor {
     }
 
     @Override
-    protected String activeCores() {
-        return "1";
+    public int activeCores() {
+        return 1;
     }
 
     @Override
-    protected String wallTime() {
-        return Integer.toString(pipelineStepOperations()
-            .pipelineStepExecutionResources(
-                pipelineStepOperations().pipelineStep(pipelineTask.getPipelineStepName()))
-            .getExeTimeoutSeconds());
+    public int wallTime() {
+        return Integer.MAX_VALUE;
     }
 
     PipelineStepOperations pipelineStepOperations() {

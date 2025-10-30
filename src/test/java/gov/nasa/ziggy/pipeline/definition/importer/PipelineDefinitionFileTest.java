@@ -127,15 +127,11 @@ public class PipelineDefinitionFileTest {
             complexTypeContent);
         assertContains("<xs:attribute name=\"outputsClass\" type=\"xs:string\"/>",
             complexTypeContent);
-        assertContains("<xs:attribute name=\"exeTimeoutSecs\" type=\"xs:int\"/>",
-            complexTypeContent);
-        assertContains("<xs:attribute name=\"minMemoryMegabytes\" type=\"xs:int\"/>",
-            complexTypeContent);
         assertContains("<xs:attribute name=\"uowGenerator\" type=\"xs:string\"/>",
             complexTypeContent);
         assertContains("<xs:attribute name=\"file\" type=\"xs:string\"/>", complexTypeContent);
         assertEquals(0, XmlUtils.elementCount(complexTypeContent));
-        assertEquals(9, XmlUtils.attributeCount(complexTypeContent));
+        assertEquals(7, XmlUtils.attributeCount(complexTypeContent));
     }
 
     /** Checks the content of the {@link Pipeline} complex type definition. */
@@ -174,7 +170,8 @@ public class PipelineDefinitionFileTest {
         assertContains("<xs:attribute name=\"childNodeNames\" type=\"xs:string\"/>",
             complexTypeContent);
         assertContains("<xs:attribute name=\"maxWorkers\" type=\"xs:int\"/>", complexTypeContent);
-        assertContains("<xs:attribute name=\"heapSizeMb\" type=\"xs:int\"/>", complexTypeContent);
+        assertContains("<xs:attribute name=\"heapSizeGigabytes\" type=\"xs:int\"/>",
+            complexTypeContent);
         assertContains("<xs:attribute name=\"singleSubtask\" type=\"xs:boolean\"/>",
             complexTypeContent);
         assertEquals(4, XmlUtils.elementCount(complexTypeContent));

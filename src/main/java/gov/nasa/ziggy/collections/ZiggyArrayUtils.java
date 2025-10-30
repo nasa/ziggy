@@ -478,6 +478,51 @@ public class ZiggyArrayUtils {
         }
     }
 
+    public static Object arrayWithTrivialDimensions(Object array, int finalDimensionCount) {
+
+        int arrayDimensions = ZiggyArrayUtils.getArraySize(array).length;
+        int trivialDimensions = finalDimensionCount - arrayDimensions;
+        if (trivialDimensions < 0) {
+            throw new IllegalArgumentException(
+                "Array with " + arrayDimensions + " dimensions cannot be fitted into "
+                    + finalDimensionCount + "-dimensional array");
+        }
+        if (trivialDimensions == 0) {
+            return array;
+        }
+
+        // Determine the array dimensions, including the trivial dimensions.
+        long[] originalDimensions = ZiggyArrayUtils.getArraySize(array);
+        long[] dimensionsIncludingTrivial = new long[trivialDimensions + originalDimensions.length];
+        for (int iDim = 0; iDim < trivialDimensions; iDim++) {
+            dimensionsIncludingTrivial[iDim] = 1;
+        }
+        for (int iDim = trivialDimensions; iDim < dimensionsIncludingTrivial.length; iDim++) {
+            dimensionsIncludingTrivial[iDim] = originalDimensions[iDim - trivialDimensions];
+        }
+
+        // Construct the array including the trivial dimensions.
+        Object arrayWithTrivialDimensions = ZiggyArrayUtils.constructFullArray(
+            dimensionsIncludingTrivial, ZiggyDataType.getDataType(array),
+            ZiggyArrayUtils.isBoxedPrimitive(array));
+
+        // Set the non-trivial dimensions using recursion
+        setNonTrivialArrayValues(arrayWithTrivialDimensions, array);
+
+        return arrayWithTrivialDimensions;
+    }
+
+    private static void setNonTrivialArrayValues(Object arrayWithTrivialDimensions, Object array) {
+        ArrayRecursionLevel nextLevel = (obj, i) -> setNonTrivialArrayValues(obj, array);
+        ArrayRecursionLevel lowestLevel = (objLow, c) -> {
+            Object[] objArray = (Object[]) objLow;
+            objArray[0] = array;
+        };
+        int arrayDimensionCount = ZiggyArrayUtils.getArraySize(array).length;
+        arrayLevelRecursionMaster(arrayWithTrivialDimensions, nextLevel, lowestLevel,
+            arrayDimensionCount + 1);
+    }
+
     /**
      * Determines the name of the array class for construction.
      *
@@ -661,6 +706,11 @@ public class ZiggyArrayUtils {
         }
     }
 
+    static void arrayLevelRecursionMaster(Object array, ArrayRecursionLevel nextLevel,
+        ArrayRecursionLevel lowestLevel) {
+        arrayLevelRecursionMaster(array, nextLevel, lowestLevel, 1);
+    }
+
     /**
      * Recurses through array levels. If the recursion has not yet reached the lowest level, execute
      * a next-level method. At the lowest level, execute a lowest-level method. The next-level and
@@ -674,9 +724,9 @@ public class ZiggyArrayUtils {
      * @param lowestLevel ArrayRecursionLevel instance to be used for lowest-level processing
      */
     static void arrayLevelRecursionMaster(Object array, ArrayRecursionLevel nextLevel,
-        ArrayRecursionLevel lowestLevel) {
+        ArrayRecursionLevel lowestLevel, int dimensionsOfLowestLevel) {
         long[] arraySize = getArraySize(array);
-        if (arraySize.length > 1) {
+        if (arraySize.length > dimensionsOfLowestLevel) {
             Object[] objectArray = (Object[]) array;
             for (int i = 0; i < objectArray.length; i++) {
                 nextLevel.apply(objectArray[i], i);

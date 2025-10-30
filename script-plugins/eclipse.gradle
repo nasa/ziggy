@@ -31,7 +31,7 @@ eclipse {
             // TODO Get the following pseudocode to work to avoid hardcoding path
             //File jar = findFileInConfiguration(configurations.runtime, 'jarhdf5-1.12.2')
             //hdf5.setNativeLibraryLocation(jar.getParent())
-            hdf5.setNativeLibraryLocation("$outsideDir/lib")
+            hdf5.setNativeLibraryLocation("$buildDir/lib")
         }
 
         // Add the JPA metamodel directory compiled by Gradle to the Eclipse classpath.

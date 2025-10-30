@@ -82,9 +82,9 @@ public class PipelineNode {
      * Optional XML attributes cannot be primitives.
      */
     @Transient
-    @XmlAttribute(required = false, name = "heapSizeMb")
-    @Column(name = "heapSizeMb", nullable = true)
-    private Integer heapSizeMb;
+    @XmlAttribute(required = false, name = "heapSizeGigabytes")
+    @Column(name = "heapSizeGigabytes", nullable = true)
+    private Integer heapSizeGigabytes;
 
     @XmlAttribute(required = true, name = "name")
     private String pipelineStepName;
@@ -174,7 +174,7 @@ public class PipelineNode {
 
         // Use the setters to fill in the optional XML values.
         setMaxWorkerCount(getMaxWorkerCount());
-        setHeapSizeMb(getHeapSizeMb());
+        setHeapSizeGigabytes(getHeapSizeGigabytes());
 
         // We don't want to touch the childNodeNames String unless the nextNodes List is populated
         if (!nextNodes.isEmpty()) {
@@ -225,12 +225,12 @@ public class PipelineNode {
         maxWorkerCount = workers;
     }
 
-    public Integer getHeapSizeMb() {
-        return heapSizeMb;
+    public Integer getHeapSizeGigabytes() {
+        return heapSizeGigabytes;
     }
 
-    public void setHeapSizeMb(Integer heapSizeMb) {
-        this.heapSizeMb = heapSizeMb;
+    public void setHeapSizeGigabytes(Integer heapSizeGigabytes) {
+        this.heapSizeGigabytes = heapSizeGigabytes;
     }
 
     public String getPipelineStepName() {

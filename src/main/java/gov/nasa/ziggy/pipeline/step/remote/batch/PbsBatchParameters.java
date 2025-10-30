@@ -78,10 +78,10 @@ public class PbsBatchParameters implements BatchParameters {
     }
 
     private void validateArchitecture() {
-        if (!architecture.hasSufficientRam(executionResources.getGigsPerSubtask())) {
+        if (!architecture.hasSufficientRam(executionResources.subtaskRamGigabytes())) {
             throw new IllegalStateException("Selected node architecture " + architecture.toString()
                 + " has insufficient RAM for subtasks that require "
-                + executionResources.getGigsPerSubtask() + " GB");
+                + executionResources.subtaskRamGigabytes() + " GB");
         }
     }
 
@@ -152,7 +152,7 @@ public class PbsBatchParameters implements BatchParameters {
         }
         double gigsPerNode = architecture.getRamGigabytes();
         return Math
-            .min((int) Math.min(Math.floor(gigsPerNode / executionResources.getGigsPerSubtask()),
+            .min((int) Math.min(Math.floor(gigsPerNode / executionResources.subtaskRamGigabytes()),
                 architecture.getCores()), totalSubtasks);
     }
 

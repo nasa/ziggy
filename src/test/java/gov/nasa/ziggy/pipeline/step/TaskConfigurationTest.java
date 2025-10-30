@@ -15,7 +15,7 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample;
 
-public class TaskConfigurationManagerTest {
+public class TaskConfigurationTest {
 
     private File taskDir;
 
@@ -58,6 +58,7 @@ public class TaskConfigurationManagerTest {
         TaskConfiguration h1 = new TaskConfiguration(taskDir);
         h1.setInputsClass(PipelineInputsSample.class);
         h1.setOutputsClass(PipelineOutputsSample.class);
+        h1.setExecutableName("test");
         assertFalse(TaskConfiguration.isSerializedTaskConfigurationPresent(h1.getTaskDir()));
         h1.serialize();
         assertTrue(TaskConfiguration.isSerializedTaskConfigurationPresent(h1.getTaskDir()));

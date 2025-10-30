@@ -4,7 +4,6 @@
 
   <step name="importer" description="Hyperion importer"
           pipelineStepExecutorClass="gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrudTest$TestPipelineStepExecutor"
-          exeTimeoutSecs="2000000" minMemoryMegabytes="0"
           uowGenerator="gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator"/>
 
   <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer">

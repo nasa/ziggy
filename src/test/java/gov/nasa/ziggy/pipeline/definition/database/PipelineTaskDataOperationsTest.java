@@ -359,6 +359,26 @@ public class PipelineTaskDataOperationsTest {
     }
 
     @Test
+    public void testMarkJobComplete() {
+        PipelineTask pipelineTask = pipelineOperationsTestUtils.getPipelineTasks().get(0);
+
+        Set<RemoteJob> expectedJobs = new HashSet<>(
+            Set.of(new RemoteJob(3), new RemoteJob(2), new RemoteJob(1)));
+        pipelineTaskDataOperations.updateRemoteJobs(pipelineTask, expectedJobs);
+        List<RemoteJob> remoteJobs = new ArrayList<>(
+            pipelineTaskDataOperations.remoteJobs(pipelineTask));
+        RemoteJob remoteJob3Detached = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(3)));
+        pipelineTaskDataOperations.markJobComplete(pipelineTask, remoteJob3Detached);
+        remoteJobs = new ArrayList<>(pipelineTaskDataOperations.remoteJobs(pipelineTask));
+        RemoteJob remoteJob = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(1)));
+        assertFalse(remoteJob.isFinished());
+        remoteJob = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(2)));
+        assertFalse(remoteJob.isFinished());
+        remoteJob = remoteJobs.get(remoteJobs.indexOf(new RemoteJob(3)));
+        assertTrue(remoteJob.isFinished());
+    }
+
+    @Test
     public void testUpdateJobs() {
 
         // Create the task with 3 remote jobs

@@ -3,15 +3,13 @@
 <pipelineDefinition>
 
   <step description="Hyperion importer"
-          exeTimeoutSecs="2000000" minMemoryMegaBytes="0"
           pipelineModuleClass="gov.nasa.sbg.hyperion.importer.HyperionImporterPipelineModule" />
   <step name="modelimporter" description="Hyperion model importer"
-          exeTimeoutSecs="2000000" minMemoryMegaBytes="0"
           pipelineModuleClass="gov.nasa.sbg.hyperion.importer.HyperionModelImporterPipelineModule"/>
   <step name="level0" description="Hyperion L0 -> L1R"
-          exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+          />
   <step name="level1" description="Hyperion L1R -> L2"
-          exeTimeoutSecs="2000000" minMemoryMegaBytes="0" />
+          />
 
   <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="importer"
             instancePriority="LOWEST">

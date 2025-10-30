@@ -23,6 +23,8 @@ import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
 /** Unit tests for {@link PbsBatchParameters}. */
 public class PbsBatchParametersTest {
 
+    private static final String ARCHITECTURE = "ivy";
+
     private PipelineNodeExecutionResources executionResources;
     private RemoteEnvironment remoteEnvironment = Mockito.mock(RemoteEnvironment.class);
     private Map<String, Architecture> architectureByName;
@@ -46,19 +48,19 @@ public class PbsBatchParametersTest {
         Mockito.when(remoteEnvironment.getQueues()).thenReturn(batchQueues);
         Mockito.when(remoteEnvironment.getName()).thenReturn("hecc");
         executionResources.setRemoteExecutionEnabled(true);
-        executionResources.setGigsPerSubtask(6);
+        executionResources.setSubtaskRamGigabytes(6);
         executionResources.setSubtaskMaxWallTimeHours(4.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
-        executionResources.setArchitecture(architectureByName.get("san"));
+        executionResources.setArchitecture(architectureByName.get(ARCHITECTURE));
     }
 
     @Test
     public void testSimpleCase() {
         pbsBatchParameters.computeParameterValues(executionResources, 500);
         assertEquals("normal", pbsBatchParameters.getBatchQueue().getName());
-        assertEquals(12, pbsBatchParameters.nodeCount());
-        assertEquals(5, pbsBatchParameters.activeCores());
-        assertEquals(25.38, pbsBatchParameters.estimatedCost(), 1e-6);
+        assertEquals(6, pbsBatchParameters.nodeCount());
+        assertEquals(10, pbsBatchParameters.activeCores());
+        assertEquals(17.82, pbsBatchParameters.estimatedCost(), 1e-6);
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
@@ -66,47 +68,47 @@ public class PbsBatchParametersTest {
     public void testNodeCountOverride() {
         executionResources.setMaxNodes(1);
         pbsBatchParameters.computeParameterValues(executionResources, 500);
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
         assertEquals("long", pbsBatchParameters.getBatchQueue().getName());
         assertEquals(1, pbsBatchParameters.nodeCount());
-        assertEquals(5, pbsBatchParameters.activeCores());
-        assertEquals(23.5, pbsBatchParameters.estimatedCost(), 1e-6);
-        assertEquals("50:00:00", pbsBatchParameters.getRequestedWallTime());
+        assertEquals(10, pbsBatchParameters.activeCores());
+        assertEquals(16.5, pbsBatchParameters.estimatedCost(), 1e-6);
+        assertEquals("25:00:00", pbsBatchParameters.getRequestedWallTime());
     }
 
     @Test
     public void testNodeCountOverrideSmallSubtaskCount() {
         executionResources.setMaxNodes(10);
         pbsBatchParameters.computeParameterValues(executionResources, 5);
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
         assertEquals(1, pbsBatchParameters.nodeCount());
         assertEquals(5, pbsBatchParameters.activeCores());
         assertEquals("normal", pbsBatchParameters.getBatchQueue().getName());
-        assertEquals(2.115, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(2.970, pbsBatchParameters.estimatedCost(), 1e-3);
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
     @Test
     public void testSmallRamRequest() {
-        executionResources.setGigsPerSubtask(0.5);
+        executionResources.setSubtaskRamGigabytes(0.5);
         pbsBatchParameters.computeParameterValues(executionResources, 500);
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
         assertEquals("normal", pbsBatchParameters.getBatchQueue().getName());
-        assertEquals(4, pbsBatchParameters.nodeCount());
-        assertEquals(16, pbsBatchParameters.activeCores());
-        assertEquals(8.46, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(3, pbsBatchParameters.nodeCount());
+        assertEquals(20, pbsBatchParameters.activeCores());
+        assertEquals(8.91, pbsBatchParameters.estimatedCost(), 1e-3);
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
     @Test
     public void testSmallTask() {
-        executionResources.setGigsPerSubtask(0.5);
+        executionResources.setSubtaskRamGigabytes(0.5);
         pbsBatchParameters.computeParameterValues(executionResources, 10);
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
         assertEquals("normal", pbsBatchParameters.getBatchQueue().getName());
         assertEquals(1, pbsBatchParameters.nodeCount());
         assertEquals(10, pbsBatchParameters.activeCores());
-        assertEquals(2.115, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(2.970, pbsBatchParameters.estimatedCost(), 1e-3);
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
@@ -114,20 +116,20 @@ public class PbsBatchParametersTest {
     public void testSubtaskPerCoreOverride() {
         executionResources.setSubtasksPerCore(12.0);
         pbsBatchParameters.computeParameterValues(executionResources, 500);
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
         assertEquals("normal", pbsBatchParameters.getBatchQueue().getName());
-        assertEquals(9, pbsBatchParameters.nodeCount());
-        assertEquals(5, pbsBatchParameters.activeCores());
-        assertEquals(25.38, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(5, pbsBatchParameters.nodeCount());
+        assertEquals(10, pbsBatchParameters.activeCores());
+        assertEquals(19.80, pbsBatchParameters.estimatedCost(), 1e-3);
         assertEquals("6:00:00", pbsBatchParameters.getRequestedWallTime());
 
         executionResources.setSubtasksPerCore(6.0);
         pbsBatchParameters.computeParameterValues(executionResources, 500);
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
         assertEquals("normal", pbsBatchParameters.getBatchQueue().getName());
-        assertEquals(12, pbsBatchParameters.nodeCount());
-        assertEquals(5, pbsBatchParameters.activeCores());
-        assertEquals(25.38, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(6, pbsBatchParameters.nodeCount());
+        assertEquals(10, pbsBatchParameters.activeCores());
+        assertEquals(17.82, pbsBatchParameters.estimatedCost(), 1e-3);
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
@@ -140,7 +142,7 @@ public class PbsBatchParametersTest {
         assertEquals(500, pbsBatchParameters.nodeCount());
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
         assertEquals(1, pbsBatchParameters.activeCores());
-        assertEquals(1057.5, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(1485.0, pbsBatchParameters.estimatedCost(), 1e-3);
     }
 
     @Test
@@ -150,20 +152,20 @@ public class PbsBatchParametersTest {
         executionResources.setWallTimeScaling(true);
         pbsBatchParameters.computeParameterValues(executionResources, 500);
         assertEquals(500, pbsBatchParameters.nodeCount());
-        assertEquals("0:30:00", pbsBatchParameters.getRequestedWallTime());
+        assertEquals("0:15:00", pbsBatchParameters.getRequestedWallTime());
         assertEquals(1, pbsBatchParameters.activeCores());
-        assertEquals(117.5, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(82.5, pbsBatchParameters.estimatedCost(), 1e-3);
     }
 
     @Test
     public void testQueueOverride() {
         executionResources.setBatchQueue(batchQueueByName.get("long"));
         pbsBatchParameters.computeParameterValues(executionResources, 500);
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
         assertEquals("long", pbsBatchParameters.getBatchQueue().getName());
-        assertEquals(12, pbsBatchParameters.nodeCount());
-        assertEquals(5, pbsBatchParameters.activeCores());
-        assertEquals(25.38, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(6, pbsBatchParameters.nodeCount());
+        assertEquals(10, pbsBatchParameters.activeCores());
+        assertEquals(17.82, pbsBatchParameters.estimatedCost(), 1e-3);
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
@@ -175,10 +177,10 @@ public class PbsBatchParametersTest {
         assertEquals("R14950266", pbsBatchParameters.getBatchQueue().getName());
         assertTrue(pbsBatchParameters.getBatchQueue().isReserved());
         assertFalse(pbsBatchParameters.getBatchQueue().isAutoSelectable());
-        assertEquals(architectureByName.get("san"), pbsBatchParameters.getArchitecture());
-        assertEquals(12, pbsBatchParameters.nodeCount());
-        assertEquals(5, pbsBatchParameters.activeCores());
-        assertEquals(25.38, pbsBatchParameters.estimatedCost(), 1e-3);
+        assertEquals(architectureByName.get(ARCHITECTURE), pbsBatchParameters.getArchitecture());
+        assertEquals(6, pbsBatchParameters.nodeCount());
+        assertEquals(10, pbsBatchParameters.activeCores());
+        assertEquals(17.82, pbsBatchParameters.estimatedCost(), 1e-3);
         assertEquals("4:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
@@ -196,7 +198,7 @@ public class PbsBatchParametersTest {
 
     @Test(expected = IllegalStateException.class)
     public void testBadArchitectureOverride() {
-        executionResources.setGigsPerSubtask(1000);
+        executionResources.setSubtaskRamGigabytes(1000);
         pbsBatchParameters.computeParameterValues(executionResources, 500);
     }
 
@@ -209,7 +211,7 @@ public class PbsBatchParametersTest {
         executionResources.setMaxNodes(5);
         executionResources.setSubtaskMaxWallTimeHours(0.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
-        executionResources.setGigsPerSubtask(2.0);
+        executionResources.setSubtaskRamGigabytes(2.0);
         pbsBatchParameters.computeParameterValues(executionResources, 50);
         assertEquals("low", pbsBatchParameters.getBatchQueue().getName());
         assertEquals("0:30:00", pbsBatchParameters.getRequestedWallTime());
@@ -217,17 +219,17 @@ public class PbsBatchParametersTest {
 
     @Test
     public void testWallTimeFromTypicalWallTime() {
-        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskRamGigabytes(4);
         executionResources.setSubtaskMaxWallTimeHours(0.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
         executionResources.setMaxNodes(3);
         pbsBatchParameters.computeParameterValues(executionResources, 100);
-        assertEquals("2:30:00", pbsBatchParameters.getRequestedWallTime());
+        assertEquals("1:30:00", pbsBatchParameters.getRequestedWallTime());
     }
 
     @Test
     public void testWallTimeFromMaxTime() {
-        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskRamGigabytes(4);
         executionResources.setSubtaskMaxWallTimeHours(3.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
         executionResources.setMaxNodes(3);
@@ -237,25 +239,25 @@ public class PbsBatchParametersTest {
 
     @Test
     public void testScaledWallTimeFromTypical() {
-        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskRamGigabytes(4);
         executionResources.setSubtaskMaxWallTimeHours(0.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
         executionResources.setMaxNodes(3);
         executionResources.setNodeSharing(false);
         executionResources.setWallTimeScaling(true);
         pbsBatchParameters.computeParameterValues(executionResources, 100);
-        assertEquals("1:15:00", pbsBatchParameters.getRequestedWallTime());
+        assertEquals("1:00:00", pbsBatchParameters.getRequestedWallTime());
     }
 
     @Test
     public void testScaledWallTimeFromMax() {
-        executionResources.setGigsPerSubtask(4);
+        executionResources.setSubtaskRamGigabytes(4);
         executionResources.setSubtaskMaxWallTimeHours(4.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.05);
         executionResources.setMaxNodes(3);
         executionResources.setNodeSharing(false);
         executionResources.setWallTimeScaling(true);
         pbsBatchParameters.computeParameterValues(executionResources, 100);
-        assertEquals("0:30:00", pbsBatchParameters.getRequestedWallTime());
+        assertEquals("0:15:00", pbsBatchParameters.getRequestedWallTime());
     }
 }

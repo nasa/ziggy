@@ -9,7 +9,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +45,6 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
-import gov.nasa.ziggy.pipeline.step.PipelineStepExecutionResources;
 import gov.nasa.ziggy.pipeline.step.remote.Architecture;
 import gov.nasa.ziggy.pipeline.step.remote.BatchQueue;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
@@ -59,6 +57,8 @@ import gov.nasa.ziggy.services.events.ZiggyEventOperations;
 import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
  * Implements unit tests for the {@link PipelineDefinitionImporter} class. Because of the complexity
@@ -71,6 +71,7 @@ public class PipelineDefinitionImporterTest {
     private Path dataTypeDefinitionFile;
     private Path pipelineUpdateFile;
     private Path pipelineDefinitionOnlyFile;
+    private Path dataReceiptTestFile;
 
     @Rule
     public ZiggyDatabaseRule databaseRule = new ZiggyDatabaseRule();
@@ -98,6 +99,10 @@ public class PipelineDefinitionImporterTest {
         dataTypeDefinitionFile = TEST_DATA.resolve("pt-hyperion.xml");
         parameterSetFile = TEST_DATA.resolve("pl-hyperion.xml");
         pipelineDefinitionOnlyFile = TEST_DATA.resolve("pd-hyperion-pipeline-only.xml");
+        WorkerResources workerResources = new WorkerResources(1, 1);
+        workerResources.setDefaultInstance(true);
+        new WorkerResourcesOperations().merge(workerResources);
+        dataReceiptTestFile = TEST_DATA.resolve("data-receipt-test.xml");
     }
 
     @Test(expected = PipelineException.class)
@@ -129,7 +134,6 @@ public class PipelineDefinitionImporterTest {
             .collect(Collectors.toSet());
         assertTrue(pipelineStepNames.contains("level0"));
         assertTrue(pipelineStepNames.contains("level1"));
-        verifyHyperionPipelineSteps(pipelineSteps);
 
         verifyParameterSets();
 
@@ -172,9 +176,6 @@ public class PipelineDefinitionImporterTest {
         assertTrue(pipelineStepByName.containsKey("level0"));
         assertTrue(pipelineStepByName.containsKey("level1"));
         assertTrue(pipelineStepByName.containsKey("level3"));
-        verifyHyperionPipelineSteps(
-            List.of(pipelineStepByName.get("level0"), pipelineStepByName.get("level1")));
-        verifyLevel3PipelineStep(pipelineStepByName.get("level3"));
         for (PipelineStep pipelineStep : pipelineStepByName.values()) {
             assertEquals(0, pipelineStep.getVersion());
             assertFalse(pipelineStep.isLocked());
@@ -276,9 +277,6 @@ public class PipelineDefinitionImporterTest {
         assertTrue(pipelineStepByName.containsKey("level0"));
         assertTrue(pipelineStepByName.containsKey("level1"));
         assertTrue(pipelineStepByName.containsKey("level3"));
-        verifyHyperionPipelineSteps(List.of(pipelineStepByName.get("level1")));
-        verifyLevel3PipelineStep(pipelineStepByName.get("level3"));
-        verifyUpdatedLevel0PipelineStep(pipelineStepByName.get("level0"));
         for (PipelineStep pipelineStep : pipelineStepByName.values()) {
             assertEquals(0, pipelineStep.getVersion());
             assertFalse(pipelineStep.isLocked());
@@ -385,9 +383,6 @@ public class PipelineDefinitionImporterTest {
         assertTrue(pipelineStepByName.containsKey("level0"));
         assertTrue(pipelineStepByName.containsKey("level1"));
         assertTrue(pipelineStepByName.containsKey("level3"));
-        verifyHyperionPipelineSteps(List.of(pipelineStepByName.get("level1")));
-        verifyLevel3PipelineStep(pipelineStepByName.get("level3"));
-        verifyUpdatedLevel0PipelineStep(pipelineStepByName.get("level0"));
         assertFalse(pipelineStepByName.get("level0").isLocked());
         assertEquals(1, pipelineStepByName.get("level0").getVersion());
         assertTrue(pipelineStepByName.get("level1").isLocked());
@@ -526,6 +521,23 @@ public class PipelineDefinitionImporterTest {
         verifyParsing("1  ,  2", new String[] { "1", "2" });
     }
 
+    @Test
+    public void testImportDataReceiptNode() {
+        PipelineOperations pipelineOperations = new PipelineOperations();
+        PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
+        pipelineStepOperations.createDataReceiptPipelineStep();
+        new PipelineDefinitionImporter(List.of(dataReceiptTestFile)).importPipelineDefinitions();
+
+        List<Pipeline> pipelines = pipelineOperations.allPipelines();
+        assertEquals(1, pipelines.size());
+        Pipeline pipeline = pipelines.get(0);
+        assertEquals(1, pipeline.getRootNodes().size());
+        PipelineNode pipelineNode = pipeline.getRootNodes().get(0);
+        assertEquals("data-receipt", pipelineNode.getPipelineStepName());
+        assertTrue(pipelineNode.getSingleSubtask());
+        assertTrue(pipelineNode.getNextNodes().isEmpty());
+    }
+
     private void verifyParsing(String value, String[] elements) {
         List<String> expected = ImmutableList.copyOf(elements);
         List<String> actual = ZiggyStringUtils.splitStringAtCommas(value);
@@ -601,16 +613,6 @@ public class PipelineDefinitionImporterTest {
         assertTrue(eventHandlerNames.contains("another-event-handler"));
     }
 
-    private void verifyHyperionPipelineSteps(Collection<PipelineStep> pipelineSteps) {
-        PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
-        for (PipelineStep pipelineStep : pipelineSteps) {
-            PipelineStepExecutionResources resources = pipelineStepOperations
-                .pipelineStepExecutionResources(pipelineStep);
-            assertEquals(2000000, resources.getExeTimeoutSeconds());
-            assertEquals(0, resources.getMinMemoryMegabytes());
-        }
-    }
-
     private void verifyGenuinelyNewPipeline(Pipeline pipeline) {
         PipelineNodeOperations nodeOperations = new PipelineNodeOperations();
         List<PipelineNode> pipelineNodes = pipeline.getRootNodes();
@@ -627,13 +629,6 @@ public class PipelineDefinitionImporterTest {
         assertEquals(1, parameterSetNames.size());
         assertEquals("New Remote Hyperion L0", parameterSetNames.iterator().next());
         assertTrue(CollectionUtils.isEmpty(pipelineNode.getNextNodes()));
-    }
-
-    private void verifyLevel3PipelineStep(PipelineStep pipelineStep) {
-        PipelineStepExecutionResources resources = new PipelineStepOperations()
-            .pipelineStepExecutionResources(pipelineStep);
-        assertEquals(1000000, resources.getExeTimeoutSeconds());
-        assertEquals(10, resources.getMinMemoryMegabytes());
     }
 
     private void verifyUpdatedHyperionPipeline(Pipeline pipeline) {
@@ -800,12 +795,5 @@ public class PipelineDefinitionImporterTest {
             queueByName.put(queue.getName(), queue);
         }
         return queueByName;
-    }
-
-    private void verifyUpdatedLevel0PipelineStep(PipelineStep pipelineStep) {
-        PipelineStepExecutionResources resources = new PipelineStepOperations()
-            .pipelineStepExecutionResources(pipelineStep);
-        assertEquals(200000, resources.getExeTimeoutSeconds());
-        assertEquals(1, resources.getMinMemoryMegabytes());
     }
 }

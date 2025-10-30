@@ -1,5 +1,5 @@
 test {
-    systemProperty "java.library.path", "$outsideDir/lib"
+    systemProperty "java.library.path", "$buildDir/lib"
     maxHeapSize = "1024m"
 
     // Avoid the warning "OpenJDK 64-Bit Server VM warning: Sharing is
@@ -29,13 +29,13 @@ test {
 }
 
 // Execute tests marked with @Category(IntegrationTestCategory.class).
-task integrationTest(type: Test) {
+task integrationTest(type: Test, dependsOn: copyLibs) {
     testClassesDirs = testing.suites.test.sources.output.classesDirs
     classpath = testing.suites.test.sources.runtimeClasspath
 
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
     systemProperty "ziggy.logfile", "$buildDir/build.log"
-    systemProperty "java.library.path", "$outsideDir/lib"
+    systemProperty "java.library.path", "$buildDir/lib"
 
     testLogging {
         events "failed", "skipped"
@@ -54,13 +54,13 @@ check.dependsOn integrationTest
 cleanTest.dependsOn cleanIntegrationTest
 
 // Execute tests marked with @Category(FlakyTestCategory.class).
-task flakyTest(type: Test) {
+task flakyTest(type: Test, dependsOn: copyLibs) {
     testClassesDirs = testing.suites.test.sources.output.classesDirs
     classpath = testing.suites.test.sources.runtimeClasspath
 
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
     systemProperty "ziggy.logfile", "$buildDir/build.log"
-    systemProperty "java.library.path", "$outsideDir/lib"
+    systemProperty "java.library.path", "$buildDir/lib"
 
     useJUnit {
         includeCategories 'gov.nasa.ziggy.FlakyTestCategory'
@@ -76,13 +76,13 @@ cleanTest.dependsOn cleanFlakyTest
 // These tests are typically run explicitly with the --tests option
 // since they don't play well with others. For example:
 // gradle runByNameTests --tests *RmiInterProcessCommunicationTest
-task runByNameTest(type: Test) {
+task runByNameTest(type: Test, dependsOn: copyLibs) {
     testClassesDirs = testing.suites.test.sources.output.classesDirs
     classpath = testing.suites.test.sources.runtimeClasspath
 
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
     systemProperty "ziggy.logfile", "$buildDir/build.log"
-    systemProperty "java.library.path", "$outsideDir/lib"
+    systemProperty "java.library.path", "$buildDir/lib"
 
     useJUnit {
         includeCategories 'gov.nasa.ziggy.RunByNameTestCategory'

@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.HeartbeatCheckMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiServer;
 import gov.nasa.ziggy.ui.ClusterController;
@@ -33,8 +32,6 @@ public class ProcessesStatusPanel extends JPanel {
     public static final String SUPERVISOR_ERROR_MESSAGE = "Supervisor process has failed";
     public static final String DATABASE_ERROR_MESSAGE = "Database process has failed";
 
-    private static ProcessesStatusPanel instance;
-
     private Indicator supervisorIndicator;
     private Indicator databaseIndicator;
     private Indicator messagingIndicator;
@@ -54,6 +51,7 @@ public class ProcessesStatusPanel extends JPanel {
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
 
         supervisorIndicator = createIndicator("Supervisor", "Supervisor is running", null);
+        addWorkerDataComponents(null);
 
         messagingIndicator = createIndicator("Messaging", "Messaging status: good", null);
         messagingIndicator.addDataComponent(new LabelValue("Type", "RMI"));
@@ -107,7 +105,6 @@ public class ProcessesStatusPanel extends JPanel {
     }
 
     private void performHeartbeatChecks(HeartbeatCheckMessage message) {
-
         if (clusterController.isDatabaseAvailable()) {
             databaseIndicator.setState(Indicator.State.NORMAL);
         } else {
@@ -131,18 +128,7 @@ public class ProcessesStatusPanel extends JPanel {
         }
     }
 
-    private static boolean monitoringDatabase() {
-        return ZiggyConfiguration.getInstance()
-            .getString(PropertyName.DATABASE_SOFTWARE.property(), null) != null;
-    }
-
-    public void addWorkerDataComponents(WorkerResourcesMessage workerResourcesMessage) {
-        if (workerResourcesMessage.getResources() == null) {
-            return;
-        }
-        WorkerResources workerResources = workerResourcesMessage.getResources();
-        log.debug("Resource values returned: threads {}, heap size {} MB",
-            workerResources.getMaxWorkerCount(), workerResources.getHeapSizeMb());
+    private void addWorkerDataComponents(WorkerResourcesMessage workerResourcesMessage) {
         SwingUtilities.invokeLater(() -> {
             if (workerLabel != null) {
                 supervisorIndicator.removeDataComponent(workerLabel);
@@ -150,31 +136,20 @@ public class ProcessesStatusPanel extends JPanel {
             if (heapSizeLabel != null) {
                 supervisorIndicator.removeDataComponent(heapSizeLabel);
             }
+            WorkerResources workerResources = workerResourcesMessage == null
+                ? new WorkerResources(0, 0F)
+                : workerResourcesMessage.getWorkerResources();
             workerLabel = new LabelValue("Workers",
                 Integer.toString(workerResources.getMaxWorkerCount()));
             heapSizeLabel = new LabelValue("Worker Heap Size",
                 workerResources.humanReadableHeapSize().toString());
-            supervisorIndicator().addDataComponent(workerLabel);
-            supervisorIndicator().addDataComponent(heapSizeLabel);
+            supervisorIndicator.addDataComponent(workerLabel);
+            supervisorIndicator.addDataComponent(heapSizeLabel);
         });
     }
 
-    public static Indicator supervisorIndicator() {
-        return getInstance().supervisorIndicator;
-    }
-
-    public static Indicator databaseIndicator() {
-        return monitoringDatabase() ? getInstance().databaseIndicator : null;
-    }
-
-    public static Indicator messagingIndicator() {
-        return getInstance().messagingIndicator;
-    }
-
-    public static synchronized ProcessesStatusPanel getInstance() {
-        if (instance == null) {
-            instance = new ProcessesStatusPanel();
-        }
-        return instance;
+    private static boolean monitoringDatabase() {
+        return ZiggyConfiguration.getInstance()
+            .getString(PropertyName.DATABASE_SOFTWARE.property(), null) != null;
     }
 }

@@ -1,10 +1,5 @@
 package gov.nasa.ziggy.pipeline.step;
 
-import java.io.BufferedWriter;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -19,10 +14,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteAlgorithmExecutor;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskUtils;
-import gov.nasa.ziggy.services.config.DirectoryProperties;
-import gov.nasa.ziggy.util.AcceptableCatchBlock;
-import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
-import gov.nasa.ziggy.util.io.ZiggyFileUtils;;
+import gov.nasa.ziggy.services.config.DirectoryProperties;;
 
 /**
  * Superclass for algorithm execution. This includes local execution via the
@@ -96,24 +88,8 @@ public abstract class AlgorithmExecutor {
         return new RemoteAlgorithmExecutor(pipelineTask);
     }
 
-    /**
-     * Submits the {@link PipelineTask} for execution. This follows a somewhat different code path
-     * depending on whether the submission is the original submission or a resubmission. In the
-     * event of a resubmission, there is no {@link TaskConfiguration} argument required because
-     * subtask counts can be obtained from the database.
-     *
-     * @param inputsHandler Will be null for resubmission.
-     */
-    public void submitAlgorithm(TaskConfiguration inputsHandler) {
-
-        if (inputsHandler != null) { // indicates initial submission
-            log.info("Processing initial submission of task {}", pipelineTask);
-            int numSubtasks = inputsHandler.getSubtaskCount();
-            pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask, numSubtasks, -1, -1);
-        }
-
-        writeActiveCoresFile();
-        writeWallTimeFile();
+    /** Submits the {@link PipelineTask} for execution. */
+    public void submitAlgorithm() {
 
         IntervalMetric.measure(PipelineMetrics.SEND_METRIC, () -> {
             log.info("Submitting task for execution (taskId={})", pipelineTask);
@@ -131,22 +107,13 @@ public abstract class AlgorithmExecutor {
         });
     }
 
-    /** Writes the number of active cores per node to a file in the task directory. */
-    private void writeActiveCoresFile() {
-        writeActiveCoresFile(workingDir(), activeCores());
-    }
-
-    private void writeWallTimeFile() {
-        writeWallTimeFile(workingDir(), wallTime());
-    }
-
     protected abstract void addToMonitor();
 
     protected abstract void submitForExecution();
 
-    protected abstract String activeCores();
+    public abstract int activeCores();
 
-    protected abstract String wallTime();
+    public abstract int wallTime();
 
     protected Path algorithmLogDir() {
         return DirectoryProperties.algorithmLogsDir();
@@ -170,31 +137,5 @@ public abstract class AlgorithmExecutor {
 
     protected PipelineTaskDataOperations pipelineTaskDataOperations() {
         return pipelineTaskDataOperations;
-    }
-
-    // Broken out for use in ComputeNodeMaster unit tests.
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    static void writeActiveCoresFile(Path taskDir, String activeCoresPerNode) {
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
-            new FileOutputStream(taskDir.resolve(ACTIVE_CORES_FILE_NAME).toFile()),
-            ZiggyFileUtils.ZIGGY_CHARSET))) {
-            writer.write(activeCoresPerNode);
-            writer.newLine();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    // Broken out for use in ComputeNodeMaster unit tests.
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    static void writeWallTimeFile(Path taskDir, String wallTime) {
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
-            new FileOutputStream(taskDir.resolve(WALL_TIME_FILE_NAME).toFile()),
-            ZiggyFileUtils.ZIGGY_CHARSET))) {
-            writer.write(wallTime);
-            writer.newLine();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 }

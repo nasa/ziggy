@@ -70,6 +70,10 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
             () -> pipelineInstanceNodeCrud().retrieve(pipelineInstanceNodeId));
     }
 
+    public PipelineInstanceNode pipelineInstanceNode(PipelineTask pipelineTask) {
+        return performTransaction(() -> pipelineInstanceNodeCrud().retrieve(pipelineTask));
+    }
+
     public List<PipelineInstanceNode> pipelineInstanceNodes(PipelineInstance pipelineInstance) {
         return performTransaction(() -> pipelineInstanceNodeCrud().retrieveAll(pipelineInstance));
     }

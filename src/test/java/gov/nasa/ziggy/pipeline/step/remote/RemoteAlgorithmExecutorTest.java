@@ -125,6 +125,8 @@ public class RemoteAlgorithmExecutorTest {
             .thenReturn(new HashSet<>());
         assertFalse(remoteAlgorithmExecutor.resumeMonitoring());
         assertTrue(CollectionUtils.isEmpty(remoteAlgorithmExecutor.getRemoteJobsInformation()));
+        assertTrue(
+            CollectionUtils.isEmpty(remoteAlgorithmExecutor.getRemoteJobsMarkedAsFinished()));
     }
 
     @Test
@@ -133,6 +135,33 @@ public class RemoteAlgorithmExecutorTest {
             .thenReturn(Set.of(completeRemoteJob));
         assertFalse(remoteAlgorithmExecutor.resumeMonitoring());
         assertTrue(CollectionUtils.isEmpty(remoteAlgorithmExecutor.getRemoteJobsInformation()));
+        assertTrue(
+            CollectionUtils.isEmpty(remoteAlgorithmExecutor.getRemoteJobsMarkedAsFinished()));
+    }
+
+    @Test
+    public void testResumeMonitoringJobFinished() {
+        Mockito.when(pipelineTaskDataOperations.remoteJobs(pipelineTask))
+            .thenReturn(Set.of(incompleteRemoteJob));
+        Mockito.when(batchManager.isFinished(incompleteRemoteJob)).thenReturn(true);
+        assertFalse(remoteAlgorithmExecutor.resumeMonitoring());
+        assertTrue(CollectionUtils.isEmpty(remoteAlgorithmExecutor.getRemoteJobsInformation()));
+        assertEquals(incompleteRemoteJob,
+            remoteAlgorithmExecutor.getRemoteJobsMarkedAsFinished().get(0));
+        assertEquals(1, remoteAlgorithmExecutor.getRemoteJobsMarkedAsFinished().size());
+    }
+
+    @Test
+    public void testResumeMonitoringJobLongGone() {
+        Mockito.when(pipelineTaskDataOperations.remoteJobs(pipelineTask))
+            .thenReturn(Set.of(incompleteRemoteJob));
+        Mockito.when(batchManager.isFinished(incompleteRemoteJob)).thenReturn(false);
+        Mockito.when(batchManager.remoteJobInformation(incompleteRemoteJob)).thenReturn(null);
+        assertFalse(remoteAlgorithmExecutor.resumeMonitoring());
+        assertTrue(CollectionUtils.isEmpty(remoteAlgorithmExecutor.getRemoteJobsInformation()));
+        assertEquals(incompleteRemoteJob,
+            remoteAlgorithmExecutor.getRemoteJobsMarkedAsFinished().get(0));
+        assertEquals(1, remoteAlgorithmExecutor.getRemoteJobsMarkedAsFinished().size());
     }
 
     @Test
@@ -149,20 +178,26 @@ public class RemoteAlgorithmExecutorTest {
         assertEquals("test1", remoteJobInformation.getLogFile());
         assertEquals("test2", remoteJobInformation.getJobName());
         assertEquals(1234568L, remoteJobInformation.getJobId());
+        assertTrue(
+            CollectionUtils.isEmpty(remoteAlgorithmExecutor.getRemoteJobsMarkedAsFinished()));
     }
 
     /** Subclass of {@link RemoteAlgorithmExecutor} used in testing. */
     private class RemoteAlgorithmExecutorForTest extends RemoteAlgorithmExecutor {
 
         private MonitorAlgorithmRequest monitorAlgorithmRequest;
+        private List<RemoteJob> remoteJobsMarkedAsFinished = new ArrayList<>();
 
         public RemoteAlgorithmExecutorForTest(PipelineTask pipelineTask) {
             super(pipelineTask);
         }
 
+        public List<RemoteJob> getRemoteJobsMarkedAsFinished() {
+            return remoteJobsMarkedAsFinished;
+        }
+
         @Override
         protected void addToMonitor() {
-            super.addToMonitor();
             monitorAlgorithmRequest = monitorAlgorithmRequest();
         }
 
@@ -199,6 +234,11 @@ public class RemoteAlgorithmExecutorTest {
         @Override
         protected Path workingDir() {
             return Paths.get("/path/to/task/dir");
+        }
+
+        @Override
+        protected void markRemoteJobFinished(RemoteJob remoteJob) {
+            remoteJobsMarkedAsFinished.add(remoteJob);
         }
     }
 }

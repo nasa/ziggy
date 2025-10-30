@@ -53,8 +53,7 @@ public class StatusPanel extends javax.swing.JPanel {
     public enum ContentItem {
         PIPELINES("Pipelines", ContentMenu::createPipelinesIndicator, PipelinesStatusPanel::new),
         WORKERS("Workers", ContentMenu::createWorkersIndicator, WorkerStatusPanel::new),
-        PROCESSES("Processes", ContentMenu::createProcessesIndicator,
-            ProcessesStatusPanel::getInstance),
+        PROCESSES("Processes", ContentMenu::createProcessesIndicator, ProcessesStatusPanel::new),
         ALERTS("Alerts", ContentMenu::createAlertsIndicator, AlertsStatusPanel::new);
 
         private String label;

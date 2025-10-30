@@ -94,9 +94,7 @@ public class Hdf5AlgorithmInterface {
      */
     static void testForUnclosedHdf5Objects(long fileId) {
         long nOpen = H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_ALL);
-        if (nOpen == 1) {
-            log.info("No unclosed HDF5 objects detected");
-        } else {
+        if (nOpen > 1) {
             log.warn("Detected {} unclosed HDF5 objects", nOpen - 1);
             log.warn("    {} unclosed groups",
                 H5.H5Fget_obj_count(fileId, HDF5Constants.H5F_OBJ_GROUP));

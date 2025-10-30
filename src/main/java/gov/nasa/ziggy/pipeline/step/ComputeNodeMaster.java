@@ -34,12 +34,7 @@
 
 package gov.nasa.ziggy.pipeline.step;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UncheckedIOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -55,14 +50,12 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.AlgorithmState;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskMaster;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskServer;
-import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.logging.ZiggyLog;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.HostNameUtils;
-import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Acts as a controller for a single-node remote job and associated subtasks running on the node.
@@ -95,7 +88,7 @@ public class ComputeNodeMaster {
 
     private Set<SubtaskMaster> subtaskMasters = new HashSet<>();
 
-    private TaskConfiguration inputsHandler;
+    private TaskConfiguration taskConfiguration;
 
     public ComputeNodeMaster(String workingDir) {
         this.workingDir = workingDir;
@@ -122,7 +115,7 @@ public class ComputeNodeMaster {
             BuildInfo.pipelineVersion());
         ZiggyConfiguration.logJvmProperties();
 
-        coresPerNode = activeCoresFromFile();
+        coresPerNode = getTaskConfiguration().getActiveCores();
 
         subtaskServer().start();
         createTimestamps();
@@ -137,19 +130,6 @@ public class ComputeNodeMaster {
         TimestampFile.create(taskDir, TimestampFile.Event.START);
     }
 
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    private int activeCoresFromFile() {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-            new FileInputStream(
-                taskDir.toPath().resolve(AlgorithmExecutor.ACTIVE_CORES_FILE_NAME).toFile()),
-            ZiggyFileUtils.ZIGGY_CHARSET))) {
-            String fileText = reader.readLine();
-            return Integer.parseInt(fileText);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     /**
      * Starts the {@link SubtaskMaster} instances in the threads of a thread pool, one thread per
      * active cores on this node. A {@link CountDownLatch} is used to track the number of
@@ -158,31 +138,18 @@ public class ComputeNodeMaster {
     @AcceptableCatchBlock(rationale = Rationale.CAN_NEVER_OCCUR)
     private void startSubtaskMasters() {
 
-        int timeoutSecs = wallTimeFromFile();
+        int timeoutSecs = getTaskConfiguration().getRequestedTimeSeconds();
+        String executableName = getTaskConfiguration().getExecutableName();
         subtaskMasterCountdownLatch = new CountDownLatch(coresPerNode);
         threadPool = subtaskMasterThreadPool();
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SubtaskMaster[%d]")
             .build();
-        String executableName = ZiggyConfiguration.getInstance()
-            .getString(PropertyName.ZIGGY_ALGORITHM_NAME.property());
         for (int i = 0; i < coresPerNode; i++) {
             SubtaskMaster subtaskMaster = new SubtaskMaster(i, nodeName,
-                subtaskMasterCountdownLatch, executableName, workingDir, timeoutSecs);
+                subtaskMasterCountdownLatch, executableName, workingDir, timeoutSecs,
+                getTaskConfiguration().getHeapSizeGigabytes(), getTaskConfiguration());
             subtaskMasters.add(subtaskMaster);
             threadPool.submit(subtaskMaster, threadFactory);
-        }
-    }
-
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    private int wallTimeFromFile() {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-            new FileInputStream(
-                taskDir.toPath().resolve(AlgorithmExecutor.WALL_TIME_FILE_NAME).toFile()),
-            ZiggyFileUtils.ZIGGY_CHARSET))) {
-            String fileText = reader.readLine();
-            return Integer.parseInt(fileText);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 
@@ -224,10 +191,10 @@ public class ComputeNodeMaster {
      * with a mocked instance.
      */
     TaskConfiguration getTaskConfiguration() {
-        if (inputsHandler == null) {
-            inputsHandler = TaskConfiguration.deserialize(taskDir);
+        if (taskConfiguration == null) {
+            taskConfiguration = TaskConfiguration.deserialize(taskDir);
         }
-        return inputsHandler;
+        return taskConfiguration;
     }
 
     /**

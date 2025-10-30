@@ -197,6 +197,15 @@ public class PipelineInstanceNodeOperationsTest {
     }
 
     @Test
+    public void testPipelineInstanceNodePipelineTask() {
+        setUpSingleNodePipeline();
+        assertEquals(pipelineInstanceNode,
+            pipelineInstanceNodeOperations.pipelineInstanceNode(task1));
+        assertEquals(pipelineInstanceNode,
+            pipelineInstanceNodeOperations.pipelineInstanceNode(task2));
+    }
+
+    @Test
     public void testInputDataFileTypes() {
         PipelineOperationsTestUtils pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
         pipelineOperationsTestUtils.setUpSingleNodePipeline();

@@ -2,46 +2,45 @@
 
 ext.wrapperVersion = "3.5.54"
 
-task buildWrapper() {
-    def tmp = file("$outsideDir/tmp/wrapper")
-    def bin = file("$outsideDir/bin")
-    def lib = file("$outsideDir/lib")
-    def format = ""
-    def libSuffixOriginal = ""
-    def libSuffixFinal = ""
+def tmp = file("$outsideDir/wrapper")
+def bin = file("$buildDir/bin")
+def lib = file("$buildDir/lib")
+def libs = file("$buildDir/libs")
 
-    // There's a peculiar problem with wrapper, to wit: The Mac OS
-    // "universal" tarball ships with a shared object that has suffix
-    // .jnilib . The M1 tarball ships with a shared object with
-    // .dylib. Meanwhile, it seems that at least some JVM
-    // implementations no longer accept the .jnilib suffix, and the
-    // suggested fix (per the internet) is to rename them to have the
-    // .dylib suffix. As far as can be tested, the following formalism
-    // will address all these issues correctly.
-    String opSys = System.getProperty("os.name").toLowerCase();
-    String arch = System.getProperty("os.arch").toLowerCase();
-    if (opSys.contains("linux")) {
-        format = "linux-x86-64"
-        libSuffixOriginal = "so"
-        libSuffixFinal = "so"
-    } else if (opSys.contains("mac")) {
-        if (arch.contains("aarch")) {
-            format = "macosx-arm-64"
-            libSuffixOriginal = "dylib"
-            libSuffixFinal = "dylib"
-        } else {
-            format = "macosx-universal-64"
-            libSuffixOriginal = "jnilib"
-            libSuffixFinal = "dylib"
-        }
+// There's a peculiar problem with wrapper, to wit: The Mac OS
+// "universal" tarball ships with a shared object that has suffix
+// .jnilib . The M1 tarball ships with a shared object with
+// .dylib. Meanwhile, it seems that at least some JVM
+// implementations no longer accept the .jnilib suffix, and the
+// suggested fix (per the internet) is to rename them to have the
+// .dylib suffix. As far as can be tested, the following formalism
+// will address all these issues correctly.
+def format = ""
+def libSuffixOriginal = ""
+def libSuffixFinal = ""
+String opSys = System.getProperty("os.name").toLowerCase();
+String arch = System.getProperty("os.arch").toLowerCase();
+if (opSys.contains("linux")) {
+    format = "linux-x86-64"
+    libSuffixOriginal = "so"
+    libSuffixFinal = "so"
+} else if (opSys.contains("mac")) {
+    if (arch.contains("aarch")) {
+        format = "macosx-arm-64"
+        libSuffixOriginal = "dylib"
+        libSuffixFinal = "dylib"
+    } else {
+        format = "macosx-universal-64"
+        libSuffixOriginal = "jnilib"
+        libSuffixFinal = "dylib"
     }
-    def wrapperBaseName = "wrapper-$format-$wrapperVersion"
-    def wrapperDir = file("$tmp/$wrapperBaseName")
-    def wrapperLib = "libwrapper.$libSuffixOriginal"
+}
+def wrapperBaseName = "wrapper-$format-$wrapperVersion"
+def wrapperDir = file("$tmp/$wrapperBaseName")
+def wrapperLib = "libwrapper.$libSuffixOriginal"
 
-    outputs.file "$bin/wrapper"
-    outputs.file "$lib/$wrapperLib.$libSuffixFinal"
-    outputs.file "$lib/wrapper.jar"
+task buildWrapper() {
+    outputs.file "$wrapperDir/bin/wrapper"
 
     doLast() {
         tmp.mkdirs()
@@ -56,48 +55,38 @@ task buildWrapper() {
             workingDir tmp
             commandLine "tar", "-xf", "wrapper-${wrapperVersion}.tar.gz"
         }.result.get()
+    }
+}
 
+task copyWrapper(dependsOn: buildWrapper) {
+    outputs.file "$bin/wrapper"
+    outputs.file "$lib/$wrapperLib.$libSuffixFinal"
+    outputs.file "$libs/wrapper-${wrapperVersion}.jar"
+
+    doLast() {
         copy {
             from("$wrapperDir/bin") {
                 include "wrapper"
             }
-            into "$bin"
+            into bin
         }
 
         copy {
             from("$wrapperDir/lib") {
-                include "$wrapperLib", "wrapper.jar"
+                include "$wrapperLib"
             }
-            into "$lib"
+            into lib
             rename ("$wrapperLib", "libwrapper.$libSuffixFinal")
+        }
+
+        copy {
+            from("$wrapperDir/lib") {
+                include "wrapper.jar"
+            }
+            into libs
             rename ("wrapper.jar", "wrapper-${wrapperVersion}.jar")
         }
     }
 }
 
-task copyWrapper(type: Copy, dependsOn: buildWrapper) {
-    from(file("$outsideDir/bin")) {
-        include "wrapper"
-    }
-    into "$buildDir/bin"
-}
-
-assemble.dependsOn copyWrapper
-
-task copyWrapperLib(type: Copy, dependsOn: buildWrapper) {
-    from(file("$outsideDir/lib")) {
-        include "libwrapper.*"
-    }
-    into "$buildDir/lib"
-}
-
-assemble.dependsOn copyWrapperLib
-
-task copyWrapperLibs(type: Copy, dependsOn: buildWrapper) {
-    from(file("$outsideDir/lib")) {
-        include "wrapper-*.jar"
-    }
-    into "$outsideGroupDir"
-}
-
-copyOutsideLibs.dependsOn copyWrapperLibs
+copyOutsideLibs.dependsOn copyWrapper

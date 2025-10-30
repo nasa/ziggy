@@ -46,14 +46,14 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
     private final int workerId;
     private final int workerCount;
-    private final int heapSizeMb;
+    private final float heapSizeGigabytes;
     private final PriorityBlockingQueue<TaskRequest> taskRequestQueue;
     private final UUID uuid = UUID.randomUUID();
 
     /** For testing only. */
     private final Set<TaskRequest> taskRequests = new TreeSet<>();
 
-    private final long pipelineNodeId;
+    private final long instanceNodeId;
     private final CountDownLatch taskRequestThreadCountdownLatch;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
@@ -63,14 +63,14 @@ public class TaskRequestHandler implements Runnable, Requestor {
     private volatile boolean blocked;
     private volatile boolean pipelineInstanceFinished;
 
-    public TaskRequestHandler(int workerId, int workerCount, int heapSizeMb,
-        PriorityBlockingQueue<TaskRequest> taskRequestQueue, long pipelineNodeId,
+    public TaskRequestHandler(int workerId, int workerCount, float heapSizeGigabytes,
+        PriorityBlockingQueue<TaskRequest> taskRequestQueue, long instanceNodeId,
         CountDownLatch taskRequestThreadCountdownLatch) {
         this.workerId = workerId;
         this.workerCount = workerCount;
-        this.heapSizeMb = heapSizeMb;
+        this.heapSizeGigabytes = heapSizeGigabytes;
         this.taskRequestQueue = taskRequestQueue;
-        this.pipelineNodeId = pipelineNodeId;
+        this.instanceNodeId = instanceNodeId;
         this.taskRequestThreadCountdownLatch = taskRequestThreadCountdownLatch;
     }
 
@@ -99,17 +99,17 @@ public class TaskRequestHandler implements Runnable, Requestor {
                 TaskRequest taskRequest = taskRequestQueue.take();
                 blocked = false;
 
-                // If the pipeline node ID has changed, it means that the next tasks
-                // in the queue belong to a different {@link PipelineNode}. The only way
+                // If the instance node ID has changed, it means that the next tasks
+                // in the queue belong to a different {@link PipelineInstanceNode}. The only way
                 // that this can happen is if multiple pipelines are executing simultaneously and
-                // one of them has queued up tasks for a new pipeline node and the others
+                // one of them has queued up tasks for a new instance node and the others
                 // have not. Given that the node for the new task requests may need a different
                 // number of workers, all the TaskRequestHandlers should shut down when they see
                 // that this has happened.
-                if (taskRequest.getPipelineNodeId() != pipelineNodeId) {
+                if (taskRequest.getInstanceNodeId() != instanceNodeId) {
                     log.info(
-                        "Transitioning to pipeline node {} so shutting down task request handler",
-                        taskRequest.getPipelineNodeId());
+                        "Transitioning from pipeline instance node {} to pipeline instance node {} so shutting down task request handler",
+                        instanceNodeId, taskRequest.getInstanceNodeId());
 
                     // Also, in this case, the task has to be put back onto the queue.
                     taskRequestQueue.put(taskRequest);
@@ -270,11 +270,14 @@ public class TaskRequestHandler implements Runnable, Requestor {
         commandLine.addArgument(ZiggyLog.log4jConfigString());
         commandLine.addArgument(ExternalProcessUtils.javaLibraryPath());
 
-        int processHeapSizeMb = Math.round((float) heapSizeMb / workerCount);
-        commandLine.addArgument("-Xmx" + Integer.toString(processHeapSizeMb) + "M");
+        int processHeapSizeGigabytes = Math.round(heapSizeGigabytes / workerCount);
+        commandLine.addArgument("-Xmx" + Integer.toString(processHeapSizeGigabytes) + "G");
         PipelineTask pipelineTask = taskRequest.getPipelineTask();
         commandLine.addArgument(ZiggyLog.ziggyLogFileSystemProperty(pipelineTask));
         commandLine.addArgument(ZiggyLog.singleFileAppenderSystemProperty());
+//        commandLine.addArgument("-Dhibernate.show_sql=true");
+//        commandLine.addArgument("-Dhibernate.format_sql=true");
+//        commandLine.addArgument("-Dhibernate.use_sql_comments=true");
         // Now for the worker process fully qualified class name
         commandLine.addArgument("--class=" + PipelineWorker.class.getName());
 

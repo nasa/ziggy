@@ -1,11 +1,20 @@
 package gov.nasa.ziggy.ui.step;
 
+import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REFRESH;
+import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButton;
+import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.HierarchyEvent;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingUtilities;
+import javax.swing.GroupLayout;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.SwingWorker;
 
 import org.slf4j.Logger;
@@ -17,57 +26,76 @@ import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
+import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.models.DatabaseModel;
-import gov.nasa.ziggy.ui.util.table.AbstractViewEditPanel;
+import gov.nasa.ziggy.ui.util.table.ZiggyTable;
 
 /**
- * View / Edit panel for {@link PipelineStep} instances.
+ * Panel that displays {@link PipelineStep} instances.
  *
  * @author Todd Klaus
  * @author Bill Wohler
  */
 @SuppressWarnings("serial")
-public class ViewEditPipelineStepLibraryPanel extends AbstractViewEditPanel<PipelineStep> {
+public class ViewEditPipelineStepLibraryPanel extends JPanel {
 
     private static final Logger log = LoggerFactory
         .getLogger(ViewEditPipelineStepLibraryPanel.class);
+    private ZiggyTable<PipelineStep> ziggyTable;
 
     public ViewEditPipelineStepLibraryPanel() {
-        super(new StepLibraryTableModel());
+        buildComponent();
+        addHierarchyListener(this::hierarchyListener);
         ZiggyMessenger.subscribe(PipelineInstanceStartedMessage.class, this::invalidateModel);
+    }
+
+    // Ensure panel is current whenever it is made visible.
+    private void hierarchyListener(HierarchyEvent evt) {
+        JComponent component = (JComponent) evt.getSource();
+        if ((evt.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && component.isShowing()) {
+            refresh(null);
+        }
     }
 
     private void invalidateModel(PipelineInstanceStartedMessage message) {
         ziggyTable.loadFromDatabase();
     }
 
-    @Override
-    protected void refresh() {
+    /**
+     * Initializes the panel. The panel has a button panel on the top that provides the refresh
+     * button, and a scroll pane below the button panel that provides the table of data receipt
+     * instances.
+     */
+    protected void buildComponent() {
+        JPanel buttonPanel = createButtonPanel(ButtonPanelContext.TOOL_BAR,
+            createButton(REFRESH, this::refresh));
+
+        ziggyTable = createPipelineStepTable();
+        JScrollPane tableScrollPane = new JScrollPane(ziggyTable.getTable());
+
+        GroupLayout layout = new GroupLayout(this);
+        setLayout(layout);
+
+        layout.setHorizontalGroup(
+            layout.createParallelGroup().addComponent(buttonPanel).addComponent(tableScrollPane));
+
+        layout.setVerticalGroup(layout.createSequentialGroup()
+            .addComponent(buttonPanel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
+                GroupLayout.PREFERRED_SIZE)
+            .addComponent(tableScrollPane));
+    }
+
+    private ZiggyTable<PipelineStep> createPipelineStepTable() {
+        ZiggyTable<PipelineStep> ziggyTable = new ZiggyTable<>(new StepLibraryTableModel());
+        ziggyTable.loadFromDatabase();
+        return ziggyTable;
+    }
+
+    private void refresh(ActionEvent evt) {
         try {
             ziggyTable.loadFromDatabase();
         } catch (Throwable e) {
-            MessageUtils.showError(this, e);
-        }
-    }
-
-    @Override
-    protected void edit(int row) {
-        showEditDialog(ziggyTable.getContentAtViewRow(row));
-    }
-
-    private void showEditDialog(PipelineStep pipelineStep) {
-        EditPipelineStepDialog dialog = new EditPipelineStepDialog(
-            SwingUtilities.getWindowAncestor(this), pipelineStep);
-        dialog.setVisible(true);
-
-        if (dialog.isCancelled()) {
-            return;
-        }
-
-        try {
-            ziggyTable.loadFromDatabase();
-        } catch (Exception e) {
             MessageUtils.showError(this, e);
         }
     }

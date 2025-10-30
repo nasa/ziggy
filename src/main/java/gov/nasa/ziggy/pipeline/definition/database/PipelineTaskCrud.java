@@ -60,6 +60,15 @@ public class PipelineTaskCrud extends AbstractCrud<PipelineTask> {
             .ascendingOrder());
     }
 
+    public List<Long> retrieveTaskIdsForInstance(PipelineInstance instance) {
+        return list(createZiggyQuery(PipelineTask.class, Long.class)
+            .column(PipelineTask_.pipelineInstanceId)
+            .in(instance.getId())
+            .column(PipelineTask_.id)
+            .select()
+            .ascendingOrder());
+    }
+
     /**
      * Retrieve all {@link PipelineTask} instances for a given {@link PipelineInstance}, specified
      * by the instance ID.

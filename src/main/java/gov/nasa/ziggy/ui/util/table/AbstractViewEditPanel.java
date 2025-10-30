@@ -238,7 +238,8 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
         JPopupMenu popupMenu = new JPopupMenu();
         addOptionalMenuItem(popupMenu, OptionalViewEditFunction.VIEW,
             menuItem(OptionalViewEditFunction.VIEW));
-        popupMenu.add(menuItem(OptionalViewEditFunction.EDIT));
+        addOptionalMenuItem(popupMenu, OptionalViewEditFunction.EDIT,
+            menuItem(OptionalViewEditFunction.EDIT));
 
         for (JMenuItem menuItem : menuItems()) {
             popupMenu.add(menuItem);
@@ -290,7 +291,8 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
         selectedModelRow = table.convertRowIndexToModel(tableRow);
         if (evt.getClickCount() == 2) {
             try {
-                if (ziggyTable.getContentAtViewRow(selectedModelRow) != null) {
+                if (ziggyTable.getContentAtViewRow(selectedModelRow) != null
+                    && optionalViewEditFunctions().contains(OptionalViewEditFunction.EDIT)) {
                     edit(selectedModelRow);
                 }
             } catch (Exception e) {
@@ -304,7 +306,8 @@ public abstract class AbstractViewEditPanel<T> extends JPanel {
     protected void view(int row) {
     }
 
-    protected abstract void edit(int row);
+    protected void edit(int row) {
+    }
 
     /**
      * Returns a map of {@link Action} by {@link OptionalViewEditFunction}, which can be used to

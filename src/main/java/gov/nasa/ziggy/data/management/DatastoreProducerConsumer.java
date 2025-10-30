@@ -120,7 +120,7 @@ public class DatastoreProducerConsumer {
         addConsumer(-toProducerId(consumingPipelineTask));
     }
 
-    private void addConsumer(long consumer) {
+    void addConsumer(long consumer) {
         consumers.add(consumer);
     }
 

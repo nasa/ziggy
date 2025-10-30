@@ -288,7 +288,7 @@ public enum PropertyName {
      * Heap size for the worker process. This is converted to the wrapper heap size by
      * ClusterController.
      */
-    WORKER_HEAP_SIZE("ziggy.worker.heapSize");
+    WORKER_HEAP_SIZE("ziggy.worker.heapSizeGigabytes");
 
     private static final String GROUP_SUFFIX = ".group";
     private static final String USER_SUFFIX = ".user";

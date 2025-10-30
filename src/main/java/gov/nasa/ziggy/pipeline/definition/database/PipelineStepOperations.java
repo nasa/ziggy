@@ -6,7 +6,6 @@ import gov.nasa.ziggy.data.management.DataReceiptPipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
-import gov.nasa.ziggy.pipeline.step.PipelineStepExecutionResources;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
@@ -39,16 +38,6 @@ public class PipelineStepOperations extends DatabaseOperations {
 
     public PipelineStep merge(PipelineStep pipelineStep) {
         return performTransaction(() -> pipelineStepCrud().merge(pipelineStep));
-    }
-
-    public PipelineStepExecutionResources pipelineStepExecutionResources(
-        PipelineStep pipelineStep) {
-        return performTransaction(
-            () -> pipelineStepCrud().retrieveExecutionResources(pipelineStep));
-    }
-
-    public PipelineStepExecutionResources merge(PipelineStepExecutionResources executionResources) {
-        return performTransaction(() -> pipelineStepCrud().merge(executionResources));
     }
 
     /** Creates and persists the data receipt pipeline step. */

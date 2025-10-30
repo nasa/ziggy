@@ -32,7 +32,6 @@ import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
-import gov.nasa.ziggy.pipeline.step.PipelineStepExecutionResources;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
 import gov.nasa.ziggy.pipeline.xml.ParameterSetDescriptor;
 import gov.nasa.ziggy.pipeline.xml.ValidatingXmlManager;
@@ -143,8 +142,7 @@ public class PipelineDefinitionImporter {
         log.debug("Importing parameter sets...done");
 
         log.debug("Importing pipeline steps...");
-        Map<PipelineStep, PipelineStepExecutionResources> resourcesByPipelineStep = new PipelineStepImportConditioner()
-            .conditionPipelineSteps(getPipelineSteps(), update);
+        new PipelineStepImportConditioner().conditionPipelineSteps(getPipelineSteps(), update);
         log.debug("Importing pipeline steps...done");
 
         log.debug("Importing datastore definitions...");
@@ -170,7 +168,7 @@ public class PipelineDefinitionImporter {
         if (!dryRun) {
             log.debug("Persisting all definitions...");
             pipelineImportOperations().persistClusterDefinition(parameterSetDescriptors,
-                datastoreImportConditioner, validEventHandlers, resourcesByPipelineStep,
+                datastoreImportConditioner, validEventHandlers, getPipelineSteps(),
                 resourcesByPipeline, remoteEnvironmentsToPersist);
             log.debug("Persisting all definitions...done");
         }

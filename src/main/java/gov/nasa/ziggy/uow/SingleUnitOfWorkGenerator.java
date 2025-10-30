@@ -9,6 +9,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 
 public class SingleUnitOfWorkGenerator implements UnitOfWorkGenerator {
 
+    public static final String BRIEF_STATE = "single";
+
     public SingleUnitOfWorkGenerator() {
     }
 
@@ -28,6 +30,6 @@ public class SingleUnitOfWorkGenerator implements UnitOfWorkGenerator {
 
     @Override
     public void setBriefState(UnitOfWork uow, PipelineInstanceNode pipelineInstanceNode) {
-        uow.setBriefState("single");
+        uow.setBriefState(BRIEF_STATE);
     }
 }

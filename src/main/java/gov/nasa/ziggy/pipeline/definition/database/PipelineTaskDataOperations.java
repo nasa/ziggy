@@ -91,6 +91,7 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
                 .retrievePipelineTaskData(pipelineTask);
             pipelineTaskData.setProcessingStep(processingStep);
             if (processingStep == ProcessingStep.INITIALIZING
+                || processingStep == ProcessingStep.WAITING_TO_RUN
                 || processingStep == ProcessingStep.COMPLETE) {
                 pipelineTaskData.getExecutionClock().stop();
             } else {
@@ -531,6 +532,16 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
                 remoteJobInformation.getCostFactor()));
         }
         updateRemoteJobs(pipelineTask, remoteJobs);
+    }
+
+    public void markJobComplete(PipelineTask pipelineTask, RemoteJob remoteJob) {
+        performTransaction(() -> {
+            remoteJob.setFinished(true);
+            PipelineTaskData pipelineTaskData = pipelineTaskDataCrud()
+                .retrievePipelineTaskData(pipelineTask);
+            pipelineTaskData.getRemoteJobs().remove(remoteJob);
+            pipelineTaskData.getRemoteJobs().add(remoteJob);
+        });
     }
 
     void updateRemoteJobs(PipelineTask pipelineTask, Set<RemoteJob> remoteJobs) {

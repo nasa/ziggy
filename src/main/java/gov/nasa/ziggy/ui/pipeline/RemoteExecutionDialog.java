@@ -996,7 +996,7 @@ public class RemoteExecutionDialog extends JDialog {
         wallTimeScalingCheckBox.setEnabled(!currentConfiguration.isNodeSharing());
         tasksField.setValue(taskCount);
         subtasksField.setValue(subtaskCount);
-        gigsPerSubtaskField.setValue(currentConfiguration.getGigsPerSubtask());
+        gigsPerSubtaskField.setValue(currentConfiguration.subtaskRamGigabytes());
         gigsPerSubtaskField.setEnabled(currentConfiguration.isNodeSharing());
         gigsPerSubtaskField.setToolTipText(gigsPerSubtaskToolTip());
         typicalWallTimeField.setValue(currentConfiguration.getSubtaskTypicalWallTimeHours());
@@ -1156,7 +1156,7 @@ public class RemoteExecutionDialog extends JDialog {
         currentConfiguration.setWallTimeScaling(wallTimeScalingCheckBox.isSelected());
         taskCount = textToInt(tasksField);
         subtaskCount = textToInt(subtasksField);
-        currentConfiguration.setGigsPerSubtask(textToDouble(gigsPerSubtaskField));
+        currentConfiguration.setSubtaskRamGigabytes(textToDouble(gigsPerSubtaskField));
         currentConfiguration.setSubtaskMaxWallTimeHours(textToDouble(maxWallTimeField));
         currentConfiguration.setSubtaskTypicalWallTimeHours(textToDouble(typicalWallTimeField));
         currentConfiguration

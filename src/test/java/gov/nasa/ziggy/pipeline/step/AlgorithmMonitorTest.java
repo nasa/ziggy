@@ -49,6 +49,7 @@ import gov.nasa.ziggy.pipeline.step.remote.batch.PbsBatchManager;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskUtils;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.messages.AllJobsFinishedMessage;
 import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
 import gov.nasa.ziggy.services.messages.TaskProcessingCompleteMessage;
 import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
@@ -400,6 +401,16 @@ public class AlgorithmMonitorTest {
 
         private void setTaskProcessingCompleteMessage(TaskProcessingCompleteMessage message) {
             endTaskMonitoring(message.getPipelineTask());
+        }
+
+        @Override
+        TaskMonitor taskMonitor(MonitorAlgorithmRequest monitorAlgorithmRequest) {
+            TaskMonitor taskMonitor = super.taskMonitor(monitorAlgorithmRequest);
+            taskMonitor = Mockito.spy(taskMonitor);
+            Mockito.doNothing()
+                .when(taskMonitor)
+                .handleAllJobsFinishedMessage(ArgumentMatchers.any(AllJobsFinishedMessage.class));
+            return taskMonitor;
         }
     }
 }

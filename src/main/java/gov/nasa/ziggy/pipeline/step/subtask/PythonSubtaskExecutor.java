@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.step.FatalAlgorithmProcessingException;
+import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.process.ExternalProcess;
 
@@ -58,8 +59,10 @@ public class PythonSubtaskExecutor extends SubtaskExecutor {
     private String pythonModuleName;
     private Path virtualEnvironmentPath;
 
-    PythonSubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs) {
-        super(taskDir, subtaskIndex, PYTHON_BINARY, timeoutSecs);
+    PythonSubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs,
+        float heapSizeGigabytes, TaskConfiguration taskConfiguration) {
+        super(taskDir, subtaskIndex, PYTHON_BINARY, timeoutSecs, heapSizeGigabytes,
+            taskConfiguration);
         pythonModuleName = pythonModuleName(binaryName);
         log.info("Python module: {}", pythonModuleName);
         virtualEnvironmentPath = virtualEnvironmentPath(pythonModuleName);

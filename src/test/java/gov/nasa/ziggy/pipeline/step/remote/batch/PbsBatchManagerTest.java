@@ -51,7 +51,7 @@ public class PbsBatchManagerTest {
     private static final Pattern commandLinePattern = Pattern.compile("""
         \\[qsub, -N, (1-2-pa\\.[0-9]+), -q, normal, -rn, \
         -l, \
-        walltime=4:30:00,select=1:model=san, -W, group_list=12345, -v, \
+        walltime=4:30:00,select=1:model=ivy, -W, group_list=12345, -W, umask=027, -v, \
         ENV1=foo,ENV2=bar,ENV3=baz,ENV4=bazbaz, -o, (\\S+?), \
         -j, oe, --, /path/to/ziggy/home/bin/ziggy, test, \
         -Dziggy.log.appender=singleFile, -Dziggy.algorithm.name=null, \
@@ -109,10 +109,10 @@ public class PbsBatchManagerTest {
         Mockito.when(remoteEnvironment.getQueues()).thenReturn(batchQueues);
         Mockito.when(remoteEnvironment.getName()).thenReturn("hecc");
         executionResources.setRemoteExecutionEnabled(true);
-        executionResources.setGigsPerSubtask(6);
+        executionResources.setSubtaskRamGigabytes(6);
         executionResources.setSubtaskMaxWallTimeHours(4.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
-        executionResources.setArchitecture(architectureByName.get("san"));
+        executionResources.setArchitecture(architectureByName.get("ivy"));
         Mockito.doReturn(pipelineTaskOperations).when(pbsBatchManager).pipelineTaskOperations();
         Mockito.doReturn(qsubExternalProcess)
             .when(pbsBatchManager)
@@ -144,7 +144,7 @@ public class PbsBatchManagerTest {
         Path resultsDir = Paths
             .get(ZiggyConfiguration.getInstance().getString("ziggy.pipeline.results.dir"))
             .toAbsolutePath();
-        for (int jobIndex = 0; jobIndex < 12; jobIndex++) {
+        for (int jobIndex = 0; jobIndex < 6; jobIndex++) {
             String jobName = "1-2-pa." + jobIndex;
             assertTrue(remoteJobInformationByJobName.containsKey(jobName));
             RemoteJobInformation remoteJobInformation = remoteJobInformationByJobName.get(jobName);
@@ -154,7 +154,7 @@ public class PbsBatchManagerTest {
                     .resolve("pbs-" + jobName)
                     .toString()));
             assertEquals("hecc", remoteJobInformation.getRemoteEnvironmentName());
-            assertEquals(0.47, remoteJobInformation.getCostFactor(), 1e-6);
+            assertEquals(0.66, remoteJobInformation.getCostFactor(), 1e-6);
         }
 
         TestEventDetector.detectTestEvent(500L,
@@ -200,7 +200,7 @@ public class PbsBatchManagerTest {
                 exitCodeOneCounter++;
             }
         }
-        assertEquals(11, exitCodeZeroCounter);
+        assertEquals(5, exitCodeZeroCounter);
         assertEquals(1, exitCodeOneCounter);
     }
 
@@ -314,6 +314,21 @@ public class PbsBatchManagerTest {
         assertEquals("/non/existent/path", remoteJobInformation.getLogFile());
         assertEquals("hecc", remoteJobInformation.getRemoteEnvironmentName());
         assertEquals(0, remoteJobInformation.getBatchSubmissionExitCode());
+    }
+
+    @Test
+    public void testRemoteJobInformationJobLongGone() {
+        RemoteJob remoteJob = new RemoteJob();
+        remoteJob.setFinished(false);
+        remoteJob.setJobId(1234567L);
+        remoteJob.setRemoteEnvironmentName("hecc");
+        Mockito.doReturn(qstatExternalProcess1)
+            .when(pbsBatchManager)
+            .qstatExternalProcess("-xf 1234567");
+        Mockito.when(qstatExternalProcess1.stdout("Job_Name", "Output_Path"))
+            .thenReturn(new ArrayList<>());
+        RemoteJobInformation remoteJobInformation = pbsBatchManager.remoteJobInformation(remoteJob);
+        assertNull(remoteJobInformation);
     }
 
     @Test

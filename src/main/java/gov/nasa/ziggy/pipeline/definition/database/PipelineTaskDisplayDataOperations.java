@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition.database;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,9 +38,42 @@ public class PipelineTaskDisplayDataOperations extends DatabaseOperations {
 
     public List<PipelineTaskDisplayData> pipelineTaskDisplayData(
         PipelineInstance pipelineInstance) {
-        List<PipelineTask> pipelineTasks = performTransaction(
-            () -> pipelineTaskCrud().retrieveTasksForInstance(pipelineInstance));
-        return pipelineTaskDisplayData(pipelineTasks);
+        return pipelineTaskDisplayData(pipelineInstance, new ArrayList<>());
+    }
+
+    /**
+     * Retrieves mutable instances of {@link PipelineTaskDisplayData} and merges them with an
+     * existing list of immutable instances. This saves the database overhead of retrieving
+     * information for tasks that we already know will not change. As a side effect it checks to see
+     * if any of the returned instances are now themselves immutable, and if so adds to the list of
+     * immutable instances.
+     *
+     * @return A sorted list of {@link PipelineTaskDisplayData} instances for the specified
+     * {@link PipelineInstance}.
+     */
+    public List<PipelineTaskDisplayData> pipelineTaskDisplayData(PipelineInstance pipelineInstance,
+        List<PipelineTaskDisplayData> completedTaskData) {
+        List<PipelineTaskDisplayData> retrievedPipelineTaskData = updatedPipelineTaskDisplayData(
+            pipelineInstance, completedTaskData);
+        List<PipelineTaskDisplayData> allPipelineTaskDisplayData = new ArrayList<>(
+            retrievedPipelineTaskData);
+        allPipelineTaskDisplayData.addAll(completedTaskData);
+        allPipelineTaskDisplayData.sort(PipelineTaskDisplayData::compareTo);
+        completedTaskData.addAll(retrievedPipelineTaskData.stream()
+            .filter(PipelineTaskDisplayData::isTaskProcessingFinished)
+            .toList());
+        return allPipelineTaskDisplayData;
+    }
+
+    /** Used only by other PipelineTaskDisplayDataOperations methods. */
+    List<PipelineTaskDisplayData> updatedPipelineTaskDisplayData(PipelineInstance pipelineInstance,
+        List<PipelineTaskDisplayData> completedTaskData) {
+        List<Long> pipelineTaskIds = performTransaction(
+            () -> pipelineTaskCrud().retrieveTaskIdsForInstance(pipelineInstance));
+        for (PipelineTaskDisplayData pipelineTaskDisplayData : completedTaskData) {
+            pipelineTaskIds.remove(pipelineTaskDisplayData.getPipelineTaskId());
+        }
+        return pipelineTaskDisplayDataFromIds(pipelineTaskIds);
     }
 
     public List<PipelineTaskDisplayData> pipelineTaskDisplayData(
@@ -57,6 +91,17 @@ public class PipelineTaskDisplayDataOperations extends DatabaseOperations {
         List<PipelineTaskData> pipelineTaskData = performTransaction(() -> {
             List<PipelineTaskData> taskData = pipelineTaskDataCrud()
                 .retrievePipelineTaskData(pipelineTasks);
+            initializeCollections(taskData);
+            return taskData;
+        });
+        return createPipelineTaskDisplayData(pipelineTaskData);
+    }
+
+    public List<PipelineTaskDisplayData> pipelineTaskDisplayDataFromIds(
+        List<Long> pipelineTaskIds) {
+        List<PipelineTaskData> pipelineTaskData = performTransaction(() -> {
+            List<PipelineTaskData> taskData = pipelineTaskDataCrud()
+                .retrievePipelineTaskDataForTaskIds(pipelineTaskIds);
             initializeCollections(taskData);
             return taskData;
         });

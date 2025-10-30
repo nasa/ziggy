@@ -81,8 +81,8 @@ public class ManifestTest {
 
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         assertEquals(100L, manifest.getDatasetId());
-        assertEquals(54, manifest.getFileCount());
-        assertEquals(54, manifest.getManifestEntries().size());
+        assertEquals(56, manifest.getFileCount());
+        assertEquals(56, manifest.getManifestEntries().size());
         for (ManifestEntry manifestFile : manifest.getManifestEntries()) {
             validateManifestFile(manifestFile);
         }
@@ -109,8 +109,8 @@ public class ManifestTest {
         }
         Manifest manifest = Manifest.generateManifest(testDataDir, 100L);
         assertEquals(100L, manifest.getDatasetId());
-        assertEquals(54, manifest.getFileCount());
-        assertEquals(54, manifest.getManifestEntries().size());
+        assertEquals(56, manifest.getFileCount());
+        assertEquals(56, manifest.getManifestEntries().size());
         for (ManifestEntry manifestFile : manifest.getManifestEntries()) {
             validateManifestFile(manifestFile);
         }
@@ -144,8 +144,8 @@ public class ManifestTest {
         // Read the manifest back in
         Manifest roundTripManifest = Manifest.readManifest(testDataDir);
         assertEquals("test-manifest.xml", roundTripManifest.getName());
-        assertEquals(54, roundTripManifest.getFileCount());
-        assertEquals(54, roundTripManifest.getManifestEntries().size());
+        assertEquals(56, roundTripManifest.getFileCount());
+        assertEquals(56, roundTripManifest.getManifestEntries().size());
         assertEquals(100L, roundTripManifest.getDatasetId());
         for (ManifestEntry manifestFile : roundTripManifest.getManifestEntries()) {
             assertTrue(manifest.getManifestEntries().contains(manifestFile));
@@ -180,8 +180,8 @@ public class ManifestTest {
         // Read the manifest back in
         Manifest roundTripManifest = Manifest.readManifest(testDataDir);
         assertEquals("test-manifest.xml", roundTripManifest.getName());
-        assertEquals(54, roundTripManifest.getFileCount());
-        assertEquals(54, roundTripManifest.getManifestEntries().size());
+        assertEquals(56, roundTripManifest.getFileCount());
+        assertEquals(56, roundTripManifest.getManifestEntries().size());
         assertEquals(100L, roundTripManifest.getDatasetId());
         for (ManifestEntry manifestFile : roundTripManifest.getManifestEntries()) {
             assertTrue(manifest.getManifestEntries().contains(manifestFile));

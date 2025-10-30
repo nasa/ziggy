@@ -32,7 +32,6 @@ public class RemoteArchitectureOptimizerTest {
     private Architecture has;
     private Architecture ivy;
     private Architecture rom;
-    private Architecture san;
     private Architecture sky;
 
     @Rule
@@ -51,7 +50,6 @@ public class RemoteArchitectureOptimizerTest {
         has = architectureByName.get("has");
         ivy = architectureByName.get("ivy");
         rom = architectureByName.get("rom_ait");
-        san = architectureByName.get("san");
         sky = architectureByName.get("sky_ele");
 
         when(timeMetrics.queueDepthHours(bro)).thenReturn(2.7);
@@ -59,7 +57,6 @@ public class RemoteArchitectureOptimizerTest {
         when(timeMetrics.queueDepthHours(has)).thenReturn(2.7);
         when(timeMetrics.queueDepthHours(ivy)).thenReturn(2.2);
         when(timeMetrics.queueDepthHours(rom)).thenReturn(1.6);
-        when(timeMetrics.queueDepthHours(san)).thenReturn(6.7);
         when(timeMetrics.queueDepthHours(sky)).thenReturn(1000.0);
 
         when(timeMetrics.queueTimeFactor(bro)).thenReturn(9.2);
@@ -67,14 +64,13 @@ public class RemoteArchitectureOptimizerTest {
         when(timeMetrics.queueTimeFactor(has)).thenReturn(6.5);
         when(timeMetrics.queueTimeFactor(ivy)).thenReturn(1.7);
         when(timeMetrics.queueTimeFactor(rom)).thenReturn(13.8);
-        when(timeMetrics.queueTimeFactor(san)).thenReturn(15.2);
         when(timeMetrics.queueTimeFactor(sky)).thenReturn(1000.0);
 
         executionResources = new PipelineNodeExecutionResources(pipelineName, pipelineStepName);
         Mockito.when(batchParameters.executionResources()).thenReturn(executionResources);
         executionResources.setRemoteEnvironment(remoteEnvironment);
         Mockito.when(remoteEnvironment.getArchitectures())
-            .thenReturn(List.of(bro, cas, has, ivy, rom, san, sky));
+            .thenReturn(List.of(bro, cas, has, ivy, rom, sky));
         Mockito.when(remoteEnvironment.queueTimeMetricsInstance()).thenReturn(timeMetrics);
         List<BatchQueue> batchQueues = BatchQueueTestUtils.batchQueues();
         Mockito.when(remoteEnvironment.getQueues()).thenReturn(batchQueues);
@@ -86,22 +82,22 @@ public class RemoteArchitectureOptimizerTest {
 
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.CORES;
 
-        assertEquals("san", optimizer.optimalNodeArchitecture(batchParameters, 0).getName());
-
-        executionResources.setGigsPerSubtask(3.0);
         assertEquals("ivy", optimizer.optimalNodeArchitecture(batchParameters, 0).getName());
 
-        executionResources.setGigsPerSubtask(4.2);
+        executionResources.setSubtaskRamGigabytes(3.0);
+        assertEquals("ivy", optimizer.optimalNodeArchitecture(batchParameters, 0).getName());
+
+        executionResources.setSubtaskRamGigabytes(4.2);
         assertEquals("has", optimizer.optimalNodeArchitecture(batchParameters, 0).getName());
 
-        executionResources.setGigsPerSubtask(10);
+        executionResources.setSubtaskRamGigabytes(10);
         assertEquals("has", optimizer.optimalNodeArchitecture(batchParameters, 0).getName());
     }
 
     @Test
     public void testOptimizeForCost() {
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.COST;
-        executionResources.setGigsPerSubtask(6.0);
+        executionResources.setSubtaskRamGigabytes(6.0);
         executionResources.setSubtaskMaxWallTimeHours(4.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
         assertEquals("has", optimizer.optimalNodeArchitecture(batchParameters, 500).getName());
@@ -110,7 +106,7 @@ public class RemoteArchitectureOptimizerTest {
     @Test
     public void testOptimizeForQueueDepth() {
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.QUEUE_DEPTH;
-        executionResources.setGigsPerSubtask(6.0);
+        executionResources.setSubtaskRamGigabytes(6.0);
         executionResources.setSubtaskMaxWallTimeHours(4.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
         assertEquals("rom_ait", optimizer.optimalNodeArchitecture(batchParameters, 500).getName());
@@ -119,7 +115,7 @@ public class RemoteArchitectureOptimizerTest {
     @Test
     public void testOptimizeForQueueTime() {
         RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.QUEUE_TIME;
-        executionResources.setGigsPerSubtask(6.0);
+        executionResources.setSubtaskRamGigabytes(6.0);
         executionResources.setSubtaskMaxWallTimeHours(4.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
         assertEquals("ivy", optimizer.optimalNodeArchitecture(batchParameters, 500).getName());

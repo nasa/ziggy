@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.collections.ZiggyArrayUtils;
+import gov.nasa.ziggy.collections.ZiggyDataType;
 import gov.nasa.ziggy.pipeline.step.hdf5.AbstractHdf5Array.ReturnAs;
 import hdf.hdf5lib.H5;
 import hdf.hdf5lib.HDF5Constants;
@@ -353,6 +354,26 @@ public class PrimitiveHdf5ArrayTest {
         assertTrue(List.class.isAssignableFrom(o4.getClass()));
         List<Object> objList = (List<Object>) o4;
         assertEquals(0, objList.size());
+    }
+
+    @Test
+    public void testToJavaWithTrivialDimensions() throws NoSuchFieldException, SecurityException {
+        PrimitiveHdf5Array a3 = new PrimitiveHdf5Array(
+            PersistableSample1.class.getDeclaredField("booleanArray3"));
+        boolean[] sourceArray = new boolean[] { true, false, true, false };
+        a3.setArray(sourceArray);
+        Object array = a3.toJava();
+        assertTrue(Arrays.equals(new long[] { 1, 1, 4 }, ZiggyArrayUtils.getArraySize(array)));
+        assertEquals(ZiggyDataType.ZIGGY_BOOLEAN, ZiggyDataType.getDataType(array));
+        assertTrue(Arrays.equals(sourceArray, ((boolean[][][]) array)[0][0]));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testToJavaWithTooFewDimensions() throws NoSuchFieldException, SecurityException {
+        PrimitiveHdf5Array a2 = new PrimitiveHdf5Array(
+            PersistableSample1.class.getDeclaredField("floatArray1"));
+        a2.setArray(new float[][] { { 1F, 2F }, { 3F, 4F } });
+        a2.toJava();
     }
 
     /**

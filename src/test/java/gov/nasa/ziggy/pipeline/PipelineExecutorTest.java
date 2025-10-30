@@ -18,14 +18,22 @@ import org.mockito.Mockito;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
+import gov.nasa.ziggy.services.alert.Alert;
+import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.messages.TaskRequest;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
  * Unit tests for {@link PipelineExecutor}.
@@ -45,6 +53,11 @@ public class PipelineExecutorTest {
     private PipelineStepOperations pipelineStepOperations = Mockito
         .mock(PipelineStepOperations.class);
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
+    private PipelineTaskDataOperations pipelineTaskDataOperations = Mockito
+        .spy(PipelineTaskDataOperations.class);
+    private AlertService alertService = Mockito.mock(AlertService.class);
+    private WorkerResourcesOperations workerResourcesOperations = Mockito
+        .mock(WorkerResourcesOperations.class);
 
     private PipelineInstanceNode pipelineInstanceNode;
     private PipelineInstanceNode nextNode;
@@ -186,10 +199,44 @@ public class PipelineExecutorTest {
         assertEquals(tasks, messageTasks);
     }
 
+    @Test
+    public void testResubmitFailedTasks() {
+        pipelineOperationsTestUtils.setUpTasksForFourNodePipeline();
+        List<PipelineTask> tasks = pipelineOperationsTestUtils.getPipelineTasks();
+
+        // This task can be resubmitted because it has some incomplete subtasks.
+        Mockito.doReturn(new SubtaskCounts(10, 9, 0))
+            .when(pipelineTaskDataOperations)
+            .subtaskCounts(tasks.get(0));
+
+        // This subtask cannot be resubmitted because all its subtasks are complete.
+        Mockito.doReturn(new SubtaskCounts(10, 10, 0))
+            .when(pipelineTaskDataOperations)
+            .subtaskCounts(tasks.get(1));
+
+        Mockito
+            .when(workerResourcesOperations
+                .compositeWorkerResources(ArgumentMatchers.any(PipelineNode.class)))
+            .thenReturn(new WorkerResources(1, 1F));
+        pipelineExecutor.restartFailedTasks(tasks, false, RunMode.RESUBMIT);
+        List<TaskRequest> taskRequests = pipelineExecutor.getTaskRequests();
+        assertEquals(1, taskRequests.size());
+        Mockito.verify(alertService)
+            .generateAndBroadcastAlert("Restarts", tasks.get(1), Alert.Severity.WARNING,
+                "Unable to resubmit task with all subtasks complete");
+    }
+
     private PipelineExecutor mockedExecutor() {
         PipelineExecutor pipelineExecutor = Mockito.spy(PipelineExecutor.class);
         Mockito.doReturn(pipelineStepOperations).when(pipelineExecutor).pipelineStepOperations();
         Mockito.doReturn(true).when(pipelineExecutor).storeTaskRequests();
+        Mockito.doReturn(alertService).when(pipelineExecutor).alertService();
+        Mockito.doReturn(pipelineTaskDataOperations)
+            .when(pipelineExecutor)
+            .pipelineTaskDataOperations();
+        Mockito.doReturn(workerResourcesOperations)
+            .when(pipelineExecutor)
+            .workerResourcesOperations();
         return pipelineExecutor;
     }
 

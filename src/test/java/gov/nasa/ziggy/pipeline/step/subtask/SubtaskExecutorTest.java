@@ -174,6 +174,7 @@ public class SubtaskExecutorTest {
         String cmdString = commandLine.toString();
         String expectedCommandString = """
             [/path/to/ziggy/build/bin/ziggy, --verbose,\s\
+            -Xmx0M,\s\
             -Djava.library.path=path1:path2:/path/to/ziggy/build/lib,\s\
             -Dlog4j2.configurationFile=/path/to/ziggy/build/etc/log4j2.xml,\s\
             -Dziggy.log.single.file=""" + logFilePropertyRule.getValue() + """
@@ -209,7 +210,7 @@ public class SubtaskExecutorTest {
         setUpMockedObjects();
         Mockito.doReturn(taskConfigurationManager)
             .when(externalProcessExecutor)
-            .taskConfiguration();
+            .getTaskConfiguration();
         taskConfigurationManager.setInputsClass(PipelineInputsSample.class);
         Mockito.doReturn(1)
             .when(externalProcessExecutor)

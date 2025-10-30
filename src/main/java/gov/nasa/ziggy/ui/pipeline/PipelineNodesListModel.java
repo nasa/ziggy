@@ -41,12 +41,7 @@ public class PipelineNodesListModel extends AbstractListModel<String>
     private void addNodes(Pipeline pipeline, List<PipelineNode> nodes) {
         for (PipelineNode node : nodes) {
             if (node != null) {
-                StringBuilder pipelineStepName = new StringBuilder()
-                    .append(node.getPipelineStepName())
-                    .append(" (node:")
-                    .append(node.getId())
-                    .append(")");
-                pipelineStepNames.add(pipelineStepName.toString());
+                pipelineStepNames.add(node.getPipelineStepName());
                 pipelineNodes.add(node);
             }
             addNodes(pipeline, node.getNextNodes());

@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles;
+import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
 import gov.nasa.ziggy.pipeline.step.io.AlgorithmInterfaceUtils;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputsOutputsUtils;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
@@ -82,8 +83,10 @@ public class SubtaskUtils {
             new AlgorithmStateFiles(subtaskDir).clearStaleState();
             Path errorFile = subtaskDir.toPath()
                 .resolve(AlgorithmInterfaceUtils.errorFileName(pipelineStepName));
+            Path lockFile = subtaskDir.toPath().resolve(TaskConfiguration.LOCK_FILE_NAME);
             try {
                 Files.deleteIfExists(errorFile);
+                Files.deleteIfExists(lockFile);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }

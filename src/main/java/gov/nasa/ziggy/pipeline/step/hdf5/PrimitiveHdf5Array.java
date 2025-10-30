@@ -48,6 +48,7 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         PrimitiveHdf5Array p = new PrimitiveHdf5Array();
         p.returnAs = ReturnAs.ARRAY;
         p.fieldName = fieldName;
+        p.allowTrivialDimensions = false;
         if (H5.H5Aexists(groupId, Hdf5AlgorithmInterface.BOOLEAN_ARRAY_ATT_NAME)) {
             p.dataTypeOfReturn = ZIGGY_BOOLEAN;
         }
@@ -76,6 +77,12 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
      * return an array that is 0 x 0 x ...
      */
     int nDimensionsToReturn = 0;
+
+    /**
+     * Determines whether the returned object should be expanded with trivial dimensions in the
+     * event that the # of dimensions of the returned field > the # dimensions of the array object.
+     */
+    boolean allowTrivialDimensions = true;
 
     /**
      * Constructs an object from a data object. The type and size of the data is captured, scalars
@@ -269,7 +276,7 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         }
         if (returnAs.equals(ReturnAs.SCALAR)) {
             Object[] javaStorageArray = (Object[]) javaStorageObject;
-            javaStorageObject = javaStorageArray[0];
+            return javaStorageArray[0];
         }
 
         // if the return is to be a list, handle that now -- note that
@@ -279,9 +286,11 @@ public class PrimitiveHdf5Array extends AbstractHdf5Array {
         if (returnAs.equals(ReturnAs.LIST)) {
             Object[] javaStorageArray = (Object[]) javaStorageObject;
             List<Object> javaStorageList = Arrays.asList(javaStorageArray);
-            javaStorageObject = javaStorageList;
+            return javaStorageList;
         }
-        return javaStorageObject;
+        return allowTrivialDimensions
+            ? ZiggyArrayUtils.arrayWithTrivialDimensions(javaStorageObject, nDimensionsToReturn)
+            : javaStorageObject;
     }
 
     Object returnEmptyToJava() {

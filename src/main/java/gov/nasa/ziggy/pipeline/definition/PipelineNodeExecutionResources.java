@@ -9,6 +9,7 @@ import gov.nasa.ziggy.pipeline.step.remote.BatchQueue;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteArchitectureOptimizer;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
 import gov.nasa.ziggy.worker.WorkerResources;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -16,6 +17,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -48,8 +50,9 @@ public class PipelineNodeExecutionResources {
     private final String pipelineStepName;
 
     // Fields that control worker-side execution resource options.
-    private int maxWorkerCount = 0;
-    private int heapSizeMb = 0;
+    @OneToOne(cascade = CascadeType.ALL)
+    private WorkerResources workerResources = new WorkerResources(0, 0F);
+
     private int maxFailedSubtaskCount = 0;
     private int maxAutoResubmits = 0;
 
@@ -57,7 +60,7 @@ public class PipelineNodeExecutionResources {
     private boolean remoteExecutionEnabled = false;
     private double subtaskMaxWallTimeHours = 0;
     private double subtaskTypicalWallTimeHours = 0;
-    private double gigsPerSubtask = 0;
+    private double subtaskRamGigabytes = 0;
     @Enumerated(EnumType.STRING)
     private RemoteArchitectureOptimizer optimizer = RemoteArchitectureOptimizer.COST;
     private boolean nodeSharing = true;
@@ -82,8 +85,6 @@ public class PipelineNodeExecutionResources {
     private String reservedQueueName = "";
     private int maxNodes;
     private double subtasksPerCore;
-    private int minCoresPerNode;
-    private double minGigsPerNode;
     private int minSubtasksForRemoteExecution = -1;
 
     // "The JPA specification requires that all persistent classes have a no-arg constructor. This
@@ -109,14 +110,14 @@ public class PipelineNodeExecutionResources {
      * into the database.
      */
     public void populateFrom(PipelineNodeExecutionResources other) {
-        heapSizeMb = other.heapSizeMb;
-        maxWorkerCount = other.maxWorkerCount;
+        workerResources.setMaxWorkerCount(other.workerResources.getMaxWorkerCount());
+        workerResources.setHeapSizeGigabytes(other.workerResources.getHeapSizeGigabytes());
         maxFailedSubtaskCount = other.maxFailedSubtaskCount;
         maxAutoResubmits = other.maxAutoResubmits;
         remoteExecutionEnabled = other.remoteExecutionEnabled;
         subtaskMaxWallTimeHours = other.subtaskMaxWallTimeHours;
         subtaskTypicalWallTimeHours = other.subtaskTypicalWallTimeHours;
-        gigsPerSubtask = other.gigsPerSubtask;
+        subtaskRamGigabytes = other.subtaskRamGigabytes;
         minSubtasksForRemoteExecution = other.minSubtasksForRemoteExecution;
         optimizer = other.optimizer;
         nodeSharing = other.nodeSharing;
@@ -126,8 +127,6 @@ public class PipelineNodeExecutionResources {
         reservedQueueName = other.reservedQueueName;
         maxNodes = other.maxNodes;
         subtasksPerCore = other.subtasksPerCore;
-        minCoresPerNode = other.minCoresPerNode;
-        minGigsPerNode = other.minGigsPerNode;
         architecture = other.architecture;
         batchQueue = other.batchQueue;
         reservedQueueName = other.reservedQueueName;
@@ -140,19 +139,17 @@ public class PipelineNodeExecutionResources {
      * {@link WorkerResources} singleton when the object is queried.
      */
     public WorkerResources workerResources() {
-        Integer workerCount = maxWorkerCount <= 0 ? null : maxWorkerCount;
-        Integer heapSize = heapSizeMb <= 0 ? null : heapSizeMb;
-        return new WorkerResources(workerCount, heapSize);
+        return workerResources;
     }
 
     /**
-     * Applies the worker resources values to a pipeline instance node. If the values are the
-     * default ones, the node's values will be set to zero rather than the values returned by the
-     * resources object.
+     * Applies the worker resources values to a pipeline node. If the values are the default ones,
+     * the node's values will be set to zero rather than the values returned by the resources
+     * object.
      */
     public void applyWorkerResources(WorkerResources resources) {
-        maxWorkerCount = resources.getMaxWorkerCount() == null ? 0 : resources.getMaxWorkerCount();
-        heapSizeMb = resources.getHeapSizeMb() == null ? 0 : resources.getHeapSizeMb();
+        workerResources.setMaxWorkerCount(resources.getMaxWorkerCount());
+        workerResources.setHeapSizeGigabytes(resources.getHeapSizeGigabytes());
     }
 
     public Long getId() {
@@ -172,19 +169,19 @@ public class PipelineNodeExecutionResources {
     }
 
     public int getMaxWorkerCount() {
-        return maxWorkerCount;
+        return workerResources.getMaxWorkerCount();
     }
 
     public void setMaxWorkerCount(int maxWorkerCount) {
-        this.maxWorkerCount = maxWorkerCount;
+        workerResources.setMaxWorkerCount(maxWorkerCount);
     }
 
-    public int getHeapSizeMb() {
-        return heapSizeMb;
+    public float getHeapSizeGigabytes() {
+        return workerResources.getHeapSizeGigabytes();
     }
 
-    public void setHeapSizeMb(int heapSizeMb) {
-        this.heapSizeMb = heapSizeMb;
+    public void setHeapSizeGigabytes(int heapSizeGigabytes) {
+        workerResources.setHeapSizeGigabytes(heapSizeGigabytes);
     }
 
     public int getMaxFailedSubtaskCount() {
@@ -227,12 +224,12 @@ public class PipelineNodeExecutionResources {
         this.subtaskTypicalWallTimeHours = subtaskTypicalWallTimeHours;
     }
 
-    public double getGigsPerSubtask() {
-        return gigsPerSubtask;
+    public double subtaskRamGigabytes() {
+        return subtaskRamGigabytes;
     }
 
-    public void setGigsPerSubtask(double gigsPerSubtask) {
-        this.gigsPerSubtask = gigsPerSubtask;
+    public void setSubtaskRamGigabytes(double subtaskRamGigabytes) {
+        this.subtaskRamGigabytes = subtaskRamGigabytes;
     }
 
     public int getMinSubtasksForRemoteExecution() {
@@ -323,28 +320,12 @@ public class PipelineNodeExecutionResources {
         this.subtasksPerCore = subtasksPerCore;
     }
 
-    public int getMinCoresPerNode() {
-        return minCoresPerNode;
-    }
-
-    public void setMinCoresPerNode(int minCoresPerNode) {
-        this.minCoresPerNode = minCoresPerNode;
-    }
-
-    public double getMinGigsPerNode() {
-        return minGigsPerNode;
-    }
-
-    public void setMinGigsPerNode(double minGigsPerNode) {
-        this.minGigsPerNode = minGigsPerNode;
-    }
-
     @Override
     public int hashCode() {
-        return Objects.hash(architecture, batchQueue, gigsPerSubtask, heapSizeMb, maxAutoResubmits,
-            maxFailedSubtaskCount, maxNodes, maxWorkerCount, minCoresPerNode, minGigsPerNode,
-            minSubtasksForRemoteExecution, nodeSharing, optimizer, pipelineStepName, pipelineName,
-            remoteEnvironment, remoteExecutionEnabled, remoteNodeArchitecture, reservedQueueName,
+        return Objects.hash(architecture, batchQueue, subtaskRamGigabytes, workerResources,
+            maxAutoResubmits, maxFailedSubtaskCount, maxNodes, minSubtasksForRemoteExecution,
+            nodeSharing, optimizer, pipelineStepName, pipelineName, remoteEnvironment,
+            remoteExecutionEnabled, remoteNodeArchitecture, reservedQueueName,
             subtaskMaxWallTimeHours, subtaskTypicalWallTimeHours, subtasksPerCore, wallTimeScaling);
     }
 
@@ -359,13 +340,13 @@ public class PipelineNodeExecutionResources {
         PipelineNodeExecutionResources other = (PipelineNodeExecutionResources) obj;
         return Objects.equals(architecture, other.architecture)
             && Objects.equals(batchQueue, other.batchQueue)
-            && Double.doubleToLongBits(gigsPerSubtask) == Double
-                .doubleToLongBits(other.gigsPerSubtask)
-            && heapSizeMb == other.heapSizeMb && maxAutoResubmits == other.maxAutoResubmits
+            && Double.doubleToLongBits(subtaskRamGigabytes) == Double
+                .doubleToLongBits(other.subtaskRamGigabytes)
+            && workerResources.getHeapSizeGigabytes() == other.workerResources
+                .getHeapSizeGigabytes()
+            && maxAutoResubmits == other.maxAutoResubmits
             && maxFailedSubtaskCount == other.maxFailedSubtaskCount && maxNodes == other.maxNodes
-            && maxWorkerCount == other.maxWorkerCount && minCoresPerNode == other.minCoresPerNode
-            && Double.doubleToLongBits(minGigsPerNode) == Double
-                .doubleToLongBits(other.minGigsPerNode)
+            && workerResources.getMaxWorkerCount() == other.workerResources.getMaxWorkerCount()
             && minSubtasksForRemoteExecution == other.minSubtasksForRemoteExecution
             && nodeSharing == other.nodeSharing && optimizer == other.optimizer
             && Objects.equals(pipelineStepName, other.pipelineStepName)

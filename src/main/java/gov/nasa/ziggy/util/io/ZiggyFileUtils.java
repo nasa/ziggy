@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -62,6 +63,8 @@ public class ZiggyFileUtils {
 
     public static final String ZIGGY_CHARSET_NAME = ZIGGY_CHARSET.name();
 
+    public static final int CLEAN_DIRECTORY_MAX_RETRIES = 5;
+
     /**
      * Applies write protection to a directory tree. All directories will have permissions set to
      * {@link #DIR_READONLY_PERMISSIONS}; all regular files will have permissions set to
@@ -97,6 +100,9 @@ public class ZiggyFileUtils {
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static void setPosixPermissionsRecursively(Path top, String filePermissions,
         String dirPermissions) {
+        if (!Files.exists(top)) {
+            return;
+        }
         try {
             if (!Files.isDirectory(top)) {
                 Files.setPosixFilePermissions(top,
@@ -312,21 +318,66 @@ public class ZiggyFileUtils {
      * @param force indicates that permissions should be changed, if necessary, to delete files and
      * directories.
      */
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static void cleanDirectoryTree(Path directory, boolean force) {
+        cleanDirectoryTree(directory, force, new CheckForEmptyDirectory());
+    }
+
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    static void cleanDirectoryTree(Path directory, boolean force,
+        BiFunction<Path, Integer, Boolean> directoryChecker) {
+        if (!Files.isDirectory(directory)) {
+            return;
+        }
         if (force) {
             prepareDirectoryTreeForOverwrites(directory);
         }
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path file : stream) {
                 if (Files.isDirectory(file) && !Files.isSymbolicLink(file)) {
-                    cleanDirectoryTree(file);
+                    cleanDirectoryTreeWithRetries(file, directoryChecker);
                 }
                 Files.delete(file);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(
                 "Unable to clean directory tree  " + directory.toString(), e);
+        }
+    }
+
+    /**
+     * Handles the business logic of retrying the clean operation if the prior operation did not
+     * fully clean out the directory. A {@link BiFunction} is used for the actual determination of
+     * whether the directory is empty. This allows a substitute function to be used during testing,
+     * so that a failed clean can be simulated.
+     */
+    private static void cleanDirectoryTreeWithRetries(Path file,
+        BiFunction<Path, Integer, Boolean> directoryChecker) throws IOException {
+        for (int retryCounter = 0; retryCounter <= CLEAN_DIRECTORY_MAX_RETRIES; retryCounter++) {
+            cleanDirectoryTree(file, false, directoryChecker);
+            if (directoryChecker.apply(file, retryCounter)) {
+                break;
+            }
+            retryCounter++;
+            if (retryCounter < CLEAN_DIRECTORY_MAX_RETRIES) {
+                log.warn("Directory {} not empty, retrying", file.toString());
+            } else {
+                log.error("Directory {} not empty and retries exhausted", file.toString());
+            }
+        }
+    }
+
+    static class CheckForEmptyDirectory implements BiFunction<Path, Integer, Boolean> {
+
+        @Override
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+        public Boolean apply(Path directory, Integer retryNumber) {
+            boolean directoryEmpty;
+            try (DirectoryStream<Path> emptyDirectoryStream = Files.newDirectoryStream(directory)) {
+                directoryEmpty = !emptyDirectoryStream.iterator().hasNext();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return directoryEmpty;
         }
     }
 

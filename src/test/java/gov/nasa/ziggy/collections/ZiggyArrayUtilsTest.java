@@ -158,7 +158,8 @@ public class ZiggyArrayUtilsTest {
 
     @Test
     public void testConstructPrimitiveArray() {
-        Object[] returnObject = (Object[]) ZiggyArrayUtils.constructPrimitiveArray(3, 2, ZIGGY_BOOLEAN);
+        Object[] returnObject = (Object[]) ZiggyArrayUtils.constructPrimitiveArray(3, 2,
+            ZIGGY_BOOLEAN);
         assertEquals("[[[Z", returnObject.getClass().getName());
         assertEquals(2, returnObject.length);
         assertNull(returnObject[0]);
@@ -273,7 +274,7 @@ public class ZiggyArrayUtilsTest {
     @Test
     public void testConstructFullArrays() {
         Object[] returnObject = (Object[]) ZiggyArrayUtils
-                    .constructFullPrimitiveArray(new long[] { 3, 4, 5 }, ZIGGY_INT);
+            .constructFullPrimitiveArray(new long[] { 3, 4, 5 }, ZIGGY_INT);
 
         assertEquals("[[[I", returnObject.getClass().getName());
         assertEquals(3, returnObject.length);
@@ -496,5 +497,22 @@ public class ZiggyArrayUtilsTest {
         int[][][] intMultiArray = new int[3][4][5];
         ZiggyArrayUtils.setValue(intMultiArray, new int[] { 2, 1, 3 }, 100);
         assertEquals(100, intMultiArray[2][1][3]);
+    }
+
+    @Test
+    public void testArrayWithTrivialDimensions() {
+        int[][] array2d = { { 1, 2, 3 }, { 4, 5, 6 } };
+        int[][][][] array4d = (int[][][][]) ZiggyArrayUtils.arrayWithTrivialDimensions(array2d, 4);
+        assertTrue(
+            Arrays.equals(new long[] { 1L, 1L, 2L, 3L }, ZiggyArrayUtils.getArraySize(array4d)));
+        assertTrue(Arrays.equals(array4d[0][0], array2d));
+        int[][] array2dPadded = (int[][]) ZiggyArrayUtils.arrayWithTrivialDimensions(array2d, 2);
+        assertTrue(array2d == array2dPadded);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testArrayWithNegativeTrivialDimensions() {
+        int[][] array2d = { { 1, 2, 3 }, { 4, 5, 6 } };
+        ZiggyArrayUtils.arrayWithTrivialDimensions(array2d, 1);
     }
 }

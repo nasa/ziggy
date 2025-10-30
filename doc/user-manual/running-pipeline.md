@@ -33,6 +33,7 @@ generate-manifest       gov.nasa.ziggy.data.management.Manifest
 hsqlgui                 org.hsqldb.util.DatabaseManagerSwing
 import-pipelines        gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionCli
 metrics                 gov.nasa.ziggy.metrics.report.MetricsCli
+property-value          gov.nasa.ziggy.services.config.ZiggyConfiguration
 perf-report             gov.nasa.ziggy.metrics.report.PerformanceReport
 update-pipelines        gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionCli
 $ 

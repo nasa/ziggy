@@ -23,7 +23,8 @@ WRAPPER_CONF="../etc/supervisor.wrapper.conf"
 PRIORITY=
 
 # Location of the pid file.
-PIDDIR="."
+PIDDIR=`$ZIGGY_HOME/bin/ziggy property-value -p ziggy.pipeline.results.dir`/run
+mkdir -p $PIDDIR
 
 # If uncommented, causes the Wrapper to be shutdown using an anchor file.
 #  When launched with the 'start' command, it will also ignore all INT and

@@ -14,6 +14,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
@@ -26,6 +29,8 @@ public enum LockManager {
 
     /** The singleton instance. */
     INSTANCE();
+
+    private static final Logger log = LoggerFactory.getLogger(LockManager.class);
 
     LockManager() {
         ZiggyShutdownHook.addShutdownHook(() -> {
@@ -185,8 +190,16 @@ public enum LockManager {
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private void getWriteLockOrBlockInternal(File f) {
-        getLock(f).writeLock().lock();
+
+        // First try to get the lock using the non-blocking methods.
+        if (getWriteLockWithoutBlockingInternal(f)) {
+            return;
+        }
+
+        // If that didn't work, warn the user that we're waiting on the lock.
+        log.warn("Waiting for lock on file {}...", f.toString());
         try {
+            getLock(f).writeLock().lock();
             f.getParentFile().mkdirs();
             FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE);
@@ -198,6 +211,7 @@ public enum LockManager {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to get write lock on file " + f.toString(), e);
         }
+        log.info("Waiting for lock on file {}...done", f.toString());
     }
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)

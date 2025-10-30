@@ -4,6 +4,54 @@
 
 These are the release notes for Ziggy. In the change log below, we'll refer to our internal Jira key for our benefit. If the item is associated with a resolved GitHub issue or pull request, we'll add a link to that. Changes that are incompatible with previous versions are marked below. While the major version is 0, we will be making breaking changes when bumping the minor number. However, once we hit version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v0.10.0: Almost ready for 1.0.0
+
+This version is being used to run the Transiting Exoplanet Survey Satellite (TESS) data analysis pipeline. That effort is currently in dry run in preparation for formal V&V.
+
+The content of this release contains bug fixes and other improvements to get us to this point.
+
+## New Features
+
+1. Relax stringent pipeline configuration naming conventions (ZIGGY-258)
+1. Add java heap size control for before / after algorithm executor (ZIGGY-559)
+1. Adjust task request priorities (ZIGGY-560)
+1. Pipeline task priority in task request handlers is incorrect (ZIGGY-566)
+1. Add final subtask check to TaskMonitor (ZIGGY-568)
+1. Add action thread to ZiggyMessenger (ZIGGY-572)
+1. Remove node numbers from Edit pipeline dialog (ZIGGY-576)
+1. Improve performance of marshaling for new-data processing (ZIGGY-577)
+1. Move Supervisor PID file (ZIGGY-583)
+1. Allow 1-D HDF5 arrays to map to N-D Java fields (ZIGGY-584)
+1. Improvements to task restart API (ZIGGY-585)
+1. Move XmlSchemaExporter classes to command line (ZIGGY-589)
+1. Add index to pipeline instance in PipelineTask (ZIGGY-591)
+1. Delete ProtectedEntityInterceptor class (ZIGGY-596)
+1. Remove sandy bridge option for HECC (ZIGGY-601)
+1. Log "Subtask LOCKED" message only once (ZIGGY-607)
+
+## Bug Fixes
+
+1. The ziggy command does not perform property expansion (ZIGGY-235)
+1. Ziggy query to find consumed files runs too slowly (ZIGGY-548)
+1. Restart fails after marshaling failure (ZIGGY-558)
+1. Failures in remote execution management (ZIGGY-561)
+1. Untangle algorithm and worker heap size usage (ZIGGY-564)
+1. Pipeline step names cannot contain whitespace (ZIGGY-567)
+1. Task Information and Remote Execution commands throw exceptions (ZIGGY-570)
+1. ZiggyFileUtils error on nonexistent directory (ZIGGY-573)
+1. Resubmit tasks is unreliable (ZIGGY-574)
+1. Intermittent failures in ZiggyDatabaseRule (ZIGGY-575)
+1. Worker status panel displays wrong resources (ZIGGY-579)
+1. Resume current step doesn't update console (ZIGGY-580)
+1. Timeout hit viewing logs and log listings (ZIGGY-590)
+1. Edit pipelines dialog gives ConcurrentModificationException (ZIGGY-593)
+1. Ziggy's HDF5 installation refers to the outside directory (ZIGGY-597)
+1. Delete subtask lock files before resubmitting a task (ZIGGY-598)
+1. Double-check that all files are deleted before deleting a directory (ZIGGY-599)
+1. Create log directory for database on database start (ZIGGY-600)
+1. Speed up Instances Panel on console (ZIGGY-605)
+1. Supervisor crashes when orphaned remote jobs are present (ZIGGY-606)
+
 # v0.9.0: Getting ready for 1.0.0
 
 Since this was our last chance to rename everything, we did so. The architecture has diverged over the decades, but we've made the names and architecture a lot more consistent in this release. You'll notice some of the changes in the XML elements in your pipeline definition (the Ziggy definitions are now in etc/ziggy.d); the rest are internal. In particular, rather than using "module" in a gazillion contexts, we've teased out the differences in separate names. The algorithms are now called "steps." When those steps are incorporated into a "pipeline," they are called "nodes." We no longer use module except in the context of Python modules.

@@ -55,15 +55,20 @@ public class SubtaskMaster implements Runnable {
     private final String jobId;
     private final String jobName;
     private int subtaskIndex;
+    private final float heapSizeGigabytes;
+    private final TaskConfiguration taskConfiguration;
 
     public SubtaskMaster(int threadNumber, String node, CountDownLatch countdownLatch,
-        String binaryName, String taskDir, int timeoutSecs) {
+        String binaryName, String taskDir, int timeoutSecs, float heapSizeGigabytes,
+        TaskConfiguration taskConfiguration) {
         this.threadNumber = threadNumber;
         this.node = node;
         this.countdownLatch = countdownLatch;
         this.binaryName = binaryName;
         this.taskDir = taskDir;
         this.timeoutSecs = timeoutSecs;
+        this.heapSizeGigabytes = heapSizeGigabytes;
+        this.taskConfiguration = taskConfiguration;
 
         String fullJobId = System.getenv("PBS_JOBID");
         if (!StringUtils.isBlank(fullJobId)) {
@@ -187,7 +192,6 @@ public class SubtaskMaster implements Runnable {
         }
 
         if (previousAlgorithmState.isComplete()) {
-            log.info("Subtask algorithm state COMPLETE, skipping subtask{}", subtaskDir.getName());
             return true;
         }
 
@@ -311,6 +315,14 @@ public class SubtaskMaster implements Runnable {
 
     public int getTimeoutSecs() {
         return timeoutSecs;
+    }
+
+    public float getHeapSizeGigabytes() {
+        return heapSizeGigabytes;
+    }
+
+    public TaskConfiguration getTaskConfiguration() {
+        return taskConfiguration;
     }
 
     @Override

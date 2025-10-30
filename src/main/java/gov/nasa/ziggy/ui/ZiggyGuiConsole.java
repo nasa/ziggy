@@ -41,8 +41,6 @@ import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messages.ShutdownMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messaging.HeartbeatManager;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
@@ -54,7 +52,6 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.Requestor;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
-import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
  * The console GUI.
@@ -76,8 +73,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
     private static Image pipelineImage;
     private static Image ziggyImage;
 
-    private static WorkerResources defaultResources;
-
     private final UUID uuid = UUID.randomUUID();
 
     {
@@ -96,12 +91,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
             shutdown();
         });
 
-        ZiggyMessenger.subscribe(WorkerResourcesMessage.class, message -> {
-            if (message.getDefaultResources() != null && defaultResources == null) {
-                defaultResources = message.getDefaultResources();
-            }
-        });
-
         int rmiPort = ZiggyConfiguration.getInstance()
             .getInt(PropertyName.SUPERVISOR_PORT.property(), ZiggyRmiServer.RMI_PORT_DEFAULT);
         log.info("Starting ZiggyRmiClient instance with registry on port {}...", rmiPort);
@@ -112,8 +101,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
         log.info("Starting ZiggyRmiClient instance with registry on port {}...done", rmiPort);
 
         buildComponent();
-
-        ZiggyMessenger.publish(new WorkerResourcesRequest());
 
         // This message prompts the components to set their state the first time.
         ZiggyMessenger.publish(new PipelineInstanceStartedMessage(), false);
@@ -325,10 +312,6 @@ public class ZiggyGuiConsole extends javax.swing.JFrame implements Requestor {
             log.warn("Unable to load image from file {}", url.toString(), e);
         }
         return image;
-    }
-
-    public static WorkerResources defaultResources() {
-        return defaultResources;
     }
 
     @Override

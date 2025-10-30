@@ -36,6 +36,18 @@ As you can see, there are three attributes to a `step` element.
 
 This is pretty much what it sounds like. This is the unique name that you will use in your pipelines to define the order in which pipeline steps are executed. 
 
+###### Can I Include Whitespace in the Step Name?
+
+Short answer: you can, but you probably shouldn't. 
+
+Longer answer:
+
+At runtime, the step name is used to create names for log files and for the task directory. Neither of these use-cases can tolerate whitespace because they interact with file systems that can take a dim view of whitespace in a file name. In order to match the round peg of a step name with whitespace into the square hole of the file system's expectations, all whitespace in the step name is replaced with underscore characters when creating the log files and task directories. Hence, your step name of "my step" will become "my_step" in the context of log files and task directories. 
+
+This is already annoying enough, but it gets worse if you want to write some sort of script that loops over log files or over task directories to do post-processing on your pipeline results. At that point you'd need to remember to use the name with underscores rather than the original name of the pipeline step.
+
+Anyway, don't use whitespace in a step name if you have any way to avoid it. 
+
 ##### `file` Attribute
 
 This is the file that Ziggy will use to execute the pipeline step. This is actually an optional attribute. If you don't specify a `file`, Ziggy will look for an executable file that has the step's `name` attribute as the file name. 

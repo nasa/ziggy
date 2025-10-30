@@ -22,15 +22,6 @@ defaultTasks ':buildSrc:publish', 'publish', 'test'
 ext {
     // Location of third-party sources.
     outsideDir = "$rootDir/outside"
-
-    // The dependency group used for libraries from outside is called "outside".
-    // This variable contains the directory that contains the libraries from
-    // outside. Without the dependency group and the outside subdirectory,
-    // consumers of the published module will get "null" errors.
-    outsideGroupDir = "$buildDir/libs/outside"
-
-    // Name of the outside group, used in publishing artifacts.
-    outsideGroup = "outside"
 }
 
 repositories {
@@ -78,8 +69,9 @@ dependencies {
     implementation 'commons-beanutils:commons-beanutils:1.10.+'
 
     // Libraries built outside.
-    implementation 'outside:jarhdf5:1.14.+'
-    implementation 'outside:wrapper:3.5.+'
+    // Add these to the copyLibs' exclude list; otherwise, the
+    // libraries will get zeroed out when the task runs.
+    implementation fileTree("$buildDir/libs") {include "jarhdf5-*.jar", "wrapper-*.jar"}
 
     // Needed to run unit tests and at runtime.
     implementation 'org.hsqldb:hsqldb:2.7.+'
@@ -174,27 +166,23 @@ tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
     }
 }
 
-// Outside build files should copy their jars to $outsideGroupDir and
-// then make copyOutsideLibs depend on the task that performs that copy.
-// This is used to publish the outside jars.
+// Outside build files should install their jars in $buildDir/libs and
+// then make copyOutsideLibs depend on the task that installs the jars.
 task copyOutsideLibs
 compileJava.dependsOn copyOutsideLibs
 
-
 // Apply Ziggy Gradle script plugins.
 
-// A couple of the other scripts depend on integrationTest.
-apply from: "script-plugins/test.gradle"
-
 // Most scripts in alphabetical order.
+// The test.gradle file is out of order since a couple of the other
+// scripts depend on integrationTest.
 apply from: "script-plugins/copy.gradle"
+apply from: "script-plugins/test.gradle"
 apply from: "script-plugins/database-schemas.gradle"
 apply from: "script-plugins/eclipse.gradle"
 apply from: "script-plugins/hdf5.gradle"
 apply from: "script-plugins/misc.gradle"
+apply from: "script-plugins/publish.gradle"
 apply from: "script-plugins/wrapper.gradle"
 apply from: "script-plugins/xml-schemas.gradle"
 apply from: "script-plugins/ziggy-libraries.gradle"
-
-// Depends on versions set in hdf5.gradle and wrapper.gradle and copyBuildSrc from copy.gradle.
-apply from: "script-plugins/publish.gradle"

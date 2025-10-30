@@ -86,30 +86,6 @@ publishing {
                 }
             }
         }
-
-        hdf5(MavenPublication) {
-            groupId = "$outsideGroup"
-            artifactId = "jarhdf5"
-            artifact "${outsideGroupDir}/jarhdf5-${hdf5Version}.jar"
-            version = "$hdf5Version"
-            pom {
-                name = 'HDF5'
-                description = 'HDF5'
-                url = 'https://www.hdfgroup.org/downloads/hdf5/'
-            }
-        }
-
-        wrapper(MavenPublication) {
-            groupId = "$outsideGroup"
-            artifactId = "wrapper"
-            artifact "${outsideGroupDir}/wrapper-${wrapperVersion}.jar"
-            version = "$wrapperVersion"
-            pom {
-                name = 'Wrapper'
-                description = 'Java Service Wrapper'
-                url = 'https://wrapper.tanukisoftware.com/doc/english/home.html'
-            }
-        }
     }
 
     repositories {
@@ -129,12 +105,6 @@ afterEvaluate {
         dependsOn("copyLibs")
     }
     tasks.named("publishZiggyTestPublicationToZiggyRepository") {
-        dependsOn("copyLibs")
-    }
-    tasks.named("publishHdf5PublicationToZiggyRepository") {
-        dependsOn("copyLibs")
-    }
-    tasks.named("publishWrapperPublicationToZiggyRepository") {
         dependsOn("copyLibs")
     }
 }

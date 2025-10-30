@@ -49,9 +49,14 @@ import gov.nasa.ziggy.ui.util.TextualReportDialog;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.ButtonPanelContext;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
+ * A dialog for editing pipelines.
+ *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 @SuppressWarnings("serial")
 public class EditPipelineDialog extends javax.swing.JDialog {
@@ -74,6 +79,8 @@ public class EditPipelineDialog extends javax.swing.JDialog {
 
     // Contains all pipeline nodes with updated execution resources.
     private Map<Long, PipelineNodeExecutionResources> updatedExecutionResources = new HashMap<>();
+
+    private WorkerResources defaultResources;
 
     private boolean cancelled;
 
@@ -290,11 +297,11 @@ public class EditPipelineDialog extends javax.swing.JDialog {
                 }
 
                 // Save any pipeline nodes that have been touched since the dialog box
-                // was opened.
-                for (PipelineNodeExecutionResources executionResources : updatedExecutionResources
-                    .values()) {
-                    updatedExecutionResources.put(executionResources.getId(),
-                        pipelineNodeOperations().merge(executionResources));
+                // was opened. Use copy of keys to avoid a ConcurrentModificationException while
+                // modifying map.
+                for (Long id : updatedExecutionResources.keySet().stream().toList()) {
+                    updatedExecutionResources.put(id,
+                        pipelineNodeOperations().merge(updatedExecutionResources.get(id)));
                 }
 
                 // Update the reprocess selection.
@@ -446,10 +453,30 @@ public class EditPipelineDialog extends javax.swing.JDialog {
         if (pipelineNode == null) {
             return;
         }
-        PipelineNodeExecutionResources executionResources = updatedExecutionResources
-            .get(pipelineNode.getId());
-        new PipelineNodeResourcesDialog(this, pipeline.getName(), pipelineNode, executionResources)
-            .setVisible(true);
+
+        new SwingWorker<WorkerResources, Void>() {
+
+            @Override
+            protected WorkerResources doInBackground() throws Exception {
+                if (defaultResources == null) {
+                    defaultResources = new WorkerResourcesOperations().defaultInstance();
+                }
+                return defaultResources;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    PipelineNodeExecutionResources executionResources = updatedExecutionResources
+                        .get(pipelineNode.getId());
+                    WorkerResources defaultResources = get();
+                    new PipelineNodeResourcesDialog(EditPipelineDialog.this, pipeline.getName(),
+                        pipelineNode, executionResources, defaultResources).setVisible(true);
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Could not load default resources", e);
+                }
+            }
+        }.execute();
     }
 
     /**

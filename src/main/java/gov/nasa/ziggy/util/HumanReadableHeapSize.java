@@ -2,7 +2,7 @@ package gov.nasa.ziggy.util;
 
 /**
  * Support for human-readable heap sizes, and conversions between human-readable and heap sizes in
- * MB.
+ * GB.
  *
  * @author PT
  */
@@ -11,24 +11,24 @@ public class HumanReadableHeapSize {
     public enum HeapSizeUnit {
         MB {
             @Override
-            public int heapSizeMb(float humanReadableHeapSize) {
-                return (int) humanReadableHeapSize;
+            public float heapSizeGigabytes(float humanReadableHeapSize) {
+                return (int) humanReadableHeapSize / 1000;
             }
         },
         GB {
             @Override
-            public int heapSizeMb(float humanReadableHeapSize) {
-                return (int) (humanReadableHeapSize * 1000);
+            public float heapSizeGigabytes(float humanReadableHeapSize) {
+                return humanReadableHeapSize;
             }
         },
         TB {
             @Override
-            public int heapSizeMb(float humanReadableHeapSize) {
-                return (int) (humanReadableHeapSize * 1000000);
+            public float heapSizeGigabytes(float humanReadableHeapSize) {
+                return humanReadableHeapSize * 1000;
             }
         };
 
-        public abstract int heapSizeMb(float humanReadableHeapSize);
+        public abstract float heapSizeGigabytes(float humanReadableHeapSize);
     }
 
     private final float humanReadableHeapSize;
@@ -39,18 +39,18 @@ public class HumanReadableHeapSize {
         this.heapSizeUnit = heapSizeUnit;
     }
 
-    public HumanReadableHeapSize(int heapSizeMb) {
-        if (heapSizeMb < 1000) {
-            humanReadableHeapSize = heapSizeMb;
+    public HumanReadableHeapSize(float heapSizeGigabytes) {
+        if (heapSizeGigabytes < 1) {
+            humanReadableHeapSize = heapSizeGigabytes * 1000;
             heapSizeUnit = HeapSizeUnit.MB;
             return;
         }
-        if (heapSizeMb > 1000000) {
-            humanReadableHeapSize = (float) heapSizeMb / 1000000;
+        if (heapSizeGigabytes >= 1000) {
+            humanReadableHeapSize = heapSizeGigabytes / 1000;
             heapSizeUnit = HeapSizeUnit.TB;
             return;
         }
-        humanReadableHeapSize = (float) heapSizeMb / 1000;
+        humanReadableHeapSize = heapSizeGigabytes;
         heapSizeUnit = HeapSizeUnit.GB;
     }
 
@@ -62,8 +62,8 @@ public class HumanReadableHeapSize {
         return heapSizeUnit;
     }
 
-    public int heapSizeMb() {
-        return heapSizeUnit.heapSizeMb(humanReadableHeapSize);
+    public float heapSizeGigabytes() {
+        return heapSizeUnit.heapSizeGigabytes(humanReadableHeapSize);
     }
 
     @Override

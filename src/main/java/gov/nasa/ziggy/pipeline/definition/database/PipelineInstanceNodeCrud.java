@@ -79,16 +79,23 @@ public class PipelineInstanceNodeCrud extends AbstractCrud<PipelineInstanceNode>
     }
 
     /**
-     * Retrieve the PipelineInstanceNode for the specified id.
-     *
-     * @param id
-     * @return
+     * Retrieves the PipelineInstanceNode for the specified id.
      */
     public PipelineInstanceNode retrieve(long id) {
         ZiggyQuery<PipelineInstanceNode, PipelineInstanceNode> query = createZiggyQuery(
             PipelineInstanceNode.class);
         query.column(PipelineInstanceNode_.id).in(id);
 
+        return uniqueResult(query);
+    }
+
+    /**
+     * Retrieves the PipelineInstanceNode associated with the given pipeline task.
+     */
+    public PipelineInstanceNode retrieve(PipelineTask pipelineTask) {
+        ZiggyQuery<PipelineInstanceNode, PipelineInstanceNode> query = createZiggyQuery(
+            PipelineInstanceNode.class);
+        query.column(PipelineInstanceNode_.pipelineTasks).contains(pipelineTask);
         return uniqueResult(query);
     }
 

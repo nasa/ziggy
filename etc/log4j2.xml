@@ -58,9 +58,14 @@
     -->
 
     <!--
-        To view SQL, uncomment the following, set the console's ThresholdFilter level to "DEBUG",
+        To view SQL, first uncomment the following logger.
+        To view output in Eclipse, set the console's ThresholdFilter level to "DEBUG",
         and add the following VM arguments to your run configuration in Eclipse.
         -Dlog4j2.configurationFile=etc/log4j2.xml -Dhibernate.show_sql=true -Dhibernate.format_sql=true -Dhibernate.use_sql_comments=true
+        To view output in the supervisor log, set the "gov.nasa.ziggy" logger above to debug and append
+        the hibernate property settings above to the ziggy.default.jvm.args property in ziggy.properties.
+        To view output in the worker log, set the "gov.nasa.ziggy" logger above to debug and uncomment
+        the hibernate property settings above in TaskRequestHandler.commandLine().
         <Logger name="org.hibernate.SQL" level="debug"/>
     -->
     

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.AlgorithmState;
@@ -69,6 +70,9 @@ public class TaskMonitor implements Runnable {
     private int totalSubtasks;
     private boolean monitoringEnabled = true;
     private boolean finishFileDetected;
+    private boolean incompleteSubtasksPossible;
+    private boolean waitedForSubtaskUpdates;
+    private boolean allSubtasksProcessed;
 
     public TaskMonitor(PipelineTask pipelineTask, File taskDir, long pollIntervalMilliseconds) {
         subtaskDirectories = SubtaskUtils.subtaskDirectories(taskDir.toPath());
@@ -126,11 +130,13 @@ public class TaskMonitor implements Runnable {
         if (!pipelineTask.equals(message.getPipelineTask())) {
             return;
         }
+        incompleteSubtasksPossible = true;
         update(true);
     }
 
     void handleHaltTasksRequest(HaltTasksRequest request) {
         if (request.getPipelineTasks().contains(pipelineTask)) {
+            incompleteSubtasksPossible = true;
             update(true);
         }
     }
@@ -207,16 +213,14 @@ public class TaskMonitor implements Runnable {
             log.warn("No subtask dirs found in {}", taskDir);
         }
 
-        SubtaskStateCounts stateCounts = countSubtaskStates();
-        pipelineTaskDataOperations.updateSubtaskCounts(pipelineTask, -1,
-            stateCounts.getCompletedSubtasks(), stateCounts.getFailedSubtasks());
+        SubtaskStateCounts stateCounts = updateSubtaskStateCounts();
 
         if (taskAlgorithmStateFile.isProcessing()
             && pipelineTaskDataOperations.processingStep(pipelineTask).isPreExecutionStep()) {
             pipelineTaskDataOperations.updateProcessingStep(pipelineTask, ProcessingStep.EXECUTING);
         }
 
-        boolean allSubtasksProcessed = allSubtasksProcessed(stateCounts);
+        allSubtasksProcessed = allSubtasksProcessed(stateCounts);
 
         // If this was a run-of-the-mill update, we're done.
         if (!allSubtasksProcessed && !finalUpdate) {
@@ -234,10 +238,31 @@ public class TaskMonitor implements Runnable {
         // without taking any action.
         monitoringEnabled = false;
         checkForFinishFile();
+
+        if (!allSubtasksProcessed) {
+            if (!incompleteSubtasksPossible) {
+
+                // Wait and see if file-system lag has prevented the subtask counts
+                // from showing all subtasks processed.
+                waitForSubtaskCountUpdates();
+            }
+        }
+
+        // Regardles of anything else, do one last update of the subtask counts. This time,
+        // verify that the database update was performed.
+        finalSubtaskUpdate();
+
         publishTaskProcessingCompleteMessage(allSubtasksProcessed ? new CountDownLatch(1) : null);
 
         // It is now safe to shut down the monitoring loop.
         shutdown();
+    }
+
+    private SubtaskStateCounts updateSubtaskStateCounts() {
+        SubtaskStateCounts stateCounts = countSubtaskStates();
+        pipelineTaskDataOperations.updateSubtaskCounts(pipelineTask, -1,
+            stateCounts.getCompletedSubtasks(), stateCounts.getFailedSubtasks());
+        return stateCounts;
     }
 
     /**
@@ -251,8 +276,8 @@ public class TaskMonitor implements Runnable {
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void checkForFinishFile() {
         try {
-            ZiggyUtils.tryPatiently("Wait for FINISH file", fileSystemChecksCount(),
-                fileSystemCheckIntervalMillis(), () -> {
+            ZiggyUtils.tryPatiently("Wait for FINISH file for task " + pipelineTask.getId(),
+                fileSystemChecksCount(), fileSystemCheckIntervalMillis(), () -> {
                     if (!TimestampFile.exists(taskDir, Event.FINISH)) {
                         throw new Exception();
                     }
@@ -262,6 +287,57 @@ public class TaskMonitor implements Runnable {
         } catch (PipelineException e) {
             log.error("FINISH file never created in task directory {}", taskDir.toString());
             finishFileDetected = false;
+        }
+    }
+
+    private void finalSubtaskUpdate() {
+        try {
+            ZiggyUtils.tryPatiently(
+                "Wait for final subtask count update for task " + pipelineTask.getId(),
+                fileSystemChecksCount(), fileSystemCheckIntervalMillis(), () -> {
+                    SubtaskStateCounts stateCounts = countSubtaskStates();
+                    log.debug("Pipeline task {}: {} completed, {} failed", pipelineTask.getId(),
+                        stateCounts.getCompletedSubtasks(), stateCounts.getFailedSubtasks());
+                    pipelineTaskDataOperations.updateSubtaskCounts(pipelineTask, -1,
+                        stateCounts.getCompletedSubtasks(), stateCounts.getFailedSubtasks());
+                    SubtaskCounts databaseStateCounts = pipelineTaskDataOperations
+                        .subtaskCounts(pipelineTask);
+                    log.debug("Pipeline task {} database: {} completed, {} failed",
+                        pipelineTask.getId(), databaseStateCounts.getCompletedSubtaskCount(),
+                        databaseStateCounts.getFailedSubtaskCount());
+                    if (stateCounts.getCompletedSubtasks() != databaseStateCounts
+                        .getCompletedSubtaskCount()
+                        || stateCounts.getFailedSubtasks() != databaseStateCounts
+                            .getFailedSubtaskCount()) {
+                        throw new Exception();
+                    }
+                    return null;
+                });
+        } catch (PipelineException e) {
+            log.error("Subtask count update never accepted by database for task {}",
+                pipelineTask.getId());
+        }
+    }
+
+    /**
+     * Wait to see if additional subtasks get their .COMPLETE flags set. This is intended to address
+     * file system lags in the creation of the zero-length files that Ziggy relies upon to monitor
+     * status.
+     */
+    @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
+    private void waitForSubtaskCountUpdates() {
+        waitedForSubtaskUpdates = true;
+        try {
+            ZiggyUtils.tryPatiently("Wait for all subtasks to report done", fileSystemChecksCount(),
+                fileSystemCheckIntervalMillis(), () -> {
+                    if (!allSubtasksProcessed()) {
+                        throw new Exception();
+                    }
+                    allSubtasksProcessed = allSubtasksProcessed();
+                    return null;
+                });
+        } catch (PipelineException e) {
+            log.error("Incomplete subtasks remain for task {}", taskDir.toString());
         }
     }
 
@@ -312,5 +388,25 @@ public class TaskMonitor implements Runnable {
 
     void resetMonitoringEnabled() {
         monitoringEnabled = true;
+    }
+
+    boolean iswaitForSubtaskCountUpdates() {
+        return waitedForSubtaskUpdates;
+    }
+
+    void resetWaitedForSubtaskCountUpdates() {
+        waitedForSubtaskUpdates = false;
+    }
+
+    void resetIncompleteSubtasksPossible() {
+        incompleteSubtasksPossible = false;
+    }
+
+    boolean isAllSubtasksProcessed() {
+        return allSubtasksProcessed;
+    }
+
+    void resetAllSubtasksProcessed() {
+        allSubtasksProcessed = false;
     }
 }

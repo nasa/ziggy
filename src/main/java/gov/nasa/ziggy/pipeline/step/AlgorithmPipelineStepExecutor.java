@@ -31,6 +31,7 @@ import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
 import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.metrics.ValueMetric;
+import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
@@ -39,12 +40,16 @@ import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputs;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputsOutputsUtils;
 import gov.nasa.ziggy.pipeline.step.io.PipelineOutputs;
+import gov.nasa.ziggy.pipeline.step.remote.RemoteAlgorithmExecutor;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.util.ZiggyUtils;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
  * Pipeline steps that execute an external process, either directly via a command line run in a
@@ -57,6 +62,8 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(AlgorithmPipelineStepExecutor.class);
 
+    private static final long DATABASE_RETRY_INTERVAL_MILLIS = 50L;
+    private static final int DATABASE_RETRIES = 50;
     /**
      * List of valid processing steps.
      */
@@ -65,11 +72,12 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
         ProcessingStep.WAITING_TO_STORE, ProcessingStep.STORING);
 
     // Instance members
-    private AlgorithmLifecycle algorithmManager;
     private long instanceId;
     private TaskConfiguration taskConfiguration;
     private PipelineInputs pipelineInputs;
     private PipelineOutputs pipelineOutputs;
+    private TaskDirectoryManager taskDirectoryManager;
+    private WorkerResourcesOperations workerResourcesOperations = new WorkerResourcesOperations();
 
     protected boolean processingSuccessful;
     protected boolean doneLooping;
@@ -97,7 +105,14 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     }
 
     protected File getTaskDir() {
-        return algorithmManager().getTaskDir(false);
+        return getTaskDir(false);
+    }
+
+    protected File getTaskDir(boolean cleanExisting) {
+        if (taskDirectoryManager == null) {
+            taskDirectoryManager = new TaskDirectoryManager(pipelineTask());
+        }
+        return taskDirectoryManager.allocateTaskDir(cleanExisting).toFile();
     }
 
     public void checkHaltRequest(ProcessingStep step) {
@@ -122,20 +137,16 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
 
         log.info("Processing step {}...", ProcessingStep.MARSHALING);
         boolean successful;
-        File taskDir = algorithmManager().getTaskDir(true);
+        File taskDir = getTaskDir(true);
         IntervalMetric.measure(CREATE_INPUTS_METRIC, () -> {
-
-            // Note: here we retrieve a copy of the pipeline task from the database and
-            // update its producer task IDs. The existing copy of the task in this object
-            // is also replaced with the updated task.
-//            pipelineTask = datastoreProducerConsumerOperations()
-//                .clearProducerTaskIds(pipelineTask().getId());
-            copyFilesToTaskDirectory(taskConfiguration(), taskDir);
+            copyFilesToTaskDirectory(taskDir);
+            pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask(),
+                taskConfiguration().getSubtaskCount(), 0, 0);
         });
 
-        if (taskConfiguration().getSubtaskCount() != 0) {
-            taskConfiguration().serialize(taskDir);
-
+        // Set the heap size parameter in the TaskConfiguration and serialize.
+        if (pipelineTaskDataOperations().subtaskCounts(pipelineTask())
+            .getTotalSubtaskCount() != 0) {
             checkHaltRequest(ProcessingStep.MARSHALING);
 
             // Set the next step, whatever it might be.
@@ -155,14 +166,27 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     }
 
     /**
+     * Returns the heap size value to be used for before / after algorithm execution. In the case of
+     * remote execution where node sharing is enabled, this will be the subtask's RAM requirement;
+     * in all other cases, it's the per-worker heap size (i.e., the total heap size for all workers
+     * divided by number of workers).
+     */
+    private double beforeAfterHeapSizeGigabytes() {
+        WorkerResources workerResources = workerResourcesOperations()
+            .compositeWorkerResources(pipelineTaskOperations().pipelineNode(pipelineTask()));
+        PipelineNodeExecutionResources executionResources = pipelineTaskOperations()
+            .executionResources(pipelineTask());
+        return isRemote() && executionResources.isNodeSharing()
+            ? executionResources.subtaskRamGigabytes()
+            : workerResources.getHeapSizeGigabytes() / workerResources.getMaxWorkerCount();
+    }
+
+    /**
      * Copy datastore files needed as inputs to the specified working directory.
      */
-    public void copyFilesToTaskDirectory(TaskConfiguration taskConfiguration,
-        File taskWorkingDirectory) {
-        pipelineInputs().copyDatastoreFilesToTaskDirectory(taskConfiguration,
+    public void copyFilesToTaskDirectory(File taskWorkingDirectory) {
+        pipelineInputs().copyDatastoreFilesToTaskDirectory(taskConfiguration(),
             taskWorkingDirectory.toPath());
-        pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask,
-            taskConfiguration.getSubtaskCount(), 0, 0);
     }
 
     /**
@@ -174,15 +198,27 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     public void submittingTaskAction() {
 
         log.info("Processing step {}...", ProcessingStep.SUBMITTING);
-        TaskConfiguration taskConfiguration = null;
-        if (runMode.equals(RunMode.STANDARD)) {
-            taskConfiguration = taskConfiguration();
-        }
-        algorithmManager().executeAlgorithm(taskConfiguration);
+
+        serializeTaskConfiguration();
+        executor().submitAlgorithm();
         checkHaltRequest(ProcessingStep.SUBMITTING);
         doneLooping = true;
         processingSuccessful = false;
         log.info("Processing step {}...done", ProcessingStep.SUBMITTING);
+    }
+
+    /**
+     * Update the values in the TaskConfiguration and serialize. Do this as part of submitting the
+     * task.
+     */
+    private void serializeTaskConfiguration() {
+        taskConfiguration().setSubtaskCount(
+            pipelineTaskDataOperations().subtaskCounts(pipelineTask()).getTotalSubtaskCount());
+        taskConfiguration().setHeapSizeGigabytes((float) beforeAfterHeapSizeGigabytes());
+        taskConfiguration().setActiveCores(executor().activeCores());
+        taskConfiguration().setRequestedTimeSeconds(executor().wallTime());
+        taskConfiguration().setExecutableName(pipelineTask().getExecutableName());
+        taskConfiguration().serialize(getTaskDir());
     }
 
     /**
@@ -194,7 +230,7 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     public void queuedTaskAction() {
 
         log.info("Resubmitting {} algorithm to remote system...", ProcessingStep.QUEUED);
-        algorithmManager().executeAlgorithm(null);
+        executor().submitAlgorithm();
         checkHaltRequest(ProcessingStep.QUEUED);
         doneLooping = true;
         processingSuccessful = false;
@@ -210,7 +246,7 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     public void executingTaskAction() {
 
         log.info("Resubmitting {} algorithm to remote system...", ProcessingStep.EXECUTING);
-        algorithmManager().executeAlgorithm(null);
+        executor().submitAlgorithm();
         checkHaltRequest(ProcessingStep.EXECUTING);
         doneLooping = true;
         processingSuccessful = false;
@@ -238,7 +274,7 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     public void storingTaskAction() {
 
         log.info("Processing step {}...", ProcessingStep.STORING);
-        if (algorithmManager().isRemote()) {
+        if (isRemote()) {
             long startTransferTime = System.currentTimeMillis();
 
             // add metrics for "RemoteWorker", "PleiadesQueue", "Matlab",
@@ -373,24 +409,47 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
 
     @Override
     protected void restartFromBeginning() {
-        pipelineTaskDataOperations().updateProcessingStep(pipelineTask, processingSteps().get(0));
+
+        // Reset the subtask counts for the task.
+        pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask(), 0, 0, 0);
+        updateProcessingStep(processingSteps().get(0));
         processingMainLoop();
     }
 
     @Override
     protected void resumeCurrentStep() {
+        updateProcessingStep(currentProcessingStep());
         processingMainLoop();
     }
 
     @Override
     protected void resubmit() {
-        pipelineTaskDataOperations().updateProcessingStep(pipelineTask, ProcessingStep.SUBMITTING);
+        updateProcessingStep(ProcessingStep.SUBMITTING);
         processingMainLoop();
     }
 
     @Override
     protected void runStandard() {
         processingMainLoop();
+    }
+
+    private void updateProcessingStep(ProcessingStep processingStep) {
+        try {
+            ZiggyUtils.tryPatiently("Updating task to step " + processingStep.toString(),
+                DATABASE_RETRIES, DATABASE_RETRY_INTERVAL_MILLIS, () -> {
+                    pipelineTaskDataOperations().updateProcessingStep(pipelineTask(),
+                        processingStep);
+                    ProcessingStep databaseValue = pipelineTaskDataOperations()
+                        .processingStep(pipelineTask());
+                    if (!databaseValue.equals(processingStep)) {
+                        throw new Exception();
+                    }
+                    return null;
+                });
+        } catch (PipelineException e) {
+            throw new PipelineException("Unable to update task " + pipelineTask().getId()
+                + " to processing step " + processingStep.toString());
+        }
     }
 
     @Override
@@ -420,7 +479,7 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
         String[] metrics;
         Units[] units;
 
-        if (algorithmManager.isRemote()) {
+        if (isRemote()) {
             categories = REMOTE_CATEGORIES;
             metrics = REMOTE_METRICS;
             units = REMOTE_CATEGORY_UNITS;
@@ -479,7 +538,11 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     // cannot override them.
 
     AlgorithmExecutor executor() {
-        return algorithmManager().getExecutor();
+        return AlgorithmExecutor.newInstance(pipelineTask);
+    }
+
+    public boolean isRemote() {
+        return executor() instanceof RemoteAlgorithmExecutor;
     }
 
     long timestampFileElapsedTimeMillis(TimestampFile.Event startEvent,
@@ -499,14 +562,7 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
         return new ProcessingFailureSummary(pipelineTask().getPipelineStepName(), getTaskDir());
     }
 
-    public AlgorithmLifecycle algorithmManager() {
-        if (algorithmManager == null) {
-            algorithmManager = new AlgorithmLifecycleManager(pipelineTask());
-        }
-        return algorithmManager;
-    }
-
-    TaskConfiguration taskConfiguration() {
+    public TaskConfiguration taskConfiguration() {
         if (taskConfiguration == null) {
             taskConfiguration = new TaskConfiguration(getTaskDir());
             taskConfiguration.setInputsClass(pipelineInputs().getClass());
@@ -546,6 +602,10 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
 
     DatastoreProducerConsumerOperations datastoreProducerConsumerOperations() {
         return datastoreProducerConsumerOperations;
+    }
+
+    WorkerResourcesOperations workerResourcesOperations() {
+        return workerResourcesOperations;
     }
 
     // This simplifies the mocking needed for this class.

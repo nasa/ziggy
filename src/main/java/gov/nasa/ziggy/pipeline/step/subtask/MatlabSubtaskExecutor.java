@@ -10,6 +10,7 @@ import java.util.Map;
 import org.apache.commons.configuration2.ImmutableConfiguration;
 
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
+import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
@@ -27,8 +28,9 @@ public class MatlabSubtaskExecutor extends SubtaskExecutor {
     private static final String LM_LICENSE_FILE_ENV_NAME = "LM_LICENSE_FILE";
     private static final String MCR_CACHE_ROOT_ENV_VAR_NAME = "MCR_CACHE_ROOT";
 
-    MatlabSubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs) {
-        super(taskDir, subtaskIndex, binaryName, timeoutSecs);
+    MatlabSubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs,
+        float heapSizeGigabytes, TaskConfiguration taskConfiguration) {
+        super(taskDir, subtaskIndex, binaryName, timeoutSecs, heapSizeGigabytes, taskConfiguration);
     }
 
     @Override

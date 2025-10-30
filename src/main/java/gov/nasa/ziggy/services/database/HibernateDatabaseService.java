@@ -8,7 +8,6 @@ import org.hibernate.cfg.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.crud.ProtectedEntityInterceptor;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 
@@ -150,9 +149,7 @@ public final class HibernateDatabaseService extends HibernateDatabaseServiceBase
         Session session = threadSession.get();
 
         if (session == null) {
-            session = sessionFactory().withOptions()
-                .interceptor(new ProtectedEntityInterceptor())
-                .openSession();
+            session = sessionFactory().openSession();
             log.debug("Created Session {} in Thread {}", session, Thread.currentThread().getName());
             threadSession.set(session);
         }

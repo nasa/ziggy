@@ -22,14 +22,14 @@ import jakarta.xml.bind.annotation.XmlTransient;
 /** Models a compute node architecture for a remote execution environment. */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "ziggy_architecture")
+@Table(name = "ziggy_Architecture")
 public class Architecture {
 
     @XmlTransient
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_Architecture_generator")
-    @SequenceGenerator(name = "ziggy_architecture_generator", initialValue = 1,
-        sequenceName = "ziggy_architecture_sequence", allocationSize = 1)
+    @SequenceGenerator(name = "ziggy_Architecture_generator", initialValue = 1,
+        sequenceName = "ziggy_Architecture_sequence", allocationSize = 1)
     private Long id;
 
     /** Name used by the batch system. */

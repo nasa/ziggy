@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.alert.AlertService;
@@ -23,8 +24,6 @@ import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.PipelineInstanceFinishedMessage;
 import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 import gov.nasa.ziggy.services.messages.TaskRequest;
-import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
@@ -58,15 +57,11 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     private final PriorityBlockingQueue<TaskRequest> taskRequestQueue = new PriorityBlockingQueue<>();
 
     // Use a wrapper class so it can be null.
-    private Long pipelineNodeId;
+    private Long instanceNodeId;
 
     private ThreadPoolExecutor taskRequestThreadPool;
     private Queue<TaskRequestHandler> activeTaskRequestHandlers = new ConcurrentLinkedQueue<>();
     private int priorWorkerCount;
-
-    // The current actual resources available to the current node, including defaults if
-    // appropriate.
-    private WorkerResources workerResources = new WorkerResources(0, 0);
 
     // For testing purposes, the TaskRequestDispatcher can optionally store all of the
     // task request handlers it creates, organized by thread pool instance.
@@ -87,12 +82,6 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
         ZiggyMessenger.subscribe(HaltTasksRequest.class, this::haltQueuedTasksAction);
         ZiggyMessenger.subscribe(PipelineInstanceFinishedMessage.class,
             this::handlePipelineInstanceFinishedMessage);
-
-        // Subscribe to requests for the current worker resources. This allows the
-        // console to find out what's currently running in the event that the console
-        // starts up when a pipeline is already executing.
-        ZiggyMessenger.subscribe(WorkerResourcesRequest.class,
-            message -> ZiggyMessenger.publish(new WorkerResourcesMessage(null, workerResources)));
     }
 
     /**
@@ -208,15 +197,12 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
 
                 // Set the pipeline node that all the workers are supposed
                 // to be handling.
-                log.info("Setting supported pipeline node ID to {}",
+                log.info("Setting supported pipeline instance node ID to {}",
                     initialRequest.getPipelineNodeId());
-                pipelineNodeId = initialRequest.getPipelineNodeId();
-
-                workerResources = workerResources(initialRequest);
-                int workerCount = workerResources.getMaxWorkerCount();
-                int heapSizeMb = workerResources.getHeapSizeMb();
-
-                ZiggyMessenger.publish(new WorkerResourcesMessage(null, workerResources));
+                instanceNodeId = initialRequest.getInstanceNodeId();
+                WorkerResources instanceNodeResources = workerResources(instanceNodeId);
+                int workerCount = instanceNodeResources.getMaxWorkerCount();
+                float heapSizeGigabytes = instanceNodeResources.getHeapSizeGigabytes();
 
                 // Put the task back onto the queue.
                 taskRequestQueue.put(initialRequest);
@@ -227,7 +213,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                     throw new PipelineException("worker count < 1");
                 }
                 log.info("Starting {} workers with total heap size {}", workerCount,
-                    workerResources.humanReadableHeapSize().toString());
+                    instanceNodeResources.humanReadableHeapSize().toString());
 
                 // Create thread pool if necessary; otherwise, adjust the number of threads to match
                 // the number of workers. The core pool size is initially set to one because
@@ -245,8 +231,9 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
                 List<TaskRequestHandler> handlers = new ArrayList<>();
                 for (int i = 1; i <= workerCount; i++) {
                     log.info("Starting worker {} of {}", i, workerCount);
-                    TaskRequestHandler handler = new TaskRequestHandler(i, workerCount, heapSizeMb,
-                        taskRequestQueue, pipelineNodeId, taskRequestThreadCountdownLatch);
+                    TaskRequestHandler handler = new TaskRequestHandler(i, workerCount,
+                        heapSizeGigabytes, taskRequestQueue, instanceNodeId,
+                        taskRequestThreadCountdownLatch);
                     taskRequestThreadPool.submit(handler);
                     activeTaskRequestHandlers.add(handler);
                     handlers.add(handler);
@@ -279,20 +266,9 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
         taskRequestThreadPool = null;
     }
 
-    /**
-     * Gets the actual resources for the current pipeline node, including default values as
-     * appropriate.
-     */
-    WorkerResources workerResources(TaskRequest taskRequest) {
-        WorkerResources databaseResources = pipelineTaskOperations()
-            .workerResourcesForTask(taskRequest.getPipelineTask());
-        Integer compositeWorkerCount = databaseResources.getMaxWorkerCount() != null
-            ? databaseResources.getMaxWorkerCount()
-            : PipelineSupervisor.defaultResources().getMaxWorkerCount();
-        Integer compositeHeapSizeMb = databaseResources.getHeapSizeMb() != null
-            ? databaseResources.getHeapSizeMb()
-            : PipelineSupervisor.defaultResources().getHeapSizeMb();
-        return new WorkerResources(compositeWorkerCount, compositeHeapSizeMb);
+    protected WorkerResources workerResources(long instanceNodeId) {
+        return new PipelineInstanceNodeOperations().pipelineInstanceNode(instanceNodeId)
+            .getWorkerResources();
     }
 
     /** For testing only. */
@@ -334,7 +310,7 @@ public class TaskRequestHandlerLifecycleManager extends Thread {
     }
 
     /** For testing only. */
-    Long getPipelineNodeId() {
-        return pipelineNodeId;
+    Long getInstanceNodeId() {
+        return instanceNodeId;
     }
 }

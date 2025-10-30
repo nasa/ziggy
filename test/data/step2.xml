@@ -3,4 +3,4 @@
 	pipelineStepExecutorClass="gov.nasa.ziggy.pipeline.step.AlgorithmPipelineStepExecutor$TestPipelineStepExecutor"
 	inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample"
 	outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample"
-	exeTimeoutSecs="300" minMemoryMegabytes="400"/>
+	timeoutSeconds="300"/>

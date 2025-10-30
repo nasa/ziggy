@@ -12,12 +12,10 @@
   </pipeline>
   
   <!-- here is a genuinely new step -->
-  <step name="level3" description="should always import"
-          exeTimeoutSecs="1000000" minMemoryMegabytes="10"/>
+  <step name="level3" description="should always import"/>
 
   <!-- Here is a step that is updated -->
-  <step name="level0" description="Hyperion L0 -> L1R"
-          exeTimeoutSecs="200000" minMemoryMegabytes="1"/>
+  <step name="level0" description="Hyperion L0 -> L1R"/>
           
   <!-- here is a modified pipeline -->
     <pipeline name="hyperion" description="Hyperion pipeline" rootNodeNames="level1">

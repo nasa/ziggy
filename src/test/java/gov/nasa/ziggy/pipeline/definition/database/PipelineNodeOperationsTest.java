@@ -29,12 +29,12 @@ public class PipelineNodeOperationsTest {
         PipelineNodeExecutionResources resources = new PipelineNodeExecutionResources(
             pipelineOperationsTestUtils.pipeline().getName(),
             pipelineOperationsTestUtils.pipelineStep().getName());
-        resources.setGigsPerSubtask(10);
+        resources.setSubtaskRamGigabytes(10);
         resources.setMaxAutoResubmits(10);
         testOperations.persistResources(resources);
         PipelineNodeExecutionResources databaseResources = pipelineNodeOperations
             .pipelineNodeExecutionResources(pipelineOperationsTestUtils.pipelineNode());
-        assertEquals(10, databaseResources.getGigsPerSubtask(), 1e-9);
+        assertEquals(10, databaseResources.subtaskRamGigabytes(), 1e-9);
         assertEquals(10, databaseResources.getMaxAutoResubmits());
     }
 

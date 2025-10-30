@@ -12,7 +12,7 @@ import java.util.Set;
  * @author PT
  * @author Bill Wohler
  */
-public class PipelineTaskDisplayData {
+public class PipelineTaskDisplayData implements Comparable<PipelineTaskDisplayData> {
 
     private static final String ERROR_PREFIX = "ERROR - ";
 
@@ -28,6 +28,11 @@ public class PipelineTaskDisplayData {
             estimate += job.getCostEstimate();
         }
         return estimate;
+    }
+
+    public boolean isTaskProcessingFinished() {
+        return getProcessingStep().equals(ProcessingStep.COMPLETE)
+            && getTotalSubtaskCount() == getCompletedSubtaskCount();
     }
 
     public PipelineTask getPipelineTask() {
@@ -144,6 +149,25 @@ public class PipelineTaskDisplayData {
             && Objects.equals(getRemoteJobs(), other.getRemoteJobs());
     }
 
+    // NB: The worker name is not included in this method because it needs to run an
+    // external process to obtain the local host name. That's too slow of an activity
+    // to include in a frequently-updated display.
+    public boolean isDisplayContentEqual(PipelineTaskDisplayData other) {
+        return getPipelineTaskId() == other.getPipelineTaskId()
+            && getProcessingStep() == other.getProcessingStep()
+            && getCompletedSubtaskCount() == other.getCompletedSubtaskCount()
+            && getFailedSubtaskCount() == other.getFailedSubtaskCount()
+            && isError() == other.isError();
+    }
+
+    // NB: The worker name is not included in this method because it needs to run an
+    // external process to obtain the local host name. That's too slow of an activity
+    // to include in a frequently-updated display.
+    public int displayContentHashCode() {
+        return Objects.hash(getPipelineTaskId(), getProcessingStep(), getCompletedSubtaskCount(),
+            getFailedSubtaskCount(), isError());
+    }
+
     public String toFullString() {
         return getClass().getSimpleName() + ": pipelineTaskId=" + getPipelineTaskId()
             + ", pipelineStepName=" + getPipelineStepName() + ", briefState=" + getBriefState();
@@ -152,5 +176,10 @@ public class PipelineTaskDisplayData {
     @Override
     public String toString() {
         return getPipelineTask().toString();
+    }
+
+    @Override
+    public int compareTo(PipelineTaskDisplayData o) {
+        return (int) (getPipelineTaskId() - o.getPipelineTaskId());
     }
 }

@@ -4,7 +4,13 @@ task generateXmlSchemas(type: JavaExec, dependsOn: copyLibs) {
 
     mainClass.set("gov.nasa.ziggy.pipeline.xml.XmlSchemaExporter")
     classpath files(sourceSets.main.runtimeClasspath)
-    jvmArgs "-Djava.library.path=$outsideDir/lib"
+    jvmArgs "-Djava.library.path=$buildDir/lib"
+    args "gov.nasa.ziggy.data.management.Acknowledgement",
+        "gov.nasa.ziggy.data.management.Manifest",
+        "gov.nasa.ziggy.pipeline.definition.ModelRegistry",
+        "gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile"
+
+    logging.captureStandardOutput LogLevel.INFO
 }
 
 test.dependsOn generateXmlSchemas

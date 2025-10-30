@@ -21,7 +21,6 @@ import gov.nasa.ziggy.data.management.DataReceiptPipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
-import gov.nasa.ziggy.pipeline.step.PipelineStepExecutionResources;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.DataReceiptUnitOfWorkGenerator;
 import gov.nasa.ziggy.util.PipelineException;
@@ -98,21 +97,6 @@ public class PipelineStepOperationsTest {
             dataReceiptStep.getUnitOfWorkGenerator().getClazz());
     }
 
-    @Test
-    public void testPipelineStepExecutionResources() {
-        pipelineOperationsTestUtils.setUpSingleNodePipeline();
-        PipelineStepExecutionResources resources = new PipelineStepExecutionResources();
-        resources.setPipelineStepName("step1");
-        resources.setExeTimeoutSeconds(100);
-        resources.setMinMemoryMegabytes(10);
-        testOperations.persist(resources);
-        PipelineStepExecutionResources databaseResources = pipelineStepOperations
-            .pipelineStepExecutionResources(pipelineOperationsTestUtils.pipelineStep());
-        assertEquals(100, databaseResources.getExeTimeoutSeconds());
-        assertEquals(10, databaseResources.getMinMemoryMegabytes());
-        assertEquals("step1", databaseResources.getPipelineStepName());
-    }
-
     private PipelineStep populateObjects() {
         ParameterSet paramSet = createParameterSet(TEST_PARAM_SET_NAME_1);
         testOperations.mergeParameterSet(paramSet);
@@ -150,7 +134,6 @@ public class PipelineStepOperationsTest {
         PipelineStep copy = new PipelineStep(original.getName());
         copy.setDescription(original.getDescription());
         copy.setPipelineStepExecutorClass(original.getPipelineStepExecutorClass());
-        copy.setExeTimeoutSecs(original.getExeTimeoutSecs());
         Field versionField = original.getClass().getSuperclass().getDeclaredField("version");
         versionField.setAccessible(true);
         versionField.set(copy, original.getVersion());
@@ -391,10 +374,6 @@ public class PipelineStepOperationsTest {
 
         public PipelineStep merge(PipelineStep pipelineStep) {
             return performTransaction(() -> new PipelineStepCrud().merge(pipelineStep));
-        }
-
-        public void persist(PipelineStepExecutionResources resources) {
-            performTransaction(() -> new PipelineStepCrud().persist(resources));
         }
 
         public List<ParameterSet> allParameterSetVersions(String name) {

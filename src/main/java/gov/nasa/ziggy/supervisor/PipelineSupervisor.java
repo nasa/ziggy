@@ -67,8 +67,6 @@ import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationRequest;
 import gov.nasa.ziggy.services.messages.UpdateProcessingStepMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.ZiggyEventHandlerInfoMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
@@ -81,6 +79,7 @@ import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 import hdf.hdf5lib.H5;
 
 /**
@@ -106,25 +105,26 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     // a PipelineWorker, or the delete command of a remote system's batch scheduler.
     private static final Set<PipelineTask> haltedTasks = ConcurrentHashMap.newKeySet();
 
-    private static WorkerResources defaultResources;
+    private WorkerResources defaultResources;
 
     private ScheduledExecutorService heartbeatExecutor;
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
     private PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();
+    private WorkerResourcesOperations workerResourcesOperations = new WorkerResourcesOperations();
     private PipelineExecutor pipelineExecutor = new PipelineExecutor();
     private PipelineOperations pipelineOperations = new PipelineOperations();
     private ZiggyEventOperations ziggyEventOperations = new ZiggyEventOperations();
     private PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
     private AlgorithmMonitor algorithmMonitor;
 
-    public PipelineSupervisor(int workerCount, int workerHeapSize) {
+    public PipelineSupervisor(int workerCount, int workerHeapSizeGigabytes) {
         super(NAME);
         checkArgument(workerCount > 0, "Worker count must be positive");
-        checkArgument(workerHeapSize > 0, "Worker heap size must be positive");
-        defaultResources = new WorkerResources(workerCount, workerHeapSize);
-        log.debug("Starting pipeline supervisor with {} workers and {} MB max heap", workerCount,
-            workerHeapSize);
+        checkArgument(workerHeapSizeGigabytes > 0, "Worker heap size must be positive");
+        defaultResources = new WorkerResources(workerCount, workerHeapSizeGigabytes);
+        log.debug("Starting pipeline supervisor with {} workers and {} GB max heap", workerCount,
+            workerHeapSizeGigabytes);
     }
 
     public PipelineSupervisor(boolean messaging, boolean database) {
@@ -204,6 +204,13 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                 }
             }
             log.info("Loading event handlers...done");
+
+            log.info("Storing default worker resources of {} workers and {} GB heap size...",
+                defaultResources.getMaxWorkerCount(), defaultResources.getHeapSizeGigabytes());
+            workerResourcesOperations.updateDefaultInstance(defaultResources);
+            log.info("Storing default worker resources of {} workers and {} GB heap size...done",
+                defaultResources.getMaxWorkerCount(), defaultResources.getHeapSizeGigabytes());
+
             clearMcrCache();
         } catch (Exception e) {
             log.error("Initialization failed!", e);
@@ -275,9 +282,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         });
         ZiggyMessenger.subscribe(SingleTaskLogRequest.class, message -> {
             ZiggyMessenger.publish(new SingleTaskLogMessage(message, taskLogContents(message)));
-        });
-        ZiggyMessenger.subscribe(WorkerResourcesRequest.class, message -> {
-            ZiggyMessenger.publish(new WorkerResourcesMessage(defaultResources, null));
         });
         ZiggyMessenger.subscribe(HaltTasksRequest.class, message -> {
             haltRemoteTasks(message);
@@ -427,7 +431,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     }
 
     public static CommandLine supervisorCommand(WrapperCommand cmd, int workerCount,
-        int workerHeapSize) {
+        int workerHeapSizeGigabytes) {
         Path supervisorPath = DirectoryProperties.ziggyBinDir().resolve(SUPERVISOR_BIN_NAME);
         CommandLine commandLine = new CommandLine(supervisorPath.toString());
         if (cmd == WrapperCommand.START) {
@@ -447,7 +451,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 2,
                     Integer.toString(workerCount)))
                 .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 3,
-                    Integer.toString(workerHeapSize)));
+                    Integer.toString(workerHeapSizeGigabytes)));
 
             // Add classpaths for pipeline side, if any are needed.
             String pipelineClasspath = ZiggyConfiguration.getInstance()
@@ -492,10 +496,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         haltedTasks.remove(pipelineTask);
     }
 
-    public static WorkerResources defaultResources() {
-        return defaultResources;
-    }
-
     Map<PipelineTask, List<Long>> jobIdsByTask(Collection<PipelineTask> pipelineTasks) {
         return algorithmMonitor.jobIdsByTaskId(pipelineTasks);
     }
@@ -514,6 +514,10 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     PipelineInstanceOperations pipelineInstanceOperations() {
         return pipelineInstanceOperations;
+    }
+
+    WorkerResourcesOperations workerResourcesOperations() {
+        return workerResourcesOperations;
     }
 
     PipelineExecutor pipelineExecutor() {

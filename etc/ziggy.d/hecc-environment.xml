@@ -6,7 +6,6 @@
 
   <remoteEnvironment name="HECC" description="HECC" batchSystem="pbs" costUnit="SBU"
                      queueTimeMetricsClass="gov.nasa.ziggy.module.remote.NasQueueTimeMetrics">
-    <architecture name="san" description="Sandy Bridge" cores="16" ramGigabytes="32" cost="0.47"/>
     <architecture name="ivy" description="Ivy Bridge" cores="20" ramGigabytes="64" cost="0.66"/>
     <architecture name="has" description="Haswell" cores="24" ramGigabytes="128" cost="0.8"/>
     <architecture name="bro" description="Broadwell" cores="28" ramGigabytes="128" cost="1.0"/>

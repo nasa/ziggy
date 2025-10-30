@@ -103,15 +103,15 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<Pipeline>
     @Override
     protected void updateActionState(Map<OptionalViewEditFunction, Action> actionByFunction) {
         startAction.setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
-        actionByFunction.get(OptionalViewEditFunction.EDIT)
-            .setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
         actionByFunction.get(OptionalViewEditFunction.VIEW)
+            .setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
+        actionByFunction.get(OptionalViewEditFunction.EDIT)
             .setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
     }
 
     @Override
     protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
-        return Set.of(OptionalViewEditFunction.VIEW);
+        return Set.of(OptionalViewEditFunction.VIEW, OptionalViewEditFunction.EDIT);
     }
 
     @Override

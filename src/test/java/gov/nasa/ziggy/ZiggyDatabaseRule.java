@@ -85,6 +85,11 @@ public class ZiggyDatabaseRule extends ExternalResource {
         hibernateJdbcBatchSize = System.setProperty(HIBERNATE_JDBC_BATCH_SIZE.property(), "0");
         hibernateShowSql = System.setProperty(HIBERNATE_SHOW_SQL.property(), "false");
 
+        // In some cases the after() method isn't called, which means that the reset() method isn't
+        // called either. Repeating the call here ensures that a test doesn't run with an old
+        // database. We may need to reset the system properties in a similar fashion.
+        DatabaseService.reset();
+
         new DatabaseRuleOperations().createDatabase();
     }
 

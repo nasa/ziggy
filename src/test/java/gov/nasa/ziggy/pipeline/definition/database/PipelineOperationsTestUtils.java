@@ -65,9 +65,9 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         Pipeline pipeline = new Pipeline("pipeline1");
         pipeline.addRootNode(pipelineNode);
         pipeline
-            .setParameterSetNames(ZiggyCollectionUtils.mutableSetOf("parameter1", "parameter2"));
+        .setParameterSetNames(ZiggyCollectionUtils.mutableSetOf("parameter1", "parameter2"));
         pipelineNode
-            .setParameterSetNames(ZiggyCollectionUtils.mutableSetOf("parameter3", "parameter4"));
+        .setParameterSetNames(ZiggyCollectionUtils.mutableSetOf("parameter3", "parameter4"));
         PipelineInstance pipelineInstance = new PipelineInstance(pipeline);
         PipelineInstanceNode instanceNode = new PipelineInstanceNode(pipelineNode, pipelineStep);
 
@@ -254,6 +254,15 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         });
     }
 
+    public void setUpTasksForFourNodePipeline() {
+        // Persist the pipeline tasks and update the pipeline instance node.
+        List<UnitOfWork> unitsOfWork = List.of(new UnitOfWork("brief0"),
+            new UnitOfWork("brief1"));
+        pipelineTasks = new RuntimeObjectFactory().newPipelineTasks(
+            pipelineInstanceNodes.get(0), pipelineInstances.get(0), unitsOfWork);
+        pipelineTaskDataList = new TestOperations().createPipelineTaskData(pipelineTasks);
+    }
+
     public void setUpTwoPipelinesTwoInstancesEach() {
         pipelineInstances = new ArrayList<>();
         pipelines = new ArrayList<>();
@@ -368,7 +377,7 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
         SubtaskCounts subtaskCounts = new SubtaskCounts(attributeSeed,
             attributeSeed - (int) (0.1 * attributeSeed), (int) (0.1 * attributeSeed));
         Mockito.when(Mockito.spy(new PipelineTaskDataOperations()).subtaskCounts(pipelineTask))
-            .thenReturn(subtaskCounts);
+        .thenReturn(subtaskCounts);
         // pipelineTask.setProcessingStep(processingStep);
         // pipelineTask.setError(error);
         return pipelineTask;
@@ -377,15 +386,15 @@ public class PipelineOperationsTestUtils extends DatabaseOperations {
     public void setUpFivePipelineTaskDisplayData() {
         pipelineTaskDisplayData = new ArrayList<>();
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("step1", 1L, 10, ProcessingStep.INITIALIZING));
+        .add(pipelineTaskDisplayData("step1", 1L, 10, ProcessingStep.INITIALIZING));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("step2", 2L, 20, ProcessingStep.WAITING_TO_RUN));
+        .add(pipelineTaskDisplayData("step2", 2L, 20, ProcessingStep.WAITING_TO_RUN));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("step3", 3L, 30, ProcessingStep.EXECUTING));
+        .add(pipelineTaskDisplayData("step3", 3L, 30, ProcessingStep.EXECUTING));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("step4", 4L, 40, ProcessingStep.EXECUTING, true));
+        .add(pipelineTaskDisplayData("step4", 4L, 40, ProcessingStep.EXECUTING, true));
         pipelineTaskDisplayData
-            .add(pipelineTaskDisplayData("step5", 5L, 50, ProcessingStep.COMPLETE));
+        .add(pipelineTaskDisplayData("step5", 5L, 50, ProcessingStep.COMPLETE));
     }
 
     private PipelineTaskDisplayData pipelineTaskDisplayData(String pipelineStepName, Long id,

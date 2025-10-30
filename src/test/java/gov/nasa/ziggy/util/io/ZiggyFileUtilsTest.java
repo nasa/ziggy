@@ -30,6 +30,7 @@ import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils.CheckForEmptyDirectory;
 
 /**
  * Tests the {@link ZiggyFileUtils} class.
@@ -261,6 +262,36 @@ public class ZiggyFileUtilsTest {
             PosixFilePermissions.toString(Files.getPosixFilePermissions(testRegularFile.toPath())));
     }
 
+    @Test
+    public void testCleanDirectoryWithRetries() {
+        ZiggyFileUtils.cleanDirectoryTree(testDir.toPath(), true, (dir, retry) -> {
+            if (retry < 2) {
+                try {
+                    Files.createFile(dir.resolve("undeleted-file"));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
+            return new CheckForEmptyDirectory().apply(dir, retry);
+        });
+        assertFalse(Files.exists(testSubdir.toPath().resolve("undeleted-file")));
+        assertFalse(Files.exists(testSubdir.toPath()));
+    }
+
+    @Test(expected = UncheckedIOException.class)
+    public void testCleanDirectoryRetriesExhausted() {
+        ZiggyFileUtils.cleanDirectoryTree(testDir.toPath(), true, (dir, retry) -> {
+            if (retry < 10) {
+                try {
+                    Files.createFile(dir.resolve("undeleted-file"));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
+            return new CheckForEmptyDirectory().apply(dir, retry);
+        });
+    }
+
     @Test(expected = UncheckedIOException.class)
     public void testUnforcedCleanOfWriteProtectedDirTree() throws IOException {
         // Create a sub-directory to the test subdir with a regular file in it.
@@ -350,6 +381,26 @@ public class ZiggyFileUtilsTest {
             List.of(Pattern.compile(".*1")));
         assertEquals(1, files.size());
         assertTrue(files.contains(directory.resolve("foo0")));
+    }
+
+    @Test
+    public void testSetPermissionsOnNonExistentDirectory() {
+        ZiggyFileUtils.setPosixPermissionsRecursively(Paths.get("/path/to/fake/directory"),
+            "rw-r--r--", "rwxr-xr-x");
+    }
+
+    @Test
+    public void testRegularFilesInNonExistentDirectory() {
+        Map<Path, Path> emptyMap = ZiggyFileUtils
+            .regularFilesInDirTree(Paths.get("/path/to/fake/directory"));
+        assertTrue(emptyMap.isEmpty());
+    }
+
+    @Test
+    public void testCleanNonExistentDirectoryTree() {
+        ZiggyFileUtils.cleanDirectoryTree(Paths.get("/path/to/fake/directory"));
+        ZiggyFileUtils.cleanDirectoryTree(Paths.get("/path/to/fake/directory"), false);
+        ZiggyFileUtils.cleanDirectoryTree(Paths.get("/path/to/fake/directory"), true);
     }
 
     private void createFiles(Path directory) throws IOException {

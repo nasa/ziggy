@@ -31,9 +31,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineStepCrud;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
-import gov.nasa.ziggy.pipeline.step.PipelineStepExecutionResources;
 import gov.nasa.ziggy.pipeline.xml.ParameterSetDescriptor;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.util.PipelineException;
@@ -65,22 +63,14 @@ public class PipelineImportOperationsTest {
         PipelineNodeExecutionResources nodeResources = new PipelineNodeExecutionResources(
             pipelineOperationsTestUtils.pipeline().getName(),
             pipelineOperationsTestUtils.pipelineStep().getName());
-        nodeResources.setGigsPerSubtask(10);
+        nodeResources.setSubtaskRamGigabytes(10);
         nodeResources.setMaxAutoResubmits(10);
 
-        PipelineStepExecutionResources pipelineStepResources = new PipelineStepExecutionResources();
-        pipelineStepResources.setPipelineStepName("step1");
-        pipelineStepResources.setExeTimeoutSeconds(100);
-        pipelineStepResources.setMinMemoryMegabytes(10);
-
-        Map<PipelineStep, PipelineStepExecutionResources> resourcesByPipelineStep = new HashMap<>();
-        resourcesByPipelineStep.put(pipelineOperationsTestUtils.pipelineStep(),
-            pipelineStepResources);
         Map<Pipeline, Set<PipelineNodeExecutionResources>> resourcesByNode = new HashMap<>();
         resourcesByNode.put(pipelineOperationsTestUtils.pipeline(), Set.of(nodeResources));
 
         pipelineImportOperations.persistClusterDefinition(parameterSetDescriptors, null, null,
-            resourcesByPipelineStep, resourcesByNode, null);
+            List.of(pipelineOperationsTestUtils.pipelineStep()), resourcesByNode, null);
         List<Pipeline> pipelines = testOperations.pipelines();
         assertEquals(1, pipelines.size());
         Pipeline pipeline = pipelines.get(0);
@@ -94,16 +84,12 @@ public class PipelineImportOperationsTest {
 
         PipelineNodeExecutionResources databaseNodeResources = new PipelineNodeOperations()
             .pipelineNodeExecutionResources(rootNode);
-        assertEquals(10, databaseNodeResources.getGigsPerSubtask(), 1e-9);
+        assertEquals(10, databaseNodeResources.subtaskRamGigabytes(), 1e-9);
         assertEquals(10, databaseNodeResources.getMaxAutoResubmits());
 
         List<PipelineStep> pipelineSteps = testOperations.pipelineSteps();
         assertEquals(1, pipelineSteps.size());
         assertEquals("step1", pipelineSteps.get(0).getName());
-        PipelineStepExecutionResources databaseExecutionResources = new PipelineStepOperations()
-            .pipelineStepExecutionResources(pipelineSteps.get(0));
-        assertEquals(100, databaseExecutionResources.getExeTimeoutSeconds());
-        assertEquals(10, databaseExecutionResources.getMinMemoryMegabytes());
 
         Map<String, ParameterSet> parameterSetByName = ParameterSet
             .parameterSetByName(new ParametersOperations().parameterSets());
@@ -136,23 +122,15 @@ public class PipelineImportOperationsTest {
         PipelineNodeExecutionResources nodeResources = new PipelineNodeExecutionResources(
             pipelineOperationsTestUtils.pipeline().getName(),
             pipelineOperationsTestUtils.pipelineStep().getName());
-        nodeResources.setGigsPerSubtask(10);
+        nodeResources.setSubtaskRamGigabytes(10);
         nodeResources.setMaxAutoResubmits(10);
 
-        PipelineStepExecutionResources pipelineStepResources = new PipelineStepExecutionResources();
-        pipelineStepResources.setPipelineStepName("step1");
-        pipelineStepResources.setExeTimeoutSeconds(100);
-        pipelineStepResources.setMinMemoryMegabytes(10);
-
-        Map<PipelineStep, PipelineStepExecutionResources> resourcesByPipelineStep = new HashMap<>();
-        resourcesByPipelineStep.put(pipelineOperationsTestUtils.pipelineStep(),
-            pipelineStepResources);
         Map<Pipeline, Set<PipelineNodeExecutionResources>> resourcesByNode = new HashMap<>();
         resourcesByNode.put(pipelineOperationsTestUtils.pipeline(), Set.of(nodeResources));
 
         try {
             pipelineImportOperations.persistClusterDefinition(parameterSetDescriptors, null, null,
-                resourcesByPipelineStep, resourcesByNode, null);
+                List.of(pipelineOperationsTestUtils.pipelineStep()), resourcesByNode, null);
         } catch (PipelineException e) {
             // swallow.
         }

@@ -55,11 +55,15 @@ task copyLibs(type: Copy, dependsOn: [copyOutsideLibs, jar, 'testJar', sourcesJa
             unix 0644
         }
     }
-    from("$projectDir/src/main/python") {
-        include "hdf5mi/**"
-        include "zigutils/**"
-    }
+
+    // Avoid clobbering libraries built outside (see "Libraries built outside" in build.gradle).
+    exclude "jarhdf5-*.jar", "wrapper-*.jar"
     into "$buildDir/libs"
 }
 
 assemble.dependsOn copyLibs
+
+// Avoid implicit dependency warnings.
+javadoc.dependsOn copyLibs
+spotbugsMain.dependsOn copyLibs
+spotbugsTest.dependsOn copyLibs

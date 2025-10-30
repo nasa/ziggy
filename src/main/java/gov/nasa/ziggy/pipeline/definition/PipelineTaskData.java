@@ -140,6 +140,10 @@ public class PipelineTaskData implements Comparable<PipelineTaskData> {
         pipelineTaskId = pipelineTask.getId();
     }
 
+    public long getPipelineTaskId() {
+        return pipelineTaskId;
+    }
+
     public PipelineTask getPipelineTask() {
         return pipelineTask;
     }

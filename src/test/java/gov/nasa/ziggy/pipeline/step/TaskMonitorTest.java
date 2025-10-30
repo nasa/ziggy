@@ -33,6 +33,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.SubtaskStateCounts;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.messages.AllJobsFinishedMessage;
@@ -327,5 +328,72 @@ public class TaskMonitorTest {
         taskMonitor.resetMonitoringEnabled();
         taskMonitor.update();
         assertFalse(taskMonitor.isFinishFileDetected());
+    }
+
+    @Test
+    public void testRecheckSubtaskCounts() {
+        Mockito.doReturn(10L).when(taskMonitor).fileSystemCheckIntervalMillis();
+        Mockito.doReturn(1).when(taskMonitor).fileSystemChecksCount();
+
+        // Set 5 out of 6 subtasks to complete.
+        for (int stateCount = 0; stateCount < algorithmStateFiles.size() - 1; stateCount++) {
+            algorithmStateFiles.get(stateCount)
+                .updateCurrentState(AlgorithmStateFiles.AlgorithmState.COMPLETE);
+        }
+
+        // A garden variety update doesn't wait for subtask counts to update.
+        taskMonitor.update();
+        TaskCountsTest.testSubtaskCounts(6, 5, 0,
+            pipelineTaskDataOperations.subtaskCounts(pipelineTask));
+        assertFalse(taskMonitor.iswaitForSubtaskCountUpdates());
+        assertFalse(taskMonitor.isAllSubtasksProcessed());
+
+        // A final update after halting also doesn't wait.
+        HaltTasksRequest request = new HaltTasksRequest(List.of(pipelineTask));
+        taskMonitor.handleHaltTasksRequest(request);
+        taskMonitor.update();
+        assertFalse(taskMonitor.iswaitForSubtaskCountUpdates());
+        assertFalse(taskMonitor.isAllSubtasksProcessed());
+
+        // All remote jobs can finish and the task monitor also won't wait.
+        taskMonitor.resetIncompleteSubtasksPossible();
+        taskMonitor.resetMonitoringEnabled();
+        AllJobsFinishedMessage allJobsFinishedMessage = new AllJobsFinishedMessage(pipelineTask);
+        taskMonitor.handleAllJobsFinishedMessage(allJobsFinishedMessage);
+        taskMonitor.update();
+        assertFalse(taskMonitor.iswaitForSubtaskCountUpdates());
+        assertFalse(taskMonitor.isAllSubtasksProcessed());
+
+        // Set the finish file in place so we don't have to wait for it.
+        TimestampFile.create(taskDir.toFile(), TimestampFile.Event.FINISH);
+
+        // A final update with incomplete subtasks should wait.
+        taskMonitor.resetIncompleteSubtasksPossible();
+        taskMonitor.resetMonitoringEnabled();
+        taskMonitor.handleWorkerStatusMessage(new WorkerStatusMessage(1, "",
+            Long.toString(pipelineTask.getPipelineInstanceId()), pipelineTask, "", "", 0, true));
+        assertTrue(taskMonitor.iswaitForSubtaskCountUpdates());
+        TaskCountsTest.testSubtaskCounts(6, 5, 0,
+            pipelineTaskDataOperations.subtaskCounts(pipelineTask));
+        assertFalse(taskMonitor.isAllSubtasksProcessed());
+
+        // Set up so that the initial check for all-subtasks-complete returns false,
+        // but all the subtasks are actually done. Here we should wait but ultimately the
+        // subtask counts should show completion.
+        taskMonitor.resetIncompleteSubtasksPossible();
+        taskMonitor.resetMonitoringEnabled();
+        taskMonitor.resetWaitedForSubtaskCountUpdates();
+        Mockito.doReturn(false)
+            .when(taskMonitor)
+            .allSubtasksProcessed(ArgumentMatchers.any(SubtaskStateCounts.class));
+        Mockito.doReturn(true).when(taskMonitor).allSubtasksProcessed();
+        algorithmStateFiles.get(algorithmStateFiles.size() - 1)
+            .updateCurrentState(AlgorithmStateFiles.AlgorithmState.COMPLETE);
+        taskMonitor.handleWorkerStatusMessage(new WorkerStatusMessage(1, "",
+            Long.toString(pipelineTask.getPipelineInstanceId()), pipelineTask, "", "", 0, true));
+        assertTrue(taskMonitor.iswaitForSubtaskCountUpdates());
+        TaskCountsTest.testSubtaskCounts(6, 6, 0,
+            pipelineTaskDataOperations.subtaskCounts(pipelineTask));
+        assertTrue(taskMonitor.isAllSubtasksProcessed());
     }
 }

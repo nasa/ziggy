@@ -2,6 +2,8 @@ package gov.nasa.ziggy.pipeline.step.subtask;
 
 import java.io.File;
 
+import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
+
 /** Factory class for {@link SubtaskExecutor} instances. */
 public class SubtaskExecutorFactory {
 
@@ -23,8 +25,10 @@ public class SubtaskExecutorFactory {
 
             @Override
             public SubtaskExecutor subtaskExecutor(File taskDir, int subtaskIndex,
-                String binaryName, int timeoutSecs) {
-                return new PythonSubtaskExecutor(taskDir, subtaskIndex, binaryName, timeoutSecs);
+                String binaryName, int timeoutSecs, float heapSizeGigabytes,
+                TaskConfiguration taskConfiguration) {
+                return new PythonSubtaskExecutor(taskDir, subtaskIndex, binaryName, timeoutSecs,
+                    heapSizeGigabytes, taskConfiguration);
             }
         },
         MATLAB {
@@ -37,8 +41,10 @@ public class SubtaskExecutorFactory {
 
             @Override
             public SubtaskExecutor subtaskExecutor(File taskDir, int subtaskIndex,
-                String binaryName, int timeoutSecs) {
-                return new MatlabSubtaskExecutor(taskDir, subtaskIndex, binaryName, timeoutSecs);
+                String binaryName, int timeoutSecs, float heapSizeGigabytes,
+                TaskConfiguration taskConfiguration) {
+                return new MatlabSubtaskExecutor(taskDir, subtaskIndex, binaryName, timeoutSecs,
+                    heapSizeGigabytes, taskConfiguration);
             }
         },
         JAVA {
@@ -55,20 +61,24 @@ public class SubtaskExecutorFactory {
 
             @Override
             public SubtaskExecutor subtaskExecutor(File taskDir, int subtaskIndex,
-                String binaryName, int timeoutSecs) {
-                return new JavaSubtaskExecutor(taskDir, subtaskIndex, binaryName, timeoutSecs);
+                String binaryName, int timeoutSecs, float heapSizeGigabytes,
+                TaskConfiguration taskConfiguration) {
+                return new JavaSubtaskExecutor(taskDir, subtaskIndex, binaryName, timeoutSecs,
+                    heapSizeGigabytes, taskConfiguration);
             }
         };
 
         public SubtaskExecutor subtaskExecutor(SubtaskMaster subtaskMaster) {
             return correctSubtaskExecutorType(subtaskMaster)
                 ? subtaskExecutor(subtaskMaster.taskDir(), subtaskMaster.getSubtaskIndex(),
-                    subtaskMaster.getBinaryName(), subtaskMaster.getTimeoutSecs())
+                    subtaskMaster.getBinaryName(), subtaskMaster.getTimeoutSecs(),
+                    subtaskMaster.getHeapSizeGigabytes(), subtaskMaster.getTaskConfiguration())
                 : null;
         }
 
         public abstract SubtaskExecutor subtaskExecutor(File taskDir, int subtaskIndex,
-            String binaryName, int timeoutSecs);
+            String binaryName, int timeoutSecs, float heapSizeGigabytes,
+            TaskConfiguration taskConfiguration);
 
         public abstract boolean correctSubtaskExecutorType(SubtaskMaster subtaskMaster);
     }
@@ -88,6 +98,7 @@ public class SubtaskExecutorFactory {
             }
         }
         return new SubtaskExecutor(subtaskMaster.taskDir(), subtaskMaster.getSubtaskIndex(),
-            subtaskMaster.getBinaryName(), subtaskMaster.getTimeoutSecs());
+            subtaskMaster.getBinaryName(), subtaskMaster.getTimeoutSecs(),
+            subtaskMaster.getHeapSizeGigabytes(), subtaskMaster.getTaskConfiguration());
     }
 }

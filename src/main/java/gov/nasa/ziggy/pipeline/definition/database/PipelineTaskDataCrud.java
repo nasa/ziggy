@@ -40,8 +40,13 @@ public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {
 
     /** For use by PipelineTaskDataOperations only. */
     List<PipelineTaskData> retrievePipelineTaskData(Collection<PipelineTask> pipelineTasks) {
-        Set<Long> taskIds = new HashSet<>(
-            pipelineTasks.stream().map(PipelineTask::getId).collect(Collectors.toSet()));
+        return retrievePipelineTaskDataForTaskIds(new HashSet<>(
+            pipelineTasks.stream().map(PipelineTask::getId).collect(Collectors.toSet())));
+    }
+
+    /** For use by PipelineTaskDataOperations only. */
+    List<PipelineTaskData> retrievePipelineTaskDataForTaskIds(Collection<Long> pipelineTaskIds) {
+        Set<Long> taskIds = new HashSet<>(pipelineTaskIds);
 
         List<PipelineTaskData> pipelineTaskData = list(
             createZiggyQuery(PipelineTaskData.class).column(PipelineTaskData_.pipelineTaskId)
@@ -49,13 +54,13 @@ public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {
                 .ascendingOrder());
 
         // Create objects if not already present in database.
-        Set<PipelineTask> newTasks = new HashSet<>(pipelineTasks);
-        newTasks.removeAll(pipelineTaskData.stream()
-            .map(PipelineTaskData::getPipelineTask)
+        taskIds.removeAll(pipelineTaskData.stream()
+            .map(PipelineTaskData::getPipelineTaskId)
             .collect(Collectors.toSet()));
-        if (newTasks.size() > 0) {
+        if (taskIds.size() > 0) {
             List<PipelineTaskData> newPipelineTaskData = new ArrayList<>();
-            for (PipelineTask pipelineTask : newTasks) {
+            List<PipelineTask> pipelineTasks = pipelineTaskCrud().retrieveAll(taskIds);
+            for (PipelineTask pipelineTask : pipelineTasks) {
                 newPipelineTaskData.add(new PipelineTaskData(pipelineTask));
             }
             persist(newPipelineTaskData);
@@ -63,7 +68,6 @@ public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {
             Collections.sort(newPipelineTaskData);
             return newPipelineTaskData;
         }
-
         return pipelineTaskData;
     }
 
@@ -168,7 +172,8 @@ public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {
      * Retrieves the list of distinct softwareRevisions for the specified pipeline instance.
      */
     List<String> distinctSoftwareRevisions(PipelineInstance pipelineInstance) {
-        List<String> distinctSoftwareRevisions = new ArrayList<>(list(softwareRevisionQuery(pipelineInstance, PipelineTaskData_.ziggySoftwareRevision)));
+        List<String> distinctSoftwareRevisions = new ArrayList<>(
+            list(softwareRevisionQuery(pipelineInstance, PipelineTaskData_.ziggySoftwareRevision)));
         distinctSoftwareRevisions.addAll(list(
             softwareRevisionQuery(pipelineInstance, PipelineTaskData_.pipelineSoftwareRevision)));
         return distinctSoftwareRevisions;

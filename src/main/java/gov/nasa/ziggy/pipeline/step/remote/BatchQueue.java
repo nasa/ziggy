@@ -19,14 +19,14 @@ import jakarta.xml.bind.annotation.XmlTransient;
 /** A batch queue on a remote system. */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "ziggy_batchQueue")
+@Table(name = "ziggy_BatchQueue")
 public class BatchQueue {
 
     @XmlTransient
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_Architecture_generator")
-    @SequenceGenerator(name = "ziggy_batchQueue_generator", initialValue = 1,
-        sequenceName = "ziggy_batchQueue_sequence", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ziggy_BatchQueue_generator")
+    @SequenceGenerator(name = "ziggy_BatchQueue_generator", initialValue = 1,
+        sequenceName = "ziggy_BatchQueue_sequence", allocationSize = 1)
     private Long id;
 
     /** Name used by the batch system. */

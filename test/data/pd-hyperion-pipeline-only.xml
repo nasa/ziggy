@@ -30,9 +30,7 @@
     </node>
   </pipeline>
 
-  <step name="level0" description="Hyperion L0 -> L1R"
-          exeTimeoutSecs="2000000" minMemoryMegabytes="0" />
-  <step name="level1" description="Hyperion L1R -> L2"
-          exeTimeoutSecs="2000000" minMemoryMegabytes="0" />
+  <step name="level0" description="Hyperion L0 -> L1R"/>
+  <step name="level1" description="Hyperion L1R -> L2"/>
           
 </pipelineDefinition>

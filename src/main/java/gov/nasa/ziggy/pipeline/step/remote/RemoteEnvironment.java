@@ -47,7 +47,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.NONE)
 @Entity
-@Table(name = "ziggy_remoteEnvironment")
+@Table(name = "ziggy_RemoteEnvironment")
 public class RemoteEnvironment implements PipelineDefinitionElement {
 
     @Transient
@@ -77,13 +77,13 @@ public class RemoteEnvironment implements PipelineDefinitionElement {
 
     @XmlTransient
     @OneToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "ziggy_remoteEnvironment_architectures")
+    @JoinTable(name = "ziggy_RemoteEnvironment_architectures")
     @Cascade({ CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH })
     private List<Architecture> architectures;
 
     @XmlTransient
     @OneToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "ziggy_remoteEnvironment_batchQueues")
+    @JoinTable(name = "ziggy_RemoteEnvironment_batchQueues")
     @Cascade({ CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH })
     private List<BatchQueue> queues;
 

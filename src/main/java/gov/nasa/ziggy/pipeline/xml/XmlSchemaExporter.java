@@ -34,24 +34,19 @@
 
 package gov.nasa.ziggy.pipeline.xml;
 
+import static java.text.MessageFormat.format;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.xml.transform.Result;
 import javax.xml.transform.stream.StreamResult;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.ImmutableSet;
-
-import gov.nasa.ziggy.data.management.Acknowledgement;
-import gov.nasa.ziggy.data.management.Manifest;
-import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
-import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -70,10 +65,10 @@ import jakarta.xml.bind.SchemaOutputResolver;
  * of an Interface Control Document (ICD).
  *
  * @author PT
+ * @author Bill Wohler
  */
 public class XmlSchemaExporter {
 
-    private static final Logger log = LoggerFactory.getLogger(XmlSchemaExporter.class);
     private static final String DEFAULT_XSD_FILE_NAME = "default.xsd";
     private static String destinationDirectory;
 
@@ -83,14 +78,22 @@ public class XmlSchemaExporter {
             String xmlDir = DirectoryProperties.ziggySchemaBuildDir().toString();
             destinationDirectory = Paths.get(xmlDir, "xml").toString();
             new File(destinationDirectory).mkdirs();
-            for (Class<? extends HasXmlSchemaFilename> clazz : XmlSchemaExporter.schemaClasses()) {
-                log.info("Generating XML schema for class {}...", clazz.getName());
+            for (Class<? extends HasXmlSchemaFilename> clazz : XmlSchemaExporter
+                .schemaClasses(args)) {
+                System.out
+                    .println(format("Generating XML schema for class {0}...", clazz.getName()));
                 JAXBContext context = JAXBContext.newInstance(clazz);
                 context.generateSchema(new PipelineDefinitionSchemaResolver(clazz));
-                log.info("Generating XML schema for class {}...done", clazz.getName());
             }
         } catch (IOException | JAXBException e) {
-            log.error("Unable to generate schema", e);
+            System.err.println("Unable to generate schema");
+            e.printStackTrace();
+            System.exit(1);
+        } catch (PipelineException e) {
+            System.err.println(e.getMessage());
+            if (e.getCause() != null) {
+                e.printStackTrace();
+            }
             System.exit(1);
         }
     }
@@ -100,27 +103,14 @@ public class XmlSchemaExporter {
      * location with a specified filename.
      *
      * @author PT
+     * @author Bill Wohler
      */
     private static final class PipelineDefinitionSchemaResolver extends SchemaOutputResolver {
 
-        private final String schemaFilename;
+        private final Class<? extends HasXmlSchemaFilename> clazz;
 
-        @SuppressWarnings("unused")
-        public PipelineDefinitionSchemaResolver() {
-            schemaFilename = DEFAULT_XSD_FILE_NAME;
-        }
-
-        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
         public PipelineDefinitionSchemaResolver(Class<? extends HasXmlSchemaFilename> clazz) {
-            try {
-                schemaFilename = clazz.getDeclaredConstructor()
-                    .newInstance()
-                    .getXmlSchemaFilename();
-            } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
-                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
-                throw new PipelineException(
-                    "Unable to generate schema resolver for class " + clazz.getName(), e);
-            }
+            this.clazz = clazz;
         }
 
         @Override
@@ -128,8 +118,23 @@ public class XmlSchemaExporter {
          * @throws IOException for compatibility with the
          * {@link SchemaOutputResolver#createOutput(String, String)} method in the superclass.
          */
+        @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
         public Result createOutput(String namespaceUri, String suggestedFileName)
             throws IOException {
+
+            String schemaFilename = DEFAULT_XSD_FILE_NAME;
+            try {
+                if (clazz != null) {
+                    schemaFilename = clazz.getDeclaredConstructor()
+                        .newInstance()
+                        .getXmlSchemaFilename();
+                }
+            } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+                throw new PipelineException(
+                    "Unable to generate schema resolver for class " + clazz.getName(), e);
+            }
+
             File schemaFile = new File(destinationDirectory, schemaFilename);
             StreamResult result = new StreamResult(schemaFile);
             result.setSystemId(schemaFile.toURI().toURL().toString());
@@ -140,9 +145,39 @@ public class XmlSchemaExporter {
     /**
      * Master {@link Set} of classes for which XML schemas are to be generated. Add classes here to
      * automatically add them to the schema generation process.
+     *
+     * @param args the command line arguments
+     * @return a non-null set of classes; empty if args is null or empty
      */
-    public static Set<Class<? extends HasXmlSchemaFilename>> schemaClasses() {
-        return ImmutableSet.of(PipelineDefinitionFile.class, ModelRegistry.class, Manifest.class,
-            Acknowledgement.class);
+    @SuppressWarnings("unchecked")
+    public static Set<Class<? extends HasXmlSchemaFilename>> schemaClasses(String[] args) {
+        if (args == null || args.length == 0) {
+            System.err.println("Can not generate schemas: No classes provided");
+            return Set.of();
+        }
+        Set<Class<? extends HasXmlSchemaFilename>> classes = new TreeSet<>(
+            Comparator.comparing(Class<? extends HasXmlSchemaFilename>::getName));
+
+        StringBuilder s = new StringBuilder();
+        for (String arg : args) {
+            try {
+                Class<?> clazz = Class.forName(arg);
+                if (!HasXmlSchemaFilename.class.isAssignableFrom(clazz)) {
+                    s.append(format("{0} does not implement HasXmlSchemaFilename\n", arg));
+                    continue;
+                }
+                // The following generates a type safety warning, but the previous condition should
+                // keep us safe.
+                classes.add((Class<? extends HasXmlSchemaFilename>) clazz);
+            } catch (ClassNotFoundException e) {
+                s.append(format("No class for {0} found\n", arg));
+            }
+        }
+
+        if (s.length() > 0) {
+            throw new PipelineException(s.toString());
+        }
+
+        return classes;
     }
 }

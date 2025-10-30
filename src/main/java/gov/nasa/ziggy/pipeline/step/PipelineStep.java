@@ -24,7 +24,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
@@ -90,20 +89,6 @@ public class PipelineStep extends UniqueNameVersionPipelineComponent<PipelineSte
     private ClassWrapper<PipelineOutputs> outputsClass = new ClassWrapper<>(
         DatastoreDirectoryPipelineOutputs.class);
 
-    // Using the Integer class rather than int here because XML won't allow optional
-    // attributes that are primitive types. Transient so that steps can be imported
-    // with the value set, but the value can then get put into the database in an
-    // instance of PipelineStepExecutionResources.
-    @Transient
-    @XmlAttribute(required = false)
-    private Integer exeTimeoutSecs = PipelineStepExecutionResources.DEFAULT_TIMEOUT_SECONDS;
-
-    // Using the Integer class rather than int here because XML won't allow optional
-    // attributes that are primitive types
-    @Transient
-    @XmlAttribute(required = false)
-    private Integer minMemoryMegabytes = PipelineStepExecutionResources.DEFAULT_MEMORY_MEGABYTES;
-
     // Executable file name, if different from step name.
     @XmlAttribute(required = false)
     private String file;
@@ -132,14 +117,6 @@ public class PipelineStep extends UniqueNameVersionPipelineComponent<PipelineSte
         this.description = description;
     }
 
-    public int getExeTimeoutSecs() {
-        return exeTimeoutSecs;
-    }
-
-    public void setExeTimeoutSecs(int exeTimeoutSecs) {
-        this.exeTimeoutSecs = exeTimeoutSecs;
-    }
-
     public ClassWrapper<PipelineStepExecutor> getPipelineStepExecutorClass() {
         return pipelineStepExecutorClass;
     }
@@ -163,10 +140,6 @@ public class PipelineStep extends UniqueNameVersionPipelineComponent<PipelineSte
 
     public void setOutputsClass(ClassWrapper<PipelineOutputs> outputsClass) {
         this.outputsClass = outputsClass;
-    }
-
-    public int getMinMemoryMegabytes() {
-        return minMemoryMegabytes;
     }
 
     public ClassWrapper<UnitOfWorkGenerator> getUnitOfWorkGenerator() {

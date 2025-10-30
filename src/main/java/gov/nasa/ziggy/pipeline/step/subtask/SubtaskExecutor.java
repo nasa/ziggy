@@ -66,13 +66,18 @@ public class SubtaskExecutor {
     private static final Logger log = LoggerFactory.getLogger(SubtaskExecutor.class);
 
     public static final String PYTHON_SUFFIX = ".py";
-
     public static final String MATLAB_PROCESS_EXEC_METRIC = "pipeline.module.executeAlgorithm.matlab.all.execTime";
+
+    private static final String HEAP_SIZE_PROPERTY_NAME = "-Xmx";
+    private static final String HEAP_SIZE_MB_SUFFIX = "M";
+    private static final String HEAP_SIZE_GB_SUFFIX = "G";
 
     private final String binaryName;
     private final File workingDir;
     private final int timeoutSecs;
     private final Path taskDir;
+    private final float heapSizeGigabytes;
+    private final TaskConfiguration taskConfiguration;
 
     private Map<String, String> environment;
 
@@ -83,11 +88,14 @@ public class SubtaskExecutor {
     private CommandLine algorithmCommandLine;
 
     // Use newInstance(SubtaskMaster), not the constructor.
-    SubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs) {
+    SubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs,
+        float heapSizeGigabytes, TaskConfiguration taskConfiguration) {
         this.taskDir = taskDir.toPath();
         workingDir = SubtaskUtils.subtaskDirectory(this.taskDir, subtaskIndex).toFile();
         this.timeoutSecs = timeoutSecs;
         this.binaryName = binaryName;
+        this.heapSizeGigabytes = heapSizeGigabytes;
+        this.taskConfiguration = taskConfiguration;
     }
 
     // Initialization is protected, use newInstance(SubtaskMaster) to get a fully-initialized
@@ -273,7 +281,7 @@ public class SubtaskExecutor {
         IntervalMetricKey key = IntervalMetric.start();
         try {
             key = IntervalMetric.start();
-            TaskConfiguration taskConfiguration = taskConfiguration();
+            TaskConfiguration taskConfiguration = getTaskConfiguration();
             Class<? extends PipelineInputs> inputsClass = taskConfiguration.getInputsClass();
             retCode = runInputsOutputsCommand(inputsClass);
             if (retCode == 0) {
@@ -377,6 +385,7 @@ public class SubtaskExecutor {
         // Put it all together.
         CommandLine commandLine = new CommandLine(ziggyCommand);
         commandLine.addArgument("--verbose");
+        commandLine.addArgument(heapSizeProperty());
         commandLine.addArgument(javaLibPathArg);
         commandLine.addArgument(log4jConfig);
         commandLine.addArgument(logFile);
@@ -474,6 +483,14 @@ public class SubtaskExecutor {
         return environment.get(osType.getSharedObjectPathEnvVar());
     }
 
+    public String heapSizeProperty() {
+        String heapSizeSuffix = heapSizeGigabytes >= 1 ? HEAP_SIZE_GB_SUFFIX : HEAP_SIZE_MB_SUFFIX;
+        String heapSizeFormat = HEAP_SIZE_PROPERTY_NAME + "%d" + heapSizeSuffix;
+        int heapSize = heapSizeGigabytes >= 1 ? (int) Math.ceil(heapSizeGigabytes)
+            : (int) Math.ceil(heapSizeGigabytes * 1000);
+        return String.format(heapSizeFormat, heapSize);
+    }
+
     // getters for test use only
     public String binaryName() {
         return binaryName;
@@ -487,8 +504,8 @@ public class SubtaskExecutor {
         return timeoutSecs;
     }
 
-    TaskConfiguration taskConfiguration() {
-        return TaskConfiguration.deserialize(workingDir.getParentFile());
+    public TaskConfiguration getTaskConfiguration() {
+        return taskConfiguration;
     }
 
     public String pipelineStepName() {

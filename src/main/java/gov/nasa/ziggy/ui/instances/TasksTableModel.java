@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.ui.instances;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -37,6 +38,7 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
     private PipelineInstance pipelineInstance;
     private List<TaskTimeInfo> tasks = new LinkedList<>();
     private TasksDisplayModel tasksDisplayModel = new TasksDisplayModel();
+    private List<PipelineTaskDisplayData> completedTaskData = new ArrayList<>();
     private JTable table;
 
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
@@ -52,22 +54,10 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
         new SwingWorker<TableUpdater, Void>() {
             @Override
             protected TableUpdater doInBackground() throws Exception {
-                List<PipelineTaskDisplayData> pipelineTaskDisplayData;
-                if (pipelineInstanceId > 0) {
-                    if (pipelineInstance == null
-                        || pipelineInstance.getId() != pipelineInstanceId) {
-                        pipelineInstance = pipelineInstanceOperations()
-                            .pipelineInstance(pipelineInstanceId);
-                    }
-                    pipelineTaskDisplayData = pipelineTaskDisplayDataOperations()
-                        .pipelineTaskDisplayData(pipelineInstance);
-                } else {
-                    pipelineInstance = null;
-                    pipelineTaskDisplayData = new LinkedList<>();
-                }
-                tasksDisplayModel.update(pipelineTaskDisplayData);
+                List<PipelineTaskDisplayData> pipelineTasksDisplayData = pipelineTasksDisplayData();
+                tasksDisplayModel.update(pipelineTasksDisplayData);
                 List<TaskTimeInfo> oldTasks = tasks;
-                tasks = pipelineTaskDisplayData.stream()
+                tasks = pipelineTasksDisplayData.stream()
                     .map(TaskTimeInfo::new)
                     .collect(Collectors.toList());
                 return new TableUpdater(oldTasks, tasks);
@@ -85,6 +75,30 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
                 }
             }
         }.execute();
+    }
+
+    // TODO: unit test
+    List<PipelineTaskDisplayData> pipelineTasksDisplayData() {
+        if (pipelineInstanceId <= 0) {
+            pipelineInstance = null;
+            return new LinkedList<>();
+        }
+        if (pipelineInstance != null && pipelineInstance.getId() == pipelineInstanceId) {
+            log.debug("Update mutable tasks only");
+            return pipelineTaskDisplayDataOperations().pipelineTaskDisplayData(pipelineInstance,
+                completedTaskData);
+        }
+        log.debug("Update all tasks");
+        pipelineInstance = pipelineInstanceOperations().pipelineInstance(pipelineInstanceId);
+        List<PipelineTaskDisplayData> pipelineTasksDisplayData = pipelineTaskDisplayDataOperations()
+            .pipelineTaskDisplayData(pipelineInstance);
+
+        // Do not use the toList() method here because that returns an immutable
+        // list.
+        completedTaskData = pipelineTasksDisplayData.stream()
+            .filter(PipelineTaskDisplayData::isTaskProcessingFinished)
+            .collect(Collectors.toList());
+        return pipelineTasksDisplayData;
     }
 
     @Override
@@ -133,6 +147,16 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
         return tasksDisplayModel.getTaskCounts();
     }
 
+    /** For testing only. */
+    void setPipelineInstanceId(long instanceId) {
+        pipelineInstanceId = instanceId;
+    }
+
+    /** For testing only. */
+    List<PipelineTaskDisplayData> getCompletedTaskData() {
+        return completedTaskData;
+    }
+
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
     }
@@ -160,7 +184,7 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
 
         @Override
         public int hashCode() {
-            return Objects.hash(pipelineTaskDisplayData, time);
+            return Objects.hash(pipelineTaskDisplayData.displayContentHashCode(), time);
         }
 
         @Override
@@ -172,7 +196,7 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
                 return false;
             }
             TaskTimeInfo other = (TaskTimeInfo) obj;
-            return Objects.equals(pipelineTaskDisplayData, other.pipelineTaskDisplayData)
+            return pipelineTaskDisplayData.isDisplayContentEqual(other.pipelineTaskDisplayData)
                 && Objects.equals(time, other.time);
         }
 

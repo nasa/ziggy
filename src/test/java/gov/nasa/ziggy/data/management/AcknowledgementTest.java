@@ -84,7 +84,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(27, ack.getFileCount());
+        assertEquals(28, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         validateAckFiles(manifest.fileNameToManifestEntry(), ack.fileNameToAckEntry(), null);
         assertEquals(DataReceiptStatus.VALID, ack.getTransferStatus());
@@ -109,7 +109,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(54, ack.getFileCount());
+        assertEquals(56, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         validateAckFiles(manifest.fileNameToManifestEntry(), ack.fileNameToAckEntry(), null);
         assertEquals(DataReceiptStatus.VALID, ack.getTransferStatus());
@@ -150,7 +150,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(54, ack.getFileCount());
+        assertEquals(56, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -184,7 +184,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(54, ack.getFileCount());
+        assertEquals(56, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();
@@ -218,7 +218,7 @@ public class AcknowledgementTest {
         Acknowledgement ack = Acknowledgement.of(manifest, testDataDir,
             new PipelineTask(null, null, null));
         assertEquals("test-manifest-ack.xml", ack.getName());
-        assertEquals(54, ack.getFileCount());
+        assertEquals(56, ack.getFileCount());
         assertEquals(100L, ack.getDatasetId());
         Map<String, ManifestEntry> mFileMap = manifest.fileNameToManifestEntry();
         Map<String, AcknowledgementEntry> aFileMap = ack.fileNameToAckEntry();

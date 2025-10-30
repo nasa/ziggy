@@ -315,7 +315,7 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
         }
     }
 
-    private class ModelTypeAdapter extends XmlAdapter<String, ModelType> {
+    public static class ModelTypeAdapter extends XmlAdapter<String, ModelType> {
 
         @Override
         public ModelType unmarshal(String v) {
@@ -326,7 +326,7 @@ public class ModelMetadata implements Comparable<ModelMetadata> {
 
         @Override
         public String marshal(ModelType v) {
-            return modelType.getType();
+            return v.getType();
         }
     }
 }

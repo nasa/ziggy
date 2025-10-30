@@ -128,9 +128,17 @@ public class RemoteAlgorithmExecutor extends AlgorithmExecutor {
             if (remoteJob.isFinished()) {
                 continue;
             }
+
+            // It's also possible the job is finished but the database doesn't know it.
+            // This can happen in two distinct ways.
+            if (batchManager().isFinished(remoteJob)) {
+                markRemoteJobFinished(remoteJob);
+                continue;
+            }
             RemoteJobInformation remoteJobInformation = batchManager()
                 .remoteJobInformation(remoteJob);
             if (remoteJobInformation == null) {
+                markRemoteJobFinished(remoteJob);
                 continue;
             }
             remoteJobsInformation.add(remoteJobInformation);
@@ -145,14 +153,20 @@ public class RemoteAlgorithmExecutor extends AlgorithmExecutor {
         return true;
     }
 
-    @Override
-    protected String activeCores() {
-        return Integer.toString(batchParameters().activeCores());
+    protected void markRemoteJobFinished(RemoteJob remoteJob) {
+        log.info("Job {} for task {} finished, updating status in database", remoteJob.getJobId(),
+            pipelineTask.getId());
+        pipelineTaskDataOperations().markJobComplete(pipelineTask, remoteJob);
     }
 
     @Override
-    protected String wallTime() {
-        return Integer.toString((int) (batchParameters().requestedWallTimeHours() * 3600));
+    public int activeCores() {
+        return batchParameters().activeCores();
+    }
+
+    @Override
+    public int wallTime() {
+        return (int) (batchParameters().requestedWallTimeHours() * 3600);
     }
 
     protected BatchParameters batchParameters() {

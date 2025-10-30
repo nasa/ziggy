@@ -22,6 +22,7 @@ import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputs;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputsOutputsUtils;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskInformation;
+import gov.nasa.ziggy.uow.SingleUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.uow.UnitOfWorkGenerator;
 
@@ -159,6 +160,14 @@ public class PipelineTaskInformation {
      */
     SubtaskInformation subtaskInformation(PipelineStep pipelineStep, PipelineTask pipelineTask,
         PipelineNode pipelineNode) {
+
+        // Special case: steps that use SingleUnitOfWorkGenerator.
+        if (pipelineStep.getUnitOfWorkGenerator()
+            .getClazz()
+            .equals(SingleUnitOfWorkGenerator.class)) {
+            return new SubtaskInformation(pipelineStep.getName(),
+                SingleUnitOfWorkGenerator.BRIEF_STATE, 1);
+        }
         return PipelineInputsOutputsUtils
             .newPipelineInputs(pipelineStep.getInputsClass(), pipelineTask, null)
             .subtaskInformation(pipelineNode);

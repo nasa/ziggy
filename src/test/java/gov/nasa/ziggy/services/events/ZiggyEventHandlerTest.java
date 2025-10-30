@@ -45,6 +45,8 @@ import gov.nasa.ziggy.supervisor.PipelineSupervisor;
 import gov.nasa.ziggy.uow.DirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
  * Unit tests for {@link ZiggyEventHandler}, {@link ZiggyEventStatus}, and {@link ZiggyEvent}
@@ -131,6 +133,10 @@ public class ZiggyEventHandlerTest {
         // Construct the PipelineSupervisor just so that we have a value set for the
         // number of workers
         new PipelineSupervisor(1, 1000);
+
+        WorkerResources workerResources = new WorkerResources(1, 1);
+        workerResources.setDefaultInstance(true);
+        new WorkerResourcesOperations().merge(workerResources);
     }
 
     @Test

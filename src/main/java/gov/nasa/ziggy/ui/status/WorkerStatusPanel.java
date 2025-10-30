@@ -15,9 +15,8 @@ import javax.swing.SwingUtilities;
 
 import org.netbeans.swing.outline.Outline;
 
+import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.services.messages.HeartbeatMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesMessage;
-import gov.nasa.ziggy.services.messages.WorkerResourcesRequest;
 import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.process.StatusMessage;
@@ -47,15 +46,8 @@ public class WorkerStatusPanel extends JPanel {
     public WorkerStatusPanel() {
         buildComponent();
 
-        ZiggyMessenger.subscribe(HeartbeatMessage.class, message -> {
-            update((StatusMessage) null);
-        });
-
+        ZiggyMessenger.subscribe(HeartbeatMessage.class, message -> update((StatusMessage) null));
         ZiggyMessenger.subscribe(WorkerStatusMessage.class, this::update);
-
-        ZiggyMessenger.subscribe(WorkerResourcesMessage.class, this::updateWorkerResources);
-
-        ZiggyMessenger.publish(new WorkerResourcesRequest());
     }
 
     private void buildComponent() {
@@ -105,25 +97,26 @@ public class WorkerStatusPanel extends JPanel {
         // If there are no workers operating, tell the world that the current resources are
         // (0, 0), and note that we're waiting for workers to resume working.
         if (model.getRowCount() == 0) {
-            ZiggyMessenger.publish(new WorkerResourcesMessage(null, new WorkerResources(0, 0)));
+            updateWorkerResources((WorkerStatusMessage) null);
             waitingForWorkers = true;
         } else if (waitingForWorkers) {
-
-            // Get the resources from the TaskRequestHandlerLifecycleManager and
-            // stop waiting for workers.
-            ZiggyMessenger.publish(new WorkerResourcesRequest());
+            // Get the resources from the database and stop waiting for workers.
+            updateWorkerResources((WorkerStatusMessage) statusMessage);
             waitingForWorkers = false;
         }
     }
 
-    public void updateWorkerResources(WorkerResourcesMessage resourcesMessage) {
-        if (resourcesMessage.getResources() == null) {
-            return;
-        }
-        WorkerResources resources = resourcesMessage.getResources();
+    public void updateWorkerResources(WorkerStatusMessage workerStatusMessage) {
+        WorkerResources workerResources = workerStatusMessage == null ? new WorkerResources(0, 0F)
+            : new PipelineInstanceNodeOperations()
+                .pipelineInstanceNode(workerStatusMessage.getPipelineTask())
+                .getWorkerResources();
+
+        ZiggyMessenger.publish(new WorkerResourcesMessage(workerResources), false);
+
         SwingUtilities.invokeLater(() -> {
-            countTextField.setText(Integer.toString(resources.getMaxWorkerCount()));
-            heapTextField.setText(resources.humanReadableHeapSize().toString());
+            countTextField.setText(Integer.toString(workerResources.getMaxWorkerCount()));
+            heapTextField.setText(workerResources.humanReadableHeapSize().toString());
         });
     }
 

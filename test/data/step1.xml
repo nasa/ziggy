@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<step name="step 1" description="first step" exeTimeoutSecs="100" minMemoryMegabytes="200"/>
+<step name="step 1" description="first step"/>

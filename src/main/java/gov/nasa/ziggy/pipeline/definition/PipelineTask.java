@@ -20,6 +20,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
@@ -40,7 +41,9 @@ import jakarta.persistence.Table;
  * @author Bill Wohler
  */
 @Entity
-@Table(name = "ziggy_PipelineTask")
+@Table(name = "ziggy_PipelineTask",
+    indexes = @Index(name = "ziggy_PipelineTask_pipelineInstanceId_index",
+        columnList = "pipelineInstanceId"))
 public class PipelineTask implements Serializable, Comparable<PipelineTask> {
 
     @SuppressWarnings("unused")
@@ -90,7 +93,8 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
     }
 
     public String taskBaseName() {
-        return getPipelineInstanceId() + "-" + getId() + "-" + getPipelineStepName();
+        return getPipelineInstanceId() + "-" + getId() + "-"
+            + getPipelineStepName().replace(" ", "_");
     }
 
     public Long getId() {

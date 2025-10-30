@@ -46,7 +46,7 @@ public class SingleTaskLogDialog extends javax.swing.JDialog implements Requesto
 
     private static final Logger log = LoggerFactory.getLogger(TaskLogInformationDialog.class);
     private static final long serialVersionUID = 20240614L;
-    private static final long LOG_CONTENT_TIMEOUT_MILLIS = 2000L;
+    private static final long LOG_CONTENT_TIMEOUT_MILLIS = 30000L;
 
     private JLabel taskLogLabel;
     private JTextArea textArea;

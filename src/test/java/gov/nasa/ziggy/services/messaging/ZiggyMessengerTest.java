@@ -18,6 +18,7 @@ import gov.nasa.ziggy.TestEventDetector;
 import gov.nasa.ziggy.services.messages.PipelineMessage;
 import gov.nasa.ziggy.services.messaging.MessagingTestUtils.Message1;
 import gov.nasa.ziggy.services.messaging.MessagingTestUtils.Message2;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Unit tests for the {@link ZiggyMessenger} class.
@@ -25,6 +26,8 @@ import gov.nasa.ziggy.services.messaging.MessagingTestUtils.Message2;
  * @author PT
  */
 public class ZiggyMessengerTest {
+
+    private static final Logger log = LoggerFactory.getLogger(ZiggyMessengerTest.class);
 
     @Before
     public void setUp() {
@@ -64,10 +67,10 @@ public class ZiggyMessengerTest {
 
         ZiggyMessenger.publish(new Message1("signed"));
         TestEventDetector.detectTestEvent(1000L,
-            () -> (ZiggyMessenger.getMessagesFromOutgoingQueue().size() > 0));
+            () -> (ZiggyMessenger.getMessagesFromQueue().size() > 0));
         assertTrue(ZiggyMessenger.getOutgoingMessageQueue().isEmpty());
-        assertEquals(1, ZiggyMessenger.getMessagesFromOutgoingQueue().size());
-        assertTrue(ZiggyMessenger.getMessagesFromOutgoingQueue().get(0) instanceof Message1);
+        assertEquals(1, ZiggyMessenger.getMessagesFromQueue().size());
+        assertTrue(ZiggyMessenger.getMessagesFromQueue().get(0) instanceof Message1);
     }
 
     /**
@@ -82,14 +85,12 @@ public class ZiggyMessengerTest {
         CountDownLatch latch = new CountDownLatch(1);
         ZiggyMessenger.publish(new Message1("signed"), latch);
         assertTrue(TestEventDetector.detectTestEvent(1000L,
-            () -> (ZiggyMessenger.getMessagesFromOutgoingQueue().size() > 0)));
+            () -> (ZiggyMessenger.getMessagesFromQueue().size() > 0)));
         assertTrue(TestEventDetector.detectTestEvent(1000L, () -> (latch.getCount() == 0)));
         assertTrue(ZiggyMessenger.getOutgoingMessageQueue().isEmpty());
-        assertEquals(1, ZiggyMessenger.getMessagesFromOutgoingQueue().size());
-        assertTrue(ZiggyMessenger.getMessagesFromOutgoingQueue().get(0) instanceof Message1);
+        assertEquals(1, ZiggyMessenger.getMessagesFromQueue().size());
+        assertTrue(ZiggyMessenger.getMessagesFromQueue().get(0) instanceof Message1);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ZiggyMessengerTest.class);
 
     @Test
     public void testTakeAction() {
@@ -111,10 +112,50 @@ public class ZiggyMessengerTest {
         ZiggyMessenger.publish(new Message1("signed"));
         ZiggyMessenger.publish(new Message2("delivered"));
         TestEventDetector.detectTestEvent(1000L, () -> (stringsFromMessages.size() > 2));
-        assertEquals(2, ZiggyMessenger.getMessagesFromOutgoingQueue().size());
+        assertEquals(2, ZiggyMessenger.getMessagesFromQueue().size());
         assertEquals(3, stringsFromMessages.size());
         assertTrue(stringsFromMessages.contains("signed"));
         assertTrue(stringsFromMessages.contains("sealed"));
         assertTrue(stringsFromMessages.contains("delivered"));
+    }
+
+    @Test
+    public void testIncomingMessageQueue() {
+        ZiggyMessenger.setStoreMessages(true);
+        List<String> stringsFromMessages = new ArrayList<>();
+        ZiggyMessenger.subscribe(Message1.class, message -> {
+            stringsFromMessages.add(message.getPayload());
+        });
+        ZiggyMessenger.subscribe(Message1.class, message -> {
+            stringsFromMessages.add("sealed");
+        });
+        ZiggyMessenger.subscribe(Message2.class, message -> {
+            stringsFromMessages.add(message.getPayload());
+        });
+
+        ZiggyMessenger.actOnMessage(new Message1("signed"));
+        ZiggyMessenger.actOnMessage(new Message2("delivered"));
+        TestEventDetector.detectTestEvent(1000L, () -> (stringsFromMessages.size() > 2));
+        assertEquals(2, ZiggyMessenger.getMessagesFromQueue().size());
+        assertEquals(3, stringsFromMessages.size());
+        assertTrue(stringsFromMessages.contains("signed"));
+        assertTrue(stringsFromMessages.contains("sealed"));
+        assertTrue(stringsFromMessages.contains("delivered"));
+        assertTrue(ZiggyMessenger.isMessageActionThreadAlive());
+    }
+
+    @Test
+    public void testExceptionDueToIncomingMessage() {
+        ZiggyMessenger.setStoreExceptions(true);
+        ZiggyMessenger.subscribe(Message1.class, message -> {
+            throw new PipelineException("totally expected exception");
+        });
+        ZiggyMessenger.actOnMessage(new Message1("signed"));
+        assertTrue(ZiggyMessenger.isMessageActionThreadAlive());
+        TestEventDetector.detectTestEvent(1000L,
+            () -> (ZiggyMessenger.getExceptionsThrown().size() > 0));
+        assertEquals(1, ZiggyMessenger.getExceptionsThrown().size());
+        assertEquals(PipelineException.class.getName(),
+            ZiggyMessenger.getExceptionsThrown().get(0).getClass().getName());
     }
 }

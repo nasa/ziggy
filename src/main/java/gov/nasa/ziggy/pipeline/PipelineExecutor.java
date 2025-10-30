@@ -31,6 +31,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
@@ -40,6 +41,7 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.definition.database.RuntimeObjectFactory;
+import gov.nasa.ziggy.services.alert.Alert;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.PropertyName;
@@ -54,6 +56,8 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /***
  * Encapsulates the launch and transition logic for pipelines.
@@ -78,6 +82,7 @@ public class PipelineExecutor {
     private PipelineNodeOperations pipelineNodeOperations = new PipelineNodeOperations();
     private PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
     private PipelineOperations pipelineOperations = new PipelineOperations();
+    private WorkerResourcesOperations workerResourcesOperations = new WorkerResourcesOperations();
     private RuntimeObjectFactory objectFactory = new RuntimeObjectFactory();
 
     // Fields used for debugging.
@@ -107,7 +112,7 @@ public class PipelineExecutor {
         List<PipelineNode> startNodes = startNode != null ? List.of(startNode)
             : pipelineOperations().rootNodes(pipeline);
         nodesForLaunch
-            .addAll(objectFactory().newInstanceNodes(pipeline, instance, startNodes, endNode));
+        .addAll(objectFactory().newInstanceNodes(pipeline, instance, startNodes, endNode));
 
         if (eventLabels != null) {
             instanceEventLabels.put(instance.getId(), eventLabels);
@@ -141,7 +146,7 @@ public class PipelineExecutor {
                 launchNode(node);
             }
             pipelineInstanceNodeOperations()
-                .markInstanceNodeTransitionComplete(instanceNode.getId());
+            .markInstanceNodeTransitionComplete(instanceNode.getId());
         } catch (RuntimeException e) {
             log.error("Pipeline transition from {} to next node failed",
                 instanceNode.getPipelineStepName(), e);
@@ -202,6 +207,16 @@ public class PipelineExecutor {
         RunMode restartMode) {
         PipelineInstanceNode node = entry.getKey();
         List<PipelineTask> tasks = entry.getValue();
+        PipelineNode pipelineNode = node.getPipelineNode();
+
+        // Update the instance node's worker resources -- the pipeline node's settings might
+        // have been changed since the last time the tasks were run.
+        WorkerResources compositeResources = workerResourcesOperations()
+            .compositeWorkerResources(pipelineNode);
+        node.setHeapSizeGigabytes(compositeResources.getHeapSizeGigabytes());
+        node.setMaxWorkerCount(compositeResources.getMaxWorkerCount());
+        node = pipelineInstanceNodeOperations().merge(node);
+
         log.info("Restarting {} tasks for instance node {} ({})", tasks.size(), node.getId(),
             node.getPipelineStepName());
 
@@ -231,13 +246,21 @@ public class PipelineExecutor {
         RunMode restartMode) {
 
         pipelineTaskDataOperations().prepareTaskForRestart(task);
+
+        // If all the subtasks are complete, then we can't resubmit.
+        SubtaskCounts subtaskCounts = pipelineTaskDataOperations().subtaskCounts(task);
+        if (restartMode == RunMode.RESUBMIT && subtaskCounts.getCompletedSubtaskCount() == subtaskCounts.getTotalSubtaskCount()) {
+            alertService().generateAndBroadcastAlert(
+                "Restarts", task, Alert.Severity.WARNING, "Unable to resubmit task with all subtasks complete");
+            return;
+        }
         removeTaskFromKilledTaskList(task);
         if (restartMode != RunMode.RESUME_CURRENT_STEP) {
             pipelineTaskDataOperations().updateProcessingStep(task, ProcessingStep.WAITING_TO_RUN);
         }
 
         // Send the task message to the supervisor.
-        sendTaskRequestMessage(task, Priority.HIGHEST, doTransitionOnly, restartMode);
+        sendTaskRequestMessage(task, Priority.HIGH, doTransitionOnly, restartMode);
     }
 
     /** Replace with dummy method in unit testing. */
@@ -271,8 +294,8 @@ public class PipelineExecutor {
 
         if (unitsOfWork.isEmpty()) {
             AlertService.getInstance()
-                .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK, Severity.ERROR,
-                    "No tasks generated for " + instanceNode.getPipelineStepName());
+            .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK, Severity.ERROR,
+                "No tasks generated for " + instanceNode.getPipelineStepName());
             pipelineInstanceOperations().setInstanceToErrorsStalledState(instance);
             throw new PipelineException("Task generation did not generate any tasks!  UOW class: "
                 + unitOfWorkGenerator.getClassName());
@@ -319,7 +342,10 @@ public class PipelineExecutor {
     }
 
     public void persistTaskResults(PipelineTask task) {
-        sendTaskRequestMessage(task, Priority.HIGH, false, RunMode.STANDARD);
+        PipelineInstance.Priority persistPriority = pipelineTaskDataOperations().retrying(task)
+            ? Priority.HIGHEST
+                : Priority.HIGH;
+        sendTaskRequestMessage(task, persistPriority, false, RunMode.STANDARD);
     }
 
     private void sendTaskRequestMessage(PipelineTask task, Priority priority,
@@ -421,8 +447,16 @@ public class PipelineExecutor {
         return pipelineOperations;
     }
 
+    WorkerResourcesOperations workerResourcesOperations() {
+        return workerResourcesOperations;
+    }
+
     RuntimeObjectFactory objectFactory() {
         return objectFactory;
+    }
+
+    AlertService alertService() {
+        return AlertService.getInstance();
     }
 
     /**

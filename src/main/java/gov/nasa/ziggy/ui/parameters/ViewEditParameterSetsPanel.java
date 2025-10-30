@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.Action;
@@ -110,6 +111,11 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
     protected void updateActionState(Map<OptionalViewEditFunction, Action> actionByFunction) {
         actionByFunction.get(OptionalViewEditFunction.EDIT)
             .setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
+    }
+
+    @Override
+    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
+        return Set.of(OptionalViewEditFunction.EDIT);
     }
 
     private void report(ActionEvent evt) {

@@ -215,7 +215,7 @@ public abstract class AbstractCrud<U> implements AbstractCrudInterface<U> {
         int maxExpressions = maxExpressions();
         List<R> results = new ArrayList<>(maxExpressions * 2);
         for (List<T> chunk : Lists.partition(source, maxExpressions)) {
-            log.info("Created chunk of size {}", chunk.size());
+            log.debug("Created chunk of size {}", chunk.size());
             results.addAll(query.apply(chunk));
         }
         return results;

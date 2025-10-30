@@ -4,11 +4,11 @@ import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.PIPELINE_HALT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -21,11 +21,13 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -39,15 +41,20 @@ import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
 import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNode;
+import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.step.TimestampFile.Event;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.database.DatabaseService;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
  * Unit test class for {@link AlgorithmPipelineStepExecutor}.
@@ -59,7 +66,6 @@ public class AlgorithmPipelineStepExecutorTest {
     private PipelineTask pipelineTask;
     private PipelineInstance pipelineInstance;
     private TaskConfiguration taskConfiguration;
-    private AlgorithmLifecycleManager taskAlgorithmLifecycle;
     private File taskDir;
     private PipelineInstanceNode pipelineInstanceNode;
     private PipelineStep pipelineStep;
@@ -70,6 +76,8 @@ public class AlgorithmPipelineStepExecutorTest {
     private DatastoreProducerConsumerOperations datastoreProducerConsumerOperations;
     private PipelineTaskOperations pipelineTaskOperations;
     private PipelineTaskDataOperations pipelineTaskDataOperations;
+    private WorkerResourcesOperations workerResourcesOperations;
+    private SubtaskCounts subtaskCounts;
 
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
@@ -95,61 +103,79 @@ public class AlgorithmPipelineStepExecutorTest {
         pipelineInstanceNode = mock(PipelineInstanceNode.class);
         pipelineStep = mock(PipelineStep.class);
         algorithmExecutor = mock(AlgorithmExecutor.class);
+        PipelineNode pipelineNode = mock(PipelineNode.class);
         when(pipelineTask.getId()).thenReturn(100L);
         pipelineTaskOperations = Mockito.mock(PipelineTaskOperations.class);
         when(pipelineTaskOperations.pipelineInstance(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(pipelineInstance);
+        .thenReturn(pipelineInstance);
         when(pipelineTaskOperations.pipelineInstanceNode(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(pipelineInstanceNode);
+        .thenReturn(pipelineInstanceNode);
         when(pipelineTaskOperations.pipelineStep(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(pipelineStep);
+        .thenReturn(pipelineStep);
+        when(pipelineTaskOperations.pipelineNode(ArgumentMatchers.any(PipelineTask.class)))
+        .thenReturn(pipelineNode);
+        PipelineNodeExecutionResources executionResources = mock(
+            PipelineNodeExecutionResources.class);
+        when(pipelineTaskOperations.executionResources(ArgumentMatchers.any(PipelineTask.class)))
+        .thenReturn(executionResources);
+        when(executionResources.subtaskRamGigabytes()).thenReturn(1.0);
         pipelineTaskDataOperations = Mockito.mock(PipelineTaskDataOperations.class);
 
+        workerResourcesOperations = Mockito.mock(WorkerResourcesOperations.class);
+        WorkerResources workerResources = new WorkerResources(1, 1);
+        Mockito
+        .when(workerResourcesOperations
+            .compositeWorkerResources(ArgumentMatchers.any(PipelineNode.class)))
+        .thenReturn(workerResources);
         when(pipelineTask.taskBaseName()).thenReturn("50-100-test");
         when(pipelineStep.getInputsClass())
-            .thenReturn(new ClassWrapper<>(PipelineInputsSample.class));
+        .thenReturn(new ClassWrapper<>(PipelineInputsSample.class));
         when(pipelineStep.getOutputsClass())
-            .thenReturn(new ClassWrapper<>(PipelineOutputsSample.class));
+        .thenReturn(new ClassWrapper<>(PipelineOutputsSample.class));
         when(pipelineInstance.getId()).thenReturn(50L);
         when(pipelineTask.getPipelineInstanceId()).thenReturn(50L);
         datastoreProducerConsumerOperations = mock(DatastoreProducerConsumerOperations.class);
         taskConfiguration = mock(TaskConfiguration.class);
         taskDir = directoryRule.directory().toFile();
         taskDir.mkdirs();
-        taskAlgorithmLifecycle = mock(AlgorithmLifecycleManager.class);
-        when(taskAlgorithmLifecycle.getTaskDir(true)).thenReturn(taskDir);
-        when(taskAlgorithmLifecycle.getTaskDir(false)).thenReturn(taskDir);
-        when(taskAlgorithmLifecycle.getExecutor()).thenReturn(algorithmExecutor);
         taskDirManager = mock(TaskDirectoryManager.class);
         when(taskDirManager.taskDir()).thenReturn(directoryRule.directory());
 
         datastoreFileManager = mock(DatastoreFileManager.class);
         when(datastoreFileManager.inputFilesByOutputStatus())
-            .thenReturn(new InputFiles(new HashSet<>(), new HashSet<>()));
+        .thenReturn(new InputFiles(new HashSet<>(), new HashSet<>()));
 
         configurePipelineStepExecutor(RunMode.STANDARD);
 
         // By default, mock 5 subtasks.
-        when(taskConfiguration.getSubtaskCount()).thenReturn(5);
+        subtaskCounts = mock(SubtaskCounts.class);
+        when(pipelineTaskDataOperations.subtaskCounts(ArgumentMatchers.any(PipelineTask.class)))
+        .thenReturn(subtaskCounts);
+        when(subtaskCounts.getTotalSubtaskCount()).thenReturn(5);
     }
 
     /** Sets up a pipeline step executor with a specified run mode. */
     private void configurePipelineStepExecutor(RunMode runMode) {
         pipelineStepExecutor = spy(new AlgorithmPipelineStepExecutor(pipelineTask, runMode));
         doReturn(datastoreProducerConsumerOperations).when(pipelineStepExecutor)
-            .datastoreProducerConsumerOperations();
+        .datastoreProducerConsumerOperations();
         doReturn(pipelineTaskOperations).when(pipelineStepExecutor).pipelineTaskOperations();
         doReturn(pipelineTaskDataOperations).when(pipelineStepExecutor)
-            .pipelineTaskDataOperations();
+        .pipelineTaskDataOperations();
         doReturn(pipelineTask).when(pipelineStepExecutor).pipelineTask();
         doReturn(taskConfiguration).when(pipelineStepExecutor).taskConfiguration();
+        when(taskConfiguration.getSubtaskCount()).thenReturn(1);
         doReturn(datastoreFileManager).when(pipelineStepExecutor).datastoreFileManager();
         doReturn(new HashSet<>()).when(pipelineStepExecutor)
-            .datastorePathsToRelative(ArgumentMatchers.anySet());
+        .datastorePathsToRelative(ArgumentMatchers.anySet());
         doReturn(new HashSet<>()).when(pipelineStepExecutor)
-            .datastorePathsToNames(ArgumentMatchers.anySet());
-        doReturn(taskAlgorithmLifecycle).when(pipelineStepExecutor).algorithmManager();
+        .datastorePathsToNames(ArgumentMatchers.anySet());
+        doReturn(taskDir).when(pipelineStepExecutor).getTaskDir();
+        doReturn(taskDir).when(pipelineStepExecutor).getTaskDir(true);
+        doReturn(taskDir).when(pipelineStepExecutor).getTaskDir(false);
         doReturn(taskDirManager).when(pipelineStepExecutor).taskDirManager();
+        doReturn(algorithmExecutor).when(pipelineStepExecutor).executor();
+        doReturn(workerResourcesOperations).when(pipelineStepExecutor).workerResourcesOperations();
 
         // Return the database processing steps in the correct order.
         configureDatabaseProcessingSteps();
@@ -196,7 +222,6 @@ public class AlgorithmPipelineStepExecutorTest {
     public void testConstructor() {
         assertEquals(100L, pipelineStepExecutor.pipelineTask().getId().longValue());
         assertEquals(50L, pipelineStepExecutor.instanceId());
-        assertNotNull(pipelineStepExecutor.algorithmManager());
         assertTrue(pipelineStepExecutor.pipelineInputs() instanceof PipelineInputsSample);
         assertTrue(pipelineStepExecutor.pipelineOutputs() instanceof PipelineOutputsSample);
     }
@@ -211,10 +236,20 @@ public class AlgorithmPipelineStepExecutorTest {
         doReturn(ProcessingStep.MARSHALING).when(pipelineStepExecutor).currentProcessingStep();
         pipelineStepExecutor.marshalingTaskAction();
 
-        verify(pipelineStepExecutor).copyFilesToTaskDirectory(eq(taskConfiguration), eq(taskDir));
-        verify(taskConfiguration).serialize(eq(taskDir));
+        verify(pipelineStepExecutor).copyFilesToTaskDirectory(eq(taskDir));
         verify(pipelineStepExecutor).incrementProcessingStep();
         assertFalse(pipelineStepExecutor.getDoneLooping());
+        assertFalse(pipelineStepExecutor.isProcessingSuccessful());
+    }
+
+    @Test
+    public void testSubmitting() {
+        doReturn(ProcessingStep.SUBMITTING).when(pipelineStepExecutor).currentProcessingStep();
+        pipelineStepExecutor.submittingTaskAction();
+
+        verify(taskConfiguration).serialize(eq(taskDir));
+        verify(pipelineStepExecutor, times(0)).incrementProcessingStep();
+        assertTrue(pipelineStepExecutor.getDoneLooping());
         assertFalse(pipelineStepExecutor.isProcessingSuccessful());
     }
 
@@ -226,10 +261,11 @@ public class AlgorithmPipelineStepExecutorTest {
     public void testProcessMarshalingNoInputs() throws Exception {
 
         doReturn(ProcessingStep.MARSHALING).when(pipelineStepExecutor).currentProcessingStep();
-        when(taskConfiguration.getSubtaskCount()).thenReturn(0);
+        when(subtaskCounts.getTotalSubtaskCount()).thenReturn(0);
+
         pipelineStepExecutor.marshalingTaskAction();
 
-        verify(pipelineStepExecutor).copyFilesToTaskDirectory(eq(taskConfiguration), eq(taskDir));
+        verify(pipelineStepExecutor).copyFilesToTaskDirectory(eq(taskDir));
         verify(taskConfiguration, never()).serialize(eq(taskDir));
         verify(pipelineStepExecutor, never()).incrementProcessingStep();
         assertTrue(pipelineStepExecutor.getDoneLooping());
@@ -244,20 +280,20 @@ public class AlgorithmPipelineStepExecutorTest {
 
         // remote processing
         doReturn(ProcessingStep.EXECUTING).when(pipelineStepExecutor).currentProcessingStep();
-        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        when(pipelineStepExecutor.isRemote()).thenReturn(true);
         pipelineStepExecutor.executingTaskAction();
 
-        verify(taskAlgorithmLifecycle).executeAlgorithm(null);
+        verify(algorithmExecutor).submitAlgorithm();
         verify(pipelineStepExecutor, never()).incrementProcessingStep();
         assertTrue(pipelineStepExecutor.getDoneLooping());
         assertFalse(pipelineStepExecutor.isProcessingSuccessful());
 
         // local execution
         configurePipelineStepExecutor(RunMode.STANDARD);
-        when(taskAlgorithmLifecycle.isRemote()).thenReturn(false);
+        when(pipelineStepExecutor.isRemote()).thenReturn(false);
         pipelineStepExecutor.executingTaskAction();
 
-        verify(taskAlgorithmLifecycle, times(2)).executeAlgorithm(null);
+        verify(algorithmExecutor, times(2)).submitAlgorithm();
         verify(pipelineStepExecutor, never()).incrementProcessingStep();
         assertTrue(pipelineStepExecutor.getDoneLooping());
         assertFalse(pipelineStepExecutor.isProcessingSuccessful());
@@ -271,11 +307,11 @@ public class AlgorithmPipelineStepExecutorTest {
     public void testProcessAlgorithmCompleted() {
 
         doReturn(ProcessingStep.WAITING_TO_STORE).when(pipelineStepExecutor)
-            .currentProcessingStep();
+        .currentProcessingStep();
         pipelineStepExecutor.waitingToStoreTaskAction();
         verify(pipelineStepExecutor).incrementProcessingStep();
 
-        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        when(pipelineStepExecutor.isRemote()).thenReturn(true);
         pipelineStepExecutor.waitingToStoreTaskAction();
         verify(pipelineStepExecutor, times(2)).incrementProcessingStep();
     }
@@ -288,12 +324,12 @@ public class AlgorithmPipelineStepExecutorTest {
 
         doReturn(ProcessingStep.STORING).when(pipelineStepExecutor).currentProcessingStep();
         doReturn(0L).when(pipelineStepExecutor)
-            .timestampFileTimestamp(ArgumentMatchers.any(Event.class));
+        .timestampFileTimestamp(ArgumentMatchers.any(Event.class));
         ProcessingFailureSummary failureSummary = mock(ProcessingFailureSummary.class);
         when(failureSummary.isAllTasksSucceeded()).thenReturn(true);
         when(failureSummary.isAllTasksFailed()).thenReturn(false);
         doReturn(0L).when(pipelineStepExecutor)
-            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
         doReturn(failureSummary).when(pipelineStepExecutor).processingFailureSummary();
 
         // the local version performs relatively limited activities
@@ -307,7 +343,7 @@ public class AlgorithmPipelineStepExecutorTest {
         verify(pipelineStepExecutor).persistResultsAndUpdateConsumers();
 
         // the remote version does somewhat more
-        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        when(pipelineStepExecutor.isRemote()).thenReturn(true);
         pipelineStepExecutor.storingTaskAction();
         verify(pipelineStepExecutor, times(3)).timestampFileElapsedTimeMillis(any(Event.class),
             any(Event.class));
@@ -330,11 +366,11 @@ public class AlgorithmPipelineStepExecutorTest {
         when(failureSummary.isAllTasksSucceeded()).thenReturn(true);
         when(failureSummary.isAllTasksFailed()).thenReturn(false);
         doReturn(0L).when(pipelineStepExecutor)
-            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
         doReturn(0L).when(pipelineStepExecutor).timestampFileTimestamp(any(Event.class));
         doReturn(failureSummary).when(pipelineStepExecutor).processingFailureSummary();
         doThrow(IllegalStateException.class).when(pipelineStepExecutor)
-            .persistResultsAndUpdateConsumers();
+        .persistResultsAndUpdateConsumers();
         pipelineStepExecutor.storingTaskAction();
     }
 
@@ -349,7 +385,7 @@ public class AlgorithmPipelineStepExecutorTest {
         when(failureSummary.isAllTasksSucceeded()).thenReturn(false);
         when(failureSummary.isAllTasksFailed()).thenReturn(false);
         doReturn(0L).when(pipelineStepExecutor)
-            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
         doReturn(0L).when(pipelineStepExecutor).timestampFileTimestamp(any(Event.class));
         doReturn(failureSummary).when(pipelineStepExecutor).processingFailureSummary();
         pipelineStepExecutor.storingTaskAction();
@@ -369,7 +405,7 @@ public class AlgorithmPipelineStepExecutorTest {
         when(failureSummary.isAllTasksSucceeded()).thenReturn(false);
         when(failureSummary.isAllTasksFailed()).thenReturn(false);
         doReturn(0L).when(pipelineStepExecutor)
-            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
         doReturn(0L).when(pipelineStepExecutor).timestampFileTimestamp(any(Event.class));
         doReturn(failureSummary).when(pipelineStepExecutor).processingFailureSummary();
         pipelineStepExecutor.storingTaskAction();
@@ -386,7 +422,7 @@ public class AlgorithmPipelineStepExecutorTest {
         when(failureSummary.isAllTasksSucceeded()).thenReturn(false);
         when(failureSummary.isAllTasksFailed()).thenReturn(true);
         doReturn(0L).when(pipelineStepExecutor)
-            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
         doReturn(0L).when(pipelineStepExecutor).timestampFileTimestamp(any(Event.class));
         doReturn(failureSummary).when(pipelineStepExecutor).processingFailureSummary();
         pipelineStepExecutor.storingTaskAction();
@@ -398,8 +434,6 @@ public class AlgorithmPipelineStepExecutorTest {
      */
     @Test
     public void testProcessingMainLoopLocalTask1() {
-
-        when(taskConfiguration.getSubtaskCount()).thenReturn(5);
 
         // setup mocking
         mockForLoopTest(true, false);
@@ -425,7 +459,7 @@ public class AlgorithmPipelineStepExecutorTest {
             ProcessingStep.EXECUTING, ProcessingStep.EXECUTING, ProcessingStep.WAITING_TO_STORE,
             ProcessingStep.WAITING_TO_STORE, ProcessingStep.STORING, ProcessingStep.STORING,
             ProcessingStep.COMPLETE, ProcessingStep.COMPLETE).when(pipelineStepExecutor)
-                .currentProcessingStep();
+        .currentProcessingStep();
     }
 
     /**
@@ -555,7 +589,7 @@ public class AlgorithmPipelineStepExecutorTest {
             ProcessingStep.EXECUTING, ProcessingStep.WAITING_TO_STORE,
             ProcessingStep.WAITING_TO_STORE, ProcessingStep.STORING, ProcessingStep.STORING,
             ProcessingStep.COMPLETE, ProcessingStep.COMPLETE).when(pipelineStepExecutor)
-                .currentProcessingStep();
+        .currentProcessingStep();
 
         // setup mocking
         mockForLoopTest(true, true);
@@ -581,7 +615,7 @@ public class AlgorithmPipelineStepExecutorTest {
     @Test
     public void testProcessingMainLoopNoTaskDirs() {
 
-        when(taskConfiguration.getSubtaskCount()).thenReturn(0);
+        when(subtaskCounts.getTotalSubtaskCount()).thenReturn(0);
 
         // setup mocking
         mockForLoopTest(false, false);
@@ -701,20 +735,23 @@ public class AlgorithmPipelineStepExecutorTest {
         when(failureSummary.isAllTasksSucceeded()).thenReturn(true);
         when(failureSummary.isAllTasksFailed()).thenReturn(false);
         doReturn(0L).when(pipelineStepExecutor)
-            .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
+        .timestampFileElapsedTimeMillis(any(Event.class), any(Event.class));
         doReturn(0L).when(pipelineStepExecutor).timestampFileTimestamp(any(Event.class));
         doReturn(failureSummary).when(pipelineStepExecutor).processingFailureSummary();
 
         // mock the algorithm lifecycle manager's isRemote() call
-        when(taskAlgorithmLifecycle.isRemote()).thenReturn(remote);
+        when(pipelineStepExecutor.isRemote()).thenReturn(remote);
     }
 
     /** Tests restart from beginning. */
     @Test
     public void testRestartFromBeginning() {
         configurePipelineStepExecutor(RunMode.RESTART_FROM_BEGINNING);
+        when(pipelineTaskDataOperations.processingStep(pipelineTask))
+        .thenReturn(ProcessingStep.MARSHALING);
         pipelineStepExecutor.processTask();
         assertFalse(pipelineStepExecutor.isProcessingSuccessful());
+        verify(pipelineTaskDataOperations).updateSubtaskCounts(pipelineTask, 0, 0, 0);
         verify(pipelineStepExecutor).processingMainLoop();
         verify(pipelineStepExecutor).marshalingTaskAction();
         verify(pipelineStepExecutor).submittingTaskAction();
@@ -734,7 +771,9 @@ public class AlgorithmPipelineStepExecutorTest {
             ProcessingStep.QUEUED, ProcessingStep.EXECUTING, ProcessingStep.EXECUTING,
             ProcessingStep.WAITING_TO_STORE, ProcessingStep.WAITING_TO_STORE,
             ProcessingStep.STORING, ProcessingStep.STORING).when(pipelineStepExecutor)
-                .currentProcessingStep();
+        .currentProcessingStep();
+        when(pipelineTaskDataOperations.processingStep(pipelineTask))
+        .thenReturn(ProcessingStep.SUBMITTING);
         pipelineStepExecutor.processTask();
         verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.SUBMITTING));
@@ -758,8 +797,10 @@ public class AlgorithmPipelineStepExecutorTest {
             ProcessingStep.QUEUED, ProcessingStep.EXECUTING, ProcessingStep.EXECUTING,
             ProcessingStep.WAITING_TO_STORE, ProcessingStep.WAITING_TO_STORE,
             ProcessingStep.STORING, ProcessingStep.STORING).when(pipelineStepExecutor)
-                .currentProcessingStep();
-        when(taskAlgorithmLifecycle.isRemote()).thenReturn(true);
+        .currentProcessingStep();
+        when(pipelineStepExecutor.isRemote()).thenReturn(true);
+        when(pipelineTaskDataOperations.processingStep(pipelineTask))
+        .thenReturn(ProcessingStep.SUBMITTING);
         pipelineStepExecutor.processTask();
         verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.SUBMITTING));
@@ -779,12 +820,14 @@ public class AlgorithmPipelineStepExecutorTest {
 
         // resume current step
         configurePipelineStepExecutor(RunMode.RESUME_CURRENT_STEP);
-        doReturn(ProcessingStep.MARSHALING, ProcessingStep.MARSHALING, ProcessingStep.SUBMITTING,
+        doReturn(ProcessingStep.MARSHALING, ProcessingStep.MARSHALING, ProcessingStep.MARSHALING,
             ProcessingStep.SUBMITTING, ProcessingStep.QUEUED, ProcessingStep.QUEUED,
             ProcessingStep.EXECUTING, ProcessingStep.EXECUTING, ProcessingStep.WAITING_TO_STORE,
             ProcessingStep.WAITING_TO_STORE, ProcessingStep.STORING, ProcessingStep.STORING)
-                .when(pipelineStepExecutor)
-                .currentProcessingStep();
+        .when(pipelineStepExecutor)
+        .currentProcessingStep();
+        when(pipelineTaskDataOperations.processingStep(pipelineTask))
+        .thenReturn(ProcessingStep.MARSHALING);
         pipelineStepExecutor.processTask();
         assertFalse(pipelineStepExecutor.isProcessingSuccessful());
         verify(pipelineStepExecutor).processingMainLoop();
@@ -794,8 +837,13 @@ public class AlgorithmPipelineStepExecutorTest {
         verify(pipelineStepExecutor, never()).executingTaskAction();
         verify(pipelineStepExecutor, never()).waitingToStoreTaskAction();
         verify(pipelineStepExecutor, never()).storingTaskAction();
-        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
-            eq(ProcessingStep.SUBMITTING));
+        ArgumentCaptor<ProcessingStep> captor = ArgumentCaptor.forClass(ProcessingStep.class);
+        verify(pipelineTaskDataOperations, atLeastOnce()).updateProcessingStep(eq(pipelineTask),
+            captor.capture());
+        List<ProcessingStep> processingSteps = captor.getAllValues();
+        assertEquals(ProcessingStep.MARSHALING, processingSteps.get(0));
+        assertEquals(ProcessingStep.SUBMITTING, processingSteps.get(1));
+        assertEquals(2, processingSteps.size());
     }
 
     /** Test resumption of algorithm execution. */
@@ -805,7 +853,9 @@ public class AlgorithmPipelineStepExecutorTest {
         doReturn(ProcessingStep.EXECUTING, ProcessingStep.EXECUTING,
             ProcessingStep.WAITING_TO_STORE, ProcessingStep.WAITING_TO_STORE,
             ProcessingStep.STORING, ProcessingStep.STORING).when(pipelineStepExecutor)
-                .currentProcessingStep();
+        .currentProcessingStep();
+        when(pipelineTaskDataOperations.processingStep(pipelineTask))
+        .thenReturn(ProcessingStep.EXECUTING);
         pipelineStepExecutor.processTask();
         assertFalse(pipelineStepExecutor.isProcessingSuccessful());
         verify(pipelineStepExecutor).processingMainLoop();
@@ -815,7 +865,7 @@ public class AlgorithmPipelineStepExecutorTest {
         verify(pipelineStepExecutor).executingTaskAction();
         verify(pipelineStepExecutor, never()).waitingToStoreTaskAction();
         verify(pipelineStepExecutor, never()).storingTaskAction();
-        verify(pipelineTaskDataOperations, never()).updateProcessingStep(eq(pipelineTask),
+        verify(pipelineTaskDataOperations).updateProcessingStep(eq(pipelineTask),
             eq(ProcessingStep.EXECUTING));
     }
 
@@ -824,12 +874,15 @@ public class AlgorithmPipelineStepExecutorTest {
         mockForLoopTest(false, true);
         configurePipelineStepExecutor(RunMode.RESUME_CURRENT_STEP);
         doReturn(ProcessingStep.WAITING_TO_STORE, ProcessingStep.WAITING_TO_STORE,
-            ProcessingStep.STORING, ProcessingStep.STORING).when(pipelineStepExecutor)
-                .currentProcessingStep();
+            ProcessingStep.WAITING_TO_STORE, ProcessingStep.STORING, ProcessingStep.STORING)
+        .when(pipelineStepExecutor)
+        .currentProcessingStep();
         Mockito.doAnswer(invocation -> {
             pipelineStepExecutor.setDoneLooping(true);
             return null;
         }).when(pipelineStepExecutor).storingTaskAction();
+        when(pipelineTaskDataOperations.processingStep(pipelineTask))
+        .thenReturn(ProcessingStep.WAITING_TO_STORE);
         pipelineStepExecutor.processTask();
         verify(pipelineStepExecutor).processingMainLoop();
         verify(pipelineStepExecutor, never()).marshalingTaskAction();

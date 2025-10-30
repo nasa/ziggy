@@ -244,38 +244,40 @@ public class DatastoreFileManager {
             .tasksForPipelineNode(pipelineNode);
 
         for (DataFilesForDataFileType dataFilesForDataFileType : dataFilesForDataFileTypes) {
+            Set<String> relativizedFilePaths = new HashSet<>();
+            Set<Path> paths = new HashSet<>();
             for (Map.Entry<String, Set<Path>> entry : dataFilesForDataFileType
                 .getDataFilesBySublocation()
                 .entrySet()) {
-                Set<Path> paths = entry.getValue();
+                paths.addAll(entry.getValue());
 
                 // The names in the producer-consumer table are relative to the datastore
                 // root, while the values in pathsByPerSubtaskDataType are absolute.
                 // Generate a relativized Set now.
-                Set<String> relativizedFilePaths = paths.stream()
+                relativizedFilePaths.addAll(paths.stream()
                     .map(s -> DirectoryProperties.datastoreRootDir().toAbsolutePath().relativize(s))
                     .map(Path::toString)
-                    .collect(Collectors.toSet());
-
-                // Obtain the Set of datastore files that are in the relativizedFilePaths collection
-                // and which have a consumer that matches the pipeline node of the
-                // current pipeline task.
-                Set<String> namesOfFilesAlreadyProcessed = datastoreProducerConsumerOperations()
-                    .filesConsumedByTasks(consumersWithMatchingPipelineNode, relativizedFilePaths);
-
-                if (CollectionUtils.isEmpty(namesOfFilesAlreadyProcessed)) {
-                    continue;
-                }
-
-                // Convert the strings back to absolute paths.
-                Set<Path> filesAlreadyProcessed = namesOfFilesAlreadyProcessed.stream()
-                    .map(Paths::get)
-                    .map(t -> DirectoryProperties.datastoreRootDir().toAbsolutePath().resolve(t))
-                    .collect(Collectors.toSet());
-
-                // Remove the files already processed from the set of paths.
-                paths.removeAll(filesAlreadyProcessed);
+                    .collect(Collectors.toSet()));
             }
+
+            // Obtain the Set of datastore files that are in the relativizedFilePaths collection
+            // and which have a consumer that matches the pipeline node of the
+            // current pipeline task.
+            Set<String> namesOfFilesAlreadyProcessed = datastoreProducerConsumerOperations()
+                .filesConsumedByTasks(consumersWithMatchingPipelineNode, relativizedFilePaths);
+
+            if (CollectionUtils.isEmpty(namesOfFilesAlreadyProcessed)) {
+                continue;
+            }
+
+            // Convert the strings back to absolute paths.
+            Set<Path> filesAlreadyProcessed = namesOfFilesAlreadyProcessed.stream()
+                .map(Paths::get)
+                .map(t -> DirectoryProperties.datastoreRootDir().toAbsolutePath().resolve(t))
+                .collect(Collectors.toSet());
+
+            // Remove the files already processed from the set of paths.
+            dataFilesForDataFileType.removeFiles(filesAlreadyProcessed);
         }
     }
 
@@ -862,6 +864,17 @@ public class DatastoreFileManager {
                 allPaths.addAll(entry.getValue());
             }
             return allPaths;
+        }
+
+        /**
+         * Removes a {@link Collection} of {@link Path} instances from the object. The argument must
+         * be absolute paths.
+         */
+        public void removeFiles(Collection<Path> filesForRemoval) {
+            for (Path fileForRemoval : filesForRemoval) {
+                String sublocation = sublocationByPath.get(fileForRemoval.getParent());
+                dataFilesBySublocation.get(sublocation).remove(fileForRemoval);
+            }
         }
 
         @Override

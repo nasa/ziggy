@@ -69,8 +69,8 @@ public class DatastoreProducerConsumerCrud extends AbstractCrud<DatastoreProduce
     }
 
     /** Retrieves / creates {@link DatastoreProducerConsumer}s for a collection of files. */
-    public List<DatastoreProducerConsumer> retrieveByFilename(Set<Path> datastoreFiles) {
-        return retrieveOrCreate(null, datastoreNames(datastoreFiles));
+    public List<DatastoreProducerConsumer> retrieveByFilename(Collection<Path> files) {
+        return retrieveOrCreate(null, datastoreNames(files));
     }
 
     /** Retrieves the set of names of datastore files consumed by a specified pipeline task. */

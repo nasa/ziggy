@@ -78,7 +78,7 @@ public class PipelineNodeOperations extends DatabaseOperations {
                 : pipelineNode;
             PipelineNode copy = new PipelineNode();
             copy.setPipelineStepName(original.getPipelineStepName());
-            copy.setHeapSizeMb(original.getHeapSizeMb());
+            copy.setHeapSizeGigabytes(original.getHeapSizeGigabytes());
             copy.setMaxWorkerCount(original.getMaxWorkerCount());
             copy.setPipelineName(original.getPipelineName());
             copy.setSingleSubtask(original.getSingleSubtask());

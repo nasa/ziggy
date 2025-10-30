@@ -14,7 +14,7 @@ task buildLibZiggy(type: ZiggyCpp) {
 assemble.dependsOn buildLibZiggy
 
 // Build the libziggymi shared object.
-task buildLibZiggyMi(type: ZiggyCpp, dependsOn: copyHdf5Inc) {
+task buildLibZiggyMi(type: ZiggyCpp, dependsOn: copyHdf5) {
     outputName = "ziggymi"
     outputType = "static"
     sourceFilePaths = ["$projectDir/src/main/cpp/libziggymi"]

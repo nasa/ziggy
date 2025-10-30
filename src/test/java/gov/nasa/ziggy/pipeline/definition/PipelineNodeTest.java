@@ -64,7 +64,7 @@ public class PipelineNodeTest {
         // Construct a new node for the test
         node = new Node("node 1", null);
         node.setChildNodeNames("node 2, node 3");
-        node.setHeapSizeMb(2);
+        node.setHeapSizeGigabytes(2);
         node.populateXmlFields();
         Set<XmlReference> xmlReferences = new HashSet<>();
         xmlReferences.add(new ParameterSetReference("Remote execution"));
@@ -86,8 +86,9 @@ public class PipelineNodeTest {
         List<String> xmlContent = Files.readAllLines(xmlFile.toPath(),
             ZiggyFileUtils.ZIGGY_CHARSET);
         assertEquals(9, xmlContent.size());
-        List<String> nodeContent = nodeContent(xmlContent, "<node heapSizeMb=\"2\" name=\"node 1\" "
-            + "childNodeNames=\"node 2, node 3\" singleSubtask=\"false\">");
+        List<String> nodeContent = nodeContent(xmlContent,
+            "<node heapSizeGigabytes=\"2\" name=\"node 1\" "
+                + "childNodeNames=\"node 2, node 3\" singleSubtask=\"false\">");
         String[] xmlLines = { "<parameterSet name=\"Convergence criteria\"/>",
             "<parameterSet name=\"Remote execution\"/>",
             "<inputDataFileType name=\"flight L0 data\"/>",
@@ -141,7 +142,7 @@ public class PipelineNodeTest {
             "<xs:element name=\"outputDataFileType\" type=\"outputTypeReference\"/>",
             "<xs:element name=\"modelType\" type=\"modelTypeReference\"/>",
             "<xs:attribute name=\"maxWorkers\" type=\"xs:int\"/>",
-            "<xs:attribute name=\"heapSizeMb\" type=\"xs:int\"/>",
+            "<xs:attribute name=\"heapSizeGigabytes\" type=\"xs:int\"/>",
             "<xs:attribute name=\"name\" type=\"xs:string\" use=\"required\"/>",
             "<xs:attribute name=\"singleSubtask\" type=\"xs:boolean\"/>",
             "<xs:attribute name=\"childNodeNames\" type=\"xs:string\"/>" };

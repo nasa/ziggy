@@ -44,10 +44,10 @@ public class PbsBatchParametersAggregatorTest {
         Mockito.when(remoteEnvironment.getQueues()).thenReturn(batchQueues);
         Mockito.when(remoteEnvironment.getName()).thenReturn("hecc");
         executionResources.setRemoteExecutionEnabled(true);
-        executionResources.setGigsPerSubtask(6);
+        executionResources.setSubtaskRamGigabytes(6);
         executionResources.setSubtaskMaxWallTimeHours(4.5);
         executionResources.setSubtaskTypicalWallTimeHours(0.5);
-        executionResources.setArchitecture(architectureByName.get("san"));
+        executionResources.setArchitecture(architectureByName.get("ivy"));
     }
 
     @Test
@@ -57,11 +57,11 @@ public class PbsBatchParametersAggregatorTest {
         pbsBatchParameters2.computeParameterValues(executionResources, 5000);
         PbsBatchParameters aggregatedParameters = new PbsBatchParametersAggregator()
             .aggregate(List.of(pbsBatchParameters1, pbsBatchParameters2));
-        assertEquals("san", aggregatedParameters.getArchitecture().getName());
+        assertEquals("ivy", aggregatedParameters.getArchitecture().getName());
         assertEquals("long", aggregatedParameters.getBatchQueue().getName());
-        assertEquals(5, aggregatedParameters.activeCores());
-        assertEquals("42:00:00", aggregatedParameters.getRequestedWallTime());
-        assertEquals(24, aggregatedParameters.nodeCount());
-        assertEquals(262.26, aggregatedParameters.estimatedCost(), 1e-2);
+        assertEquals(10, aggregatedParameters.activeCores());
+        assertEquals("21:00:00", aggregatedParameters.getRequestedWallTime());
+        assertEquals(18, aggregatedParameters.nodeCount());
+        assertEquals(184.14, aggregatedParameters.estimatedCost(), 1e-2);
     }
 }

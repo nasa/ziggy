@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.pipeline.definition.importer;
 
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -22,7 +23,6 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeCrud;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineStepCrud;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
-import gov.nasa.ziggy.pipeline.step.PipelineStepExecutionResources;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironmentOperations;
 import gov.nasa.ziggy.pipeline.xml.ParameterSetDescriptor;
@@ -52,8 +52,7 @@ public class PipelineImportOperations extends DatabaseOperations {
     /** Persist all the data objects that define a cluster. */
     public void persistClusterDefinition(List<ParameterSetDescriptor> parameterSetDescriptors,
         DatastoreImportConditioner datastoreImportConditioner,
-        List<ZiggyEventHandler> eventHandlers,
-        Map<PipelineStep, PipelineStepExecutionResources> resourcesByPipelineStep,
+        List<ZiggyEventHandler> eventHandlers, Collection<PipelineStep> pipelineSteps,
         Map<Pipeline, Set<PipelineNodeExecutionResources>> resourcesByNode,
         List<RemoteEnvironment> remoteEnvironments) {
         performTransaction(() -> {
@@ -80,11 +79,9 @@ public class PipelineImportOperations extends DatabaseOperations {
                     datastoreImportConditioner.nodesForDatabase(), log);
             }
             // Pipeline steps.
-            if (resourcesByPipelineStep != null && !resourcesByPipelineStep.isEmpty()) {
-                for (Map.Entry<PipelineStep, PipelineStepExecutionResources> entry : resourcesByPipelineStep
-                    .entrySet()) {
-                    pipelineStepCrud().merge(entry.getValue());
-                    pipelineStepCrud().merge(entry.getKey());
+            if (!CollectionUtils.isEmpty(pipelineSteps)) {
+                for (PipelineStep pipelineStep : pipelineSteps) {
+                    pipelineStepCrud().merge(pipelineStep);
                 }
             }
 

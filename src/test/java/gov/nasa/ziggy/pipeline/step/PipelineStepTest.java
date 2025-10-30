@@ -60,18 +60,15 @@ public class PipelineStepTest {
         // Step 1 uses defaults for everything possible
         step1 = new TestPipelineStep("step 1");
         step1.setDescription("first step");
-        step1.setExeTimeoutSecs(100);
         step1XmlString = """
             <step name="step 1" description="first step" \
             pipelineStepExecutorClass="gov.nasa.ziggy.pipeline.step.AlgorithmPipelineStepExecutor" \
             inputsClass="gov.nasa.ziggy.pipeline.step.io.DatastoreDirectoryPipelineInputs" \
-            outputsClass="gov.nasa.ziggy.pipeline.step.io.DatastoreDirectoryPipelineOutputs" \
-            exeTimeoutSecs="100" minMemoryMegabytes="0"/>""";
+            outputsClass="gov.nasa.ziggy.pipeline.step.io.DatastoreDirectoryPipelineOutputs"/>""";
 
         // Step 2 uses no defaults
         step2 = new TestPipelineStep("step 2");
         step2.setDescription("second step");
-        step2.setExeTimeoutSecs(300);
         step2.setInputsClass(new ClassWrapper<>(DataFileTestUtils.PipelineInputsSample.class));
         step2.setOutputsClass(new ClassWrapper<>(DataFileTestUtils.PipelineOutputsSample.class));
         step2.setPipelineStepExecutorClass(new ClassWrapper<>(AlgorithmPipelineStepExecutor.class));
@@ -81,7 +78,7 @@ public class PipelineStepTest {
             pipelineStepExecutorClass="gov.nasa.ziggy.pipeline.step.AlgorithmPipelineStepExecutor" \
             inputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineInputsSample" \
             outputsClass="gov.nasa.ziggy.data.management.DataFileTestUtils$PipelineOutputsSample" \
-            exeTimeoutSecs="300" minMemoryMegabytes="0" file="executable2"/>""";
+            file="executable2"/>""";
     }
 
     @Test
@@ -130,9 +127,7 @@ public class PipelineStepTest {
             "<xs:attribute name=\"pipelineStepExecutorClass\" type=\"xs:string\"/>",
             "<xs:attribute name=\"inputsClass\" type=\"xs:string\"/>",
             "<xs:attribute name=\"outputsClass\" type=\"xs:string\"/>",
-            "<xs:attribute name=\"exeTimeoutSecs\" type=\"xs:int\"/>",
-            "<xs:attribute name=\"file\" type=\"xs:string\"/>",
-            "<xs:attribute name=\"minMemoryMegabytes\" type=\"xs:int\"/>" };
+            "<xs:attribute name=\"file\" type=\"xs:string\"/>" };
         for (String pipelineStepAttribute : pipelineStepAttributes) {
             assertContains(pipelineStepAttribute, pipelineStepContent);
         }

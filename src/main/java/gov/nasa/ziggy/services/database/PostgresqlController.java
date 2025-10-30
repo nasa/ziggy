@@ -155,13 +155,6 @@ public class PostgresqlController extends DatabaseController {
         if (retCode != 0) {
             throw new PipelineException("Database initialization failed");
         }
-
-        // Create directory for log files.
-        try {
-            Files.createDirectories(logDir());
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unable to create directory " + logDir(), e);
-        }
         log.info("Initializing database...done");
     }
 
@@ -210,6 +203,13 @@ public class PostgresqlController extends DatabaseController {
     public int start() {
         if (isSystemDatabase()) {
             return NOT_SUPPORTED;
+        }
+
+        // Create directory for log files.
+        try {
+            Files.createDirectories(logDir());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to create directory " + logDir(), e);
         }
 
         String maxConnections = maxConnections();

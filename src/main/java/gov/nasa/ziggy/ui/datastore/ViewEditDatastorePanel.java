@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.SwingUtilities;
@@ -32,6 +33,11 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
 
     public ViewEditDatastorePanel() {
         super(new RegexpTableModel());
+    }
+
+    @Override
+    protected Set<OptionalViewEditFunction> optionalViewEditFunctions() {
+        return Set.of(OptionalViewEditFunction.EDIT);
     }
 
     @Override

@@ -34,6 +34,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
  * Unit tests for {@link RuntimeObjectFactory}.
@@ -75,6 +77,9 @@ public class RuntimeObjectFactoryTest {
         Mockito.doReturn(parametersOperations)
             .when(pipelineInstanceOperations)
             .parametersOperations();
+        WorkerResources resources = new WorkerResources(1, 1);
+        resources.setDefaultInstance(true);
+        new WorkerResourcesOperations().merge(resources);
     }
 
     @Test

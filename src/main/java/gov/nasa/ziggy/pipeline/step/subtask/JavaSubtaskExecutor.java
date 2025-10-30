@@ -3,6 +3,7 @@ package gov.nasa.ziggy.pipeline.step.subtask;
 import java.io.File;
 
 import gov.nasa.ziggy.pipeline.step.FatalAlgorithmProcessingException;
+import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
 
 /**
  * Subclass of {@link SubtaskExecutor} that provides additional support for Java algorithms.
@@ -11,8 +12,9 @@ import gov.nasa.ziggy.pipeline.step.FatalAlgorithmProcessingException;
  */
 public class JavaSubtaskExecutor extends SubtaskExecutor {
 
-    JavaSubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs) {
-        super(taskDir, subtaskIndex, binaryName, timeoutSecs);
+    JavaSubtaskExecutor(File taskDir, int subtaskIndex, String binaryName, int timeoutSecs,
+        float heapSizeGigabytes, TaskConfiguration taskConfiguration) {
+        super(taskDir, subtaskIndex, binaryName, timeoutSecs, heapSizeGigabytes, taskConfiguration);
     }
 
     @Override

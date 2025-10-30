@@ -1,8 +1,7 @@
 package gov.nasa.ziggy.pipeline.definition.importer;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -12,7 +11,6 @@ import gov.nasa.ziggy.pipeline.definition.ClassWrapper;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineStepOperations;
 import gov.nasa.ziggy.pipeline.step.AlgorithmPipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
-import gov.nasa.ziggy.pipeline.step.PipelineStepExecutionResources;
 import gov.nasa.ziggy.uow.DatastoreDirectoryUnitOfWorkGenerator;
 import gov.nasa.ziggy.util.PipelineException;
 
@@ -35,13 +33,12 @@ public class PipelineStepImportConditioner {
 
     private PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
 
-    public Map<PipelineStep, PipelineStepExecutionResources> conditionPipelineSteps(
-        List<PipelineStep> pipelineSteps, boolean update) {
+    public void conditionPipelineSteps(List<PipelineStep> pipelineSteps, boolean update) {
+        List<PipelineStep> stepsWithoutUpdate = new ArrayList<>();
         List<String> databasePipelineStepNames = pipelineStepOperations().allPipelineSteps()
             .stream()
             .map(PipelineStep::getName)
             .collect(Collectors.toList());
-        Map<PipelineStep, PipelineStepExecutionResources> resourcesByPipelineStep = new HashMap<>();
         for (PipelineStep pipelineStep : pipelineSteps) {
             if (databasePipelineStepNames.contains(pipelineStep.getName())) {
                 if (!update) {
@@ -49,16 +46,13 @@ public class PipelineStepImportConditioner {
                         pipelineStep.getName());
                     System.out.println("Pipeline step " + pipelineStep.getName()
                         + " already present in database, not importing");
+                    stepsWithoutUpdate.add(pipelineStep);
                     continue;
                 }
                 log.info("Updating definition of pipeline step {}", pipelineStep.getName());
             } else {
                 log.info("Creating new pipeline step {}", pipelineStep.getName());
             }
-            PipelineStepExecutionResources executionResources = pipelineStepOperations()
-                .pipelineStepExecutionResources(pipelineStep);
-            executionResources.setExeTimeoutSeconds(pipelineStep.getExeTimeoutSecs());
-            executionResources.setMinMemoryMegabytes(pipelineStep.getMinMemoryMegabytes());
 
             // Additional validation:
             // PipelineStepExecutor must not have a UOW generator in its XML,
@@ -82,9 +76,10 @@ public class PipelineStepImportConditioner {
                 throw new PipelineException("Pipeline step " + pipelineStep.getName()
                     + " must specify a unit of work generator");
             }
-            resourcesByPipelineStep.put(pipelineStep, executionResources);
         }
-        return resourcesByPipelineStep;
+
+        // Remove any steps that should not be persisted.
+        pipelineSteps.removeAll(stepsWithoutUpdate);
     }
 
     PipelineStepOperations pipelineStepOperations() {

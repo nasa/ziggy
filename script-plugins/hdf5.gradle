@@ -2,12 +2,12 @@
 
 ext.hdf5Version = "1.14.5"
 
-task buildHdf5() {
-    def tmp = file("$outsideDir/tmp/hdf5")
-    def hdf5 = file("$tmp/hdf5-$hdf5Version")
-    def lib = file("$outsideDir/lib")
+def tmp = file("$outsideDir/hdf5")
+def hdf5 = file("$tmp/hdf5-$hdf5Version")
+def hdf5Jar = "jarhdf5-${hdf5Version}.jar"
 
-    outputs.file "$rootDir/outside/lib/jarhdf5-${hdf5Version}.jar"
+task buildHdf5() {
+    outputs.file "$hdf5/src/hdf5.h"
 
     doLast() {
         tmp.mkdirs()
@@ -30,49 +30,38 @@ task buildHdf5() {
 
         providers.exec {
             workingDir hdf5
-            commandLine "sh", "-c", "./configure --with-zlib=/usr --prefix=$outsideDir --enable-threadsafe --with-pthread=/usr --enable-unsupported --enable-java --with-java-prefix=$System.env.JAVA_HOME"
+            commandLine "sh", "-c", "./configure --with-zlib=/usr --prefix=$buildDir --enable-threadsafe --with-pthread=/usr --enable-unsupported --enable-java --with-java-prefix=$System.env.JAVA_HOME"
         }.result.get()
 
         providers.exec {
             workingDir hdf5
             commandLine "make"
         }.result.get()
+    }
+}
 
+task copyHdf5(dependsOn: buildHdf5) {
+    outputs.file "$buildDir/include/hd5f.h"
+    outputs.file "$buildDir/libs/$hdf5Jar"
+
+    doLast() {
         providers.exec {
             workingDir hdf5
             commandLine "make", "install"
         }.result.get()
 
         copy {
-            from("$tmp/lib") {
-                include "*.jar"
+            from("$buildDir/lib") {
+                include hdf5Jar
             }
-            into "$lib"
+            into "$buildDir/libs"
         }
+
+        providers.exec {
+            workingDir "$buildDir/lib"
+            commandLine "rm", "$hdf5Jar"
+        }.result.get()
     }
 }
 
-task copyHdf5Lib(type: Copy, dependsOn: buildHdf5) {
-    from(file("$outsideDir/lib")) {
-        include "libhdf5*"
-    }
-    into "$buildDir/lib"
-}
-
-assemble.dependsOn copyHdf5Lib
-
-task copyHdf5Libs(type: Copy, dependsOn: buildHdf5) {
-    from(file("$outsideDir/lib")) {
-        include "jarhdf5-*.jar"
-    }
-    into "$outsideGroupDir"
-}
-
-copyOutsideLibs.dependsOn copyHdf5Libs
-
-task copyHdf5Inc(type: Copy, dependsOn: buildHdf5) {
-    from(file("$outsideDir/include")) {
-        include "*"
-    }
-    into "$buildDir/include"
-}
+copyOutsideLibs.dependsOn copyHdf5

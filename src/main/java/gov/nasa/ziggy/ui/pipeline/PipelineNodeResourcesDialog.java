@@ -29,7 +29,6 @@ import javax.swing.text.NumberFormatter;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
-import gov.nasa.ziggy.ui.ZiggyGuiConsole;
 import gov.nasa.ziggy.ui.util.ValidityTestingFormattedTextField;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.util.HumanReadableHeapSize;
@@ -64,10 +63,13 @@ public class PipelineNodeResourcesDialog extends JDialog {
 
     private static final int COLUMNS = 10;
 
+    private static final float MIN_HEAP_SIZE_GIGABYTES = 0.001F;
+
+    private final String pipelineName;
     private final PipelineNode node;
     private final PipelineNodeExecutionResources executionResources;
-    private final String pipelineName;
     private final WorkerResources initialResources;
+    private final WorkerResources defaultResources;
     private JCheckBox workerDefaultCheckBox;
     private JCheckBox heapSizeDefaultCheckBox;
     private JRadioButton mbUnitsButton;
@@ -79,7 +81,7 @@ public class PipelineNodeResourcesDialog extends JDialog {
     private ValidityTestingFormattedTextField maxAutoResubmitsTextArea;
     private ButtonGroup unitButtonGroup;
     private Integer workerCountCurrentUserValue;
-    private Integer heapSizeMbCurrentUserValue;
+    private Float heapSizeGigabytesCurrentUserValue;
     private JButton closeButton;
     private JButton cancelButton;
 
@@ -89,15 +91,21 @@ public class PipelineNodeResourcesDialog extends JDialog {
     private Consumer<Boolean> validityCheck = valid -> setCloseButtonState();
 
     public PipelineNodeResourcesDialog(Window owner, String pipelineName, PipelineNode node,
-        PipelineNodeExecutionResources executionResources) {
+        PipelineNodeExecutionResources executionResources, WorkerResources defaultResources) {
         super(owner, DEFAULT_MODALITY_TYPE);
         this.pipelineName = pipelineName;
         this.node = node;
         this.executionResources = executionResources;
+        this.defaultResources = defaultResources;
 
         initialResources = executionResources.workerResources();
-        workerCountCurrentUserValue = initialResources.getMaxWorkerCount();
-        heapSizeMbCurrentUserValue = initialResources.getHeapSizeMb();
+        workerCountCurrentUserValue = initialResources.getMaxWorkerCount() > 0
+            ? initialResources.getMaxWorkerCount()
+            : null;
+        heapSizeGigabytesCurrentUserValue = initialResources
+            .getHeapSizeGigabytes() >= MIN_HEAP_SIZE_GIGABYTES
+                ? initialResources.getHeapSizeGigabytes()
+                : null;
 
         buildComponent();
         setLocationRelativeTo(owner);
@@ -248,16 +256,12 @@ public class PipelineNodeResourcesDialog extends JDialog {
      * set to null).
      */
     private void updateWorkerResources(AWTEvent evt) {
-        Integer finalWorkerCount = null;
-        if (!workerDefaultCheckBox.isSelected()) {
-            finalWorkerCount = (Integer) workerCountTextArea.getValue();
-        }
-        Integer finalHeapSizeMb = null;
-        if (!heapSizeDefaultCheckBox.isSelected()) {
-            finalHeapSizeMb = heapSizeMbFromTextField();
-        }
+        int finalWorkerCount = workerDefaultCheckBox.isSelected() ? 0
+            : (Integer) workerCountTextArea.getValue();
+        float finalHeapSizeGigabytes = heapSizeDefaultCheckBox.isSelected() ? 0F
+            : heapSizeGigabytesFromTextField();
         executionResources
-            .applyWorkerResources(new WorkerResources(finalWorkerCount, finalHeapSizeMb));
+            .applyWorkerResources(new WorkerResources(finalWorkerCount, finalHeapSizeGigabytes));
         executionResources.setMaxFailedSubtaskCount((Integer) maxFailedSubtaskTextArea.getValue());
         executionResources.setMaxAutoResubmits((Integer) maxAutoResubmitsTextArea.getValue());
         dispose();
@@ -265,9 +269,9 @@ public class PipelineNodeResourcesDialog extends JDialog {
 
     /**
      * Converts the combined heap size text field and heap size units button into a value for heap
-     * size in MB.
+     * size in GB.
      */
-    private int heapSizeMbFromTextField() {
+    private float heapSizeGigabytesFromTextField() {
         double heapSize = (double) heapSizeTextArea.getValue();
         HeapSizeUnit heapSizeUnit = null;
         if (mbUnitsButton.isSelected()) {
@@ -277,7 +281,7 @@ public class PipelineNodeResourcesDialog extends JDialog {
         } else if (tbUnitsButton.isSelected()) {
             heapSizeUnit = HeapSizeUnit.TB;
         }
-        return new HumanReadableHeapSize((float) heapSize, heapSizeUnit).heapSizeMb();
+        return new HumanReadableHeapSize((float) heapSize, heapSizeUnit).heapSizeGigabytes();
     }
 
     /**
@@ -344,7 +348,7 @@ public class PipelineNodeResourcesDialog extends JDialog {
      */
     private JCheckBox createWorkerDefaultCheckBox() {
         JCheckBox workerDefaultCheckBox = new JCheckBox(
-            "Default (" + ZiggyGuiConsole.defaultResources().getMaxWorkerCount() + ")");
+            "Default (" + defaultResources.getMaxWorkerCount() + ")");
         workerDefaultCheckBox.setSelected(workerCountCurrentUserValue == null);
         workerDefaultCheckBox.setToolTipText("Use the pipeline default worker count.");
         workerDefaultCheckBox.addItemListener(this::workerCheckBoxChanged);
@@ -413,8 +417,8 @@ public class PipelineNodeResourcesDialog extends JDialog {
      */
     private JCheckBox createHeapSizeDefaultCheckBox() {
         JCheckBox heapSizeDefaultCheckBox = new JCheckBox(
-            "Default (" + ZiggyGuiConsole.defaultResources().humanReadableHeapSize() + ")");
-        heapSizeDefaultCheckBox.setSelected(heapSizeMbCurrentUserValue == null);
+            "Default (" + defaultResources.humanReadableHeapSize() + ")");
+        heapSizeDefaultCheckBox.setSelected(heapSizeGigabytesCurrentUserValue == null);
         heapSizeDefaultCheckBox.setToolTipText("Use the pipeline default heap size.");
         heapSizeDefaultCheckBox.addItemListener(this::heapSizeCheckBoxChanged);
         return heapSizeDefaultCheckBox;
@@ -443,7 +447,7 @@ public class PipelineNodeResourcesDialog extends JDialog {
             // have to check whether the text area is null because when the text area is
             // both disabled and null, that constitutes a valid state.
             if (heapSizeTextArea.isValidState() && heapSizeTextArea.getValue() != null) {
-                heapSizeMbCurrentUserValue = heapSizeMbFromTextField();
+                heapSizeGigabytesCurrentUserValue = heapSizeGigabytesFromTextField();
             } else {
                 // Force the text field into a valid state. This is a kind of kludgey way
                 // to do it, but I haven't been able to figure out any way for Java to
@@ -464,11 +468,11 @@ public class PipelineNodeResourcesDialog extends JDialog {
      */
     private void setHeapSizeTextFromCurrentUserValue() {
         HumanReadableHeapSize humanReadableHeapSize = new HumanReadableHeapSize(
-            ZiggyGuiConsole.defaultResources().getHeapSizeMb());
-        if (heapSizeMbCurrentUserValue == null) {
+            defaultResources.getHeapSizeGigabytes());
+        if (heapSizeGigabytesCurrentUserValue == null) {
             heapSizeTextArea.setValue(null);
         } else {
-            humanReadableHeapSize = new HumanReadableHeapSize(heapSizeMbCurrentUserValue);
+            humanReadableHeapSize = new HumanReadableHeapSize(heapSizeGigabytesCurrentUserValue);
             heapSizeTextArea.setValue((double) humanReadableHeapSize.getHumanReadableHeapSize());
         }
         switch (humanReadableHeapSize.getHeapSizeUnit()) {

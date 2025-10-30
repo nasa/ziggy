@@ -9,6 +9,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.commons.configuration2.CompositeConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
@@ -18,6 +24,7 @@ import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.interpol.ConfigurationInterpolator;
 import org.apache.commons.configuration2.sync.ReadWriteSynchronizer;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +57,17 @@ public class ZiggyConfiguration {
      * Default property file used if the PIPELINE_CONFIG_PATH environment variable is not defined.
      */
     public static final String PIPELINE_CONFIG_DEFAULT_FILE = "ziggy.properties";
+
+    /** Provides help for the command line interface. */
+    private static final String HELP_OPTION = "help";
+
+    /** Specify the name of the property to be displayed. */
+    private static final String PROP_NAME_OPTION = "property-name";
+
+    private static final int HELP_WIDTH = 100;
+    private static final String COMMAND_HELP = """
+        Displays a the value of a property used by Ziggy to stdout.
+        Options:""";
 
     private static ImmutableConfiguration instance;
     private static CompositeConfiguration mutableInstance;
@@ -226,5 +244,50 @@ public class ZiggyConfiguration {
     public static synchronized void reset() {
         instance = null;
         mutableInstance = null;
+    }
+
+    /** Displays the value of a configuration property. */
+    public static void main(String args[]) {
+
+        Options options = new Options()
+            .addOption(Option.builder("p")
+                .longOpt(PROP_NAME_OPTION)
+                .hasArg(true)
+                .required(true)
+                .desc("Name of property to be displayed")
+                .build())
+            .addOption(Option.builder("h").longOpt(HELP_OPTION).desc("Show this help").build());
+
+        CommandLine cmdLine = null;
+        try {
+            cmdLine = new DefaultParser().parse(options, args);
+        } catch (ParseException e) {
+            usageAndExit(options, e.getMessage());
+        }
+        if (cmdLine.hasOption(HELP_OPTION)) {
+            usageAndExit(options, (String) null);
+        }
+
+        String propertyName = cmdLine.getOptionValue(PROP_NAME_OPTION);
+        if (StringUtils.isBlank(propertyName)) {
+            usageAndExit(options, (String) null);
+        }
+
+        String propertyValue = ZiggyConfiguration.getInstance().getString(propertyName, null);
+        if (!StringUtils.isBlank(propertyValue)) {
+            System.out.println(propertyValue);
+        }
+    }
+
+    private static void usageAndExit(Options options, String message) {
+        // Until we've gotten through argument parsing, emit errors to stderr. Once we start the
+        // program, we'll be logging and throwing exceptions.
+        if (message != null) {
+            System.err.println(message);
+        }
+        new HelpFormatter().printHelp(HELP_WIDTH, "ZiggyConfiguration command [options]",
+            COMMAND_HELP, options, null);
+
+        System.exit(-1);
     }
 }

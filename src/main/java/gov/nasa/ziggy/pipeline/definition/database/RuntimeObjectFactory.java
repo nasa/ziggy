@@ -15,6 +15,8 @@ import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.uow.UnitOfWork;
+import gov.nasa.ziggy.worker.WorkerResources;
+import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
 /**
  * Provides methods to construct new objects of the {@link PipelineInstance},
@@ -38,6 +40,7 @@ public class RuntimeObjectFactory extends DatabaseOperations {
     private PipelineOperations pipelineOperations = new PipelineOperations();
     private PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
     private PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
+    private WorkerResourcesOperations workerResourcesOperations = new WorkerResourcesOperations();
 
     /**
      * Creates {@link PipelineInstanceNode} instances for the initial {@link PipelineNode}s of a
@@ -86,6 +89,13 @@ public class RuntimeObjectFactory extends DatabaseOperations {
                 // Construct the new pipeline instance node and put it into the Map.
                 PipelineInstanceNode instanceNode = new PipelineInstanceNode(pipelineNode,
                     pipelineStep);
+
+                // Combine the pipeline node resources with the default values; this is
+                // the set of worker resources for this pipeline instance node.
+                WorkerResources compositeWorkerResources = workerResourcesOperations
+                    .compositeWorkerResources(pipelineNode);
+                instanceNode.setMaxWorkerCount(compositeWorkerResources.getMaxWorkerCount());
+                instanceNode.setHeapSizeGigabytes(compositeWorkerResources.getHeapSizeGigabytes());
                 instanceNode = pipelineInstanceNodeOperations().merge(instanceNode);
                 instanceNodeByPipelineNode.put(pipelineNode, instanceNode);
 
@@ -187,5 +197,9 @@ public class RuntimeObjectFactory extends DatabaseOperations {
 
     PipelineTaskDataOperations pipelineTaskDataOperations() {
         return pipelineTaskDataOperations;
+    }
+
+    WorkerResourcesOperations workerResourcesOperations() {
+        return workerResourcesOperations;
     }
 }

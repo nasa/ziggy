@@ -60,6 +60,7 @@ public class SubtaskMasterTest {
     private final String TASK_DIR = "dummy";
     private final int TIMEOUT = 3_600_000;
     private final int SUBTASK_INDEX = 50;
+    private final float HEAP_SIZE_GIGABYTES = 10F;
 
     @Before
     public void setUp() throws IOException, InterruptedException {
@@ -72,7 +73,8 @@ public class SubtaskMasterTest {
         // Set up the object for test.
         countdownLatch = new CountDownLatch(THREAD_COUNT);
         subtaskMaster = spy(new SubtaskMaster(THREAD_COUNT, NODE, countdownLatch, BINARY_NAME,
-            DirectoryProperties.taskDataDir().resolve(TASK_DIR).toString(), TIMEOUT));
+            DirectoryProperties.taskDataDir().resolve(TASK_DIR).toString(), TIMEOUT,
+            HEAP_SIZE_GIGABYTES, new TaskConfiguration()));
         doReturn(subtaskClient).when(subtaskMaster).subtaskClient();
         doReturn(subtaskExecutor).when(subtaskMaster).subtaskExecutor();
         doReturn(algorithmStateFiles).when(subtaskMaster)

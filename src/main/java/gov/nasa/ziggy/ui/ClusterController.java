@@ -129,7 +129,7 @@ public class ClusterController {
     private static final String PIPELINE_DEFINITION_FILE_REGEXP = "\\S+\\" + XML_SUFFIX;
 
     // Parameters related to the supervisor process
-    private static final int WORKER_HEAP_SIZE_DEFAULT = 16000;
+    private static final int WORKER_HEAP_SIZE_DEFAULT_GIGABYTES = 16;
     private static final int WORKER_THREAD_COUNT_DEFAULT = 1;
     private static final int WORKER_COUNT_ALL_CORES = 0; // use number of cores
 
@@ -166,14 +166,14 @@ public class ClusterController {
 
     private final DatabaseController databaseController;
 
-    private final int workerHeapSize;
+    private final int workerHeapSizeGigabytes;
     private final int workerCount;
 
     private final PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
 
-    public ClusterController(int workerHeapSize, int workerCount) {
+    public ClusterController(int workerHeapSizeGigabytes, int workerCount) {
         databaseController = DatabaseController.newInstance();
-        this.workerHeapSize = workerHeapSize;
+        this.workerHeapSizeGigabytes = workerHeapSizeGigabytes;
         this.workerCount = workerCount != WORKER_COUNT_ALL_CORES ? workerCount : cpuCount();
     }
 
@@ -230,7 +230,7 @@ public class ClusterController {
                 workerHeapSize = Integer.parseInt(cmdLine.getOptionValue(WORKER_HEAP_SIZE_OPTION));
             } else {
                 workerHeapSize = config.getInt(PropertyName.WORKER_HEAP_SIZE.property(),
-                    WORKER_HEAP_SIZE_DEFAULT);
+                    WORKER_HEAP_SIZE_DEFAULT_GIGABYTES);
             }
             if (cmdLine.hasOption(WORKER_COUNT_OPTION)) {
                 workerThreadCount = Integer.parseInt(cmdLine.getOptionValue(WORKER_COUNT_OPTION));
@@ -412,7 +412,7 @@ public class ClusterController {
 
     public boolean isSupervisorRunning() {
         CommandLine supervisorStatusCommand = supervisorCommand(WrapperCommand.STATUS, workerCount,
-            workerHeapSize);
+            workerHeapSizeGigabytes);
         log.debug("Command line: {}", supervisorStatusCommand);
         return ExternalProcess.simpleExternalProcess(supervisorStatusCommand).execute() == 0;
     }
@@ -455,7 +455,7 @@ public class ClusterController {
                 log.debug("Creating directory {}", DirectoryProperties.supervisorLogDir());
                 Files.createDirectories(DirectoryProperties.supervisorLogDir());
                 CommandLine supervisorStartCommand = supervisorCommand(WrapperCommand.START,
-                    workerCount, workerHeapSize);
+                    workerCount, workerHeapSizeGigabytes);
                 log.debug("Command line: {}", supervisorStartCommand.toString());
                 ExternalProcess.simpleExternalProcess(supervisorStartCommand)
                     .exceptionOnFailure()
@@ -482,7 +482,7 @@ public class ClusterController {
 
         log.info("Supervisor stopping");
         CommandLine supervisorStopCommand = supervisorCommand(WrapperCommand.STOP, workerCount,
-            workerHeapSize);
+            workerHeapSizeGigabytes);
         log.debug("Command line: {}", supervisorStopCommand.toString());
         ExternalProcess.simpleExternalProcess(supervisorStopCommand).execute(true);
         if (!isSupervisorRunning()) {

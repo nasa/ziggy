@@ -594,6 +594,7 @@ public class PersistableHdf5Array extends AbstractHdf5Array {
             for (Field field : allFields) {
                 PrimitiveHdf5Array primitiveHdf5Array = new PrimitiveHdf5Array(field);
                 primitiveHdf5Array.returnAs = ReturnAs.ARRAY;
+                primitiveHdf5Array.allowTrivialDimensions = false;
                 long primitiveGroupId = openGroupIfPresent(fieldGroupId, field.getName());
                 if (primitiveGroupId == -1) {
                     continue;

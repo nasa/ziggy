@@ -54,6 +54,7 @@ public class PbsBatchManager implements BatchManager<PbsBatchParameters> {
     private static final String RESOURCE_OPTION = "-l";
     private static final String ATTRIBUTES_OPTION = "-W";
     private static final String GROUP_LIST_ARGUMENT = "group_list=";
+    private static final String UMASK_ARGUMENT = "umask=027";
     private static final String ENVIRONMENT_OPTION = "-v";
     private static final String OUTPUT_OPTION = "-o";
     private static final String JOIN_OPTION = "-j";
@@ -181,6 +182,8 @@ public class PbsBatchManager implements BatchManager<PbsBatchParameters> {
         commandLine.addArgument(jobResources(pbsBatchParameters));
         commandLine.addArgument(ATTRIBUTES_OPTION);
         commandLine.addArgument(GROUP_LIST_ARGUMENT + pbsBatchParameters.getRemoteGroup());
+        commandLine.addArgument(ATTRIBUTES_OPTION);
+        commandLine.addArgument(UMASK_ARGUMENT);
         String environment = environment();
         if (!StringUtils.isBlank(environment)) {
             commandLine.addArgument(ENVIRONMENT_OPTION);
@@ -389,6 +392,9 @@ public class PbsBatchManager implements BatchManager<PbsBatchParameters> {
     public RemoteJobInformation remoteJobInformation(RemoteJob remoteJob) {
         List<String> qstatOutput = qstat("-xf " + remoteJob.getJobId(), JOBNAME, OUTPUT_PATH);
         log.debug("job {}, qstat lines {}", remoteJob.getJobId(), qstatOutput.toString());
+        if (CollectionUtils.isEmpty(qstatOutput)) {
+            return null;
+        }
         Matcher m = JOBNAME_PATTERN.matcher(qstatOutput.get(0));
         String jobName = m.matches() ? m.group(1) : null;
         m = OUTPUT_PATH_PATTERN.matcher(qstatOutput.get(1));

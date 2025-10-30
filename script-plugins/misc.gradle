@@ -5,7 +5,7 @@ def gitVersionProvider = providers.exec {
     commandLine "git", "rev-parse", "HEAD"
 }
 
-task ziggyVersion(type: JavaExec) {
+task ziggyVersion(type: JavaExec, dependsOn: copyLibs) {
     inputs.property "ziggyVersion", gitVersionProvider.standardOutput.asText.get().trim()
     outputs.file "$buildDir/etc/ziggy-build.properties"
     classpath = sourceSets.main.runtimeClasspath
@@ -24,7 +24,7 @@ clean.doFirst() {
 }
 
 // Some tests create readonly directories. Make them writable so they can be deleted.
-task fixTestPermissions(type : Exec) {
+task fixTestPermissions(type: Exec) {
     onlyIf { file("$buildDir/test").exists() }
 
     commandLine "chmod", "-R", "u+wx", "$buildDir/test"
