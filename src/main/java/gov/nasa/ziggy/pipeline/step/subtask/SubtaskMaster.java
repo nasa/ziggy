@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +19,7 @@ import gov.nasa.ziggy.pipeline.step.TimestampFile;
 import gov.nasa.ziggy.pipeline.step.hdf5.Hdf5AlgorithmInterface;
 import gov.nasa.ziggy.pipeline.step.io.AlgorithmErrorReturn;
 import gov.nasa.ziggy.pipeline.step.io.AlgorithmInterfaceUtils;
+import gov.nasa.ziggy.pipeline.step.remote.batch.SupportedBatchSystem;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskServer.ResponseType;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
@@ -69,15 +69,11 @@ public class SubtaskMaster implements Runnable {
         this.timeoutSecs = timeoutSecs;
         this.heapSizeGigabytes = heapSizeGigabytes;
         this.taskConfiguration = taskConfiguration;
-
-        String fullJobId = System.getenv("PBS_JOBID");
-        if (!StringUtils.isBlank(fullJobId)) {
-            jobId = fullJobId.split("\\.")[0];
-            jobName = System.getenv("PBS_JOBNAME");
+        SupportedBatchSystem supportedBatchSystem = SupportedBatchSystem.getInstance();
+        jobId = supportedBatchSystem.jobId();
+        jobName = supportedBatchSystem.jobName();
+        if (supportedBatchSystem.isBatchSystem()) {
             log.info("jobId={}, jobName={}, threadNumber={}", jobId, jobName, threadNumber);
-        } else {
-            jobId = "none";
-            jobName = "none";
         }
     }
 
@@ -192,6 +188,7 @@ public class SubtaskMaster implements Runnable {
         }
 
         if (previousAlgorithmState.isComplete()) {
+            log.debug("Subtask {} already marked as COMPLETE", subtaskDir.getName());
             return true;
         }
 

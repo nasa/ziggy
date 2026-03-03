@@ -1,7 +1,6 @@
 package gov.nasa.ziggy.buildutil;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.stream.Collectors;
@@ -13,32 +12,9 @@ import org.gradle.api.GradleException;
  * Gradle has an ExecTask, but you can't subclass it to make your own tasks.
  *
  * @author Sean McCauliff
+ * @author Bill Wohler
  */
-abstract class TessExecTask extends DefaultTask {
-
-    protected static boolean isMccEnabled() {
-        String mccEnabled = System.getenv("MCC_ENABLED");
-        if (mccEnabled == null || !Boolean.valueOf(mccEnabled)) {
-            return false;
-        }
-        return true;
-    }
-
-    protected static File matlabHome() {
-        String matlabHome = System.getenv("MATLAB_HOME");
-        if (matlabHome == null) {
-            throw new GradleException("MATLAB_HOME is not set");
-        }
-        if (matlabHome.contains("2010")) {
-            throw new GradleException(
-                "MATLAB_HOME=" + matlabHome + ".  This is not the MATLAB I'm looking for.");
-        }
-        File home = new File(matlabHome);
-        if (!home.exists()) {
-            throw new GradleException("MATLAB_HOME=\"" + home + "\" does not exist.");
-        }
-        return home;
-    }
+public abstract class ZiggyDefaultTask extends DefaultTask {
 
     /**
      * @param command The first element in this list is the name of the executable. the others are

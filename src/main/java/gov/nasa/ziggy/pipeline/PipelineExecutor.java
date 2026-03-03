@@ -112,7 +112,7 @@ public class PipelineExecutor {
         List<PipelineNode> startNodes = startNode != null ? List.of(startNode)
             : pipelineOperations().rootNodes(pipeline);
         nodesForLaunch
-        .addAll(objectFactory().newInstanceNodes(pipeline, instance, startNodes, endNode));
+            .addAll(objectFactory().newInstanceNodes(pipeline, instance, startNodes, endNode));
 
         if (eventLabels != null) {
             instanceEventLabels.put(instance.getId(), eventLabels);
@@ -146,11 +146,52 @@ public class PipelineExecutor {
                 launchNode(node);
             }
             pipelineInstanceNodeOperations()
-            .markInstanceNodeTransitionComplete(instanceNode.getId());
+                .markInstanceNodeTransitionComplete(instanceNode.getId());
         } catch (RuntimeException e) {
             log.error("Pipeline transition from {} to next node failed",
                 instanceNode.getPipelineStepName(), e);
             pipelineInstanceNodeOperations().markInstanceNodeTransitionFailed(instanceNode);
+        }
+    }
+
+    /**
+     * Determines whether the pipeline instance node for a given task is complete, if so transition
+     * to the next pipeline instance node.
+     */
+    public void transitionToNextInstanceNode(PipelineTask pipelineTask) {
+
+        // If the task isn't even completed, there's no reason to do anything.
+        if (pipelineTaskDataOperations().processingStep(pipelineTask) != ProcessingStep.COMPLETE) {
+            return;
+        }
+
+        PipelineInstanceNode pipelineInstanceNode = pipelineInstanceNodeOperations()
+            .pipelineInstanceNode(pipelineTask);
+        // If some other task has already kicked off the transition, don't try to start it again.
+        if (pipelineInstanceNode.isTransitionComplete()) {
+            return;
+        }
+
+        PipelineInstance pipelineInstance = pipelineInstanceOperations()
+            .pipelineInstance(pipelineTask.getPipelineInstanceId());
+        logUpdatedInstanceState(pipelineInstance);
+        TaskCounts taskCounts = pipelineTaskDisplayDataOperations()
+            .taskCounts(pipelineInstanceNode);
+
+        if (taskCounts.isPipelineTasksExecutionComplete()) {
+            log.info("Node {} execution complete", pipelineInstanceNode.getPipelineStepName());
+
+            log.info("{}", taskCounts);
+            if (taskCounts.isPipelineTasksComplete()) {
+                transitionToNextInstanceNode(pipelineInstanceNode);
+            } else {
+                log.error("Halting pipeline execution due to errors in node {}",
+                    pipelineInstanceNode.getPipelineStepName());
+            }
+
+            // Log the pipeline instance state.
+        } else {
+            log.info("Instance node {} not complete", pipelineInstanceNode.getId());
         }
     }
 
@@ -249,9 +290,10 @@ public class PipelineExecutor {
 
         // If all the subtasks are complete, then we can't resubmit.
         SubtaskCounts subtaskCounts = pipelineTaskDataOperations().subtaskCounts(task);
-        if (restartMode == RunMode.RESUBMIT && subtaskCounts.getCompletedSubtaskCount() == subtaskCounts.getTotalSubtaskCount()) {
-            alertService().generateAndBroadcastAlert(
-                "Restarts", task, Alert.Severity.WARNING, "Unable to resubmit task with all subtasks complete");
+        if (restartMode == RunMode.RESUBMIT
+            && subtaskCounts.getCompletedSubtaskCount() == subtaskCounts.getTotalSubtaskCount()) {
+            alertService().generateAndBroadcastAlert("Restarts", task, Alert.Severity.WARNING,
+                "Unable to resubmit task with all subtasks complete");
             return;
         }
         removeTaskFromKilledTaskList(task);
@@ -294,8 +336,8 @@ public class PipelineExecutor {
 
         if (unitsOfWork.isEmpty()) {
             AlertService.getInstance()
-            .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK, Severity.ERROR,
-                "No tasks generated for " + instanceNode.getPipelineStepName());
+                .generateAndBroadcastAlert("PI", AlertService.DEFAULT_TASK, Severity.ERROR,
+                    "No tasks generated for " + instanceNode.getPipelineStepName());
             pipelineInstanceOperations().setInstanceToErrorsStalledState(instance);
             throw new PipelineException("Task generation did not generate any tasks!  UOW class: "
                 + unitOfWorkGenerator.getClassName());
@@ -344,7 +386,7 @@ public class PipelineExecutor {
     public void persistTaskResults(PipelineTask task) {
         PipelineInstance.Priority persistPriority = pipelineTaskDataOperations().retrying(task)
             ? Priority.HIGHEST
-                : Priority.HIGH;
+            : Priority.HIGH;
         sendTaskRequestMessage(task, persistPriority, false, RunMode.STANDARD);
     }
 

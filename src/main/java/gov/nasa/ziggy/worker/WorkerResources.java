@@ -27,7 +27,6 @@ import jakarta.persistence.Table;
  * </ol>
  * Users should be careful that they know exactly which of these three cases is represented by any
  * particular instance.
- * <p>
  *
  * @author PT
  */
@@ -98,10 +97,7 @@ public class WorkerResources implements Serializable {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
+        if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
         WorkerResources other = (WorkerResources) obj;

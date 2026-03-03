@@ -3,8 +3,9 @@ package gov.nasa.ziggy.pipeline.xml;
 /**
  * Defines a class for which Ziggy can generate a schema and perform unmarshalling validation of a
  * file against that schema.
+ * <p>
+ * See xml-schemas.gradle.
  *
- * @see xml-schemas.gradle
  * @author PT
  */
 public interface HasXmlSchemaFilename {

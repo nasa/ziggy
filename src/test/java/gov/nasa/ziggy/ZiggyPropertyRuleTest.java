@@ -6,6 +6,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 
 /**
@@ -28,7 +29,8 @@ public class ZiggyPropertyRuleTest {
     @Test
     public void stringConstructorTest() {
         assertEquals("value", stringPropertyRule.getValue());
-        assertEquals("build/test/ZiggyPropertyRuleTest/stringConstructorTest",
-            stringDirectoryPropertyRule.getValue());
+        assertEquals(DirectoryProperties.ziggyCodeBuildDir()
+            .resolve("test/ZiggyPropertyRuleTest/stringConstructorTest")
+            .toString(), stringDirectoryPropertyRule.getValue());
     }
 }

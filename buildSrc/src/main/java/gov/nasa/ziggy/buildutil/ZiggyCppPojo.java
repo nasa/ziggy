@@ -622,7 +622,6 @@ public class ZiggyCppPojo {
      * @param gradleProperty property to be converted.
      * @return contents of gradleProperty as a list of Java Strings.
      */
-    @SuppressWarnings("unchecked")
     static List<String> gradlePropertyToList(Object gradleProperty) {
         if (gradleProperty instanceof List<?>) {
             return objectListToStringList((List<? extends Object>) gradleProperty);

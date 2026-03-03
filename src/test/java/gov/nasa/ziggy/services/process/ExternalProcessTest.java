@@ -9,7 +9,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -20,6 +19,7 @@ import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
@@ -41,7 +41,7 @@ public class ExternalProcessTest {
     @Before
     public void before() throws Exception {
         workingDir = directoryRule.directory().toFile();
-        exeDir = Paths.get("build", "bin").toFile().getCanonicalFile();
+        exeDir = DirectoryProperties.ziggyCodeBuildDir().resolve("bin").toFile().getCanonicalFile();
         exe = new File(exeDir, "testprog");
         if (!exe.exists()) {
             throw new IllegalStateException("Can't find test program \"" + exe + "\".");

@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.pipeline.step;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -8,15 +9,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 
-import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,6 +32,7 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.BuildInfo.BuildType;
+import gov.nasa.ziggy.util.os.MemInfo;
 
 /**
  * Unit tests for the {@link ComputeNodeMaster} class.
@@ -74,6 +75,7 @@ public class ComputeNodeMasterTest {
     private TaskConfiguration taskConfiguration;
     private SubtaskServer subtaskServer;
     private ExecutorService subtaskMasterThreadPool;
+    private ScheduledThreadPoolExecutor memoryMonitorExecutor;
     private ComputeNodeMaster computeNodeMaster;
     private Path taskDir;
     private List<File> subtaskDirFiles;
@@ -99,6 +101,7 @@ public class ComputeNodeMasterTest {
         taskConfiguration = mock(TaskConfiguration.class);
         subtaskServer = mock(SubtaskServer.class);
         subtaskMasterThreadPool = mock(ExecutorService.class);
+        memoryMonitorExecutor = mock(ScheduledThreadPoolExecutor.class);
 
         // Create the ComputeNodeMaster. To be precise, create an instance of the
         // class that is a Mockito spy.
@@ -106,6 +109,9 @@ public class ComputeNodeMasterTest {
         doReturn(taskConfiguration).when(computeNodeMaster).getTaskConfiguration();
         doReturn(subtaskServer).when(computeNodeMaster).subtaskServer();
         doReturn(subtaskMasterThreadPool).when(computeNodeMaster).subtaskMasterThreadPool();
+        doReturn("1234567").when(computeNodeMaster).getJobId();
+        doReturn(true).when(computeNodeMaster).isBatchSystem();
+        doReturn(memoryMonitorExecutor).when(computeNodeMaster).memoryMonitorExecutor();
         Mockito.when(taskConfiguration.getRequestedTimeSeconds()).thenReturn(WALL_TIME_REQUEST);
         Mockito.when(taskConfiguration.getActiveCores()).thenReturn(CORES_PER_NODE);
 
@@ -117,8 +123,22 @@ public class ComputeNodeMasterTest {
      * Tests an {@link ComputeNodeMaster#initialize()} call.
      */
     @Test
-    public void testInitialize()
-        throws ConfigurationException, IllegalStateException, IOException, InterruptedException {
+    public void testInitializeWithBatchSystem() {
+        testInitialize();
+        // The memory monitoring executor should be constructed.
+        verify(computeNodeMaster).memoryMonitorExecutor();
+    }
+
+    @Test
+    public void testInitializeNoBatchSystem() {
+        doReturn(false).when(computeNodeMaster).isBatchSystem();
+        testInitialize();
+        // The memory monitoring executor should NOT be constructed.
+        verify(computeNodeMaster, times(0)).memoryMonitorExecutor();
+    }
+
+    // Do all initialize() tests except for checking the memory monitor startup.
+    private void testInitialize() {
 
         // Initialize the instance.
         computeNodeMaster.initialize();
@@ -141,8 +161,7 @@ public class ComputeNodeMasterTest {
      * Tests an {@link ComputeNodeMaster#initialize()} call that does not update the state file.
      */
     @Test
-    public void testInitializeWithoutUpdatingState()
-        throws IOException, ConfigurationException, IllegalStateException, InterruptedException {
+    public void testInitializeWithoutUpdatingState() {
 
         // Initialize the instance.
         computeNodeMaster.initialize();
@@ -162,8 +181,7 @@ public class ComputeNodeMasterTest {
     }
 
     @Test
-    public void testFinish()
-        throws ConfigurationException, IllegalStateException, IOException, InterruptedException {
+    public void testFinish() {
 
         // Initialize the instance.
         computeNodeMaster.initialize();
@@ -185,5 +203,41 @@ public class ComputeNodeMasterTest {
             .updateCurrentState(AlgorithmStateFiles.AlgorithmState.FAILED);
         new AlgorithmStateFiles(taskDir.resolve("st-4").toFile())
             .updateCurrentState(AlgorithmStateFiles.AlgorithmState.COMPLETE);
+    }
+
+    @Test
+    public void testCheckMemory() {
+        MemInfo memInfo = mock(MemInfo.class);
+        doReturn(memInfo).when(computeNodeMaster).memInfo();
+        Mockito.when(memInfo.getTotalMemoryKB()).thenReturn(100_000_000L);
+        String memoryWarningFileName = ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PREFIX
+            + "1234567";
+
+        // No warning when we're below the threshold for the warning.
+        Mockito.when(memInfo.getFreeMemoryKB()).thenReturn(90_000_000L);
+        computeNodeMaster.checkMemory();
+        verify(computeNodeMaster, times(0)).issueMemoryWarning(ArgumentMatchers.anyLong(),
+            ArgumentMatchers.anyLong());
+        assertFalse(Files.exists(taskDir.resolve(memoryWarningFileName)));
+
+        // Warning is issued, and status file created, when we dip below the threshold.
+        Mockito.when(memInfo.getFreeMemoryKB()).thenReturn(4_999_999L);
+        computeNodeMaster.checkMemory();
+        verify(computeNodeMaster).issueMemoryWarning(4_999_999L, 100_000_000L);
+        assertTrue(Files.exists(taskDir.resolve(memoryWarningFileName)));
+
+        // When we're still below the threshold, we nonetheless do not issue an additional warning.
+        Mockito.when(memInfo.getFreeMemoryKB()).thenReturn(4_999_998L);
+        computeNodeMaster.checkMemory();
+        verify(computeNodeMaster, times(1)).issueMemoryWarning(ArgumentMatchers.anyLong(),
+            ArgumentMatchers.anyLong());
+        assertTrue(Files.exists(taskDir.resolve(memoryWarningFileName)));
+
+        // When we rise above the threshold, the status file is still present.
+        Mockito.when(memInfo.getFreeMemoryKB()).thenReturn(90_000_000L);
+        computeNodeMaster.checkMemory();
+        verify(computeNodeMaster, times(1)).issueMemoryWarning(ArgumentMatchers.anyLong(),
+            ArgumentMatchers.anyLong());
+        assertTrue(Files.exists(taskDir.resolve(memoryWarningFileName)));
     }
 }

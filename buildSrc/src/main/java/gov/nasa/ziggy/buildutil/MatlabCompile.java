@@ -11,6 +11,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -40,22 +41,27 @@ import org.slf4j.LoggerFactory;
 /**
  * Compiles the matlab executables (i.e. it runs mcc). This class can not be made final.
  * <p>
- * This class puts the variable MCC_DIR into the environment and sets it to the directory of the
- * project that has invoked this task.
+ * This class puts the following two variables into the environment:
+ * <ul>
+ * <li>MCC_DIR - set to the directory of the project that has invoked this task.
+ * <li>MATLAB_PREFDIR - set to the value of the defaultMatlabPrefdir property if it exists.
+ * </ul>
  * <p>
  * To use this class, it is necessary for the MATLAB_HOME environment variable to be set. This is
- * then used by the {@link TessExecTask#matlabHome()} method to determine the location of the mcc
- * executable. MATLAB_HOME must be set to the top-level MATLAB directory.
+ * then used by the {@link #matlabHome()} method to determine the location of the mcc executable.
+ * MATLAB_HOME must be set to the top-level MATLAB directory.
  *
  * @author Bill Wohler
  * @author Sean McCauliff
  * @author Forrest Girouard
  */
-public class Mcc extends TessExecTask {
+public class MatlabCompile extends ZiggyDefaultTask {
 
-    private static final Logger log = LoggerFactory.getLogger(Mcc.class);
+    private static final Logger log = LoggerFactory.getLogger(MatlabCompile.class);
 
     private static final String MCC_NAME = "mcc";
+    private static final String MATLAB_PREFDIR_ENV_NAME = "MATLAB_PREFDIR";
+    private static final String DEFAULT_MATLAB_PREFDIR_GRADLE_PROPERTY = "defaultMatlabPrefdir";
 
     private FileCollection controllerFiles;
     private FileCollection additionalFiles; // added with mcc -a option
@@ -63,8 +69,9 @@ public class Mcc extends TessExecTask {
     private boolean singleThreaded = true;
     private String projectDir;
     private File buildDir;
+    private Object defaultMatlabPrefdir;
 
-    public Mcc() {
+    public MatlabCompile() {
         setEnabled(isMccEnabled());
         try {
             projectDir = getProject().getProjectDir().getCanonicalPath();
@@ -72,10 +79,18 @@ public class Mcc extends TessExecTask {
             log.error("Could not obtain directory for MCC_DIR: {}", e.getMessage(), e);
         }
         buildDir = getProject().getLayout().getBuildDirectory().getAsFile().get();
+        defaultMatlabPrefdir = getProject().findProperty(DEFAULT_MATLAB_PREFDIR_GRADLE_PROPERTY);
+    }
+
+    private boolean isMccEnabled() {
+        String mccEnabled = System.getenv("MCC_ENABLED");
+        if (mccEnabled == null || !Boolean.valueOf(mccEnabled)) {
+            return false;
+        }
+        return true;
     }
 
     @InputFiles
-    @Optional
     public FileCollection getControllerFiles() {
         return controllerFiles;
     }
@@ -211,6 +226,24 @@ public class Mcc extends TessExecTask {
 
         ProcessBuilder processBuilder = new ProcessBuilder(fullCommand);
         processBuilder.environment().put("MCC_DIR", projectDir);
+
+        if (defaultMatlabPrefdir != null) {
+            if (defaultMatlabPrefdir.toString().startsWith("~")) {
+                // If this test is true, the next test will fail so fail with a more helpful
+                // message.
+                throw new GradleException("Replace ~ with $HOME in " + defaultMatlabPrefdir
+                    + " defined by " + DEFAULT_MATLAB_PREFDIR_GRADLE_PROPERTY);
+            }
+            Path prefDir = Paths.get(defaultMatlabPrefdir.toString());
+            if (Files.exists(prefDir) && !Files.isDirectory(prefDir)) {
+                throw new GradleException("The path " + defaultMatlabPrefdir + " defined by "
+                    + DEFAULT_MATLAB_PREFDIR_GRADLE_PROPERTY + " is not a directory");
+            }
+
+            processBuilder.environment()
+                .put(MATLAB_PREFDIR_ENV_NAME, defaultMatlabPrefdir.toString());
+        }
+
         execProcess(processBuilder);
 
         Set<PosixFilePermission> neededPermissions = new HashSet<>(
@@ -250,6 +283,22 @@ public class Mcc extends TessExecTask {
         }
         renameGeneratedFile("readme.txt");
         renameGeneratedFile("requiredMCRProducts.txt");
+    }
+
+    private File matlabHome() {
+        String matlabHome = System.getenv("MATLAB_HOME");
+        if (matlabHome == null) {
+            throw new GradleException("MATLAB_HOME is not set");
+        }
+        if (matlabHome.contains("2010")) {
+            throw new GradleException(
+                "MATLAB_HOME=" + matlabHome + ".  This is not the MATLAB I'm looking for.");
+        }
+        File home = new File(matlabHome);
+        if (!home.exists()) {
+            throw new GradleException("MATLAB_HOME=\"" + home + "\" does not exist.");
+        }
+        return home;
     }
 
     private void renameGeneratedFile(String filename) {

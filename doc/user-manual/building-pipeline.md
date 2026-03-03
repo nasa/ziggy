@@ -17,8 +17,8 @@ Before we move on, you should make sure that your environment variables `PIPELIN
 Just in case you haven't looked yet, here's what the sample pipeline directory should look like:
 
 ```console
-sample-pipeline$ ls
-build-env.sh  clean-env.sh  data  etc  multi-data  src
+sample-pipeline$ ls -F
+build-env.sh*  clean-env.sh*  data/  etc/  multi-data/  src/
 sample-pipeline$
 ```
 
@@ -62,14 +62,14 @@ Successfully installed Pillow-11.0.0 h5py-3.12.1 numpy-2.1.3 sample_pipeline-0.9
 Meanwhile, the directory now looks like this:
 
 ```console
-sample-pipeline$ ls
-build  build-env.sh  clean-env.sh  data  etc  multi-data  src
-sample-pipeline$ ls build
-bin    env    pipeline-results
+sample-pipeline$ ls -F
+build/  build-env.sh*  clean-env.sh*  data/  etc/  multi-data/  src/
+sample-pipeline$ ls -F build
+env/  etc/  pipeline-results/  src/
 sample-pipeline$
 ```
 
-There's now a `build` directory that contains additional directories: `bin`, `env`, and `pipeline-results`.
+There's now a `build` directory that contains additional directories: `env`, `etc`, `pipeline-results`, and `src`.
 
 #### The build-env.sh Shell Script
 

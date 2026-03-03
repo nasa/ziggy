@@ -21,6 +21,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
@@ -120,6 +121,40 @@ public class PipelineExecutorTest {
             .map(TaskRequest::getPipelineTask)
             .collect(Collectors.toList());
         assertEquals(tasks, messageTasks);
+    }
+
+    @Test
+    public void testTransitionUsingPipelineTasks() {
+
+        // If the tasks aren't complete, there should be no transition.
+        pipelineOperationsTestUtils.setUpTasksForFourNodePipeline();
+        List<PipelineTask> pipelineTasks = pipelineOperationsTestUtils.getPipelineTasks();
+        pipelineExecutor.transitionToNextInstanceNode(pipelineTasks.get(0));
+        PipelineInstanceNode databaseNode = pipelineInstanceNodeOperations
+            .pipelineInstanceNode(pipelineInstanceNode.getId());
+        assertFalse(databaseNode.isTransitionComplete());
+        assertFalse(databaseNode.isTransitionFailed());
+
+        // Move one task to complete, but not the other.
+        pipelineTaskDataOperations.updateProcessingStep(pipelineTasks.get(0),
+            ProcessingStep.COMPLETE);
+        pipelineExecutor.transitionToNextInstanceNode(pipelineTasks.get(0));
+        databaseNode = pipelineInstanceNodeOperations
+            .pipelineInstanceNode(pipelineInstanceNode.getId());
+        assertFalse(databaseNode.isTransitionComplete());
+        assertFalse(databaseNode.isTransitionFailed());
+
+        // Move the second task to complete.
+        pipelineTaskDataOperations.updateProcessingStep(pipelineTasks.get(1),
+            ProcessingStep.COMPLETE);
+
+        // Note that once the tasks are all completed, either task is able to
+        // move the instance node to transitioned.
+        pipelineExecutor.transitionToNextInstanceNode(pipelineTasks.get(0));
+        databaseNode = pipelineInstanceNodeOperations
+            .pipelineInstanceNode(pipelineInstanceNode.getId());
+        assertTrue(databaseNode.isTransitionComplete());
+        assertFalse(databaseNode.isTransitionFailed());
     }
 
     @Test

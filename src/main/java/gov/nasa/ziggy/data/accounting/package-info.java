@@ -6,7 +6,6 @@
  * datastore. Each file in the table has the ID of its producer (pipeline task that produced it)
  * recorded, along with the IDs of all consumers of that file (pipeline tasks that used that file as
  * an input).
- * </p>
  * <p>
  * Data accountability for models uses a different mechanism, see the ModelRegistry class in
  * gov.nasa.ziggy.models. Similarly, parameter set accountability uses a system implemented in

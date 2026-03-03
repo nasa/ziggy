@@ -62,7 +62,12 @@ public class WrappingCellRenderer extends JEditorPane implements TableCellRender
         if (value instanceof Date) {
             setText(Iso8601Formatter.javaDateTimeSansMillisLocalFormatter().format(value));
         } else {
-            setText(value.toString());
+            try {
+                setText(value.toString());
+            } catch (Exception e) {
+                // Use "-" if value is null or toString() throws exception.
+                setText("-");
+            }
         }
 
         return this;

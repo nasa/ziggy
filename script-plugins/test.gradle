@@ -1,5 +1,8 @@
+import gov.nasa.ziggy.buildutil.ZiggyCpp
+
 test {
     systemProperty "java.library.path", "$buildDir/lib"
+    systemProperty "ziggy.build.dir", buildDir
     maxHeapSize = "1024m"
 
     // Avoid the warning "OpenJDK 64-Bit Server VM warning: Sharing is
@@ -96,18 +99,12 @@ task runByNameTest(type: Test, dependsOn: copyLibs) {
  * advantage over something like /bin/true that it can run for a specified
  * wall clock time, crash and return different error codes.
  */
-task generateTestProg(type: Exec) {
-    def binDir = file("$buildDir/bin")
+task generateTestProg(type: ZiggyCpp) {
+    outputName = "testprog"
+    outputType = "executable"
+    sourceFilePaths = ["$projectDir/src/test/cpp/ExternalProcess"]
 
-    inputs.file "$projectDir/src/test/cpp/ExternalProcess/Makefile"
-    inputs.file "$projectDir/src/test/cpp/ExternalProcess/testprog.cpp"
-    outputs.file "$binDir/testprog"
-
-    workingDir = "$projectDir/src/test/cpp/ExternalProcess"
-    commandLine = [ "sh", "-c", "make -e" ]
-    System.setProperty("OUTDIR", "$binDir")
-
-    logging.captureStandardOutput LogLevel.INFO
+    logging.captureStandardError LogLevel.INFO
 }
 
 compileTestJava.dependsOn generateTestProg

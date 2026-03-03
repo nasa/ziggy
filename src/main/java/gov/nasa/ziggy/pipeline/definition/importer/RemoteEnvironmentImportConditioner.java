@@ -23,7 +23,7 @@ import gov.nasa.ziggy.util.PipelineException;
  * <li>Checks for uniqueness of {@link RemoteEnvironment} names.
  * <li>Checks for uniqueness of {@link Architecture} names within a remote environment.
  * <li>Checks for uniqueness of {@link BatchQueue} names within a remote environment.
- * <ol>
+ * </ol>
  *
  * @author PT
  */

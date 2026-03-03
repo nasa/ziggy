@@ -24,7 +24,6 @@ import gov.nasa.ziggy.util.ZiggyStringUtils;
  * <p>
  * It defines the entry point called by the pipeline infrastructure when a task arrives for this
  * step (processTask()).
- * <p>
  *
  * @author Todd Klaus
  * @author Sean McCauliff
@@ -62,7 +61,7 @@ public abstract class PipelineStepExecutor {
      *
      * @param currentProcessingStep current processing step of the step
      * @return ProcessingStep that is next in the list of steps
-     * @throw PipelineException if the currentProcessingStep is not in the list or is the last step
+     * @throws PipelineException if the currentProcessingStep is not in the list or is the last step
      * in the list, a PipelineException is thrown
      */
     public ProcessingStep nextProcessingStep(ProcessingStep currentProcessingStep) {

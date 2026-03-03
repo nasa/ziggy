@@ -1,6 +1,9 @@
 package gov.nasa.ziggy.supervisor;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static gov.nasa.ziggy.util.WrapperUtils.COMPRESSED_OOPS_VALUE;
+import static gov.nasa.ziggy.util.WrapperUtils.NO_JIT_ALGORITHM_STATE_FILES_VALUE;
+import static gov.nasa.ziggy.util.WrapperUtils.OMIT_STACK_TRACE_VALUE;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_CLASSPATH_PROP_NAME_PREFIX;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX;
@@ -75,6 +78,7 @@ import gov.nasa.ziggy.services.process.AbstractPipelineProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.util.WrapperUtils;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
@@ -98,6 +102,15 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     public static final String NAME = "Supervisor";
     private static final String SUPERVISOR_BIN_NAME = "supervisor";
     public static final int WORKER_STATUS_REPORT_INTERVAL_MILLIS_DEFAULT = 15000;
+
+    // The statically defined wrapper.java.additional properties.
+    private static final List<String> STATIC_ADDITIONAL_JAVA_PROPERTIES = List
+        .of(COMPRESSED_OOPS_VALUE, OMIT_STACK_TRACE_VALUE, NO_JIT_ALGORITHM_STATE_FILES_VALUE);
+
+    // The statically defined wrapper.app.parameter properties.
+    private static final String PIPELINE_SUPERVISOR_VALUE = "gov.nasa.ziggy.supervisor.PipelineSupervisor";
+    private static final List<String> STATIC_WRAPPER_APP_PROPERTIES = List
+        .of(PIPELINE_SUPERVISOR_VALUE);
 
     private static final Set<ZiggyEventHandler> ziggyEventHandlers = ConcurrentHashMap.newKeySet();
 
@@ -181,12 +194,12 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             log.info("Starting algorithm monitor...");
             algorithmMonitor = new AlgorithmMonitor();
             log.info("starting algorithm monitor...done");
-            clearStaleTaskStates();
 
             // Start the task request handler lifecycle manager.
             log.info("Starting task request handler lifecycle manager...");
             TaskRequestHandlerLifecycleManager.initializeInstance();
             log.info("Starting task request handler lifecycle manager...done");
+            clearStaleTaskStates();
 
             log.info("Starting metrics dumper thread...");
             MetricsDumper metricsDumper = new MetricsDumper(
@@ -393,6 +406,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
     private synchronized void updateProcessingStep(UpdateProcessingStepMessage message) {
         pipelineTaskDataOperations().updateProcessingStep(message.getPipelineTask(),
             message.getProcessingStep());
+        pipelineExecutor().transitionToNextInstanceNode(message.getPipelineTask());
     }
 
     /** Retry transition to the next instance node. Package scoped for testing. */
@@ -435,23 +449,32 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         Path supervisorPath = DirectoryProperties.ziggyBinDir().resolve(SUPERVISOR_BIN_NAME);
         CommandLine commandLine = new CommandLine(supervisorPath.toString());
         if (cmd == WrapperCommand.START) {
-            // Refer to supervisor.wrapper.conf for appropriate indices for the parameters specified
-            // here.
             commandLine
                 .addArgument(
                     wrapperParameter(WRAPPER_LOG_FILE_PROP_NAME, supervisorLogFilename(true)))
                 .addArgument(wrapperParameter(WRAPPER_CLASSPATH_PROP_NAME_PREFIX, 1,
                     DirectoryProperties.ziggyHomeDir().resolve("libs").resolve("*.jar").toString()))
                 .addArgument(wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1,
-                    DirectoryProperties.ziggyLibDir().toString()))
-                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
-                    ZiggyLog.log4jConfigString()))
-                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
-                    ZiggyLog.rollingFileSystemProperty(supervisorLogFilename(false))))
-                .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 2,
-                    Integer.toString(workerCount)))
-                .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, 3,
-                    Integer.toString(workerHeapSizeGigabytes)));
+                    DirectoryProperties.ziggyLibDir().toString()));
+
+            // Define the wrapper.java.additional properties.
+            int staticPropCounter = WrapperUtils.addWrapperStaticProperties(commandLine,
+                WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, STATIC_ADDITIONAL_JAVA_PROPERTIES);
+            commandLine
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX,
+                    staticPropCounter + 1, ZiggyLog.log4jConfigString()))
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX,
+                    staticPropCounter + 2,
+                    ZiggyLog.rollingFileSystemProperty(supervisorLogFilename(false))));
+
+            // Define the wrapper.app.parameter properties.
+            staticPropCounter = WrapperUtils.addWrapperStaticProperties(commandLine,
+                WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, STATIC_WRAPPER_APP_PROPERTIES);
+            commandLine
+                .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX,
+                    staticPropCounter + 1, Integer.toString(workerCount)))
+                .addArgument(wrapperParameter(WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX,
+                    staticPropCounter + 2, Integer.toString(workerHeapSizeGigabytes)));
 
             // Add classpaths for pipeline side, if any are needed.
             String pipelineClasspath = ZiggyConfiguration.getInstance()
@@ -466,7 +489,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             }
         }
         commandLine.addArgument(cmd.toString());
-
+        log.debug("Wrapper command line {}", commandLine.toString());
         return commandLine;
     }
 

@@ -3,12 +3,12 @@ package gov.nasa.ziggy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
@@ -16,8 +16,8 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
  * Implements a {@link TestRule} for creation of directories for use by unit tests.
  * <p>
  * The {@link ZiggyDirectoryRule} allows unit test classes to create clean directories for use by
- * their unit tests. Specifically, each unit test class gets its own subdirectory of build/test, and
- * within that directory each unit test gets its own subdirectory based on the test method name.
+ * their unit tests. Specifically, each unit test class gets its own subdirectory of $buildDir/test,
+ * and within that directory each unit test gets its own subdirectory based on the test method name.
  * That directory is cleaned prior to test execution, but is left populated after test execution so
  * that the files created by the test are available for examination in the event of failures or
  * other problems.
@@ -26,7 +26,6 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
  */
 public class ZiggyDirectoryRule implements TestRule {
 
-    private static final String BUILD_DIR_NAME = "build";
     private static final String TEST_DIR_NAME = "test";
     private static final String ZIGGY_PKG_PREFIX = "gov.nasa.ziggy.";
 
@@ -48,7 +47,10 @@ public class ZiggyDirectoryRule implements TestRule {
             ? fullClassName.substring(ZIGGY_PKG_PREFIX.length())
             : fullClassName;
         String methodName = description.getMethodName();
-        directory = Paths.get(BUILD_DIR_NAME, TEST_DIR_NAME, className, methodName);
+        directory = DirectoryProperties.ziggyCodeBuildDir()
+            .resolve(TEST_DIR_NAME)
+            .resolve(className)
+            .resolve(methodName);
 
         try {
             Files.createDirectories(directory);

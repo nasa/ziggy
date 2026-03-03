@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -14,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,6 +37,10 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineOperationsTestUtils;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.SubtaskStateCounts;
+import gov.nasa.ziggy.services.alert.Alert;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
+import gov.nasa.ziggy.services.alert.AlertLog;
+import gov.nasa.ziggy.services.alert.AlertLogOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.messages.AllJobsFinishedMessage;
@@ -395,5 +402,60 @@ public class TaskMonitorTest {
         TaskCountsTest.testSubtaskCounts(6, 6, 0,
             pipelineTaskDataOperations.subtaskCounts(pipelineTask));
         assertTrue(taskMonitor.isAllSubtasksProcessed());
+    }
+
+    @Test
+    public void testCheckForMemoryWarnings() throws IOException {
+
+        // First time there should be no alerts generated.
+        taskMonitor.update();
+        verify(taskMonitor).issueAlertForLowMemoryWarning();
+        verify(taskMonitor, times(0)).issueMemoryAlert(ArgumentMatchers.anyString());
+        assertTrue(
+            CollectionUtils.isEmpty(new AlertLogOperations().alertLogs(List.of(pipelineTask))));
+
+        // Create a memory warning file.
+        Files.createFile(
+            taskDir.resolve(ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PREFIX + "1234567"));
+        taskMonitor.update();
+        verify(taskMonitor, times(2)).issueAlertForLowMemoryWarning();
+        verify(taskMonitor, times(1)).issueMemoryAlert(ArgumentMatchers.anyString());
+        verify(taskMonitor, times(1)).issueMemoryAlert("1234567");
+        List<AlertLog> alertLogs = new AlertLogOperations().alertLogs(List.of(pipelineTask));
+        assertEquals(1, alertLogs.size());
+        AlertLog alertLog = alertLogs.get(0);
+        Alert alertData = alertLog.getAlertData();
+        assertEquals(pipelineTask.getId(), alertData.getSourceTask().getId());
+        assertEquals(Severity.WARNING, alertData.getSeverity());
+        assertTrue(alertData.getMessage().contains("1234567"));
+
+        // When we do another update, no new alert is generated.
+        taskMonitor.update();
+        verify(taskMonitor, times(3)).issueAlertForLowMemoryWarning();
+        verify(taskMonitor, times(1)).issueMemoryAlert(ArgumentMatchers.anyString());
+        verify(taskMonitor, times(1)).issueMemoryAlert("1234567");
+        alertLogs = new AlertLogOperations().alertLogs(List.of(pipelineTask));
+        assertEquals(1, alertLogs.size());
+        assertEquals(alertLog.getId(), alertLogs.get(0).getId());
+
+        // Add another memory warning file.
+        Files.createFile(
+            taskDir.resolve(ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PREFIX + "1234568"));
+        taskMonitor.update();
+        verify(taskMonitor, times(4)).issueAlertForLowMemoryWarning();
+        verify(taskMonitor, times(2)).issueMemoryAlert(ArgumentMatchers.anyString());
+        verify(taskMonitor, times(1)).issueMemoryAlert("1234567");
+        verify(taskMonitor, times(1)).issueMemoryAlert("1234568");
+        alertLogs = new AlertLogOperations().alertLogs(List.of(pipelineTask));
+        assertEquals(2, alertLogs.size());
+        for (AlertLog newAlertLog : alertLogs) {
+            if (newAlertLog.getId() == alertLog.getId()) {
+                continue;
+            }
+            alertData = newAlertLog.getAlertData();
+            assertEquals(pipelineTask.getId(), alertData.getSourceTask().getId());
+            assertEquals(Severity.WARNING, alertData.getSeverity());
+            assertTrue(alertData.getMessage().contains("1234568"));
+        }
     }
 }

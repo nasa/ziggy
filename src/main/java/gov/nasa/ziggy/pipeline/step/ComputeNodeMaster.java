@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2025 United States Government as represented by the Administrator of the
+ * Copyright (C) 2022-2026 United States Government as represented by the Administrator of the
  * National Aeronautics and Space Administration. All Rights Reserved.
  *
  * NASA acknowledges the SETI Institute's primary role in authoring and producing Ziggy, a Pipeline
@@ -35,12 +35,18 @@
 package gov.nasa.ziggy.pipeline.step;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.AlgorithmState;
+import gov.nasa.ziggy.pipeline.step.remote.batch.SupportedBatchSystem;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskMaster;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskServer;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
@@ -56,6 +63,9 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.HostNameUtils;
+import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.util.os.MemInfo;
+import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
  * Acts as a controller for a single-node remote job and associated subtasks running on the node.
@@ -76,6 +86,16 @@ public class ComputeNodeMaster {
 
     private static final Logger log = LoggerFactory.getLogger(ComputeNodeMaster.class);
 
+    private static final long MEMORY_CHECK_INTERVAL_MILLIS = 1_000L;
+    private static final float FREE_MEMORY_FRACTION_WARNING_THRESHOLD = 0.05F;
+    private static final String FREE_MEMORY_WARNING_BASE_NAME = "MEMORY_WARNING";
+    public static final String FREE_MEMORY_WARNING_FILE_NAME_PREFIX = "."
+        + FREE_MEMORY_WARNING_BASE_NAME + ".";
+    private static final String FREE_MEMORY_WARNING_FILE_NAME_REGEXP = "\\."
+        + FREE_MEMORY_WARNING_BASE_NAME + "\\.(\\S+)";
+    public static final Pattern FREE_MEMORY_WARNING_FILE_NAME_PATTERN = Pattern
+        .compile(FREE_MEMORY_WARNING_FILE_NAME_REGEXP);
+
     private final String workingDir;
     private int coresPerNode;
 
@@ -85,6 +105,11 @@ public class ComputeNodeMaster {
     private SubtaskServer subtaskServer;
     private CountDownLatch subtaskMasterCountdownLatch;
     private ExecutorService threadPool;
+    private ScheduledThreadPoolExecutor memoryMonitorExecutor;
+    private boolean memoryWarningIssued;
+    private SupportedBatchSystem supportedBatchSystem = SupportedBatchSystem.getInstance();
+    private String jobId = supportedBatchSystem.jobId();
+    private boolean isBatchSystem = supportedBatchSystem.isBatchSystem();
 
     private Set<SubtaskMaster> subtaskMasters = new HashSet<>();
 
@@ -93,7 +118,7 @@ public class ComputeNodeMaster {
     public ComputeNodeMaster(String workingDir) {
         this.workingDir = workingDir;
 
-        log.info("RemoteTaskMaster START");
+        log.info("ComputeNodeMaster START");
         log.info(" workingDir = {}", workingDir);
 
         // Tell anyone who cares that this task is no longer queued.
@@ -122,6 +147,9 @@ public class ComputeNodeMaster {
 
         log.info("Starting {} subtask masters", coresPerNode);
         startSubtaskMasters();
+
+        log.info("Starting free memory monitoring");
+        startMemoryMonitoring();
     }
 
     private void createTimestamps() {
@@ -162,6 +190,65 @@ public class ComputeNodeMaster {
     }
 
     /**
+     * Starts monitoring the memory consumption of the compute node.
+     * <p>
+     * Some HPC environments do not allow their compute nodes to use virtual memory, which means
+     * that the nodes can abruptly reboot due to a fatal error when all physical memory is
+     * exhausted. The memory monitoring system can provide some information to the user such that,
+     * if a node reboots on them, the presence of a log message and/or alert can clue them in to the
+     * out-of-memory condition.
+     */
+    private void startMemoryMonitoring() {
+        if (isBatchSystem()) {
+            memoryMonitorExecutor = memoryMonitorExecutor();
+            memoryMonitorExecutor.scheduleAtFixedRate(this::checkMemory, 0L,
+                MEMORY_CHECK_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+            ZiggyShutdownHook.addShutdownHook(() -> memoryMonitorExecutor.shutdownNow());
+        }
+    }
+
+    // Broken out for testing.
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
+    void checkMemory() {
+        if (memoryWarningIssued) {
+            return;
+        }
+        MemInfo memInfo = memInfo();
+        if ((double) memInfo.getFreeMemoryKB()
+            / (double) memInfo.getTotalMemoryKB() <= FREE_MEMORY_FRACTION_WARNING_THRESHOLD) {
+            issueMemoryWarning(memInfo.getFreeMemoryKB(), memInfo.getTotalMemoryKB());
+            memoryWarningIssued = true;
+            try {
+                Files.createFile(
+                    taskDir.toPath().resolve(FREE_MEMORY_WARNING_FILE_NAME_PREFIX + getJobId()));
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+    }
+
+    // Broken out for testing.
+    MemInfo memInfo() {
+        return OperatingSystemType.newInstance().getMemInfo();
+    }
+
+    // Broken out for testing.
+    void issueMemoryWarning(long freeMemoryKB, long totalMemoryKB) {
+        log.warn("Compute node {} free memory {} KB below threshold of {}\\% of total memory {} KB",
+            freeMemoryKB, (int) FREE_MEMORY_FRACTION_WARNING_THRESHOLD * 100, totalMemoryKB);
+    }
+
+    // Broken out for testing.
+    String getJobId() {
+        return jobId;
+    }
+
+    // Broken out for testing.
+    boolean isBatchSystem() {
+        return isBatchSystem;
+    }
+
+    /**
      * If monitoring ended with successful completion of the job, create a timestamp for the
      * completion time in the task directory.
      */
@@ -178,6 +265,9 @@ public class ComputeNodeMaster {
     public void cleanup() {
         if (threadPool != null) {
             threadPool.shutdownNow();
+        }
+        if (memoryMonitorExecutor != null) {
+            memoryMonitorExecutor.shutdownNow();
         }
         subtaskServer().shutdown();
     }
@@ -214,6 +304,18 @@ public class ComputeNodeMaster {
      */
     ExecutorService subtaskMasterThreadPool() {
         return Executors.newFixedThreadPool(coresPerNode);
+    }
+
+    /**
+     * Returns the scheduled thread pool executor for memory monitoring. Broken out as a separate
+     * method to support testing.
+     */
+    ScheduledThreadPoolExecutor memoryMonitorExecutor() {
+        return new ScheduledThreadPoolExecutor(1, r -> {
+            Thread t = Executors.defaultThreadFactory().newThread(r);
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)

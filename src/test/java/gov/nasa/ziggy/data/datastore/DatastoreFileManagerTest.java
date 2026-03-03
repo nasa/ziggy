@@ -96,9 +96,6 @@ public class DatastoreFileManagerTest {
     public void setUp() throws IOException {
         taskDirectory = DirectoryProperties.taskDataDir().toAbsolutePath();
         pipelineTask = mock(PipelineTask.class);
-        datastoreFileManager = Mockito
-            .spy(new DatastoreFileManagerForTest(pipelineTask, taskDirectory));
-        doReturn(mock(AlertService.class)).when(datastoreFileManager).alertService();
 
         // Create datastore directories.
         DatastoreTestUtils.createDatastoreDirectories();
@@ -122,14 +119,6 @@ public class DatastoreFileManagerTest {
         regexpsByName = DatastoreTestUtils.regexpsByName();
         datastoreWalker = new DatastoreWalker(regexpsByName,
             DatastoreTestUtils.datastoreNodesByFullPath());
-        doReturn(datastoreWalker).when(datastoreFileManager).datastoreWalker();
-        doReturn(pipelineTaskOperations).when(datastoreFileManager).pipelineTaskOperations();
-        doReturn(pipelineOperations).when(datastoreFileManager).pipelineOperations();
-        when(pipelineOperations.processingMode(ArgumentMatchers.anyString()))
-            .thenReturn(ProcessingMode.PROCESS_ALL);
-        doReturn(datastoreProducerConsumerOperations).when(datastoreFileManager)
-            .datastoreProducerConsumerOperations();
-        doReturn(pipelineNodeOperations).when(datastoreFileManager).pipelineNodeOperations();
 
         // Construct the Map from regexp name to value. Note that we need to include the pixel type
         // in the way that DatastoreWalker would include it.
@@ -192,6 +181,19 @@ public class DatastoreFileManagerTest {
         List<UnitOfWork> uows = PipelineExecutor.generateUnitsOfWork(uowGenerator,
             pipelineInstanceNode);
         doReturn(uows.get(0)).when(pipelineTask).getUnitOfWork();
+
+        // Construct the DatastoreFileManager instance.
+        datastoreFileManager = Mockito
+            .spy(new DatastoreFileManagerForTest(pipelineTask, taskDirectory));
+        doReturn(mock(AlertService.class)).when(datastoreFileManager).alertService();
+        doReturn(datastoreWalker).when(datastoreFileManager).datastoreWalker();
+        doReturn(pipelineTaskOperations).when(datastoreFileManager).pipelineTaskOperations();
+        doReturn(pipelineOperations).when(datastoreFileManager).pipelineOperations();
+        when(pipelineOperations.processingMode(ArgumentMatchers.anyString()))
+            .thenReturn(ProcessingMode.PROCESS_ALL);
+        doReturn(datastoreProducerConsumerOperations).when(datastoreFileManager)
+            .datastoreProducerConsumerOperations();
+        doReturn(pipelineNodeOperations).when(datastoreFileManager).pipelineNodeOperations();
     }
 
     /** Constructs a collection of zero-length files in the datastore. */
@@ -754,6 +756,16 @@ public class DatastoreFileManagerTest {
         assertTrue(Files.isSameFile(copiedFile, originalFile));
     }
 
+    @Test
+    public void testDataFilesForDataFileTypeAccess() {
+        datastoreFileManager.createDataFilesForDataFileTypeInstance();
+    }
+
+    @Test
+    public void testGetPipelineTask() {
+        assertEquals(pipelineTask, datastoreFileManager.getPipelineTask());
+    }
+
     private static class DatastoreFileManagerForTest extends DatastoreFileManager {
 
         public DatastoreFileManagerForTest(PipelineTask pipelineTask, Path taskDirectory) {
@@ -774,6 +786,13 @@ public class DatastoreFileManagerTest {
                     .filter(s -> !s.getFileName().toString().contains("uncalibrated-pixels-0"))
                     .collect(Collectors.toSet())
                 : dataFilesForDataFileType;
+        }
+
+        public void createDataFilesForDataFileTypeInstance() {
+            Map<String, DataFileType> dataFileTypes = DatastoreTestUtils.dataFileTypesByName();
+            DataFileType dataFileType = dataFileTypes.get("uncalibrated science pixel values");
+            @SuppressWarnings("unused")
+            DataFilesForDataFileType dataFilesInstance = dataFilesForDataFileType(dataFileType);
         }
     }
 }

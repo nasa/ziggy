@@ -114,35 +114,35 @@ ziggy.pipeline.results.dir=${ziggy.pipeline.home.dir}/pipeline-results
 The pipeline-results directory contains a number of subdirectories. First, let's look at `task-data`:
 
 ```
-task-data$ ls
-1-2-permuter    1-4-flip    1-6-averaging    2-10-flip    2-8-permuter
-1-3-permuter    1-5-flip    1-7-averaging    2-11-flip    2-9-permuter
+task-data$ ls -F
+1-2-permuter/    1-4-flip/    1-6-averaging/    2-10-flip/    2-8-permuter/
+1-3-permuter/    1-5-flip/    1-7-averaging/    2-11-flip/    2-9-permuter/
 task-data$
 ```
 
 Every pipeline task has its own directory. The name of a task's directory is the instance number, the task number, and the node's name, separated by hyphens. If we drill down into `1-2-permuter`, we see this:
 
 ```console
-$ ls -R
-ARRIVE_COMPUTE_NODES.1741891715793	START.1741891715795			st-2
-FINISH.1741891725262			st-0					st-3
-QUEUED.1741891725290			st-1
+task-data$ ls -FR 1-2-permuter/
+1-2-permuter/:
+ARRIVE_COMPUTE_NODES.1767893371520  QUEUED.1767893375764  st-0/  st-2/
+FINISH.1767893375751                START.1767893371523   st-1/  st-3/
 
 1-2-permuter/st-0:
-SUBTASK_FINISH.1741891722786	nasa-logo-file-1.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
-SUBTASK_START.1741891715803	nasa-logo-file-1.png		sample-model.txt
+SUBTASK_FINISH.1767893372550  nasa-logo-file-1.perm.png  permuter-inputs.h5  ziggy-python-stdout.log
+SUBTASK_START.1767893371530   nasa-logo-file-1.png       sample-model.txt
 
 1-2-permuter/st-1:
-SUBTASK_FINISH.1741891723716	nasa-logo-file-0.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
-SUBTASK_START.1741891722787	nasa-logo-file-0.png		sample-model.txt
+SUBTASK_FINISH.1767893373645  nasa-logo-file-0.perm.png  permuter-inputs.h5  ziggy-python-stdout.log
+SUBTASK_START.1767893372552   nasa-logo-file-0.png       sample-model.txt
 
 1-2-permuter/st-2:
-SUBTASK_FINISH.1741891724532	nasa-logo-file-3.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
-SUBTASK_START.1741891723716	nasa-logo-file-3.png		sample-model.txt
+SUBTASK_FINISH.1767893374694  nasa-logo-file-3.perm.png  permuter-inputs.h5  ziggy-python-stdout.log
+SUBTASK_START.1767893373646   nasa-logo-file-3.png       sample-model.txt
 
 1-2-permuter/st-3:
-SUBTASK_FINISH.1741891725261	nasa-logo-file-2.perm.png	permuter-inputs.h5		ziggy-python-stdout.log
-SUBTASK_START.1741891724533	nasa-logo-file-2.png		sample-model.txt
+SUBTASK_FINISH.1767893375750  nasa-logo-file-2.perm.png  permuter-inputs.h5  ziggy-python-stdout.log
+SUBTASK_START.1767893374695   nasa-logo-file-2.png       sample-model.txt
 ```
 
 At the top level there's some stuff we're not going to talk about now. What's interesting is the contents of the subtask directory, st-0:

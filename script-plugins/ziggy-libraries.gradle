@@ -1,6 +1,5 @@
 // Build the libziggy shared object.
 import gov.nasa.ziggy.buildutil.ZiggyCpp
-import gov.nasa.ziggy.buildutil.ZiggyCppMex
 
 task buildLibZiggy(type: ZiggyCpp) {
     outputName = "ziggy"

@@ -20,7 +20,7 @@ The pieces of this entry are as follows:
 | ---- | ----------- |
 | nickname | The nickname you'd like to use such as `ziggy console`. |
 | fully qualified class name | The classname for the console is `gov.nasa.ziggy.ui.ZiggyConsole`. |
-| logfile basename | This item for the console is, namely, console, which results in a logfile in `${ziggy.pipeline.results.dir}/logs/cli/console.log`. If this is left blank, then the log filename will be `ziggy.log`. |
+| logfile basename | This item for the console is, namely, console, which results in a logfile in `${ziggy.pipeline.results.dir}/log/cli/console.log`. If this is left blank, then the log filename will be `ziggy.log`. |
 | JVM arguments | If you need to raise the default heap size, this is the place to do it. |
 | program arguments | These arguments will always be passed on to the program in addition to any you pass on the `ziggy` command line. |
 

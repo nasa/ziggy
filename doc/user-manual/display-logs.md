@@ -6,7 +6,7 @@
 
 ## Log Files Display
 
-Ziggy provides a mechanism for viewing task logs that is more convenient than going to the `logs` directory and hunting around.
+Ziggy provides a mechanism for viewing task logs that is more convenient than going to the `log` directory and hunting around.
 
 To use this feature, go to the instances panel, select the task of interest and right-click to bring up the tasks menu:
 

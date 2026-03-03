@@ -25,7 +25,7 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
     private static final long serialVersionUID = 20230511L;
 
     /**
-     * Pattern for logs file names: 10-100-algname.10-0.log, where the numbers are instance, task,
+     * Pattern for log file names: 10-100-algname.10-0.log, where the numbers are instance, task,
      * job index, task log index.
      */
     public static final Pattern LOG_FILE_NAME_PATTERN = Pattern

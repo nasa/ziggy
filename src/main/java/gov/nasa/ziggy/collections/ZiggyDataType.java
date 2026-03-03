@@ -847,7 +847,6 @@ public enum ZiggyDataType {
      * @throws PipelineException if called with an object of non-valid class (i.e., an object in a
      * class that does not implement Persistable).
      */
-    @SuppressWarnings("unchecked")
     public static ZiggyDataType getDataType(Object object) {
         ZiggyDataType hdf5Type = null;
         if (object == null) {

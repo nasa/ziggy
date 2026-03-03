@@ -160,9 +160,9 @@ public class ZiggyQuery<T, R> {
      * Looks for a given value in a column that is a set or a list.
      * <p>
      * {@link #contains(Object)} allows the user to retrieve objects for which a list or set field
-     * contains a specified value. For example, imagine that class Foo has a List<Bar> field, bars.
-     * The user wants to find the instances of Foo for which one of the values of the bars field is
-     * baz. This can be accomplished thusly:
+     * contains a specified value. For example, imagine that class Foo has a {@code List&lt;Bar&gt;}
+     * field, bars. The user wants to find the instances of Foo for which one of the values of the
+     * bars field is baz. This can be accomplished thusly:
      *
      * <pre>
      * ZiggyQuery&lt;Foo, Foo&gt; query = createQuery(Foo.class);

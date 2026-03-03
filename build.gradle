@@ -148,7 +148,7 @@ jacocoTestReport {
 javadoc {
     title = "Ziggy API"
     options.overview = "src/main/java/overview.html"
-    options.addBooleanOption("Xdoclint:-missing", true)
+    options.addBooleanOption("Xdoclint:all,-missing", true)
 }
 
 check.dependsOn javadoc

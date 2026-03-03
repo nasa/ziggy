@@ -60,7 +60,7 @@ It turns out that there's a way to do this in Ziggy, and it's exactly what you (
 What happens now is as follows:
 
 - The UOW is generated from the data file type location attributes. Thus we are once again back to `[dog], [cat], [primate]`.
-- Within a UOW, Ziggy will search all the input1 subdirectories, across all values of year and DOY, to obtain data for the task. It will do likewise for input2. You'll wind up with a lot of subtasks, each of which has an input1 and an input2. For a given subtask, the input1 and input2 will come from the same year and DOY directories (i.e., you'll have a subtask with input1 from 2019/100, and it will have input2 fro 2019/100 as well).
+- Within a UOW, Ziggy will search all the input1 subdirectories, across all values of year and DOY, to obtain data for the task. It will do likewise for input2. You'll wind up with a lot of subtasks, each of which has an input1 and an input2. For a given subtask, the input1 and input2 will come from the same year and DOY directories (i.e., you'll have a subtask with input1 from 2019/100, and it will have input2 from 2019/100 as well).
 - When the output file is persisted to the datastore, it will take into account the datastore directories that provided the inputs. For example, in the subtask with a file from `input1/2019/100` and one from `input2/2019/100`, the output file will go to directory `output/2019/100`.
 
 That's better, but we've now apparently traded a huge number of extremely small UOWs for a small number of gigantic ones. If we have, say, 2 years of data, then the task with UOW `[dog]` will have almost 18,000 subtasks! That seems ... excessive.

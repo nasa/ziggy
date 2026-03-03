@@ -25,11 +25,11 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 public class ZiggyConfigurationTest {
 
     /**
-     * The value of the {@link PropertyName#TEST_FILE} property in $PIPELINE_CONFIG_PATH.
+     * The value of the {@link PropertyName#ZIGGY_TEST_FILE} property in $PIPELINE_CONFIG_PATH.
      */
     private static final String PIPELINE_CONFIG_PATH_VALUE = "from.envvar.location";
 
-    /** The value of the {@link PropertyName#TEST_FILE} property in ziggy.properties */
+    /** The value of the {@link PropertyName#ZIGGY_TEST_FILE} property in ziggy.properties */
     private static final String ZIGGY_PROPERTIES_VALUE = "from.default.location";
 
     /** A property that should exist in the properties file. */
@@ -46,7 +46,7 @@ public class ZiggyConfigurationTest {
 
     @Rule
     public ZiggyPropertyRule ziggyHomeDirPropertyRule = new ZiggyPropertyRule(ZIGGY_HOME_DIR,
-        "build");
+        DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public ZiggyPropertyRule osName = new ZiggyPropertyRule(OPERATING_SYSTEM, (String) null);
@@ -158,7 +158,7 @@ public class ZiggyConfigurationTest {
     @Test
     public void testDefaultFileProperty() {
         assertEquals(ZIGGY_PROPERTIES_VALUE,
-            ZiggyConfiguration.getInstance().getString(PropertyName.TEST_FILE.property()));
+            ZiggyConfiguration.getInstance().getString(PropertyName.ZIGGY_TEST_FILE.property()));
     }
 
     // TODO: can't enable this test because there's no way to set an env var for the current
@@ -168,7 +168,7 @@ public class ZiggyConfigurationTest {
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
 
         assertEquals(PIPELINE_CONFIG_PATH_VALUE,
-            config.getString(PropertyName.TEST_FILE.property()));
+            config.getString(PropertyName.ZIGGY_TEST_FILE.property()));
     }
 
     /**

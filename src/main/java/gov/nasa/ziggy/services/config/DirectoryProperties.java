@@ -14,7 +14,7 @@ public class DirectoryProperties {
 
     // Relative paths for various kinds of files.
     private static final String TASK_DATA_RELATIVE_PATH = "task-data";
-    private static final String LOG_FILES_RELATIVE_PATH = "logs";
+    private static final String LOG_FILES_RELATIVE_PATH = "log";
     private static final String TASK_LOG_FILES_RELATIVE_PATH = "ziggy";
     private static final String CLI_LOG_FILES_RELATIVE_PATH = "cli";
     private static final String PBS_LOG_FILES_RELATIVE_PATH = "pbs";
@@ -48,8 +48,6 @@ public class DirectoryProperties {
     private static final String ETC_DIR_RELATIVE_PATH = "etc";
 
     private static final String BUILD = "build";
-
-    private static final String TMP = "tmp";
 
     public static Path pipelineResultsDir() {
         return Paths
@@ -130,15 +128,12 @@ public class DirectoryProperties {
     }
 
     public static Path ziggyCodeBuildDir() {
-        return Paths.get(BUILD);
+        return Paths.get(ZiggyConfiguration.getInstance()
+            .getString(PropertyName.ZIGGY_BUILD_DIR.property(), BUILD));
     }
 
     public static Path ziggySchemaBuildDir() {
         return ziggyCodeBuildDir().resolve(SCHEMA_DIR_RELATIVE_PATH);
-    }
-
-    public static Path tmpDir() {
-        return ziggyCodeBuildDir().resolve(TMP);
     }
 
     public static Path databaseLogDir() {

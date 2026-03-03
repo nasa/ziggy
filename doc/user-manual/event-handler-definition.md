@@ -12,7 +12,7 @@ Defining an event handler is surprisingly easy. At least, it's surprising to me.
 
 You probably already guessed that it would be an XML element. 
 
-The event handler demonstrated in the sample pipeline is in sample-pipeline.xml](../../sample-pipeline/etc/ziggy.d/sample-pipeline.xml). Here's the event definition in all its glory:
+The event handler demonstrated in the sample pipeline is in [sample-pipeline.xml](../../sample-pipeline/etc/ziggy.d/sample-pipeline.xml). Here's the event definition in all its glory:
 
 ```xml
 <pipelineEvent name="data-receipt" pipelineName="sample"
@@ -24,7 +24,7 @@ The `pipelineEvent` element straightforwardly defines the name of the event hand
 
 The `directory` attribute is, of course, the directory where the event handler looks for its ready files. In this case, the data receipt event handler looks for ready files in the same directory where the data receipt pipeline node looks for files (or directories of files). That was a design choice, though you wouldn't need to do it that way: you could have a totally separate directory for the event handler to watch, if such was your preference.
 
-Note here that, rather than a normal string, the directory attribute can take a string that needs to be expanded into [one of Ziggy's properties](properties.md). This allows you to specify all the watched directories in the properties file. Note **that this is the only attribute or element in all of Ziggy's XML infrastructure that allows the use of property expansion notation!** That's strictly because it's the only place where we thought we needed it. If you need this added to some other part of the XML infrastructure for your purposes, let us know. We can make it happen!
+Note here that a Ziggy [property](properties.md) can be used in the directory attribute. This allows you to specify all the watched directories in the properties file. Note **that this is the only attribute or element in all of Ziggy's XML infrastructure that allows the use of property expansion notation!** That's strictly because it's the only place where we thought we needed it. If you need this added to some other part of the XML infrastructure for your purposes, let us know. We can make it happen!
 
 [[Previous]](event-handler-intro.md)
 [[Up]](event-handler.md)

@@ -10,26 +10,23 @@ Before you start, you should check out the [system requirements](system-requirem
 
 ### Downloading Ziggy
 
-Ziggy's source code is stored on GitHub, which you probably know already since you're reading this document, which is also stored on GitHub along with Ziggy. From Ziggy's [home page](https://github.com/nasa/ziggy), you can download the code using your favorite method. You can press the green Code button to obtain the URL to clone the repository with, for example, `git clone https://github.com/nasa/ziggy.git`. You can view the latest release in the [Releases](https://github.com/nasa/ziggy/releases), download the tarball using the link at the bottom of the release notes, and extract it with, for example, `tar -xf ziggy-0.8.0.tar.gz`).
+Ziggy's source code is stored on GitHub, which you probably know already since you're reading this document, which is also stored on GitHub along with Ziggy. From Ziggy's [home page](https://github.com/nasa/ziggy), you can download the code using your favorite method. You can press the green Code button to obtain the URL to clone the repository with, for example, `git clone https://github.com/nasa/ziggy.git`. You can view the latest release in the [Releases](https://github.com/nasa/ziggy/releases), download the tarball using the link at the bottom of the release notes, and extract it with, for example, `tar -xf ziggy-0.11.0.tar.gz`).
 
 Once you've done that, you should see something like this in your `ziggy` folder:
 
 ```console
-ziggy$ ls
-CITATION.cff            doc                     licenses
-LICENSE.pdf             etc                     sample-pipeline
-README.md               gradle                  script-plugins
-RELEASE-NOTES.md        gradle.properties       settings.gradle
-build.gradle            gradlew                 src
-buildSrc                ide                     test
+ziggy$ ls -F
+CITATION.cff  RELEASE-NOTES.md  doc/     gradle.properties  licenses/         settings.gradle
+LICENSE.pdf   build.gradle      etc/     gradlew*           sample-pipeline/  src/
+README.md     buildSrc/         gradle/  ide/               script-plugins/   test/
 ziggy$
 ```
 
 Let's go through these items:
 
 - The files `build.gradle`, `settings.gradle`, `gradle.properties`, and `gradlew` are used by our build system. Hopefully you won't need to know anything more about them than that.
-- Likewise, directories `gradle` and `script-plugins` are used in the build.
-- The `buildSrc` directory contains some Java and Groovy classes that are part of Ziggy but are used by the build. The idea here is that Gradle allows users to extend it by defining new kinds of build tasks; those new kinds of build tasks are implemented as Java or Groovy classes and by convention are put into a "buildSrc" folder. This is something else you probably won't need to worry about; certainly not any time soon.
+- Likewise, the `gradle` directory is used in the build.
+- The `buildSrc` and `script-plugins` directories contain Java and Groovy classes that are part of Ziggy but are used by the build. The idea here is that Gradle allows users to extend it by defining new kinds of build tasks; those new kinds of build tasks are implemented as Java or Groovy classes and by convention are put into a "buildSrc" folder. This is something else you probably won't need to worry about; certainly not any time soon.
 - The `doc` directory contains this user manual, plus a bunch of other, more technical documentation.
 - The `etc` directory contains files that are used as configuration inputs to various programs. This is things like: the file that tells the logger how to format text lines, and so on. Two of these are going to be particularly useful and important to you: the ziggy.properties file, and the pipeline.properties.EXAMPLE file. These files provide all of the configuration that Ziggy needs to locate executables, working directories, data storage, and etc. We'll go into a lot of detail on this at the appropriate time.
 - The `ide` directory contains auxiliary files that are useful if you want to develop Ziggy in the Eclipse IDE.
@@ -75,26 +72,22 @@ At this point, it's probably worthwhile to run Ziggy's unit tests to make sure n
 If you look at the Ziggy folder now, you'll see the following:
 
 ```console
-ziggy$ ls
-CITATION.cff            doc                     outside
-LICENSE.pdf             etc                     sample-pipeline
-README.md               gradle                  script-plugins
-RELEASE-NOTES.md        gradle.properties       settings.gradle
-build                   gradlew                 src
-build.gradle            ide                     test
-buildSrc                licenses
+ziggy$ ls -F
+CITATION.cff      build/        etc/               ide/              script-plugins/
+LICENSE.pdf       build.gradle  gradle/            licenses/         settings.gradle
+README.md         buildSrc/     gradle.properties  outside/          src/
+RELEASE-NOTES.md  doc/          gradlew*           sample-pipeline/  test/
 ziggy$
 ```
 
 Pretty much the same, except that now there's a `build` folder. What's in the `build` folder?
 
 ```console
-build$ ls
-bin             include         obj             resources       test-results
-classes         jacoco          publications    schema          tmp
-etc             lib             reports         src
-generated       libs            repository      test
-build$
+ziggy$ ls -F build
+bin/      generated/  lib/   publications/  resources/  test/          wrapper.log
+classes/  include/    libs/  reports/       schema/     test-results/
+etc/      jacoco/     obj/   repository/    src/        tmp/
+ziggy$
 ```
 
 The main folders of interest here are:

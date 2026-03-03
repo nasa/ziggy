@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionFile.PipelineDefinitionElement;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
@@ -180,10 +179,9 @@ public class ZiggyEventHandler implements Runnable, PipelineDefinitionElement {
             // don't want the event handler infrastructure itself to fail as a result. For
             // this reason, we catch Exception here (to include both runtime exceptions and
             // unexpected checked exceptions), and then stop this particular event handler.
-            // TODO Use AlertService.DEFAULT_TASK here instead?
             log.error("ZiggyEventHandler {} disabled due to exception", name, e);
             alertService().generateAndBroadcastAlert("Event handler " + name,
-                new PipelineTask(null, null, null), Severity.WARNING,
+                AlertService.DEFAULT_TASK, Severity.WARNING,
                 "Event handler shut down due to exception");
             stop();
         }

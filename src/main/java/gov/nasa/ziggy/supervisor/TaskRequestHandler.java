@@ -13,10 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.metrics.report.Memdrone;
-import gov.nasa.ziggy.pipeline.PipelineExecutor;
-import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
@@ -196,51 +193,7 @@ public class TaskRequestHandler implements Runnable, Requestor {
             memdrone.createStatsCache();
             memdrone.createPidMapCache();
         }
-
-        transitionToNextInstanceNode(taskRequest.getInstanceNodeId());
         log.info("Finished processing taskRequest={}", taskRequest);
-    }
-
-    /**
-     * Checks whether the current instance node is complete and, if so, initiates the transition to
-     * the next instance node. Synchronized to ensure that each transition is executed once and only
-     * once.
-     */
-    private static synchronized void transitionToNextInstanceNode(long instanceNodeId) {
-
-        // Retrieve the instance node, make sure some fields are populated, generate task counts,
-        // perform some logging.
-        PipelineExecutor pipelineExecutor = new PipelineExecutor();
-        PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();
-        PipelineInstanceNodeInformation nodeInformation = pipelineInstanceNodeOperations
-            .pipelineInstanceNodeInformation(instanceNodeId);
-        pipelineExecutor.logUpdatedInstanceState(
-            pipelineInstanceNodeOperations.pipelineInstance(instanceNodeId));
-
-        // If some other task has already kicked off the transition, don't send it again.
-        if (nodeInformation.getPipelineInstanceNode().isTransitionComplete()) {
-            return;
-        }
-
-        // If the node is done executing then we need to initiate the transition as long as no
-        // tasks have failed.
-        PipelineInstanceNode pipelineInstanceNode = nodeInformation.getPipelineInstanceNode();
-        TaskCounts taskCounts = nodeInformation.getTaskCounts();
-        if (taskCounts.isPipelineTasksExecutionComplete()) {
-            log.info("Node {} execution complete", pipelineInstanceNode.getPipelineStepName());
-
-            log.info("{}", taskCounts);
-            if (taskCounts.isPipelineTasksComplete()) {
-                pipelineExecutor.transitionToNextInstanceNode(pipelineInstanceNode);
-            } else {
-                log.error("Halting pipeline execution due to errors in node {}",
-                    pipelineInstanceNode.getPipelineStepName());
-            }
-
-            // Log the pipeline instance state.
-        } else {
-            log.info("Instance node {} not complete", instanceNodeId);
-        }
     }
 
     private static synchronized void markInstanceNodeNotTransitioned(long pipelineInstanceNodeId) {
@@ -275,9 +228,7 @@ public class TaskRequestHandler implements Runnable, Requestor {
         PipelineTask pipelineTask = taskRequest.getPipelineTask();
         commandLine.addArgument(ZiggyLog.ziggyLogFileSystemProperty(pipelineTask));
         commandLine.addArgument(ZiggyLog.singleFileAppenderSystemProperty());
-//        commandLine.addArgument("-Dhibernate.show_sql=true");
-//        commandLine.addArgument("-Dhibernate.format_sql=true");
-//        commandLine.addArgument("-Dhibernate.use_sql_comments=true");
+
         // Now for the worker process fully qualified class name
         commandLine.addArgument("--class=" + PipelineWorker.class.getName());
 
@@ -305,31 +256,5 @@ public class TaskRequestHandler implements Runnable, Requestor {
 
     PipelineInstanceNodeOperations pipelineInstanceOperations() {
         return pipelineInstanceNodeOperations;
-    }
-
-    /**
-     * Container class for a {@link PipelineInstanceNode} and its associated {@link TaskCounts}.
-     * Used to transport both out of a database transaction.
-     *
-     * @author PT
-     */
-    public static class PipelineInstanceNodeInformation {
-
-        private final PipelineInstanceNode pipelineInstanceNode;
-        private final TaskCounts taskCounts;
-
-        public PipelineInstanceNodeInformation(PipelineInstanceNode pipelineInstanceNode,
-            TaskCounts taskCounts) {
-            this.pipelineInstanceNode = pipelineInstanceNode;
-            this.taskCounts = taskCounts;
-        }
-
-        public PipelineInstanceNode getPipelineInstanceNode() {
-            return pipelineInstanceNode;
-        }
-
-        public TaskCounts getTaskCounts() {
-            return taskCounts;
-        }
     }
 }

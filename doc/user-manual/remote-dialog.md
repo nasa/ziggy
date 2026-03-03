@@ -76,15 +76,15 @@ These are estimates of how much time a subtask will need in order to finish. In 
 
 #### Calculate the Batch Parameters
 
-Once the required parameters have been entered, Ziggy will convert the remote execution parameters on the left hand side of the dialog box into the parameters that will be used in the submission to the batch system. In this example, no parameters have been generated because the gigs per subtask and wall time per subtask are set to zero. Note that Ziggy highlights those incomplete fields. The total tasks and total subtasks fields have been auto-filled with a value of 2 and 8 respectively, which is correct but not very interesting. For the purposes of the example, let's select the `HECC` `Remote environment` and set `Total subtasks` to 1000, `Gigs per subtask` to 10, and both wall time parameters to 0.15 hours. You'll see this:
+Once the required parameters have been entered, Ziggy will convert the remote execution parameters on the left hand side of the dialog box into the parameters that will be used in the submission to the batch system. In this example, no parameters have been generated because the gigs per subtask and wall time per subtask are set to zero. Note that Ziggy highlights those incomplete fields. The total tasks and total subtasks fields have been auto-filled with a value of 2 and 8 respectively, which is correct but not very interesting. For the purposes of the example, let's select the `HECC` `Remote environment` and set `Total subtasks` to 10,000, `Gigs per subtask` to 10, and both wall time parameters to 0.15 hours. You'll see this:
 
 <img src="images/remote-dialog-2.png" style="width:16cm;"/>
 
-The parameters that will be used in the request to PBS are shown in the `PBS parameters` section. Ziggy will ask for 84 nodes of the Haswell type, for 15 minutes each; the total cost in Standard Billing Units (SBUs) will be 16.8.
+The parameters that will be used in the request to PBS are shown in the `PBS parameters` section. Ziggy will ask for 198 nodes of the Rome type, for 15 minutes each; the total cost in Standard Billing Units (SBUs) will be 201.
 
-A Haswell node at the NAS has 24 cores and 128 GB of RAM. Since we've asserted that each subtask takes 10 GB, then a maximum of 12 subtasks will run in parallel on each node, and thus there will be 12 active cores per node (and 12 idled).
+A Rome node at the NAS has 128 cores and 512 GB of RAM. Since we've asserted that each subtask takes 10 GB, then a maximum of 51 subtasks will run in parallel on each node, and thus there will be 51 active cores per node (and 77 idled).
 
-What did Ziggy actually do here? Given the parameters we supplied, Ziggy looked for the architecture that would minimize the cost in SBUs, which turns out to be Haswell, and it asked for enough nodes that all of the subtasks could execute in parallel. This latter minimizes the estimated wall time, but at the expense of asking for a lot of nodes.
+What did Ziggy actually do here? Given the parameters we supplied, Ziggy looked for the architecture that would minimize the cost in SBUs, which turns out to be Rome, and it asked for enough nodes that all of the subtasks could execute in parallel. This latter minimizes the estimated wall time, but at the expense of asking for a lot of nodes.
 
 We can now tune the PBS request that Ziggy makes on our behalf by making use of ...
 
@@ -94,7 +94,7 @@ The optional parameters are there in case Ziggy produces a ludicrous batch reque
 
 ##### Maximum nodes per task
 
-Given the above, it might be smarter to ask for fewer nodes. If we change the `Max nodes` value to 14, this is what we see:
+Given the above, it might be smarter to ask for fewer nodes. If we change the `Max nodes` value to 20, this is what we see:
 
 <img src="images/remote-dialog-3.png" style="width:16cm;"/>
 
@@ -102,11 +102,11 @@ As expected, the number of remote nodes went down and the wall time went up. Wha
 
 This is due to the confluence of two factors. First, Ziggy always rounds its wall time requests up to the nearest quarter-hour. Second, Ziggy doesn't use the max nodes as a parameter it tries to adjust to minimize the cost.
 
-In the first example, each node was really going to be needed for 0.15 hours, based on the wall time estimates we provided. Because of the round-up, it asked for them for 0.25 hours each. Thus the request was asking for an extra 0.1 hours per node; multiply by 84 nodes and it starts to add up.
+In the first example, each node was really going to be needed for 0.15 hours, based on the wall time estimates we provided. Because of the round-up, it asked for them for 0.25 hours each. Thus the request was asking for an extra 0.1 hours per node; multiply by 198 nodes and it starts to add up.
 
-In the second example, given the parameters requested, the actual wall time needed would be 0:30 hours, which isn't subject to any round-up at all. Thus the second example has a lower total cost.
+In the second example, given the parameters requested, the actual wall time needed would be 0:45 hours, which isn't subject to any round-up at all. Thus the second example has a lower total cost.
 
-That said: Once the HPC has processed all the subtasks, the jobs all exit and the nodes are returned to the HPC pool. The user is only charged for the actual usage. In the first case, what would have happened is that all the jobs would finish early, and we'd only get billed for what we actually used, which would also be lower than the original estimate of 16.8 SBUs.
+That said: Once the HPC has processed all the subtasks, the jobs all exit and the nodes are returned to the HPC pool. The user is only charged for the actual usage. In the first case, what would have happened is that all the jobs would finish early, and we'd only get billed for what we actually used, which would also be lower than the original estimate of 201 SBUs.
 
 ##### Optimizer
 

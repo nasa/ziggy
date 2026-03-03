@@ -322,7 +322,7 @@ sub logFileOption {
         or die "Missing Ziggy property ziggy.pipeline.results.dir";
 
     $logFileBasename = "ziggy" if $logFileBasename eq "";
-    $logFileName = File::Spec->catfile($properties{'ziggy.pipeline.results.dir'}, 'logs', 'cli', $logFileBasename . '.log');
+    $logFileName = File::Spec->catfile($properties{'ziggy.pipeline.results.dir'}, 'log', 'cli', $logFileBasename . '.log');
     $logFileOption = "-Dziggy.log.rolling.file=" . $logFileName;
     $logFileOption = "-Dziggy.log.rolling.file=/dev/null" if $logFileBasename eq "/dev/null";
 
@@ -410,7 +410,7 @@ tool's nickname as follows:
 
     ziggy.nickname.<nickname> = <fully qualified class name>|<logfile basename>|<space-delimited JVM args>|<space-delimited program args>
 
-Log files are found in logs/cli/<logfile basename>.log in pipeline
+Log files are found in log/cli/<logfile basename>.log in pipeline
 results directory. If a logfile basename is not specified, "ziggy"
 is used.
 

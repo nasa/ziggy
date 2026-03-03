@@ -359,7 +359,6 @@ public class PipelineNode {
      * of course means that non-transient instances with the same database id will not be equal(),
      * but this approach is safer because there's no chance that the equals/hashCode value will
      * change while it's contained in a Set, which would break the contract of Set.
-     * <p>
      */
     // TODO Make equals/hashCode more natural
     // The current approach means that Set.of(new PipelineNode("foo", "bar"), new

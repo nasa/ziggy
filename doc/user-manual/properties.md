@@ -19,7 +19,7 @@ Properties can be defined in terms of the values of other properties by use of t
 ziggy.pipeline.results.dir = ${ziggy.pipeline.home.dir}/pipeline-results
 ```
 
-When Ziggy needs the value of `ziggy.pipeline.results.dir`, it first finds the value of `build.dir`, and then appends `/pipeline-results` onto the end of that string. Note that for some reason this is sometimes referred to as "interpolation."
+When Ziggy needs the value of `ziggy.pipeline.results.dir`, it first finds the value of `ziggy.pipeline.home.dir`, and then appends `/pipeline-results` onto the end of that string. Note that for some reason this is sometimes referred to as "interpolation."
 
 #### Use of Environment Variables
 
@@ -35,7 +35,7 @@ See also the `ziggy.pipeline.environment` property.
 
 Ziggy actually uses two properties files.
 
-The pipeline properties file contains the properties that you, the pipeline user, are more likely to want to edit. This is the file that `PIPELINE_CONFIG_PATH` needs to point to. You likely seeded your file with the copy in `ZIGGY_ROOT/etc/pipeline.properties.EXAMPLE`.
+The pipeline properties file contains the properties that you, the pipeline user, are more likely to want to edit. This is the file that `PIPELINE_CONFIG_PATH` needs to point to. You likely seeded your file with the copy in `$ZIGGY_HOME/etc/pipeline.properties.EXAMPLE`.
 
 The other properties file is the Ziggy properties file, which is stored with the main Ziggy code, at `etc/ziggy.properties`. These are properties that you, the pipeline user, are unlikely to ever want to mess with.
 

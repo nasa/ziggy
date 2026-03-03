@@ -38,7 +38,7 @@ public class MemdroneTest {
     public void testMemdronePath() throws IOException, InterruptedException {
 
         Memdrone memdrone = new Memdrone(BINARY_NAME_1, INSTANCE_ID_1);
-        Path memRootPath = directoryRule.directory().resolve("logs").resolve("memdrone");
+        Path memRootPath = directoryRule.directory().resolve("log").resolve("memdrone");
         assertFalse(Files.exists(memRootPath));
 
         Date d1 = new Date();

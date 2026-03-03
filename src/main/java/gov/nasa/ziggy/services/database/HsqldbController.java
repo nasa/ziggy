@@ -2,6 +2,9 @@ package gov.nasa.ziggy.services.database;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static gov.nasa.ziggy.services.config.PropertyName.HIBERNATE_URL;
+import static gov.nasa.ziggy.util.WrapperUtils.COMPRESSED_OOPS_VALUE;
+import static gov.nasa.ziggy.util.WrapperUtils.OMIT_STACK_TRACE_VALUE;
+import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_CLASSPATH_PROP_NAME_PREFIX;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX;
 import static gov.nasa.ziggy.util.WrapperUtils.WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX;
@@ -32,6 +35,7 @@ import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.util.WrapperUtils;
 import gov.nasa.ziggy.util.WrapperUtils.WrapperCommand;
 
 /**
@@ -75,6 +79,13 @@ public class HsqldbController extends DatabaseController {
 
     private static final String HSQLDB_BIN_NAME = "hsqldb";
     private static final int DATABASE_SETTLE_MILLIS = 1000;
+
+    private static final List<String> STATIC_ADDITIONAL_JAVA_PROPERTIES = List
+        .of(COMPRESSED_OOPS_VALUE, OMIT_STACK_TRACE_VALUE);
+
+    // The statically defined wrapper.app.parameter properties.
+    private static final String HSQLDB_CONTROLLER = "gov.nasa.ziggy.services.database.HsqldbController";
+    private static final List<String> STATIC_WRAPPER_APP_PROPERTIES = List.of(HSQLDB_CONTROLLER);
 
     /**
      * Unit tests specify the {@code mem} protocol in {@link PropertyName#HIBERNATE_URL} and do not
@@ -333,6 +344,7 @@ public class HsqldbController extends DatabaseController {
         }
 
         CommandLine commandLine = hsqldbCommand(WrapperCommand.START);
+
         log.debug("commandLine={}", commandLine.toString());
         int exitStatus = ExternalProcess.simpleExternalProcess(commandLine)
             .exceptionOnFailure()
@@ -376,8 +388,6 @@ public class HsqldbController extends DatabaseController {
         Path hsqldbPath = DirectoryProperties.ziggyBinDir().resolve(HSQLDB_BIN_NAME);
         CommandLine commandLine = new CommandLine(hsqldbPath.toString());
         if (cmd == WrapperCommand.START) {
-            // Refer to hsqldb.wrapper.conf for appropriate indices for the parameters specified
-            // here.
             String ziggyLibDir = DirectoryProperties.ziggyLibDir().toString();
 
             commandLine
@@ -385,11 +395,19 @@ public class HsqldbController extends DatabaseController {
                 .addArgument(wrapperParameter(WRAPPER_CLASSPATH_PROP_NAME_PREFIX, 1,
                     DirectoryProperties.ziggyHomeDir().resolve("libs").resolve("*.jar").toString()))
                 .addArgument(
-                    wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1, ziggyLibDir))
-                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 3,
-                    ZiggyLog.log4jConfigString()))
-                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, 4,
+                    wrapperParameter(WRAPPER_LIBRARY_PATH_PROP_NAME_PREFIX, 1, ziggyLibDir));
+
+            int staticPropCounter = WrapperUtils.addWrapperStaticProperties(commandLine,
+                WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, STATIC_ADDITIONAL_JAVA_PROPERTIES);
+
+            commandLine
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX,
+                    staticPropCounter + 1, ZiggyLog.log4jConfigString()))
+                .addArgument(wrapperParameter(WRAPPER_JAVA_ADDITIONAL_PROP_NAME_PREFIX, +2,
                     ZiggyLog.rollingFileSystemProperty(logFile(false).toString())));
+
+            staticPropCounter = WrapperUtils.addWrapperStaticProperties(commandLine,
+                WRAPPER_APP_PARAMETER_PROP_NAME_PREFIX, STATIC_WRAPPER_APP_PROPERTIES);
         }
 
         return commandLine.addArgument(cmd.toString());

@@ -41,7 +41,7 @@ $
 
 You can view more help with `ziggy --help` and even more help with `perldoc ziggy`.
 
-Since there are a lot of commands, sub-commands, and options, we've created a bash completions file for the `ziggy` program so you can press the `TAB` key while entering the `ziggy` program to display the available commands and options. If you want to use it, run `. $ZIGGY_ROOT/etc/ziggy.bash-completion`. That's a dot at the front; it's the same mechanism that you would use to re-read your `.bashrc` file.
+Since there are a lot of commands, sub-commands, and options, we've created a bash completions file for the `ziggy` program so you can press the `TAB` key while entering the `ziggy` program to display the available commands and options. If you want to use it, run `. $ZIGGY_HOME/etc/ziggy.bash-completion`. That's a dot at the front; it's the same mechanism that you would use to re-read your `.bashrc` file.
 
 If you should happen to write some Java to manage your pipeline and want to use the `ziggy` program to run it, please refer to the article on [Creating Ziggy Nicknames](nicknames.md).
 

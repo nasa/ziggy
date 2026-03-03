@@ -24,6 +24,7 @@ import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskExecutionLog;
+import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.SubtaskStateCounts;
 import gov.nasa.ziggy.pipeline.step.remote.BatchManager;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironmentOperations;
@@ -348,6 +349,21 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
             }
             if (failedSubtaskCount >= 0) {
                 pipelineTaskData.setFailedSubtaskCount(failedSubtaskCount);
+            }
+        });
+    }
+
+    /**
+     * Updates the current subtask counts, and simultaneously updates the processing step if the
+     * task has just gone from a pre-execution step to executing.
+     */
+    public void updateSubtaskCountsAndTaskState(PipelineTask pipelineTask,
+        SubtaskStateCounts subtaskStateCounts, boolean taskExecuting) {
+        performTransaction(() -> {
+            updateSubtaskCounts(pipelineTask, -1, subtaskStateCounts.getCompletedSubtasks(),
+                subtaskStateCounts.getFailedSubtasks());
+            if (taskExecuting && processingStep(pipelineTask).isPreExecutionStep()) {
+                updateProcessingStep(pipelineTask, ProcessingStep.EXECUTING);
             }
         });
     }

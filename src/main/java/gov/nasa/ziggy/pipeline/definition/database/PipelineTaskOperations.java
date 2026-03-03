@@ -24,7 +24,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
-import gov.nasa.ziggy.pipeline.definition.RemoteJob;
+import gov.nasa.ziggy.pipeline.step.AlgorithmExecutor;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteAlgorithmExecutor;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
@@ -57,58 +57,46 @@ public class PipelineTaskOperations extends DatabaseOperations {
      * task's error flag).
      */
     public ClearStaleStateResults clearStaleTaskStates() {
-        return performTransaction(() -> {
-            ClearStaleStateResults results = new ClearStaleStateResults();
-            List<Long> staleTaskIds = pipelineTaskDataCrud().retrieveTasksWithStaleStates();
-            List<PipelineTask> staleTasks = pipelineTaskCrud().retrieveAll(staleTaskIds);
-            results.totalUpdatedTaskCount += staleTasks.size();
-            for (PipelineTask task : staleTasks) {
-                if (pipelineTaskDataOperations().haltRequested(task)) {
+
+        ClearStaleStateResults results = new ClearStaleStateResults();
+        List<Long> staleTaskIds = staleTaskIds();
+        List<PipelineTask> staleTasks = pipelineTasks(staleTaskIds);
+        results.totalUpdatedTaskCount += staleTasks.size();
+        for (PipelineTask task : staleTasks) {
+            if (pipelineTaskDataOperations().haltRequested(task)) {
+                continue;
+            }
+            long instanceId = task.getPipelineInstanceId();
+            long instanceNodeId = pipelineInstanceNode(task).getId();
+
+            log.info("instanceId={}", instanceId);
+            log.info("instanceNodeId={}", instanceNodeId);
+
+            // If the task was executing remotely, and it was queued or executing, we can try
+            // to resume monitoring on it -- the jobs may have continued to run while the
+            // supervisor was down.
+            AlgorithmExecutor algorithmExecutor = AlgorithmExecutor.newInstance(task);
+            if (algorithmExecutor instanceof RemoteAlgorithmExecutor) {
+                ProcessingStep processingStep = pipelineTaskDataOperations().processingStep(task);
+                if (processingStep == ProcessingStep.QUEUED
+                    || processingStep == ProcessingStep.EXECUTING) {
+                    ((RemoteAlgorithmExecutor) algorithmExecutor).resumeMonitoring();
                     continue;
                 }
-                long instanceId = task.getPipelineInstanceId();
-                long instanceNodeId = pipelineTaskCrud().retrievePipelineInstanceNode(task).getId();
-
-                log.info("instanceId={}", instanceId);
-                log.info("instanceNodeId={}", instanceNodeId);
-
-                // If the task was executing remotely, and it was queued or executing, we can try
-                // to resume monitoring on it -- the jobs may have continued to run while the
-                // supervisor was down.
-                if (unfinishedJobs(task)) {
-                    ProcessingStep processingStep = pipelineTaskDataCrud()
-                        .retrieveProcessingStep(task);
-                    if (processingStep == ProcessingStep.QUEUED
-                        || processingStep == ProcessingStep.EXECUTING) {
-                        RemoteAlgorithmExecutor remoteExecutor = new RemoteAlgorithmExecutor(task);
-                        if (remoteExecutor.resumeMonitoring()) {
-                            continue;
-                        }
-                    }
-                }
-                results.uniqueInstanceIds.add(instanceId);
-                log.info("Setting error flag on task {}", task);
-                pipelineTaskDataOperations().taskErrored(task);
-                pipelineTaskDataOperations().updateJobs(task);
             }
-            log.info("totalUpdatedTaskCount={} in instances={}", results.totalUpdatedTaskCount,
-                results.uniqueInstanceIds);
+            results.uniqueInstanceIds.add(instanceId);
+            log.info("Setting error flag on task {}", task);
+            pipelineTaskDataOperations().taskErrored(task);
+            pipelineTaskDataOperations().updateJobs(task);
+        }
+        log.info("totalUpdatedTaskCount={} in instances={}", results.totalUpdatedTaskCount,
+            results.uniqueInstanceIds);
 
-            return results;
-        });
+        return results;
     }
 
-    private boolean unfinishedJobs(PipelineTask pipelineTask) {
-        Set<RemoteJob> remoteJobs = pipelineTaskDataOperations().remoteJobs(pipelineTask);
-        if (remoteJobs.isEmpty()) {
-            return false;
-        }
-        for (RemoteJob remoteJob : remoteJobs) {
-            if (!remoteJob.isFinished()) {
-                return true;
-            }
-        }
-        return false;
+    private List<Long> staleTaskIds() {
+        return performTransaction(() -> pipelineTaskDataCrud().retrieveTasksWithStaleStates());
     }
 
     public WorkerResources workerResourcesForTask(PipelineTask pipelineTask) {

@@ -270,12 +270,23 @@ public enum PropertyName {
     SUPERVISOR_PORT("ziggy.supervisor.port"),
 
     /**
+     * Property passed by Gradle when running tasks that refer to the build directory just in case
+     * buildDir is in a different place. Code should always provide "build" as a default value in
+     * case this property is not defined. {@link DirectoryProperties#ziggyCodeBuildDir()} will do
+     * this for you. This property should not be documented in the manual.
+     */
+    ZIGGY_BUILD_DIR("ziggy.build.dir"),
+
+    /**
      * Property used by tests to ensure that ziggy.properties can be read. Its value is expected to
      * be {@code from.default.location}. This property should not be documented in the manual.
      */
-    TEST_FILE("ziggy.test.file.property"),
+    ZIGGY_TEST_FILE("ziggy.test.file.property"),
 
-    /** Allows the user to specify a working directory other than user.dir. For testing only. */
+    /**
+     * Allows the user to specify a working directory other than user.dir. This property should not
+     * be documented in the manual.
+     */
     ZIGGY_TEST_WORKING_DIR("ziggy.test.working.dir"),
 
     /** Allow persisting to continue although one or more subtasks failed. */
@@ -309,12 +320,12 @@ public enum PropertyName {
         return property();
     }
 
-    /** Returns the "ziggy.remote.<remoteEnvName>.user" property. */
+    /** Returns the "ziggy.remote.&lt;remoteEnvName&gt;.user" property. */
     public static String remoteUser(String remoteEnvironmentName) {
         return REMOTE_PROPERTY_PREFIX + remoteEnvironmentName.toLowerCase() + USER_SUFFIX;
     }
 
-    /** Returns the "ziggy.remote.<remoteEnvName>.group" property. */
+    /** Returns the "ziggy.remote.&lt;remoteEnvName&gt;.group" property. */
     public static String remoteGroup(String remoteEnvironmentName) {
         return REMOTE_PROPERTY_PREFIX + remoteEnvironmentName.toLowerCase() + GROUP_SUFFIX;
     }

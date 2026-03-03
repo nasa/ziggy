@@ -47,6 +47,9 @@ public class PipelineTaskDisplayDataOperations extends DatabaseOperations {
      * information for tasks that we already know will not change. As a side effect it checks to see
      * if any of the returned instances are now themselves immutable, and if so adds to the list of
      * immutable instances.
+     * <p>
+     * Because this method iterates upon completedTaskData and appends to it, this method is not
+     * thread-safe. TODO Make thread-safe
      *
      * @return A sorted list of {@link PipelineTaskDisplayData} instances for the specified
      * {@link PipelineInstance}.

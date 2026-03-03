@@ -64,8 +64,7 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
  * <li>Copying or moving the output files from the subtasks of the task directory to the datastore.
  * <li>Managing file permissions for the datastore: the files in the datastore are write-protected
  * except when being deliberately overwritten with newer results.
- * <ol>
- * <p>
+ * </ol>
  * By default, the copies between the datastore and the task directories both attempt to generate
  * hard links and resort to actual copying if links cannot be constructed. The user can specify a
  * different behavior by using {@link #setDatastoreToTaskDirCopier(DatastoreCopier)} and
@@ -96,10 +95,13 @@ public class DatastoreFileManager {
     private DatastoreCopier datastoreToTaskDirCopier = DatastoreFileManager::copyOrLink;
     private DatastoreCopier taskDirToDatastoreCopier = DatastoreFileManager::copyOrLink;
     private boolean singleSubtask;
+    private Map<String, String> pathsByDataTypeName;
 
     public DatastoreFileManager(PipelineTask pipelineTask, Path taskDirectory) {
         this.pipelineTask = pipelineTask;
         this.taskDirectory = taskDirectory;
+        pathsByDataTypeName = DirectoryUnitOfWorkGenerator
+            .directoriesByDataFileType(pipelineTask.getUnitOfWork());
     }
 
     /**
@@ -126,14 +128,12 @@ public class DatastoreFileManager {
         List<DataFileType> allFilesAllSubtasksDataFileTypes = new ArrayList<>(dataFileTypes);
         allFilesAllSubtasksDataFileTypes.removeAll(filePerSubtaskDataFileTypes);
 
-        UnitOfWork uow = pipelineTask.getUnitOfWork();
-
         // Generate sets of DataFilesForDataFileType instances. These provide the necessary
         // information for mapping files in the datastore into the files needed by each
         // subtask.
-        Set<DataFilesForDataFileType> filesForPerSubtaskDataType = dataFilesForDataFileTypes(uow,
+        Set<DataFilesForDataFileType> filesForPerSubtaskDataType = dataFilesForDataFileTypes(
             filePerSubtaskDataFileTypes);
-        Set<DataFilesForDataFileType> filesForAllSubtasksDataType = dataFilesForDataFileTypes(uow,
+        Set<DataFilesForDataFileType> filesForAllSubtasksDataType = dataFilesForDataFileTypes(
             allFilesAllSubtasksDataFileTypes);
 
         // If the user wants new-data processing only, filter the data files to remove
@@ -184,13 +184,11 @@ public class DatastoreFileManager {
      * additional bookkeeping.
      */
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
-    private Set<DataFilesForDataFileType> dataFilesForDataFileTypes(UnitOfWork uow,
+    private Set<DataFilesForDataFileType> dataFilesForDataFileTypes(
         List<DataFileType> dataFileTypes) {
         Set<DataFilesForDataFileType> dataFilesForDataFileTypes = new HashSet<>();
 
         // Get the specific directories for this UOW (one per data file type).
-        Map<String, String> pathsByDataTypeName = DirectoryUnitOfWorkGenerator
-            .directoriesByDataFileType(uow);
         for (DataFileType dataFileType : dataFileTypes) {
 
             Path datastoreDirectory = Paths.get(pathsByDataTypeName.get(dataFileType.getName()));
@@ -210,12 +208,20 @@ public class DatastoreFileManager {
                     ZiggyFileUtils.listFiles(datastoreSubdirectory,
                         DatastoreWalker.fileNameRegexpBaseName(dataFileType)));
             }
-            dataFilesForDataFileType.applyFilter(this, uow);
+            dataFilesForDataFileType.applyFilter(this, pipelineTask.getUnitOfWork());
             log.debug("Data file type {} file count {}", dataFileType.getName(),
                 dataFilesForDataFileType.allPaths().size());
             dataFilesForDataFileTypes.add(dataFilesForDataFileType);
         }
         return dataFilesForDataFileTypes;
+    }
+
+    /**
+     * Produces the {@link DataFilesForDataFileType} instance for a single {@link DataFileType}.
+     */
+    protected DataFilesForDataFileType dataFilesForDataFileType(DataFileType dataFileType) {
+        return new DataFilesForDataFileType(dataFileType,
+            Paths.get(pathsByDataTypeName.get(dataFileType.getName())), datastoreWalker());
     }
 
     /**
@@ -287,7 +293,7 @@ public class DatastoreFileManager {
      * name (i.e., everything before the first "." in its name) to all the data files that have that
      * base name. Each Map entry's value are the set of input files needed for a given subtask.
      */
-    private Set<SubtaskDefinition> generateSubtaskDefinitions(
+    protected Set<SubtaskDefinition> generateSubtaskDefinitions(
         Set<DataFilesForDataFileType> pathsByPerSubtaskDataType) {
 
         // Generate the mapping from regexp group values SubtaskDefinition instances.
@@ -643,6 +649,10 @@ public class DatastoreFileManager {
         return taskDirectory;
     }
 
+    public PipelineTask getPipelineTask() {
+        return pipelineTask;
+    }
+
     PipelineTaskOperations pipelineTaskOperations() {
         return pipelineTaskOperations;
     }
@@ -797,7 +807,7 @@ public class DatastoreFileManager {
      *
      * @author PT
      */
-    private static class DataFilesForDataFileType {
+    protected static class DataFilesForDataFileType {
 
         private final DataFileType dataFileType;
         private final Pattern fileNameRegexpPattern;

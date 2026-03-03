@@ -8,13 +8,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.junit.Rule;
 import org.junit.Test;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles;
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.AlgorithmState;
+import gov.nasa.ziggy.pipeline.step.ComputeNodeMaster;
 import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 public class SubtaskUtilsTest {
 
@@ -46,6 +49,10 @@ public class SubtaskUtilsTest {
         new AlgorithmStateFiles(st2.toFile()).updateCurrentState(AlgorithmState.PROCESSING);
         Files.createFile(st2.resolve(TaskConfiguration.LOCK_FILE_NAME));
 
+        // The task has a memory warning status file.
+        Files.createFile(
+            taskDir.resolve(ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PREFIX + "none"));
+
         SubtaskUtils.clearStaleAlgorithmStates(taskDir.toFile());
 
         // The st-0 directory has no lock file but has the .COMPLETE file.
@@ -63,5 +70,9 @@ public class SubtaskUtilsTest {
             assertFalse(Files.exists(subtaskDir.resolve(TaskConfiguration.LOCK_FILE_NAME)));
             assertFalse(Files.exists(st0.resolve("task-dir-error.h5")));
         }
+
+        // The task memory warning file is gone.
+        assertTrue(CollectionUtils.isEmpty(ZiggyFileUtils.listFiles(taskDir,
+            List.of(ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PATTERN), null)));
     }
 }

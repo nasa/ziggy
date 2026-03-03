@@ -6,17 +6,20 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles;
+import gov.nasa.ziggy.pipeline.step.ComputeNodeMaster;
 import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
 import gov.nasa.ziggy.pipeline.step.io.AlgorithmInterfaceUtils;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputsOutputsUtils;
@@ -24,6 +27,7 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * @author PT
@@ -72,6 +76,7 @@ public class SubtaskUtils {
         }
     }
 
+    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     public static void clearStaleAlgorithmStates(File taskDir) {
         log.info("Removing stale PROCESSING state from task directory");
         new AlgorithmStateFiles(taskDir).clearStaleState();
@@ -91,6 +96,18 @@ public class SubtaskUtils {
                 throw new UncheckedIOException(e);
             }
         }
+        Set<Path> memoryWarningFiles = ZiggyFileUtils.listFiles(taskDir.toPath(),
+            List.of(ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PATTERN), null);
+        if (!CollectionUtils.isEmpty(memoryWarningFiles)) {
+            log.info("Clearing stale MEMORY_WARNING files");
+            try {
+                for (Path memoryWarningFile : memoryWarningFiles) {
+                    Files.delete(memoryWarningFile);
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
     }
 
     /**
@@ -100,6 +117,15 @@ public class SubtaskUtils {
     public static int subtaskIndex() {
         Matcher m = SUBTASK_DIR_PATTERN
             .matcher(DirectoryProperties.workingDir().getFileName().toString());
+        if (m.matches()) {
+            return Integer.parseInt(m.group(1));
+        }
+        throw new PipelineException("Directory " + DirectoryProperties.workingDir().toString()
+            + " not a subtask directory");
+    }
+
+    public static int subtaskIndex(Path subtaskDirectory) {
+        Matcher m = SUBTASK_DIR_PATTERN.matcher(subtaskDirectory.getFileName().toString());
         if (m.matches()) {
             return Integer.parseInt(m.group(1));
         }

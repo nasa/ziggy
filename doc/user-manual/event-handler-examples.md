@@ -15,8 +15,7 @@ Note that for these examples, the sample pipeline has been restored to its origi
 Right now, the contents of the sample-pipeline/build/pipeline-results/data-receipt directory look like this:
 
 ```bash
-$ ls -1 sample-pipeline/build/pipeline-results/data-receipt
-Listing for: sample-pipeline/build/pipeline-results/data-receipt
+$ ls -1F sample-pipeline/build/pipeline-results/data-receipt
 nasa_logo-set-1-file-0.png
 nasa_logo-set-1-file-1.png
 nasa_logo-set-1-file-2.png
@@ -53,7 +52,7 @@ Once you do this, the Pi light on the console will quickly turn green. After a f
 
 <img src="images/event-handler-instances-1.png" style="width:14cm;"/>
 
-The event handler automatically names the pipeline with the "bare" pipeline name ("sample"), the event handler name ("data-receipt"), and the timestamp of the event that started the processing. The Event name column shows the name of the event handler as well ("data-receipt"). Note that the Event name column is initially hidden as it duplicates the information in the pipeline name. If you want to sort the table by the event handler name, use the context menu in the table header to enable to Event name column. Then you can click in the header to update the sort. Meanwhile, the tasks table looks like this:
+There is a hidden Event name column that shows the name of the event handler, which is `data-receipt` in this case; otherwise, only a dash (`-`) is shown. To expose this column, use the context menu in the table header to bring up a menu of available columns that can be enabled or disabled. Like any column, you can click in the header to sort by the chosen column. Meanwhile, the tasks table looks like this:
 
 <img src="images/event-handler-tasks-1.png" style="width:16cm;"/>
 
@@ -71,11 +70,10 @@ $
 The data receipt directory looks like this:
 
 ```
-$ ls -1 sample-pipeline/build/pipeline-results/data-receipt/
-Listing for: sample-pipeline/build/pipeline-results/data-receipt/
-sample-1
-sample-2
-sample-3
+$ ls -1F sample-pipeline/build/pipeline-results/data-receipt
+sample-1/
+sample-2/
+sample-3/
 $
 ```
 
@@ -142,9 +140,8 @@ Ziggy's order of operations is that it has to first create its tasks, and only t
 If we look at the contents of the data receipt directory, this is what we see:
 
 ```bash
-$ ls -1 sample-pipeline/build/pipeline-results/data-receipt/
-Listing for: sample-pipeline/build/pipeline-results/data-receipt/
-sample-3
+$ ls -1F sample-pipeline/build/pipeline-results/data-receipt
+sample-3/
 $
 ```
 

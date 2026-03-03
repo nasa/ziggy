@@ -46,7 +46,7 @@ import gov.nasa.ziggy.util.SpotBugsUtils;
 /**
  * Manages the generation and capture of memory usage statistics. A configuration property is used
  * to indicate whether such statistics are to be generated and captured. If so, they are stored in
- * text files in the logs/memdrone directory under the pipeline results directory, with directories
+ * text files in the log/memdrone directory under the pipeline results directory, with directories
  * for each pipeline node in each instance; the directories also have timestamps so that the most
  * recent directory can be identified.
  * <p>

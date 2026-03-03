@@ -4,6 +4,41 @@
 
 These are the release notes for Ziggy. In the change log below, we'll refer to our internal Jira key for our benefit. If the item is associated with a resolved GitHub issue or pull request, we'll add a link to that. Changes that are incompatible with previous versions are marked below. While the major version is 0, we will be making breaking changes when bumping the minor number. However, once we hit version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v0.11.0: Continuing to inch towards 1.0.0
+
+This version is being used to run the Transiting Exoplanet Survey Satellite (TESS) data analysis pipeline. That effort is still in dry run in preparation for formal V&V.
+
+The content of this release contains bug fixes and other improvements we've made during this process.
+
+## New Features
+
+1. Put processing state and subtask counts into single database transaction (ZIGGY-608)
+1. Rename logs directory to log (ZIGGY-611)
+1. Remove Ivy Bridge node (ZIGGY-622)
+1. Remove Haswell and Pleiades Broadwell nodes (ZIGGY-623)
+1. Fix TessExecTask duplication (ZIGGY-625)
+1. Allow DatastoreFileManager subclasses to use DataFilesForDataFileType inner class (ZIGGY-626)
+1. Provide hook for builds to set MATLAB_PREFDIR (ZIGGY-627)
+1. Add Athena Turin architecture to HECC environment definition (ZIGGY-628)
+1. Add memory monitoring to ComputeNodeMaster (ZIGGY-629)
+
+## Documentation Updates
+
+1. Un-overload data-receipt in user manual event handler articles (ZIGGY-170)
+1. Sample pipeline instructions are not clear (ZIGGY-512)
+1. Clarify unclear portions of the Ziggy user manual (ZIGGY-530)
+1. Fix various issues in user manual (ZIGGY-621)
+
+## Bug Fixes
+
+1. Failures in remote execution management (ZIGGY-561)
+1. Failures in alert generation and display (ZIGGY-609)
+1. Ziggy sometimes hangs during transition between instance nodes (ZIGGY-610)
+1. Ziggy task monitor stops updating completed subtask counts (ZIGGY-613)
+1. Build doesn't refer to $buildDir consistently (ZIGGY-618)
+1. Fix ConcurrentModificationException in PipelineTaskDisplayDataOperations (ZIGGY-619)
+1. Fix Javadoc errors (ZIGGY-630)
+
 # v0.10.0: Almost ready for 1.0.0
 
 This version is being used to run the Transiting Exoplanet Survey Satellite (TESS) data analysis pipeline. That effort is currently in dry run in preparation for formal V&V.

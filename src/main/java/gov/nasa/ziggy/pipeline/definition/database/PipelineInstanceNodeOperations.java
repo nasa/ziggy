@@ -13,11 +13,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.services.messages.PipelineInstanceFinishedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
-import gov.nasa.ziggy.supervisor.TaskRequestHandler.PipelineInstanceNodeInformation;
 
 /**
  * Operations class for methods primarily concerned with {@link PipelineInstanceNode}s.
@@ -118,14 +116,6 @@ public class PipelineInstanceNodeOperations extends DatabaseOperations {
             pipelineInstance.setState(PipelineInstance.State.PROCESSING);
             pipelineInstanceCrud().merge(pipelineInstance);
         });
-    }
-
-    public PipelineInstanceNodeInformation pipelineInstanceNodeInformation(
-        long pipelineInstanceNodeId) {
-        PipelineInstanceNode instanceNode = performTransaction(
-            () -> pipelineInstanceNodeCrud().retrieve(pipelineInstanceNodeId));
-        TaskCounts taskCounts = pipelineTaskDisplayDataOperations().taskCounts(instanceNode);
-        return new PipelineInstanceNodeInformation(instanceNode, taskCounts);
     }
 
     public PipelineInstanceNode bindParameterSets(PipelineNode pipelineNode,

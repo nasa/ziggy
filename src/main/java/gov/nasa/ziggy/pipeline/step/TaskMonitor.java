@@ -2,16 +2,20 @@ package gov.nasa.ziggy.pipeline.step;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.exec.CommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
@@ -19,16 +23,20 @@ import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.AlgorithmState;
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.SubtaskStateCounts;
 import gov.nasa.ziggy.pipeline.step.TimestampFile.Event;
 import gov.nasa.ziggy.pipeline.step.subtask.SubtaskUtils;
+import gov.nasa.ziggy.services.alert.Alert.Severity;
+import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.messages.AllJobsFinishedMessage;
 import gov.nasa.ziggy.services.messages.HaltTasksRequest;
 import gov.nasa.ziggy.services.messages.TaskProcessingCompleteMessage;
 import gov.nasa.ziggy.services.messages.WorkerStatusMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.ZiggyUtils;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 
 /**
  * Provides tools to manage a task's state file.
@@ -73,6 +81,12 @@ public class TaskMonitor implements Runnable {
     private boolean incompleteSubtasksPossible;
     private boolean waitedForSubtaskUpdates;
     private boolean allSubtasksProcessed;
+    private int completedSubtasks;
+    private int failedSubtasks;
+    private final List<String> jobIdsWithIssuedMemoryAlert = new ArrayList<>();
+
+    private int firstCompletedSubtask = -1;
+    private int lastCompletedSubtask = -1;
 
     public TaskMonitor(PipelineTask pipelineTask, File taskDir, long pollIntervalMilliseconds) {
         subtaskDirectories = SubtaskUtils.subtaskDirectories(taskDir.toPath());
@@ -155,7 +169,10 @@ public class TaskMonitor implements Runnable {
             log.warn("No subtask directories found in {}", taskDir);
         }
 
+        int lastCompleteSubtaskThisCall = -1;
+        int firstCompleteSubtaskThisCall = Integer.MAX_VALUE;
         for (Path subtaskDir : subtaskDirectories) {
+            int subtaskIndex = SubtaskUtils.subtaskIndex(subtaskDir);
             AlgorithmStateFiles currentSubtaskStateFile = new AlgorithmStateFiles(
                 subtaskDir.toFile());
             AlgorithmState currentSubtaskState = currentSubtaskStateFile.currentAlgorithmState();
@@ -164,7 +181,38 @@ public class TaskMonitor implements Runnable {
                 // no algorithm state file exists yet
                 continue;
             }
+            if (currentSubtaskState == AlgorithmState.COMPLETE) {
+
+                // Latch the max and min subtask IDs for completed subtasks,
+                // on this call to countSubtaskStates().
+                lastCompleteSubtaskThisCall = Math.max(lastCompleteSubtaskThisCall, subtaskIndex);
+                firstCompleteSubtaskThisCall = Math.min(firstCompleteSubtaskThisCall, subtaskIndex);
+            }
             currentSubtaskState.updateStateCounts(stateCounts);
+        }
+
+        // If the current values are changed from the prior values, and
+        // are not the "no subtasks complete" values set before the
+        // loop over subtask directories, latch the new values.
+        boolean newFirstOrLastValue = false;
+        if (firstCompleteSubtaskThisCall != firstCompletedSubtask
+            && firstCompleteSubtaskThisCall != Integer.MAX_VALUE) {
+            log.debug("Task {} first complete subtask {}", pipelineTask.getId(),
+                "st-" + firstCompleteSubtaskThisCall);
+            firstCompletedSubtask = firstCompleteSubtaskThisCall;
+            newFirstOrLastValue = true;
+        }
+        if (lastCompleteSubtaskThisCall != lastCompletedSubtask
+            && lastCompleteSubtaskThisCall > -1) {
+            log.debug("Task {} last complete subtask {}", pipelineTask.getId(),
+                "st-" + lastCompleteSubtaskThisCall);
+            lastCompletedSubtask = lastCompleteSubtaskThisCall;
+            newFirstOrLastValue = true;
+        }
+        if (newFirstOrLastValue) {
+            log.debug("Task {} has {} completed subtasks and {} failed subtasks",
+                pipelineTask.getId(), stateCounts.getCompletedSubtasks(),
+                stateCounts.getFailedSubtasks());
         }
 
         return stateCounts;
@@ -213,12 +261,22 @@ public class TaskMonitor implements Runnable {
             log.warn("No subtask dirs found in {}", taskDir);
         }
 
-        SubtaskStateCounts stateCounts = updateSubtaskStateCounts();
+        issueAlertForLowMemoryWarning();
 
-        if (taskAlgorithmStateFile.isProcessing()
-            && pipelineTaskDataOperations.processingStep(pipelineTask).isPreExecutionStep()) {
-            pipelineTaskDataOperations.updateProcessingStep(pipelineTask, ProcessingStep.EXECUTING);
+        SubtaskStateCounts stateCounts = countSubtaskStates();
+        if (stateCounts.getCompletedSubtasks() != completedSubtasks) {
+            log.debug("Task {} updating completed subtasks from {} to {}", pipelineTask.getId(),
+                completedSubtasks, stateCounts.getCompletedSubtasks());
+            completedSubtasks = stateCounts.getCompletedSubtasks();
         }
+        if (stateCounts.getFailedSubtasks() != failedSubtasks) {
+            log.debug("Task {} updating failed subtasks from {} to {}", pipelineTask.getId(),
+                failedSubtasks, stateCounts.getFailedSubtasks());
+            failedSubtasks = stateCounts.getFailedSubtasks();
+        }
+
+        pipelineTaskDataOperations.updateSubtaskCountsAndTaskState(pipelineTask, stateCounts,
+            taskAlgorithmStateFile.isProcessing());
 
         allSubtasksProcessed = allSubtasksProcessed(stateCounts);
 
@@ -258,11 +316,32 @@ public class TaskMonitor implements Runnable {
         shutdown();
     }
 
-    private SubtaskStateCounts updateSubtaskStateCounts() {
-        SubtaskStateCounts stateCounts = countSubtaskStates();
-        pipelineTaskDataOperations.updateSubtaskCounts(pipelineTask, -1,
-            stateCounts.getCompletedSubtasks(), stateCounts.getFailedSubtasks());
-        return stateCounts;
+    /**
+     * Checks for memory warning files in the task directory. If any are present, and they are new
+     * since the last update, issue an alert.
+     */
+    void issueAlertForLowMemoryWarning() {
+        Set<Path> memoryWarningFiles = ZiggyFileUtils.listFiles(getTaskDir(),
+            List.of(ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PATTERN), null);
+        if (CollectionUtils.isEmpty(memoryWarningFiles)) {
+            return;
+        }
+        for (Path memoryWarningFile : memoryWarningFiles) {
+            Matcher m = ComputeNodeMaster.FREE_MEMORY_WARNING_FILE_NAME_PATTERN
+                .matcher(memoryWarningFile.getFileName().toString());
+            m.matches();
+            String jobId = m.group(1);
+            if (!jobIdsWithIssuedMemoryAlert.contains(jobId)) {
+                issueMemoryAlert(jobId);
+                jobIdsWithIssuedMemoryAlert.add(jobId);
+            }
+        }
+    }
+
+    void issueMemoryAlert(String jobId) {
+        AlertService.getInstance()
+            .generateAndBroadcastAlert("Task Monitor", pipelineTask, Severity.WARNING,
+                "Job " + jobId + " low on free memory");
     }
 
     /**
@@ -292,6 +371,7 @@ public class TaskMonitor implements Runnable {
 
     private void finalSubtaskUpdate() {
         try {
+            filesystemFindKludge();
             ZiggyUtils.tryPatiently(
                 "Wait for final subtask count update for task " + pipelineTask.getId(),
                 fileSystemChecksCount(), fileSystemCheckIntervalMillis(), () -> {
@@ -317,6 +397,31 @@ public class TaskMonitor implements Runnable {
             log.error("Subtask count update never accepted by database for task {}",
                 pipelineTask.getId());
         }
+    }
+
+    /**
+     * Run an OS find command to look for subtask completion files.
+     * <p>
+     * This is here because, during some testing of the new TESS SPOC infrastructure, we observed
+     * that on some file systems the task monitor would hang, but that running this find command
+     * would unfreeze the task monitor (I'm looking at you, VAST). This ensures that, before the
+     * TaskMonitor exits, it runs the find command and then revisits the subtask states so as to get
+     * an accurate count.
+     * <p>
+     * At some point, we hope to be able to remove this code, but first we need to understand the
+     * root cause mechanism for this failure mode.
+     */
+    private void filesystemFindKludge() {
+        CommandLine commandLine = new CommandLine("/usr/bin/find");
+        commandLine.addArgument(taskDir.toString());
+        commandLine.addArgument("-name");
+        commandLine.addArgument("\"." + AlgorithmState.COMPLETE.toString() + "\"");
+        log.debug("Task {}: Command line for find command kludge {}", pipelineTask.getId(),
+            commandLine.toString());
+        ExternalProcess process = ExternalProcess.simpleExternalProcess(commandLine);
+        process.execute();
+        log.debug("Task {}: command line returned {} lines of output", pipelineTask.getId(),
+            process.stdout().size());
     }
 
     /**

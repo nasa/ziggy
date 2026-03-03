@@ -67,7 +67,6 @@ public abstract class AbstractViewEditGroupPanel<T> extends AbstractViewEditPane
         return menuItems;
     }
 
-    @SuppressWarnings("serial")
     private JMenuItem groupMenuItem() {
         return createMenuItem(ASSIGN_GROUP + DIALOG, new AbstractAction(ASSIGN_GROUP, null) {
             @Override

@@ -18,6 +18,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
+import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.database.DatabaseController;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
 import gov.nasa.ziggy.services.database.DatabaseService;
@@ -69,9 +70,10 @@ public class ZiggyDatabaseRule extends ExternalResource {
         hibernateConnectionUrl = System.setProperty(HIBERNATE_URL.property(),
             "jdbc:hsqldb:mem:hsqldb-ziggy");
         hibernateConnectionUsername = System.setProperty(HIBERNATE_USERNAME.property(), "sa");
-        homeDir = System.setProperty(ZIGGY_HOME_DIR.property(), "build");
+        String gradleBuildDir = DirectoryProperties.ziggyCodeBuildDir().toString();
+        homeDir = System.setProperty(ZIGGY_HOME_DIR.property(), gradleBuildDir);
         databaseSchemaDir = System.setProperty(DATABASE_SCHEMA_DIR.property(),
-            "build" + File.separator + "schema");
+            gradleBuildDir + File.separator + "schema");
 
         // For some reason, the unit tests won't run successfully without the Hibernate
         // dialect being set as a system property, even though the actual pipelines

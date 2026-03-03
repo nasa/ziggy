@@ -7,6 +7,7 @@ def hdf5 = file("$tmp/hdf5-$hdf5Version")
 def hdf5Jar = "jarhdf5-${hdf5Version}.jar"
 
 task buildHdf5() {
+    inputs.property "previousBuildDir", buildDir
     outputs.file "$hdf5/src/hdf5.h"
 
     doLast() {

@@ -182,7 +182,7 @@ public class RemoteExecutionDialog extends JDialog {
 
         // Determine the maximum number of parameters we will ever need to display.
         int maxBatchParameters = 0;
-        for (SupportedBatchSystem batchSystem : SupportedBatchSystem.values()) {
+        for (SupportedBatchSystem batchSystem : SupportedBatchSystem.validValues()) {
             maxBatchParameters = Math.max(maxBatchParameters,
                 batchSystem.batchParameters().batchParametersByName(null).size());
         }
@@ -962,7 +962,6 @@ public class RemoteExecutionDialog extends JDialog {
     }
 
     private ValidityTestingFormattedTextField createQueueNameField() {
-        @SuppressWarnings("serial")
         ValidityTestingFormattedTextField queueNameField = new ValidityTestingFormattedTextField(
             new DefaultFormatter() {
                 @Override

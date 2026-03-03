@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 
+import gov.nasa.ziggy.services.config.DirectoryProperties;
+
 public class ClasspathScannerTest {
 
     private static final String ZIGGY_JAR_REGEXP = "ziggy-[\\d.]+\\.jar";
@@ -144,7 +146,8 @@ public class ClasspathScannerTest {
     // Returns the path to build/libs/ziggy-m.n.p.jar.
     private Path findZiggyJar() {
         try {
-            List<Path> paths = Files.list(Paths.get("build/libs"))
+            List<Path> paths = Files
+                .list(Paths.get(DirectoryProperties.ziggyCodeBuildDir() + "/libs"))
                 .filter(path -> path.getFileName().toString().matches(ZIGGY_JAR_REGEXP))
                 .collect(Collectors.toList());
             if (paths.size() != 1) {

@@ -316,7 +316,6 @@ public class ZiggyCppMexPojoTest {
 
     // Here are unit tests that exercise various error cases
 
-    @SuppressWarnings("serial")
     @Test
     public void testErrorMexfileMissingSourceFile() {
         ziggyCppMexObject.setMexfileNames(new ArrayList<String>() {
@@ -345,7 +344,6 @@ public class ZiggyCppMexPojoTest {
         });
     }
 
-    @SuppressWarnings("serial")
     @Test
     public void testNoBuildDir() {
         ZiggyCppMexPojo ziggyCppMexObject = new ZiggyCppMexPojo();

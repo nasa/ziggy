@@ -90,10 +90,6 @@ public class DatastoreFileManagerFullLocationTest {
     public void setUp() throws IOException {
         taskDirectory = DirectoryProperties.taskDataDir().toAbsolutePath();
         pipelineTask = Mockito.mock(PipelineTask.class);
-        datastoreFileManager = Mockito.spy(new DatastoreFileManager(pipelineTask, taskDirectory));
-        Mockito.doReturn(Mockito.mock(AlertService.class))
-            .when(datastoreFileManager)
-            .alertService();
 
         // Create datastore directories.
         DatastoreTestUtils.createDatastoreDirectories();
@@ -119,18 +115,10 @@ public class DatastoreFileManagerFullLocationTest {
         regexpsByName = DatastoreTestUtils.regexpsByName();
         datastoreWalker = new DatastoreWalker(regexpsByName,
             DatastoreTestUtils.datastoreNodesByFullPath());
-        Mockito.doReturn(datastoreWalker).when(datastoreFileManager).datastoreWalker();
-        Mockito.doReturn(pipelineTaskOperations)
-            .when(datastoreFileManager)
-            .pipelineTaskOperations();
         Mockito.when(pipelineTaskOperations.pipelineName(ArgumentMatchers.any(PipelineTask.class)))
             .thenReturn("test pipeline");
-        Mockito.doReturn(pipelineOperations).when(datastoreFileManager).pipelineOperations();
         Mockito.when(pipelineOperations.processingMode(ArgumentMatchers.any(String.class)))
             .thenReturn(ProcessingMode.PROCESS_ALL);
-        Mockito.doReturn(pipelineNodeOperations)
-            .when(datastoreFileManager)
-            .pipelineNodeOperations();
 
         // Construct the Map from regexp name to value. Note that we need to include the pixel type
         // in the way that DatastoreWalker would include it.
@@ -201,6 +189,20 @@ public class DatastoreFileManagerFullLocationTest {
         List<UnitOfWork> uows = PipelineExecutor.generateUnitsOfWork(uowGenerator,
             pipelineInstanceNode);
         Mockito.doReturn(uows.get(0)).when(pipelineTask).getUnitOfWork();
+
+        // Construct the DatastoreFileManager instance.
+        datastoreFileManager = Mockito.spy(new DatastoreFileManager(pipelineTask, taskDirectory));
+        Mockito.doReturn(Mockito.mock(AlertService.class))
+            .when(datastoreFileManager)
+            .alertService();
+        Mockito.doReturn(datastoreWalker).when(datastoreFileManager).datastoreWalker();
+        Mockito.doReturn(pipelineTaskOperations)
+            .when(datastoreFileManager)
+            .pipelineTaskOperations();
+        Mockito.doReturn(pipelineOperations).when(datastoreFileManager).pipelineOperations();
+        Mockito.doReturn(pipelineNodeOperations)
+            .when(datastoreFileManager)
+            .pipelineNodeOperations();
     }
 
     /** Constructs a collection of zero-length files in the datastore. */

@@ -6,30 +6,30 @@
 
 ## Log Files in Ziggy
 
-Ziggy produces a substantial number of different kinds of log files. All of them are in the logs directory under the main pipeline results directory, with one exception: the subtask algorithm log, which is in the subtask directory.
+Ziggy produces a substantial number of different kinds of log files. All of them are in the log directory under the main pipeline results directory, with one exception: the subtask algorithm log, which is in the subtask directory.
 
-Anyways, if you look at the logs directory, you'll see this:
+Anyways, if you look at the log directory, you'll see this:
 
 ```console
-logs$ ls
-algorithms    cli    db    manifests    state    supervisor    ziggy
-logs$
+log$ ls -F
+algorithms/  cli/  manifests/  supervisor/  ziggy/
+log$
 ```
 
 Let us consider each of these directories in turn.
 
 ### db Directory
 
-This is where the log files from relational database applications may be stored. If you're using an non-system PostgreSQL database, this directory should contain `pg.log`. If a system database is being used, this directory will not be present since the sysadmin and DBA get to decide where the logs go, not you. It is also not present for databases such as HSQLDB.
+This is where the log files from relational database applications may be stored. If you're using an non-system PostgreSQL database, this directory should contain `pg.log`. If a system database is being used, this directory will not be present since the sysadmin and DBA get to decide where the logs go, not you. It is also not present for databases such as HSQLDB, which is the case in this example.
 
 ### cli Directory
 
 Here we see the logs that are produced by various parts of Ziggy that are started from the command line. Looking inside the directory, we see this:
 
 ```console
-logs$ ls cli
-cluster.log    console.log
-logs$
+log$ ls -F cli
+cluster.log  console.log  ziggy.log
+log$
 ```
 
 The `cluster.log` file is logging from all the cluster commands; `console.log` captures all logging from the console. You'll sometimes see another file, `ziggy.log`, which is the logging from other commands executed by `ziggy`. Feel free to look into these, but none of them will provide any insight to the exception we're trying to understand.
@@ -39,9 +39,9 @@ The `cluster.log` file is logging from all the cluster commands; `console.log` c
 The supervisor directory's contents look like this:
 
 ```console
-logs$ ls supervisor
-metrics-dump-90188.txt          metrics-dump-90188.txt.old      supervisor.log
-logs$
+log$ ls -F supervisor
+metrics-dump-483886.txt  supervisor.log  supervisor-wrapper.log
+log$
 ```
 
 The `supervisor.log` file logs everything the supervisor does. This is useful for troubleshooting problems that are more directly focused on misbehavior by the supervisor itself, which isn't our problem today.
@@ -51,31 +51,14 @@ The `supervisor.log` file logs everything the supervisor does. This is useful fo
 The `ziggy` directory has the log files for the "Ziggy-side" parts of task execution: specifically, marshaling of inputs and persisting of outputs. The directory looks like this:
 
 ```console
-logs$ ls ziggy
-1-1-data-receipt.0-0.log
-1-4-flip.0-2.log
-1-7-averaging.0-2.log
-2-8-permuter.0-2.log
-1-2-permuter.0-0.log
-1-5-flip.0-0.log
-2-10-flip.0-0.log
-2-9-permuter.0-0.log
-1-2-permuter.0-2.log
-1-5-flip.0-2.log
-2-10-flip.0-2.log
-2-9-permuter.0-2.log
-1-3-permuter.0-0.log
-1-6-averaging.0-0.log
-2-11-flip.0-0.log
-1-3-permuter.0-2.log
-1-6-averaging.0-2.log
-2-11-flip.0-2.log
-1-4-flip.0-0.log
-1-7-averaging.0-0.log
-2-8-permuter.0-0.log
-3-12-permuter.0-0.log
-3-13-permuter.0-0.log
-logs$
+log$ ls -F ziggy
+1-1-data-receipt.0-0.log  1-4-flip.0-2.log       1-7-averaging.0-2.log  2-8-permuter.0-2.log
+1-2-permuter.0-0.log      1-5-flip.0-0.log       2-10-flip.0-0.log      2-9-permuter.0-0.log
+1-2-permuter.0-2.log      1-5-flip.0-2.log       2-10-flip.0-2.log      2-9-permuter.0-2.log
+1-3-permuter.0-0.log      1-6-averaging.0-0.log  2-11-flip.0-0.log      3-12-permuter.0-0.log
+1-3-permuter.0-2.log      1-6-averaging.0-2.log  2-11-flip.0-2.log      3-13-permuter.0-0.log
+1-4-flip.0-0.log          1-7-averaging.0-0.log  2-8-permuter.0-0.log
+log$
 ```
 
 Every task has logs with the usual nomenclature of instance number, task number, and node name separated by hyphens. Note that most tasks have 2 log files: the first ends in `-0.log`; the second, `-2.log`. The thing to understand is that the logs from task execution are numbered in order. Thus, `1-2-permuter.0-0.log` is the first log file for `1-2-permuter`, which is the marshaling log, while `1-2-permuter.0-2.log` is the third log file, for persisting.
@@ -87,20 +70,11 @@ So where is `1-2-permuter.0-1.log`, and what does it cover? That's the log file 
 Here's what the algorithm directory looks like:
 
 ```console
-logs$ ls algorithms
-1-2-permuter.0-1.log
-1-4-flip.0-1.log
-1-6-averaging.0-1.log
-2-10-flip.0-1.log
-2-8-permuter.0-1.log
-1-3-permuter.0-1.log
-1-5-flip.0-1.log
-1-7-averaging.0-1.log
-2-11-flip.0-1.log
-2-9-permuter.0-1.log
-3-12-permuter.0-1.log
-3-13-permuter.0-1.log
-logs$
+log$ ls -F algorithms
+1-2-permuter.0-1.log  1-5-flip.0-1.log       2-10-flip.0-1.log     2-9-permuter.0-1.log
+1-3-permuter.0-1.log  1-6-averaging.0-1.log  2-11-flip.0-1.log     3-12-permuter.0-1.log
+1-4-flip.0-1.log      1-7-averaging.0-1.log  2-8-permuter.0-1.log  3-13-permuter.0-1.log
+log$
 ```
 
 There's one log file for every task.
@@ -135,7 +109,7 @@ While we're here, note the parts of the log that have `(st-0)` in them. The algo
 
 ### Subtask Algorithm Log
 
-This is the one exception to the log files being in the logs directory. If you go to the `3-12-permuter/st-0` directory under task-data, you'll see the `permuter-stdout.log` file. This is a transcription of all the standard output from the permuter algorithm. It looks like this:
+This is the one exception to the log files being in the log directory. If you go to the `3-12-permuter/st-0` directory under task-data, you'll see the `permuter-stdout.log` file. This is a transcription of all the standard output from the permuter algorithm. It looks like this:
 
 ```console
 Traceback (most recent call last):

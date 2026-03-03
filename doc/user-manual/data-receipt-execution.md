@@ -24,18 +24,18 @@ With that, let's dive in!
 The sample pipeline's data receipt directory uses a copy of the files from the `data` subdirectory in the `sample-pipeline` main directory. Let's take a look at that directory now:
 
 ```console
-sample-pipeline$ ls data
-models
+sample-pipeline$ ls -F data
+models/
 sample-pipeline-manifest.xml
-set-1
-set-2
+set-1/
+set-2/
 sample-pipeline$
 ```
 
 Look more closesly and you'll see that only sample-pipeline-manifest.xml is a regular file. The other files are all directories. Let's look into them and see what's what:
 
 ```bash
-sample-pipeline$ ls data/set-1/L0
+sample-pipeline$ ls -1F data/set-1/L0
 nasa-logo-file-0.png
 nasa-logo-file-1.png
 nasa-logo-file-2.png
@@ -46,7 +46,7 @@ sample-pipeline$
 If we look at the `set-2` directory, we'll see something analogous. Meanwhile, the `models` directory looks like this:
 
 ```bash
-sample-pipeline$ ls data/models
+sample-pipeline$ ls -F data/models
 sample-model.txt
 sample-pipeline$
 ```
@@ -114,7 +114,7 @@ At this point Ziggy loops through the directory and imports all the files into t
 
 #### Clean Up the Data Receipt Directory
 
-All manifest and acknowledgement files are transferred to the `manifests` sub-directory of the `logs` directory.
+All manifest and acknowledgement files are transferred to the `manifests` sub-directory of the `log` directory.
 
 Empty subdirectories of the data receipt directory are removed. If the data receipt directory has any remaining content other than the .manifests directory, an exception is thrown. An exception at this point due to non-empty directories means that files that were supposed to be imported weren't.
 

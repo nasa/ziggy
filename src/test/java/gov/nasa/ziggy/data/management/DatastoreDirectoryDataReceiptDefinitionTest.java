@@ -133,7 +133,7 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
         assertTrue(dataReceiptDefinition.isConformingDelivery());
         Path manifestDir = Paths
             .get(ZiggyConfiguration.getInstance().getString(PropertyName.RESULTS_DIR.property()))
-            .resolve("logs")
+            .resolve("log")
             .resolve("manifests");
         assertTrue(Files.isDirectory(manifestDir));
         assertTrue(Files
@@ -196,13 +196,13 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
     /** Tests that use of a relative path for the import directory throws exception. */
     @Test(expected = IllegalArgumentException.class)
     public void testSetDataImportDirectoryRelativePath() {
-        dataReceiptDefinition.setDataImportDirectory(testDirectory);
+        dataReceiptDefinition.setDataImportDirectory(testDirectory.getFileName());
     }
 
     /** Tests that use of a relative path in isConformingFile throws exception. */
     @Test(expected = IllegalArgumentException.class)
     public void testIsConformingFileRelativePath() {
-        dataReceiptDefinition.isConformingFile(testDirectory);
+        dataReceiptDefinition.isConformingFile(testDirectory.getFileName());
     }
 
     /** Tests that filesForImport finds all files that are to be imported. */

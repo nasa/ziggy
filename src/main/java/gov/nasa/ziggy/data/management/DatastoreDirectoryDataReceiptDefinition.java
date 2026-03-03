@@ -38,7 +38,7 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
  * the delivery {@link Manifest} (all files present, all sizes correct, all checksums correct), and
  * ensuring that there are no files in the directory that are not listed in the manifest. Once the
  * manifest has been acknowledged, both the manifest and the acknowledgement are copied to the
- * pipeline's logs directory.
+ * pipeline's log directory.
  * <p>
  * The individual files are tested for conformity by ensuring that the name of each file can be
  * translated into a location in the datastore, and that the location conforms to the directory tree

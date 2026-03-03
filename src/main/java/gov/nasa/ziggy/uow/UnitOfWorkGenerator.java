@@ -41,7 +41,7 @@ public interface UnitOfWorkGenerator {
         return unitsOfWork;
     }
 
-    /** Assigns brief states to a {@Link List} of {@link UnitOfWork} instances. */
+    /** Assigns brief states to a {@link List} of {@link UnitOfWork} instances. */
     default void setBriefStates(List<UnitOfWork> unitsOfWork,
         PipelineInstanceNode pipelineInstanceNode) {
         for (UnitOfWork uow : unitsOfWork) {

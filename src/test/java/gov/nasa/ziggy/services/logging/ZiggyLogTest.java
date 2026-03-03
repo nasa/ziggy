@@ -8,8 +8,6 @@ import static org.mockito.Mockito.spy;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,9 +18,6 @@ import java.util.regex.Matcher;
 
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,7 +74,7 @@ public class ZiggyLogTest {
         directoryRule);
 
     public ZiggyPropertyRule ziggyDirPropertyRule = new ZiggyPropertyRule(
-        PropertyName.ZIGGY_HOME_DIR, DirectoryProperties.workingDir().resolve("build").toString());
+        PropertyName.ZIGGY_HOME_DIR, DirectoryProperties.ziggyCodeBuildDir().toString());
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(directoryRule)
@@ -90,12 +85,6 @@ public class ZiggyLogTest {
     public void setUp() {
         pipelineTaskDataOperations = spy(PipelineTaskDataOperations.class);
         ZiggyLog.setPipelineTaskDataOperations(pipelineTaskDataOperations);
-    }
-
-    @After
-    public void teardown() throws InterruptedException, URISyntaxException, IOException {
-        LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        context.setConfigLocation(new URI(LOG4J_CONFIG_FILE));
     }
 
     @Test
@@ -248,32 +237,22 @@ public class ZiggyLogTest {
             .when(pipelineTaskDataOperations)
             .logFilename(pipelineTask, ZiggyLog.LOCAL_LOG_FILE_JOB_INDEX);
 
-        CommandLine commandLine = new CommandLine(DirectoryProperties.ziggyHomeDir()
-            .getParent()
-            .resolve("src")
-            .resolve("main")
-            .resolve("perl")
-            .resolve("ziggy.pl")
-            .toString());
+        CommandLine commandLine = new CommandLine(
+            Paths.get("src").resolve("main").resolve("perl").resolve("ziggy.pl").toString());
         commandLine.addArgument("--verbose");
         commandLine.addArgument(ZiggyLog.ziggyLogFileSystemProperty(pipelineTask));
         commandLine.addArgument(ZiggyLog.singleFileAppenderSystemProperty());
         commandLine.addArgument("-D" + PropertyName.LOG4J2_CONFIGURATION_FILE.property() + "="
             + LOG4J_CONFIG_PATH.toAbsolutePath().toString());
+        commandLine.addArgument("--ziggyHome=" + DirectoryProperties.ziggyCodeBuildDir());
         commandLine.addArgument("--class=" + TaskLogCreator.class.getName());
         commandLine.addArgument(message);
-
         ExternalProcess externalProcess = ExternalProcess.simpleExternalProcess(commandLine);
         externalProcess.setEnvironment(Map.of("JAVA_HOME",
             ZiggyConfiguration.getInstance().getString(PropertyName.JAVA_HOME.property()),
             "PIPELINE_CONFIG_PATH",
-            DirectoryProperties.ziggyHomeDir()
-                .getParent()
-                .resolve("sample-pipeline")
-                .resolve("etc")
-                .resolve("sample.properties")
-                .toString(),
-            "ZIGGY_ROOT", DirectoryProperties.ziggyHomeDir().getParent().toString()));
+            Paths.get("sample-pipeline").resolve("etc").resolve("sample.properties").toString(),
+            "ZIGGY_ROOT", Paths.get(".").toString()));
 
         externalProcess.execute();
     }
@@ -288,17 +267,13 @@ public class ZiggyLogTest {
             .when(pipelineTaskDataOperations)
             .logFilename(pipelineTask, ZiggyLog.LOCAL_LOG_FILE_JOB_INDEX);
 
-        CommandLine commandLine = new CommandLine(DirectoryProperties.ziggyHomeDir()
-            .getParent()
-            .resolve("src")
-            .resolve("main")
-            .resolve("perl")
-            .resolve("ziggy.pl")
-            .toString());
+        CommandLine commandLine = new CommandLine(
+            Paths.get("src").resolve("main").resolve("perl").resolve("ziggy.pl").toString());
         commandLine.addArgument(ZiggyLog.algorithmLogFileSystemProperty(pipelineTask));
         commandLine.addArgument(ZiggyLog.singleFileAppenderSystemProperty());
         commandLine.addArgument("-D" + PropertyName.LOG4J2_CONFIGURATION_FILE.property() + "="
             + LOG4J_CONFIG_PATH.toAbsolutePath().toString());
+        commandLine.addArgument("--ziggyHome=" + DirectoryProperties.ziggyCodeBuildDir());
         commandLine.addArgument("--class=" + TaskLogCreator.class.getName());
         commandLine.addArgument(message);
 
@@ -306,13 +281,8 @@ public class ZiggyLogTest {
         externalProcess.setEnvironment(Map.of("JAVA_HOME",
             ZiggyConfiguration.getInstance().getString(PropertyName.JAVA_HOME.property()),
             "PIPELINE_CONFIG_PATH",
-            DirectoryProperties.ziggyHomeDir()
-                .getParent()
-                .resolve("sample-pipeline")
-                .resolve("etc")
-                .resolve("sample.properties")
-                .toString(),
-            "ZIGGY_ROOT", DirectoryProperties.ziggyHomeDir().getParent().toString()));
+            Paths.get("sample-pipeline").resolve("etc").resolve("sample.properties").toString(),
+            "ZIGGY_ROOT", Paths.get(".").toString()));
 
         externalProcess.execute();
     }

@@ -2,7 +2,7 @@
 
 [[Previous]](../../README.md)
 [[Up]](user-manual.md)
-[[Next]](pipeline-architecture.md)
+[[Next]](quick-start.md)
 
 # Prerequisites and System Requirements
 
@@ -12,7 +12,7 @@ Ziggy is supported on Linux and macOS.
 
 For Linux, the following versions have been tested: SLES 11, SLES 12, RHEL 7, RHEL 8, and Debian through version 11 (bullseye). That said, we expect that any relatively recent version of Linux will suffice.
 
-For macOS, All versions from Snow Leopard (10.6) to Sonoma (14.7) have been used to build and run Ziggy. Both Intel and Apple M1 CPUs have been used.
+For macOS, All versions from Snow Leopard (10.6) to Sequoia (15.7) have been used to build and run Ziggy. Both Intel and Apple M1 CPUs have been used.
 
 ### RAM and Disk Space
 
@@ -29,4 +29,4 @@ Ziggy requires the following computer language resources:
 
 [[Previous]](../../README.md)
 [[Up]](user-manual.md)
-[[Next]](pipeline-architecture.md)
+[[Next]](quick-start.md)

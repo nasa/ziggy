@@ -7,6 +7,7 @@ def gitVersionProvider = providers.exec {
 
 task ziggyVersion(type: JavaExec, dependsOn: copyLibs) {
     inputs.property "ziggyVersion", gitVersionProvider.standardOutput.asText.get().trim()
+    inputs.property "previousBuildDir", buildDir
     outputs.file "$buildDir/etc/ziggy-build.properties"
     classpath = sourceSets.main.runtimeClasspath
     mainClass = "gov.nasa.ziggy.util.BuildInfo"
@@ -15,13 +16,6 @@ task ziggyVersion(type: JavaExec, dependsOn: copyLibs) {
 
 integrationTest.dependsOn ziggyVersion
 assemble.dependsOn ziggyVersion
-
-clean.doFirst() {
-    File supervisorPidFile = new File("$buildDir/bin/supervisor.pid");
-    if (supervisorPidFile.isFile()) {
-        throw new GradleException("Can't clean while cluster is running (run \"ziggy cluster stop\" to clear build/bin/supervisor.pid)")
-    }
-}
 
 // Some tests create readonly directories. Make them writable so they can be deleted.
 task fixTestPermissions(type: Exec) {

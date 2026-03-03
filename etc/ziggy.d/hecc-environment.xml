@@ -6,13 +6,12 @@
 
   <remoteEnvironment name="HECC" description="HECC" batchSystem="pbs" costUnit="SBU"
                      queueTimeMetricsClass="gov.nasa.ziggy.module.remote.NasQueueTimeMetrics">
-    <architecture name="ivy" description="Ivy Bridge" cores="20" ramGigabytes="64" cost="0.66"/>
-    <architecture name="has" description="Haswell" cores="24" ramGigabytes="128" cost="0.8"/>
-    <architecture name="bro" description="Broadwell" cores="28" ramGigabytes="128" cost="1.0"/>
+    <architecture name="bro_ele" description="Broadwell" cores="28" ramGigabytes="128" cost="1.0"/>
     <architecture name="sky_ele" description="Skylake" cores="40" ramGigabytes="192" cost="1.59"/>
     <architecture name="cas_ait" description="Cascade Lake" cores="40" ramGigabytes="192" cost="1.64"/>
     <architecture name="rom_ait" description="Rome" cores="128" ramGigabytes="512" cost="4.06"/>
     <architecture name="mil_ait" description="Milan" cores="128" ramGigabytes="512" cost="4.08"/>
+    <architecture name="tur_ath" description="Turin" cores="256" ramGigabytes="768" cost="12.19"/>
     <queue name="low" description="Low" maxWallTimeHours="4"/>
     <queue name="normal" description="Normal" maxWallTimeHours="8"/>
     <queue name="long" description="Long" maxWallTimeHours="120"/>

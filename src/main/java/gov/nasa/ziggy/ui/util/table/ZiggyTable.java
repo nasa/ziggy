@@ -515,8 +515,7 @@ public class ZiggyTable<T> {
         FontRenderContext fontRendererContext = table.getFontMetrics(table.getFont())
             .getFontRenderContext();
         Object tableValue = table.getValueAt(row, column);
-        String text = !StringUtils.isBlank(tableValue.toString()) ? tableValue.toString()
-            : "Default"; // provide some reasonable string to operate upon
+        String text = valueToText(tableValue);
         text = Jsoup.parse(text).text(); // strip HTML as it doesn't contribute to length
 
         // Since JEditorPane doesn't support CSS3's {word-wrap: break-word}, long words (like
@@ -565,6 +564,18 @@ public class ZiggyTable<T> {
             }
         }
         return (int) (height + descent);
+    }
+
+    private String valueToText(Object tableValue) {
+        String text = "Default"; // provide some reasonable string to operate upon
+        try {
+            if (tableValue != null && !StringUtils.isBlank(tableValue.toString())) {
+                text = tableValue.toString();
+            }
+        } catch (Exception ignore) {
+            // toString() threw an exception; use "default".
+        }
+        return text;
     }
 
     private List<Integer> wordBoundaries(String text) {

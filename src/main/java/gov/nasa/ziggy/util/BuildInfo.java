@@ -211,7 +211,6 @@ public class BuildInfo {
         externalProcess.logStdOut(false);
         externalProcess.writeStdErr(true);
         externalProcess.writeStdOut(true);
-        externalProcess.setWorkingDirectory(versionDir().toFile());
         externalProcess.run(true, 0);
         return externalProcess.stdout();
     }

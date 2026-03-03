@@ -72,7 +72,6 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<Pipeline>
         ziggyTable.loadFromDatabase();
     }
 
-    @SuppressWarnings("serial")
     @Override
     protected List<JButton> buttons() {
         List<JButton> buttons = super.buttons();

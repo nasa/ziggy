@@ -150,7 +150,7 @@ public class RuntimeObjectFactory extends DatabaseOperations {
     }
 
     /**
-     * Creates new {@Link PipelineTask}s for a given {@link PipelineInstanceNode} that are in step
+     * Creates new {@link PipelineTask}s for a given {@link PipelineInstanceNode} that are in step
      * WAITING_TO_RUN.
      */
     public List<PipelineTask> newPipelineTasks(PipelineInstanceNode instanceNode,

@@ -39,6 +39,7 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
     private List<TaskTimeInfo> tasks = new LinkedList<>();
     private TasksDisplayModel tasksDisplayModel = new TasksDisplayModel();
     private List<PipelineTaskDisplayData> completedTaskData = new ArrayList<>();
+    private volatile boolean tableUpdateInProgress;
     private JTable table;
 
     private final PipelineTaskOperations pipelineTaskOperations = new PipelineTaskOperations();
@@ -50,7 +51,13 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
     }
 
     @Override
-    public void loadFromDatabase() {
+    public synchronized void loadFromDatabase() {
+        if (tableUpdateInProgress) {
+            log.warn("Previous table update has not yet completed");
+            return;
+        }
+        tableUpdateInProgress = true;
+
         new SwingWorker<TableUpdater, Void>() {
             @Override
             protected TableUpdater doInBackground() throws Exception {
@@ -72,12 +79,13 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
                     ZiggyMessenger.publish(new TasksUpdatedMessage(TasksTableModel.this), false);
                 } catch (InterruptedException | ExecutionException e) {
                     log.error("Could not load pipeline tasks or attributes", e);
+                } finally {
+                    tableUpdateInProgress = false;
                 }
             }
         }.execute();
     }
 
-    // TODO: unit test
     List<PipelineTaskDisplayData> pipelineTasksDisplayData() {
         if (pipelineInstanceId <= 0) {
             pipelineInstance = null;
@@ -93,11 +101,11 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
         List<PipelineTaskDisplayData> pipelineTasksDisplayData = pipelineTaskDisplayDataOperations()
             .pipelineTaskDisplayData(pipelineInstance);
 
-        // Do not use the toList() method here because that returns an immutable
-        // list.
+        // Do not use Stream.toList() here because that returns an immutable list.
         completedTaskData = pipelineTasksDisplayData.stream()
             .filter(PipelineTaskDisplayData::isTaskProcessingFinished)
             .collect(Collectors.toList());
+
         return pipelineTasksDisplayData;
     }
 

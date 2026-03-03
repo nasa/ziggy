@@ -6,7 +6,7 @@
 
 ## The Datastore
 
-"The Datastore" is a $10 word for an organized directory tree where Ziggy keeps the permanent copies of its various kinds of data files. These include the actual files of mission data, data product files, and a particular kind of metadata known as "instrument model files."
+"The Datastore" refers to an organized directory tree where Ziggy keeps the permanent copies of its various kinds of data files. These include the actual files of mission data, data product files, and a particular kind of metadata known as "instrument model files."
 
 As the user, one of your jobs is to define the following for Ziggy:
 
@@ -198,7 +198,7 @@ Ziggy permanently stores every model of every kind that is imported into it. Thi
 But -- in the example above, the file name "regex" is a fixed string! This means that the only file name that Ziggy can possibly recognize as an instance of `dummy model` is `sample-model.txt`. So when I import a new version of `sample-model.txt` into the datastore, what happens? To answer that, let's take a look at the `dummy model` subdirectory of the `models` directory in the datastore:
 
 ```console
-models$ ls "dummy\ model"
+models$ ls -F "dummy\ model"
 2022-10-31.0001-sample-model.txt
 models$
 ```

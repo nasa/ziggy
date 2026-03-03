@@ -115,9 +115,9 @@ public class RemoteAlgorithmExecutor extends AlgorithmExecutor {
      * <p>
      * The {@link RemoteJob} instances for the given {@link PipelineTask} are retrieved and new
      * {@link RemoteJobInformation} instances are created for any remote jobs that are incomplete.
-     * If any RemoteJobInformation instances are created, the task is sent to the AlgorithmMonitor.
-     * If no RemoteJobInformation instances are created, it indicates that there are no incomplete
-     * remote jobs for the task, hence no monitoring resumption is attempted.
+     * Regardless of the state of the jobs, the pipeline task is sent to the algorithm monitor: the
+     * only reason this method is called is if it is already known that the task needs to resume
+     * monitoring.
      *
      * @return true if there were jobs to resume, false otherwise
      */
@@ -144,13 +144,13 @@ public class RemoteAlgorithmExecutor extends AlgorithmExecutor {
             remoteJobsInformation.add(remoteJobInformation);
         }
         if (CollectionUtils.isEmpty(remoteJobsInformation)) {
-            log.info("No running remote jobs detected, monitoring will not resume");
-            return false;
+            log.info("No remaining remote jobs for task {}", pipelineTask.getId());
+        } else {
+            log.info("{} running remote jobs detected for task {}", remoteJobsInformation.size(),
+                pipelineTask.getId());
         }
-        log.info("{} running remote jobs detected, monitoring will resume",
-            remoteJobsInformation.size());
         addToMonitor();
-        return true;
+        return !CollectionUtils.isEmpty(remoteJobsInformation);
     }
 
     protected void markRemoteJobFinished(RemoteJob remoteJob) {

@@ -6,6 +6,7 @@
  * with Hibernate, an object–relational mapping tool for the Java programming language.</li>
  * <li>The operations classes, which will be discussed in more detail shortly.</li>
  * <li>All other classes, which can only access the database through the operations classes.</li>
+ * </ol>
  * <p>
  * The goal of this architecture is to avoid the question, am I in a transaction? This is achieved
  * with the simple rule: The transaction boundary shall be confined to a single operations class.

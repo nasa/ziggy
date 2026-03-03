@@ -30,8 +30,10 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
+import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCountsTest;
 import gov.nasa.ziggy.pipeline.definition.TaskExecutionLog;
+import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles.SubtaskStateCounts;
 import gov.nasa.ziggy.pipeline.step.remote.BatchManager;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteJobInformation;
 
@@ -50,7 +52,7 @@ public class PipelineTaskDataOperationsTest {
     public void setUp() {
         pipelineTaskOperationsTest = new PipelineTaskOperationsTest();
         pipelineTaskOperationsTest.setUp();
-        pipelineTaskDataOperations = Mockito.spy(PipelineTaskDataOperations.class);
+        pipelineTaskDataOperations = new PipelineTaskDataOperations();
         pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
         pipelineOperationsTestUtils = new PipelineOperationsTestUtils();
@@ -180,6 +182,46 @@ public class PipelineTaskDataOperationsTest {
         pipelineTaskDataOperations.updateSubtaskCounts(pipelineTask, -1, -2, -3);
         TaskCountsTest.testSubtaskCounts(1, 2, 3,
             pipelineTaskDataOperations.subtaskCounts(pipelineTask));
+    }
+
+    @Test
+    public void testUpdateSubtaskCountsAndTaskState() {
+
+        // Set up and check the initial conditions of the pipeline task.
+        PipelineTask pipelineTask = pipelineOperationsTestUtils.getPipelineTasks().get(0);
+        pipelineTaskDataOperations.updateSubtaskCounts(pipelineTask, 10, 0, 0);
+        SubtaskCounts subtaskCounts = pipelineTaskDataOperations.subtaskCounts(pipelineTask);
+        assertEquals(10, subtaskCounts.getTotalSubtaskCount());
+        assertEquals(0, subtaskCounts.getCompletedSubtaskCount());
+        assertEquals(0, subtaskCounts.getFailedSubtaskCount());
+        assertEquals(ProcessingStep.WAITING_TO_RUN,
+            pipelineTaskDataOperations.processingStep(pipelineTask));
+
+        // Prepare the updated counts.
+        SubtaskStateCounts subtaskStateCounts = Mockito.mock(SubtaskStateCounts.class);
+        Mockito.when(subtaskStateCounts.getCompletedSubtasks()).thenReturn(2);
+        Mockito.when(subtaskStateCounts.getFailedSubtasks()).thenReturn(1);
+        pipelineTaskDataOperations.updateSubtaskCountsAndTaskState(pipelineTask, subtaskStateCounts,
+            false);
+        subtaskCounts = pipelineTaskDataOperations.subtaskCounts(pipelineTask);
+        assertEquals(10, subtaskCounts.getTotalSubtaskCount());
+        assertEquals(2, subtaskCounts.getCompletedSubtaskCount());
+        assertEquals(1, subtaskCounts.getFailedSubtaskCount());
+        assertEquals(ProcessingStep.WAITING_TO_RUN,
+            pipelineTaskDataOperations.processingStep(pipelineTask));
+
+        // Update both the counts and the processing step.
+        subtaskStateCounts = Mockito.mock(SubtaskStateCounts.class);
+        Mockito.when(subtaskStateCounts.getCompletedSubtasks()).thenReturn(4);
+        Mockito.when(subtaskStateCounts.getFailedSubtasks()).thenReturn(2);
+        pipelineTaskDataOperations.updateSubtaskCountsAndTaskState(pipelineTask, subtaskStateCounts,
+            true);
+        subtaskCounts = pipelineTaskDataOperations.subtaskCounts(pipelineTask);
+        assertEquals(ProcessingStep.EXECUTING,
+            pipelineTaskDataOperations.processingStep(pipelineTask));
+        assertEquals(10, subtaskCounts.getTotalSubtaskCount());
+        assertEquals(4, subtaskCounts.getCompletedSubtaskCount());
+        assertEquals(2, subtaskCounts.getFailedSubtaskCount());
     }
 
     @Test
@@ -453,6 +495,7 @@ public class PipelineTaskDataOperationsTest {
 
     private void mockRemoteJobUpdates() {
         BatchManager<?> batchManager = Mockito.mock(BatchManager.class);
+        pipelineTaskDataOperations = Mockito.spy(PipelineTaskDataOperations.class);
         Mockito.doReturn(batchManager)
             .when(pipelineTaskDataOperations)
             .batchManager(ArgumentMatchers.any(RemoteJob.class));

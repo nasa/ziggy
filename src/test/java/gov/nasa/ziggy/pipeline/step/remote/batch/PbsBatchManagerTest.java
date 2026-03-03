@@ -149,10 +149,8 @@ public class PbsBatchManagerTest {
             assertTrue(remoteJobInformationByJobName.containsKey(jobName));
             RemoteJobInformation remoteJobInformation = remoteJobInformationByJobName.get(jobName);
             assertTrue(remoteJobInformation.getLogFile()
-                .startsWith(resultsDir.resolve("logs")
-                    .resolve("pbs")
-                    .resolve("pbs-" + jobName)
-                    .toString()));
+                .startsWith(
+                    resultsDir.resolve("log").resolve("pbs").resolve("pbs-" + jobName).toString()));
             assertEquals("hecc", remoteJobInformation.getRemoteEnvironmentName());
             assertEquals(0.66, remoteJobInformation.getCostFactor(), 1e-6);
         }
@@ -175,7 +173,7 @@ public class PbsBatchManagerTest {
                 .toAbsolutePath()
                 .toString(), taskDir);
             assertTrue(logFile.startsWith(directoryRule.directory()
-                .resolve("logs")
+                .resolve("log")
                 .resolve("pbs")
                 .resolve("pbs-" + jobName)
                 .toAbsolutePath()

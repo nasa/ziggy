@@ -1,10 +1,10 @@
 // Generate XML schemas.
 task generateXmlSchemas(type: JavaExec, dependsOn: copyLibs) {
-    outputs.dir "$projectDir/build/schema/xml"
+    outputs.dir "$buildDir/schema/xml"
 
     mainClass.set("gov.nasa.ziggy.pipeline.xml.XmlSchemaExporter")
     classpath files(sourceSets.main.runtimeClasspath)
-    jvmArgs "-Djava.library.path=$buildDir/lib"
+    jvmArgs "-Djava.library.path=$buildDir/lib", "-Dziggy.build.dir=$buildDir"
     args "gov.nasa.ziggy.data.management.Acknowledgement",
         "gov.nasa.ziggy.data.management.Manifest",
         "gov.nasa.ziggy.pipeline.definition.ModelRegistry",
