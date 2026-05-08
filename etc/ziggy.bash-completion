@@ -55,11 +55,6 @@ _ziggy() {
         import-events)
             return;;
 
-        metrics)
-            commands="available dump report"
-            COMPREPLY=($(compgen -W "${commands}" -- ${cur}))
-            return;;
-
         perf-report)
             options="-force -id -nodes -taskdir"
             COMPREPLY=($(compgen -W "${options}" -- ${cur}))

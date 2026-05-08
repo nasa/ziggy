@@ -5,15 +5,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.Metric;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.util.PipelineException;
@@ -172,23 +169,6 @@ public abstract class PipelineStepExecutor {
      * anything. Hence, {@link Exception} rather than a subclass of {@link Exception}.
      */
     public abstract boolean processTask() throws Exception;
-
-    /**
-     * Update the PipelineTask.pipelineTaskMetrics.
-     * <p>
-     * This default implementation adds a single category ("ALL") with the overall execution time.
-     * <p>
-     * Subclasses can override this method to provide step-specific categories.
-     *
-     * @param pipelineTask
-     */
-    public void updateMetrics(PipelineTask pipelineTask, Map<String, Metric> threadMetrics,
-        long overallExecTimeMillis) {
-        List<PipelineTaskMetric> taskMetrics = new ArrayList<>();
-        PipelineTaskMetric m = new PipelineTaskMetric("All", overallExecTimeMillis, Units.TIME);
-        taskMetrics.add(m);
-        pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask, taskMetrics);
-    }
 
     public abstract String getPipelineStepName();
 

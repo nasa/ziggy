@@ -24,25 +24,25 @@ import gov.nasa.ziggy.util.io.ZiggyFileUtils;
  * @author Forrest Girouard
  * @author PT
  */
-public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
+public class LinuxProcInfo extends AbstractPosixProcInfo {
     private static final Logger log = LoggerFactory.getLogger(LinuxProcInfo.class);
 
     private static final String PROC_STATUS_FILE = "/usr/bin/more /proc/%d/status";
     private static final String PROC_LIMITS_FILE = "/usr/bin/more /proc/%d/limits";
+    private static final String PS_RSS_COMMAND = "/usr/bin/ps -o rss= -p";
+    private static final String PID_FORMAT = " %d";
 
     private static final String MAX_OPEN_FILES = "Max open files";
 
-    private final long pid;
-
     public LinuxProcInfo(long pid) {
         super(commandOutput(String.format(PROC_STATUS_FILE, pid)));
-        this.pid = pid;
+        setPid(pid);
     }
 
     public LinuxProcInfo() {
         super(commandOutput(
             String.format(PROC_STATUS_FILE, gov.nasa.ziggy.util.os.ProcessUtils.getPid())));
-        pid = gov.nasa.ziggy.util.os.ProcessUtils.getPid();
+        setPid(gov.nasa.ziggy.util.os.ProcessUtils.getPid());
     }
 
     @Override
@@ -66,7 +66,7 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
 
                 if (ppid == currentPid && (name == null || name.equals(processName))) {
                     // found a match
-                    log.info("Found child process, pid={}, name={}", pid, processName);
+                    log.debug("Found child process, pid={}, name={}", pid, processName);
                     childPids.add(pid);
                 }
             } catch (Exception e) {
@@ -80,11 +80,6 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
     @Override
     public long getParentPid() {
         return Integer.parseInt(get("PPid"));
-    }
-
-    @Override
-    public long getPid() {
-        return pid;
     }
 
     /**
@@ -126,5 +121,15 @@ public class LinuxProcInfo extends AbstractSysInfo implements ProcInfo {
             throw new UncheckedIOException("Read of pid file " + pidMaxFile.toString() + " failed",
                 e);
         }
+    }
+
+    @Override
+    public String psRssCommand() {
+        return PS_RSS_COMMAND;
+    }
+
+    @Override
+    public String pidFormat() {
+        return PID_FORMAT;
     }
 }

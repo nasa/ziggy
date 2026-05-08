@@ -3,7 +3,6 @@ package gov.nasa.ziggy.ui.status;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 
 import java.awt.event.ActionEvent;
-import java.text.SimpleDateFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -50,6 +49,7 @@ public class AlertsStatusPanel extends JPanel {
             ZiggySwingUtils.createButton("Ack", this::acknowledge));
         alertsTableModel = new AlertsTableModel();
         ZiggyTable<AlertMessage> ziggyTable = new ZiggyTable<>(alertsTableModel);
+        ziggyTable.setWrapText(true);
         ziggyTable.getTable().setShowVerticalLines(false);
         ziggyTable.getTable().setShowHorizontalLines(false);
         JScrollPane alertTableScrollPane = new JScrollPane(ziggyTable.getTable());
@@ -87,11 +87,8 @@ public class AlertsStatusPanel extends JPanel {
             "Message" };
 
         private final List<AlertMessage> alertMessages = new LinkedList<>();
-        private final SimpleDateFormat formatter;
 
         public AlertsTableModel() {
-            formatter = new SimpleDateFormat("MM/dd/yy HH:mm:ss");
-
             ZiggyMessenger.subscribe(AlertMessage.class, message -> {
                 addAlertMessage(message);
             });
@@ -151,7 +148,7 @@ public class AlertsStatusPanel extends JPanel {
             Alert alert = alertMessages.get(rowIndex).getAlertData();
 
             return switch (columnIndex) {
-                case 0 -> formatter.format(alert.getTimestamp());
+                case 0 -> alert.getTimestamp();
                 case 1 -> alert.getSourceComponent();
                 case 2 -> HostNameUtils.callerHostNameOrLocalhost(alert.getProcessHost());
                 case 3 -> alert.getSourceTask();

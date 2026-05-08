@@ -47,6 +47,7 @@ public class ParameterSetViewPanel extends javax.swing.JPanel {
     private JPanel createDataPanel(Set<ParameterSet> parameterSets) {
 
         ziggyTable = new ZiggyTable<>(new ParameterSetTableModel(parameterSets));
+        ziggyTable.setWrapText(true);
 
         JPanel growPanel = new JPanel(new BorderLayout());
         growPanel.add(new JScrollPane(ziggyTable.getTable()));

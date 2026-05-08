@@ -8,12 +8,12 @@ import org.hibernate.HibernateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.Pipeline;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions;
 import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions.ProcessingMode;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions_;
 import gov.nasa.ziggy.pipeline.definition.Pipeline_;
 

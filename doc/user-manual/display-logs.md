@@ -2,7 +2,7 @@
 
 [[Previous]](alerts.md)
 [[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](rerun-task.md)
+[[Next]](more-performance-report.md)
 
 ## Log Files Display
 
@@ -30,4 +30,4 @@ Note that this is the same content we saw in the subtask algorithm log in the su
 
 [[Previous]](alerts.md)
 [[Up]](ziggy-gui-troubleshooting.md)
-[[Next]](rerun-task.md)
+[[Next]](more-performance-report.md)

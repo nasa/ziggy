@@ -10,12 +10,12 @@ import org.hibernate.HibernateException;
 
 import com.google.common.collect.Lists;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 
 /**
  * This class provides CRUD methods for the AlertService

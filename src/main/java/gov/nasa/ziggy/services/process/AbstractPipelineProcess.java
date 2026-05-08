@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tanukisoftware.wrapper.WrapperManager;
 
-import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.services.database.DatabaseService;
@@ -14,11 +13,9 @@ import gov.nasa.ziggy.util.os.ProcessUtils;
 
 /**
  * Superclass for all pipeline process bootstrap classes. Provides common functionality, including
- * starting the {@link StatusMessageBroadcaster} for broadcasting {@link Metric}s, and a JMS
- * listener for handling basic administrative functions (shutdown, restart, status, pause, resume,
- * etc.)
+ * starting the {@link StatusMessageBroadcaster} for broadcasting messages.
  * <p>
- * "Pipeline processes" include daemons such as Data Receipt, Worker, File Store, etc.
+ * "Pipeline processes" include daemons such as Data Receipt, Worker, Data Store, etc.
  *
  * @author Todd Klaus
  */

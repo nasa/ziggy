@@ -8,6 +8,8 @@ import gov.nasa.ziggy.pipeline.step.remote.Architecture;
 import gov.nasa.ziggy.pipeline.step.remote.BatchQueue;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteArchitectureOptimizer;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteEnvironment;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.util.ProcessMemoryMonitor;
 import gov.nasa.ziggy.worker.WorkerResources;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -52,7 +54,8 @@ public class PipelineNodeExecutionResources {
     // Fields that control worker-side execution resource options.
     @OneToOne(cascade = CascadeType.ALL)
     private WorkerResources workerResources = new WorkerResources(0, 0F);
-
+    private Boolean memoryMonitorEnabled;
+    private double memoryMonitorIntervalSeconds;
     private int maxFailedSubtaskCount = 0;
     private int maxAutoResubmits = 0;
 
@@ -184,6 +187,32 @@ public class PipelineNodeExecutionResources {
         workerResources.setHeapSizeGigabytes(heapSizeGigabytes);
     }
 
+    /**
+     * Returns whether the memory monitor should be enabled. If null, retrieve values from
+     * {@link PropertyName#MEMORY_MONITOR_ENABLED} or
+     * {@link ProcessMemoryMonitor#DEFAULT_MEMORY_MONITOR_ENABLED}.
+     */
+    public Boolean isMemoryMonitorEnabled() {
+        return memoryMonitorEnabled;
+    }
+
+    public void setMemoryMonitorEnabled(boolean memoryMonitorEnabled) {
+        this.memoryMonitorEnabled = memoryMonitorEnabled;
+    }
+
+    /**
+     * Returns the memory monitor interval, in seconds. If 0, retrieve values from
+     * {@link PropertyName#MEMORY_MONITOR_INTERVAL} or
+     * {@link ProcessMemoryMonitor#DEFAULT_MEMORY_MONITOR_INTERVAL_SECONDS}.
+     */
+    public double getMemoryMonitorIntervalSeconds() {
+        return memoryMonitorIntervalSeconds;
+    }
+
+    public void setMemoryMonitorIntervalSeconds(double memoryMonitorIntervalSeconds) {
+        this.memoryMonitorIntervalSeconds = memoryMonitorIntervalSeconds;
+    }
+
     public int getMaxFailedSubtaskCount() {
         return maxFailedSubtaskCount;
     }
@@ -224,7 +253,7 @@ public class PipelineNodeExecutionResources {
         this.subtaskTypicalWallTimeHours = subtaskTypicalWallTimeHours;
     }
 
-    public double subtaskRamGigabytes() {
+    public double getSubtaskRamGigabytes() {
         return subtaskRamGigabytes;
     }
 

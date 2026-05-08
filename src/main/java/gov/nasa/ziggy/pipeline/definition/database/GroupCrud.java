@@ -6,9 +6,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
 import gov.nasa.ziggy.pipeline.definition.Group;
 import gov.nasa.ziggy.pipeline.definition.Group_;
+import gov.nasa.ziggy.services.database.AbstractCrud;
 import gov.nasa.ziggy.services.database.DatabaseService;
 
 /**

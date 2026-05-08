@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
-
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.worker.WorkerResources;
@@ -120,7 +118,7 @@ public class PipelineInstanceNode {
 
     @Override
     public String toString() {
-        return ReflectionToStringBuilder.toString(this);
+        return pipelineStepName;
     }
 
     public Set<ParameterSet> getParameterSets() {

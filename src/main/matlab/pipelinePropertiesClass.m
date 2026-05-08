@@ -5,7 +5,7 @@ classdef pipelinePropertiesClass < handle
 %
 %   This class wraps a handful of Java classes that do all the actual work of handling
 %   system properties, pipeline properties, and Ziggy properties. The class assumes that
-%   the environment variable PIPELINE_CONFIG_PATH contains the location of the pipeline's
+%   the environment variable ZIGGY_CONFIG_FILE contains the location of the pipeline's
 %   properties file, and that the pipeline properties file in turn contains the location
 %   of the Ziggy properties file. 
 %
@@ -31,7 +31,7 @@ function obj = pipelinePropertiesClass()
     import org.apache.commons.configuration.PropertiesConfiguration;
     import java.io.File ;
     
-    obj.pipelineConfigPath = getenv('PIPELINE_CONFIG_PATH') ;
+    obj.pipelineConfigPath = getenv('ZIGGY_CONFIG_FILE') ;
     
 %   construct the configuration object and populate it with the system configuration
 

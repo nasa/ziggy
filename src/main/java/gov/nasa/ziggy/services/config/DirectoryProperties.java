@@ -9,6 +9,7 @@ import org.apache.commons.configuration2.ImmutableConfiguration;
  * Provides one-stop shopping for various directory locations based on properties.
  *
  * @author PT
+ * @author Bill Wohler
  */
 public class DirectoryProperties {
 
@@ -21,13 +22,12 @@ public class DirectoryProperties {
     private static final String ALGORITHM_LOG_FILES_RELATIVE_PATH = "algorithms";
     private static final String DATABASE_LOG_FILES_RELATIVE_PATH = "db";
     private static final String SUPERVISOR_LOG_FILES_RELATIVE_PATH = "supervisor";
-    private static final String PI_LOG_FILES_RELATIVE_PATH = "pi";
     private static final String SCHEMA_DIR_RELATIVE_PATH = "schema";
     private static final String DEFINITION_DIR_RELATIVE_PATH = "ziggy.d";
     private static final String MANIFESTS_RELATIVE_PATH = "manifests";
-    private static final String MEMDRONE_RELATIVE_PATH = "memdrone";
     private static final String REPORTS_DIR_RELATIVE_PATH = "reports";
     private static final String PYTHON_VENV_RELATIVE_PATH = "env";
+    private static final String RUN_DIR_RELATIVE_PATH = "run";
 
     /**
      * Location of the bin directory relative to either {@link PropertyName#PIPELINE_HOME_DIR} or
@@ -49,51 +49,57 @@ public class DirectoryProperties {
 
     private static final String BUILD = "build";
 
+    // Methods are generally grouped by parent directory and sorted within each group.
+
     public static Path pipelineResultsDir() {
         return Paths
             .get(ZiggyConfiguration.getInstance().getString(PropertyName.RESULTS_DIR.property()));
-    }
-
-    public static Path taskDataDir() {
-        return pipelineResultsDir().resolve(TASK_DATA_RELATIVE_PATH);
     }
 
     public static Path logDir() {
         return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH);
     }
 
-    public static Path taskLogDir() {
-        return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
-            .resolve(TASK_LOG_FILES_RELATIVE_PATH);
-    }
-
-    public static Path cliLogDir() {
-        return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
-            .resolve(CLI_LOG_FILES_RELATIVE_PATH);
-    }
-
-    public static Path pbsLogDir() {
-        return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
-            .resolve(PBS_LOG_FILES_RELATIVE_PATH);
-    }
-
     public static Path algorithmLogsDir() {
-        return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
-            .resolve(ALGORITHM_LOG_FILES_RELATIVE_PATH);
+        return logDir().resolve(ALGORITHM_LOG_FILES_RELATIVE_PATH);
     }
 
-    public static Path piLogsDir() {
-        return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
-            .resolve(PI_LOG_FILES_RELATIVE_PATH);
+    // TODO Why isn't this used more?
+    public static Path cliLogDir() {
+        return logDir().resolve(CLI_LOG_FILES_RELATIVE_PATH);
     }
 
-    public static Path pipelineHomeDir() {
-        return Paths.get(
-            ZiggyConfiguration.getInstance().getString(PropertyName.PIPELINE_HOME_DIR.property()));
+    public static Path databaseLogDir() {
+        return logDir().resolve(DATABASE_LOG_FILES_RELATIVE_PATH);
     }
 
-    public static Path pipelineBinDir() {
-        return pipelineHomeDir().resolve(BIN_DIR_RELATIVE_PATH);
+    // TODO Unused?
+    public static Path pbsLogDir() {
+        return logDir().resolve(PBS_LOG_FILES_RELATIVE_PATH);
+    }
+
+    public static Path supervisorLogDir() {
+        return logDir().resolve(SUPERVISOR_LOG_FILES_RELATIVE_PATH);
+    }
+
+    public static Path taskLogDir() {
+        return logDir().resolve(TASK_LOG_FILES_RELATIVE_PATH);
+    }
+
+    public static Path manifestsDir() {
+        return pipelineResultsDir().resolve(MANIFESTS_RELATIVE_PATH);
+    }
+
+    public static Path reportsDir() {
+        return pipelineResultsDir().resolve(REPORTS_DIR_RELATIVE_PATH);
+    }
+
+    public static Path runDir() {
+        return pipelineResultsDir().resolve(RUN_DIR_RELATIVE_PATH);
+    }
+
+    public static Path taskDataDir() {
+        return pipelineResultsDir().resolve(TASK_DATA_RELATIVE_PATH);
     }
 
     public static Path ziggyHomeDir() {
@@ -106,10 +112,6 @@ public class DirectoryProperties {
         return ziggyHomeDir().resolve(BIN_DIR_RELATIVE_PATH);
     }
 
-    public static Path ziggyLibDir() {
-        return ziggyHomeDir().resolve(LIB_DIR_RELATIVE_PATH);
-    }
-
     public static Path ziggyEtcDir() {
         return ziggyHomeDir().resolve(ETC_DIR_RELATIVE_PATH);
     }
@@ -118,8 +120,36 @@ public class DirectoryProperties {
         return ziggyEtcDir().resolve(DEFINITION_DIR_RELATIVE_PATH);
     }
 
+    public static Path ziggyLibDir() {
+        return ziggyHomeDir().resolve(LIB_DIR_RELATIVE_PATH);
+    }
+
+    // TODO Currently unused, but ZiggyGuiConsole should use it
+    public static Path ziggyLogoDir() {
+        return ziggyHomeDir().resolve(Paths.get("resources", "main", "images"));
+    }
+
     public static Path ziggySchemaDir() {
         return ziggyHomeDir().resolve(SCHEMA_DIR_RELATIVE_PATH);
+    }
+
+    public static Path pipelineHomeDir() {
+        return Paths.get(
+            ZiggyConfiguration.getInstance().getString(PropertyName.PIPELINE_HOME_DIR.property()));
+    }
+
+    public static Path pipelineBinDir() {
+        return pipelineHomeDir().resolve(BIN_DIR_RELATIVE_PATH);
+    }
+
+    /** Location where Ziggy looks for Python virtual environments. */
+    public static Path pythonEnvDir() {
+        return pipelineHomeDir().resolve(PYTHON_VENV_RELATIVE_PATH);
+    }
+
+    public static Path pipelineDefinitionDir() {
+        return Paths.get(
+            ZiggyConfiguration.getInstance().getString(PropertyName.PIPELINE_DEFS_DIR.property()));
     }
 
     public static Path databaseSchemaDir() {
@@ -134,39 +164,6 @@ public class DirectoryProperties {
 
     public static Path ziggySchemaBuildDir() {
         return ziggyCodeBuildDir().resolve(SCHEMA_DIR_RELATIVE_PATH);
-    }
-
-    public static Path databaseLogDir() {
-        return pipelineResultsDir()
-            .resolve(Paths.get(LOG_FILES_RELATIVE_PATH, DATABASE_LOG_FILES_RELATIVE_PATH));
-    }
-
-    public static Path supervisorLogDir() {
-        return pipelineResultsDir()
-            .resolve(Paths.get(LOG_FILES_RELATIVE_PATH, SUPERVISOR_LOG_FILES_RELATIVE_PATH));
-    }
-
-    public static Path reportsDir() {
-        return pipelineResultsDir().resolve(LOG_FILES_RELATIVE_PATH)
-            .resolve(REPORTS_DIR_RELATIVE_PATH);
-    }
-
-    public static Path pipelineDefinitionDir() {
-        return Paths.get(
-            ZiggyConfiguration.getInstance().getString(PropertyName.PIPELINE_DEFS_DIR.property()));
-    }
-
-    public static Path ziggyLogoDir() {
-        return ziggyHomeDir().resolve(Paths.get("resources", "main", "images"));
-    }
-
-    public static Path manifestsDir() {
-        return pipelineResultsDir()
-            .resolve(Paths.get(LOG_FILES_RELATIVE_PATH, MANIFESTS_RELATIVE_PATH));
-    }
-
-    public static Path memdroneDir() {
-        return logDir().resolve(MEMDRONE_RELATIVE_PATH);
     }
 
     /**
@@ -222,13 +219,9 @@ public class DirectoryProperties {
             ZiggyConfiguration.getInstance().getString(PropertyName.DATASTORE_ROOT_DIR.property()));
     }
 
+    // TODO DataReceiptPipelineStepExecutor in Zowie should use this
     public static Path dataReceiptDir() {
         return Paths.get(
             ZiggyConfiguration.getInstance().getString(PropertyName.DATA_RECEIPT_DIR.property()));
-    }
-
-    /** Location where Ziggy looks for Python virtual environments. */
-    public static Path pythonEnvDir() {
-        return pipelineHomeDir().resolve(PYTHON_VENV_RELATIVE_PATH);
     }
 }

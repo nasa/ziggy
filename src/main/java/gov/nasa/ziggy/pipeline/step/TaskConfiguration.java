@@ -37,6 +37,8 @@ public class TaskConfiguration implements Persistable {
     private int activeCores;
     private int requestedTimeSeconds;
     private String executableName;
+    private boolean memoryMonitorEnabled;
+    private double memoryMonitorIntervalSeconds;
 
     public TaskConfiguration() {
     }
@@ -84,7 +86,11 @@ public class TaskConfiguration implements Persistable {
     }
 
     public void setInputsClass(Class<? extends PipelineInputs> inputsClass) {
-        inputsClassName = inputsClass.getName();
+        setInputsClassName(inputsClass.getName());
+    }
+
+    public void setInputsClassName(String inputsClassName) {
+        this.inputsClassName = inputsClassName;
     }
 
     @SuppressWarnings("unchecked")
@@ -98,7 +104,11 @@ public class TaskConfiguration implements Persistable {
     }
 
     public void setOutputsClass(Class<? extends PipelineOutputs> outputsClass) {
-        outputsClassName = outputsClass.getName();
+        setOutputsClassName(outputsClass.getName());
+    }
+
+    public void setOutputsClassName(String outputsClassName) {
+        this.outputsClassName = outputsClassName;
     }
 
     @SuppressWarnings("unchecked")
@@ -143,17 +153,31 @@ public class TaskConfiguration implements Persistable {
         this.executableName = executableName;
     }
 
-    // Note: it was necessary to get the class names for hashCode because you can't hash
-    // a Class object itself (i.e., hash(DatastoreDirectoryPipelineInputs.class) is not
-    // defined).
-    @Override
-    public int hashCode() {
-        return Objects.hash(inputsClassName, outputsClassName, subtaskCount);
+    public boolean isMemoryMonitorEnabled() {
+        return memoryMonitorEnabled;
     }
 
-    // Note: it was necessary to get the class names for equals because Class objects
-    // do not define equals() (i.e., equals(DatastoreDirectoryPipelineInputs.class) is not
-    // defined).
+    public void setMemoryMonitorEnabled(boolean memoryMonitorEnabled) {
+        this.memoryMonitorEnabled = memoryMonitorEnabled;
+    }
+
+    public double getMemoryMonitorIntervalSeconds() {
+        return memoryMonitorIntervalSeconds;
+    }
+
+    public void setMemoryMonitorIntervalSeconds(double memoryMonitorIntervalSeconds) {
+        this.memoryMonitorIntervalSeconds = memoryMonitorIntervalSeconds;
+    }
+
+    // taskDir is excluded since it is not serialized.
+    @Override
+    public int hashCode() {
+        return Objects.hash(activeCores, executableName, heapSizeGigabytes, inputsClassName,
+            memoryMonitorEnabled, memoryMonitorIntervalSeconds, outputsClassName,
+            requestedTimeSeconds, subtaskCount);
+    }
+
+    // taskDir is excluded since it is not serialized.
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -163,8 +187,16 @@ public class TaskConfiguration implements Persistable {
             return false;
         }
         TaskConfiguration other = (TaskConfiguration) obj;
-        return Objects.equals(inputsClassName, other.inputsClassName)
+        return activeCores == other.activeCores
+            && Objects.equals(executableName, other.executableName)
+            && Float.floatToIntBits(heapSizeGigabytes) == Float
+                .floatToIntBits(other.heapSizeGigabytes)
+            && Objects.equals(inputsClassName, other.inputsClassName)
+            && memoryMonitorEnabled == other.memoryMonitorEnabled
+            && Double.doubleToLongBits(memoryMonitorIntervalSeconds) == Double
+                .doubleToLongBits(other.memoryMonitorIntervalSeconds)
             && Objects.equals(outputsClassName, other.outputsClassName)
+            && requestedTimeSeconds == other.requestedTimeSeconds
             && subtaskCount == other.subtaskCount;
     }
 }

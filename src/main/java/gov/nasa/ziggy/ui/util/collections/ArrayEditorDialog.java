@@ -14,7 +14,7 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.lang.reflect.Array;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.GroupLayout;
@@ -202,7 +202,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
 
     private static class ArrayEditorTableModel extends AbstractTableModel {
 
-        private List<Object> elements = new LinkedList<>();
+        private List<Object> elements = new ArrayList<>();
 
         private ZiggyDataType componentType;
 
@@ -227,7 +227,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
         }
 
         public List<String> asStringList() {
-            List<String> newList = new LinkedList<>();
+            List<String> newList = new ArrayList<>();
             for (Object element : elements) {
                 newList.add(ZiggyDataType.objectToString(element));
             }
@@ -235,7 +235,7 @@ public class ArrayEditorDialog extends javax.swing.JDialog {
         }
 
         public void replaceWith(List<String> newValues) {
-            elements = new LinkedList<>();
+            elements = new ArrayList<>();
             for (String newValue : newValues) {
                 elements.add(componentType.typedValue(newValue));
             }

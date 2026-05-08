@@ -30,7 +30,7 @@ public enum RemoteArchitectureOptimizer {
             Architecture optimalArchitecture = null;
             for (Architecture architecture : architecturesWithSufficientRam) {
                 double newCoreRatio = Math.min(1, architecture.gigsPerCore()
-                    / batchParameters.executionResources().subtaskRamGigabytes());
+                    / batchParameters.executionResources().getSubtaskRamGigabytes());
                 if (newCoreRatio > coreRatio) {
                     coreRatio = newCoreRatio;
                     optimalArchitecture = architecture;
@@ -135,7 +135,7 @@ public enum RemoteArchitectureOptimizer {
      */
     public static List<Architecture> architecturesWithSufficientRam(
         BatchParameters batchParameters) {
-        double gigsPerSubtask = batchParameters.executionResources().subtaskRamGigabytes();
+        double gigsPerSubtask = batchParameters.executionResources().getSubtaskRamGigabytes();
         List<Architecture> architecturesWithSufficientRam = batchParameters.executionResources()
             .getRemoteEnvironment()
             .getArchitectures()

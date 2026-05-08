@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](display-logs.md)
+[[Previous]](more-performance-report.md)
 [[Up]](ziggy-gui-troubleshooting.md)
 [[Next]](halt-tasks.md)
 
@@ -59,6 +59,6 @@ If we re-run the task, it will re-run with the same values for all parameters. T
 
 In real life, it's possible that you'll encounter a situation like this one, in which a task fails and the only way to get it to run successfully is to change the values of some algorithm parameters. In that case, you won't be able to re-run because re-run doesn't let you change the parameters. In that case, you'll need to change the parameters and use the pipelines panel to start a new pipeline instance. In the more common cases (software bug that had to be fixed, failure due to some sort of hardware problem, etc.), re-running a task offers the possibility of getting failed subtasks to run to completion. For example, in this case we could simulate "fixing" the problem updating the code to ignore the `throw exception subtask 0 parameter`.
 
-[[Previous]](display-logs.md)
+[[Previous]](more-performance-report.md)
 [[Up]](ziggy-gui-troubleshooting.md)
 [[Next]](halt-tasks.md)

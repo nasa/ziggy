@@ -21,9 +21,6 @@ public interface ProcInfo extends SysInfo {
      */
     long getParentPid();
 
-    /**
-     * Return the PID.
-     */
     long getPid();
 
     /**
@@ -37,4 +34,13 @@ public interface ProcInfo extends SysInfo {
      * Return the maximum process id value.
      */
     long getMaximumPid();
+
+    /**
+     * Returns the memory used by the given process, in bytes, or -1 if unable to obtain memory
+     * usage from the OS.
+     */
+    long getMemoryBytes();
+
+    /** Returns the memory used by the process and any descendant processes, as {@link String}s. */
+    List<String> getProcessMemoryUsage();
 }

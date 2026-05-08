@@ -14,8 +14,6 @@ import gov.nasa.ziggy.ReflectionEquals;
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.ZiggyUnitTestUtils;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.crud.SimpleCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.Pipeline;
@@ -23,6 +21,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import gov.nasa.ziggy.util.PipelineException;
 
 // TODO Rename to PipelineOperationsTest and adjust

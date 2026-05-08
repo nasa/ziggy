@@ -17,7 +17,6 @@ import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -29,7 +28,6 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
@@ -39,7 +37,6 @@ import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 
-import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.netbeans.swing.etable.ETable;
 import org.netbeans.swing.outline.DefaultOutlineModel;
@@ -53,7 +50,6 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.models.AbstractZiggyTableModel;
 import gov.nasa.ziggy.ui.util.models.DatabaseModel;
 import gov.nasa.ziggy.ui.util.models.ZiggyTreeModel;
-import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.dispmod.ModelContentClass;
 
 /**
@@ -111,7 +107,7 @@ public class ZiggyTable<T> {
     private boolean shadeRows = true;
     private boolean resizing;
     private WrappingCellRenderer wrappingCellRenderer = new WrappingCellRenderer();
-    private DateCellRenderer dateCellRenderer = new DateCellRenderer();
+    private SpreadsheetCellRenderer spreadsheetCellRenderer = new SpreadsheetCellRenderer();
     private Map<String, Boolean> expansionState;
     private boolean defaultGroupExpansionState = true;
     private TableModel tableModel;
@@ -131,7 +127,6 @@ public class ZiggyTable<T> {
         this.tableModel = tableModel;
         table = new ZiggyETable();
         table.setModel(tableModel);
-        wrapText = true;
         setPreferredViewportSizeFromModel();
     }
 
@@ -206,7 +201,7 @@ public class ZiggyTable<T> {
      * warning if the caller attempts to enable cell text wrapping.
      */
     public void setWrapText(boolean wrapText) {
-        if (table instanceof Outline || wrapText) {
+        if (table instanceof Outline && wrapText) {
             log.warn("Text wrapping not supported for ZiggyTables in Outline mode");
             return;
         }
@@ -429,7 +424,7 @@ public class ZiggyTable<T> {
      * Returns row content from multiple rows of the table.
      */
     public List<T> getContentAtSelectedRows() {
-        List<T> selectedContent = new LinkedList<>();
+        List<T> selectedContent = new ArrayList<>();
         int[] selectedRows = table.getSelectedRows();
         for (int selectedRow : selectedRows) {
             if (selectedRow >= 0) {
@@ -515,7 +510,7 @@ public class ZiggyTable<T> {
         FontRenderContext fontRendererContext = table.getFontMetrics(table.getFont())
             .getFontRenderContext();
         Object tableValue = table.getValueAt(row, column);
-        String text = valueToText(tableValue);
+        String text = SpreadsheetCellRenderer.valueToText(tableValue);
         text = Jsoup.parse(text).text(); // strip HTML as it doesn't contribute to length
 
         // Since JEditorPane doesn't support CSS3's {word-wrap: break-word}, long words (like
@@ -566,18 +561,6 @@ public class ZiggyTable<T> {
         return (int) (height + descent);
     }
 
-    private String valueToText(Object tableValue) {
-        String text = "Default"; // provide some reasonable string to operate upon
-        try {
-            if (tableValue != null && !StringUtils.isBlank(tableValue.toString())) {
-                text = tableValue.toString();
-            }
-        } catch (Exception ignore) {
-            // toString() threw an exception; use "default".
-        }
-        return text;
-    }
-
     private List<Integer> wordBoundaries(String text) {
         List<Integer> wordBoundaries = new ArrayList<>();
         Matcher matcher = WHITESPACE_PUNCTUATION.matcher(text);
@@ -607,8 +590,17 @@ public class ZiggyTable<T> {
      */
     private TableCellRenderer getCellRenderer(int row, int column,
         TableCellRenderer jTableRenderer) {
-        return isCellContentWrappable(row, column) ? wrappingCellRenderer
-            : table.getValueAt(row, column) instanceof Date ? dateCellRenderer : jTableRenderer;
+        Object value = table.getValueAt(row, column);
+        if (isCellContentWrappable(row, column)) {
+            return wrappingCellRenderer;
+        }
+
+        // Object value = table.getValueAt(row, column);
+        if (value instanceof Date || value instanceof Number || value instanceof String) {
+            return spreadsheetCellRenderer;
+        }
+
+        return jTableRenderer;
     }
 
     /**
@@ -664,54 +656,6 @@ public class ZiggyTable<T> {
         private TableCellRenderer superclassOrDefaultRenderer(int row, int column) {
             return getValueAt(row, column) != null ? super.getCellRenderer(row, column)
                 : getDefaultRenderer(String.class);
-        }
-    }
-
-    /**
-     * Implementation of {@link TableCellRenderer} that displays dates in a YYYY-MM-DD hh:mm:ss
-     * format.
-     *
-     * @see WrappingCellRenderer
-     * @author Bill Wohler
-     */
-    public class DateCellRenderer extends DefaultTableCellRenderer {
-
-        private static final long serialVersionUID = 20230927L;
-        private Color unselectedForeground;
-        private Color unselectedBackground;
-
-        @Override
-        public void setForeground(Color c) {
-            super.setForeground(c);
-            unselectedForeground = c;
-        }
-
-        @Override
-        public void setBackground(Color c) {
-            super.setBackground(c);
-            unselectedBackground = c;
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-            boolean isSelected, boolean hasFocus, int row, int column) {
-
-            checkArgument(value instanceof Date,
-                "DateCellRenderer can only render Date, not " + value.getClass().getSimpleName());
-
-            if (isSelected) {
-                super.setForeground(table.getSelectionForeground());
-                super.setBackground(table.getSelectionBackground());
-            } else {
-                super.setForeground(
-                    unselectedForeground != null ? unselectedForeground : table.getForeground());
-                super.setBackground(
-                    unselectedBackground != null ? unselectedBackground : table.getBackground());
-            }
-
-            setText(Iso8601Formatter.javaDateTimeSansMillisLocalFormatter().format(value));
-
-            return this;
         }
     }
 }

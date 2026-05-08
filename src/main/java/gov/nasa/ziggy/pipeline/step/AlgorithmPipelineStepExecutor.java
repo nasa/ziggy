@@ -1,23 +1,9 @@
 package gov.nasa.ziggy.pipeline.step;
 
-import static gov.nasa.ziggy.pipeline.step.PipelineCategories.LOCAL_CATEGORIES;
-import static gov.nasa.ziggy.pipeline.step.PipelineCategories.LOCAL_CATEGORY_UNITS;
-import static gov.nasa.ziggy.pipeline.step.PipelineCategories.REMOTE_CATEGORIES;
-import static gov.nasa.ziggy.pipeline.step.PipelineCategories.REMOTE_CATEGORY_UNITS;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.CREATE_INPUTS_METRIC;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.LOCAL_METRICS;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.PENDING_RECEIVE_METRIC;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.PLEIADES_QUEUE_METRIC;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.PLEIADES_WALL_METRIC;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.REMOTE_METRICS;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.REMOTE_WORKER_WAIT_METRIC;
-import static gov.nasa.ziggy.pipeline.step.PipelineMetrics.STORE_OUTPUTS_METRIC;
-
 import java.io.File;
 import java.nio.file.Path;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,26 +14,26 @@ import org.slf4j.LoggerFactory;
 import gov.nasa.ziggy.data.datastore.DatastoreFileManager;
 import gov.nasa.ziggy.data.datastore.DatastoreFileManager.InputFiles;
 import gov.nasa.ziggy.data.management.DatastoreProducerConsumerOperations;
-import gov.nasa.ziggy.metrics.IntervalMetric;
-import gov.nasa.ziggy.metrics.Metric;
-import gov.nasa.ziggy.metrics.ValueMetric;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputs;
 import gov.nasa.ziggy.pipeline.step.io.PipelineInputsOutputsUtils;
 import gov.nasa.ziggy.pipeline.step.io.PipelineOutputs;
 import gov.nasa.ziggy.pipeline.step.remote.RemoteAlgorithmExecutor;
+import gov.nasa.ziggy.pipeline.step.subtask.AlgorithmWallTimes;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.util.ProcessMemoryMonitor;
+import gov.nasa.ziggy.util.SystemProxy;
 import gov.nasa.ziggy.util.ZiggyUtils;
+import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import gov.nasa.ziggy.worker.WorkerResources;
 import gov.nasa.ziggy.worker.WorkerResourcesOperations;
 
@@ -64,6 +50,7 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
 
     private static final long DATABASE_RETRY_INTERVAL_MILLIS = 50L;
     private static final int DATABASE_RETRIES = 50;
+
     /**
      * List of valid processing steps.
      */
@@ -138,12 +125,21 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
         log.info("Processing step {}...", ProcessingStep.MARSHALING);
         boolean successful;
         File taskDir = getTaskDir(true);
-        IntervalMetric.measure(CREATE_INPUTS_METRIC, () -> {
-            copyFilesToTaskDirectory(taskDir);
-            pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask(),
-                taskConfiguration().getSubtaskCount(), 0, 0);
-        });
+        long startTimestamp = SystemProxy.currentTimeMillis();
 
+        try {
+            copyFilesToTaskDirectory(taskDir);
+        } finally {
+            pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask,
+                List.of(marshalingTimeMetric(SystemProxy.currentTimeMillis() - startTimestamp)));
+        }
+        pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask(),
+            taskConfiguration().getSubtaskCount(), 0, 0);
+
+        PipelineTaskMetric inputsSizeMetric = inputsSizeMetric();
+
+        pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask,
+            List.of(inputsSizeMetric));
         // Set the heap size parameter in the TaskConfiguration and serialize.
         if (pipelineTaskDataOperations().subtaskCounts(pipelineTask())
             .getTotalSubtaskCount() != 0) {
@@ -165,6 +161,20 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
         log.info("Processing step {}...done", ProcessingStep.MARSHALING);
     }
 
+    PipelineTaskMetric marshalingTimeMetric(long marshalingTimeMillis) {
+        PipelineTaskMetric marshalingTimeMetric = new PipelineTaskMetric(
+            PipelineTaskMetric.Metric.MARSHALING_TIME);
+        marshalingTimeMetric.updateValue(marshalingTimeMillis);
+        return marshalingTimeMetric;
+    }
+
+    PipelineTaskMetric inputsSizeMetric() {
+        PipelineTaskMetric inputsSizeMetric = new PipelineTaskMetric(
+            PipelineTaskMetric.Metric.INPUTS_SIZE);
+        inputsSizeMetric.updateValue(ZiggyFileUtils.directorySizeBytes(getTaskDir().toPath()));
+        return inputsSizeMetric;
+    }
+
     /**
      * Returns the heap size value to be used for before / after algorithm execution. In the case of
      * remote execution where node sharing is enabled, this will be the subtask's RAM requirement;
@@ -177,7 +187,7 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
         PipelineNodeExecutionResources executionResources = pipelineTaskOperations()
             .executionResources(pipelineTask());
         return isRemote() && executionResources.isNodeSharing()
-            ? executionResources.subtaskRamGigabytes()
+            ? executionResources.getSubtaskRamGigabytes()
             : workerResources.getHeapSizeGigabytes() / workerResources.getMaxWorkerCount();
     }
 
@@ -212,12 +222,27 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
      * task.
      */
     private void serializeTaskConfiguration() {
+        PipelineNodeExecutionResources executionResources = pipelineTaskOperations()
+            .executionResources(pipelineTask());
+
         taskConfiguration().setSubtaskCount(
             pipelineTaskDataOperations().subtaskCounts(pipelineTask()).getTotalSubtaskCount());
         taskConfiguration().setHeapSizeGigabytes((float) beforeAfterHeapSizeGigabytes());
         taskConfiguration().setActiveCores(executor().activeCores());
         taskConfiguration().setRequestedTimeSeconds(executor().wallTime());
         taskConfiguration().setExecutableName(pipelineTask().getExecutableName());
+        taskConfiguration()
+            .setMemoryMonitorEnabled(executionResources.isMemoryMonitorEnabled() != null
+                ? executionResources.isMemoryMonitorEnabled()
+                : ZiggyConfiguration.getInstance()
+                    .getBoolean(PropertyName.MEMORY_MONITOR_ENABLED.property(),
+                        ProcessMemoryMonitor.DEFAULT_MEMORY_MONITOR_ENABLED));
+        taskConfiguration().setMemoryMonitorIntervalSeconds(
+            executionResources.getMemoryMonitorIntervalSeconds() != 0
+                ? executionResources.getMemoryMonitorIntervalSeconds()
+                : ZiggyConfiguration.getInstance()
+                    .getDouble(PropertyName.MEMORY_MONITOR_INTERVAL.property(),
+                        ProcessMemoryMonitor.DEFAULT_MEMORY_MONITOR_INTERVAL_SECONDS));
         taskConfiguration().serialize(getTaskDir());
     }
 
@@ -274,30 +299,11 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
     public void storingTaskAction() {
 
         log.info("Processing step {}...", ProcessingStep.STORING);
-        if (isRemote()) {
-            long startTransferTime = System.currentTimeMillis();
+        List<PipelineTaskMetric> pipelineTaskMetrics = new ArrayList<>(
+            List.of(outputsSizeMetric()));
 
-            // add metrics for "RemoteWorker", "PleiadesQueue", "Matlab",
-            // "PendingReceive"
-            long remoteWorkerTime = timestampFileElapsedTimeMillis(
-                TimestampFile.Event.ARRIVE_COMPUTE_NODES, TimestampFile.Event.QUEUED);
-            long pleiadesQueueTime = timestampFileElapsedTimeMillis(TimestampFile.Event.QUEUED,
-                TimestampFile.Event.START);
-            long pleiadesWallTime = timestampFileElapsedTimeMillis(TimestampFile.Event.START,
-                TimestampFile.Event.FINISH);
-            long pendingReceiveTime = startTransferTime
-                - timestampFileTimestamp(TimestampFile.Event.FINISH);
-
-            log.info("remoteWorkerTime = {}", remoteWorkerTime);
-            log.info("pleiadesQueueTime = {}", pleiadesQueueTime);
-            log.info("pleiadesWallTime = {}", pleiadesWallTime);
-            log.info("pendingReceiveTime = {}", pendingReceiveTime);
-
-            valueMetricAddValue(REMOTE_WORKER_WAIT_METRIC, remoteWorkerTime);
-            valueMetricAddValue(PLEIADES_QUEUE_METRIC, pleiadesQueueTime);
-            valueMetricAddValue(PLEIADES_WALL_METRIC, pleiadesWallTime);
-            valueMetricAddValue(PENDING_RECEIVE_METRIC, pendingReceiveTime);
-        }
+        // See whether processing failed badly enough that we need to abandon any
+        // attempt at persisting outputs.
         ProcessingFailureSummary failureSummary = processingFailureSummary();
         boolean abandonPersisting = false;
         if (!failureSummary.isAllTasksSucceeded() && !failureSummary.isAllTasksFailed()) {
@@ -315,23 +321,60 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
             abandonPersisting = true;
         }
         if (abandonPersisting) {
+            pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask,
+                pipelineTaskMetrics);
             throw new PipelineException("Unable to persist due to subtask failures");
         }
 
-        IntervalMetric.measure(STORE_OUTPUTS_METRIC, () -> {
-            // process outputs
-            persistResultsAndUpdateConsumers();
-            return null;
-        });
+        // Persist outputs.
+        long startTimestamp = SystemProxy.currentTimeMillis();
+        try {
+            persistOutputs();
+        } finally {
+            long persistingTimeMillis = SystemProxy.currentTimeMillis() - startTimestamp;
+            pipelineTaskMetrics.add(persistTimeMetric(persistingTimeMillis));
+        }
 
-        // TODO This message seems orphaned
-        log.info("Checking for input files that produced no output");
+        pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask, pipelineTaskMetrics);
+        generateWallTimesFile();
 
         // Finally, update status
         checkHaltRequest(ProcessingStep.STORING);
         doneLooping = true;
         processingSuccessful = true;
         log.info("Processing step {}...done", ProcessingStep.STORING);
+    }
+
+    PipelineTaskMetric outputsSizeMetric() {
+        List<PipelineTaskMetric> databaseMetrics = pipelineTaskDataOperations()
+            .pipelineTaskMetrics(pipelineTask);
+        long inputsSizeBytes = 0;
+        for (PipelineTaskMetric databaseMetric : databaseMetrics) {
+            if (databaseMetric.getMetric() == PipelineTaskMetric.Metric.INPUTS_SIZE) {
+                inputsSizeBytes = databaseMetric.getValue();
+                break;
+            }
+        }
+        PipelineTaskMetric outputsSizeMetric = new PipelineTaskMetric(
+            PipelineTaskMetric.Metric.OUTPUTS_SIZE);
+        outputsSizeMetric.updateValue(
+            ZiggyFileUtils.directorySizeBytes(getTaskDir().toPath()) - inputsSizeBytes);
+        return outputsSizeMetric;
+    }
+
+    PipelineTaskMetric persistTimeMetric(long persistTimeMillis) {
+        PipelineTaskMetric persistTimeMetric = new PipelineTaskMetric(
+            PipelineTaskMetric.Metric.PERSISTING_TIME);
+        persistTimeMetric.updateValue(persistTimeMillis);
+        return persistTimeMetric;
+    }
+
+    /**
+     * Delegator that calls the {@link #persistResultsAndUpdateConsumers()} method. Protected access
+     * so subclasses can override it.
+     */
+    protected void persistOutputs() {
+        persistResultsAndUpdateConsumers();
     }
 
     /** Process and store the algorithm outputs and update producer-consumer database table. */
@@ -364,6 +407,10 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
                     inputFiles.getFilesWithoutOutputs()
                         + " input files produced no output, see log for details");
         }
+    }
+
+    void generateWallTimesFile() {
+        AlgorithmWallTimes.generateSubtaskWallTimesFile(pipelineTask());
     }
 
     Set<Path> datastorePathsToRelative(Set<Path> datastorePaths) {
@@ -452,77 +499,6 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
         }
     }
 
-    @Override
-    public void updateMetrics(PipelineTask pipelineTask, Map<String, Metric> threadMetrics,
-        long overallExecTimeMillis) {
-
-        if (!pipelineTask.equals(pipelineTask())) {
-            throw new PipelineException("processTask called with incorrect pipeline task");
-        }
-
-        List<PipelineTaskMetric> pipelineTaskMetrics = pipelineTaskDataOperations()
-            .pipelineTaskMetrics(pipelineTask);
-
-        log.debug("Thread Metrics:");
-        for (String threadMetricName : threadMetrics.keySet()) {
-            log.debug("TM: {}: {}", threadMetricName,
-                threadMetrics.get(threadMetricName).getLogString());
-        }
-
-        // cross-reference existing summary metrics by category
-        Map<String, PipelineTaskMetric> pipelineTaskMetricByCategory = new HashMap<>();
-        for (PipelineTaskMetric pipelineTaskMetric : pipelineTaskMetrics) {
-            pipelineTaskMetricByCategory.put(pipelineTaskMetric.getCategory(), pipelineTaskMetric);
-        }
-
-        String[] categories;
-        String[] metrics;
-        Units[] units;
-
-        if (isRemote()) {
-            categories = REMOTE_CATEGORIES;
-            metrics = REMOTE_METRICS;
-            units = REMOTE_CATEGORY_UNITS;
-        } else {
-            categories = LOCAL_CATEGORIES;
-            metrics = LOCAL_METRICS;
-            units = LOCAL_CATEGORY_UNITS;
-        }
-
-        for (int i = 0; i < categories.length; i++) {
-            String category = categories[i];
-            String metricName = metrics[i];
-            Units unit = units[i];
-
-            long totalTime = 0;
-
-            Metric metric = threadMetrics.get(metricName);
-            if (metric instanceof ValueMetric) {
-                ValueMetric iMetric = (ValueMetric) metric;
-                totalTime = iMetric.getSum();
-            } else {
-                log.info("Step did not provide metric with name = {}", metricName);
-            }
-
-            log.info("TaskID={}, category={}, time(ms)={}", pipelineTask, category, totalTime);
-
-            PipelineTaskMetric m = pipelineTaskMetricByCategory.get(category);
-            if (m == null) {
-                m = new PipelineTaskMetric(category, totalTime, unit);
-                pipelineTaskMetrics.add(m);
-            }
-
-            // don't overwrite the existing value if no value was recorded for
-            // this category
-            // on this invocation
-            if (totalTime > 0) {
-                m.setValue(totalTime);
-            }
-        }
-
-        pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask, pipelineTaskMetrics);
-    }
-
     /**
      * Returns the valid processing steps for this pipeline step.
      */
@@ -543,19 +519,6 @@ public class AlgorithmPipelineStepExecutor extends PipelineStepExecutor {
 
     public boolean isRemote() {
         return executor() instanceof RemoteAlgorithmExecutor;
-    }
-
-    long timestampFileElapsedTimeMillis(TimestampFile.Event startEvent,
-        TimestampFile.Event finishEvent) {
-        return TimestampFile.elapsedTimeMillis(getTaskDir(), startEvent, finishEvent, pipelineTask);
-    }
-
-    long timestampFileTimestamp(TimestampFile.Event event) {
-        return TimestampFile.eventTimeMillis(getTaskDir(), event, pipelineTask);
-    }
-
-    ValueMetric valueMetricAddValue(String name, long value) {
-        return ValueMetric.addValue(name, value);
     }
 
     ProcessingFailureSummary processingFailureSummary() {

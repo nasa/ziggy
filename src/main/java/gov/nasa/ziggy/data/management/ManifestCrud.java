@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.data.management;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 
 /**
  * CRUD class for {@link Manifest} instances.

@@ -4,10 +4,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.UniqueNameVersionPipelineComponent;
 import gov.nasa.ziggy.pipeline.definition.UniqueNameVersionPipelineComponent_;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import gov.nasa.ziggy.util.PipelineException;
 
 /**

@@ -292,7 +292,8 @@ public class PipelineTaskData implements Comparable<PipelineTaskData> {
     }
 
     public void setPipelineTaskMetrics(List<PipelineTaskMetric> pipelineTaskMetrics) {
-        this.pipelineTaskMetrics = pipelineTaskMetrics;
+        this.pipelineTaskMetrics.clear();
+        this.pipelineTaskMetrics.addAll(pipelineTaskMetrics);
     }
 
     public List<TaskExecutionLog> getTaskExecutionLogs() {

@@ -84,7 +84,7 @@ public class PipelineImportOperationsTest {
 
         PipelineNodeExecutionResources databaseNodeResources = new PipelineNodeOperations()
             .pipelineNodeExecutionResources(rootNode);
-        assertEquals(10, databaseNodeResources.subtaskRamGigabytes(), 1e-9);
+        assertEquals(10, databaseNodeResources.getSubtaskRamGigabytes(), 1e-9);
         assertEquals(10, databaseNodeResources.getMaxAutoResubmits());
 
         List<PipelineStep> pipelineSteps = testOperations.pipelineSteps();

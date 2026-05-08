@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.pipeline.step;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,6 +21,7 @@ import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
@@ -55,6 +57,13 @@ public class AlgorithmMonitor implements Runnable {
     private static final long REMOTE_POLL_INTERVAL_MILLIS = 10 * 1000; // 10 secs
     private static final long LOCAL_POLL_INTERVAL_MILLIS = 2 * 1000; // 2 seconds
     private static final long FINISHED_JOBS_POLL_INTERVAL_MILLIS = 10 * 1000;
+
+    private static final Map<PipelineTaskMetric.Metric, TimestampFile.Event> startEventByMetric = Map
+        .of(PipelineTaskMetric.Metric.QUEUE_TIME, TimestampFile.Event.QUEUED,
+            PipelineTaskMetric.Metric.ALGORITHM_TIME, TimestampFile.Event.START);
+    private static final Map<PipelineTaskMetric.Metric, TimestampFile.Event> finishEventByMetric = Map
+        .of(PipelineTaskMetric.Metric.QUEUE_TIME, TimestampFile.Event.START,
+            PipelineTaskMetric.Metric.ALGORITHM_TIME, TimestampFile.Event.FINISH);
 
     private ScheduledThreadPoolExecutor threadPool = new ScheduledThreadPoolExecutor(1);
 
@@ -163,7 +172,7 @@ public class AlgorithmMonitor implements Runnable {
     }
 
     // Protected access for unit tests.
-    protected final void addToMonitor(MonitorAlgorithmRequest request) {
+    final void addToMonitor(MonitorAlgorithmRequest request) {
         List<RemoteJobInformation> remoteJobsInformation = request.getRemoteJobsInformation();
         log.info("Starting algorithm monitoring for task {}", request.getPipelineTask());
         if (!CollectionUtils.isEmpty(remoteJobsInformation)) {
@@ -180,7 +189,7 @@ public class AlgorithmMonitor implements Runnable {
 
     // Actions to be taken when a task monitor reports that a task is done.
     // Protected access for unit tests.
-    protected final void endTaskMonitoring(PipelineTask pipelineTask) {
+    final void endTaskMonitoring(PipelineTask pipelineTask) {
 
         // When the worker that persists the results exits, it will cause
         // this method to execute even though the algorithm is no longer under
@@ -193,6 +202,11 @@ public class AlgorithmMonitor implements Runnable {
         // update processing state
         pipelineTaskDataOperations().updateProcessingStep(pipelineTask,
             ProcessingStep.WAITING_TO_STORE);
+
+        // Create the pipeline task metrics for queue time and algorithm time.
+        for (PipelineTaskMetric.Metric metric : startEventByMetric.keySet()) {
+            persistMetric(pipelineTask, metric);
+        }
 
         // It may be the case that all the subtasks are processed, but that
         // there are jobs still running, or (more likely) queued. We can address
@@ -211,6 +225,21 @@ public class AlgorithmMonitor implements Runnable {
 
         // Figure out what needs to happen next, and do it.
         determineDisposition(pipelineTask).performActions(this, pipelineTask);
+    }
+
+    /** Updates a pipeline task metric if the start timestamp file is present. */
+    private void persistMetric(PipelineTask pipelineTask, PipelineTaskMetric.Metric metric) {
+
+        Path taskDir = taskMonitorByTask.get(pipelineTask).getTaskDir();
+        long elapsedTime = TimestampFile.elapsedTimeMillis(taskDir.toFile(),
+            startEventByMetric.get(metric), finishEventByMetric.get(metric));
+        if (elapsedTime < 0) {
+            return;
+        }
+        PipelineTaskMetric pipelineTaskMetric = new PipelineTaskMetric(metric);
+        pipelineTaskMetric.updateValue(elapsedTime);
+        pipelineTaskDataOperations().updatePipelineTaskMetrics(pipelineTask,
+            List.of(pipelineTaskMetric));
     }
 
     private void updateRemoteJobs(PipelineTask pipelineTask) {

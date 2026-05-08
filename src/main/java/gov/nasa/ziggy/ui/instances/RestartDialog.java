@@ -10,7 +10,6 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -171,7 +170,7 @@ public class RestartDialog extends javax.swing.JDialog {
                 }
             }
 
-            allRestartAttributes = new LinkedList<>(
+            allRestartAttributes = new ArrayList<>(
                 restartAttributesByPipelineProcessingSteps.values());
 
             log.debug("allRestartAttributes.size()={}", allRestartAttributes.size());

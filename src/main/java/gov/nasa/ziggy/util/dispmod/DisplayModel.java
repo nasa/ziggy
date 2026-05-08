@@ -1,7 +1,6 @@
 package gov.nasa.ziggy.util.dispmod;
 
 import java.io.PrintStream;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import gov.nasa.ziggy.util.ZiggyStringUtils;
@@ -10,11 +9,10 @@ import gov.nasa.ziggy.util.ZiggyStringUtils;
  * Superclass for all DisplayModel classes. Contains abstract methods and print logic
  *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 public abstract class DisplayModel {
     private static final int COLUMN_SPACING = 2;
-
-    private static SimpleDateFormat dateFormat = new SimpleDateFormat();
 
     public abstract int getRowCount();
 
@@ -24,19 +22,21 @@ public abstract class DisplayModel {
 
     public abstract String getColumnName(int column);
 
+    public abstract int getAlignment(int column);
+
     public void print(PrintStream ps) {
         print(ps, null);
     }
 
     public void print(PrintStream ps, String title) {
-        // print title if specified
+        // Print title if specified.
         if (title != null && title.length() > 0) {
             ps.println();
             ps.println(title);
             ps.println();
         }
 
-        // determine column widths
+        // Determine column widths.
         int[] columnWidths = new int[getColumnCount()];
         for (int column = 0; column < getColumnCount(); column++) {
             columnWidths[column] = Math.max(0, getColumnName(column).length() + COLUMN_SPACING);
@@ -46,7 +46,7 @@ public abstract class DisplayModel {
             }
         }
 
-        // print column headers
+        // Print column headers.
         for (int column = 0; column < getColumnCount(); column++) {
             ps.print(ZiggyStringUtils.pad(getColumnName(column), columnWidths[column]));
         }
@@ -59,7 +59,7 @@ public abstract class DisplayModel {
         }
         ps.println();
 
-        // print table data
+        // Print table data.
         for (int row = 0; row < getRowCount(); row++) {
             for (int column = 0; column < getColumnCount(); column++) {
                 ps.print(
@@ -91,19 +91,5 @@ public abstract class DisplayModel {
 
     public static double getProcessingHours(double processingMillis) {
         return processingMillis / (1000.0 * 60.0 * 60.0);
-    }
-
-    protected String formatDouble(double d) {
-        if (Double.isNaN(d)) {
-            return "-";
-        }
-        return String.format("%.3f", d);
-    }
-
-    public synchronized static String formatDate(Date d) {
-        if (d.getTime() == 0) {
-            return "-";
-        }
-        return dateFormat.format(d);
     }
 }

@@ -8,8 +8,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -35,7 +35,7 @@ public class ArrayImportExportUtils {
      * @throws IOException
      */
     public static List<String> importArray(File file) throws IOException {
-        List<String> values = new LinkedList<>();
+        List<String> values = new ArrayList<>();
         BufferedReader reader = null;
 
         try {

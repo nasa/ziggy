@@ -14,7 +14,6 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Test;
 
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
 import gov.nasa.ziggy.uow.UnitOfWork;
 
 /**
@@ -38,10 +37,10 @@ public class PipelineTaskDataTest {
     private static final int WORKER_THREAD = 24;
     private static final String WORKER_NAME = WORKER_HOST + ":" + WORKER_THREAD;
     private static final ExecutionClock EXECUTION_CLOCK = new ExecutionClock();
-    private static final int COMPLETED_SUBTASK_COUNT = 2;
+    private static final int MARSHALING_TIME_MILLIS = 2;
     private static final int FAILED_SUBTASK_COUNT = 3;
     private static final int RUNNING_SUBTASK_COUNT = 1;
-    private static final int TOTAL_SUBTASK_COUNT = COMPLETED_SUBTASK_COUNT + FAILED_SUBTASK_COUNT
+    private static final int TOTAL_SUBTASK_COUNT = MARSHALING_TIME_MILLIS + FAILED_SUBTASK_COUNT
         - RUNNING_SUBTASK_COUNT;
     private static final int FAILURE_COUNT = 4;
     private PipelineTask pipelineTask;
@@ -65,12 +64,14 @@ public class PipelineTaskDataTest {
         pipelineTaskData.setProcessingStep(PROCESSING_STEP);
         pipelineTaskData.setWorkerHost(WORKER_HOST);
         pipelineTaskData.setWorkerThread(WORKER_THREAD);
-        pipelineTaskData.setCompletedSubtaskCount(COMPLETED_SUBTASK_COUNT);
+        pipelineTaskData.setCompletedSubtaskCount(MARSHALING_TIME_MILLIS);
         pipelineTaskData.setFailedSubtaskCount(FAILED_SUBTASK_COUNT);
         pipelineTaskData.setTotalSubtaskCount(TOTAL_SUBTASK_COUNT);
         pipelineTaskData.setFailureCount(FAILURE_COUNT);
-        pipelineTaskMetrics = List
-            .of(new PipelineTaskMetric(PIPELINE_STEP_NAME, RUNNING_SUBTASK_COUNT, Units.RATE));
+        PipelineTaskMetric pipelineTaskMetric = new PipelineTaskMetric(
+            PipelineTaskMetric.Metric.MARSHALING_TIME);
+        pipelineTaskMetric.updateValue(MARSHALING_TIME_MILLIS);
+        pipelineTaskMetrics = List.of(pipelineTaskMetric);
         pipelineTaskData.setPipelineTaskMetrics(pipelineTaskMetrics);
         RemoteJob remoteJob = new RemoteJob(1);
         remoteJob.setCostEstimate(42.0);
@@ -173,7 +174,7 @@ public class PipelineTaskDataTest {
 
     @Test
     public void testGetCompletedSubtaskCount() {
-        assertEquals(COMPLETED_SUBTASK_COUNT, pipelineTaskDisplayData.getCompletedSubtaskCount());
+        assertEquals(MARSHALING_TIME_MILLIS, pipelineTaskDisplayData.getCompletedSubtaskCount());
     }
 
     @Test

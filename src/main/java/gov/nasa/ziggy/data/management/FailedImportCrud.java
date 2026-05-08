@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 
 /**
  * CRUD class for {@link FailedImport} instances.

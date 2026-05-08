@@ -35,6 +35,11 @@ public class ZiggyStringUtils {
     public static final String EMPTY = org.apache.commons.lang3.StringUtils.EMPTY;
 
     /**
+     * Value shown in tables when no data is available.
+     */
+    public static final String NO_DATA = "-";
+
+    /**
      * A pattern that represents part of an enumerated constant name that either has no underscore
      * or has one leading underscore. For example, if <code>ONE_TWO</code> is an enumeration
      * constant, it has two parts, "ONE" and "_TWO". This pattern is used to convert an enumeration

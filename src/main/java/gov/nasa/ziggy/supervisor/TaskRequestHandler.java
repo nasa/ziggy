@@ -12,7 +12,6 @@ import org.apache.commons.exec.CommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
@@ -182,17 +181,10 @@ public class TaskRequestHandler implements Runnable, Requestor {
             pipelineTaskDataOperations().taskErrored(pipelineTask);
         }
 
-        // Finalize the task's memdrone activities.
         boolean taskErrored = pipelineTaskDataOperations().hasErrored(pipelineTask);
         log.info("task={}, retried={}, errored={}", pipelineTask,
             pipelineTaskDataOperations().retrying(pipelineTask), taskErrored);
 
-        Memdrone memdrone = new Memdrone(pipelineTask.getPipelineStepName(),
-            pipelineTask.getPipelineInstanceId());
-        if (Memdrone.memdroneEnabled()) {
-            memdrone.createStatsCache();
-            memdrone.createPidMapCache();
-        }
         log.info("Finished processing taskRequest={}", taskRequest);
     }
 
@@ -220,7 +212,6 @@ public class TaskRequestHandler implements Runnable, Requestor {
         // Next come the JVM arguments -- note that we don't need to set the
         // classpath to include both Ziggy and pipelines because the ziggy program
         // handles that automatically.
-        commandLine.addArgument(ZiggyLog.log4jConfigString());
         commandLine.addArgument(ExternalProcessUtils.javaLibraryPath());
 
         int processHeapSizeGigabytes = Math.round(heapSizeGigabytes / workerCount);

@@ -8,13 +8,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -27,7 +26,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
-import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Units;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
@@ -248,44 +247,6 @@ public class PipelineTaskDataOperationsTest {
     }
 
     @Test
-    public void testPipelineTaskMetrics() {
-        PipelineTask pipelineTask = pipelineOperationsTestUtils.getPipelineTasks().get(0);
-
-        List<PipelineTaskMetric> existingPipelineTaskMetrics = pipelineTaskDataOperations
-            .pipelineTaskMetrics(pipelineTask);
-        assertEquals(1, existingPipelineTaskMetrics.size());
-        assertEquals(42, existingPipelineTaskMetrics.get(0).getValue());
-
-        Map<PipelineTask, List<PipelineTaskMetric>> taskMetricsByTask = createPipelineTaskMetrics(
-            List.of(pipelineTask));
-
-        existingPipelineTaskMetrics = pipelineTaskDataOperations.pipelineTaskMetrics(pipelineTask);
-        assertEquals(3, existingPipelineTaskMetrics.size());
-        Map<String, PipelineTaskMetric> metricByCategory = existingPipelineTaskMetrics.stream()
-            .collect(Collectors.toMap(PipelineTaskMetric::getCategory, Function.identity()));
-        for (PipelineTaskMetric pipelineTaskMetric : taskMetricsByTask.get(pipelineTask)) {
-            assertEquals(pipelineTaskMetric,
-                metricByCategory.get(pipelineTaskMetric.getCategory()));
-        }
-
-        PipelineTaskMetric pipelineTaskMetric = new PipelineTaskMetric("metric4", 400, Units.RATE);
-        existingPipelineTaskMetrics.add(pipelineTaskMetric);
-        pipelineTaskDataOperations.updatePipelineTaskMetrics(pipelineTask,
-            existingPipelineTaskMetrics);
-        existingPipelineTaskMetrics = pipelineTaskDataOperations.pipelineTaskMetrics(pipelineTask);
-        assertEquals(4, existingPipelineTaskMetrics.size());
-        assertTrue(existingPipelineTaskMetrics.contains(pipelineTaskMetric));
-
-        pipelineTaskMetric = existingPipelineTaskMetrics.get(0);
-        existingPipelineTaskMetrics.remove(pipelineTaskMetric);
-        pipelineTaskDataOperations.updatePipelineTaskMetrics(pipelineTask,
-            existingPipelineTaskMetrics);
-        existingPipelineTaskMetrics = pipelineTaskDataOperations.pipelineTaskMetrics(pipelineTask);
-        assertEquals(3, existingPipelineTaskMetrics.size());
-        assertFalse(existingPipelineTaskMetrics.contains(pipelineTaskMetric));
-    }
-
-    @Test
     public void testTaskMetricsByTask() {
         Map<PipelineTask, List<PipelineTaskMetric>> expectedTaskMetricsByTask = createPipelineTaskMetrics(
             pipelineOperationsTestUtils.getPipelineTasks());
@@ -299,19 +260,14 @@ public class PipelineTaskDataOperationsTest {
         List<PipelineTask> pipelineTasks) {
         Map<PipelineTask, List<PipelineTaskMetric>> taskMetricsByTask = new HashMap<>();
 
-        int pipelineTaskIndex = 100;
         for (PipelineTask pipelineTask : pipelineTasks) {
-            List<PipelineTaskMetric> pipelineTaskMetrics = new ArrayList<>();
-            pipelineTaskMetrics
-                .add(new PipelineTaskMetric("metric1", pipelineTaskIndex + 1, Units.TIME));
-            pipelineTaskMetrics
-                .add(new PipelineTaskMetric("metric2", pipelineTaskIndex + 2, Units.BYTES));
-            pipelineTaskMetrics
-                .add(new PipelineTaskMetric("metric3", pipelineTaskIndex + 3, Units.RATE));
-            taskMetricsByTask.put(pipelineTask, pipelineTaskMetrics);
-            pipelineTaskDataOperations.updatePipelineTaskMetrics(pipelineTask, pipelineTaskMetrics);
-            pipelineTaskIndex += 100;
+            List<PipelineTaskMetric> metrics = new ArrayList<>();
+            PipelineTaskMetric metric = new PipelineTaskMetric(Metric.PERSISTING_TIME);
+            metric.updateValue(42);
+            metrics.add(metric);
+            taskMetricsByTask.put(pipelineTask, metrics);
         }
+
         return taskMetricsByTask;
     }
 
@@ -510,5 +466,49 @@ public class PipelineTaskDataOperationsTest {
         Mockito.when(batchManager.getUpdatedCostEstimate(job9101154)).thenReturn(10.0);
         Mockito.when(batchManager.getUpdatedCostEstimate(job9102337)).thenReturn(4.0);
         Mockito.when(batchManager.getUpdatedCostEstimate(job6020203)).thenReturn(0.0);
+    }
+
+    @Test
+    public void testUpdatePipelineTaskMetrics() {
+        PipelineTask pipelineTask = pipelineOperationsTestUtils.getPipelineTasks().get(0);
+        List<PipelineTaskMetric> pipelineTaskMetrics = pipelineTaskDataOperations
+            .pipelineTaskMetrics(pipelineTask);
+        assertEquals(PipelineTaskMetric.Metric.PERSISTING_TIME,
+            pipelineTaskMetrics.get(0).getMetric());
+        assertEquals(42L, pipelineTaskMetrics.get(0).getValue());
+        assertEquals(1, pipelineTaskMetrics.size());
+
+        // Update the existing metric and add a new one.
+        PipelineTaskMetric persistingTimeMetric = new PipelineTaskMetric(
+            PipelineTaskMetric.Metric.PERSISTING_TIME);
+        persistingTimeMetric.updateValue(1);
+        PipelineTaskMetric inputSizeMetric = new PipelineTaskMetric(
+            PipelineTaskMetric.Metric.INPUTS_SIZE);
+        inputSizeMetric.updateValue(100);
+        pipelineTaskDataOperations.updatePipelineTaskMetrics(pipelineTask,
+            List.of(persistingTimeMetric, inputSizeMetric));
+
+        // The persisting time should be incremented, the inputs size should match the
+        // value of the metric created above.
+        pipelineTaskMetrics = pipelineTaskDataOperations.pipelineTaskMetrics(pipelineTask);
+        Collections.sort(pipelineTaskMetrics);
+        assertEquals(PipelineTaskMetric.Metric.PERSISTING_TIME,
+            pipelineTaskMetrics.get(0).getMetric());
+        assertEquals(43L, pipelineTaskMetrics.get(0).getValue());
+        assertEquals(PipelineTaskMetric.Metric.INPUTS_SIZE, pipelineTaskMetrics.get(1).getMetric());
+        assertEquals(100L, pipelineTaskMetrics.get(1).getValue());
+
+        // Update the inputs size metric.
+        inputSizeMetric.updateValue(200);
+        pipelineTaskDataOperations.updatePipelineTaskMetrics(pipelineTask,
+            List.of(inputSizeMetric));
+
+        pipelineTaskMetrics = pipelineTaskDataOperations.pipelineTaskMetrics(pipelineTask);
+        Collections.sort(pipelineTaskMetrics);
+        assertEquals(PipelineTaskMetric.Metric.PERSISTING_TIME,
+            pipelineTaskMetrics.get(0).getMetric());
+        assertEquals(43L, pipelineTaskMetrics.get(0).getValue());
+        assertEquals(PipelineTaskMetric.Metric.INPUTS_SIZE, pipelineTaskMetrics.get(1).getMetric());
+        assertEquals(200L, pipelineTaskMetrics.get(1).getValue());
     }
 }

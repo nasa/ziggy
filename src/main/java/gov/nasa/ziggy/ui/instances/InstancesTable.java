@@ -10,7 +10,6 @@ import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -31,12 +30,11 @@ import org.netbeans.swing.etable.ETableColumnModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.report.PerformanceReport;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance.State;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceFilter;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
-import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.report.PerformanceReport;
 import gov.nasa.ziggy.services.events.ZiggyEvent;
 import gov.nasa.ziggy.services.events.ZiggyEventOperations;
 import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
@@ -88,7 +86,6 @@ public class InstancesTable extends JPanel {
     private void createInstancesTable(PipelineInstanceFilter instancesFilter) {
         instancesTable = new ZiggyTable<>(instancesTableModel(instancesFilter));
         instancesTableModel.setTable(getTable());
-        instancesTable.setWrapText(false);
         for (int column = 0; column < InstancesTableModel.COLUMN_WIDTHS.length; column++) {
             instancesTable.setPreferredColumnWidth(column,
                 InstancesTableModel.COLUMN_WIDTHS[column]);
@@ -172,9 +169,9 @@ public class InstancesTable extends JPanel {
             return null;
         }
         return createPopupMenu(createMenuItem("Details" + DIALOG, this::displayDetails),
-            createMenuItem("Performance report" + DIALOG, this::displayPerformanceReport),
             createMenuItem("Alerts" + DIALOG, this::displayAlerts),
             createMenuItem("Performance statistics" + DIALOG, this::displayStatistics),
+            createMenuItem("Performance report" + DIALOG, this::displayPerformanceReport),
             createMenuItem("Estimate cost" + DIALOG, this::estimateCost),
             ZiggySwingUtils.MENU_SEPARATOR, createMenuItem("Restart" + DIALOG, this::restartTasks),
             ZiggySwingUtils.MENU_SEPARATOR,
@@ -192,8 +189,7 @@ public class InstancesTable extends JPanel {
     }
 
     private void displayPerformanceReport(ActionEvent evt) {
-        PerformanceReport report = new PerformanceReport(selectedPipelineInstance().getId(),
-            DirectoryProperties.taskDataDir().toFile(), null);
+        PerformanceReport report = new PerformanceReport(selectedPipelineInstance().getId());
 
         new SwingWorker<Path, Void>() {
             @Override
@@ -289,7 +285,7 @@ public class InstancesTable extends JPanel {
             ZiggySwingUtils.textWidth(new JLabel(), "00:00:00") };
 
         private final PipelineInstanceFilter filter;
-        private List<InstanceEventInfo> instanceEventInfoList = new LinkedList<>();
+        private List<InstanceEventInfo> instanceEventInfoList = new ArrayList<>();
         private JTable table;
 
         private final PipelineInstanceOperations pipelineInstanceOperations = new PipelineInstanceOperations();

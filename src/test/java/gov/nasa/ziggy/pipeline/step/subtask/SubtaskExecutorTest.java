@@ -9,6 +9,8 @@ import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_HOME_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.ZIGGY_LOG_SINGLE_FILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,8 +31,10 @@ import org.mockito.Mockito;
 import gov.nasa.ziggy.ZiggyDirectoryRule;
 import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineInputsSample;
+import gov.nasa.ziggy.data.management.DataFileTestUtils.PipelineOutputsSample;
 import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
 import gov.nasa.ziggy.services.process.ExternalProcess;
+import gov.nasa.ziggy.util.ProcessMemoryMonitor;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
 /**
@@ -48,6 +52,7 @@ public class SubtaskExecutorTest {
     private File subtaskDir;
     private SubtaskExecutor externalProcessExecutor;
     private ExternalProcess externalProcess;
+    private ProcessMemoryMonitor processMemoryMonitor = Mockito.mock(ProcessMemoryMonitor.class);
     private TaskConfiguration taskConfigurationManager = new TaskConfiguration();
     private File buildDir;
     private File binDir;
@@ -166,7 +171,7 @@ public class SubtaskExecutorTest {
 
         setUpMockedObjects();
 
-        Mockito.when(externalProcess.execute()).thenReturn(0);
+        Mockito.when(externalProcess.waitAndReturnStatus()).thenReturn(0);
         int retCode = externalProcessExecutor.runInputsOutputsCommand(PipelineInputsSample.class);
         CommandLine commandLine = externalProcessExecutor
             .inputsOutputsCommandLine(PipelineInputsSample.class);
@@ -176,7 +181,6 @@ public class SubtaskExecutorTest {
             [/path/to/ziggy/build/bin/ziggy, --verbose,\s\
             -Xmx0M,\s\
             -Djava.library.path=path1:path2:/path/to/ziggy/build/lib,\s\
-            -Dlog4j2.configurationFile=/path/to/ziggy/build/etc/log4j2.xml,\s\
             -Dziggy.log.single.file=""" + logFilePropertyRule.getValue() + """
             ,\s\
             -Dziggy.log.appender=singleFile,\s\
@@ -195,7 +199,7 @@ public class SubtaskExecutorTest {
 
         setUpMockedObjects();
 
-        Mockito.when(externalProcess.execute()).thenReturn(1);
+        Mockito.when(externalProcess.waitAndReturnStatus()).thenReturn(1);
         int retCode = externalProcessExecutor.runInputsOutputsCommand(PipelineInputsSample.class);
         assertEquals(1, retCode);
     }
@@ -227,7 +231,7 @@ public class SubtaskExecutorTest {
 
         setUpMockedObjects();
 
-        Mockito.when(externalProcess.execute()).thenReturn(0);
+        Mockito.when(externalProcess.waitAndReturnStatus()).thenReturn(0);
         List<String> cmdLineArgs = new ArrayList<>();
         cmdLineArgs.add("dummyArg1");
         cmdLineArgs.add("dummyArg2");
@@ -236,6 +240,10 @@ public class SubtaskExecutorTest {
         Mockito.verify(externalProcess).setWorkingDirectory(subtaskDir);
         Mockito.verify(externalProcess).setCommandLine(commandLine);
         Mockito.verify(externalProcess).mergeWithEnvironment(ArgumentMatchers.anyMap());
+        Mockito.verify(externalProcess).waitAndReturnStatus();
+        Mockito.verify(externalProcessExecutor)
+            .externalProcess(ArgumentMatchers.any(Writer.class),
+                ArgumentMatchers.any(Writer.class));
         String cmdString = commandLine.toString();
         assertEquals(0, retCode);
 
@@ -245,22 +253,42 @@ public class SubtaskExecutorTest {
         assertTrue(cmdString.endsWith("pa, dummyArg1, dummyArg2]"));
     }
 
-    private void setUpMockedObjects() throws IOException {
-        externalProcess = Mockito.mock(MockableExternalProcess.class);
-        externalProcessExecutor = SubtaskExecutorFactory.newInstance(subtaskMaster);
-        externalProcessExecutor = Mockito.spy(externalProcessExecutor);
-        Mockito.doReturn("pa").when(externalProcessExecutor).pipelineStepName();
+    @Test
+    public void testMemoryMonitoring() throws IOException {
 
-        Mockito.when(externalProcessExecutor.externalProcess(ArgumentMatchers.isNull(),
-            ArgumentMatchers.isNull())).thenReturn(externalProcess);
-        Mockito.when(externalProcessExecutor.externalProcess(ArgumentMatchers.any(Writer.class),
-            ArgumentMatchers.any(Writer.class))).thenReturn(externalProcess);
+        setUpMockedObjects();
+
+        Mockito.doReturn(taskConfigurationManager)
+            .when(externalProcessExecutor)
+            .getTaskConfiguration();
+        taskConfigurationManager.setInputsClass(PipelineInputsSample.class);
+        taskConfigurationManager.setOutputsClass(PipelineOutputsSample.class);
+
+        Mockito.when(externalProcess.waitAndReturnStatus()).thenReturn(0);
+        when(externalProcess.processId()).thenReturn(100L).thenReturn(101L).thenReturn(102L);
+
+        externalProcessExecutor.execAlgorithm();
+        Mockito.verify(externalProcessExecutor, times(5)).processMemoryMonitor();
+        Mockito.verify(processMemoryMonitor).stopMonitoring();
+        Mockito.verify(processMemoryMonitor).writeMemorySamples();
+        Mockito.verify(processMemoryMonitor).updateProcessId(100L);
+        Mockito.verify(processMemoryMonitor).updateProcessId(101L);
+        Mockito.verify(processMemoryMonitor).updateProcessId(102L);
     }
 
-    public static class MockableExternalProcess extends ExternalProcess {
+    private void setUpMockedObjects() throws IOException {
+        externalProcess = Mockito.mock(ExternalProcess.class);
+        Mockito.doReturn(0L).when(externalProcess).processId();
+        externalProcessExecutor = Mockito.spy(SubtaskExecutorFactory.newInstance(subtaskMaster));
+        Mockito.doReturn("pa").when(externalProcessExecutor).pipelineStepName();
 
-        public MockableExternalProcess() {
-            super(true, null, true, null);
-        }
+        Mockito.doReturn(externalProcess)
+            .when(externalProcessExecutor)
+            .externalProcess(ArgumentMatchers.isNull(), ArgumentMatchers.isNull());
+        Mockito.doReturn(externalProcess)
+            .when(externalProcessExecutor)
+            .externalProcess(ArgumentMatchers.any(Writer.class),
+                ArgumentMatchers.any(Writer.class));
+        Mockito.doReturn(processMemoryMonitor).when(externalProcessExecutor).processMemoryMonitor();
     }
 }

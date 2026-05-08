@@ -35,15 +35,11 @@ else
 	echo "Environment $ZIGGY_VIRT_ENV activated"
 fi
 
-# Construct the Python command. This command launches ziggy.py, and uses it to 
-# execute the desired function in the desired Python module.
-
-python_command="from ziggytools.ziggy import run_module ; "
-python_command=$python_command"from $ZIGGY_PYTHON_MODULE import $ZIGGY_PYTHON_FUNCTION ; "
-python_command=$python_command"run_module($ZIGGY_PYTHON_FUNCTION)"
+# Construct the Python command line that starts and runs ziggy.py.
+python_command="python3 -m ziggytools.ziggy $ZIGGY_PYTHON_MODULE $ZIGGY_PYTHON_FUNCTION"
 
 # Run the Python command.
-python3 -c "$python_command"
+$python_command
 
 # capture the Python exit code and pass it to the caller as the script's exit code
 exit $?

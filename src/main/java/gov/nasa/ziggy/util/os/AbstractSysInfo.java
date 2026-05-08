@@ -21,6 +21,7 @@ public abstract class AbstractSysInfo implements SysInfo {
     private static final Logger log = LoggerFactory.getLogger(LinuxMemInfo.class);
 
     private final Map<String, String> sysInfoMap = new HashMap<>();
+    public final static long BYTES_PER_KIB = 1024L;
 
     protected static final List<String> commandOutput(String command) {
         return ExternalProcess.commandOutput(command, (String[]) null);

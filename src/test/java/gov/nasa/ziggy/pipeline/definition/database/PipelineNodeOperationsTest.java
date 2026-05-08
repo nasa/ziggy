@@ -34,7 +34,7 @@ public class PipelineNodeOperationsTest {
         testOperations.persistResources(resources);
         PipelineNodeExecutionResources databaseResources = pipelineNodeOperations
             .pipelineNodeExecutionResources(pipelineOperationsTestUtils.pipelineNode());
-        assertEquals(10, databaseResources.subtaskRamGigabytes(), 1e-9);
+        assertEquals(10, databaseResources.getSubtaskRamGigabytes(), 1e-9);
         assertEquals(10, databaseResources.getMaxAutoResubmits());
     }
 

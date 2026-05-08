@@ -4,13 +4,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.ModelMetadata;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry_;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.ModelType_;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 
 /**
  * CRUD class for model registries and model metadata instances. Each model metadata instance

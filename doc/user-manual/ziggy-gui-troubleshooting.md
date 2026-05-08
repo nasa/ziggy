@@ -20,6 +20,10 @@ When things happen that the operator should know about, they show up at the `Ale
 
 For any given task you can display the task's log files directly from the console.
 
+### [Using the Performance Report](more-performance-report.md)
+
+This report is also useful for viewing the memory and disk usage of your tasks.
+
 ### [Re-Run or Resume a Failed Task](rerun-task.md)
 
 Ziggy also gives you options when you've decided what you want to do about a failed task.

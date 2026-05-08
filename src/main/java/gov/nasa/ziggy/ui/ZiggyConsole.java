@@ -55,7 +55,6 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.report.PerformanceReport;
 import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
 import gov.nasa.ziggy.pipeline.definition.Pipeline;
@@ -70,9 +69,9 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
+import gov.nasa.ziggy.report.PerformanceReport;
 import gov.nasa.ziggy.services.alert.AlertLog;
 import gov.nasa.ziggy.services.alert.AlertLogOperations;
-import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.messages.StartPipelineRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.services.messaging.ZiggyRmiClient;
@@ -573,8 +572,7 @@ public class ZiggyConsole {
     }
 
     private boolean displayDetailedStatistics(PipelineInstance instance) {
-        PerformanceReport perfReport = new PerformanceReport(instance.getId(),
-            DirectoryProperties.taskDataDir().toFile(), null);
+        PerformanceReport perfReport = new PerformanceReport(instance.getId());
         perfReport.generateReport();
         return true;
     }

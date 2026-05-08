@@ -76,8 +76,8 @@ import gov.nasa.ziggy.util.os.OperatingSystemType;
  * starts a {@link SubtaskServer} instance to dispatch subtasks to the {@link SubtaskMaster}
  * instances as they complete existing subtasks and are free to start new ones.
  * <p>
- * The {@link ComputeNodeMaster} requires that the environment variable PIPELINE_CONFIG_PATH be set
- * on the computer that runs the {@link ComputeNodeMaster} instance.
+ * The {@link ComputeNodeMaster} requires that the environment variable {@code ZIGGY_CONFIG_FILE} be
+ * set on the computer that runs the {@link ComputeNodeMaster} instance.
  *
  * @author Todd Klaus
  * @author PT
@@ -154,8 +154,8 @@ public class ComputeNodeMaster {
 
     private void createTimestamps() {
 
-        TimestampFile.create(taskDir, TimestampFile.Event.ARRIVE_COMPUTE_NODES);
-        TimestampFile.create(taskDir, TimestampFile.Event.START);
+        TimestampFile.createIfAbsent(taskDir, TimestampFile.Event.ARRIVE_COMPUTE_NODES);
+        TimestampFile.createIfAbsent(taskDir, TimestampFile.Event.START);
     }
 
     /**

@@ -9,7 +9,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import org.junit.Before;
@@ -36,7 +35,6 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceCrud;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
-import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
  * Unit tests for {@link DatastoreDirectoryDataReceiptDefinition} class.
@@ -131,10 +129,7 @@ public class DatastoreDirectoryDataReceiptDefinitionTest {
     @Test
     public void testIsConformingDirectory() {
         assertTrue(dataReceiptDefinition.isConformingDelivery());
-        Path manifestDir = Paths
-            .get(ZiggyConfiguration.getInstance().getString(PropertyName.RESULTS_DIR.property()))
-            .resolve("log")
-            .resolve("manifests");
+        Path manifestDir = DirectoryProperties.manifestsDir();
         assertTrue(Files.isDirectory(manifestDir));
         assertTrue(Files
             .isRegularFile(manifestDir.resolve("datastore-directory-definition-manifest.xml")));

@@ -25,9 +25,9 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 public class ZiggyConfigurationTest {
 
     /**
-     * The value of the {@link PropertyName#ZIGGY_TEST_FILE} property in $PIPELINE_CONFIG_PATH.
+     * The value of the {@link PropertyName#ZIGGY_TEST_FILE} property in $ZIGGY_CONFIG_FILE.
      */
-    private static final String PIPELINE_CONFIG_PATH_VALUE = "from.envvar.location";
+    private static final String ZIGGY_CONFIG_FILE_VALUE = "from.envvar.location";
 
     /** The value of the {@link PropertyName#ZIGGY_TEST_FILE} property in ziggy.properties */
     private static final String ZIGGY_PROPERTIES_VALUE = "from.default.location";
@@ -167,7 +167,7 @@ public class ZiggyConfigurationTest {
     public void testEnvVarFileProperty() {
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
 
-        assertEquals(PIPELINE_CONFIG_PATH_VALUE,
+        assertEquals(ZIGGY_CONFIG_FILE_VALUE,
             config.getString(PropertyName.ZIGGY_TEST_FILE.property()));
     }
 

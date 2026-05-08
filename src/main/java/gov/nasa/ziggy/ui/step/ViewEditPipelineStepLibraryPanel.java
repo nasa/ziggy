@@ -6,8 +6,8 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -108,7 +108,7 @@ public class ViewEditPipelineStepLibraryPanel extends JPanel {
         private static final Class<?>[] COLUMN_CLASSES = { Integer.class, String.class,
             Integer.class, Boolean.class, String.class, Object.class };
 
-        private List<PipelineStep> pipelineSteps = new LinkedList<>();
+        private List<PipelineStep> pipelineSteps = new ArrayList<>();
 
         private final PipelineStepOperations pipelineStepOperations = new PipelineStepOperations();
 

@@ -1,8 +1,11 @@
 package gov.nasa.ziggy.util.dispmod;
 
+import static com.lowagie.text.Element.ALIGN_LEFT;
+import static com.lowagie.text.Element.ALIGN_RIGHT;
+
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,10 +33,12 @@ public class PipelineStatsDisplayModel extends DisplayModel
 
     private static final String[] COLUMN_NAMES = { "Node", "Start", "Status", "Count", "Sum (hrs)",
         "Min (hrs)", "Max (hrs)", "Mean (hrs)", "Std (hrs)" };
+    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_RIGHT,
+        ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT };
 
     private static final String ERROR = "ERROR";
 
-    private List<ProcessingStatistics> stats = new LinkedList<>();
+    private List<ProcessingStatistics> statistics = new ArrayList<>();
 
     public PipelineStatsDisplayModel(List<PipelineTaskDisplayData> tasks,
         List<String> orderedPipelineStepNames) {
@@ -42,7 +47,6 @@ public class PipelineStatsDisplayModel extends DisplayModel
 
     private void update(List<PipelineTaskDisplayData> tasks,
         List<String> orderedPipelineStepNames) {
-        stats = new LinkedList<>();
 
         Map<String, Map<String, List<PipelineTaskDisplayData>>> tasksSubListByProcessingStepByStep = new HashMap<>();
 
@@ -60,7 +64,7 @@ public class PipelineStatsDisplayModel extends DisplayModel
             List<PipelineTaskDisplayData> tasksSubList = tasksSubListByProcessingStep
                 .get(processingStep(task));
             if (tasksSubList == null) {
-                tasksSubList = new LinkedList<>();
+                tasksSubList = new ArrayList<>();
                 tasksSubListByProcessingStep.put(processingStep(task), tasksSubList);
             }
 
@@ -82,11 +86,12 @@ public class PipelineStatsDisplayModel extends DisplayModel
     private void updateStats(String pipelineStepName,
         Map<String, List<PipelineTaskDisplayData>> tasksSubListByProcessingStep,
         String processingStep) {
+
         List<PipelineTaskDisplayData> tasksSubList = tasksSubListByProcessingStep
             .get(processingStep);
         if (tasksSubList != null) {
-            TaskProcessingTimeStats s = TaskProcessingTimeStats.of(tasksSubList);
-            stats.add(new ProcessingStatistics(pipelineStepName, processingStep, s));
+            statistics.add(new ProcessingStatistics(pipelineStepName, processingStep,
+                TaskProcessingTimeStats.of(tasksSubList)));
         }
     }
 
@@ -96,7 +101,7 @@ public class PipelineStatsDisplayModel extends DisplayModel
 
     @Override
     public int getRowCount() {
-        return stats.size();
+        return statistics.size();
     }
 
     @Override
@@ -105,20 +110,25 @@ public class PipelineStatsDisplayModel extends DisplayModel
     }
 
     @Override
+    public int getAlignment(int column) {
+        return COLUMN_ALIGNMENT[column];
+    }
+
+    @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        ProcessingStatistics statsForTaskType = stats.get(rowIndex);
-        TaskProcessingTimeStats s = statsForTaskType.getProcessingStats();
+        ProcessingStatistics statsForTaskType = statistics.get(rowIndex);
+        TaskProcessingTimeStats stats = statsForTaskType.getProcessingStats();
 
         return switch (columnIndex) {
             case 0 -> statsForTaskType.getPipelineStepName();
-            case 1 -> formatDate(s.getMinStart());
+            case 1 -> stats.getMinStart();
             case 2 -> statsForTaskType.getProcessingStep();
-            case 3 -> s.getCount();
-            case 4 -> formatDouble(s.getSum());
-            case 5 -> formatDouble(s.getMin());
-            case 6 -> formatDouble(s.getMax());
-            case 7 -> formatDouble(s.getMean());
-            case 8 -> formatDouble(s.getStddev());
+            case 3 -> stats.getCount();
+            case 4 -> stats.getSum();
+            case 5 -> stats.getMin();
+            case 6 -> stats.getMax();
+            case 7 -> stats.getMean();
+            case 8 -> stats.getStddev();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
         };
     }
@@ -207,28 +217,28 @@ public class PipelineStatsDisplayModel extends DisplayModel
         }
 
         public static TaskProcessingTimeStats of(List<PipelineTaskDisplayData> tasks) {
-            TaskProcessingTimeStats s = new TaskProcessingTimeStats();
-            DescriptiveStatistics stats = new DescriptiveStatistics();
+            TaskProcessingTimeStats stats = new TaskProcessingTimeStats();
+            DescriptiveStatistics statistics = new DescriptiveStatistics();
 
             for (PipelineTaskDisplayData task : tasks) {
                 Date createdTime = task.getCreated();
 
-                if (createdTime.getTime() > 0 && createdTime.getTime() < s.minStart.getTime()) {
-                    s.minStart = createdTime;
+                if (createdTime.getTime() > 0 && createdTime.getTime() < stats.minStart.getTime()) {
+                    stats.minStart = createdTime;
                 }
 
-                stats.addValue(
+                statistics.addValue(
                     DisplayModel.getProcessingHours(task.getExecutionClock().totalExecutionTime()));
             }
 
-            s.count = tasks.size();
-            s.sum = stats.getSum();
-            s.min = stats.getMin();
-            s.max = stats.getMax();
-            s.mean = stats.getMean();
-            s.stddev = stats.getStandardDeviation();
+            stats.count = tasks.size();
+            stats.sum = statistics.getSum();
+            stats.min = statistics.getMin();
+            stats.max = statistics.getMax();
+            stats.mean = statistics.getMean();
+            stats.stddev = statistics.getStandardDeviation();
 
-            return s;
+            return stats;
         }
 
         public double getMin() {

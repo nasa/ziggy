@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
+import gov.nasa.ziggy.services.database.AbstractCrud;
 
 public class DatastoreNodeCrud extends AbstractCrud<DatastoreNode> {
 

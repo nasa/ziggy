@@ -7,6 +7,8 @@ import static gov.nasa.ziggy.collections.ZiggyDataType.getDataType;
 import static hdf.hdf5lib.HDF5Constants.H5P_DEFAULT;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
 import java.util.List;
 
@@ -70,10 +72,15 @@ public class Hdf5AlgorithmInterface {
     /**
      * Writes an object that implements the Persistable interface to an HDF5 file.
      *
-     * @param file desired destination file
+     * @param file desired destination file; its directory must exist
      * @param dataObject Persistable object
      */
     public void writeFile(File file, Persistable dataObject, boolean createGroupsForMissingFields) {
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            throw new UncheckedIOException(
+                new FileNotFoundException(file.getParent() + ": No such directory"));
+        }
+
         // limit the interface to use of HDF5 1.8 functionality, so that hopefully
         // MATLAB can read files written from here
         H5.H5Pset_libver_bounds(HDF5Constants.H5P_FILE_ACCESS_DEFAULT, HDF5Constants.H5F_LIBVER_V18,

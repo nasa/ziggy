@@ -23,6 +23,7 @@ You can see the full set of nicknames by running the ziggy command with no argum
 ```console
 $ ziggy
 NICKNAME                 CLASS NAME
+algorithm-times         gov.nasa.ziggy.pipeline.step.subtask.AlgorithmWallTimes
 cluster                 gov.nasa.ziggy.ui.ClusterController
 compute-node-master     gov.nasa.ziggy.pipeline.step.ComputeNodeMaster
 console                 gov.nasa.ziggy.ui.ZiggyConsole
@@ -32,9 +33,8 @@ generate-build-info     gov.nasa.ziggy.util.BuildInfo
 generate-manifest       gov.nasa.ziggy.data.management.Manifest
 hsqlgui                 org.hsqldb.util.DatabaseManagerSwing
 import-pipelines        gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionCli
-metrics                 gov.nasa.ziggy.metrics.report.MetricsCli
-property-value          gov.nasa.ziggy.services.config.ZiggyConfiguration
 perf-report             gov.nasa.ziggy.metrics.report.PerformanceReport
+property-value          gov.nasa.ziggy.services.config.ZiggyConfiguration
 update-pipelines        gov.nasa.ziggy.pipeline.definition.importer.PipelineDefinitionCli
 $ 
 ```
@@ -171,7 +171,7 @@ Now you're ready to do some stuff!
 
 ##### Ziggy cluster start console &
 
-Personally, I find that when I start the pipeline I generally want a console window immediately. For this reason, you can put the two commands together: `ziggy cluster start console & `. That final `&` sign causes the command to run in the background so you get your command prompt back in the window where you issued the command. So that you don't go around filling your display with terminal windows that are just there to keep the console running.
+Personally, I find that when I start the pipeline I generally want a console window immediately. For this reason, you can put the two commands together: `ziggy cluster start console & `. That final `&` sign causes the command to run in the background so you use your terminal for other things.
 
 ##### Important Note: The Cluster and the Console
 

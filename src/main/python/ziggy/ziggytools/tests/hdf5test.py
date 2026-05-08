@@ -8,7 +8,7 @@ import unittest
 import tempfile
 import os
 import numpy as np
-from ..hdf5 import Hdf5AlgorithmInterface
+from ziggytools.hdf5 import Hdf5AlgorithmInterface
 
 class Hdf5AlgorithmInterfaceTest(unittest.TestCase):
 

@@ -128,7 +128,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(getId());
     }
 
     @Override
@@ -140,7 +140,7 @@ public class PipelineTask implements Serializable, Comparable<PipelineTask> {
             return false;
         }
         PipelineTask other = (PipelineTask) obj;
-        return Objects.equals(id, other.id);
+        return Objects.equals(getId(), other.getId());
     }
 
     public String toFullString() {

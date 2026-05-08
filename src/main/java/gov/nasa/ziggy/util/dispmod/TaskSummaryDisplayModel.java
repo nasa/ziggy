@@ -1,5 +1,8 @@
 package gov.nasa.ziggy.util.dispmod;
 
+import static com.lowagie.text.Element.ALIGN_LEFT;
+import static com.lowagie.text.Element.ALIGN_RIGHT;
+
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
 
@@ -13,6 +16,8 @@ public class TaskSummaryDisplayModel extends DisplayModel {
 
     private static final String[] COLUMN_NAMES = { "Node", "Waiting to run", "Processing",
         "Completed", "Failed", "Subtasks" };
+    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_RIGHT, ALIGN_RIGHT,
+        ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT };
 
     private TaskCounts taskCounts = new TaskCounts();
 
@@ -59,6 +64,11 @@ public class TaskSummaryDisplayModel extends DisplayModel {
     @Override
     public String getColumnName(int column) {
         return COLUMN_NAMES[column];
+    }
+
+    @Override
+    public int getAlignment(int column) {
+        return COLUMN_ALIGNMENT[column];
     }
 
     @Override

@@ -362,6 +362,7 @@ public class RemoteExecutionDialog extends JDialog {
                     .addGroup(dataPanelLayout.createSequentialGroup()
                         .addGap(ZiggyGuiConstants.INDENT)
                         .addGroup(dataPanelLayout.createParallelGroup()
+                            .addComponent(environment)
                             .addComponent(remoteEnvironmentComboBox, GroupLayout.PREFERRED_SIZE,
                                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                             .addComponent(oneSubtaskCheckBox)
@@ -383,8 +384,7 @@ public class RemoteExecutionDialog extends JDialog {
                                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                             .addComponent(optimizer)
                             .addComponent(optimizerComboBox, GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                            .addComponent(environment))))
+                                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))))
                 .addGroup(dataPanelLayout.createParallelGroup()
                     .addComponent(batchParametersGroup)
                     .addGroup(dataPanelLayout.createSequentialGroup()
@@ -995,7 +995,7 @@ public class RemoteExecutionDialog extends JDialog {
         wallTimeScalingCheckBox.setEnabled(!currentConfiguration.isNodeSharing());
         tasksField.setValue(taskCount);
         subtasksField.setValue(subtaskCount);
-        gigsPerSubtaskField.setValue(currentConfiguration.subtaskRamGigabytes());
+        gigsPerSubtaskField.setValue(currentConfiguration.getSubtaskRamGigabytes());
         gigsPerSubtaskField.setEnabled(currentConfiguration.isNodeSharing());
         gigsPerSubtaskField.setToolTipText(gigsPerSubtaskToolTip());
         typicalWallTimeField.setValue(currentConfiguration.getSubtaskTypicalWallTimeHours());

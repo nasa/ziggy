@@ -1,28 +1,26 @@
 package gov.nasa.ziggy.ui.util.table;
 
-import java.awt.Color;
 import java.awt.Component;
-import java.util.Date;
 
 import javax.swing.JEditorPane;
 import javax.swing.JTable;
 import javax.swing.UIManager;
 import javax.swing.table.TableCellRenderer;
 
-import gov.nasa.ziggy.util.Iso8601Formatter;
-
 /**
  * Implementation of {@link TableCellRenderer} that extends {@link JEditorPane} in order to manage
- * word wrapping when column resizing occurs.
+ * word wrapping when column resizing occurs. The {@link SpreadsheetCellRenderer} determines text
+ * and colors. Horizontal text alignment is not supported.
  *
+ * @see SpreadsheetCellRenderer
  * @author PT
+ * @author Bill Wohler
  */
 public class WrappingCellRenderer extends JEditorPane implements TableCellRenderer {
 
-    private static final long serialVersionUID = 20230511L;
+    private static final long serialVersionUID = 20260325L;
 
-    private Color unselectedForeground;
-    private Color unselectedBackground;
+    private SpreadsheetCellRenderer spreadsheetCellRenderer = new SpreadsheetCellRenderer();
 
     public WrappingCellRenderer() {
         setContentType("text/html");
@@ -34,41 +32,15 @@ public class WrappingCellRenderer extends JEditorPane implements TableCellRender
     }
 
     @Override
-    public void setForeground(Color c) {
-        super.setForeground(c);
-        unselectedForeground = c;
-    }
-
-    @Override
-    public void setBackground(Color c) {
-        super.setBackground(c);
-        unselectedBackground = c;
-    }
-
-    @Override
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
         boolean hasFocus, int row, int column) {
 
-        if (isSelected) {
-            super.setForeground(table.getSelectionForeground());
-            super.setBackground(table.getSelectionBackground());
-        } else {
-            super.setForeground(
-                unselectedForeground != null ? unselectedForeground : table.getForeground());
-            super.setBackground(
-                unselectedBackground != null ? unselectedBackground : table.getBackground());
-        }
+        spreadsheetCellRenderer = (SpreadsheetCellRenderer) spreadsheetCellRenderer
+            .getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-        if (value instanceof Date) {
-            setText(Iso8601Formatter.javaDateTimeSansMillisLocalFormatter().format(value));
-        } else {
-            try {
-                setText(value.toString());
-            } catch (Exception e) {
-                // Use "-" if value is null or toString() throws exception.
-                setText("-");
-            }
-        }
+        setForeground(spreadsheetCellRenderer.getForeground());
+        setBackground(spreadsheetCellRenderer.getBackground());
+        setText(spreadsheetCellRenderer.getText());
 
         return this;
     }

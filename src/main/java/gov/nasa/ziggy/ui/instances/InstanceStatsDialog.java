@@ -6,7 +6,6 @@ import static gov.nasa.ziggy.ui.ZiggyGuiConstants.REFRESH;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.GroupLayout;
@@ -41,7 +40,7 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
     private TaskMetricsTableModel processingBreakdownTableModel;
     private PipelineStatsTableModel processingTimeTableModel;
     private List<PipelineTaskDisplayData> tasks;
-    private ArrayList<String> orderedPipelineStepNames;
+    private List<String> orderedPipelineStepNames;
 
     private final PipelineTaskDisplayDataOperations pipelineTaskDisplayDataOperations = new PipelineTaskDisplayDataOperations();
 
@@ -58,14 +57,8 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
 
     private void loadFromDatabase() {
         tasks = pipelineTaskDisplayDataOperations().pipelineTaskDisplayData(pipelineInstance);
-        orderedPipelineStepNames = new ArrayList<>();
-
-        for (PipelineTaskDisplayData task : tasks) {
-            String pipelineStepName = task.getPipelineStepName();
-            if (!orderedPipelineStepNames.contains(pipelineStepName)) {
-                orderedPipelineStepNames.add(pipelineStepName);
-            }
-        }
+        orderedPipelineStepNames = PipelineTaskDisplayDataOperations
+            .orderedPipelineStepNames(tasks);
     }
 
     private void buildComponent() {
@@ -90,8 +83,8 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
             new PipelineStatsTableModel(tasks, orderedPipelineStepNames));
         JScrollPane processingTimeScrollPane = new JScrollPane(processingTimeZiggyTable.getTable());
 
-        JLabel processingBreakdown = ZiggySwingUtils
-            .boldLabel("Processing time breakdown for completed tasks", LabelType.HEADING);
+        JLabel processingBreakdown = ZiggySwingUtils.boldLabel("Processing times and sizes",
+            LabelType.HEADING);
         processingBreakdownZiggyTable = new ZiggyTable<>(
             new TaskMetricsTableModel(tasks, orderedPipelineStepNames, false));
         JScrollPane processingBreakdownScrollPane = new JScrollPane(

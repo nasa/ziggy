@@ -1,12 +1,13 @@
 package gov.nasa.ziggy.pipeline.step;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.IntervalMetric;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
@@ -91,20 +92,21 @@ public abstract class AlgorithmExecutor {
     /** Submits the {@link PipelineTask} for execution. */
     public void submitAlgorithm() {
 
-        IntervalMetric.measure(PipelineMetrics.SEND_METRIC, () -> {
-            log.info("Submitting task for execution (taskId={})", pipelineTask);
+        log.info("Submitting task for execution (taskId={})", pipelineTask);
 
+        try {
             Files.createDirectories(algorithmLogDir());
             Files.createDirectories(taskDataDir());
-            SubtaskUtils.clearStaleAlgorithmStates(
-                new TaskDirectoryManager(pipelineTask).taskDir().toFile());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        SubtaskUtils
+            .clearStaleAlgorithmStates(new TaskDirectoryManager(pipelineTask).taskDir().toFile());
+        TimestampFile.deleteAllTaskLevelTimestamps(workingDir().toFile());
 
-            log.info("Start remote monitoring (taskId={})", pipelineTask);
-            submitForExecution();
-            writeQueuedTimestampFile();
-            pipelineTaskDataOperations().incrementTaskLogIndex(pipelineTask);
-            return null;
-        });
+        log.info("Start remote monitoring (taskId={})", pipelineTask);
+        submitForExecution();
+        pipelineTaskDataOperations().incrementTaskLogIndex(pipelineTask);
     }
 
     protected abstract void addToMonitor();
@@ -125,10 +127,6 @@ public abstract class AlgorithmExecutor {
 
     protected Path workingDir() {
         return taskDataDir().resolve(pipelineTask.taskBaseName());
-    }
-
-    protected void writeQueuedTimestampFile() {
-        TimestampFile.create(workingDir().toFile(), TimestampFile.Event.QUEUED);
     }
 
     protected PipelineTaskOperations pipelineTaskOperations() {

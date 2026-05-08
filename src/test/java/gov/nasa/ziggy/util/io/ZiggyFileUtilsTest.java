@@ -1,5 +1,6 @@
 package gov.nasa.ziggy.util.io;
 
+import static gov.nasa.ziggy.ZiggyUnitTestUtils.TEST;
 import static gov.nasa.ziggy.services.config.PropertyName.DATASTORE_ROOT_DIR;
 import static gov.nasa.ziggy.services.config.PropertyName.RESULTS_DIR;
 import static org.junit.Assert.assertEquals;
@@ -401,6 +402,12 @@ public class ZiggyFileUtilsTest {
         ZiggyFileUtils.cleanDirectoryTree(Paths.get("/path/to/fake/directory"));
         ZiggyFileUtils.cleanDirectoryTree(Paths.get("/path/to/fake/directory"), false);
         ZiggyFileUtils.cleanDirectoryTree(Paths.get("/path/to/fake/directory"), true);
+    }
+
+    @Test
+    public void testDirectorySizeBytes() {
+        long directorySizeBytes = ZiggyFileUtils.directorySizeBytes(TEST);
+        assertTrue(directorySizeBytes > 178_000);
     }
 
     private void createFiles(Path directory) throws IOException {

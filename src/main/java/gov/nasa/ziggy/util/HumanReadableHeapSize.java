@@ -12,7 +12,7 @@ public class HumanReadableHeapSize {
         MB {
             @Override
             public float heapSizeGigabytes(float humanReadableHeapSize) {
-                return (int) humanReadableHeapSize / 1000;
+                return humanReadableHeapSize / 1000;
             }
         },
         GB {

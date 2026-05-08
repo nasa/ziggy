@@ -11,7 +11,7 @@ Here's an extremely quick start to compile Ziggy and run a sample pipeline:
 ```
 export ZIGGY_ROOT=/path/to/ziggy
 export ZIGGY_HOME=$ZIGGY_ROOT/build
-export PIPELINE_CONFIG_PATH=$ZIGGY_ROOT/sample-pipeline/etc/sample.properties 
+export ZIGGY_CONFIG_FILE=$ZIGGY_ROOT/sample-pipeline/etc/sample.properties
 export JAVA_HOME=/path/to/>=java-17
 export CC=/path/to/gcc
 export CXX=/path/to/g++

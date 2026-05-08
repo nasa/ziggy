@@ -29,7 +29,6 @@ import javax.swing.SwingWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.report.ReportFilePaths;
 import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
 import gov.nasa.ziggy.pipeline.PipelineTaskInformation;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
@@ -41,6 +40,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineProcessingOptions.ProcessingMo
 import gov.nasa.ziggy.pipeline.definition.database.ParametersOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineOperations;
+import gov.nasa.ziggy.report.ReportFilePaths;
 import gov.nasa.ziggy.services.messages.ParametersChangedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
@@ -151,7 +151,7 @@ public class EditPipelineDialog extends javax.swing.JDialog {
 
         JPanel pipelineNodesToolBar = createButtonPanel(ButtonPanelContext.TOOL_BAR,
             createButton("Task information", this::displayTaskInformation),
-            createButton("Resources", this::configureResources),
+            createButton("Config", this::configureResources),
             createButton("Parameters", this::editParameters),
             createButton("Remote execution", this::configureRemoteExecution));
 

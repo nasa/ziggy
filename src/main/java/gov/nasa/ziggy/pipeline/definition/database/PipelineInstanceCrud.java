@@ -13,8 +13,6 @@ import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -22,7 +20,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
+import gov.nasa.ziggy.services.database.AbstractCrud;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import jakarta.persistence.criteria.CriteriaUpdate;
 import jakarta.persistence.criteria.Root;
 

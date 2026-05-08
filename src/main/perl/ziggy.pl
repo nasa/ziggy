@@ -18,7 +18,7 @@ my @options = qw{
 
 my %optionValues = (
     "dry-run"      => 0,
-    "properties"   => $ENV{'PIPELINE_CONFIG_PATH'},
+    "properties"   => $ENV{'ZIGGY_CONFIG_FILE'},
     "verbose"      => 0,
     "ziggyHome"    => '',               # default is ziggy.home.dir property
 );
@@ -47,7 +47,7 @@ sub main {
 
     # Read user-defined properties.
     defined($optionValues{properties})
-        or die "Properties file not specified with either PIPELINE_CONFIG_PATH or properties option";
+        or die "Properties file not specified with either ZIGGY_CONFIG_FILE or properties option";
     %properties = getProperties($optionValues{properties}, %properties);
 
     # Determine ziggyHome from option or ziggy.home.dir property.
@@ -73,12 +73,26 @@ sub main {
         return 0;
     }
 
+    # Add default JVM options to the beginning of the array so that command line options override.
+    unshift @$jvmOptions, $properties{'ziggy.default.jvm.args'}
+        if exists($properties{'ziggy.default.jvm.args'});
+
+    # Also add log configuration if it's not already defined on command line or in nickname.
+    if (!(grep {/-Dlog4j2.configurationFile=/} @$jvmOptions)
+        && (!defined($nickname) || !exists $nicknames{$nickname}
+            || !(grep /-Dlog4j2.configurationFile=/, $nicknames{$nickname}{jvmOptions}))) {
+        push @$jvmOptions, "-Dlog4j2.configurationFile="
+            . (exists($properties{'log4j2.configurationFile'})
+               ? $properties{'log4j2.configurationFile'}
+               : $optionValues{ziggyHome} . "/etc/log4j2.xml");
+    }
+
     # Update unset environment variables from options.
     if (!defined($ENV{'ZIGGY_HOME'})) {
         $ENV{'ZIGGY_HOME'} = $optionValues{ziggyHome};
     }
-    if (!defined($ENV{'PIPELINE_CONFIG_PATH'})) {
-        $ENV{'PIPELINE_CONFIG_PATH'} = $optionValues{properties};
+    if (!defined($ENV{'ZIGGY_CONFIG_FILE'})) {
+        $ENV{'ZIGGY_CONFIG_FILE'} = $optionValues{properties};
     }
 
     # Make the Java runtime executable command. Use the location specified as
@@ -130,6 +144,7 @@ sub main {
             return 0;
         }
     } elsif (defined($className)) {
+        push @$jvmOptions, logFileOption();
         my $substJvm = makeSubstitutions("$cmd @$jvmOptions", %properties);
         $cmd = "$substJvm $className $programOptionsString";
     } else {
@@ -293,8 +308,6 @@ sub makeSubstitutions {
 sub getNicknames {
     my (%properties) = @_;
     my %nicknames = ();
-    my $default_jvm_options = exists($properties{'ziggy.default.jvm.args'}) ? $properties{'ziggy.default.jvm.args'} . " " : "";
-
     foreach my $property (keys %properties) {
         next if ($property !~ /^ziggy\.nickname\./);
 
@@ -307,7 +320,7 @@ sub getNicknames {
         my $nickname = $property =~ s/^ziggy\.nickname\.//r;
         $nicknames{$nickname}{className} = $fields[0];
         $nicknames{$nickname}{logFile} = $fields[1];
-        $nicknames{$nickname}{jvmOptions} = $default_jvm_options . logFileOption($fields[1]) . " " . $fields[2];
+        $nicknames{$nickname}{jvmOptions} = logFileOption($fields[1]) . " " . $fields[2];
         $nicknames{$nickname}{programOptions} = $fields[3];
     }
 
@@ -316,17 +329,13 @@ sub getNicknames {
 
 sub logFileOption {
     my ($logFileBasename) = @_;
-    my ($logFileName, $logFileOption);
 
     exists($properties{'ziggy.pipeline.results.dir'})
         or die "Missing Ziggy property ziggy.pipeline.results.dir";
 
-    $logFileBasename = "ziggy" if $logFileBasename eq "";
-    $logFileName = File::Spec->catfile($properties{'ziggy.pipeline.results.dir'}, 'log', 'cli', $logFileBasename . '.log');
-    $logFileOption = "-Dziggy.log.rolling.file=" . $logFileName;
-    $logFileOption = "-Dziggy.log.rolling.file=/dev/null" if $logFileBasename eq "/dev/null";
-
-    return $logFileOption;
+    $logFileBasename = "ziggy" if (!defined($logFileBasename) || $logFileBasename eq "");
+    my $logFileName = File::Spec->catfile($properties{'ziggy.pipeline.results.dir'}, 'log', 'cli', $logFileBasename . '.log');
+    return "-Dziggy.log.rolling.file=" . ($logFileBasename eq "/dev/null" ? $logFileBasename : $logFileName);
 }
 
 # Displays the nicknames along with their fully qualified class names.
@@ -390,7 +399,7 @@ of the ziggy.home.dir property.
 =item --properties=file
 
 Specify the path to the properties file containing the Ziggy configuration.
-Default is $PIPELINE_CONFIG_PATH.
+Default is $ZIGGY_CONFIG_FILE.
 
 =back
 
@@ -402,7 +411,7 @@ options. Any Ziggy Java tool can be run if the desired JVM and program options
 are specified. Additional JVM or program options can be added to either type
 of Ziggy Java tool.
 
-This wrapper makes use of properties found in the $PIPELINE_CONFIG_PATH
+This wrapper makes use of properties found in the $ZIGGY_CONFIG_FILE
 environment variable or in the --properties option. It also uses properties
 found in a file called etc/ziggy.properties located in $ziggy.home.dir or the
 --ziggyHome option. The properties that begin with ziggy.nickname define a
@@ -416,9 +425,6 @@ is used.
 
 Values can refer to other properties.
 
-The contents of the property ziggy.default.jvm.args is added to the JVM
-arguments.
-
 If the user-specified name is a known nickname, the settings in the property's
 value are used. Otherwise, the user must specify the fully qualified class
 name with the --class option and all necessary parameters.
@@ -429,6 +435,12 @@ options can be given after the nickname or class option, and do not require a
 prefix. The nickname is taken to be the first option to ziggy without a '-'
 prefix. The ziggy options --[no]verbose, --dry-run, --conffile, and
 --ziggyHome are not passed on to the Java call.
+
+The contents of the property ziggy.default.jvm.args is added to the JVM
+arguments.
+
+If the log4j2.configurationFile property is not found in the properties file
+or set on the command line, it is set to $ZIGGY_HOME/etc/log4j2.xml.
 
 =head1 AUTHORS
 

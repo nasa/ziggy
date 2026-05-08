@@ -29,7 +29,6 @@ import gov.nasa.ziggy.ui.datastore.ViewEditDatastorePanel;
 import gov.nasa.ziggy.ui.dr.DataReceiptPanel;
 import gov.nasa.ziggy.ui.events.ZiggyEventHandlerPanel;
 import gov.nasa.ziggy.ui.instances.InstancesTasksPanel;
-import gov.nasa.ziggy.ui.metrilyzer.MetrilyzerPanel;
 import gov.nasa.ziggy.ui.parameters.ViewEditParameterSetsPanel;
 import gov.nasa.ziggy.ui.pipeline.ViewEditPipelinesPanel;
 import gov.nasa.ziggy.ui.status.StatusPanel;
@@ -63,8 +62,7 @@ public class ZiggyConsolePanel extends JSplitPane {
         STATUS("Status", StatusPanel::new),
         DATA_RECEIPT("Data Receipt", DataReceiptPanel::new),
         EVENT_HANDLERS("Event Definitions", ZiggyEventHandlerPanel::new),
-        STEP_LIBRARY("Pipeline Step Library", ViewEditPipelineStepLibraryPanel::new),
-        METRILYZER("Metrilyzer", false, true, MetrilyzerPanel::new);
+        STEP_LIBRARY("Pipeline Step Library", ViewEditPipelineStepLibraryPanel::new);
 
         private String label;
         private boolean visible;

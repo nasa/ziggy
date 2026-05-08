@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.util.dispmod;
 
+import static com.lowagie.text.Element.ALIGN_LEFT;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,6 +16,8 @@ import gov.nasa.ziggy.services.alert.AlertLog;
  */
 public class AlertLogDisplayModel extends DisplayModel {
     private static final String[] COLUMN_NAMES = { "Source", "Task", "Severity", "Message" };
+    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT,
+        ALIGN_LEFT };
 
     private List<AlertLog> alerts = new ArrayList<>();
 
@@ -44,6 +48,11 @@ public class AlertLogDisplayModel extends DisplayModel {
     @Override
     public int getColumnCount() {
         return COLUMN_NAMES.length;
+    }
+
+    @Override
+    public int getAlignment(int column) {
+        return COLUMN_ALIGNMENT[column];
     }
 
     @Override

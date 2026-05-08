@@ -45,18 +45,18 @@ public class ZiggyConfiguration {
     private static final Logger log = LoggerFactory.getLogger(ZiggyConfiguration.class);
 
     public static final String ZIGGY_HOME_ENV = "ZIGGY_HOME";
-    public static final String PIPELINE_CONFIG_PATH_ENV = "PIPELINE_CONFIG_PATH";
+    public static final String ZIGGY_CONFIG_FILE_ENV = "ZIGGY_CONFIG_FILE";
 
     /**
-     * Default directory used to locate property file if the PIPELINE_CONFIG_PATH environment
-     * variable is not defined.
+     * Default directory used to locate property file if the ZIGGY_CONFIG_FILE environment variable
+     * is not defined.
      */
-    public static final String PIPELINE_CONFIG_DEFAULT_DIR = "etc";
+    public static final String ZIGGY_CONFIG_DEFAULT_DIR = "etc";
 
     /**
-     * Default property file used if the PIPELINE_CONFIG_PATH environment variable is not defined.
+     * Default property file used if the ZIGGY_CONFIG_FILE environment variable is not defined.
      */
-    public static final String PIPELINE_CONFIG_DEFAULT_FILE = "ziggy.properties";
+    public static final String ZIGGY_CONFIG_DEFAULT_FILE = "ziggy.properties";
 
     /** Provides help for the command line interface. */
     private static final String HELP_OPTION = "help";
@@ -79,11 +79,11 @@ public class ZiggyConfiguration {
      * <ol>
      * <li>System properties
      * <li>Properties in the pipeline configuration file, defined by the environment variable
-     * {@value #PIPELINE_CONFIG_PATH_ENV}, except when run in a test.
+     * {@value #ZIGGY_CONFIG_FILE_ENV}, except when run in a test.
      * <li>Properties in the Ziggy configuration file. This file is specified by the
-     * {@value #PIPELINE_CONFIG_DEFAULT_FILE} file in the {@value #PIPELINE_CONFIG_DEFAULT_DIR}
-     * directory found in the {@link PropertyName#ZIGGY_HOME_DIR} property or {@code ZIGGY_HOME}
-     * environment variable in that order.
+     * {@value #ZIGGY_CONFIG_DEFAULT_FILE} file in the {@value #ZIGGY_CONFIG_DEFAULT_DIR} directory
+     * found in the {@link PropertyName#ZIGGY_HOME_DIR} property or {@code ZIGGY_HOME} environment
+     * variable in that order.
      * </ol>
      * This object's throwExceptionOnMissing property is set to {@code true}. In the rare case that
      * a {@code NoSuchElementException} is not desired if the property is missing, provide a default
@@ -130,7 +130,7 @@ public class ZiggyConfiguration {
     }
 
     /**
-     * Loads the pipeline configuration from the file pointed at by PIPELINE_CONFIG_PATH.
+     * Loads the pipeline configuration from the file pointed at by ZIGGY_CONFIG_FILE.
      *
      * @param config the non-{@code null} target composite configuration
      */
@@ -157,8 +157,8 @@ public class ZiggyConfiguration {
         Path ziggyHomeDir = ziggyHomePath != null ? Paths.get(ziggyHomePath) : null;
         Path ziggyConfigPath = null;
         if (ziggyHomeDir != null && !ziggyHomeDir.toString().isBlank()) {
-            ziggyConfigPath = ziggyHomeDir.resolve(PIPELINE_CONFIG_DEFAULT_DIR)
-                .resolve(PIPELINE_CONFIG_DEFAULT_FILE);
+            ziggyConfigPath = ziggyHomeDir.resolve(ZIGGY_CONFIG_DEFAULT_DIR)
+                .resolve(ZIGGY_CONFIG_DEFAULT_FILE);
         }
 
         if (ziggyConfigPath == null) {
@@ -182,20 +182,20 @@ public class ZiggyConfiguration {
 
     /**
      * Locates the pipeline configuration file. This file is defined by the environment variable
-     * {@value #PIPELINE_CONFIG_PATH_ENV}.
+     * {@value #ZIGGY_CONFIG_FILE_ENV}.
      *
      * @return null if the environment variable isn't present; otherwise, a file object for the file
      * represented by the variable
      * @throws PipelineException if the file referenced by the variable doesn't exist
      */
     private static File getPipelineConfigFile() {
-        String configFileEnvValue = System.getenv(PIPELINE_CONFIG_PATH_ENV);
-        log.debug("{}={}", PIPELINE_CONFIG_PATH_ENV, configFileEnvValue);
+        String configFileEnvValue = System.getenv(ZIGGY_CONFIG_FILE_ENV);
+        log.debug("{}={}", ZIGGY_CONFIG_FILE_ENV, configFileEnvValue);
 
         File configFile = configFileEnvValue != null ? configFile = new File(configFileEnvValue)
             : null;
         if (configFile != null && !configFile.exists()) {
-            throw new PipelineException("Config file pointed to by the " + PIPELINE_CONFIG_PATH_ENV
+            throw new PipelineException("Config file pointed to by the " + ZIGGY_CONFIG_FILE_ENV
                 + " environment variable does not exist: " + configFile.getAbsolutePath());
         }
 

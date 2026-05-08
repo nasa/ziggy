@@ -6,9 +6,9 @@ Created on Nov 19, 2020
 @author: PT
 '''
 import unittest
-from ..stacktrace import ZiggyErrorReturn, ZiggyErrorWriter
-from .throwexception import ExceptionGenerator
-from ..hdf5 import Hdf5AlgorithmInterface
+from ziggytools.stacktrace import ZiggyErrorReturn, ZiggyErrorWriter
+from ziggytools.tests.throwexception import ExceptionGenerator
+from ziggytools.hdf5 import Hdf5AlgorithmInterface
 from tempfile import TemporaryDirectory
 from os import makedirs, chdir
 from os.path import isfile

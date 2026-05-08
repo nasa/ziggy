@@ -1,6 +1,7 @@
 package gov.nasa.ziggy.pipeline.definition.database;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +26,18 @@ public class PipelineTaskDisplayDataOperations extends DatabaseOperations {
     private final PipelineTaskCrud pipelineTaskCrud = new PipelineTaskCrud();
     private final PipelineTaskDataCrud pipelineTaskDataCrud = new PipelineTaskDataCrud();
     private final PipelineInstanceNodeCrud pipelineInstanceNodeCrud = new PipelineInstanceNodeCrud();
+
+    /** Returns a list of the pipeline step names for the given tasks. */
+    public static List<String> orderedPipelineStepNames(List<PipelineTaskDisplayData> tasks) {
+        if (tasks == null) {
+            return new ArrayList<>();
+        }
+        return tasks.stream()
+            .map(PipelineTaskDisplayData::getPipelineStepName)
+            .collect(Collectors.toCollection(LinkedHashSet::new))
+            .stream()
+            .toList();
+    }
 
     public PipelineTaskDisplayData pipelineTaskDisplayData(PipelineTask pipelineTask) {
         PipelineTaskData pipelineTaskData = performTransaction(() -> {

@@ -66,13 +66,13 @@ public class ModelOperations extends DatabaseOperations {
         Collections.sort(latestModelTypes);
 
         StringBuilder s = new StringBuilder();
-        s.append("version=")
+        s.append("  version=")
             .append(registry.getId())
             .append(", locked=")
             .append(registry.isLocked())
             .append(", lockTimestamp=")
             .append(registry.getLockTime())
-            .append("\n");
+            .append("\n\n");
 
         if (latestModelTypes.isEmpty()) {
             s.append("  <No models in registry>\n");

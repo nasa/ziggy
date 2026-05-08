@@ -19,7 +19,7 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.table.ZiggyTable;
-import gov.nasa.ziggy.util.dispmod.DisplayModel;
+import gov.nasa.ziggy.util.Iso8601Formatter;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.PipelineStepTaskMetrics;
 
 /**
@@ -73,7 +73,8 @@ public class TaskInfoDialog extends javax.swing.JDialog {
         JLabel workerHelp = new JLabel("(host:thread)");
 
         JLabel created = boldLabel("Created:");
-        JLabel createdTextField = new JLabel(DisplayModel.formatDate(pipelineTask.getCreated()));
+        JLabel createdTextField = new JLabel(Iso8601Formatter.javaDateTimeSansMillisLocalFormatter()
+            .format(pipelineTask.getCreated()));
 
         JLabel duration = boldLabel("Duration:");
         JLabel durationTextField = new JLabel(pipelineTask.getExecutionClock().toString());

@@ -8,9 +8,9 @@ Created on Nov 19, 2020
 '''
 from sys import exc_info, stdout
 from inspect import getmodule
-from .fileutils import algorithm_step_name
+from ziggytools.fileutils import algorithm_step_name
 if __package__ is None or __package__ == '':
-    from hdf5 import Hdf5AlgorithmInterface
+    from ziggytools.hdf5 import Hdf5AlgorithmInterface
 else:
     from .hdf5 import Hdf5AlgorithmInterface
 from traceback import print_exception

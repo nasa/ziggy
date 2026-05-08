@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -23,6 +24,9 @@ import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
 import gov.nasa.ziggy.services.logging.PlainTextLogOutputStream;
 import gov.nasa.ziggy.services.logging.WriterLogOutputStream;
+import gov.nasa.ziggy.util.PipelineException;
+import gov.nasa.ziggy.util.SystemProxy;
+import gov.nasa.ziggy.util.os.ProcInfo;
 
 public class ExternalProcessTest {
 
@@ -265,5 +269,49 @@ public class ExternalProcessTest {
     public void testExeNotInPath() {
         ExternalProcess p = ExternalProcess.simpleExternalProcess(new CommandLine("lssssss"));
         assertEquals(0, p.execute());
+    }
+
+    @Test
+    public void testProcessId() throws InterruptedException {
+        ExternalProcess sleepProcess = ExternalProcess.simpleExternalProcess("sleep 0.15");
+        sleepProcess.execute(false);
+        long sleepProcessId = sleepProcess.processId();
+        ExternalProcess psProcess = ExternalProcess.simpleExternalProcess("ps " + sleepProcessId);
+        psProcess.writeStdOut(true);
+        int psStatus = psProcess.execute();
+        List<String> psOutput = psProcess.stdout();
+        assertTrue(psOutput.size() >= 2);
+
+        assertEquals(0, psStatus);
+        assertTrue(psOutput.get(1).contains("sleep 0.15"));
+    }
+
+    @Test(expected = PipelineException.class)
+    public void testProcInfoBeforeExecute() {
+        ExternalProcess sleepProcess = ExternalProcess.simpleExternalProcess("sleep 0.15");
+        sleepProcess.getProcInfo();
+    }
+
+    @Test
+    public void testProcInfo() {
+        ExternalProcess sleepProcess = ExternalProcess.simpleExternalProcess("sleep 0.15");
+        sleepProcess.execute(false);
+        long sleepProcessId = sleepProcess.processId();
+        ProcInfo procInfo = sleepProcess.getProcInfo();
+        assertEquals(sleepProcessId, procInfo.getPid());
+    }
+
+    @Test
+    public void testWaitForAndReturnCode() {
+        ExternalProcess sleepProcess = ExternalProcess.simpleExternalProcess("sleep 0.1");
+        long startTime = SystemProxy.currentTimeMillis();
+        sleepProcess.execute(false);
+        long midTime = SystemProxy.currentTimeMillis();
+        int status = sleepProcess.waitAndReturnStatus();
+        long endTime = SystemProxy.currentTimeMillis();
+        long durationToMidTime = midTime - startTime;
+        long durationToEndTime = endTime - startTime;
+        assertEquals(0, status);
+        assertTrue(durationToMidTime < durationToEndTime);
     }
 }

@@ -33,6 +33,7 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
 
     public ViewEditDatastorePanel() {
         super(new RegexpTableModel());
+        ziggyTable.setWrapText(true);
     }
 
     @Override

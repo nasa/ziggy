@@ -6,8 +6,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.pipeline.definition.ModelType;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -19,7 +17,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
 import gov.nasa.ziggy.pipeline.step.PipelineStep;
+import gov.nasa.ziggy.services.database.AbstractCrud;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.metamodel.SetAttribute;
 

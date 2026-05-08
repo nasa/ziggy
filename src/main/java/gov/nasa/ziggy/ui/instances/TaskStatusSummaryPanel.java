@@ -31,7 +31,6 @@ public class TaskStatusSummaryPanel extends javax.swing.JPanel {
     public TaskStatusSummaryPanel() {
         taskSummaryTableModel = new TaskSummaryTableModel();
         ZiggyTable<Counts> ziggyTable = new ZiggyTable<>(taskSummaryTableModel);
-        ziggyTable.setWrapText(false);
         setLayout(new BorderLayout());
         setPreferredSize(new java.awt.Dimension(400, 112));
         add(new JScrollPane(ziggyTable.getTable()), BorderLayout.CENTER);

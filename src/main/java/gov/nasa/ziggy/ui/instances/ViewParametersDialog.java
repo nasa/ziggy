@@ -67,6 +67,7 @@ public class ViewParametersDialog extends javax.swing.JDialog {
         JLabel parameters = boldLabel("Parameters");
         ZiggyTable<ParameterProperties> ziggyTable = new ZiggyTable<>(
             new ParameterPropsTableModel(parameterSet.getParameters()));
+        ziggyTable.setWrapText(true);
         JScrollPane parametersScrollPane = new JScrollPane(ziggyTable.getTable());
 
         JPanel dataPanel = new JPanel();

@@ -21,12 +21,13 @@ import gov.nasa.ziggy.pipeline.step.PipelineStep;
  */
 public class ZiggyUnitTestUtils {
 
+    public static final Path TEST = Paths.get("test");
     /**
      * Location of test/data relative to the working directory (assumed to be the main Ziggy
      * directory, since that's where both Eclipse and Gradle set the working directory when they run
      * tests).
      */
-    public static final Path TEST_DATA = Paths.get("test", "data");
+    public static final Path TEST_DATA = TEST.resolve("data");
 
     // The items below perform Hibernate initialization of lazy-loaded elements of a database
     // object. This is necessary because we need to be able to compare the objects with the

@@ -34,6 +34,7 @@ import gov.nasa.ziggy.ZiggyPropertyRule;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
@@ -54,6 +55,7 @@ import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
 import gov.nasa.ziggy.services.messages.TaskProcessingCompleteMessage;
 import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManager;
 import gov.nasa.ziggy.supervisor.TaskRequestHandlerLifecycleManagerTest.InstrumentedTaskRequestHandlerLifecycleManager;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * Unit tests for {@link AlgorithmMonitor}.
@@ -261,10 +263,12 @@ public class AlgorithmMonitorTest {
         monitorAlgorithmRequest = new MonitorAlgorithmRequest(pipelineTask101,
             taskDirectoryTask101);
         monitor.setMonitorAlgorithmRequest(monitorAlgorithmRequest);
+        TimestampFile.create(taskDirectoryTask101.toFile(), TimestampFile.Event.START, 1L);
         when(pipelineTaskDataOperations.subtaskCounts(pipelineTask101))
             .thenReturn(new SubtaskCounts(1, 1, 0));
         TaskProcessingCompleteMessage taskProcessingCompleteMessage = new TaskProcessingCompleteMessage(
             pipelineTask101);
+        TimestampFile.create(taskDirectoryTask101.toFile(), TimestampFile.Event.FINISH, 10L);
         monitor.setTaskProcessingCompleteMessage(taskProcessingCompleteMessage);
         assertEquals(Disposition.PERSIST, monitor.getDisposition());
         Mockito.verify(pipelineExecutor).persistTaskResults(pipelineTask101);
@@ -273,6 +277,18 @@ public class AlgorithmMonitorTest {
         assertNotNull(monitor.getJobsInformationByTask().get(pipelineTask100));
         Mockito.verify(pipelineTaskDataOperations, Mockito.times(0))
             .updateJobs(pipelineTask100, true);
+        Mockito.verify(pipelineTaskDataOperations)
+            .updatePipelineTaskMetrics(pipelineTask101,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.ALGORITHM_TIME)));
+        Mockito.verify(pipelineTaskDataOperations, Mockito.times(0))
+            .updatePipelineTaskMetrics(pipelineTask101,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.QUEUE_TIME)));
+        Mockito.verify(pipelineTaskDataOperations, Mockito.times(0))
+            .updatePipelineTaskMetrics(pipelineTask100,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.ALGORITHM_TIME)));
+        Mockito.verify(pipelineTaskDataOperations, Mockito.times(0))
+            .updatePipelineTaskMetrics(pipelineTask100,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.QUEUE_TIME)));
     }
 
     @Test
@@ -283,17 +299,47 @@ public class AlgorithmMonitorTest {
         monitorAlgorithmRequest = new MonitorAlgorithmRequest(pipelineTask101,
             taskDirectoryTask101);
         monitor.setMonitorAlgorithmRequest(monitorAlgorithmRequest);
+        TimestampFile.create(taskDirectoryTask100.toFile(), TimestampFile.Event.QUEUED, 1L);
         when(pipelineTaskDataOperations.subtaskCounts(pipelineTask100))
             .thenReturn(new SubtaskCounts(1, 1, 0));
         TaskProcessingCompleteMessage taskProcessingCompleteMessage = new TaskProcessingCompleteMessage(
             pipelineTask100);
+        TimestampFile.create(taskDirectoryTask100.toFile(), TimestampFile.Event.START, 2L);
         monitor.setTaskProcessingCompleteMessage(taskProcessingCompleteMessage);
+        TimestampFile.create(taskDirectoryTask100.toFile(), TimestampFile.Event.FINISH, 3L);
         assertEquals(Disposition.PERSIST, monitor.getDisposition());
         Mockito.verify(pipelineExecutor).persistTaskResults(pipelineTask100);
         assertNull(monitor.getTaskMonitorByTask().get(pipelineTask100));
         assertNotNull(monitor.getTaskMonitorByTask().get(pipelineTask101));
         assertNull(monitor.getJobsInformationByTask().get(pipelineTask100));
         Mockito.verify(pipelineTaskDataOperations).updateJobs(pipelineTask100, true);
+        Mockito.verify(pipelineTaskDataOperations)
+            .updatePipelineTaskMetrics(pipelineTask100,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.QUEUE_TIME)));
+        Mockito.verify(pipelineTaskDataOperations)
+            .updatePipelineTaskMetrics(pipelineTask100,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.ALGORITHM_TIME)));
+    }
+
+    @Test
+    public void testEndMonitoringNoTimestamps() {
+        MonitorAlgorithmRequest monitorAlgorithmRequest = new MonitorAlgorithmRequest(
+            pipelineTask100, taskDirectoryTask100, remoteJobsInformation);
+        monitor.setMonitorAlgorithmRequest(monitorAlgorithmRequest);
+        when(pipelineTaskDataOperations.subtaskCounts(pipelineTask100))
+            .thenReturn(new SubtaskCounts(1, 1, 0));
+        TaskProcessingCompleteMessage taskProcessingCompleteMessage = new TaskProcessingCompleteMessage(
+            pipelineTask100);
+        when(pipelineTaskDataOperations.subtaskCounts(pipelineTask100))
+            .thenReturn(new SubtaskCounts(1, 1, 0));
+        SystemProxy.setUserTime(100L);
+        monitor.setTaskProcessingCompleteMessage(taskProcessingCompleteMessage);
+        Mockito.verify(pipelineTaskDataOperations, Mockito.times(0))
+            .updatePipelineTaskMetrics(pipelineTask100,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.QUEUE_TIME)));
+        Mockito.verify(pipelineTaskDataOperations, Mockito.times(0))
+            .updatePipelineTaskMetrics(pipelineTask100,
+                List.of(new PipelineTaskMetric(PipelineTaskMetric.Metric.ALGORITHM_TIME)));
     }
 
     @Test

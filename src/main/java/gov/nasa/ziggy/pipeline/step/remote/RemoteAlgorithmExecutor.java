@@ -17,6 +17,7 @@ import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.SubtaskCounts;
 import gov.nasa.ziggy.pipeline.step.AlgorithmExecutor;
 import gov.nasa.ziggy.pipeline.step.AlgorithmMonitor;
+import gov.nasa.ziggy.pipeline.step.TimestampFile;
 import gov.nasa.ziggy.services.alert.Alert.Severity;
 import gov.nasa.ziggy.services.alert.AlertService;
 import gov.nasa.ziggy.services.messages.MonitorAlgorithmRequest;
@@ -103,11 +104,15 @@ public class RemoteAlgorithmExecutor extends AlgorithmExecutor {
         pipelineTaskDataOperations().addRemoteJobs(pipelineTask, remoteJobsInformation);
 
         addToMonitor();
-
         log.info("Updating processing step -> {}", ProcessingStep.QUEUED);
 
         pipelineTaskDataOperations().updateSubtaskCounts(pipelineTask, -1, 0, 0);
         pipelineTaskDataOperations().updateProcessingStep(pipelineTask, ProcessingStep.QUEUED);
+        createQueuedTimestampFile();
+    }
+
+    protected void createQueuedTimestampFile() {
+        TimestampFile.create(workingDir().toFile(), TimestampFile.Event.QUEUED);
     }
 
     /**

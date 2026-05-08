@@ -11,33 +11,20 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDirectoryRule;
-import gov.nasa.ziggy.pipeline.definition.PipelineTask;
-import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.pipeline.step.TimestampFile.Event;
+import gov.nasa.ziggy.util.SystemProxy;
 
 /**
  * @author Todd Klaus
  */
 public class TimestampFileTest {
 
-    private PipelineTask pipelineTask = Mockito.mock(PipelineTask.class);
-    private PipelineTaskDataOperations pipelineTaskDataOperations = Mockito
-        .mock(PipelineTaskDataOperations.class);
-
     @Rule
     public ZiggyDirectoryRule directoryRule = new ZiggyDirectoryRule();
-
-    @Before
-    public void SetUp() {
-        TimestampFile.setPipelineTaskDataOperations(pipelineTaskDataOperations);
-    }
 
     @Test
     public void testCreate() throws IOException {
@@ -60,128 +47,118 @@ public class TimestampFileTest {
         assertTrue("group can reaad", permissions.contains(PosixFilePermission.GROUP_READ));
         assertTrue("other can reaad", permissions.contains(PosixFilePermission.OTHERS_READ));
 
-        long actualTime = TimestampFile.timestamp(directory, TimestampFile.Event.QUEUED);
+        long actualTime = TimestampFile.eventTimeMillis(directory, TimestampFile.Event.QUEUED);
 
         assertEquals("timestamp", timeMillis, actualTime);
     }
 
     @Test
+    public void testCreateIfAbsent() {
+        long timeMillis = System.currentTimeMillis();
+        SystemProxy.setUserTime(timeMillis);
+        String expectedName = "QUEUED." + timeMillis;
+        File directory = directoryRule.directory().toFile();
+        boolean success = TimestampFile.create(directory, TimestampFile.Event.QUEUED);
+        assertTrue("success", success);
+        File expectedFile = directoryRule.directory().resolve(expectedName).toFile();
+        assertTrue("expected file", expectedFile.exists());
+        long newTimeMillis = timeMillis + 1;
+        SystemProxy.setUserTime(newTimeMillis);
+        success = TimestampFile.createIfAbsent(directory, TimestampFile.Event.QUEUED);
+        assertTrue("success", success);
+        expectedFile = directoryRule.directory().resolve(expectedName).toFile();
+        assertTrue("expected file", expectedFile.exists());
+        File unexpectedFile = directoryRule.directory().resolve("QUEUED." + newTimeMillis).toFile();
+        assertFalse("unexpected file", unexpectedFile.exists());
+    }
+
+    @Test
+    public void testDeleteAllTaskLevelTimestamps() {
+        for (Event event : TimestampFile.Event.values()) {
+            TimestampFile.create(directoryRule.directory().toFile(), event);
+        }
+        boolean allDeleted = TimestampFile
+            .deleteAllTaskLevelTimestamps(directoryRule.directory().toFile());
+        assertTrue(allDeleted);
+        for (Event event : TimestampFile.Event.values()) {
+            if (event.isTaskLevelTimestamp()) {
+                assertFalse(TimestampFile.exists(directoryRule.directory().toFile(), event));
+            } else {
+                assertTrue(TimestampFile.exists(directoryRule.directory().toFile(), event));
+            }
+        }
+    }
+
+    @Test
     public void testArriveComputeNodes() throws IOException {
-        testEventWithEarlyDefault(Event.ARRIVE_COMPUTE_NODES);
+        testEvent(Event.ARRIVE_COMPUTE_NODES);
     }
 
     @Test
     public void testQueued() throws IOException {
-        testEventWithEarlyDefault(Event.QUEUED);
+        testEvent(Event.QUEUED);
     }
 
     @Test
     public void testStart() throws IOException {
-        testEventWithEarlyDefault(Event.START);
+        testEvent(Event.START);
     }
 
     @Test
     public void testSubtaskStart() throws IOException {
-        testEventWithEarlyDefault(Event.SUBTASK_START);
+        testEvent(Event.SUBTASK_START);
     }
 
-    private void testEventWithEarlyDefault(TimestampFile.Event event) throws IOException {
-        Mockito
-            .when(
-                pipelineTaskDataOperations.startTimestamp(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(1_000_000L);
-
+    private void testEvent(TimestampFile.Event event) throws IOException {
         // No timestamp files.
-        long eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event,
-            pipelineTask);
-        assertEquals(1000_000L, eventTime);
+        long eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event);
+        assertEquals(-1L, eventTime);
         assertFalse(TimestampFile.exists(directoryRule.directory().toFile(), event));
 
         // One timestamp file.
         TimestampFile.create(directoryRule.directory().toFile(), event, 1_000_001L);
-        eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event,
-            pipelineTask);
-        assertEquals(1000_001L, eventTime);
-
-        // Two timestamp files.
-        Files.createFile(directoryRule.directory().resolve(event.toString() + ".1000002"));
-        eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event,
-            pipelineTask);
+        eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event);
         assertEquals(1000_001L, eventTime);
     }
 
     @Test
     public void testFinish() throws IOException {
-        testEventWithLateDefault(Event.FINISH);
+        testEvent(Event.FINISH);
     }
 
     @Test
     public void testSubtaskFinish() throws IOException {
-        testEventWithLateDefault(Event.SUBTASK_FINISH);
-    }
-
-    private void testEventWithLateDefault(TimestampFile.Event event) throws IOException {
-        Mockito
-            .when(pipelineTaskDataOperations.endTimestamp(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(1_000_000L);
-
-        // No timestamp files.
-        long eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event,
-            pipelineTask);
-        assertEquals(1000_000L, eventTime);
-        assertFalse(TimestampFile.exists(directoryRule.directory().toFile(), event));
-
-        // One timestamp file.
-        TimestampFile.create(directoryRule.directory().toFile(), event, 1_000_001L);
-        eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event,
-            pipelineTask);
-        assertEquals(1000_001L, eventTime);
-
-        // Two timestamp files.
-        Files.createFile(directoryRule.directory().resolve(event.toString() + ".1000002"));
-        eventTime = TimestampFile.eventTimeMillis(directoryRule.directory().toFile(), event,
-            pipelineTask);
-        assertEquals(1000_002L, eventTime);
+        testEvent(Event.SUBTASK_FINISH);
     }
 
     @Test
     public void testElapsedTimeMillis() throws IOException {
-        Mockito
-            .when(
-                pipelineTaskDataOperations.startTimestamp(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(1_000_000L);
-        Mockito
-            .when(pipelineTaskDataOperations.endTimestamp(ArgumentMatchers.any(PipelineTask.class)))
-            .thenReturn(1_000_005L);
 
         // No timestamp files.
-        assertEquals(5L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
-            Event.START, Event.FINISH, pipelineTask));
+        assertEquals(-1L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
+            Event.START, Event.FINISH));
 
-        // One early file, no late ones.
+        // Start file but no end file.
         TimestampFile.create(directoryRule.directory().toFile(), Event.START, 1_000_001L);
-        assertEquals(4L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
-            Event.START, Event.FINISH, pipelineTask));
-
-        // One late file, one early one.
-        TimestampFile.create(directoryRule.directory().toFile(), Event.FINISH, 1_000_004L);
+        SystemProxy.setUserTime(1_000_004L);
         assertEquals(3L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
-            Event.START, Event.FINISH, pipelineTask));
+            Event.START, Event.FINISH));
 
-        // One late file, no early one.
-        TimestampFile.delete(directoryRule.directory().toFile(), Event.START);
-        assertEquals(4L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
-            Event.START, Event.FINISH, pipelineTask));
+        // Both start and end files
+        TimestampFile.create(directoryRule.directory().toFile(), Event.FINISH, 1_000_008L);
+        assertEquals(7L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
+            Event.START, Event.FINISH));
+    }
 
-        // Multiple early, one late.
-        TimestampFile.create(directoryRule.directory().toFile(), Event.START, 1_000_001L);
-        Files.createFile(directoryRule.directory().resolve(Event.START.toString() + ".1000002"));
-        assertEquals(3L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
-            Event.START, Event.FINISH, pipelineTask));
-
-        // Multiple early, multiple late.
-        Files.createFile(directoryRule.directory().resolve(Event.FINISH.toString() + ".1000006"));
-        assertEquals(5L, TimestampFile.elapsedTimeMillis(directoryRule.directory().toFile(),
-            Event.START, Event.FINISH, pipelineTask));
+    @Test
+    public void testElapsedTimeValid() {
+        assertFalse(TimestampFile.elapsedTimeValid(directoryRule.directory().toFile(),
+            Event.SUBTASK_START, Event.SUBTASK_FINISH));
+        TimestampFile.create(directoryRule.directory().toFile(), Event.SUBTASK_START, 1_000_001L);
+        assertFalse(TimestampFile.elapsedTimeValid(directoryRule.directory().toFile(),
+            Event.SUBTASK_START, Event.SUBTASK_FINISH));
+        TimestampFile.create(directoryRule.directory().toFile(), Event.SUBTASK_FINISH, 1_000_002L);
+        assertTrue(TimestampFile.elapsedTimeValid(directoryRule.directory().toFile(),
+            Event.SUBTASK_START, Event.SUBTASK_FINISH));
     }
 }

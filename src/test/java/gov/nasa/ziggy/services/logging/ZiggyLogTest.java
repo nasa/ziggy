@@ -250,7 +250,7 @@ public class ZiggyLogTest {
         ExternalProcess externalProcess = ExternalProcess.simpleExternalProcess(commandLine);
         externalProcess.setEnvironment(Map.of("JAVA_HOME",
             ZiggyConfiguration.getInstance().getString(PropertyName.JAVA_HOME.property()),
-            "PIPELINE_CONFIG_PATH",
+            "ZIGGY_CONFIG_FILE",
             Paths.get("sample-pipeline").resolve("etc").resolve("sample.properties").toString(),
             "ZIGGY_ROOT", Paths.get(".").toString()));
 
@@ -280,7 +280,7 @@ public class ZiggyLogTest {
         ExternalProcess externalProcess = ExternalProcess.simpleExternalProcess(commandLine);
         externalProcess.setEnvironment(Map.of("JAVA_HOME",
             ZiggyConfiguration.getInstance().getString(PropertyName.JAVA_HOME.property()),
-            "PIPELINE_CONFIG_PATH",
+            "ZIGGY_CONFIG_FILE",
             Paths.get("sample-pipeline").resolve("etc").resolve("sample.properties").toString(),
             "ZIGGY_ROOT", Paths.get(".").toString()));
 

@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.ui.util;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.AbstractListModel;
@@ -10,7 +10,7 @@ import javax.swing.AbstractListModel;
  */
 @SuppressWarnings("serial")
 public class GenericListModel<T> extends AbstractListModel<T> {
-    private List<T> list = new LinkedList<>();
+    private List<T> list = new ArrayList<>();
 
     public GenericListModel() {
     }
@@ -29,9 +29,6 @@ public class GenericListModel<T> extends AbstractListModel<T> {
         return list.get(index);
     }
 
-    /**
-     * @return Returns the list.
-     */
     public List<T> getList() {
         return list;
     }

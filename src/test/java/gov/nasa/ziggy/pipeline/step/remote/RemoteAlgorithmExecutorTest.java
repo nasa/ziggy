@@ -110,6 +110,7 @@ public class RemoteAlgorithmExecutorTest {
         }
         assertEquals(1L, remoteJobInformationByName.get("1-2-tps.0").getJobId());
         assertEquals(2L, remoteJobInformationByName.get("1-2-tps.2").getJobId());
+        assertTrue(remoteAlgorithmExecutor.isqueuedTimestampFileCreated());
     }
 
     @Test(expected = PipelineException.class)
@@ -187,6 +188,7 @@ public class RemoteAlgorithmExecutorTest {
 
         private MonitorAlgorithmRequest monitorAlgorithmRequest;
         private List<RemoteJob> remoteJobsMarkedAsFinished = new ArrayList<>();
+        boolean queuedTimestampFileCreated = false;
 
         public RemoteAlgorithmExecutorForTest(PipelineTask pipelineTask) {
             super(pipelineTask);
@@ -239,6 +241,15 @@ public class RemoteAlgorithmExecutorTest {
         @Override
         protected void markRemoteJobFinished(RemoteJob remoteJob) {
             remoteJobsMarkedAsFinished.add(remoteJob);
+        }
+
+        @Override
+        protected void createQueuedTimestampFile() {
+            queuedTimestampFileCreated = true;
+        }
+
+        public boolean isqueuedTimestampFileCreated() {
+            return queuedTimestampFileCreated;
         }
     }
 }

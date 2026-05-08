@@ -1,7 +1,7 @@
 package gov.nasa.ziggy.worker;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 
 public class WorkerResourcesCrud extends AbstractCrud<WorkerResources> {
 

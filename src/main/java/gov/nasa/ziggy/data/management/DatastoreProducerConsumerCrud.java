@@ -12,14 +12,14 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskCrud;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.database.AbstractCrud;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 

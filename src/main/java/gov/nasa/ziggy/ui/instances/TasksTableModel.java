@@ -1,7 +1,6 @@
 package gov.nasa.ziggy.ui.instances;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -36,7 +35,7 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
 
     private long pipelineInstanceId;
     private PipelineInstance pipelineInstance;
-    private List<TaskTimeInfo> tasks = new LinkedList<>();
+    private List<TaskTimeInfo> tasks = new ArrayList<>();
     private TasksDisplayModel tasksDisplayModel = new TasksDisplayModel();
     private List<PipelineTaskDisplayData> completedTaskData = new ArrayList<>();
     private volatile boolean tableUpdateInProgress;
@@ -89,7 +88,7 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
     List<PipelineTaskDisplayData> pipelineTasksDisplayData() {
         if (pipelineInstanceId <= 0) {
             pipelineInstance = null;
-            return new LinkedList<>();
+            return new ArrayList<>();
         }
         if (pipelineInstance != null && pipelineInstance.getId() == pipelineInstanceId) {
             log.debug("Update mutable tasks only");

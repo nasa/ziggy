@@ -14,7 +14,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -132,7 +131,7 @@ public class ImportParamLibDialog extends JDialog {
 
             List<ParameterSetDescriptor> list = binnedByState.get(descState);
             if (list == null) {
-                list = new LinkedList<>();
+                list = new ArrayList<>();
                 binnedByState.put(descState, list);
             }
             list.add(d);
@@ -193,7 +192,7 @@ public class ImportParamLibDialog extends JDialog {
 
         private static final String[] COLUMN_NAMES = { "Include", "Parameter set name", "Action" };
 
-        private List<ParameterSetDescriptor> paramMap = new LinkedList<>();
+        private List<ParameterSetDescriptor> paramMap = new ArrayList<>();
         private List<Boolean> includeFlags = new ArrayList<>();
 
         public ParamLibImportTableModel(List<ParameterSetDescriptor> paramMap) {
@@ -208,7 +207,7 @@ public class ImportParamLibDialog extends JDialog {
         }
 
         public List<String> getExcludeList() {
-            List<String> excludeList = new LinkedList<>();
+            List<String> excludeList = new ArrayList<>();
 
             for (int index = 0; index < paramMap.size(); index++) {
                 if (!includeFlags.get(index)) {

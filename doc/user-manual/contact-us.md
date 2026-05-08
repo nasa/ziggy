@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](advanced-uow.md)
+[[Previous]](hdf5.md)
 [[Up]](user-manual.md)
 [[Next]](properties.md)
 
@@ -15,6 +15,6 @@ If you just want to send an email, we are:
 Peter Tenenbaum <Peter.Tenenbaum@nasa.gov> (but you can call him PT)<br>
 Bill Wohler <Bill.Wohler@nasa.gov>
 
-[[Previous]](advanced-uow.md)
+[[Previous]](hdf5.md)
 [[Up]](user-manual.md)
 [[Next]](properties.md)

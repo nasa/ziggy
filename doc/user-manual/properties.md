@@ -35,7 +35,7 @@ See also the `ziggy.pipeline.environment` property.
 
 Ziggy actually uses two properties files.
 
-The pipeline properties file contains the properties that you, the pipeline user, are more likely to want to edit. This is the file that `PIPELINE_CONFIG_PATH` needs to point to. You likely seeded your file with the copy in `$ZIGGY_HOME/etc/pipeline.properties.EXAMPLE`.
+The pipeline properties file contains the properties that you, the pipeline user, are more likely to want to edit. This is the file that `ZIGGY_CONFIG_FILE` needs to point to. You likely seeded your file with the copy in `$ZIGGY_HOME/etc/pipeline.properties.EXAMPLE`.
 
 The other properties file is the Ziggy properties file, which is stored with the main Ziggy code, at `etc/ziggy.properties`. These are properties that you, the pipeline user, are unlikely to ever want to mess with.
 
@@ -45,7 +45,7 @@ In a real, normal pipeline, our recommendation is to put the pipeline properties
 
 Without further ado, here's the list of properties that Ziggy gets from the properties files. Note that these are the properties that Ziggy itself uses. You can define any other properties you like, and define the ones in this section in terms of the new ones you've defined, if that makes your properties file easier to use or maintain.
 
-The default value is either defined by code or by `ziggy.properties`. If the default value is None, you must define the property in your `PIPELINE_CONFIG_PATH` file.
+The default value is either defined by code or by `ziggy.properties`. If the default value is None, you must define the property in your `ZIGGY_CONFIG_FILE` file.
 
 | Name | Description | Default |
 | ---- | ----------- | -------- |
@@ -60,6 +60,7 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | hibernate.use_sql_comments | Generate comments in generated queries | false |
 | java.home | Location of Java used by the ziggy program to override the Java on your search path (see the article on [running the cluster](running-pipeline.md) for more information on the ziggy program) | $JAVA_HOME |
 | java.rmi.server.hostname | Hostname of RMI server | localhost |
+| log4j2.configurationFile | Settings for logging system | $ZIGGY_HOME/etc/log4j2.xml |
 | ziggy.database.bin.dir | Location of the RDBMS executables | $PATH |
 | ziggy.database.conf.file | Location of the database configuration file; not used with a system database | "" |
 | ziggy.database.connections | Number of connections database will accept; not used with a system database | None |
@@ -82,8 +83,8 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | ziggy.pipeline.home.dir | Top-level directory for the pipeline code. | None |
 | ziggy.pipeline.libPath | Colon-separated list of directories to search for shared libraries such as files with .so or .dylib suffix (LD_LIBRARY_PATH is ignored by Ziggy) | "" |
 | ziggy.pipeline.mcrRoot | Location of the MATLAB Compiler Runtime (MCR), including the version, if MATLAB algorithm executables are used | "" |
-| ziggy.pipeline.memdrone.enabled | Enable/disable memory consumption tracker | false |
-| ziggy.pipeline.memdrone.sleepSeconds | Sample interval for memory consumption tracker | 60 |
+| ziggy.pipeline.memory-monitor.enabled | Enable/disable memory consumption tracker | false |
+| ziggy.pipeline.memory-monitor.intervalSeconds | Sample interval for memory consumption tracker | 60 |
 | ziggy.pipeline.processing.halt.step | Automatically halt pipeline after a given processing step (marshaling, submitting, etc.). Mainly for debugging. See the article on [The Instances Panel](instances-panel.md) for more about processing steps. | complete |
 | ziggy.pipeline.results.dir | Location for working directories, log files, etc. | None |
 | ziggy.remote.environment.names | Comma-separated list of supported remote environments (see `remoteEnvironment` elements in `etc/*-environment.xml`) | None |
@@ -93,7 +94,7 @@ The default value is either defined by code or by `ziggy.properties`. If the def
 | ziggy.test.working.dir | Allows the user to specify a working directory other than user.dir. For testing only. | ${user.dir} |
 | ziggy.worker.allowPartialTasks | Allow persisting to continue although one or more subtasks failed | true |
 | ziggy.worker.heapSize | Maximum cumulative size of the Java heap for all worker processes, in MB (can be overridden by the `--workerHeapSize` option in `ziggy cluster start`) | 16,000 |
-| ziggy.supervisor.heartbeat.interval.millis | Interval between messages from the supervisor to RMI clients to ensure that connections remain intact | 15,000 |
+| ziggy.supervisor.heartbeat.intervalMillis | Interval between messages from the supervisor to RMI clients to ensure that connections remain intact | 15,000 |
 | ziggy.supervisor.port | Port used for connections between supervisor, worker, and UI. Same conditions as for the database port (i.e., each cluster must have a port that's unique and not in use by some other joker). | 1099 |
 | ziggy.worker.count | Maximum number of workers (can be overridden by the `--workerCount` option in `ziggy cluster start`); set to zero to have 1 worker per CPU "core" | 1 |
 

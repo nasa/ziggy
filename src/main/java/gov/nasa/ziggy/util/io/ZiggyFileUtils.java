@@ -23,6 +23,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -39,8 +40,10 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableSet;
 
 import gov.nasa.ziggy.services.config.DirectoryProperties;
+import gov.nasa.ziggy.services.process.ExternalProcess;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
+import gov.nasa.ziggy.util.PipelineException;
 
 /**
  * Some handy methods for dealing with files or groups of files.
@@ -493,6 +496,31 @@ public class ZiggyFileUtils {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Uses the Linux / Unix / MacOS du command to obtain the size of a directory in bytes.
+     */
+    public static long directorySizeBytes(Path directory) {
+
+        // Obtain the disk space in kiB (1024 byte chunks)
+        ExternalProcess externalProcess = ExternalProcess
+            .simpleExternalProcess("du -d 0 -k " + directory.toString());
+        externalProcess.logStdErr(false);
+        externalProcess.logStdOut(false);
+        externalProcess.writeStdErr(true);
+        externalProcess.writeStdOut(true);
+        externalProcess.execute();
+        List<String> stdout = externalProcess.stdout();
+        if (CollectionUtils.isEmpty(stdout)) {
+            throw new PipelineException(
+                "no output from du command on directory " + directory.toString());
+        }
+        String duValue = stdout.get(0).split("\\s+")[0];
+        long directorySizeKiBytes = Long.parseLong(duValue);
+
+        // Convert to bytes and return.
+        return directorySizeKiBytes * 1024;
     }
 
     /**

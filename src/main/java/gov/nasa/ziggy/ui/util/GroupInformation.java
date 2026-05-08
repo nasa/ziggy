@@ -2,7 +2,6 @@ package gov.nasa.ziggy.ui.util;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -81,7 +80,7 @@ public class GroupInformation<T> {
         List<T> allGroupedObjects) {
         List<T> objectsWithNoGroup = new ArrayList<>(objectByName.values());
         objectsWithNoGroup.removeAll(allGroupedObjects);
-        return new LinkedList<>(objectsWithNoGroup);
+        return new ArrayList<>(objectsWithNoGroup);
     }
 
     private Map<T, Group> createGroupByObject(Map<Group, List<T>> objectsByGroup,

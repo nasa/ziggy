@@ -1,6 +1,6 @@
 package gov.nasa.ziggy.ui.pipeline;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.AbstractListModel;
@@ -13,8 +13,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 public class PipelineNodesListModel extends AbstractListModel<String>
     implements ComboBoxModel<String> {
 
-    private final List<String> pipelineStepNames = new LinkedList<>();
-    private final List<PipelineNode> pipelineNodes = new LinkedList<>();
+    private final List<String> pipelineStepNames = new ArrayList<>();
+    private final List<PipelineNode> pipelineNodes = new ArrayList<>();
 
     private String selectedName = null;
     private final Pipeline pipeline;

@@ -20,6 +20,7 @@ import javax.swing.ButtonGroup;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -29,10 +30,16 @@ import javax.swing.text.NumberFormatter;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
+import gov.nasa.ziggy.pipeline.step.AlgorithmPipelineStepExecutor;
+import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
+import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.ui.util.ValidityTestingFormattedTextField;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.util.HumanReadableHeapSize;
 import gov.nasa.ziggy.util.HumanReadableHeapSize.HeapSizeUnit;
+import gov.nasa.ziggy.util.ProcessMemoryMonitor;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.worker.WorkerResources;
 
 /**
@@ -59,7 +66,16 @@ import gov.nasa.ziggy.worker.WorkerResources;
  */
 public class PipelineNodeResourcesDialog extends JDialog {
 
-    private static final long serialVersionUID = 20231212L;
+    private enum MemoryMonitor {
+        DISABLED, ENABLED;
+
+        @Override
+        public String toString() {
+            return ZiggyStringUtils.constantToSentenceWithSpaces(super.toString().toLowerCase());
+        }
+    }
+
+    private static final long serialVersionUID = 20260424L;
 
     private static final int COLUMNS = 10;
 
@@ -75,13 +91,17 @@ public class PipelineNodeResourcesDialog extends JDialog {
     private JRadioButton mbUnitsButton;
     private JRadioButton gbUnitsButton;
     private JRadioButton tbUnitsButton;
+    private JComboBox<MemoryMonitor> memoryMonitorComboBox;
     private ValidityTestingFormattedTextField workerCountTextArea;
     private ValidityTestingFormattedTextField heapSizeTextArea;
     private ValidityTestingFormattedTextField maxFailedSubtaskTextArea;
     private ValidityTestingFormattedTextField maxAutoResubmitsTextArea;
+    private ValidityTestingFormattedTextField memoryMonitorIntervalTextArea;
     private ButtonGroup unitButtonGroup;
     private Integer workerCountCurrentUserValue;
     private Float heapSizeGigabytesCurrentUserValue;
+    private double initialMemoryMonitorValue;
+    private boolean userChangedMemoryMonitorEnabled;
     private JButton closeButton;
     private JButton cancelButton;
 
@@ -106,13 +126,14 @@ public class PipelineNodeResourcesDialog extends JDialog {
             .getHeapSizeGigabytes() >= MIN_HEAP_SIZE_GIGABYTES
                 ? initialResources.getHeapSizeGigabytes()
                 : null;
+        initialMemoryMonitorValue = executionResources.getMemoryMonitorIntervalSeconds();
 
         buildComponent();
         setLocationRelativeTo(owner);
     }
 
     private void buildComponent() {
-        setTitle("Edit worker resources");
+        setTitle("Edit node configuration");
 
         getContentPane().add(createDataPanel(), BorderLayout.CENTER);
         closeButton = createCloseButton();
@@ -139,12 +160,6 @@ public class PipelineNodeResourcesDialog extends JDialog {
         heapSizeTextArea = createHeapSizeTextArea();
         heapSizeDefaultCheckBox = createHeapSizeDefaultCheckBox();
 
-        JLabel maxFailedSubtasks = boldLabel("Maximum failed subtasks");
-        maxFailedSubtaskTextArea = createMaxFailedSubtaskTextArea();
-
-        JLabel maxAutoResubmits = boldLabel("Maximum automatic resubmits");
-        maxAutoResubmitsTextArea = createMaxAutoResubmitsTextArea();
-
         unitButtonGroup = new ButtonGroup();
         mbUnitsButton = new JRadioButton("MB");
         mbUnitsButton.setToolTipText("Set heap size units to megabytes.");
@@ -155,6 +170,17 @@ public class PipelineNodeResourcesDialog extends JDialog {
         tbUnitsButton = new JRadioButton("TB");
         tbUnitsButton.setToolTipText("Set heap size units to terabytes.");
         unitButtonGroup.add(tbUnitsButton);
+
+        JLabel maxFailedSubtasks = boldLabel("Maximum failed subtasks");
+        maxFailedSubtaskTextArea = createMaxFailedSubtaskTextArea();
+
+        JLabel maxAutoResubmits = boldLabel("Maximum automatic resubmits");
+        maxAutoResubmitsTextArea = createMaxAutoResubmitsTextArea();
+
+        JLabel memoryMonitor = boldLabel("Memory monitor");
+        memoryMonitorComboBox = createMemoryMonitorComboBox();
+        JLabel memoryMonitorInterval = boldLabel("Memory sampling interval (s)");
+        memoryMonitorIntervalTextArea = createMemoryMonitorIntervalTextArea();
 
         JPanel dataPanel = new JPanel();
         GroupLayout dataPanelLayout = new GroupLayout(dataPanel);
@@ -186,6 +212,12 @@ public class PipelineNodeResourcesDialog extends JDialog {
                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
             .addComponent(maxAutoResubmits)
             .addComponent(maxAutoResubmitsTextArea, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addComponent(memoryMonitor)
+            .addComponent(memoryMonitorComboBox, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addComponent(memoryMonitorInterval)
+            .addComponent(memoryMonitorIntervalTextArea, GroupLayout.PREFERRED_SIZE,
                 GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE));
 
         dataPanelLayout.setVerticalGroup(dataPanelLayout.createSequentialGroup()
@@ -213,7 +245,15 @@ public class PipelineNodeResourcesDialog extends JDialog {
             .addComponent(maxFailedSubtaskTextArea)
             .addPreferredGap(ComponentPlacement.RELATED)
             .addComponent(maxAutoResubmits)
-            .addComponent(maxAutoResubmitsTextArea));
+            .addComponent(maxAutoResubmitsTextArea)
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(memoryMonitor)
+            .addComponent(memoryMonitorComboBox, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+            .addPreferredGap(ComponentPlacement.RELATED)
+            .addComponent(memoryMonitorInterval)
+            .addComponent(memoryMonitorIntervalTextArea, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE));
 
         return dataPanel;
     }
@@ -262,8 +302,16 @@ public class PipelineNodeResourcesDialog extends JDialog {
             : heapSizeGigabytesFromTextField();
         executionResources
             .applyWorkerResources(new WorkerResources(finalWorkerCount, finalHeapSizeGigabytes));
-        executionResources.setMaxFailedSubtaskCount((Integer) maxFailedSubtaskTextArea.getValue());
-        executionResources.setMaxAutoResubmits((Integer) maxAutoResubmitsTextArea.getValue());
+        executionResources.setMaxFailedSubtaskCount((int) maxFailedSubtaskTextArea.getValue());
+        executionResources.setMaxAutoResubmits((int) maxAutoResubmitsTextArea.getValue());
+        if (userChangedMemoryMonitorEnabled) {
+            executionResources.setMemoryMonitorEnabled(
+                memoryMonitorComboBox.getSelectedItem() == MemoryMonitor.ENABLED);
+        }
+        if (initialMemoryMonitorValue != (double) memoryMonitorIntervalTextArea.getValue()) {
+            executionResources
+                .setMemoryMonitorIntervalSeconds((double) memoryMonitorIntervalTextArea.getValue());
+        }
         dispose();
     }
 
@@ -292,7 +340,9 @@ public class PipelineNodeResourcesDialog extends JDialog {
     private void setCloseButtonState() {
         closeButton
             .setEnabled((workerDefaultCheckBox.isSelected() || workerCountTextArea.isValidState())
-                && (heapSizeDefaultCheckBox.isSelected() || heapSizeTextArea.isValidState()));
+                && (heapSizeDefaultCheckBox.isSelected() || heapSizeTextArea.isValidState())
+                && (!memoryMonitorIntervalTextArea.isEnabled()
+                    || memoryMonitorIntervalTextArea.isValidState()));
     }
 
     /**
@@ -343,8 +393,6 @@ public class PipelineNodeResourcesDialog extends JDialog {
      * Creates the {@link #workerDefaultCheckBox}. The initial value of the check box is set, a
      * listener is added that runs when the box state changes, and that listener is executed once to
      * correctly set the worker count field, if needed.
-     *
-     * @return
      */
     private JCheckBox createWorkerDefaultCheckBox() {
         JCheckBox workerDefaultCheckBox = new JCheckBox(
@@ -476,15 +524,9 @@ public class PipelineNodeResourcesDialog extends JDialog {
             heapSizeTextArea.setValue((double) humanReadableHeapSize.getHumanReadableHeapSize());
         }
         switch (humanReadableHeapSize.getHeapSizeUnit()) {
-            case MB:
-                mbUnitsButton.setSelected(true);
-                break;
-            case GB:
-                gbUnitsButton.setSelected(true);
-                break;
-            case TB:
-                tbUnitsButton.setSelected(true);
-                break;
+            case MB -> mbUnitsButton.setSelected(true);
+            case GB -> gbUnitsButton.setSelected(true);
+            case TB -> tbUnitsButton.setSelected(true);
         }
     }
 
@@ -525,6 +567,77 @@ public class PipelineNodeResourcesDialog extends JDialog {
             .setText(Integer.toString(executionResources.getMaxAutoResubmits()));
         maxFailedSubtaskTextArea.setExecuteOnValidityCheck(validityCheck);
         return maxFailedSubtaskTextArea;
+    }
+
+    private JComboBox<MemoryMonitor> createMemoryMonitorComboBox() {
+        JComboBox<MemoryMonitor> memoryMonitorComboBox = new JComboBox<>(MemoryMonitor.values());
+        boolean enabled = executionResources.isMemoryMonitorEnabled() != null
+            ? executionResources.isMemoryMonitorEnabled()
+            : ZiggyConfiguration.getInstance()
+                .getBoolean(PropertyName.MEMORY_MONITOR_ENABLED.property(),
+                    ProcessMemoryMonitor.DEFAULT_MEMORY_MONITOR_ENABLED);
+        memoryMonitorComboBox
+            .setSelectedItem(enabled ? MemoryMonitor.ENABLED : MemoryMonitor.DISABLED);
+        memoryMonitorComboBox.setToolTipText("Enable/disable subtask memory monitoring.");
+        memoryMonitorComboBox.addItemListener(this::updateMemoryMonitorEnabled);
+        return memoryMonitorComboBox;
+    }
+
+    private void updateMemoryMonitorEnabled(ItemEvent evt) {
+        if (evt.getStateChange() == ItemEvent.DESELECTED) {
+            return;
+        }
+        userChangedMemoryMonitorEnabled = true;
+        memoryMonitorIntervalTextArea.setEnabled(evt.getItem() == MemoryMonitor.ENABLED);
+    }
+
+    /**
+     * Creates the {@link #memoryMonitorIntervalTextArea}. This text area allows the user to set the
+     * interval that the memory monitor takes samples. A validity check method is applied that
+     * disables the close button when there's an invalid value in this text field. It is
+     * {@link AlgorithmPipelineStepExecutor#serializeTaskConfiguration()} that makes use of the
+     * execution resources if the interval is set and falls back to the property or constant if it
+     * is not.
+     */
+    private ValidityTestingFormattedTextField createMemoryMonitorIntervalTextArea() {
+        NumberFormatter formatter = new NumberFormatter(NumberFormat.getInstance());
+        formatter.setValueClass(Double.class);
+        formatter.setMinimum(0.001);
+        formatter.setMaximum(Double.MAX_VALUE);
+        ValidityTestingFormattedTextField memoryMonitorIntervalTextArea = new ValidityTestingFormattedTextField(
+            formatter);
+        memoryMonitorIntervalTextArea.setEmptyIsValid(false);
+        memoryMonitorIntervalTextArea.setColumns(COLUMNS);
+
+        double memoryMonitorInterval = executionResources.getMemoryMonitorIntervalSeconds();
+        HtmlBuilder toolTip = htmlBuilder(
+            "Set the interval between memory samples in seconds (>0).").appendBreak();
+
+        // If the memory monitor value is not user-defined, show the user the value that will be
+        // used and cite the source of the value in the tooltip.
+        if (initialMemoryMonitorValue == 0) {
+            double defaultMemoryMonitorInterval = ZiggyConfiguration.getInstance()
+                .getDouble(PropertyName.MEMORY_MONITOR_INTERVAL.property(), 0.0);
+            String defaultSource = "your properties file";
+            if (defaultMemoryMonitorInterval == 0.0) {
+                defaultMemoryMonitorInterval = ProcessMemoryMonitor.DEFAULT_MEMORY_MONITOR_INTERVAL_SECONDS;
+                defaultSource = "Ziggy";
+            }
+            memoryMonitorInterval = defaultMemoryMonitorInterval;
+            toolTip.append("This value was obtained from " + defaultSource + ".").appendBreak();
+        }
+
+        toolTip
+            .append(
+                "If it's too low, obtaining samples can take a lot of processing power and space; ")
+            .appendBreak()
+            .append("if it's too large, memory usage spikes may be missed.");
+
+        memoryMonitorIntervalTextArea.setToolTipText(toolTip.toString());
+        memoryMonitorIntervalTextArea.setText(Double.toString(memoryMonitorInterval));
+        memoryMonitorIntervalTextArea.setExecuteOnValidityCheck(validityCheck);
+
+        return memoryMonitorIntervalTextArea;
     }
 
     /**

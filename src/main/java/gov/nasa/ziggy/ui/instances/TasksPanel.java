@@ -112,7 +112,6 @@ public class TasksPanel extends JPanel {
 
     private ZiggyTable<PipelineTask> createTasksTable(TasksTableModel tasksTableModel) {
         ZiggyTable<PipelineTask> tasksTable = new ZiggyTable<>(tasksTableModel);
-        tasksTable.setWrapText(false);
         for (int column = 0; column < TasksTableModel.COLUMN_WIDTHS.length; column++) {
             tasksTable.setPreferredColumnWidth(column, TasksTableModel.COLUMN_WIDTHS[column]);
         }

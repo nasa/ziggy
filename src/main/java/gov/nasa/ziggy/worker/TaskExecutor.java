@@ -3,16 +3,11 @@ package gov.nasa.ziggy.worker;
 import static gov.nasa.ziggy.services.process.AbstractPipelineProcess.getProcessInfo;
 
 import java.util.Date;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.CounterMetric;
-import gov.nasa.ziggy.metrics.IntervalMetric;
-import gov.nasa.ziggy.metrics.IntervalMetricKey;
-import gov.nasa.ziggy.metrics.Metric;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
@@ -67,7 +62,6 @@ public class TaskExecutor implements StatusReporter {
     private PipelineStepExecutor currentPipelineStepExecutor;
     private RunMode runMode;
     private long processingStartTimeMillis;
-    private Map<String, Metric> taskMetrics;
     private String lastErrorMessage = "";
     private CountDownLatch outgoingMessageLatch;
 
@@ -86,7 +80,6 @@ public class TaskExecutor implements StatusReporter {
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     public void executeTask() {
-        IntervalMetricKey key = IntervalMetric.start();
         try {
             executeTaskInternal();
         } catch (Exception e) {
@@ -100,11 +93,8 @@ public class TaskExecutor implements StatusReporter {
             log.error("Caught exception processing worker task request for {}",
                 pipelineTask.toFullString(), e);
 
-            CounterMetric.increment("pipeline.module.execFailCount");
-
             postProcessingAfterException();
         } finally {
-            IntervalMetric.stop("pipeline.module.processMessage", key);
 
             // make sure any active transaction is cleaned up
             DatabaseService databaseService = DatabaseService.getInstance();
@@ -122,24 +112,15 @@ public class TaskExecutor implements StatusReporter {
         preProcessing();
         log.info("Executing pre-processing for task {}...done", pipelineTask);
 
-        try {
-            Metric.enableThreadMetrics();
+        /* Invoke the pipeline step. */
+        log.info("Executing processTask for task {}...", pipelineTask);
+        taskDone = processTask();
 
-            /* Invoke the pipeline step. */
-            log.info("Executing processTask for task {}...", pipelineTask);
-            taskDone = processTask();
-
-            if (taskDone) {
-                log.info("Executing processTask for task {}...done", pipelineTask);
-                CounterMetric.increment("pipeline.module.execSuccessCount");
-            } else {
-                log.info(
-                    "Executing processTask for task {}...current step done (more steps remain)",
-                    pipelineTask);
-            }
-        } finally {
-            taskMetrics = Metric.getThreadMetrics();
-            Metric.disableThreadMetrics();
+        if (taskDone) {
+            log.info("Executing processTask for task {}...done", pipelineTask);
+        } else {
+            log.info("Executing processTask for task {}...current step done (more steps remain)",
+                pipelineTask);
         }
 
         /* Update the task status */
@@ -212,19 +193,12 @@ public class TaskExecutor implements StatusReporter {
      */
     @AcceptableCatchBlock(rationale = Rationale.CLEANUP_BEFORE_EXIT)
     private boolean processTask() throws Exception {
-        String stepExecMetricPrefix = null;
 
         try {
             return processTaskInternal();
         } catch (Exception e) {
             log.error("Failed to process {}", pipelineTask.toFullString());
-            CounterMetric.increment("pipeline.module.execFailCount");
             throw e;
-        } finally {
-
-            if (stepExecMetricPrefix != null) {
-                CounterMetric.increment(stepExecMetricPrefix + ".execCount");
-            }
         }
     }
 
@@ -262,12 +236,10 @@ public class TaskExecutor implements StatusReporter {
     private void pipelineStepExecutorProcessTask(PipelineStepExecutor currentPipelineStepExecutor,
         String stepExecMetricPrefix) throws Exception {
 
-        IntervalMetricKey key = IntervalMetric.start();
         try {
             // Hand off control to the PipelineStepExecutor implementation.
             setTaskDone(currentPipelineStepExecutor.processTask());
         } finally {
-            IntervalMetric.stop(stepExecMetricPrefix + ".processTask", key);
         }
     }
 
@@ -283,10 +255,6 @@ public class TaskExecutor implements StatusReporter {
             totalProcessingTimeMillis / 1000.0 / 60.0);
 
         Date endProcessingTime = new Date(processingEndTimeMillis);
-
-        // Update summary metrics.
-        currentPipelineStepExecutor.updateMetrics(pipelineTask, taskMetrics,
-            totalProcessingTimeMillis);
 
         pipelineTaskDataOperations().updateLastTaskExecutionLog(pipelineTask, endProcessingTime);
 

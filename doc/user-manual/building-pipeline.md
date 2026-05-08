@@ -10,7 +10,7 @@ The question of whether your pipeline even needs a build system is one that only
 
 In this article, we review the "build system" for the sample pipeline, and in the process offer arguments why some kind of build system is a good idea in general.
 
-Before we move on, you should make sure that your environment variables `PIPELINE_CONFIG_PATH` and `ZIGGY_ROOT` are set correctly (as a reminder of what that means, take a look at the "Set up the Environment Variables" section of [the article on configuring a pipeline](configuring-pipeline.md)).
+Before we move on, you should make sure that your environment variables `ZIGGY_ROOT`, `ZIGGY_HOME`, and `ZIGGY_CONFIG_FILE`, are set correctly (as a reminder of what that means, take a look at the "Set up the Environment Variables" section of [the article on configuring a pipeline](configuring-pipeline.md)).
 
 ### The Sample Pipeline Directory
 
@@ -76,7 +76,7 @@ There's now a `build` directory that contains additional directories: `env`, `et
 Let's go through the build-env.sh script in pieces. The first piece is the familiar code chunk that sets up some shell variables with paths:
 
 ```bash
-etc_dir="$(dirname "$PIPELINE_CONFIG_PATH")"
+etc_dir="$(dirname "$ZIGGY_CONFIG_FILE")"
 sample_root="$(dirname "$etc_dir")"
 sample_home="$sample_root/build"
 python_env=$sample_home/env

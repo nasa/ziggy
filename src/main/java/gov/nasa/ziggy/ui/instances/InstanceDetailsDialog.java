@@ -9,8 +9,8 @@ import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 import java.awt.BorderLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,7 +23,6 @@ import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.SwingWorker;
 
-import gov.nasa.ziggy.metrics.report.ReportFilePaths;
 import gov.nasa.ziggy.pipeline.PipelineReportGenerator;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -32,6 +31,7 @@ import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceNodeOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceOperations;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
+import gov.nasa.ziggy.report.ReportFilePaths;
 import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.TextualReportDialog;
@@ -189,8 +189,8 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
             protected void done() {
                 try {
                     TextualReportDialog.showReport(InstanceDetailsDialog.this, get(),
-                        "Instance report",
-                        ReportFilePaths.instanceDetailsReportPath(pipelineInstance.getId()));
+                        "Instance report", ReportFilePaths.instanceDetailsReportPath(
+                            pipelineInstance.getPipeline().getName(), pipelineInstance.getId()));
                 } catch (InterruptedException | ExecutionException e) {
                     MessageUtils.showError(getRootPane(), e);
                 }
@@ -216,7 +216,7 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         private static final String[] COLUMN_NAMES = { "Node", "Tasks", "Waiting to run",
             "Completed", "Failed" };
 
-        private List<PipelineInstanceNode> pipelineInstanceNodes = new LinkedList<>();
+        private List<PipelineInstanceNode> pipelineInstanceNodes = new ArrayList<>();
         private Map<PipelineInstanceNode, TaskCounts> nodeTaskCounts = new HashMap<>();
 
         private final PipelineInstanceNodeOperations pipelineInstanceNodeOperations = new PipelineInstanceNodeOperations();

@@ -65,7 +65,7 @@ The properties file is a sufficiently important topic that it has its own separa
 
 To run Ziggy, you will need to define `ZIGGY_HOME` and add `$ZIGGY_HOME/bin` to your `PATH`.
 
-In a normal pipeline, you will need to set up only one environment variable: the variable `PIPELINE_CONFIG_PATH`, which has as its value the absolute path to the pipeline properties file. Ziggy can then use the pipeline properties file to get all its configuration parameters.
+In a normal pipeline, you will need to set up only one additional environment variable: the variable `ZIGGY_CONFIG_FILE`, which has as its value the absolute path to the pipeline properties file. Ziggy can then use the pipeline properties file to get all its configuration parameters.
 
 For the sample pipeline, it was necessary to add a second environment variable: `ZIGGY_ROOT`, which is set to the absolute path to the top-level Ziggy directory. Why was this necessary?
 
@@ -74,7 +74,7 @@ Under normal circumstances, the user would set the values of the path properties
 In the case of the sample pipeline, we wanted to provide a properties file that would work for the end user, but we don't know anything about any end user's file system organization. So all the paths in the sample properties file are relative to the root of the Ziggy source tree, which is
 set in that `ZIGGY_ROOT` environment variable.
 
-To run the sample pipeline, set `ZIGGY_ROOT` to the location of your ziggy directory and `PIPELINE_CONFIG_PATH` to `$ZIGGY_ROOT/sample-pipeline/etc/sample.properties`, before going any further.
+To run the sample pipeline, set `ZIGGY_ROOT` to the location of your ziggy directory and `ZIGGY_CONFIG_FILE` to `$ZIGGY_ROOT/sample-pipeline/etc/sample.properties`, before going any further.
 
 You do not need to change any of the properties in `sample.properties` to run the sample pipeline, but when you define your own pipeline or modify the sample pipeline you may need to edit these or define your own properties.
 

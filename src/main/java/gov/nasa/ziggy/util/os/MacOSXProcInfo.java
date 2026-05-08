@@ -13,25 +13,25 @@ import org.slf4j.LoggerFactory;
  *
  * @author Forrest Girouard
  */
-public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
+public class MacOSXProcInfo extends AbstractPosixProcInfo {
     private static final Logger log = LoggerFactory.getLogger(LinuxProcInfo.class);
 
     private static final String PS_COMMAND = "/bin/ps -p %d -o pid=,ppid=,command=";
     private static final String PS_LIST_COMMAND = "/bin/ps -xA -o pid=,ppid=,command=";
     private static final String ULIMIT_COMMAND = "/bin/sh ulimit -n";
     private static final int MAX_PID_VALUE = 99999;
-
-    private final long pid;
+    private static final String PS_RSS_COMMAND = "/bin/ps -o rss= -p";
+    private static final String PID_FORMAT = " %d";
 
     public MacOSXProcInfo(long pid) {
         super(commandOutput(String.format(PS_COMMAND, pid)));
-        this.pid = pid;
+        setPid(pid);
     }
 
     public MacOSXProcInfo() {
         super(
             commandOutput(String.format(PS_COMMAND, gov.nasa.ziggy.util.os.ProcessUtils.getPid())));
-        pid = gov.nasa.ziggy.util.os.ProcessUtils.getPid();
+        setPid(gov.nasa.ziggy.util.os.ProcessUtils.getPid());
     }
 
     @Override
@@ -76,7 +76,7 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
                     && (name == null || tokens[2].endsWith(name))) {
                     // found a match
                     long pid = Long.parseLong(tokens[0]);
-                    log.info("Found child process, pid={}, name={}", pid, tokens[2]);
+                    log.debug("Found child process, pid={}, name={}", pid, tokens[2]);
                     childPids.add(pid);
                 }
             }
@@ -88,11 +88,6 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
     @Override
     public long getParentPid() {
         return Long.parseLong(get("PPid"));
-    }
-
-    @Override
-    public long getPid() {
-        return pid;
     }
 
     /**
@@ -112,5 +107,15 @@ public class MacOSXProcInfo extends AbstractSysInfo implements ProcInfo {
     @Override
     public long getMaximumPid() {
         return MAX_PID_VALUE;
+    }
+
+    @Override
+    public String psRssCommand() {
+        return PS_RSS_COMMAND;
+    }
+
+    @Override
+    public String pidFormat() {
+        return PID_FORMAT;
     }
 }

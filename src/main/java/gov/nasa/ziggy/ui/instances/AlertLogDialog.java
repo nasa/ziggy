@@ -54,6 +54,7 @@ public class AlertLogDialog extends javax.swing.JDialog {
     private JPanel createDataPanel(long pipelineInstanceId) {
         ZiggyTable<AlertLog> ziggyTable = new ZiggyTable<>(
             new AlertLogTableModel(pipelineInstanceId));
+        ziggyTable.setWrapText(true);
         JScrollPane tableScrollPane = new JScrollPane(ziggyTable.getTable());
 
         JPanel dataPanel = new JPanel();

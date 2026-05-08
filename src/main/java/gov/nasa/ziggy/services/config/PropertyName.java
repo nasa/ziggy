@@ -75,10 +75,7 @@ public enum PropertyName {
      */
     JAVA_VM_VERSION("java.vm.version"),
 
-    /**
-     * The log4j2 configuration property. As it is not user-modifiable, this property should not be
-     * documented in the manual.
-     */
+    /** The log4j2 configuration file property. */
     LOG4J2_CONFIGURATION_FILE("log4j2.configurationFile"),
 
     /** Set to true to initialize log4j when starting MATLAB. */
@@ -216,11 +213,11 @@ public enum PropertyName {
     /** Location of the MATLAB Compiler Runtime (MCR). */
     MCRROOT("ziggy.pipeline.mcrRoot"),
 
-    /** Determines whether memdrone is enabled. */
-    MEMDRONE_ENABLED("ziggy.pipeline.memdrone.enabled"),
+    /** Determines whether the memory monitor is enabled. */
+    MEMORY_MONITOR_ENABLED("ziggy.pipeline.memory-monitor.enabled"),
 
-    /** Determines the interval between memdrone samples. */
-    MEMDRONE_SLEEP("ziggy.pipeline.memdrone.sleepSeconds"),
+    /** Determines the interval between memory samples. */
+    MEMORY_MONITOR_INTERVAL("ziggy.pipeline.memory-monitor.intervalSeconds"),
 
     /**
      * Allows execution to stop after completion of a specified step (marshaling, executing, etc.).
@@ -235,12 +232,6 @@ public enum PropertyName {
      * the manual.
      */
     STATUS_BROADCAST_ENABLED("ziggy.pipeline.status.broadcast.enabled"),
-
-    /**
-     * Interval for posting worker status (milliseconds) This property does not need to be
-     * documented in the manual.
-     */
-    WORKER_STATUS_REPORT_INTERVAL_MILLIS("ziggy.pipeline.status.worker.reportIntervalMillis"),
 
     /** Class used to identify default UOWs that are defined in the pipeline (not Ziggy). */
     PIPELINE_DEFAULT_UOW_IDENTIFIER_CLASS("ziggy.pipeline.uow.defaultIdentifier.classname"),
@@ -261,7 +252,7 @@ public enum PropertyName {
      * Interval between messages from the supervisor to RMI clients to ensure that connections
      * remain intact.
      */
-    HEARTBEAT_INTERVAL("ziggy.supervisor.heartbeat.interval.millis"),
+    HEARTBEAT_INTERVAL("ziggy.supervisor.heartbeat.intervalMillis"),
 
     /**
      * Port used for communications between supervisor and console. Each cluster must have a port

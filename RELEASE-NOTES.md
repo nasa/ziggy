@@ -1,14 +1,50 @@
-<!-- -*-visual-line-*- -->
-
 # Ziggy Release Notes
 
-These are the release notes for Ziggy. In the change log below, we'll refer to our internal Jira key for our benefit. If the item is associated with a resolved GitHub issue or pull request, we'll add a link to that. Changes that are incompatible with previous versions are marked below. While the major version is 0, we will be making breaking changes when bumping the minor number. However, once we hit version 1.0.0, incompatible changes will only be made when bumping the major number.
+These are the release notes for Ziggy. In the change log below, we'll refer to our internal Jira key
+for our benefit. If the item is associated with a resolved GitHub issue or pull request, we'll add a
+link to that. Changes that are incompatible with previous versions are marked below. While the major
+version is 0, we will be making breaking changes when bumping the minor number. However, once we hit
+version 1.0.0, incompatible changes will only be made when bumping the major number.
+
+# v0.12.0: Last release before 1.0.0?
+
+This version is also being used to run the Transiting Exoplanet Survey Satellite (TESS) data
+analysis pipeline. That dry run in preparation for formal V&V is nearing completion.
+
+The content of this release buys down some more technical debt. This resulted in a couple of minor
+API and database schema changes compared to v0.11.0.
+
+## New Features
+
+1. Add process information to ExternalProcess API (ZIGGY-631)
+1. Add ProcessMemoryMonitor class to gov.nasa.ziggy.util.os (ZIGGY-632)
+1. Add utility to measure directory size (ZIGGY-633)
+1. Move all Ziggy metrics persistence to PipelineTaskMetric class (ZIGGY-634)
+1. Implement changes to performance report and performance statistics (ZIGGY-635)
+1. Remove obsolete metrics classes (ZIGGY-636)
+1. Move gov.nasa.ziggy.crud to gov.nasa.ziggy.services.database (ZIGGY-638)
+1. Allow users to override Ziggy log4j2.xml file (ZIGGY-639)
+1. Rename PIPELINE_CONFIG_PATH to ZIGGY_CONFIG_FILE (ZIGGY-640)
+1. Implement tool to capture subtask runtimes (ZIGGY-641)
+1. Add License column to licenses.md (ZIGGY-642)
+
+## Requirements
+
+1. Diagnostics (ZIGGY-349)
+1. Performance tracking (ZIGGY-350)
+
+## Bug Fixes
+
+1. Ziggy fails to run Python programs with absolute package paths (ZIGGY-643)
+1. Fix "Use of uninitialized value $nickname" error (ZIGGY-645)
 
 # v0.11.0: Continuing to inch towards 1.0.0
 
-This version is being used to run the Transiting Exoplanet Survey Satellite (TESS) data analysis pipeline. That effort is still in dry run in preparation for formal V&V.
+This version is being used to run the Transiting Exoplanet Survey Satellite (TESS) data analysis
+pipeline. That effort is still in dry run in preparation for formal V&V.
 
-The content of this release contains bug fixes and other improvements we've made during this process.
+The content of this release contains bug fixes and other improvements we've made during this
+process.
 
 ## New Features
 
@@ -27,7 +63,7 @@ The content of this release contains bug fixes and other improvements we've made
 1. Un-overload data-receipt in user manual event handler articles (ZIGGY-170)
 1. Sample pipeline instructions are not clear (ZIGGY-512)
 1. Clarify unclear portions of the Ziggy user manual (ZIGGY-530)
-1. Fix various issues in user manual (ZIGGY-621)
+1. Fix various issues in user manual (#5, ZIGGY-621)
 
 ## Bug Fixes
 
@@ -41,7 +77,8 @@ The content of this release contains bug fixes and other improvements we've made
 
 # v0.10.0: Almost ready for 1.0.0
 
-This version is being used to run the Transiting Exoplanet Survey Satellite (TESS) data analysis pipeline. That effort is currently in dry run in preparation for formal V&V.
+This version is being used to run the Transiting Exoplanet Survey Satellite (TESS) data analysis
+pipeline. That effort is currently in dry run in preparation for formal V&V.
 
 The content of this release contains bug fixes and other improvements to get us to this point.
 
@@ -89,11 +126,27 @@ The content of this release contains bug fixes and other improvements to get us 
 
 # v0.9.0: Getting ready for 1.0.0
 
-Since this was our last chance to rename everything, we did so. The architecture has diverged over the decades, but we've made the names and architecture a lot more consistent in this release. You'll notice some of the changes in the XML elements in your pipeline definition (the Ziggy definitions are now in etc/ziggy.d); the rest are internal. In particular, rather than using "module" in a gazillion contexts, we've teased out the differences in separate names. The algorithms are now called "steps." When those steps are incorporated into a "pipeline," they are called "nodes." We no longer use module except in the context of Python modules.
+Since this was our last chance to rename everything, we did so. The architecture has diverged over
+the decades, but we've made the names and architecture a lot more consistent in this release. You'll
+notice some of the changes in the XML elements in your pipeline definition (the Ziggy definitions
+are now in etc/ziggy.d); the rest are internal. In particular, rather than using "module" in a
+gazillion contexts, we've teased out the differences in separate names. The algorithms are now
+called "steps." When those steps are incorporated into a "pipeline," they are called "nodes." We no
+longer use module except in the context of Python modules.
 
-It should be a bit easier to add your algorithm to Ziggy as we've reduced the amount of required glue code. The prefixes for the XML pipeline configuration files such as "pd" and "pl" are no longer required and you can now organize your pipelines as you wish in one or more files. In the UI, you'll notice that the component to turn on remote execution is now a pull-down instead of a checkbox to allow for future remote environments. The new Milan nodes at the HECC are now supported.
+It should be a bit easier to add your algorithm to Ziggy as we've reduced the amount of required
+glue code. The prefixes for the XML pipeline configuration files such as "pd" and "pl" are no longer
+required and you can now organize your pipelines as you wish in one or more files. In the UI, you'll
+notice that the component to turn on remote execution is now a pull-down instead of a checkbox to
+allow for future remote environments. The new Milan nodes at the HECC are now supported.
 
-We fixed some problems interacting with PBS, running on Mac in some environments, and performing the unit tests in time zones other than Pacific. Changing ziggy.database.port now has an effect when using the HSQLDB database and the database is now stopped after running "ziggy cluster init." The log files now roll as defined in log4j2.xml. The "Process all data" and "Process new data" radio buttons in the Edit pipeline dialog work again. We also fixed some issues in the datastore:  new directories can be created, producer-consumer queries run more quickly with a large datastore, and multiple include patterns don't always produce zero files.
+We fixed some problems interacting with PBS, running on Mac in some environments, and performing the
+unit tests in time zones other than Pacific. Changing ziggy.database.port now has an effect when
+using the HSQLDB database and the database is now stopped after running "ziggy cluster init." The
+log files now roll as defined in log4j2.xml. The "Process all data" and "Process new data" radio
+buttons in the Edit pipeline dialog work again. We also fixed some issues in the datastore: new
+directories can be created, producer-consumer queries run more quickly with a large datastore, and
+multiple include patterns don't always produce zero files.
 
 ## New Features
 
@@ -133,7 +186,10 @@ We fixed some problems interacting with PBS, running on Mac in some environments
 
 # v0.8.0: Polishing the cannonball
 
-This release consists of lots of little improvements. We added a tool to inject your pipeline version into your pipeline and updated the "ziggy" script so that you can override properties in ziggy.properties. We worked around a couple of issues that got in the way of running Ziggy on a Mac. We also fixed a bunch of annoying problems and improved the UI.
+This release consists of lots of little improvements. We added a tool to inject your pipeline
+version into your pipeline and updated the "ziggy" script so that you can override properties in
+ziggy.properties. We worked around a couple of issues that got in the way of running Ziggy on a Mac.
+We also fixed a bunch of annoying problems and improved the UI.
 
 ## New Features
 
@@ -174,7 +230,11 @@ This release consists of lots of little improvements. We added a tool to inject 
 
 # v0.7.0: Halloween release
 
-This release is coming out just before Halloween, and it's full of tricks and treats. Behind the scenes, we continued to buy down decades of technical debt. Are we finally getting close to paying off that loan? By eliminating the StateFile API (ZIGGY-465) and fixing ZIGGY-432, ZIGGY-454, and ZIGGY-478, the pipeline no longer stalls or crashes for mysterious reasons. We fixed a few UI annoyances like collapsing tree controls and Control-Click not working as expected on the Mac.
+This release is coming out just before Halloween, and it's full of tricks and treats. Behind the
+scenes, we continued to buy down decades of technical debt. Are we finally getting close to paying
+off that loan? By eliminating the StateFile API (ZIGGY-465) and fixing ZIGGY-432, ZIGGY-454, and
+ZIGGY-478, the pipeline no longer stalls or crashes for mysterious reasons. We fixed a few UI
+annoyances like collapsing tree controls and Control-Click not working as expected on the Mac.
 
 ## New Features
 
@@ -217,7 +277,10 @@ This release is coming out just before Halloween, and it's full of tricks and tr
 
 # v0.6.0: You never have to wonder what Ae 4 / 3 / 0 means again
 
-We fixed a confusing aspect of the user interface and a ton of bugs while we continued to buy down decades of technical debt. You can now halt tasks or instances from the command-line interface (CLI). We improved pipeline definitions by making datastore definitions more flexible and providing for user-specified data receipt unit of work (UOW) generators.
+We fixed a confusing aspect of the user interface and a ton of bugs while we continued to buy down
+decades of technical debt. You can now halt tasks or instances from the command-line interface
+(CLI). We improved pipeline definitions by making datastore definitions more flexible and providing
+for user-specified data receipt unit of work (UOW) generators.
 
 ## New Features
 
@@ -252,7 +315,8 @@ We fixed a confusing aspect of the user interface and a ton of bugs while we con
 
 # v0.5.0: A major overhaul of the datastore, some UI improvements, and documentation for the command-line interface
 
-The title pretty much says it all. There was also a lot of internal refactoring to buy down more technical debt.
+The title pretty much says it all. There was also a lot of internal refactoring to buy down more
+technical debt.
 
 ## New Features
 
@@ -301,13 +365,19 @@ As promised, the Halt tasks (formerly Kill tasks) and Restart tasks commands hav
 
 # v0.4.0: Hibernate 6, reorganized properties, an improved UI, runjava renamed to ziggy
 
-Last time we said that our next release will contain the result of replacing our TESS data analysis pipeline infrastructure with Ziggy. That work continues, so we'll try to get back into a regular cadence of releases to avoid astronomically large releases, like this one.
+Last time we said that our next release will contain the result of replacing our TESS data analysis
+pipeline infrastructure with Ziggy. That work continues, so we'll try to get back into a regular
+cadence of releases to avoid astronomically large releases, like this one.
 
-As promised, we reorganized our properties and eliminated the effects of 15 years of entropy. We also updated the version of Hibernate we use and updated the database schema.
+As promised, we reorganized our properties and eliminated the effects of 15 years of entropy. We
+also updated the version of Hibernate we use and updated the database schema.
 
-The UI witnessed a major facelift, and `runjava` was renamed to `ziggy` and the `--help` option works consistently with ziggy and its commands. The sample pipeline now uses an internal HSQLDB database, so it's even easier to try.
+The UI witnessed a major facelift, and `runjava` was renamed to `ziggy` and the `--help` option
+works consistently with ziggy and its commands. The sample pipeline now uses an internal HSQLDB
+database, so it's even easier to try.
 
-The version generator was redone to avoid rebuilding the world every time. Third-party sources have been moved from `buildSrc` to `outside,` where they are still safe from `gradle clean`.
+The version generator was redone to avoid rebuilding the world every time. Third-party sources have
+been moved from `buildSrc` to `outside,` where they are still safe from `gradle clean`.
 
 The `Kill tasks` and `Restart tasks` commands are broken and will be fixed shortly in 0.4.1.
 
@@ -354,9 +424,15 @@ The `Kill tasks` and `Restart tasks` commands are broken and will be fixed short
 
 This release includes a fix to our CITATION.cff courtesy of @dieghernan.
 
-We are now working towards replacing our [TESS](https://www.nasa.gov/tess-transiting-exoplanet-survey-satellite) data analysis pipeline infrastructure with Ziggy. Our next release will contain the result of that work. It's a large effort and we expect it to take at least two months if not longer.
+We are now working towards replacing our
+[TESS](https://www.nasa.gov/tess-transiting-exoplanet-survey-satellite) data analysis pipeline
+infrastructure with Ziggy. Our next release will contain the result of that work. It's a large
+effort and we expect it to take at least two months if not longer.
 
-We are still planning to reorganize our properties and eliminate the effects of 15 years of entropy. We'll also be updating the version of Hibernate we use and anticipate updating the database schema as a result. You have been warned! This will occur before the 1.0 release to maximize our chances of stability after that.
+We are still planning to reorganize our properties and eliminate the effects of 15 years of entropy.
+We'll also be updating the version of Hibernate we use and anticipate updating the database schema
+as a result. You have been warned! This will occur before the 1.0 release to maximize our chances of
+stability after that.
 
 ## New Features
 
@@ -366,9 +442,14 @@ We are still planning to reorganize our properties and eliminate the effects of 
 
 # v0.3.0: Java 17, Gradle 7, and a new event manager
 
-This release includes an update to the Gradle build system and an upgrade of Java to Java 17. It introduces an event manager system so that Ziggy can respond automatically to external events. The user manual was expanded to cover this feature and a few others.
+This release includes an update to the Gradle build system and an upgrade of Java to Java 17. It
+introduces an event manager system so that Ziggy can respond automatically to external events. The
+user manual was expanded to cover this feature and a few others.
 
-We are planning to reorganize our properties and eliminate the effects of 15 years of entropy. We'll also be updating the version of Hibernate we use and anticipate updating the database schema as a result. You have been warned! This will occur before the 1.0 release to maximize our chances of stability after that.
+We are planning to reorganize our properties and eliminate the effects of 15 years of entropy. We'll
+also be updating the version of Hibernate we use and anticipate updating the database schema as a
+result. You have been warned! This will occur before the 1.0 release to maximize our chances of
+stability after that.
 
 ## New Features
 
@@ -390,9 +471,13 @@ We are planning to reorganize our properties and eliminate the effects of 15 yea
 
 # v0.2.2: More documentation goodness
 
-This release adds Previous, Next, and Up buttons to the user manual to make it easier to read cover to cover. We also added a CITATION.cff file to make it easier for you to cite Ziggy in your own work. Finally, we changed some 3-byte quotes to ASCII as these quotes could not be compiled if LANG is C.
+This release adds Previous, Next, and Up buttons to the user manual to make it easier to read cover
+to cover. We also added a CITATION.cff file to make it easier for you to cite Ziggy in your own
+work. Finally, we changed some 3-byte quotes to ASCII as these quotes could not be compiled if LANG
+is C.
 
-We have updated the Gradle build system and Java to Java 17. This change will appear in version 0.3.0.
+We have updated the Gradle build system and Java to Java 17. This change will appear in version
+0.3.0.
 
 ## New Features
 
@@ -405,9 +490,12 @@ We have updated the Gradle build system and Java to Java 17. This change will ap
 
 # v0.2.1: Add GitHub info to docs
 
-Once we uploaded our first version to GitHub, we could fill in some documentation TODOs like how to download the code.
+Once we uploaded our first version to GitHub, we could fill in some documentation TODOs like how to
+download the code.
 
-We are still in the process of updating the build system Gradle and Java to at least Java 11 and possibly Java 17. We'll take advantage of post-Java 8 versions at that time. This change will appear in version 0.3.0.
+We are still in the process of updating the build system Gradle and Java to at least Java 11 and
+possibly Java 17. We'll take advantage of post-Java 8 versions at that time. This change will appear
+in version 0.3.0.
 
 ## New Features
 
@@ -418,12 +506,18 @@ We are still in the process of updating the build system Gradle and Java to at l
 
 # v0.2.0: Initial release
 
-This is the first Ziggy release to appear on GitHub. The major number of 0 indicates that we're still refactoring the Kepler and TESS codebases and reserve the right to make breaking changes from time to time as we make the pipeline more widely useful. However, the general pipeline infrastructure has been in production use since Kepler's launch in 2009.
+This is the first Ziggy release to appear on GitHub. The major number of 0 indicates that we're
+still refactoring the Kepler and TESS codebases and reserve the right to make breaking changes from
+time to time as we make the pipeline more widely useful. However, the general pipeline
+infrastructure has been in production use since Kepler's launch in 2009.
 
 This is the first Ziggy release.
 
-We are in the process of updating the build system Gradle and Java to at least Java 11. It's possible that we will take advantage of post-Java 8 versions at that time. This change will appear in version 0.3.0.
+We are in the process of updating the build system Gradle and Java to at least Java 11. It's
+possible that we will take advantage of post-Java 8 versions at that time. This change will appear
+in version 0.3.0.
 
 # 0.1.0
 
-This release was overtaken by events. This release came and went before we got authorization to push our code to GitHub.
+This release was overtaken by events. This release came and went before we got authorization to push
+our code to GitHub.

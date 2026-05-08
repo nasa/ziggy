@@ -226,8 +226,8 @@ public class PipelineTaskDebugger {
             String.format("%s=%s\n", PIPELINE_STEP_NAME_PROP, taskDebugger.getPipelineStepName()));
         log.info(String.format("%s=%s\n", PIPELINE_NAME_PROP, taskDebugger.getPipelineName()));
 
-        log.info(String.format("%s=%s\n", ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV,
-            System.getenv(ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV)));
+        log.info(String.format("%s=%s\n", ZiggyConfiguration.ZIGGY_CONFIG_FILE_ENV,
+            System.getenv(ZiggyConfiguration.ZIGGY_CONFIG_FILE_ENV)));
 
         PipelineStepExecutor pipelineStepExecutor = new PipelineTaskOperations()
             .pipelineStepExecutorImplementation(pipelineTask);
@@ -262,7 +262,7 @@ public class PipelineTaskDebugger {
     }
 
     public String getPipelineProperties() {
-        return ZiggyConfiguration.PIPELINE_CONFIG_PATH_ENV;
+        return ZiggyConfiguration.ZIGGY_CONFIG_FILE_ENV;
     }
 
     public String getPipelineStepName() {

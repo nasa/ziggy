@@ -103,26 +103,27 @@ public class PipelineReportGenerator {
         StringBuilder report = new StringBuilder();
 
         report.append("Instance ID: " + instance.getId() + nl);
-        report.append("Instance Name: " + instance.getName() + nl);
-        report.append("Instance Priority: " + instance.getPriority() + nl);
-        report.append("Instance State: " + instance.getState() + nl);
+        report.append("Instance name: " + instance.getName() + nl);
+        report.append("Instance priority: " + instance.getPriority() + nl);
+        report.append("Instance state: " + instance.getState() + nl);
         List<String> instanceSoftwareRevisions = pipelineTaskDataOperations()
             .distinctSoftwareRevisions(instance);
-        report.append("Instance Software Revisions: " + instanceSoftwareRevisions + nl);
+        report.append("Instance software revisions: " + instanceSoftwareRevisions + nl);
         report.append(nl);
-        report.append("Pipeline Name: " + instance.getPipeline().getName() + nl);
-        report.append("Pipeline Version: " + instance.getPipeline().getVersion() + nl);
 
+        report.append("Pipeline name: " + instance.getPipeline().getName() + nl);
+        report.append("Pipeline version: " + instance.getPipeline().getVersion() + nl);
         report.append(nl);
+
         report.append("Pipeline Parameter Sets" + nl);
+        report.append(nl);
+
         Set<ParameterSet> pipelineParamSets = pipelineInstanceOperations().parameterSets(instance);
         for (ParameterSet paramSet : pipelineParamSets) {
-
             appendParameterSetToReport(report, paramSet, TWO_SPACE_INDENT, false);
             report.append(nl);
         }
 
-        report.append(nl);
         report.append("Nodes" + nl);
 
         List<PipelineInstanceNode> pipelineNodes = pipelineInstanceOperations()
@@ -141,7 +142,7 @@ public class PipelineReportGenerator {
             List<String> nodeSoftwareRevisions = pipelineTaskDataOperations()
                 .distinctSoftwareRevisions(node);
             report.append(
-                FOUR_SPACE_INDENT + "Software Revisions for node:" + nodeSoftwareRevisions + nl);
+                FOUR_SPACE_INDENT + "Software revisions for node:" + nodeSoftwareRevisions + nl);
 
             Set<ParameterSet> parameterSets = pipelineInstanceNodeOperations().parameterSets(node);
             for (ParameterSet parameterSet : parameterSets) {
@@ -152,8 +153,8 @@ public class PipelineReportGenerator {
 
         report.append(nl);
         report.append("Data Model Registry" + nl);
-        ModelOperations modelMetadataOps = new ModelOperations();
-        report.append(modelMetadataOps.report(instance));
+        report.append(nl);
+        report.append(new ModelOperations().report(instance));
 
         return report.toString();
     }
@@ -174,21 +175,21 @@ public class PipelineReportGenerator {
         String nl = System.lineSeparator();
         StringBuilder report = new StringBuilder();
 
-        report.append("Pipeline version: " + pipeline.getVersion() + nl);
         report.append("Pipeline name: " + pipeline.getName() + nl);
+        report.append("Pipeline version: " + pipeline.getVersion() + nl);
         report.append("Pipeline priority: " + pipeline.getInstancePriority() + nl);
         report.append(nl);
 
         report.append("Pipeline Parameter Sets" + nl);
+        report.append(nl);
+
         Set<String> pipelineParameterSetNames = pipelineOperations().parameterSetNames(pipeline);
         for (String paramSetName : pipelineParameterSetNames) {
             ParameterSet paramSet = parametersOperations().parameterSet(paramSetName);
-
-            report.append(nl);
             appendParameterSetToReport(report, paramSet, TWO_SPACE_INDENT, false);
         }
-
         report.append(nl);
+
         report.append("Nodes" + nl);
 
         List<PipelineNode> nodes = pipelineNodeOperations()

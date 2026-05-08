@@ -21,6 +21,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDataOperations;
 import gov.nasa.ziggy.services.config.DirectoryProperties;
 import gov.nasa.ziggy.services.config.PropertyName;
+import gov.nasa.ziggy.services.config.ZiggyConfiguration;
 
 /**
  * This class manages the use of log files for pipeline infrastructure purposes and works hand in
@@ -69,6 +70,8 @@ public class ZiggyLog {
 
     static final int LOCAL_LOG_FILE_JOB_INDEX = 0;
 
+    private static final String LOG4J_CONFIG_FILE_NAME = "log4j2.xml";
+
     private static PipelineTaskDataOperations pipelineTaskDataOperations = new PipelineTaskDataOperations();
 
     /** No instances. All static methods. */
@@ -76,11 +79,15 @@ public class ZiggyLog {
     }
 
     /**
-     * The Log4j configuration file as a JVM argument.
+     * The Log4j configuration file as a JVM argument. Any user setting of
+     * {@link PropertyName#LOG4J2_CONFIGURATION_FILE} has priority, but in the absence of any such
+     * setting the configuration file defaults to the one in Ziggy's build/etc directory.
      */
     public static String log4jConfigString() {
-        return systemProperty(PropertyName.LOG4J2_CONFIGURATION_FILE,
-            DirectoryProperties.ziggyHomeDir().resolve("etc").resolve("log4j2.xml").toString());
+        String log4jConfigString = ZiggyConfiguration.getInstance()
+            .getString(PropertyName.LOG4J2_CONFIGURATION_FILE.property(),
+                DirectoryProperties.ziggyEtcDir().resolve(LOG4J_CONFIG_FILE_NAME).toString());
+        return systemProperty(PropertyName.LOG4J2_CONFIGURATION_FILE, log4jConfigString);
     }
 
     /**

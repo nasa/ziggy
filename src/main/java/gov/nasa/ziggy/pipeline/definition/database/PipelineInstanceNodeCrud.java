@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.data.datastore.DataFileType;
 import gov.nasa.ziggy.pipeline.definition.ParameterSet;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
@@ -17,7 +15,9 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance_;
 import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineNode_;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
+import gov.nasa.ziggy.services.database.AbstractCrud;
 import gov.nasa.ziggy.services.database.DatabaseService;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 
 /**
  * Provides CRUD methods for {@link PipelineInstanceNode}

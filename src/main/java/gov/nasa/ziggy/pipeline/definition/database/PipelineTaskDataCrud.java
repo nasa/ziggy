@@ -9,8 +9,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.pipeline.definition.ExecutionClock;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -22,6 +20,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTask_;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.pipeline.definition.RemoteJob;
 import gov.nasa.ziggy.pipeline.definition.TaskExecutionLog;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import jakarta.persistence.metamodel.SingularAttribute;
 
 public class PipelineTaskDataCrud extends AbstractCrud<PipelineTaskData> {

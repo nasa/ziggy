@@ -66,91 +66,85 @@ Ziggy is "A Pipeline management system for Data Analysis Pipelines." This is the
 
 11. [Troubleshooting Pipeline Execution](troubleshooting.md)
 
-      11.1​. [Log Files in Ziggy](log-files.md)
+       11.1​. [Log Files in Ziggy](log-files.md)
 
 12. [Using the Ziggy Console, Part 2: Troubleshooting](ziggy-gui-troubleshooting.md)
 
-       12.1.​ [Monitoring Tab](monitoring.md)
+    12.1.​ [Monitoring Tab](monitoring.md)
 
-       12.2.​ [Alerts Panel](alerts.md)
+    12.2.​ [Alerts Panel](alerts.md)
 
-       12.3.​ [Log Files Display](display-logs.md)
+    12.3.​ [Log Files Display](display-logs.md)
 
-       12.4.​ [Re-Run or Resume a Failed Task](rerun-task.md)
+    12.4. [Performance Report](more-performance-report.md)
 
-       12.5.​ [Halting Tasks](halt-tasks.md)
+    12.5.​ [Re-Run or Resume a Failed Task](rerun-task.md)
+
+    12.6.​ [Halting Tasks](halt-tasks.md)
 
 13. [High Performance Computing](select-hpc.md)
 
-       13.1. [The Remote Execution Dialog Box](remote-dialog.md)
+    13.1. [The Remote Execution Dialog Box](remote-dialog.md)
 
-       13.2. [HPC Cost Estimation](hpc-cost.md)
+    13.2. [HPC Cost Estimation](hpc-cost.md)
 
 14. Cloud Computing (TBD)
 
 15. [Data Receipt](data-receipt.md)
 
-       15.1​. [Execution Flow](data-receipt-execution.md)
+    15.1​. [Execution Flow](data-receipt-execution.md)
 
-       15.2.​ [Data Receipt Display](data-receipt-display.md)
+    15.2.​ [Data Receipt Display](data-receipt-display.md)
 
 16. [Event Handler](event-handler.md)
 
-       16.1​. [Introduction to Event Handlers](event-handler-intro.md)
+    16.1​. [Introduction to Event Handlers](event-handler-intro.md)
 
-       16.2​. [Defining Event Handlers](event-handler-definition.md)
+    16.2​. [Defining Event Handlers](event-handler-definition.md)
 
-       16.3​. [Event Handler Examples](event-handler-examples.md)
+    16.3​. [Event Handler Examples](event-handler-examples.md)
 
-       16.4​. [Sending Event Information to Algorithms](event-handler-labels.md)
+    16.4​. [Sending Event Information to Algorithms](event-handler-labels.md)
 
-17. Reports and Performance Tracking (TBD)
+17. [Reports and Performance Tracking](performance-tracking.md)
 
-      <!--
+    17.1​. [Metrics](metrics.md)
 
-       17.1​. [Memdrone](memdrone.md)
+    17.2. [Performance Report](performance-report.md)
 
-       17.2​. [Metrics](metrics.md)
-
-       17.3​. [Instance Reports](instance-reports.md)
-
-       17.4​. [Data Accountability](data-accountability.md)
-
-      -->
+    <!--17.3. [Data Accountability](data-accountability.md)-->
 
 18. Alternative User Interface Options
 
-       18.1​. [Command-Line Interface](console-cli.md)
+    18.1​. [Command-Line Interface](console-cli.md)
 
-       <!--
+    <!--18.2​. [Assistive Technologies](assistive-technologies.md)-->
 
-       18.2​. [Assistive Technologies](assistive-technologies.md)
+    <!--18.3​. [Mouse-Overs](mouse-overs.md)-->
 
-       18.3​. [Mouse-Overs](mouse-overs.md)
-
-       18.4​. [Console Appearance Control](appearance-control.md)
-
-      -->
+    <!--18.4​. [Console Appearance Control](appearance-control.md)-->
 
 19. Security (TBD)
 
 20. [Ziggy's Dustier Corners](dusty-corners.md)
 
-        20.1​. [More on the Relational Database](more-rdbms.md)
-    
-        20.2​. [More on Parameter Sets](more-parameter-sets.md)
-    
-        20.3​. [Parameter Overrides](parameter-overrides.md)
-    
-        20.4​. [Redefining a Pipeline](redefine-pipeline.md)
-    
-        20.5. [Creating Ziggy Nicknames](nicknames.md)
-    
-        20.6. [Advanced Unit of Work Configurations](advanced-uow.md)
-    
-        20.7. [Software Version Tracking](version-tracking.md)
-    
-        <!-- 20.8. [Customizing Ziggy](customizing-ziggy.md) -->
+     20.1​. [More on the Relational Database](more-rdbms.md)
+
+     20.2​. [More on Parameter Sets](more-parameter-sets.md)
+
+     20.3​. [Parameter Overrides](parameter-overrides.md)
+
+     20.4​. [Redefining a Pipeline](redefine-pipeline.md)
+
+     20.5. [Creating Ziggy Nicknames](nicknames.md)
+
+     20.6. [Advanced Unit of Work Configurations](advanced-uow.md)
+
+     20.7. [Software Version Tracking](version-tracking.md)
+
+     20.8. [Ziggy's use of HDF5](hdf5.md)
+
+     <!-- 20.9. [Customizing Ziggy](customizing-ziggy.md) -->
 
 21. [Contact Us](contact-us.md)
 

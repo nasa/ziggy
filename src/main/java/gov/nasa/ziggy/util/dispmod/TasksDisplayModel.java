@@ -1,6 +1,9 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import java.util.LinkedList;
+import static com.lowagie.text.Element.ALIGN_LEFT;
+import static com.lowagie.text.Element.ALIGN_RIGHT;
+
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JLabel;
@@ -20,6 +23,9 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 public class TasksDisplayModel extends DisplayModel {
     private static final String[] COLUMN_NAMES = { "ID", "Node", "UOW", "Worker", "Status",
         "Subtasks", "Time" };
+    private static final int[] COLUMN_ALIGNMENT = { ALIGN_RIGHT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT,
+        ALIGN_LEFT, ALIGN_RIGHT, ALIGN_RIGHT };
+
     public static final int[] COLUMN_WIDTHS = { ZiggySwingUtils.textWidth(new JLabel(), "123456"),
         ZiggySwingUtils.textWidth(new JLabel(), "123456789012345"),
         ZiggySwingUtils.textWidth(new JLabel(), "123456789012345"),
@@ -28,7 +34,7 @@ public class TasksDisplayModel extends DisplayModel {
         ZiggySwingUtils.textWidth(new JLabel(), "Subtasks"),
         ZiggySwingUtils.textWidth(new JLabel(), "00:00:00") };
 
-    private List<PipelineTaskDisplayData> tasks = new LinkedList<>();
+    private List<PipelineTaskDisplayData> tasks = new ArrayList<>();
     private TaskCounts taskCounts = new TaskCounts();
 
     public TasksDisplayModel() {
@@ -59,6 +65,11 @@ public class TasksDisplayModel extends DisplayModel {
     @Override
     public int getColumnCount() {
         return COLUMN_NAMES.length;
+    }
+
+    @Override
+    public int getAlignment(int column) {
+        return COLUMN_ALIGNMENT[column];
     }
 
     @Override

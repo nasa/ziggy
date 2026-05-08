@@ -429,11 +429,19 @@ public class PipelineTaskDataOperations extends DatabaseOperations {
     }
 
     public void updatePipelineTaskMetrics(PipelineTask pipelineTask,
-        List<PipelineTaskMetric> pipelineTaskMetrics) {
+        Collection<PipelineTaskMetric> pipelineTaskMetrics) {
         performTransaction(() -> {
             PipelineTaskData pipelineTaskData = pipelineTaskDataCrud()
                 .retrievePipelineTaskData(pipelineTask);
-            pipelineTaskData.setPipelineTaskMetrics(pipelineTaskMetrics);
+            List<PipelineTaskMetric> databaseMetrics = pipelineTaskData.getPipelineTaskMetrics();
+            for (PipelineTaskMetric metric : pipelineTaskMetrics) {
+                if (databaseMetrics.contains(metric)) {
+                    databaseMetrics.get(databaseMetrics.indexOf(metric))
+                        .updateValue(metric.getValue());
+                    continue;
+                }
+                databaseMetrics.add(metric);
+            }
         });
     }
 

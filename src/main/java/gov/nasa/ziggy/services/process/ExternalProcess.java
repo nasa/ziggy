@@ -36,6 +36,8 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.PipelineException;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
+import gov.nasa.ziggy.util.os.OperatingSystemType;
+import gov.nasa.ziggy.util.os.ProcInfo;
 import gov.nasa.ziggy.util.os.ProcessUtils;
 
 /**
@@ -79,7 +81,7 @@ public class ExternalProcess {
 
     private long timeoutMillis = Long.MAX_VALUE;
     private File workingDirectory;
-    private DefaultExecutor executor;
+    private ZiggyProcessExecutor executor;
     private CommandLine commandLine;
     private Map<String, String> environment;
     private LogOutputStream outputLog;
@@ -96,6 +98,11 @@ public class ExternalProcess {
 
     private Writer outputWriter;
     private Writer errorWriter;
+
+    private DefaultExecuteResultHandler resultHandler;
+
+    private OperatingSystemType operatingSystemType;
+    private ProcInfo procInfo;
 
     /**
      * Recommended constructor.
@@ -309,7 +316,10 @@ public class ExternalProcess {
      * @param wait if true, execute synchronously.
      * @return return code from process execution, or 0 if execution is asynchronous.
      */
+    @SuppressWarnings("deprecation")
     public int execute(boolean wait) {
+
+        operatingSystemType = OperatingSystemType.newInstance();
         int retCode = 0;
 
         // Construct the appropriate LogOutputStream instances.
@@ -326,10 +336,11 @@ public class ExternalProcess {
         }
 
         // Configure the DefaultExecutor.
-        executor = DefaultExecutor.builder().setWorkingDirectory(getWorkingDirectory()).get();
+        executor = new ZiggyProcessExecutor();
         executor.setWatchdog(
             ExecuteWatchdog.builder().setTimeout(Duration.ofMillis(timeoutMillis)).get());
         executor.setStreamHandler(pumpStreamHandler);
+        executor.setWorkingDirectory(getWorkingDirectory());
 
         // Start the process and, if run synchronously, capture its exit code.
         if (wait) {
@@ -365,7 +376,7 @@ public class ExternalProcess {
 
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
     private void executeAsynchronously() {
-        DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
+        resultHandler = new DefaultExecuteResultHandler();
         try {
             if (environment != null) {
                 executor.execute(commandLine, environment, resultHandler);
@@ -375,6 +386,30 @@ public class ExternalProcess {
         } catch (Exception e) {
             throw new PipelineException("Exception occurred during command line execute", e);
         }
+    }
+
+    /** Returns the process ID from the {@link ZiggyProcessExecutor}. */
+    public long processId() {
+        return executor.getProcessId();
+    }
+
+    /**
+     * Executes the {@link DefaultExecuteResultHandler#waitFor()} method and returns the value of
+     * {@link DefaultExecuteResultHandler#getExitValue()}. This allows a user to, in effect, convert
+     * an asynchronous {@link ExternalProcess} to a synchronous one, after first potentially
+     * performing an operation between starting the ExternalProcess asynchronously and then running
+     * this method.
+     */
+    public int waitAndReturnStatus() {
+        if (resultHandler == null) {
+            throw new PipelineException("Unable to wait for synchronous ExternalProcess");
+        }
+        try {
+            resultHandler.waitFor();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return resultHandler.getExitValue();
     }
 
     private void initializeWriters() {
@@ -554,6 +589,17 @@ public class ExternalProcess {
      */
     public ExecuteWatchdog getWatchdog() {
         return executor != null ? executor.getWatchdog() : null;
+    }
+
+    public ProcInfo getProcInfo() {
+        if (operatingSystemType == null) {
+            throw new PipelineException(
+                "Cannot return ProcInfo instance for process that hasn't started");
+        }
+        if (procInfo == null) {
+            procInfo = operatingSystemType.getProcInfo(processId());
+        }
+        return procInfo;
     }
 
     /**

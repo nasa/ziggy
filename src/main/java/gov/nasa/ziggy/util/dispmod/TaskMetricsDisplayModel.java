@@ -1,19 +1,28 @@
 package gov.nasa.ziggy.util.dispmod;
 
+import static com.lowagie.text.Element.ALIGN_LEFT;
+import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.ALGORITHM_TIME;
+import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.INPUTS_SIZE;
+import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.MARSHALING_TIME;
+import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.OUTPUTS_SIZE;
+import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.PERSISTING_TIME;
+import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.QUEUE_TIME;
+
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
+import org.jfree.chart.ChartColor;
 
-import gov.nasa.ziggy.metrics.TaskMetrics;
-import gov.nasa.ziggy.metrics.TimeAndPercentile;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric;
+import gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Unit;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
  * Display a table containing a row for each pipeline node and a column for each category defined in
@@ -23,12 +32,33 @@ import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
  * pipeline node and the percentage of the total processing time for all of the tasks.
  *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 public class TaskMetricsDisplayModel extends DisplayModel {
 
-    private List<PipelineStepTaskMetrics> categorySummariesByNode = new LinkedList<>();
-    private List<String> seenCategories = new ArrayList<>();
-    private int numColumns = 0;
+    public record MetricDisplayInfo(Metric metric, String title, Color color) {
+    }
+
+    /**
+     * The order that metrics should be presented and metadata used in their display. The metric in
+     * the record can be null if only the title is needed.
+     */
+    public static final List<MetricDisplayInfo> METRIC_DISPLAY_INFO = List.of(
+        new MetricDisplayInfo(null, "Node", null),
+        new MetricDisplayInfo(INPUTS_SIZE, "Inputs size", ChartColor.DARK_RED),
+        new MetricDisplayInfo(MARSHALING_TIME, "Marshalling time", ChartColor.ORANGE),
+        new MetricDisplayInfo(QUEUE_TIME, "Queue time", ChartColor.DARK_YELLOW),
+        new MetricDisplayInfo(ALGORITHM_TIME, "Algorithm time", ChartColor.DARK_GREEN),
+        new MetricDisplayInfo(OUTPUTS_SIZE, "Outputs size", ChartColor.DARK_BLUE),
+        new MetricDisplayInfo(PERSISTING_TIME, "Persisting time", ChartColor.DARK_MAGENTA),
+        new MetricDisplayInfo(null, "Total time", null));
+
+    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT,
+        ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT };
+
+    private static final long BYTES_PER_GIGABYTE = 1_000_000_000L;
+
+    private List<PipelineStepTaskMetrics> pipelineStepsTaskMetrics;
 
     private boolean completedTasksOnly = false;
 
@@ -46,8 +76,6 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
     private void update(List<PipelineTaskDisplayData> tasks,
         List<String> orderedPipelineStepNames) {
-        categorySummariesByNode = new LinkedList<>();
-        seenCategories = new ArrayList<>();
 
         Map<String, List<PipelineTaskDisplayData>> tasksByNode = new HashMap<>();
 
@@ -58,7 +86,7 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
                 List<PipelineTaskDisplayData> tasksForNode = tasksByNode.get(pipelineStepName);
                 if (tasksForNode == null) {
-                    tasksForNode = new LinkedList<>();
+                    tasksForNode = new ArrayList<>();
                     tasksByNode.put(pipelineStepName, tasksForNode);
                 }
                 tasksForNode.add(task);
@@ -67,77 +95,76 @@ public class TaskMetricsDisplayModel extends DisplayModel {
 
         // For each node, aggregate the summary metrics by category
         // and build a list of categories.
+        pipelineStepsTaskMetrics = new ArrayList<>();
         for (String pipelineStepName : orderedPipelineStepNames) {
             List<PipelineTaskDisplayData> tasksForNode = tasksByNode.get(pipelineStepName);
             TaskMetrics taskMetrics = new TaskMetrics(tasksForNode);
-            taskMetrics.calculate();
-            categorySummariesByNode.add(new PipelineStepTaskMetrics(pipelineStepName, taskMetrics));
-
-            Set<String> categories = taskMetrics.getCategoryMetrics().keySet();
-            for (String category : categories) {
-                if (!seenCategories.contains(category)) {
-                    seenCategories.add(category);
-                }
-            }
+            pipelineStepsTaskMetrics
+                .add(new PipelineStepTaskMetrics(pipelineStepName, taskMetrics));
         }
-        numColumns = seenCategories.size() + 3;
     }
 
     @Override
     public int getColumnCount() {
-        return numColumns;
+        return METRIC_DISPLAY_INFO.size();
     }
 
     @Override
     public String getColumnName(int column) {
-        if (column == 0) {
-            return "Node";
+        MetricDisplayInfo metricDisplayInfo = METRIC_DISPLAY_INFO.get(column);
+        String title = metricDisplayInfo.title();
+        if (metricDisplayInfo.metric != null && metricDisplayInfo.metric.unit() == Unit.BYTES) {
+            title += " (GB)";
         }
-        if (column == 1) {
-            return "Total";
-        }
-        if (column == numColumns - 1) {
-            return "Other";
-        }
-        return seenCategories.get(column - 2);
+        return title;
+    }
+
+    @Override
+    public int getAlignment(int column) {
+        return COLUMN_ALIGNMENT[column];
     }
 
     @Override
     public int getRowCount() {
-        return categorySummariesByNode.size();
+        return pipelineStepsTaskMetrics.size();
     }
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        PipelineStepTaskMetrics row = categorySummariesByNode.get(rowIndex);
+        PipelineStepTaskMetrics pipelineStepTaskMetrics = pipelineStepsTaskMetrics.get(rowIndex);
+        TaskMetrics taskMetrics = pipelineStepTaskMetrics.getTaskMetrics();
 
+        if (METRIC_DISPLAY_INFO.get(columnIndex).metric() != null) {
+            return value(METRIC_DISPLAY_INFO.get(columnIndex).metric(), taskMetrics);
+        }
         if (columnIndex == 0) {
-            return row.getPipelineStepName();
+            return pipelineStepTaskMetrics.getPipelineStepName();
         }
-        if (columnIndex == 1) {
-            return formatDuration(row.getTaskMetrics().getTotalProcessingTimeMillis());
+        if (columnIndex == getColumnCount() - 1) {
+            return formatDuration(taskMetrics.getTotalProcessingTimeMillis());
         }
-        if (columnIndex == numColumns - 1) {
-            return categoryValuesString(row.getTaskMetrics().getUnallocatedTime());
-        }
-        String category = seenCategories.get(columnIndex - 2);
-        TimeAndPercentile categoryValues = row.getTaskMetrics().getCategoryMetrics().get(category);
-        return categoryValuesString(categoryValues);
+        throw new IllegalArgumentException("Unexpected value: " + columnIndex);
     }
 
-    private String categoryValuesString(TimeAndPercentile categoryValues) {
-        if (categoryValues != null) {
-            long categoryTimeMillis = categoryValues.getTimeMillis();
-            double categoryPercent = categoryValues.getPercent();
-            return String.format("%s (%4.1f%%)", formatDuration(categoryTimeMillis),
-                categoryPercent);
+    private String value(Metric category, TaskMetrics taskMetrics) {
+        ValuePercentile metrics = taskMetrics.getMetricsByCategory().get(category);
+
+        if (metrics == null) {
+            return ZiggyStringUtils.NO_DATA;
         }
-        return "--";
+
+        return switch (category.unit()) {
+            case MILLIS -> String.format("%s (%.1f%%)", formatDuration(metrics.getValue()),
+                metrics.getPercent());
+            case BYTES -> String.format("%.3f (%.1f%%)",
+                (double) metrics.getValue() / (double) BYTES_PER_GIGABYTE, metrics.getPercent());
+            default -> throw new IllegalStateException("Unknown unit " + category.unit());
+        };
     }
 
     private String formatDuration(long durationMillis) {
         return durationMillis >= 0 ? DurationFormatUtils.formatDuration(durationMillis, "HHH:mm:ss")
-            : Long.toString(durationMillis / 1000);
+            : ZiggyStringUtils.NO_DATA;
     }
 
     public static class PipelineStepTaskMetrics {

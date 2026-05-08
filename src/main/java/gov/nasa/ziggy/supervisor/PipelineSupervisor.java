@@ -33,8 +33,6 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.MetricsDumper;
-import gov.nasa.ziggy.metrics.report.Memdrone;
 import gov.nasa.ziggy.pipeline.PipelineExecutor;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
@@ -65,7 +63,6 @@ import gov.nasa.ziggy.services.messages.RestartTasksRequest;
 import gov.nasa.ziggy.services.messages.RetryTransitionRequest;
 import gov.nasa.ziggy.services.messages.SingleTaskLogMessage;
 import gov.nasa.ziggy.services.messages.SingleTaskLogRequest;
-import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
 import gov.nasa.ziggy.services.messages.TaskHaltedMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationMessage;
 import gov.nasa.ziggy.services.messages.TaskLogInformationRequest;
@@ -201,14 +198,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
             log.info("Starting task request handler lifecycle manager...done");
             clearStaleTaskStates();
 
-            log.info("Starting metrics dumper thread...");
-            MetricsDumper metricsDumper = new MetricsDumper(
-                AbstractPipelineProcess.getProcessInfo().getPid());
-            Thread metricsDumperThread = new Thread(metricsDumper, "MetricsDumper");
-            metricsDumperThread.setDaemon(true);
-            metricsDumperThread.start();
-            log.info("Starting metrics dumper thread...done");
-
             log.info("Loading event handlers...");
             ziggyEventHandlers.addAll(ziggyEventOperations().eventHandlers());
             for (ZiggyEventHandler handler : ziggyEventHandlers) {
@@ -285,9 +274,6 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
         ZiggyMessenger.subscribe(EventHandlerRequest.class, message -> {
             ZiggyMessenger.publish(new ZiggyEventHandlerInfoMessage(message,
                 PipelineSupervisor.serializableZiggyEventHandlers()));
-        });
-        ZiggyMessenger.subscribe(StartMemdroneRequest.class, message -> {
-            new Memdrone(message.getPipelineStepName(), message.getInstanceId()).startMemdrone();
         });
         ZiggyMessenger.subscribe(TaskLogInformationRequest.class, message -> {
             ZiggyMessenger.publish(new TaskLogInformationMessage(message,

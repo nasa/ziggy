@@ -19,8 +19,6 @@ import org.mockito.Mockito;
 
 import gov.nasa.ziggy.ZiggyDatabaseRule;
 import gov.nasa.ziggy.collections.ZiggyDataType;
-import gov.nasa.ziggy.crud.SimpleCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
 import gov.nasa.ziggy.models.ModelOperations;
 import gov.nasa.ziggy.pipeline.definition.ModelRegistry;
 import gov.nasa.ziggy.pipeline.definition.Parameter;
@@ -33,6 +31,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineNodeExecutionResources;
 import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.services.database.DatabaseOperations;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 import gov.nasa.ziggy.uow.UnitOfWork;
 import gov.nasa.ziggy.worker.WorkerResources;
 import gov.nasa.ziggy.worker.WorkerResourcesOperations;

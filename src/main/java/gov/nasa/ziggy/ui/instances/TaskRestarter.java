@@ -26,7 +26,6 @@ import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperat
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.messages.RestartTasksRequest;
 import gov.nasa.ziggy.services.messages.RetryTransitionRequest;
-import gov.nasa.ziggy.services.messages.StartMemdroneRequest;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
@@ -214,8 +213,6 @@ public class TaskRestarter {
         }
         ZiggyMessenger.publish(new RestartTasksRequest(failedTasks, false, restartMode),
             messageSentLatch);
-        ZiggyMessenger.publish(new StartMemdroneRequest(failedTasks.get(0).getPipelineStepName(),
-            failedTasks.get(0).getPipelineInstanceId()), messageSentLatch);
     }
 
     private PipelineTaskOperations pipelineTaskOperations() {

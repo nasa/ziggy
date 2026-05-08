@@ -21,8 +21,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gov.nasa.ziggy.metrics.IntervalMetric;
-import gov.nasa.ziggy.metrics.IntervalMetricKey;
 import gov.nasa.ziggy.pipeline.step.AlgorithmStateFiles;
 import gov.nasa.ziggy.pipeline.step.FatalAlgorithmProcessingException;
 import gov.nasa.ziggy.pipeline.step.TaskConfiguration;
@@ -39,6 +37,7 @@ import gov.nasa.ziggy.services.process.ExternalProcessUtils;
 import gov.nasa.ziggy.util.AcceptableCatchBlock;
 import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.HostNameUtils;
+import gov.nasa.ziggy.util.ProcessMemoryMonitor;
 import gov.nasa.ziggy.util.io.ZiggyFileUtils;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
@@ -67,7 +66,6 @@ public class SubtaskExecutor {
 
     public static final String PYTHON_SUFFIX = ".py";
     public static final String MATLAB_PROCESS_EXEC_METRIC = "pipeline.module.executeAlgorithm.matlab.all.execTime";
-
     private static final String HEAP_SIZE_PROPERTY_NAME = "-Xmx";
     private static final String HEAP_SIZE_MB_SUFFIX = "M";
     private static final String HEAP_SIZE_GB_SUFFIX = "G";
@@ -78,6 +76,7 @@ public class SubtaskExecutor {
     private final Path taskDir;
     private final float heapSizeGigabytes;
     private final TaskConfiguration taskConfiguration;
+    private ProcessMemoryMonitor processMemoryMonitor;
 
     private Map<String, String> environment;
 
@@ -100,7 +99,6 @@ public class SubtaskExecutor {
 
     // Initialization is protected, use newInstance(SubtaskMaster) to get a fully-initialized
     // instance.
-    @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     protected void initialize() {
         SubtaskUtils.putLogStreamIdentifier(workingDir);
         ImmutableConfiguration config = ZiggyConfiguration.getInstance();
@@ -278,9 +276,7 @@ public class SubtaskExecutor {
         boolean algorithmProcessingSucceeded = false;
 
         int retCode = -1;
-        IntervalMetricKey key = IntervalMetric.start();
         try {
-            key = IntervalMetric.start();
             TaskConfiguration taskConfiguration = getTaskConfiguration();
             Class<? extends PipelineInputs> inputsClass = taskConfiguration.getInputsClass();
             retCode = runInputsOutputsCommand(inputsClass);
@@ -294,7 +290,8 @@ public class SubtaskExecutor {
                 retCode = runInputsOutputsCommand(outputsClass);
             }
         } finally {
-            IntervalMetric.stop(MATLAB_PROCESS_EXEC_METRIC, key);
+            processMemoryMonitor().stopMonitoring();
+            processMemoryMonitor().writeMemorySamples();
         }
 
         File errorFile = AlgorithmInterfaceUtils.errorFile(workingDir, binaryName);
@@ -321,6 +318,14 @@ public class SubtaskExecutor {
         }
 
         return retCode;
+    }
+
+    ProcessMemoryMonitor processMemoryMonitor() {
+        if (processMemoryMonitor == null) {
+            processMemoryMonitor = ProcessMemoryMonitor.newInstance(
+                taskDir.getFileName().toString(), SubtaskUtils.subtaskIndex(workingDir.toPath()));
+        }
+        return processMemoryMonitor;
     }
 
     /**
@@ -364,7 +369,10 @@ public class SubtaskExecutor {
         externalProcess.mergeWithEnvironment(environment);
 
         log.info("Executing command {}", inputsOutputsCommandLine.toString());
-        return externalProcess.execute();
+        externalProcess.execute(false);
+        processMemoryMonitor().updateProcessId(externalProcess.processId());
+
+        return externalProcess.waitAndReturnStatus();
     }
 
     CommandLine inputsOutputsCommandLine(Class<?> inputsOutputsClass) {
@@ -373,7 +381,6 @@ public class SubtaskExecutor {
         // the pipeline.
         String ziggyCommand = DirectoryProperties.ziggyBinDir().resolve(ZIGGY_PROGRAM).toString();
         String javaLibPathArg = ExternalProcessUtils.javaLibraryPath();
-        String log4jConfig = ZiggyLog.log4jConfigString();
         String logFile = ZiggyLog.singleFileSystemProperty(ZiggyConfiguration.getInstance()
             .getString(PropertyName.ZIGGY_LOG_SINGLE_FILE.property()));
         String logAppender = ZiggyLog.singleFileAppenderSystemProperty();
@@ -387,7 +394,6 @@ public class SubtaskExecutor {
         commandLine.addArgument("--verbose");
         commandLine.addArgument(heapSizeProperty());
         commandLine.addArgument(javaLibPathArg);
-        commandLine.addArgument(log4jConfig);
         commandLine.addArgument(logFile);
         commandLine.addArgument(logAppender);
 
@@ -418,7 +424,6 @@ public class SubtaskExecutor {
         Writer stdOutWriter, Writer stdErrWriter) {
 
         int retCode = 0;
-        IntervalMetricKey key = IntervalMetric.start();
         CommandLine algorithmCommandLine = null;
 
         try {
@@ -431,12 +436,13 @@ public class SubtaskExecutor {
             externalProcess.setCommandLine(algorithmCommandLine);
 
             log.info("env={}", environment);
-            retCode = externalProcess.execute();
+            externalProcess.execute(false);
+            processMemoryMonitor().updateProcessId(externalProcess.processId());
+            retCode = externalProcess.waitAndReturnStatus();
         } catch (IOException e) {
             throw new UncheckedIOException(
                 "Unable to create and run command line for binary" + binaryName, e);
         } finally {
-            IntervalMetric.stop("pipeline.module.externalProcess." + binaryName + ".execTime", key);
         }
 
         return retCode;

@@ -1,6 +1,6 @@
 <!-- -*-visual-line-*- -->
 
-[[Previous]](event-handler-labels.md)
+[[Previous]](metrics.md)
 [[Up]](user-manual.md)
 [[Next]](dusty-corners.md)
 
@@ -96,6 +96,6 @@ $ ziggy console start sample "Test 2" permuter flip
 Display the version (as a Git tag).
 
 
-[[Previous]](event-handler-labels.md)
+[[Previous]](metrics.md)
 [[Up]](user-manual.md)
 [[Next]](dusty-corners.md)

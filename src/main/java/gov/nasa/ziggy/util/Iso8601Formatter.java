@@ -86,8 +86,8 @@ public final class Iso8601Formatter {
     }
 
     /**
-     * Returns a new instance of a ISO 8601 date-only formatter that displays time in UTC. The
-     * returned formatter should only be used in a single thread.
+     * Returns a new instance of a ISO 8601 date-only formatter that displays time in UTC, for
+     * example, 2026-03-23. The returned formatter should only be used in a single thread.
      *
      * @return a date formatter.
      */
@@ -96,8 +96,9 @@ public final class Iso8601Formatter {
     }
 
     /**
-     * Returns a new instance of a ISO 8601 combined date/time formatter that displays time in UTC.
-     * The returned formatter should only be used in a single thread.
+     * Returns a new instance of a ISO 8601 combined date/time formatter that displays time in UTC,
+     * for example, 2026-03-23T17:08:55Z. The returned formatter should only be used in a single
+     * thread.
      *
      * @return a date/time formatter.
      */
@@ -107,7 +108,8 @@ public final class Iso8601Formatter {
 
     /**
      * Returns a new instance of a ISO 8601 combined date/time, milliseconds formatter that displays
-     * time in UTC. The returned formatter should only be used in a single thread.
+     * time in UTC, for example, 2026-03-23T17:08:55.252Z. The returned formatter should only be
+     * used in a single thread.
      *
      * @return a date/time formatter.
      */
@@ -117,7 +119,8 @@ public final class Iso8601Formatter {
 
     /**
      * Returns a new instance of ISO 8601 "basic" formatted date/time (no separators) in the local
-     * time zone. The returned formatter should only be used in a single thread.
+     * time zone, for example, 20260323T100855. The returned formatter should only be used in a
+     * single thread.
      *
      * @return a date/time formatter.
      */
@@ -127,8 +130,8 @@ public final class Iso8601Formatter {
 
     /**
      * Returns a new instance of a Java Date-like combined date/time formatter that displays time in
-     * the local time zone without milliseconds. The returned formatter should only be used in a
-     * single thread.
+     * the local time zone without milliseconds, for example, 2026-03-23 10:08:55. The returned
+     * formatter should only be used in a single thread.
      *
      * @return a date/time formatter.
      */

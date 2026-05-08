@@ -37,7 +37,7 @@ task integrationTest(type: Test, dependsOn: copyLibs) {
     classpath = testing.suites.test.sources.runtimeClasspath
 
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
-    systemProperty "ziggy.logfile", "$buildDir/build.log"
+    systemProperty "ziggy.log.rolling.file", "$buildDir/build.log"
     systemProperty "java.library.path", "$buildDir/lib"
 
     testLogging {
@@ -62,7 +62,7 @@ task flakyTest(type: Test, dependsOn: copyLibs) {
     classpath = testing.suites.test.sources.runtimeClasspath
 
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
-    systemProperty "ziggy.logfile", "$buildDir/build.log"
+    systemProperty "ziggy.log.rolling.file", "$buildDir/build.log"
     systemProperty "java.library.path", "$buildDir/lib"
 
     useJUnit {
@@ -84,7 +84,7 @@ task runByNameTest(type: Test, dependsOn: copyLibs) {
     classpath = testing.suites.test.sources.runtimeClasspath
 
     systemProperty "log4j2.configurationFile", "$rootDir/etc/log4j2.xml"
-    systemProperty "ziggy.logfile", "$buildDir/build.log"
+    systemProperty "ziggy.log.rolling.file", "$buildDir/build.log"
     systemProperty "java.library.path", "$buildDir/lib"
 
     useJUnit {

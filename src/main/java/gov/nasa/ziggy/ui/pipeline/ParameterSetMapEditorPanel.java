@@ -9,8 +9,9 @@ import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -191,7 +192,7 @@ public class ParameterSetMapEditorPanel extends javax.swing.JPanel {
 
         private static final String[] COLUMN_NAMES = { "Name" };
 
-        private final LinkedList<ParameterSetAssignment> paramSetAssignments = new LinkedList<>();
+        private final List<ParameterSetAssignment> paramSetAssignments = new ArrayList<>();
 
         public ParameterSetNamesTableModel(Map<String, ParameterSet> currentParameters,
             Map<String, ParameterSet> currentPipelineParameters) {

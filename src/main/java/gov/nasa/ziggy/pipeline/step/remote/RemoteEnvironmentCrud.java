@@ -2,8 +2,8 @@ package gov.nasa.ziggy.pipeline.step.remote;
 
 import java.util.List;
 
-import gov.nasa.ziggy.crud.AbstractCrud;
-import gov.nasa.ziggy.crud.ZiggyQuery;
+import gov.nasa.ziggy.services.database.AbstractCrud;
+import gov.nasa.ziggy.services.database.ZiggyQuery;
 
 public class RemoteEnvironmentCrud extends AbstractCrud<RemoteEnvironment> {
 
