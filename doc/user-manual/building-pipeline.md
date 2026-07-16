@@ -29,7 +29,7 @@ At the top you can see `build-env.sh`, which is the "build system" for the sampl
 If you run the shell script from the command line (`./build-env.sh`), you should quickly see something that looks like this:
 
 ```console
-sample-pipeline$ ./build-env.sh 
+sample-pipeline$ ./build-env.sh
 Processing ./sample-pipeline/build/src/main/python/sample_pipeline
   Installing build dependencies ... done
   Getting requirements to build wheel ... done
@@ -104,7 +104,7 @@ cp -r $sample_root/src/main/python $sample_home/src/main
 
 ```
 
-This copies the `src/main/python` directories into `build/src/main/python`. Why do this? Strictly speaking it's not necessary, but after the next block of the script we'll see the upside. 
+This copies the `src/main/python` directories into `build/src/main/python`. Why do this? Strictly speaking it's not necessary, but after the next block of the script we'll see the upside.
 
 ```bash
 python3 -m venv $python_env
@@ -138,7 +138,7 @@ pipeline.version.commit = 513da3f544
 
 (Note that the contents of your file may vary.)
 
-This file is generated from the Git branch and commit that are in use when the `build-env.sh` script runs. When the pipeline performs a processing activity, the version information is stored in the database so that there is a permanent record of which code version was used for each pipeline task. 
+This file is generated from the Git branch and commit that are in use when the `build-env.sh` script runs. When the pipeline performs a processing activity, the version information is stored in the database so that there is a permanent record of which code version was used for each pipeline task.
 
 ### Okay, but Why?
 

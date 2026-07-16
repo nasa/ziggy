@@ -4,13 +4,27 @@
 
   <!-- Remote environment definition for the High End Computing Capability (HECC) at NASA. -->
 
-  <remoteEnvironment name="HECC" description="HECC" batchSystem="pbs" costUnit="SBU"
+  <!-- Nodes that connect to one another over InfiniBand. These nodes cannot be used when your
+       cluster is on a node that uses Slingshot (see below). -->
+  <remoteEnvironment name="HECC-InfiniBand" description="HECC-InfiniBand" batchSystem="pbs" costUnit="SBU"
                      queueTimeMetricsClass="gov.nasa.ziggy.module.remote.NasQueueTimeMetrics">
     <architecture name="bro_ele" description="Broadwell" cores="28" ramGigabytes="128" cost="1.0"/>
     <architecture name="sky_ele" description="Skylake" cores="40" ramGigabytes="192" cost="1.59"/>
     <architecture name="cas_ait" description="Cascade Lake" cores="40" ramGigabytes="192" cost="1.64"/>
     <architecture name="rom_ait" description="Rome" cores="128" ramGigabytes="512" cost="4.06"/>
     <architecture name="mil_ait" description="Milan" cores="128" ramGigabytes="512" cost="4.08"/>
+    <queue name="low" description="Low" maxWallTimeHours="4"/>
+    <queue name="normal" description="Normal" maxWallTimeHours="8"/>
+    <queue name="long" description="Long" maxWallTimeHours="120"/>
+    <queue name="debug" description="Debug" maxWallTimeHours="2" maxNodes="128" autoSelectable="false"/>
+    <queue name="devel" description="Development" maxWallTimeHours="2" maxNodes="512" autoSelectable="false"/>
+    <queue name="reserved" description="Reserved" autoSelectable="false" reserved="true"/>
+  </remoteEnvironment>
+
+  <!-- Nodes that connect to one another over Slingshot. These nodes cannot be used when your
+       cluster is on a node that uses InfiniBand (see above). -->
+  <remoteEnvironment name="HECC-Slingshot" description="HECC-Slingshot" batchSystem="pbs" costUnit="SBU"
+                     queueTimeMetricsClass="gov.nasa.ziggy.module.remote.NasQueueTimeMetrics">
     <architecture name="tur_ath" description="Turin" cores="256" ramGigabytes="768" cost="12.19"/>
     <queue name="low" description="Low" maxWallTimeHours="4"/>
     <queue name="normal" description="Normal" maxWallTimeHours="8"/>
@@ -19,6 +33,6 @@
     <queue name="devel" description="Development" maxWallTimeHours="2" maxNodes="512" autoSelectable="false"/>
     <queue name="reserved" description="Reserved" autoSelectable="false" reserved="true"/>
   </remoteEnvironment>
-  
+
 </pipelineDefinition>
 

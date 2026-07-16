@@ -22,7 +22,7 @@ The `Pipelines` status panel displays all of the pipelines that have ever run.
 
 The view shown above is the `Workers` status panel. This shows what each of the workers is doing. The colored box and the stoplight are grey, which indicate that at the moment there are no workers. When stuff's happening, the box and stoplight turn green, and the table on the worker status panel shows what each worker is doing.
 
-Why are there no workers? 
+Why are there no workers?
 
 Workers are created as needed, and each worker is assigned to perform a particular pipeline task (or a portion of a particular task). Once the worker's job is done, the worker is closed down, and if the supervisor later needs a worker process, it will create one on-the-fly. Thus when you run a pipeline that has a total of 6 tasks, and has a worker count of 2, the supervisor will create a total of 6 workers over the course of execution, but only 2 will be running at any given time.
 

@@ -163,13 +163,18 @@ public class InstanceStatsDialog extends javax.swing.JDialog {
         }
 
         @Override
-        public Object getValueAt(int rowIndex, int columnIndex) {
-            return pipelineStatsDisplayModel.getValueAt(rowIndex, columnIndex);
+        public String getColumnName(int column) {
+            return pipelineStatsDisplayModel.getColumnName(column);
         }
 
         @Override
-        public String getColumnName(int column) {
-            return pipelineStatsDisplayModel.getColumnName(column);
+        public Class<?> getColumnClass(int columnIndex) {
+            return pipelineStatsDisplayModel.getColumnClass(columnIndex);
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            return pipelineStatsDisplayModel.getValueAt(rowIndex, columnIndex);
         }
 
         @Override

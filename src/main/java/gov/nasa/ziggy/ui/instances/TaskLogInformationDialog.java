@@ -311,7 +311,7 @@ public class TaskLogInformationDialog extends JDialog implements Requestor {
             TaskLogInformation information = taskLogInformationList.get(rowIndex);
             return switch (columnIndex) {
                 case 0 -> information.getFilename();
-                case 1 -> information.getTaskLogType().toString();
+                case 1 -> information.getTaskLogType();
                 case 2 -> information.lastModifiedDateTime();
                 case 3 -> information.logFileSizeEngineeringNotation();
                 default -> throw new IllegalArgumentException(

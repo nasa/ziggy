@@ -14,7 +14,7 @@ Fortunately, Ziggy will let you do this from the console.
 
 To halt all jobs for a task, go to the tasks table on the instances panel, right click the task, and run the `Halt selected tasks` command:
 
-<img src="images/halt-task-menu-item.png" style="width:16cm;"/>
+<img src="images/halt-task-menu-item.png" style="width:17cm;"/>
 
 You'll be prompted to confirm that you want to halt the task. When you do that, you'll see something like this:
 

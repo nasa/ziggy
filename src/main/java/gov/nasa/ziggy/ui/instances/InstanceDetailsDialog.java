@@ -215,6 +215,8 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
 
         private static final String[] COLUMN_NAMES = { "Node", "Tasks", "Waiting to run",
             "Completed", "Failed" };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, Integer.class,
+            Integer.class, Integer.class, Integer.class };
 
         private List<PipelineInstanceNode> pipelineInstanceNodes = new ArrayList<>();
         private Map<PipelineInstanceNode, TaskCounts> nodeTaskCounts = new HashMap<>();
@@ -235,13 +237,23 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
         }
 
         @Override
+        public int getRowCount() {
+            return pipelineInstanceNodes.size();
+        }
+
+        @Override
         public int getColumnCount() {
             return COLUMN_NAMES.length;
         }
 
         @Override
-        public int getRowCount() {
-            return pipelineInstanceNodes.size();
+        public String getColumnName(int column) {
+            return COLUMN_NAMES[column];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
         }
 
         @Override
@@ -257,11 +269,6 @@ public class InstanceDetailsDialog extends javax.swing.JDialog {
                 case 4 -> taskCounts.getTotalCounts().getFailedTaskCount();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
             };
-        }
-
-        @Override
-        public String getColumnName(int column) {
-            return COLUMN_NAMES[column];
         }
 
         @Override

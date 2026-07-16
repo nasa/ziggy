@@ -42,13 +42,18 @@ public class TaskMetricsTableModel extends AbstractTableModel
     }
 
     @Override
-    public Object getValueAt(int rowIndex, int columnIndex) {
-        return taskMetricsDisplayModel.getValueAt(rowIndex, columnIndex);
+    public String getColumnName(int column) {
+        return taskMetricsDisplayModel.getColumnName(column);
     }
 
     @Override
-    public String getColumnName(int column) {
-        return taskMetricsDisplayModel.getColumnName(column);
+    public Class<?> getColumnClass(int columnIndex) {
+        return taskMetricsDisplayModel.getColumnClass(columnIndex);
+    }
+
+    @Override
+    public Object getValueAt(int rowIndex, int columnIndex) {
+        return taskMetricsDisplayModel.getValueAt(rowIndex, columnIndex);
     }
 
     @Override

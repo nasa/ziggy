@@ -156,6 +156,8 @@ public class InstanceCostEstimateDialog extends JDialog {
 
         private static final String[] COLUMN_NAMES = { "ID", "Node", "UOW", "Status",
             "Cost estimate" };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class, String.class,
+            String.class, Double.class };
 
         private final List<PipelineTaskDisplayData> pipelineTasks;
 
@@ -176,6 +178,11 @@ public class InstanceCostEstimateDialog extends JDialog {
         @Override
         public String getColumnName(int columnIndex) {
             return COLUMN_NAMES[columnIndex];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
         }
 
         @Override

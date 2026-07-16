@@ -139,11 +139,17 @@ public class AlgorithmWallTimes implements Persistable {
     /**
      * Reads the contents of the SubtaskWallTimes file for a given {@link PipelineTask} into an
      * instance of {@link AlgorithmWallTimes}.
+     *
+     * @return {@link AlgorithmWallTimes} instance if the wall times file is present, null
+     * otherwise.
      */
     public static AlgorithmWallTimes readSubtaskWallTimesFile(PipelineTask pipelineTask) {
         Path wallTimesFile = DirectoryProperties.runDir()
             .resolve(pipelineTask.taskBaseName())
             .resolve(FILE_NAME);
+        if (!Files.exists(wallTimesFile)) {
+            return null;
+        }
         AlgorithmWallTimes subtaskWallTimes = new AlgorithmWallTimes();
         log.info("Reading subtask wall times file for task {}...", pipelineTask.taskBaseName());
         new Hdf5AlgorithmInterface().readFile(wallTimesFile.toFile(), subtaskWallTimes, false);
@@ -176,6 +182,10 @@ public class AlgorithmWallTimes implements Persistable {
 
         AlgorithmWallTimes algorithmWallTimes = AlgorithmWallTimes
             .readSubtaskWallTimesFile(pipelineTask);
+        if (algorithmWallTimes == null) {
+            System.err.println("Task " + taskId + " has no wall times file");
+            System.exit(-1);
+        }
         System.out.println(CSV_HEADER);
         List<SubtaskWallTime> subtaskWallTimes = algorithmWallTimes.subtaskWallTimes();
         for (SubtaskWallTime subtaskWallTime : subtaskWallTimes) {

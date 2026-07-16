@@ -9,6 +9,7 @@ import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -119,9 +120,11 @@ public class DataReceiptPanel extends JPanel {
     private static class DataReceiptTableModel extends AbstractZiggyTableModel<DataReceiptInstance>
         implements DatabaseModel {
 
-        private static final long serialVersionUID = 20240614L;
+        private static final long serialVersionUID = 20260709L;
 
         private static final String[] COLUMN_NAMES = { "Instance", "Date", "Successful", "Failed" };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, Date.class, Integer.class,
+            Integer.class };
 
         private List<DataReceiptInstance> dataReceiptInstances = new ArrayList<>();
 
@@ -160,6 +163,11 @@ public class DataReceiptPanel extends JPanel {
         @Override
         public String getColumnName(int columnIndex) {
             return COLUMN_NAMES[columnIndex];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
         }
 
         @Override

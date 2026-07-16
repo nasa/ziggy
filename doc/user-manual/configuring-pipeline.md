@@ -18,7 +18,7 @@ In the sample pipeline, the algorithm code is in `sample-pipeline/src/main/pytho
 
 #### Design Rule for Algorithm Software
 
-There's really only one design rule for your algorithm software: it must return 0 to the caller if it succeeds and any nonzero value if it fails. This is how Ziggy knows whether it, er, succeeded or failed. 
+There's really only one design rule for your algorithm software: it must return 0 to the caller if it succeeds and any nonzero value if it fails. This is how Ziggy knows whether it, er, succeeded or failed.
 
 ### Write the Pipeline Definition Files
 
@@ -28,9 +28,9 @@ That said, when you write your pipeline, there are a number of design issues tha
 - What will be the file name conventions for the inputs and outputs of each step?
 - What additional information will each step need: instrument models, parameters, etc.
 
-The issues described above are collectively the "pipeline definition." This is represented on the architecture diagram by the green box in the upper left, "Pipeline Definition (XML)." 
+The issues described above are collectively the "pipeline definition." This is represented on the architecture diagram by the green box in the upper left, "Pipeline Definition (XML)."
 
-Ziggy allows you to put all the bits and pieces of your pipeline defintions in one file, or in multiple files. Everything is pretty free-form: as long as the file begins with <pipelineDefinition> and ends with </pipelineDefinition>, you can but any combination of pipelines, algorithms, data types, etc., into any file. 
+Ziggy allows you to put all the bits and pieces of your pipeline defintions in one file, or in multiple files. Everything is pretty free-form: as long as the file begins with <pipelineDefinition> and ends with </pipelineDefinition>, you can but any combination of pipelines, algorithms, data types, etc., into any file.
 
 One thing we do recommend is that all the files be located in a single directory. This simplifies things when Ziggy needs to read in these files to set up its internal representation of your pipelines. We'll talk more about this in [the article on running the pipeline](running-pipeline.md).
 
@@ -42,12 +42,9 @@ In the interest of this article not being longer than *Dune*, we're going to cov
 - [Algorithm Parameters](algorithm-parameters.md) talks about how you pass parameters to your algorithms, so that you can adjust their behavior at runtime.
 - [The Datastore](datastore.md) talks about how you set up data file types (the files used for algorithm inputs and outputs) and how you configure the datastore (an organized directory tree where Ziggy keeps its mission data and all outputs from all pipeline runs).
 - [Remote Environments](remote-environments.md) talks about how you set up to run your algorithms on a high performance computing (HPC) or cloud environment (you don't really want to process terabytes a day on your laptop, do you?).
-- [Pipelines and Nodes](pipelines-and-nodes.md) shows how the actual pipelines are defined. This uses all of the above, which is why we've left it for last. 
+- [Pipelines and Nodes](pipelines-and-nodes.md) shows how the actual pipelines are defined. This uses all of the above, which is why we've left it for last.
 
-The sample pipeline has three pipeline definition files, all in the `etc/ziggy.d` subdirectory of the `sample-pipeline` directory:
-
-- The main pipeline definition file is [sample-pipeline.xml](../../sample-pipeline/etc/ziggy.d/sample-pipeline.xml). This covers the algorithms, parameters, datastore, pipelines, and nodes.
-- The file [sample-remote-environment.xml](../../sample-pipeline/etc/ziggy.d/sample-remote-environment.xml) shows an alternate remote environment in addition to the HECC environment defined by Ziggy. This one is totally fictitious, so you can't actually run any of its elements. It's here just so we can demonstrate how things work when you have a set of remote environments and can select from any of them to run your jobs.
+The sample pipeline has one pipeline definition files, all in the `etc/ziggy.d` subdirectory of the `sample-pipeline` directory: [sample-pipeline.xml](../../sample-pipeline/etc/ziggy.d/sample-pipeline.xml). This covers the algorithms, parameters, datastore, pipelines, and nodes.
 
 ### Set up the Properties File
 

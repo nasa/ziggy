@@ -1,5 +1,7 @@
 package gov.nasa.ziggy.ui.util;
 
+import java.util.regex.Pattern;
+
 import javax.swing.JLabel;
 
 /**
@@ -7,9 +9,13 @@ import javax.swing.JLabel;
  * Swing components that support HTML text.
  *
  * @author Todd Klaus
+ * @author Bill Wohler
  */
 public class HtmlBuilder {
-    StringBuilder html = new StringBuilder();
+
+    private static final Pattern pattern = Pattern.compile("</?(html|b|br/|font[^>]*|i)>");
+
+    private StringBuilder html = new StringBuilder();
 
     public HtmlBuilder() {
     }
@@ -81,6 +87,13 @@ public class HtmlBuilder {
         html.append(text);
         html.append(htmlSuffix);
         return this;
+    }
+
+    public static String stripHtml(String text) {
+        if (text == null) {
+            return null;
+        }
+        return pattern.matcher(text).replaceAll("");
     }
 
     @Override

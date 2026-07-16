@@ -10,6 +10,7 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineInstanceFilter;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
 
 /**
@@ -22,7 +23,7 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
  */
 public class InstancesPanel extends JPanel {
 
-    private static final long serialVersionUID = 20230817L;
+    private static final long serialVersionUID = 20260710L;
 
     private InstancesTable instancesTable;
 
@@ -44,11 +45,15 @@ public class InstancesPanel extends JPanel {
         setLayout(layout);
 
         layout.setHorizontalGroup(layout.createParallelGroup()
-            .addComponent(instances)
-            .addComponent(instancesControlPanel)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(ZiggyGuiConstants.CONTAINER_GAP)
+                .addGroup(layout.createParallelGroup()
+                    .addComponent(instances)
+                    .addComponent(instancesControlPanel)))
             .addComponent(instancesTableScrollPane));
 
         layout.setVerticalGroup(layout.createSequentialGroup()
+            .addGap(ZiggyGuiConstants.CONTAINER_GAP)
             .addComponent(instances)
             .addPreferredGap(ComponentPlacement.UNRELATED)
             .addComponent(instancesControlPanel)

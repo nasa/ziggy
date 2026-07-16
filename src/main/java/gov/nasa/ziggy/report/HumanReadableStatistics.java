@@ -103,11 +103,11 @@ public class HumanReadableStatistics {
     public static final double BYTES_PER_GIGABYTE = 1.0e9;
     public static final double BYTES_PER_TERABYTE = 1.0e12;
 
-    private final Unit unit;
+    private final Conversion conversion;
     private final DescriptiveStatistics statistics;
 
-    public HumanReadableStatistics(Unit unit, List<Double> values) {
-        this.unit = unit;
+    private HumanReadableStatistics(Conversion conversion, List<Double> values) {
+        this.conversion = conversion;
 
         statistics = new DescriptiveStatistics();
         values.stream().forEach(v -> statistics.addValue(v));
@@ -128,7 +128,7 @@ public class HumanReadableStatistics {
             list.add(convertedValue);
         }
 
-        return new HumanReadableStatistics(conversion.unit(), list);
+        return new HumanReadableStatistics(conversion, list);
     }
 
     public static double hoursToHumanReadableUnits(double hours, Unit unit) {
@@ -159,12 +159,16 @@ public class HumanReadableStatistics {
         };
     }
 
-    public Unit getUnit() {
-        return unit;
+    public Conversion getConversion() {
+        return conversion;
     }
 
     public DescriptiveStatistics getStatistics() {
         return statistics;
+    }
+
+    public Unit getUnit() {
+        return conversion.unit();
     }
 
     public List<Double> getValues() {
@@ -173,7 +177,7 @@ public class HumanReadableStatistics {
 
     @Override
     public int hashCode() {
-        return Objects.hash(unit, statistics);
+        return Objects.hash(conversion, statistics);
     }
 
     @Override
@@ -185,6 +189,7 @@ public class HumanReadableStatistics {
             return false;
         }
         HumanReadableStatistics other = (HumanReadableStatistics) obj;
-        return Objects.equals(unit, other.unit) && Objects.equals(statistics, other.statistics);
+        return Objects.equals(conversion, other.conversion)
+            && Objects.equals(statistics, other.statistics);
     }
 }

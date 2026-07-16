@@ -24,7 +24,7 @@ import gov.nasa.ziggy.util.io.ProxyIgnore;
  */
 public class TaskConfiguration implements Persistable {
     private static final Logger log = LoggerFactory.getLogger(TaskConfiguration.class);
-    private static final String PERSISTED_FILE_NAME = ".task-configuration.h5";
+    public static final String PERSISTED_FILE_NAME = ".task-configuration.h5";
     public static final String LOCK_FILE_NAME = ".lock";
 
     @ProxyIgnore

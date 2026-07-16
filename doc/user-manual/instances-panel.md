@@ -18,7 +18,7 @@ And now you know as much as you did when we started. Okay, keep reading.
 
 A pipeline instance is just what it sounds like: it's a single instance of one of the pipelines defined in the XML files. Recall that the sample pipeline has 4 nodes: data receipt, permuter, flip, and averaging. When you pressed the `Start` button, Ziggy created a copy of that pipeline, in a form that Ziggy knows how to execute.
 
-Each instance has a unique ID number, with instance 1 being the first (so 1-based, not 0-based). The instance contains its own copies of all the parameter sets used in the pipeline, and these are stored permanently. Thus, even if you later change the values of some parameters, the copies that were made for this instance will still be in the database, and the pipeline instance will still have those parameter sets. This is helpful if you need to go back a few years later and see what the pipeline instance actually did. 
+Each instance has a unique ID number, with instance 1 being the first (so 1-based, not 0-based). The instance contains its own copies of all the parameter sets used in the pipeline, and these are stored permanently. Thus, even if you later change the values of some parameters, the copies that were made for this instance will still be in the database, and the pipeline instance will still have those parameter sets. This is helpful if you need to go back a few years later and see what the pipeline instance actually did.
 
 #### Tasks
 
@@ -131,7 +131,7 @@ Let's look again at the `left-right flipped` and `up-down flipped` data file typ
                 fileNameRegexp="(nasa-logo-file-[0-9])\.flipud\.png"/>
 ```
 
-Notice the part of the fileNameRegexp that's inside the parentheses: In Java regular expressions, this is called a "group." Java has tools that will take a string, match it to a regular expression, and extract the values of the groups for futher perusal. 
+Notice the part of the fileNameRegexp that's inside the parentheses: In Java regular expressions, this is called a "group." Java has tools that will take a string, match it to a regular expression, and extract the values of the groups for futher perusal.
 
 You've probably already guessed what this is leading up to:
 
@@ -174,7 +174,7 @@ Imagine that permuter needs the files from description to do its work; but, unli
 There's an XML attribute (of course) that tells Ziggy to resist the temptation to slice up the files for a data file type into different subtasks. It's the `includeAllFilesInAllSubtasks` attribute, which is applied to the data file type definition:
 
 ```xml
-  <dataFileType name="description" location="dataset/description" 
+  <dataFileType name="description" location="dataset/description"
                 fileNameRegexp="*.XML" includeAllFilesInAllSubtasks="true"/>
 ```
 

@@ -1,8 +1,5 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import static com.lowagie.text.Element.ALIGN_LEFT;
-import static com.lowagie.text.Element.ALIGN_RIGHT;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,10 +18,11 @@ import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
  * @author Bill Wohler
  */
 public class TasksDisplayModel extends DisplayModel {
-    private static final String[] COLUMN_NAMES = { "ID", "Node", "UOW", "Worker", "Status",
+    public static final String WORKER = "Worker";
+    private static final String[] COLUMN_NAMES = { "ID", "Node", "UOW", WORKER, "Status",
         "Subtasks", "Time" };
-    private static final int[] COLUMN_ALIGNMENT = { ALIGN_RIGHT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT,
-        ALIGN_LEFT, ALIGN_RIGHT, ALIGN_RIGHT };
+    private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class, String.class,
+        String.class, String.class, Integer.class, Integer.class };
 
     public static final int[] COLUMN_WIDTHS = { ZiggySwingUtils.textWidth(new JLabel(), "123456"),
         ZiggySwingUtils.textWidth(new JLabel(), "123456789012345"),
@@ -68,37 +66,38 @@ public class TasksDisplayModel extends DisplayModel {
     }
 
     @Override
-    public int getAlignment(int column) {
-        return COLUMN_ALIGNMENT[column];
+    public String getColumnName(int column) {
+        return COLUMN_NAMES[column];
+    }
+
+    @Override
+    public Class<?> getColumnClass(int columnIndex) {
+        return COLUMN_CLASSES[columnIndex];
     }
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
         PipelineTaskDisplayData task = tasks.get(rowIndex);
 
-        String value = switch (columnIndex) {
-            case 0 -> Long.toString(task.getPipelineTaskId());
+        // Update columnIndex values for subtask modifications below if column index changes.
+        Object value = switch (columnIndex) {
+            case 0 -> task.getPipelineTaskId();
             case 1 -> task.getPipelineStepName();
             case 2 -> task.getBriefState();
             case 3 -> task.getWorkerName();
             case 4 -> task.getDisplayProcessingStep();
             case 5 -> TaskCounts.subtaskCountsLabel(task.getCompletedSubtaskCount(),
                 task.getTotalSubtaskCount(), task.getFailedSubtaskCount());
-            case 6 -> task.getExecutionClock().toString();
+            case 6 -> task.getExecutionClock();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
         };
 
         // Make the whole row red if there's an error.
         if (task.isError()) {
-            value = HtmlBuilder.htmlBuilder().appendColor(value, "red").toString();
+            return HtmlBuilder.htmlBuilder().appendColor(value.toString(), "red").toString();
         }
 
         return value;
-    }
-
-    @Override
-    public String getColumnName(int column) {
-        return COLUMN_NAMES[column];
     }
 
     public TaskCounts getTaskCounts() {

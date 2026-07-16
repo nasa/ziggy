@@ -3,6 +3,7 @@ package gov.nasa.ziggy.ui.status;
 import static gov.nasa.ziggy.ui.util.ZiggySwingUtils.createButtonPanel;
 
 import java.awt.event.ActionEvent;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -85,6 +86,8 @@ public class AlertsStatusPanel extends JPanel {
         private static final String ERROR_MESSAGE = "ERROR/INFRASTRUCTURE level alerts present";
         private static final String[] COLUMN_NAMES = { "Time", "Source", "Host", "Task", "Severity",
             "Message" };
+        private static final Class<?>[] COLUMN_CLASSES = { Date.class, String.class, String.class,
+            String.class, String.class, String.class };
 
         private final List<AlertMessage> alertMessages = new LinkedList<>();
 
@@ -144,6 +147,26 @@ public class AlertsStatusPanel extends JPanel {
         }
 
         @Override
+        public int getRowCount() {
+            return alertMessages.size();
+        }
+
+        @Override
+        public int getColumnCount() {
+            return COLUMN_NAMES.length;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return COLUMN_NAMES[column];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
+        }
+
+        @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             Alert alert = alertMessages.get(rowIndex).getAlertData();
 
@@ -156,21 +179,6 @@ public class AlertsStatusPanel extends JPanel {
                 case 5 -> alert.getMessage();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
             };
-        }
-
-        @Override
-        public int getColumnCount() {
-            return COLUMN_NAMES.length;
-        }
-
-        @Override
-        public int getRowCount() {
-            return alertMessages.size();
-        }
-
-        @Override
-        public String getColumnName(int column) {
-            return COLUMN_NAMES[column];
         }
 
         @Override

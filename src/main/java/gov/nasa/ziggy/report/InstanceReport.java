@@ -2,14 +2,12 @@ package gov.nasa.ziggy.report;
 
 import java.util.List;
 
-import com.lowagie.text.Element;
 import com.lowagie.text.pdf.PdfPTable;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
 import gov.nasa.ziggy.pipeline.definition.PipelineInstanceNode;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskDisplayDataOperations;
-import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.dispmod.InstancesDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskSummaryDisplayModel;
@@ -62,10 +60,10 @@ public class InstanceReport extends Report {
 
         for (int row = 0; row < taskMetricsDisplayModel.getRowCount(); row++) {
             for (int column = 0; column < taskMetricsDisplayModel.getColumnCount(); column++) {
-                String value = taskMetricsDisplayModel.getValueAt(row, column).toString();
-                int alignment = ZiggyStringUtils.NO_DATA.equals(value) ? Element.ALIGN_CENTER
-                    : taskMetricsDisplayModel.getAlignment(column);
-                table.addCell(createCell(value, alignment, isOddNumberedTableRow(table)));
+                Object value = taskMetricsDisplayModel.getValueAt(row, column);
+                table.addCell(createCell(value.toString(),
+                    alignment(taskMetricsDisplayModel.getColumnClass(column), value),
+                    isOddNumberedTableRow(table)));
             }
         }
 

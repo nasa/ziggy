@@ -1,6 +1,8 @@
 package gov.nasa.ziggy.pipeline.step.subtask;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -89,5 +91,16 @@ public class AlgorithmWallTimesTest {
             .toList();
         assertTrue(subtaskIndices.contains(0));
         assertTrue(subtaskIndices.contains(3));
+    }
+
+    @Test
+    public void testHandleMissingHdf5File() {
+        assertFalse(Files.isRegularFile(ziggyDirectoryRule.directory()
+            .resolve("run")
+            .resolve(taskBaseName)
+            .resolve(AlgorithmWallTimes.FILE_NAME)));
+        AlgorithmWallTimes wallTimesFromFile = AlgorithmWallTimes
+            .readSubtaskWallTimesFile(pipelineTask);
+        assertNull(wallTimesFromFile);
     }
 }

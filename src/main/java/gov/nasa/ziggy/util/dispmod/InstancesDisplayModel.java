@@ -1,10 +1,7 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import static com.lowagie.text.Element.ALIGN_CENTER;
-import static com.lowagie.text.Element.ALIGN_LEFT;
-import static com.lowagie.text.Element.ALIGN_RIGHT;
-
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -19,8 +16,8 @@ import gov.nasa.ziggy.pipeline.definition.PipelineInstance;
  */
 public class InstancesDisplayModel extends DisplayModel {
     private static final String[] COLUMN_NAMES = { "ID", "Pipeline", "Date", "Status", "Time" };
-    private static final int[] COLUMN_ALIGNMENT = { ALIGN_RIGHT, ALIGN_LEFT, ALIGN_CENTER,
-        ALIGN_CENTER, ALIGN_CENTER };
+    private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class, Date.class,
+        String.class, Integer.class };
 
     private List<PipelineInstance> instances = new ArrayList<>();
 
@@ -50,8 +47,14 @@ public class InstancesDisplayModel extends DisplayModel {
         return COLUMN_NAMES.length;
     }
 
-    public PipelineInstance getInstanceAt(int rowIndex) {
-        return instances.get(rowIndex);
+    @Override
+    public String getColumnName(int column) {
+        return COLUMN_NAMES[column];
+    }
+
+    @Override
+    public Class<?> getColumnClass(int columnIndex) {
+        return COLUMN_CLASSES[columnIndex];
     }
 
     @Override
@@ -69,14 +72,8 @@ public class InstancesDisplayModel extends DisplayModel {
         };
     }
 
-    @Override
-    public String getColumnName(int column) {
-        return COLUMN_NAMES[column];
-    }
-
-    @Override
-    public int getAlignment(int column) {
-        return COLUMN_ALIGNMENT[column];
+    public PipelineInstance getInstanceAt(int rowIndex) {
+        return instances.get(rowIndex);
     }
 
     private String getStateString(PipelineInstance.State state) {

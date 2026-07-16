@@ -108,8 +108,8 @@ public class AlertLogDialog extends javax.swing.JDialog {
         }
 
         @Override
-        public Object getValueAt(int rowIndex, int columnIndex) {
-            return alertLogDisplayModel.getValueAt(rowIndex, columnIndex);
+        public int getRowCount() {
+            return alertLogDisplayModel.getRowCount();
         }
 
         @Override
@@ -118,13 +118,18 @@ public class AlertLogDialog extends javax.swing.JDialog {
         }
 
         @Override
-        public int getRowCount() {
-            return alertLogDisplayModel.getRowCount();
+        public String getColumnName(int column) {
+            return alertLogDisplayModel.getColumnName(column);
         }
 
         @Override
-        public String getColumnName(int column) {
-            return alertLogDisplayModel.getColumnName(column);
+        public Class<?> getColumnClass(int columnIndex) {
+            return alertLogDisplayModel.getColumnClass(columnIndex);
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            return alertLogDisplayModel.getValueAt(rowIndex, columnIndex);
         }
 
         @Override

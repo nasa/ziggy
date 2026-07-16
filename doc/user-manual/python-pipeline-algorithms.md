@@ -20,7 +20,7 @@ Ziggy determines that a step is written in Python by the fact that the value in 
 
 ### Packages, Modules, and Functions
 
-Consider the permuter step. The `file` is `major_tom/major_tom.py` and the step name is `permuter`. 
+Consider the permuter step. The `file` is `major_tom/major_tom.py` and the step name is `permuter`.
 
 At runtime, Ziggy will look for module `major_tom` in package `major_tom`, and will look in that Python module for a function named `permuter`. The `permuter` function contains all the business logic of the permuter algorithm, hence it will be executed by Ziggy whenever Ziggy needs to run the permuter step.
 
@@ -28,8 +28,8 @@ At runtime, Ziggy will look for module `major_tom` in package `major_tom`, and w
 
 The function that's run when a given pipeline step is called has a couple of design rules that you must follow:
 
-- The function must take a single argument. 
-- The function must raise an exception if it fails. 
+- The function must take a single argument.
+- The function must raise an exception if it fails.
 
 Let's discuss each of these.
 
@@ -41,21 +41,21 @@ Note that you are not required to use the dictionary that Ziggy passes to your f
 
 ##### Execution Flow of the Function
 
-Your Python function can do anything: call other Python modules, read files from the working directory, write files to the working directory, etc. The only non-negotiable behavior of the Python function is that, if the algorithm fails, it needs to exit by raising an uncaught exception. 
+Your Python function can do anything: call other Python modules, read files from the working directory, write files to the working directory, etc. The only non-negotiable behavior of the Python function is that, if the algorithm fails, it needs to exit by raising an uncaught exception.
 
-The reason we're a stickler for this is that Ziggy needs some way to detect that algorithm processing has failed in one or more cases. This allows Ziggy to determine whether it can continue processing or whether it needs to halt and seek assistance from the user. For Python algorithms, the uncaught exception is that way. 
+The reason we're a stickler for this is that Ziggy needs some way to detect that algorithm processing has failed in one or more cases. This allows Ziggy to determine whether it can continue processing or whether it needs to halt and seek assistance from the user. For Python algorithms, the uncaught exception is that way.
 
 ##### What About the Return Code?
 
-You may remember from [the article on configuring a pipeline](configuring-pipeline.md) that we stated that an algorithm's executable has to return 0 for success, 1 for failure. 
+You may remember from [the article on configuring a pipeline](configuring-pipeline.md) that we stated that an algorithm's executable has to return 0 for success, 1 for failure.
 
-In this case, that's not necessary. It's not necessary because in the event of failure, the code has to raise an exception, hence any return from the algorithm will be ignored anyway. Ziggy provides additional logic that determines whether the algorithm failed, processes the resulting stack trace, etc. 
+In this case, that's not necessary. It's not necessary because in the event of failure, the code has to raise an exception, hence any return from the algorithm will be ignored anyway. Ziggy provides additional logic that determines whether the algorithm failed, processes the resulting stack trace, etc.
 
 You're welcome.
 
 ### Virtual Environments
 
-Most Python applications rely on the use of virtual environments as a means of encapsulating everything that the application needs in one easy-to-find location. 
+Most Python applications rely on the use of virtual environments as a means of encapsulating everything that the application needs in one easy-to-find location.
 
 Ziggy supports the use of virtual environments. All virtual environments for use by the pipeline need to be in the `env` subdirectory of the pipeline's home directory; the pipeline's home directory is the directory that's given by the `ziggy.pipeline.home.dir` property in the properties file (see [the article on properties files](properties.md) for more information).
 
@@ -73,7 +73,7 @@ The virtual environment can be one created by `venv` or by `conda`. As with ever
 
 ### Where do my Python Modules go?
 
-At runtime, Ziggy needs to be able to find any Python module you've told it to use! How does Ziggy do this? 
+At runtime, Ziggy needs to be able to find any Python module you've told it to use! How does Ziggy do this?
 
 The simplest way to manage this, if you're using a virtual environment, is to put your Python packages into the virtual environment. This is what we do with our sample pipeline: the `major_tom` package is installed into the virtual environment.
 

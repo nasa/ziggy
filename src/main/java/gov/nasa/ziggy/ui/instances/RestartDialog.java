@@ -20,14 +20,17 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gov.nasa.ziggy.pipeline.definition.PipelineStepExecutor.RunMode;
+import gov.nasa.ziggy.pipeline.definition.PipelineTask;
 import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.ProcessingStep;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
+import gov.nasa.ziggy.ui.util.table.SpreadsheetCellRenderer;
 
 /**
  * @author Todd Klaus
@@ -80,7 +83,7 @@ public class RestartDialog extends javax.swing.JDialog {
         }
 
         JTable table = new JTable(restartTableModel) {
-            // Determine editor to be used by row
+            // Determine editor to be used by cell.
             @Override
             public TableCellEditor getCellEditor(int row, int column) {
                 int modelColumn = convertColumnIndexToModel(column);
@@ -89,6 +92,11 @@ public class RestartDialog extends javax.swing.JDialog {
                     return editors.get(row);
                 }
                 return super.getCellEditor(row, column);
+            }
+
+            @Override
+            public TableCellRenderer getCellRenderer(int row, int column) {
+                return new SpreadsheetCellRenderer();
             }
         };
 
@@ -106,14 +114,7 @@ public class RestartDialog extends javax.swing.JDialog {
         setVisible(false);
     }
 
-    // TODO Return Map<PipelineTaskDisplayData, RunMode> and delete this comment
-    // Note that the restartAttrs variable is clobbered during the loop and the last task wins.
-    // Given that what eventually happens is that each task gets its own restart message, and
-    // the restart message includes the restart mode, the right thing to do is probably to
-    // change the logic such that a Map<PipelineTaskDisplayData, RunMode> is returned and then
-    // passed to the PipelineExecutorProxy. That way we can be sure that we’re doing the right
-    // thing.
-    public static RunMode restartTasks(Window owner,
+    public static Map<RunMode, List<PipelineTask>> tasksByRunMode(Window owner,
         Map<PipelineTaskDisplayData, List<RunMode>> supportedRunModesByPipelineTask) {
 
         RestartDialog dialog = new RestartDialog(owner, supportedRunModesByPipelineTask);
@@ -124,24 +125,33 @@ public class RestartDialog extends javax.swing.JDialog {
             return null;
         }
 
-        RestartAttributes restartAttributes = null;
+        Map<RunMode, List<PipelineTask>> tasksByRunMode = new HashMap<>();
         Map<String, RestartAttributes> restartAttributesByPipelineProcessingSteps = dialog.restartTableModel
             .getRestartAttributesByPipelineProcessingSteps();
 
         for (PipelineTaskDisplayData failedTask : supportedRunModesByPipelineTask.keySet()) {
             String key = RestartAttributes.key(failedTask.getPipelineStepName(),
                 failedTask.getProcessingStep());
-
-            restartAttributes = restartAttributesByPipelineProcessingSteps.get(key);
-
-            log.info("Set task {} restartMode to {}", failedTask.getPipelineTaskId(),
-                restartAttributes.getSelectedRestartMode());
+            RunMode runMode = restartAttributesByPipelineProcessingSteps.get(key)
+                .getSelectedRestartMode();
+            log.info("Set task {} restartMode to {}", failedTask.getPipelineTaskId(), runMode);
+            List<PipelineTask> tasks = tasksByRunMode.get(runMode);
+            if (tasks == null) {
+                tasks = new ArrayList<>();
+                tasksByRunMode.put(runMode, tasks);
+            }
+            tasks.add(failedTask.getPipelineTask());
         }
-        return restartAttributes.getSelectedRestartMode();
+
+        return tasksByRunMode;
     }
 
     private static class RestartTableModel extends AbstractTableModel {
         private static final Logger log = LoggerFactory.getLogger(RestartTableModel.class);
+
+        private static final String[] COLUMN_NAMES = { "Node", "Status", "Count", "Restart mode" };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class,
+            Integer.class, String.class };
 
         private final List<RestartAttributes> allRestartAttributes;
         private final Map<String, RestartAttributes> restartAttributesByPipelineProcessingSteps;
@@ -182,6 +192,29 @@ public class RestartDialog extends javax.swing.JDialog {
         }
 
         @Override
+        public int getColumnCount() {
+            return COLUMN_NAMES.length;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return COLUMN_NAMES[column];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
+        }
+
+        @Override
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            if (columnIndex == 3) {
+                return true;
+            }
+            return super.isCellEditable(rowIndex, columnIndex);
+        }
+
+        @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             log.debug("rowIndex={}, columnIndex={}", rowIndex, columnIndex);
 
@@ -194,30 +227,6 @@ public class RestartDialog extends javax.swing.JDialog {
                 case 3 -> restartGroup.getSelectedRestartMode();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
             };
-        }
-
-        @Override
-        public int getColumnCount() {
-            return 4;
-        }
-
-        @Override
-        public String getColumnName(int column) {
-            return switch (column) {
-                case 0 -> "Node";
-                case 1 -> "Status";
-                case 2 -> "Count";
-                case 3 -> "Restart mode";
-                default -> throw new IllegalArgumentException("Unexpected value: " + column);
-            };
-        }
-
-        @Override
-        public boolean isCellEditable(int rowIndex, int columnIndex) {
-            if (columnIndex == 3) {
-                return true;
-            }
-            return super.isCellEditable(rowIndex, columnIndex);
         }
 
         @Override

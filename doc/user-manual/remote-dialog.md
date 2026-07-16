@@ -20,6 +20,10 @@ Now select `permuter` from the nodes list and press `Remote execution`. You'll s
 
 <img src="images/remote-dialog-1.png" style="width:16cm;"/>
 
+Open the pull-down Remote Environment menu and you'll see your options for remote execution:
+
+Note that when you do this, a bunch of the parameter text boxes display with a red border. This means exactly what you think it means: these parameters are not set to valid values, so Ziggy can't run its calculations to determine the resources needed to run your task. Read on to see how to address these red boxes!
+
 ### Using the Remote Execution Dialog Box
 
 The first thing to notice is that there are some parameters that are in a group labeled Required parameters, and other in a group labeled Optional parameters. Let's talk first about the ...
@@ -32,7 +36,12 @@ First, Ziggy will not let you save the configuration via the `Close` button unti
 
 This is the one that tells Ziggy that you want to run this pipeline node on a high performance computing system of some sort. The default choice of `Disabled` means that Ziggy will run all the tasks on the local system (i.e., the system where the Ziggy process is running) and none of the remaining parameters are needed. By changing the combobox to a supported system, Ziggy will farm out the node execution to the selected batch system.
 
-The sample pipeline "ships" with two remote environment options: the `HECC` option, which is a real one, and the `sample` option, which is a fake. Why ship a sample pipeline with a phony remote environment? It's so that we can demonstrate what happens if you are fortunate enough to have multiple remote environments that will accept jobs from you! We'll see this in action below.
+Ziggy "ships" with two remote environment options. These are the options you have when you run on NASA's High End Computing Capability (HECC, colloquially known as "the NAS", for NASA Advanced Supercomputers or something like that). The reason that there are two such options is that HECC uses two different networking systems to provide connections between nodes, and these options introduce incompatibilities that you need to take into account when you run on the NAS:
+
+- If your cluster runs on a node in the InfiniBand network (Broadwell, Cascade Lake, Skylake, Rome, and Milan architectures, plus the Pleiades Front Ends (PFEs) and Aitken Front Ends (AFEs)), you can only submit remote jobs to other nodes on that network; nodes on the Slingshot network are inaccessible to you.
+- If your cluster runs on a node in the Slingshot network (Turin architecture, plus the Athena Front Ends (ATHFEs)), you can only submit remote jobs to the other nodes on that network; nodes on the InfiniBand network are inaccessible to you.
+
+Of course, if you aren't a user of HECC, or if you're a user but you're doing your Ziggy explorations on a system not connected to HECC (like your laptop), you actually can't use either of these environments! Ziggy has no way to tell whether you can actually connect to an environment or not. This means that you can do all the stuff we're demonstrating on this page, and it will all work; but if you try to submit a task to be run on a remote environment, it will fail.
 
 ##### Run one subtask per node
 
@@ -48,11 +57,11 @@ In this latter case, you should check the `Run one subtask per node` check box. 
 
 This is only enabled when you've enabled the `Run one subtask per node` option.
 
-The issue here is that, if you're using parallelization in the algorithm code itself, then the wall time for a given subtask is going to depend on the number of cores in each compute node. Which is great, but it presents a problem: when we go through the process of configuring remote execution, one of the options that can be varied is the compute node architecture; and different compute node architectures have different numbers of cores per node. 
+The issue here is that, if you're using parallelization in the algorithm code itself, then the wall time for a given subtask is going to depend on the number of cores in each compute node. Which is great, but it presents a problem: when we go through the process of configuring remote execution, one of the options that can be varied is the compute node architecture; and different compute node architectures have different numbers of cores per node.
 
-Given the above, it's really inconvenient for you to have to adjust the wall time parameters (see below) every time you (or Ziggy) changes the architecture solution. It would be better to specify wall times in some manner that is agnostic with regards to core counts. 
+Given the above, it's really inconvenient for you to have to adjust the wall time parameters (see below) every time you (or Ziggy) changes the architecture solution. It would be better to specify wall times in some manner that is agnostic with regards to core counts.
 
-This is what the `Scale wall time by number of cores` option does. When this is enabled, Ziggy will assume that the wall times are the wall times you would get if you forced your algorithm to run on a single core. When you (or Ziggy) selects an architecture, Ziggy will apply a linear scaling to get the actual wall time per subtask. For example, if you specify 1 hour in the wall time parameters, and select an architecture with 10 cores per node, then Ziggy will assume that a subtask that uses all 10 cores will take 6 minutes, and adjust its wall time requests accordingly. 
+This is what the `Scale wall time by number of cores` option does. When this is enabled, Ziggy will assume that the wall times are the wall times you would get if you forced your algorithm to run on a single core. When you (or Ziggy) selects an architecture, Ziggy will apply a linear scaling to get the actual wall time per subtask. For example, if you specify 1 hour in the wall time parameters, and select an architecture with 10 cores per node, then Ziggy will assume that a subtask that uses all 10 cores will take 6 minutes, and adjust its wall time requests accordingly.
 
 It's generally not quite true that execution scales as the inverse of the number of cores; there's usually some overhead that doesn't scale, and some additional overhead that actually scales as the number of cores (i.e., there are some spots in execution where you actually lose by farming out the work to lots of cores). But to the extent that your algorithm is dominated by the time spent in parallelized calculations, this estimate will generally be good enough.
 
@@ -76,7 +85,7 @@ These are estimates of how much time a subtask will need in order to finish. In 
 
 #### Calculate the Batch Parameters
 
-Once the required parameters have been entered, Ziggy will convert the remote execution parameters on the left hand side of the dialog box into the parameters that will be used in the submission to the batch system. In this example, no parameters have been generated because the gigs per subtask and wall time per subtask are set to zero. Note that Ziggy highlights those incomplete fields. The total tasks and total subtasks fields have been auto-filled with a value of 2 and 8 respectively, which is correct but not very interesting. For the purposes of the example, let's select the `HECC` `Remote environment` and set `Total subtasks` to 10,000, `Gigs per subtask` to 10, and both wall time parameters to 0.15 hours. You'll see this:
+Once the required parameters have been entered, Ziggy will convert the remote execution parameters on the left hand side of the dialog box into the parameters that will be used in the submission to the batch system. In this example, no parameters have been generated because the gigs per subtask and wall time per subtask are set to zero. Note that Ziggy highlights those incomplete fields. The total tasks and total subtasks fields have been auto-filled with a value of 2 and 8 respectively, which is correct but not very interesting. For the purposes of the example, let's select the `HECC-InfiniBand` `Remote environment` and set `Total subtasks` to 10,000, `Gigs per subtask` to 10, and both wall time parameters to 0.15 hours. You'll see this:
 
 <img src="images/remote-dialog-2.png" style="width:16cm;"/>
 
@@ -142,20 +151,20 @@ As discussed in [the article on remote environments](remote-environments.md), a 
 
 ### Switching Remote Environments
 
-At this point, let's try something: use the `Remote environment` selector to switch to `sample` from `HECC`. 
+At this point, let's try something: use the `Remote environment` selector to switch to `HECC-Slingshot` from `HECC-InfiniBand`.
 
-When you do this, the calculated values will change: the queue and the architecture will change, and the cost unit will change to "$". What happened?
+When you do this, the calculated values will change: the queue and the architecture will change. What happened?
 
-What happened is that, when you switched to the `sample` remote environment, the architectures, queues, and cost unit had to switch to values that were defined in the `sample` remote environment in `sample-remote-environment.xml`. Ziggy then reran its calculations using the new definitions.
+What happened is that, when you switched to the `HECC-Slingshot` remote environment, the architectures, queues, and cost unit had to switch to values that were defined in the `HECC-Slingshot` remote environment in `hecc-environment.xml`. Ziggy then reran its calculations using the new definitions.
 
-If you pull down the architecture or queue selectors, you'll see the (fake) options available to you in this environment.
+If you pull down the architecture or queue selectors, you'll see the options available to you in this environment.
 
 When you create your own property file, you can limit the remote environments shown in the `Remote environment` selector to the ones that you can access using the `ziggy.remote.environment.names` property. The `sample.properties` file contains this:
 
 ```
-ziggy.remote.environment.names = hecc, sample
+ziggy.remote.environment.names = hecc-infiniband, hecc-slingshot
 ```
-This is a comma-separated list of remote environments defined by the `remote-environment` element in the XML file. The names are case-insensitive. You can delete the `sample` entry now and add others in the future that you or the Ziggy developers define.
+This is a comma-separated list of remote environments defined by the `remote-environment` element in the XML file. The names are case-insensitive.
 
 
 ### Keeping or Discarding Changes

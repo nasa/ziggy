@@ -10,7 +10,7 @@ Defining an event handler is surprisingly easy. At least, it's surprising to me.
 
 ### The Event Handler XML Element
 
-You probably already guessed that it would be an XML element. 
+You probably already guessed that it would be an XML element.
 
 The event handler demonstrated in the sample pipeline is in [sample-pipeline.xml](../../sample-pipeline/etc/ziggy.d/sample-pipeline.xml). Here's the event definition in all its glory:
 

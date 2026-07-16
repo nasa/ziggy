@@ -1,8 +1,5 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import static com.lowagie.text.Element.ALIGN_LEFT;
-import static com.lowagie.text.Element.ALIGN_RIGHT;
-
 import gov.nasa.ziggy.pipeline.definition.TaskCounts;
 import gov.nasa.ziggy.pipeline.definition.TaskCounts.Counts;
 
@@ -16,8 +13,8 @@ public class TaskSummaryDisplayModel extends DisplayModel {
 
     private static final String[] COLUMN_NAMES = { "Node", "Waiting to run", "Processing",
         "Completed", "Failed", "Subtasks" };
-    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_RIGHT, ALIGN_RIGHT,
-        ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT };
+    private static final Class<?>[] COLUMN_CLASSES = { String.class, Integer.class, Integer.class,
+        Integer.class, Integer.class, Integer.class };
 
     private TaskCounts taskCounts = new TaskCounts();
 
@@ -33,6 +30,29 @@ public class TaskSummaryDisplayModel extends DisplayModel {
     }
 
     @Override
+    public int getRowCount() {
+        if (taskCounts != null) {
+            return taskCounts.getPipelineStepNames().size() + 1;
+        }
+        return 0;
+    }
+
+    @Override
+    public int getColumnCount() {
+        return COLUMN_NAMES.length;
+    }
+
+    @Override
+    public String getColumnName(int column) {
+        return COLUMN_NAMES[column];
+    }
+
+    @Override
+    public Class<?> getColumnClass(int columnIndex) {
+        return COLUMN_CLASSES[columnIndex];
+    }
+
+    @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
         int nodeCount = taskCounts.getPipelineStepNames().size();
         boolean isTotalsRow = rowIndex == nodeCount;
@@ -41,6 +61,7 @@ public class TaskSummaryDisplayModel extends DisplayModel {
         TaskCounts.Counts counts = isTotalsRow ? taskCounts.getTotalCounts()
             : taskCounts.getPipelineStepCounts().get(pipelineStepName);
 
+        // Align subtask counts like a number.
         return switch (columnIndex) {
             case 0 -> pipelineStepName;
             case 1 -> counts.getWaitingToRunTaskCount();
@@ -52,31 +73,8 @@ public class TaskSummaryDisplayModel extends DisplayModel {
         };
     }
 
-    @Override
-    public int getColumnCount() {
-        return COLUMN_NAMES.length;
-    }
-
     public Counts getContentAtRow(int row) {
         return taskCounts.getPipelineStepCounts().get(taskCounts.getPipelineStepNames().get(row));
-    }
-
-    @Override
-    public String getColumnName(int column) {
-        return COLUMN_NAMES[column];
-    }
-
-    @Override
-    public int getAlignment(int column) {
-        return COLUMN_ALIGNMENT[column];
-    }
-
-    @Override
-    public int getRowCount() {
-        if (taskCounts != null) {
-            return taskCounts.getPipelineStepNames().size() + 1;
-        }
-        return 0;
     }
 
     public TaskCounts getTaskCounts() {

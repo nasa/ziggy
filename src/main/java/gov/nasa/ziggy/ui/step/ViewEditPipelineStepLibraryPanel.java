@@ -105,8 +105,8 @@ public class ViewEditPipelineStepLibraryPanel extends JPanel {
 
         private static final String[] COLUMN_NAMES = { "ID", "Name", "Version", "Locked", "User",
             "Modified" };
-        private static final Class<?>[] COLUMN_CLASSES = { Integer.class, String.class,
-            Integer.class, Boolean.class, String.class, Object.class };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class,
+            Integer.class, Boolean.class, String.class, Date.class };
 
         private List<PipelineStep> pipelineSteps = new ArrayList<>();
 

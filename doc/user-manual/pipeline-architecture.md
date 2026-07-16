@@ -27,7 +27,7 @@ The figure above shows Ziggy's architecture.
 A particular instance of the system above is called a **cluster**. A complete processing system may consist of more than one cluster: for example, the TESS processing pipeline has 4 clusters, each of which processes a different subset of TESS data. A single server can run multiple pipeline clusters, though that gets potentially messy. For now, let's stick with the assumption that on a given computer there's only one cluster in existence at a time.
 
 **N.B.** Due to the protections put in place to avoid accidental deletion of critical files in the datastore, a cluster can only be operated by a single user.
- 
+
 [[Previous]](quick-start.md)
 [[Up]](user-manual.md)
 [[Next]](downloading-and-building-ziggy.md)

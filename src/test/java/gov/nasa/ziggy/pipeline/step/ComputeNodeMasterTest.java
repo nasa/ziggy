@@ -117,6 +117,9 @@ public class ComputeNodeMasterTest {
 
         // Create the version information properties file.
         new BuildInfo(BuildType.ZIGGY).writeBuildFile();
+
+        // Create the task configuration file.
+        Files.createFile(taskDir.resolve(TaskConfiguration.PERSISTED_FILE_NAME));
     }
 
     /**
@@ -155,6 +158,10 @@ public class ComputeNodeMasterTest {
         assertTrue(
             TimestampFile.exists(taskDir.toFile(), TimestampFile.Event.ARRIVE_COMPUTE_NODES));
         assertTrue(TimestampFile.exists(taskDir.toFile(), TimestampFile.Event.START));
+
+        // The file lock should have been obtained and released.
+        verify(computeNodeMaster).getTaskConfigFileLock();
+        verify(computeNodeMaster).releaseTaskConfigFileLock();
     }
 
     /**

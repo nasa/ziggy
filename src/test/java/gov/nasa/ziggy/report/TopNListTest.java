@@ -58,45 +58,21 @@ public class TopNListTest {
     }
 
     @Test
-    public void testMillisToHumanReadableTopTen() {
+    public void testMillisToHumanReadable() {
         TopNList topTen = createTopNList(new double[] { 1, 2, 3 });
-        TopNList humanReadableTopTen = topTen.millisToHumanReadable();
+        TopNList humanReadableTopTen = topTen.toHumanReadable(1000);
         assertEquals("[0.003, 0.002, 0.001]", humanReadableTopTen.toString());
 
         topTen = createTopNList(new double[] { 1000, 2000, 3000 });
-        humanReadableTopTen = topTen.millisToHumanReadable();
+        humanReadableTopTen = topTen.toHumanReadable(1000);
         assertEquals("[3.0, 2.0, 1.0]", humanReadableTopTen.toString());
 
         topTen = createTopNList(new double[] { 60000, 120000, 180000 });
-        humanReadableTopTen = topTen.millisToHumanReadable();
+        humanReadableTopTen = topTen.toHumanReadable(60000);
         assertEquals("[3.0, 2.0, 1.0]", humanReadableTopTen.toString());
 
         topTen = createTopNList(new double[] { 3600000, 7200000, 10800000 });
-        humanReadableTopTen = topTen.millisToHumanReadable();
-        assertEquals("[3.0, 2.0, 1.0]", humanReadableTopTen.toString());
-    }
-
-    @Test
-    public void testBytesToHumanReadableTopTen() {
-        TopNList topTen = createTopNList(new double[] { 1, 2, 3 });
-        TopNList humanReadableTopTen = topTen.bytesToHumanReadable();
-        assertEquals("[0.003, 0.002, 0.001]", humanReadableTopTen.toString());
-
-        topTen = createTopNList(new double[] { 1000, 2000, 3000 });
-        humanReadableTopTen = topTen.bytesToHumanReadable();
-        assertEquals("[3.0, 2.0, 1.0]", humanReadableTopTen.toString());
-
-        topTen = createTopNList(new double[] { 1_000_000, 2_000_000, 3_000_000 });
-        humanReadableTopTen = topTen.bytesToHumanReadable();
-        assertEquals("[3.0, 2.0, 1.0]", humanReadableTopTen.toString());
-
-        topTen = createTopNList(new double[] { 1_000_000_000, 2_000_000_000, 3_000_000_000D });
-        humanReadableTopTen = topTen.bytesToHumanReadable();
-        assertEquals("[3.0, 2.0, 1.0]", humanReadableTopTen.toString());
-
-        topTen = createTopNList(
-            new double[] { 1_000_000_000_000D, 2_000_000_000_000D, 3_000_000_000_000D });
-        humanReadableTopTen = topTen.bytesToHumanReadable();
+        humanReadableTopTen = topTen.toHumanReadable(3600000);
         assertEquals("[3.0, 2.0, 1.0]", humanReadableTopTen.toString());
     }
 

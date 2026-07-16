@@ -26,7 +26,7 @@ cp -r $sample_root/data/* $data_receipt_dir
 mkdir -p $sample_home/src/main
 cp -r $sample_root/src/main/python $sample_home/src/main
 
-python3 -m venv $python_env/pipeline
+python3 -m venv --upgrade-deps $python_env/pipeline
 
 # We're about to activate the environment, so we should make sure that the environment
 # gets deactivated at the end of script execution.

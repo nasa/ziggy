@@ -19,7 +19,7 @@ export PATH=$ZIGGY_HOME/bin:$JAVA_HOME/bin:`dirname $CC`:/path/to/python3>=3.8/b
 ./gradlew
 sample-pipeline/build-env.sh
 ziggy cluster init && ziggy cluster start && ziggy console start sample
-while true; do ziggy console display --instance 1 --displayType full; sleep 10; done 
+while true; do ziggy console display --instance 1 --displayType full; sleep 10; done
 ```
 Hit C-c when the last command shows that the pipeline is in the COMPLETED state.
 

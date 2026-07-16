@@ -68,6 +68,8 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
         private static final long serialVersionUID = 20240614L;
 
         private static final String[] COLUMN_NAMES = { "Name", "Value", "Include", "Exclude" };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class, String.class,
+            String.class };
 
         private List<DatastoreRegexp> datastoreRegexps = new ArrayList<>();
 
@@ -104,14 +106,19 @@ public class ViewEditDatastorePanel extends AbstractViewEditPanel<DatastoreRegex
         }
 
         @Override
-        public String getColumnName(int column) {
-            checkColumnArgument(column);
-            return COLUMN_NAMES[column];
+        public String getColumnName(int columnIndex) {
+            checkColumnArgument(columnIndex);
+            return COLUMN_NAMES[columnIndex];
         }
 
         private void checkColumnArgument(int columnIndex) {
             checkArgument(columnIndex < COLUMN_NAMES.length, "Column value of " + columnIndex
                 + " outside of expected range from 0 to " + COLUMN_NAMES.length);
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
         }
 
         @Override

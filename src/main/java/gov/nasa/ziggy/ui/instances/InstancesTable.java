@@ -10,6 +10,7 @@ import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,7 +73,7 @@ public class InstancesTable extends JPanel {
         this(null, filter);
     }
 
-    public InstancesTable(JPanel parent, PipelineInstanceFilter instancesFilter) {
+    public InstancesTable(Component parent, PipelineInstanceFilter instancesFilter) {
         this.parent = parent;
         createInstancesTable(instancesFilter);
 
@@ -276,6 +277,8 @@ public class InstancesTable extends JPanel {
         private static final String EVENT_NAME = "Event name";
         private static final String[] COLUMN_NAMES = { "ID", "Pipeline", EVENT_NAME, "Date",
             "Status", "Time" };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class, String.class,
+            Date.class, String.class, Integer.class };
         private static final int[] COLUMN_WIDTHS = {
             ZiggySwingUtils.textWidth(new JLabel(), "1234"),
             ZiggySwingUtils.textWidth(new JLabel(), "123456789012345678"),
@@ -386,6 +389,16 @@ public class InstancesTable extends JPanel {
         }
 
         @Override
+        public String getColumnName(int column) {
+            return COLUMN_NAMES[column];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
+        }
+
+        @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             InstanceEventInfo instanceEventInfo = instanceEventInfoList.get(rowIndex);
             PipelineInstance pipelineInstance = instanceEventInfo.getPipelineInstance();
@@ -399,15 +412,10 @@ public class InstancesTable extends JPanel {
                 case 2 -> ziggyEvent != null ? ziggyEvent.getEventHandlerName() : "-";
                 case 3 -> ziggyEvent != null ? ziggyEvent.getEventTime()
                     : pipelineInstance.getCreated();
-                case 4 -> pipelineInstance.getState().toString();
-                case 5 -> pipelineInstance.getExecutionClock().toString();
+                case 4 -> pipelineInstance.getState();
+                case 5 -> pipelineInstance.getExecutionClock();
                 default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
             };
-        }
-
-        @Override
-        public String getColumnName(int column) {
-            return COLUMN_NAMES[column];
         }
 
         @Override

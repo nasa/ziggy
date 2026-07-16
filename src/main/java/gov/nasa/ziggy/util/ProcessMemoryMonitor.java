@@ -314,8 +314,8 @@ public class ProcessMemoryMonitor implements Runnable {
 
         @Override
         public int compareTo(MaxMemorySample o) {
-            return (int) (o.maxMemorySample.getMemoryUsageBytes()
-                - maxMemorySample.getMemoryUsageBytes());
+            return Long.signum(Long.compare(o.maxMemorySample.getMemoryUsageBytes(),
+                maxMemorySample.getMemoryUsageBytes()));
         }
 
         @Override

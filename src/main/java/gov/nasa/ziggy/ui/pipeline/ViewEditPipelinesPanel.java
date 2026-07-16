@@ -9,6 +9,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.event.ActionEvent;
+import java.awt.event.HierarchyEvent;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import java.util.Set;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
@@ -56,6 +58,17 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<Pipeline>
             .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
         ZiggyMessenger.subscribe(PipelineInstanceStartedMessage.class, this::invalidateModel);
+
+        addHierarchyListener(this::hierarchyListener);
+    }
+
+    // The selection is cleared when we are first shown, so ensure that the start button is
+    // disabled.
+    private void hierarchyListener(HierarchyEvent evt) {
+        JComponent component = (JComponent) evt.getSource();
+        if ((evt.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && component.isShowing()) {
+            updateActionState(null);
+        }
     }
 
     /**
@@ -101,11 +114,17 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<Pipeline>
 
     @Override
     protected void updateActionState(Map<OptionalViewEditFunction, Action> actionByFunction) {
-        startAction.setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
-        actionByFunction.get(OptionalViewEditFunction.VIEW)
-            .setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
-        actionByFunction.get(OptionalViewEditFunction.EDIT)
-            .setEnabled(ziggyTable.getTable().getSelectedRowCount() == 1);
+        boolean pipelineSelected = false;
+        if (actionByFunction != null) {
+            int tableRow = ziggyTable.getSelectedRow();
+            selectedModelRow = ziggyTable.convertRowIndexToModel(tableRow);
+            pipelineSelected = ziggyTable.getContentAtViewRow(selectedModelRow) != null;
+
+            actionByFunction.get(OptionalViewEditFunction.VIEW).setEnabled(pipelineSelected);
+            actionByFunction.get(OptionalViewEditFunction.EDIT).setEnabled(pipelineSelected);
+        }
+
+        startAction.setEnabled(pipelineSelected);
     }
 
     @Override
@@ -171,7 +190,7 @@ public class ViewEditPipelinesPanel extends AbstractViewEditGroupPanel<Pipeline>
         private static final String[] COLUMN_NAMES = { "Version", "Locked", "User", "Modified",
             "Node count" };
         private static final Class<?>[] COLUMN_CLASSES = { Integer.class, Boolean.class,
-            String.class, Object.class, Integer.class };
+            String.class, Date.class, Integer.class };
 
         @Override
         public int getColumnCount() {

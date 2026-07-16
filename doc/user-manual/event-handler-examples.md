@@ -54,7 +54,7 @@ Once you do this, the Pi light on the console will quickly turn green. After a f
 
 There is a hidden Event name column that shows the name of the event handler, which is `data-receipt` in this case; otherwise, only a dash (`-`) is shown. To expose this column, use the context menu in the table header to bring up a menu of available columns that can be enabled or disabled. Like any column, you can click in the header to sort by the chosen column. Meanwhile, the tasks table looks like this:
 
-<img src="images/event-handler-tasks-1.png" style="width:16cm;"/>
+<img src="images/event-handler-tasks-1.png" style="width:17cm;"/>
 
 The data receipt task ran to completion before the display could even update, and the pipeline went on to its `permuter` tasks. After the usual few seconds, the pipeline will finish, with `flip` and `averaging` tasks.
 
@@ -101,7 +101,7 @@ As soon as the second ready file is created, a new pipeline instance will start:
 
 The tasks display will look like this:
 
-<img src="images/event-handler-tasks-2.png" style="width:16cm;"/>
+<img src="images/event-handler-tasks-2.png" style="width:17cm;"/>
 
 There's a fair amount of interesting stuff going on here, so let's dig into this display!
 

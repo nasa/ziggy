@@ -101,6 +101,11 @@ public class ZiggySwingUtils {
     public static final JMenuItem MENU_SEPARATOR = new JMenuItem(
         JPopupMenu.Separator.class.toString());
 
+    /**
+     * Padding that should be added to the left and right of components, particularly table cells.
+     */
+    public static final int HORIZONTAL_PADDING = 5;
+
     static {
         setLookAndFeel();
     }
@@ -128,18 +133,14 @@ public class ZiggySwingUtils {
         // label.getFont().getStyle() | Font.BOLD.
         JLabel label = new JLabel(s);
         switch (type) {
-            case DEFAULT:
-                label.setFont(label.getFont().deriveFont(Font.BOLD));
-                break;
-            case HEADING:
-            case HEADING1:
-            case HEADING2:
+            case DEFAULT -> label.setFont(label.getFont().deriveFont(Font.BOLD));
+            case HEADING, HEADING1, HEADING2 -> {
                 int size = label.getFont().getSize();
                 label.setFont(label.getFont()
                     .deriveFont(Font.BOLD, size
                         + (type == LabelType.HEADING1 ? 2 : type == LabelType.HEADING2 ? 1 : 0)));
                 label.setForeground(UIManager.getColor("TitledBorder.titleColor"));
-                break;
+            }
         }
         return label;
     }

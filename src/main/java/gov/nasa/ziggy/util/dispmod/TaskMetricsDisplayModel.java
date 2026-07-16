@@ -1,6 +1,5 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import static com.lowagie.text.Element.ALIGN_LEFT;
 import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.ALGORITHM_TIME;
 import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.INPUTS_SIZE;
 import static gov.nasa.ziggy.pipeline.definition.PipelineTaskMetric.Metric.MARSHALING_TIME;
@@ -53,9 +52,6 @@ public class TaskMetricsDisplayModel extends DisplayModel {
         new MetricDisplayInfo(PERSISTING_TIME, "Persisting time", ChartColor.DARK_MAGENTA),
         new MetricDisplayInfo(null, "Total time", null));
 
-    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT,
-        ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT };
-
     private static final long BYTES_PER_GIGABYTE = 1_000_000_000L;
 
     private List<PipelineStepTaskMetrics> pipelineStepsTaskMetrics;
@@ -105,6 +101,11 @@ public class TaskMetricsDisplayModel extends DisplayModel {
     }
 
     @Override
+    public int getRowCount() {
+        return pipelineStepsTaskMetrics.size();
+    }
+
+    @Override
     public int getColumnCount() {
         return METRIC_DISPLAY_INFO.size();
     }
@@ -120,13 +121,13 @@ public class TaskMetricsDisplayModel extends DisplayModel {
     }
 
     @Override
-    public int getAlignment(int column) {
-        return COLUMN_ALIGNMENT[column];
-    }
+    public Class<?> getColumnClass(int columnIndex) {
+        if (columnIndex == 0) {
+            return String.class;
+        }
 
-    @Override
-    public int getRowCount() {
-        return pipelineStepsTaskMetrics.size();
+        // Treat display of all metrics and total like numbers and right-align.
+        return Integer.class;
     }
 
     @Override
@@ -147,7 +148,9 @@ public class TaskMetricsDisplayModel extends DisplayModel {
     }
 
     private String value(Metric category, TaskMetrics taskMetrics) {
-        ValuePercentile metrics = taskMetrics.getMetricsByCategory().get(category);
+        ValuePercentile metrics = taskMetrics != null && taskMetrics.getMetricsByCategory() != null
+            ? taskMetrics.getMetricsByCategory().get(category)
+            : null;
 
         if (metrics == null) {
             return ZiggyStringUtils.NO_DATA;

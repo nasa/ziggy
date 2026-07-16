@@ -31,6 +31,8 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.RGBColor;
 
+import gov.nasa.ziggy.ui.util.HtmlBuilder;
+import gov.nasa.ziggy.util.ZiggyStringUtils;
 import gov.nasa.ziggy.util.dispmod.DisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel;
 import gov.nasa.ziggy.util.dispmod.TaskMetricsDisplayModel.MetricDisplayInfo;
@@ -101,6 +103,16 @@ public abstract class Report {
         return cell;
     }
 
+    protected int alignment(Class<?> clazz, Object value) {
+        if (value.equals(ZiggyStringUtils.NO_DATA)) {
+            return Element.ALIGN_CENTER;
+        }
+        if (Number.class.isAssignableFrom(clazz)) {
+            return Element.ALIGN_RIGHT;
+        }
+        return Element.ALIGN_LEFT;
+    }
+
     protected boolean isOddNumberedTableRow(PdfPTable table) {
         int columnCount = table.getNumberOfColumns();
         int rowCount = table.size();
@@ -117,7 +129,7 @@ public abstract class Report {
             || rowCount % 2 == 0 && columnsInRow == columnCount;
     }
 
-    protected void generateSummaryTable(DescriptiveStatistics stats, TopNList topTen) {
+    protected void generateSummaryTable(DescriptiveStatistics stats, List<TopNListElement> list) {
         PdfPTable statsTable = new PdfPTable(2);
 
         Format f = new ReportValueFormat();
@@ -151,15 +163,14 @@ public abstract class Report {
         cell.setPaddingLeft(CHART_WIDTH * 0.03F);
         layoutTable.addCell(cell);
         layoutTable.addCell(createCell(new Phrase(" ")));
-        cell = dumpTopTen(topTen, f);
+        cell = dumpTopTen(list, f);
         cell.setPaddingRight(CHART_WIDTH * 0.03F);
         layoutTable.addCell(cell);
 
         pdfRenderer.add(layoutTable);
     }
 
-    private PdfPCell dumpTopTen(TopNList topTenList, Format f) {
-        List<TopNListElement> list = topTenList.getList();
+    private PdfPCell dumpTopTen(List<TopNListElement> list, Format f) {
 
         PdfPTable topTenTableLeft = new PdfPTable(new float[] { 1.0F, 2.0F, 1.5F });
         PdfPTable topTenTableRight = new PdfPTable(new float[] { 1.0F, 2.0F, 1.5F });
@@ -296,8 +307,10 @@ public abstract class Report {
 
         for (int row = 0; row < displayModel.getRowCount(); row++) {
             for (int col = 0; col < displayModel.getColumnCount(); col++) {
-                table.addCell(createCell(displayModel.getValueAt(row, col).toString(),
-                    displayModel.getAlignment(col), isOddNumberedTableRow(table)));
+                Object value = displayModel.getValueAt(row, col);
+                table.addCell(createCell(HtmlBuilder.stripHtml(value.toString()),
+                    alignment(displayModel.getColumnClass(col), value),
+                    isOddNumberedTableRow(table)));
             }
         }
 

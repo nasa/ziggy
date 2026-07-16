@@ -17,8 +17,10 @@ import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -126,6 +128,7 @@ public class ZiggyTable<T> {
         modelContentsClass = ((ModelContentClass<T>) tableModel).tableModelContentClass();
         this.tableModel = tableModel;
         table = new ZiggyETable();
+        setDefaultRenderers(table, tableModel);
         table.setModel(tableModel);
         setPreferredViewportSizeFromModel();
     }
@@ -144,6 +147,7 @@ public class ZiggyTable<T> {
         table = new ZiggyOutline();
         outlineModel = DefaultOutlineModel.createOutlineModel(treeModel, rowModel, false,
             nodesColumnLabel);
+        setDefaultRenderers(table, outlineModel);
         ((Outline) table).setModel(outlineModel);
         DefaultMutableTreeNode defaultGroupNode = treeModel.getDefaultGroupNode();
         if (defaultGroupNode != null) {
@@ -582,25 +586,46 @@ public class ZiggyTable<T> {
     }
 
     /**
-     * Implements the {@link JTable#getCellRenderer(int, int)} for use with row shading and cell
-     * wrapping.
+     * Set the default column renderers to one of our own if a column class has been defined except
+     * for booleans and icons, which we don't handle. These are used to determine the size of a cell
+     * at creation time. Once the table is created, {@link #getCellRenderer(int, int)} is used.
      *
-     * @param jTableRenderer {@link TableCellRenderer} component produced by the superclass
-     * ({@link JTable}) version of {@link JTable#getCellRenderer(int, int)}.
+     * @param table the table being created
+     * @param model the table model
      */
-    private TableCellRenderer getCellRenderer(int row, int column,
-        TableCellRenderer jTableRenderer) {
-        Object value = table.getValueAt(row, column);
-        if (isCellContentWrappable(row, column)) {
-            return wrappingCellRenderer;
-        }
+    private void setDefaultRenderers(JTable table, TableModel model) {
 
-        // Object value = table.getValueAt(row, column);
-        if (value instanceof Date || value instanceof Number || value instanceof String) {
+        Set<Class<?>> columnClasses = new HashSet<>();
+        for (int i = 0; i < model.getColumnCount(); i++) {
+            columnClasses.add(model.getColumnClass(i));
+        }
+        for (Class<?> columnClass : columnClasses) {
+            if (Number.class.isAssignableFrom(columnClass) || columnClass == String.class
+                || columnClass == Date.class) {
+                table.setDefaultRenderer(columnClass,
+                    wrapText ? wrappingCellRenderer : spreadsheetCellRenderer);
+            }
+        }
+    }
+
+    /**
+     * Returns a cell renderer that performs row shading and cell wrapping.
+     *
+     * @returns null if the cell renderer of the {@link JTable} superclass should be used
+     */
+    private TableCellRenderer getCellRenderer(int row, int column) {
+
+        Object value = table.getValueAt(row, column);
+
+        if (value != null && (Number.class.isAssignableFrom(value.getClass())
+            || value instanceof String || value instanceof Date)) {
+            if (isCellContentWrappable(row, column)) {
+                return wrappingCellRenderer;
+            }
+
             return spreadsheetCellRenderer;
         }
-
-        return jTableRenderer;
+        return null;
     }
 
     /**
@@ -612,7 +637,7 @@ public class ZiggyTable<T> {
      */
     private class ZiggyETable extends ETable {
 
-        private static final long serialVersionUID = 20230511L;
+        private static final long serialVersionUID = 20260708L;
 
         @Override
         public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
@@ -622,7 +647,8 @@ public class ZiggyTable<T> {
 
         @Override
         public TableCellRenderer getCellRenderer(int row, int column) {
-            return ZiggyTable.this.getCellRenderer(row, column, super.getCellRenderer(row, column));
+            TableCellRenderer cellRenderer = ZiggyTable.this.getCellRenderer(row, column);
+            return cellRenderer != null ? cellRenderer : super.getCellRenderer(row, column);
         }
     }
 
@@ -645,8 +671,8 @@ public class ZiggyTable<T> {
 
         @Override
         public TableCellRenderer getCellRenderer(int row, int column) {
-            return ZiggyTable.this.getCellRenderer(row, column,
-                superclassOrDefaultRenderer(row, column));
+            TableCellRenderer cellRenderer = ZiggyTable.this.getCellRenderer(row, column);
+            return cellRenderer != null ? cellRenderer : superclassOrDefaultRenderer(row, column);
         }
 
         // This is necessary because the Outline renderer has to render both the normal

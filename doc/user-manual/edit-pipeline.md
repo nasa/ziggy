@@ -20,11 +20,11 @@ The actions you can take from this section include setting the priority and proc
 
 The `Report` button brings up a new window that shows the nodes and parameter sets for this pipeline. The report can also be saved to a text file. This dialog is mainly useful in the context of a fairly complex system, in which you want to isolate the bits and pieces of a specified pipeline from the general mass of bits and pieces in the system.
 
-The `Priority` field takes a little more explanation. We've discussed in the past the fact that Ziggy sometimes faces a situation in which it has more tasks waiting for attention than it has worker processes ready to service the tasks. In this case, Ziggy has to prioritize the tasks to ensure that the most critical ones get attention first. The pipeline priority is one way this sorting occurs. Tasks with higher priority get to leap ahead of tasks with lower priority in the queue. The available priorities are LOWEST, LOW, NORMAL, HIGHEST, HIGH. 
+The `Priority` field takes a little more explanation. We've discussed in the past the fact that Ziggy sometimes faces a situation in which it has more tasks waiting for attention than it has worker processes ready to service the tasks. In this case, Ziggy has to prioritize the tasks to ensure that the most critical ones get attention first. The pipeline priority is one way this sorting occurs. Tasks with higher priority get to leap ahead of tasks with lower priority in the queue. The available priorities are LOWEST, LOW, NORMAL, HIGHEST, HIGH.
 
 So how to tasks get assigned a priority?
 
-All tasks that are running for the first time get assigned a priority equal to the priority of the parent pipeline. In this example, the sample pipeline has a priority of NORMAL, meaning that all tasks for this pipeline will have the a moderate priority level on their first pass through the system. Tasks that are being persisted (which happens on a separate pass through the task management system) do so with priority HIGH, so persisting results takes precedence over starting new tasks. Tasks that are being rerun or restarted do so with priority HIGHEST, which means exactly what it sounds like. 
+All tasks that are running for the first time get assigned a priority equal to the priority of the parent pipeline. In this example, the sample pipeline has a priority of NORMAL, meaning that all tasks for this pipeline will have the a moderate priority level on their first pass through the system. Tasks that are being persisted (which happens on a separate pass through the task management system) do so with priority HIGH, so persisting results takes precedence over starting new tasks. Tasks that are being rerun or restarted do so with priority HIGHEST, which means exactly what it sounds like.
 
 All pipelines, in turn, are initially created with priority NORMAL, meaning that all pipelines will, by default, produce tasks at priority NORMAL. Thus, all tasks from all pipelines compete for workers with a "level playing field," if you will. Usually this is the situation that most users want.
 
@@ -56,7 +56,7 @@ This button produces a table of the tasks that Ziggy will produce for the specif
 
 #### Resources Button
 
-If you look back at [the article on running the cluster](running-pipeline.md), you'll note that we promised that there was a way to set a different limit on the number of workers for each node. This button is that way! 
+If you look back at [the article on running the cluster](running-pipeline.md), you'll note that we promised that there was a way to set a different limit on the number of workers for each node. This button is that way!
 
 More specifically, if you select a node and press the `Resources` button, you'll get the `Edit worker resources` dialog box that displays a number of resource settings:
 
@@ -74,23 +74,23 @@ This allows you to set the maximum total Java heap size used by the workers for 
 
 <img src="images/resources-updated.png" style="width:6cm;" />
 
-As with the worker count, the default heap size is the value specified by the `ziggy.worker.heapSize` property unless it has been overridden by using the `--workerHeapSize` option when you started the cluster. 
+As with the worker count, the default heap size is the value specified by the `ziggy.worker.heapSize` property unless it has been overridden by using the `--workerHeapSize` option when you started the cluster.
 
 ##### Maximum failed subtasks
 
 As a node executes its assorted subtasks, it is possible that not every subtask will run to completion. Most vexingly, it is possible that some of the subtasks will fail due to various errors in the code or features of the data, while others complete successfully. Under ordinary circumstances, if even one subtask fails, the entire task will be marked as failed and the pipeline will halt until the issue is addressed.
 
-The `Maximum failed subtasks` tells Ziggy that, in the event that some subtasks do fail, if the number of subtasks falls below the value of `Maximum failed subtasks`, Ziggy should mark the task as complete rather than failed. Note that this can be set after the fact! Say for example that a task has 100 subtasks, of which 95 succeed and 5 fail. If the mission decides to not try to rescue the 5 failed subtasks right now, you can set `Maximum failed subtasks` to 5 and then resubmit the task. Ziggy will detect that the number of failed subtasks is below the limit and will mark the task as completed. 
+The `Maximum failed subtasks` tells Ziggy that, in the event that some subtasks do fail, if the number of subtasks falls below the value of `Maximum failed subtasks`, Ziggy should mark the task as complete rather than failed. Note that this can be set after the fact! Say for example that a task has 100 subtasks, of which 95 succeed and 5 fail. If the mission decides to not try to rescue the 5 failed subtasks right now, you can set `Maximum failed subtasks` to 5 and then resubmit the task. Ziggy will detect that the number of failed subtasks is below the limit and will mark the task as completed.
 
 ##### Maximum automatic resubmits
 
-Another vexing occurrence is when a task, or some of its subtasks, fail even though in principle they should all have been able to complete successfully. This can be due to various transient system problems (a brief glitch in a network file system, for example), or because the task ran out of wall time before all the subtasks had completed. In these cases, it can be useful for Ziggy to automatically resubmit any tasks that fail. By setting the `Maximum automatic resubmits`, you can control this behavior in Ziggy. 
+Another vexing occurrence is when a task, or some of its subtasks, fail even though in principle they should all have been able to complete successfully. This can be due to various transient system problems (a brief glitch in a network file system, for example), or because the task ran out of wall time before all the subtasks had completed. In these cases, it can be useful for Ziggy to automatically resubmit any tasks that fail. By setting the `Maximum automatic resubmits`, you can control this behavior in Ziggy.
 
 Note that this option can potentially be dangerous. In particular, if a task fails because it has subtasks that fail due to algorithm or data problems, then each time Ziggy resubmits the task those same subtasks will fail again, until the automatic resubmits are exhausted. Use with caution!
 
 #### Parameters Button
 
-This button brings up the `Edit parameter sets` dialog box that displays a table of node-level parameter sets. The user can edit the existing parameter sets, or add a parameter set to a given node. 
+This button brings up the `Edit parameter sets` dialog box that displays a table of node-level parameter sets. The user can edit the existing parameter sets, or add a parameter set to a given node.
 
 #### Remote Execution Button
 
@@ -100,12 +100,12 @@ This button brings up the `Edit remote execution parameters` dialog box. See [th
 
 You're probably thinking, "How much do I really need to know about Save and Cancel buttons?" Well, yeah, they're mostly self-explanatory. But not completely!
 
-To save changes that you've made on the `Edit pipeline` dialog box, or any other dialog box that it spawned, use the `Save` button. To discard all your changes, use the `Cancel` button. 
+To save changes that you've made on the `Edit pipeline` dialog box, or any other dialog box that it spawned, use the `Save` button. To discard all your changes, use the `Cancel` button.
 
 The points I'm trying to make here are twofold:
 
 1. Anything you do after you launch the `Edit pipeline` dialog box can be discarded, and will only be preserved when you press `Save`.
-2. The `Save` and `Cancel` buttons on the `Edit pipeline` dialog box also apply to changes made on the `Edit remote execution parameters` dialog box, the `Edit parameter sets` dialog box, etc. That is to say, if you make a bunch of changes on the `Edit parameter sets` dialog box, hit the `Close` button, then hit the `Cancel` button on the `Edit pipeline` dialog, your changes to the parameter sets will be discarded. If instead you hit `Save` on the `Edit pipeline` dialog, they'll be kept. 
+2. The `Save` and `Cancel` buttons on the `Edit pipeline` dialog box also apply to changes made on the `Edit remote execution parameters` dialog box, the `Edit parameter sets` dialog box, etc. That is to say, if you make a bunch of changes on the `Edit parameter sets` dialog box, hit the `Close` button, then hit the `Cancel` button on the `Edit pipeline` dialog, your changes to the parameter sets will be discarded. If instead you hit `Save` on the `Edit pipeline` dialog, they'll be kept.
 
 [[Previous]](organizing-tables.md)
 [[Up]](ziggy-gui.md)

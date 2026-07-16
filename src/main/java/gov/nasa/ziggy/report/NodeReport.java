@@ -209,10 +209,12 @@ public class NodeReport extends Report {
         double typicalWallTime = -1.0;
 
         for (PipelineTask task : pipelineInstanceNodeOperations().pipelineTasks(List.of(node))) {
-            List<SubtaskWallTime> subtaskWallTimes = AlgorithmWallTimes
-                .readSubtaskWallTimesFile(task)
-                .subtaskWallTimes();
-            for (SubtaskWallTime subtaskWallTime : subtaskWallTimes) {
+            AlgorithmWallTimes algorithmWallTimes = AlgorithmWallTimes
+                .readSubtaskWallTimesFile(task);
+            if (algorithmWallTimes == null) {
+                continue;
+            }
+            for (SubtaskWallTime subtaskWallTime : algorithmWallTimes.subtaskWallTimes()) {
                 String subtask = String.format("%d:%d", task.getId(),
                     subtaskWallTime.getSubtaskIndex());
                 long wallTimeMillis = subtaskWallTime.getWallTimeMillis();
@@ -229,9 +231,19 @@ public class NodeReport extends Report {
 
         HumanReadableStatistics humanReadableStatistics = HumanReadableStatistics
             .millisToHumanReadable(stats);
+        topTen = topTen.toHumanReadable(humanReadableStatistics.getConversion().divisor());
+
         String label = node.getPipelineStepName() + ": Subtask wall time";
         Unit unit = humanReadableStatistics.getUnit();
         String unitsLabel = "Time (" + unit + ")";
+
+        if (stats.getN() == 0) {
+            pdfRenderer.printText(label, PdfRenderer.titleFont);
+            pdfRenderer.println();
+            pdfRenderer.printText("Data unavailable");
+            pdfRenderer.newPage();
+            return;
+        }
 
         JFreeChart histogram = generateHistogram(label, unitsLabel, "Subtasks",
             humanReadableStatistics.getValues(), categoryColor(ALGORITHM_TIME));
@@ -245,8 +257,7 @@ public class NodeReport extends Report {
         pdfRenderer.printChart(histogram, CHART_WIDTH, CHART_HEIGHT);
         pdfRenderer.println();
 
-        generateSummaryTable(humanReadableStatistics.getStatistics(),
-            topTen.millisToHumanReadable());
+        generateSummaryTable(humanReadableStatistics.getStatistics(), topTen.getList());
         pdfRenderer.newPage();
     }
 
@@ -348,6 +359,8 @@ public class NodeReport extends Report {
 
         HumanReadableStatistics humanReadableStatistics = HumanReadableStatistics
             .bytesToHumanReadable(stats);
+        topTen = topTen.toHumanReadable(humanReadableStatistics.getConversion().divisor());
+
         Unit unit = humanReadableStatistics.getUnit();
         String label = node.getPipelineStepName() + ": Subtask memory usage";
         String unitsLabel = "Size (" + unit + ")";
@@ -374,8 +387,7 @@ public class NodeReport extends Report {
         pdfRenderer.printChart(histogram, CHART_WIDTH, CHART_HEIGHT);
         pdfRenderer.println();
 
-        generateSummaryTable(humanReadableStatistics.getStatistics(),
-            topTen.bytesToHumanReadable());
+        generateSummaryTable(humanReadableStatistics.getStatistics(), topTen.getList());
         pdfRenderer.newPage();
     }
 

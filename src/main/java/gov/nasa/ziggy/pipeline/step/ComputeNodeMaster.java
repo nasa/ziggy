@@ -64,6 +64,7 @@ import gov.nasa.ziggy.util.AcceptableCatchBlock.Rationale;
 import gov.nasa.ziggy.util.BuildInfo;
 import gov.nasa.ziggy.util.HostNameUtils;
 import gov.nasa.ziggy.util.ZiggyShutdownHook;
+import gov.nasa.ziggy.util.io.LockManager;
 import gov.nasa.ziggy.util.os.MemInfo;
 import gov.nasa.ziggy.util.os.OperatingSystemType;
 
@@ -100,6 +101,7 @@ public class ComputeNodeMaster {
     private int coresPerNode;
 
     private final File taskDir;
+    private final File lockFile;
     private String nodeName = "<unknown>";
 
     private SubtaskServer subtaskServer;
@@ -127,6 +129,7 @@ public class ComputeNodeMaster {
         nodeName = HostNameUtils.shortHostName();
 
         taskDir = new File(workingDir);
+        lockFile = new File(taskDir, TaskConfiguration.PERSISTED_FILE_NAME);
     }
 
     /**
@@ -153,9 +156,23 @@ public class ComputeNodeMaster {
     }
 
     private void createTimestamps() {
+        try {
+            getTaskConfigFileLock();
+            TimestampFile.createIfAbsent(taskDir, TimestampFile.Event.ARRIVE_COMPUTE_NODES);
+            TimestampFile.createIfAbsent(taskDir, TimestampFile.Event.START);
+        } finally {
+            releaseTaskConfigFileLock();
+        }
+    }
 
-        TimestampFile.createIfAbsent(taskDir, TimestampFile.Event.ARRIVE_COMPUTE_NODES);
-        TimestampFile.createIfAbsent(taskDir, TimestampFile.Event.START);
+    /** Package scoped for testing. */
+    void getTaskConfigFileLock() {
+        LockManager.getWriteLockOrBlock(lockFile);
+    }
+
+    /** Package scoped for testing. */
+    void releaseTaskConfigFileLock() {
+        LockManager.releaseWriteLock(lockFile);
     }
 
     /**

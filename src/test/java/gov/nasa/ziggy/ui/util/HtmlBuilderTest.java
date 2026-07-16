@@ -60,4 +60,17 @@ public class HtmlBuilderTest {
         assertEquals("<html>foo bar</html>",
             HtmlBuilder.htmlBuilder("foo ").append("bar").toString());
     }
+
+    @Test
+    public void testStripHtml() {
+        assertEquals("fooboldboldColorcoloritalicsize",
+            HtmlBuilder.stripHtml(new HtmlBuilder("foo").appendBold("bold")
+                .appendBoldColor("boldColor", "red")
+                .appendBreak()
+                .appendColor("color", "red")
+                .appendItalic("italic")
+                .appendSize("size", 10)
+                .toString()));
+        assertEquals(null, HtmlBuilder.stripHtml(null));
+    }
 }

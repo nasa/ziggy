@@ -26,11 +26,13 @@ public class CategoryReport extends Report {
 
         if (isTime) {
             humanReadableStatistics = HumanReadableStatistics.millisToHumanReadable(stats);
-            humanReadableTopTen = topTen.millisToHumanReadable();
+            humanReadableTopTen = topTen
+                .toHumanReadable(humanReadableStatistics.getConversion().divisor());
             unitsLabel = "Time (" + humanReadableStatistics.getUnit() + ")";
         } else {
             humanReadableStatistics = HumanReadableStatistics.bytesToHumanReadable(stats);
-            humanReadableTopTen = topTen.bytesToHumanReadable();
+            humanReadableTopTen = topTen
+                .toHumanReadable(humanReadableStatistics.getConversion().divisor());
             unitsLabel = "Size (" + humanReadableStatistics.getUnit() + ")";
         }
 
@@ -41,7 +43,8 @@ public class CategoryReport extends Report {
         pdfRenderer.printChart(histogram, CHART_WIDTH, CHART_HEIGHT);
         pdfRenderer.println();
 
-        generateSummaryTable(humanReadableStatistics.getStatistics(), humanReadableTopTen);
+        generateSummaryTable(humanReadableStatistics.getStatistics(),
+            humanReadableTopTen.getList());
         pdfRenderer.newPage();
     }
 }

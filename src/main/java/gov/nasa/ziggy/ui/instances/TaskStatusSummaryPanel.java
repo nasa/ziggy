@@ -83,8 +83,8 @@ public class TaskStatusSummaryPanel extends javax.swing.JPanel {
         }
 
         @Override
-        public Object getValueAt(int rowIndex, int columnIndex) {
-            return taskSummaryDisplayModel.getValueAt(rowIndex, columnIndex);
+        public int getRowCount() {
+            return taskSummaryDisplayModel.getRowCount();
         }
 
         @Override
@@ -98,8 +98,13 @@ public class TaskStatusSummaryPanel extends javax.swing.JPanel {
         }
 
         @Override
-        public int getRowCount() {
-            return taskSummaryDisplayModel.getRowCount();
+        public Class<?> getColumnClass(int columnIndex) {
+            return taskSummaryDisplayModel.getColumnClass(columnIndex);
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            return taskSummaryDisplayModel.getValueAt(rowIndex, columnIndex);
         }
 
         @Override

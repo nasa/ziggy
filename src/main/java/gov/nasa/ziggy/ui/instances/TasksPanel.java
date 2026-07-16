@@ -21,6 +21,7 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 
+import org.netbeans.swing.etable.ETableColumnModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,7 @@ import gov.nasa.ziggy.pipeline.definition.PipelineTaskDisplayData;
 import gov.nasa.ziggy.pipeline.definition.database.PipelineTaskOperations;
 import gov.nasa.ziggy.services.messages.PipelineInstanceStartedMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
+import gov.nasa.ziggy.ui.ZiggyGuiConstants;
 import gov.nasa.ziggy.ui.util.MessageUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils;
 import gov.nasa.ziggy.ui.util.ZiggySwingUtils.LabelType;
@@ -44,7 +46,7 @@ import gov.nasa.ziggy.util.PipelineException;
  */
 public class TasksPanel extends JPanel {
 
-    private static final long serialVersionUID = 20240614L;
+    private static final long serialVersionUID = 20260710L;
 
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(TasksPanel.class);
@@ -91,6 +93,12 @@ public class TasksPanel extends JPanel {
         tasksTableModel = new TasksTableModel();
         tasksTable = createTasksTable(tasksTableModel);
         tasksTableModel.setTable(tasksTable.getTable());
+
+        // Initially hide the Worker column to save space.
+        ETableColumnModel columnModel = (ETableColumnModel) tasksTable.getTable().getColumnModel();
+        columnModel.setColumnHidden(
+            columnModel.getColumn(columnModel.getColumnIndex(TasksTableModel.WORKER)), true);
+
         JScrollPane tasksTableScrollPane = new JScrollPane(tasksTable.getTable());
         createTasksTablePopupMenu();
 
@@ -98,11 +106,14 @@ public class TasksPanel extends JPanel {
         setLayout(layout);
 
         layout.setHorizontalGroup(layout.createParallelGroup()
-            .addComponent(tasks)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(ZiggyGuiConstants.CONTAINER_GAP)
+                .addComponent(tasks))
             .addComponent(taskStatusSummaryPanel)
             .addComponent(tasksTableScrollPane));
 
         layout.setVerticalGroup(layout.createSequentialGroup()
+            .addGap(ZiggyGuiConstants.CONTAINER_GAP)
             .addComponent(tasks)
             .addPreferredGap(ComponentPlacement.UNRELATED)
             .addComponent(taskStatusSummaryPanel, GroupLayout.PREFERRED_SIZE,

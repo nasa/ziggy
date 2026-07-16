@@ -40,7 +40,7 @@ This file lists the third-party software that is used by Ziggy. Links to the sof
 | [jgoodies-looks](https://www.jgoodies.com/freeware/libraries/looks/) [(docs)](https://javadoc.io/doc/com.jgoodies/jgoodies-looks/latest/index.html) | [BSD](com.jgoodies--jgoodies-looks--2.7.x) |  |  |
 | [jsoup](https://jsoup.org/) [(docs)](https://jsoup.org/apidocs/) | [MIT](org.jsoup--jsoup--1.16.x) |  |  |
 | [junit](https://junit.org/junit4/) [(docs)](https://junit.org/junit4/javadoc/latest/index.html) | [Eclipse Public License - v 1.0](junit--junit--4.x) | SWE-062 | TestNG |
-| [l2fprod-properties-editor](https://bitbucket.org/trosorg/l2fprod-properties-editor/src/master/) [(docs)](https://bitbucket.org/trosorg/l2fprod-properties-editor/src/master/) | [Apache 2.0](org.tros--l2fprod-properties-editor--1.3.x) |  |  |
+| l2fprod-properties-editor (Original sources no longer available) | [Apache 2.0](org.tros--l2fprod-properties-editor--1.3.x) |  | Develop software to read and parse user input |
 | [log4j-api](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) | [Apache 2.0](org.apache.logging.log4j--log4j-api--2.19.x) |  |  |
 | [log4j-core](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) | [Apache 2.0](org.apache.logging.log4j--log4j-core--2.19.x) |  |  |
 | [log4j-slf4j-impl](https://logging.apache.org/log4j/2.x/index.html) [(docs)](https://logging.apache.org/log4j/2.x/manual/index.html) | [Apache 2.0](org.apache.logging.log4j--log4j-slf4j-impl--2.17.x) |  |  |

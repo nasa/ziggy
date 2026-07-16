@@ -18,7 +18,7 @@ In the near future the Ziggy team hopes to add cloud computing support for cloud
 
 ####  Enabling and Configuring HPC Execution
 
-See [the article on the Remote Execution dialog box](remote-dialog.md) for details on how to select whether to run remote execution, and how to configure it to your satisfaction. 
+See [the article on the Remote Execution dialog box](remote-dialog.md) for details on how to select whether to run remote execution, and how to configure it to your satisfaction.
 
 #### HPC Execution Flow
 
@@ -65,15 +65,15 @@ All the remote execution environments we know of need some additional informatio
 Ziggy allows you to set this up in the properties file. Let's take a look:
 
 ```
-ziggy.remote.hecc.group = phony
-ziggy.remote.hecc.user = phony
-ziggy.remote.sample.group = alsophony
-ziggy.remote.sample.user = alsophony
+ziggy.remote.hecc-infiniband.group = phony
+ziggy.remote.hecc-infiniband.user = phony
+ziggy.remote.hecc-slingshot.group = alsophony
+ziggy.remote.hecc-slingshot.user = alsophony
 ```
 
-If we were foolish enough to try to run the sample pipeline on the `HECC` environment, it would use `phony` for the group name that's to be billed (it would also use that for the user and the host, but the HECC batch system doesn't use either of those parameters). If we were even more foolish and attempted to run on the nonexistent `sample` remote environment, it would use `alsophony` for the group, user, and host. 
+If we were foolish enough to try to run the sample pipeline on the `HECC-InfiniBand` environment, it would use `phony` for the group name that's to be billed (it would also use that for the user and the host, but the HECC batch system doesn't use either of those parameters). If we attempted to run on the `hecc-slingshot` remote environment, it would use `alsophony` for the group, user, and host.
 
-Note that the environment name in these properties is not case-sensitive. The `HECC` environment is defined with a capitalized name, but the lower-case `hecc` in the properties will still match the environment.
+Note that the environment name in these properties is not case-sensitive. The `HECC-InfiniBand` environment is defined with a capitalized name, but the lower-case `hecc` in the properties will still match the environment.
 
 [[Previous]](halt-tasks.md)
 [[Up]](user-manual.md)

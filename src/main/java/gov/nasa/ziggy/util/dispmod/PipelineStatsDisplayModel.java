@@ -1,8 +1,5 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import static com.lowagie.text.Element.ALIGN_LEFT;
-import static com.lowagie.text.Element.ALIGN_RIGHT;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -33,8 +30,8 @@ public class PipelineStatsDisplayModel extends DisplayModel
 
     private static final String[] COLUMN_NAMES = { "Node", "Start", "Status", "Count", "Sum (hrs)",
         "Min (hrs)", "Max (hrs)", "Mean (hrs)", "Std (hrs)" };
-    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT, ALIGN_RIGHT,
-        ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT, ALIGN_RIGHT };
+    private static final Class<?>[] COLUMN_CLASSES = { String.class, Date.class, String.class,
+        Integer.class, Double.class, Double.class, Double.class, Double.class, Double.class };
 
     private static final String ERROR = "ERROR";
 
@@ -110,8 +107,13 @@ public class PipelineStatsDisplayModel extends DisplayModel
     }
 
     @Override
-    public int getAlignment(int column) {
-        return COLUMN_ALIGNMENT[column];
+    public String getColumnName(int column) {
+        return COLUMN_NAMES[column];
+    }
+
+    @Override
+    public Class<?> getColumnClass(int columnIndex) {
+        return COLUMN_CLASSES[columnIndex];
     }
 
     @Override
@@ -131,11 +133,6 @@ public class PipelineStatsDisplayModel extends DisplayModel
             case 8 -> stats.getStddev();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
         };
-    }
-
-    @Override
-    public String getColumnName(int column) {
-        return COLUMN_NAMES[column];
     }
 
     @Override

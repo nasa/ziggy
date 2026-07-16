@@ -29,7 +29,7 @@ If you click the "X", all the values will be deleted, which is rarely what you w
 
 This allows you to edit the array elements, remove them, add elements, etc., in a more GUI-natural way. Go ahead and change the second element (`Element` 1 reflecting the zero-based nature of Java arrays) to 4 from 2. Press the `OK` button and then press the `Save` button on the Edit parameter set dialog. The `Version` for Algorithm Parameters will now be set to 1, and the `Locked` checkbox is unchecked.
 
-If you were to now run the sample pipeline, when you returned to the parameter library window, version 1 of `Algorithm Parameters` will show as locked. 
+If you were to now run the sample pipeline, when you returned to the parameter library window, version 1 of `Algorithm Parameters` will show as locked.
 
 [[Previous]](start-end-nodes.md)
 [[Up]](ziggy-gui.md)

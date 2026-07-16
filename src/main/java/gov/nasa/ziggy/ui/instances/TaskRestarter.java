@@ -3,6 +3,7 @@ package gov.nasa.ziggy.ui.instances;
 import java.awt.Window;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -101,13 +102,13 @@ public class TaskRestarter {
      * @param tasksToRestart if the instance state is not TRANSITION_FAILED, the list of tasks to
      * restart; may be null or empty to restart all stopped tasks in the instance
      * @param runMode if the instance state is not TRANSITION_FAILED, the run mode to use when
-     * starting the tasks; if null and {@code owner} is non-null, the user is prompted for the mode;
-     * otherwise, {@link RunMode#RESTART_FROM_BEGINNING} is used
+     * starting the tasks; if {@code owner} is non-null, this parameter is ignored and the user is
+     * prompted for the mode; otherwise, if null, {@link RunMode#RESTART_FROM_BEGINNING} is used
      * @param messageSentLatch if the instance state is not TRANSITION_FAILED, if non-null, the
      * latch is decremented twice after the required messages are published.
      */
     @AcceptableCatchBlock(rationale = Rationale.MUST_NOT_CRASH)
-    public void restartTasks(Window owner, PipelineInstance pipelineInstance,
+    private void restartTasks(Window owner, PipelineInstance pipelineInstance,
         Collection<PipelineTask> tasksToRestart, RunMode runMode, CountDownLatch messageSentLatch) {
 
         if (pipelineInstance == null) {
@@ -195,24 +196,31 @@ public class TaskRestarter {
             return;
         }
 
-        RunMode restartMode = runMode != null ? runMode
-            : owner != null
-                ? RestartDialog.restartTasks(owner, supportedRunModesByPipelineTaskDisplayData)
-                : RunMode.RESTART_FROM_BEGINNING;
-        if (restartMode == null) {
-            return;
+        Map<RunMode, List<PipelineTask>> tasksByRunMode = null;
+        if (owner != null) {
+            tasksByRunMode = RestartDialog.tasksByRunMode(owner,
+                supportedRunModesByPipelineTaskDisplayData);
+
+            // Check for user canceling dialog.
+            if (tasksByRunMode == null) {
+                return;
+            }
+        } else {
+            tasksByRunMode = new HashMap<>();
+            tasksByRunMode.put(runMode != null ? runMode : RunMode.RESTART_FROM_BEGINNING,
+                supportedRunModesByPipelineTaskDisplayData.keySet()
+                    .stream()
+                    .map(
+                        (Function<? super PipelineTaskDisplayData, ? extends PipelineTask>) PipelineTaskDisplayData::getPipelineTask)
+                    .collect(Collectors.toList()));
         }
 
-        List<PipelineTask> failedTasks = supportedRunModesByPipelineTaskDisplayData.keySet()
-            .stream()
-            .map(
-                (Function<? super PipelineTaskDisplayData, ? extends PipelineTask>) PipelineTaskDisplayData::getPipelineTask)
-            .collect(Collectors.toList());
-        for (PipelineTask pipelineTask : failedTasks) {
-            pipelineTaskDataOperations().setHaltRequested(pipelineTask, false);
+        for (RunMode restartMode : tasksByRunMode.keySet()) {
+            List<PipelineTask> pipelineTasks = tasksByRunMode.get(restartMode);
+            pipelineTasks.forEach(t -> pipelineTaskDataOperations().setHaltRequested(t, false));
+            ZiggyMessenger.publish(new RestartTasksRequest(pipelineTasks, false, restartMode),
+                messageSentLatch);
         }
-        ZiggyMessenger.publish(new RestartTasksRequest(failedTasks, false, restartMode),
-            messageSentLatch);
     }
 
     private PipelineTaskOperations pipelineTaskOperations() {

@@ -58,6 +58,10 @@ public class WorkerStatusPanel extends JPanel {
         JLabel heap = new JLabel("Max worker heap size:");
         heapTextField = new JLabel();
 
+        for (int column = 0; column < WorkerStatusTableModel.COLUMN_WIDTHS.length; column++) {
+            table.setPreferredColumnWidth(column, WorkerStatusTableModel.COLUMN_WIDTHS[column]);
+        }
+
         JScrollPane workers = new JScrollPane(table.getTable());
 
         GroupLayout layout = new GroupLayout(this);
@@ -145,6 +149,17 @@ public class WorkerStatusPanel extends JPanel {
 
         private static final String[] COLUMN_NAMES = { "Worker", "Status", "Age", "Instance",
             "Task", "Node", "UOW" };
+        private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class,
+            Integer.class, String.class, String.class, String.class, String.class };
+
+        private static final int[] COLUMN_WIDTHS = {
+            ZiggySwingUtils.textWidth(new JLabel(), "Worker 12: hostname.domainname.com: 1234567"),
+            ZiggySwingUtils.textWidth(new JLabel(), "ERRORS_STALLED"),
+            ZiggySwingUtils.textWidth(new JLabel(), "00:00:00"),
+            ZiggySwingUtils.textWidth(new JLabel(), "123456"),
+            ZiggySwingUtils.textWidth(new JLabel(), "1234567"),
+            ZiggySwingUtils.textWidth(new JLabel(), "A very long node name"),
+            ZiggySwingUtils.textWidth(new JLabel(), "A very long, long, long uow") };
 
         /**
          * Status messages in the model. The {@link Boolean} component of the {@link Map} indicates
@@ -175,6 +190,27 @@ public class WorkerStatusPanel extends JPanel {
         @Override
         public synchronized String getColumnName(int column) {
             return COLUMN_NAMES[column];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMN_CLASSES[columnIndex];
+        }
+
+        @Override
+        public synchronized Object getValueAt(int rowIndex, int columnIndex) {
+            WorkerStatusMessage message = getContentAtRow(rowIndex);
+            return switch (columnIndex) {
+                case 0 -> message.getSourceProcess().getKey();
+                case 1 -> message.getState();
+                case 2 -> ZiggyStringUtils.elapsedTime(message.getProcessingStartTime(),
+                    System.currentTimeMillis());
+                case 3 -> message.getInstanceId();
+                case 4 -> message.getPipelineTask();
+                case 5 -> message.getPipelineStepName();
+                case 6 -> message.getUnitOfWork();
+                default -> "";
+            };
         }
 
         /**
@@ -222,22 +258,6 @@ public class WorkerStatusPanel extends JPanel {
             for (Map.Entry<WorkerStatusMessage, Boolean> entry : statusMessages.entrySet()) {
                 entry.setValue(false);
             }
-        }
-
-        @Override
-        public synchronized Object getValueAt(int rowIndex, int columnIndex) {
-            WorkerStatusMessage message = getContentAtRow(rowIndex);
-            return switch (columnIndex) {
-                case 0 -> message.getSourceProcess().getKey();
-                case 1 -> message.getState();
-                case 2 -> ZiggyStringUtils.elapsedTime(message.getProcessingStartTime(),
-                    System.currentTimeMillis());
-                case 3 -> message.getInstanceId();
-                case 4 -> message.getPipelineTask();
-                case 5 -> message.getPipelineStepName();
-                case 6 -> message.getUnitOfWork();
-                default -> "";
-            };
         }
 
         @Override

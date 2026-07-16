@@ -34,7 +34,7 @@ subtask-walltimes.h5
 
 We see that each subtask has two HDF5 files, a `max-mem-usage` file and a `mem-usage` file. If you open one of these files up (see [the article on HDF5 APIs](hdf5.md)), you'll see that the `mem-usage` file contains a time series: each entry in the time series contains a timestamp (an 8-byte integer representing the number of milliseconds since the UNIX/Linux beginning of time) and a memory usage (in bytes). The `max-mem-usage` file contains the maximum memory consumption by the given subtask, again in bytes.
 
-The `subtask-walltimes.h5` file shows the wall times for each subtask, in milliseconds. 
+The `subtask-walltimes.h5` file shows the wall times for each subtask, in milliseconds.
 
 #### How to Use
 
@@ -56,7 +56,7 @@ The two "space" metrics are disk space, not RAM consumption. The metrics are:
 
 #### Storage of Task-Level Metrics
 
-Task-level metrics are stored in the relational database. 
+Task-level metrics are stored in the relational database.
 
 [[Previous]](performance-tracking.md)
 [[Up]](performance-tracking.md)

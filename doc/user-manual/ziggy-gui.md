@@ -28,7 +28,7 @@ How the user adjusts the user-adjustable parameters.
 
 ### [Organizing Pipelines and Parameter Sets](organizing-tables.md)
 
-Bringing order to the chaos of some of the Ziggy display and edit tables. 
+Bringing order to the chaos of some of the Ziggy display and edit tables.
 
 ### [The Edit Pipeline Dialog Box](edit-pipeline.md)
 

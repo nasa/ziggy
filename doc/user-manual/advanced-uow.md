@@ -6,7 +6,7 @@
 
 ## Advanced Unit of Work Configurations
 
-In the [article on the datastore](datastore.md) and the [article on the instances panel](instances-panel.md), we described the way in which a data file type is defined, the way that a unit of work is defined from the data file types, and the way that data files are obtained from the datastore based on the unit of work information. 
+In the [article on the datastore](datastore.md) and the [article on the instances panel](instances-panel.md), we described the way in which a data file type is defined, the way that a unit of work is defined from the data file types, and the way that data files are obtained from the datastore based on the unit of work information.
 
 Just to review: if you have the following data file type definitions:
 
@@ -40,7 +40,7 @@ Imagine that we decide to organize the data for each data file type by year and 
 <datastoreRegexp name="doy" value="[0-9]{3}"/>
 ```
 
-That's better! Except that now, a unit of work will be a given DOY in a given year for one of "`dog, cat, primate`" values of baz. The UOW display will have things like `[dog;2019;322]`. Changing the layout of the datastore into something more convenient has forced us to change the unit of work definition, which we may not wish to do. We may have wanted the UOW to be defined by the value of baz only, but for the task to pull data from a user-selected set of year and DOY values. 
+That's better! Except that now, a unit of work will be a given DOY in a given year for one of "`dog, cat, primate`" values of baz. The UOW display will have things like `[dog;2019;322]`. Changing the layout of the datastore into something more convenient has forced us to change the unit of work definition, which we may not wish to do. We may have wanted the UOW to be defined by the value of baz only, but for the task to pull data from a user-selected set of year and DOY values.
 
 It turns out that there's a way to do this in Ziggy, and it's exactly what you (most likely) have already guessed. You can set up the datastore as follows:
 
@@ -65,7 +65,7 @@ What happens now is as follows:
 
 That's better, but we've now apparently traded a huge number of extremely small UOWs for a small number of gigantic ones. If we have, say, 2 years of data, then the task with UOW `[dog]` will have almost 18,000 subtasks! That seems ... excessive.
 
-Fortunately, the `year` and `doy` parts of the `fileNameRegexp` will respect the include and exclude restrictions you put on these `DatastoreRegexp` instances. As described in the [article on the datastore control panel](datastore-regexp.md), you can set the value of the `year` regexp to, for example, `2019`, and the `doy` regexp to, for example, `(100|101|102)`. When you now start the pipeline, the task with UOW `[dog]` will process data only from DOYs 100, 101, and 102 of year 2019. 
+Fortunately, the `year` and `doy` parts of the `fileNameRegexp` will respect the include and exclude restrictions you put on these `DatastoreRegexp` instances. As described in the [article on the datastore control panel](datastore-regexp.md), you can set the value of the `year` regexp to, for example, `2019`, and the `doy` regexp to, for example, `(100|101|102)`. When you now start the pipeline, the task with UOW `[dog]` will process data only from DOYs 100, 101, and 102 of year 2019.
 
 [[Previous]](nicknames.md)
 [[Up]](dusty-corners.md)

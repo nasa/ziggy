@@ -3,9 +3,7 @@ package gov.nasa.ziggy.ui.instances;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.BorderFactory;
-import javax.swing.GroupLayout;
-import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.JSplitPane;
 
 import gov.nasa.ziggy.services.messages.NoRunningOrQueuedPipelinesMessage;
 import gov.nasa.ziggy.services.messaging.ZiggyMessenger;
@@ -17,9 +15,7 @@ import gov.nasa.ziggy.ui.util.MessageUtils;
  * @author Bill Wohler
  */
 @SuppressWarnings("serial")
-public class InstancesTasksPanel extends javax.swing.JPanel {
-
-    private static final int BORDER_WIDTH = 10;
+public class InstancesTasksPanel extends JSplitPane {
 
     private InstancesPanel instancesPanel;
     private InstancesTasksPanelAutoRefresh instancesTasksPanelAutoRefresh;
@@ -38,21 +34,14 @@ public class InstancesTasksPanel extends javax.swing.JPanel {
 
     private InstancesTasksPanelAutoRefresh buildComponent() {
         try {
-            setBorder(BorderFactory.createEmptyBorder(BORDER_WIDTH, BORDER_WIDTH, 0, 0));
-
             instancesPanel = new InstancesPanel(this);
             TasksPanel tasksPanel = new TasksPanel();
 
-            GroupLayout layout = new GroupLayout(this);
-            setLayout(layout);
+            add(instancesPanel, JSplitPane.LEFT);
+            add(tasksPanel, JSplitPane.RIGHT);
 
-            layout.setHorizontalGroup(layout.createSequentialGroup()
-                .addComponent(instancesPanel)
-                .addPreferredGap(ComponentPlacement.RELATED)
-                .addComponent(tasksPanel));
-
-            layout.setVerticalGroup(
-                layout.createParallelGroup().addComponent(instancesPanel).addComponent(tasksPanel));
+            setDividerLocation(-1);
+            setOneTouchExpandable(true);
 
             InstancesTasksPanelAutoRefresh instancesTasksPanelAutoRefresh = new InstancesTasksPanelAutoRefresh(
                 instancesPanel.instancesTable(), tasksPanel.tasksTableModel());

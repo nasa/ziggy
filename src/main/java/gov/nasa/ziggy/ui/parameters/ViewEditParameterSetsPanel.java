@@ -283,7 +283,7 @@ public class ViewEditParameterSetsPanel extends AbstractViewEditGroupPanel<Param
 
         private static final String[] COLUMN_NAMES = { "Version", "Locked", "User", "Modified" };
         private static final Class<?>[] COLUMN_CLASSES = { Integer.class, Boolean.class,
-            String.class, Object.class };
+            String.class, Date.class };
         private static final int[] COLUMN_WIDTHS = { 250, 30, 30, 100, 150 };
 
         @Override

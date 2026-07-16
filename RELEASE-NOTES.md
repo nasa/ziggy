@@ -6,6 +6,35 @@ link to that. Changes that are incompatible with previous versions are marked be
 version is 0, we will be making breaking changes when bumping the minor number. However, once we hit
 version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v0.13.0: Really last release before 1.0.0?
+
+This version is also being used to run the Transiting Exoplanet Survey Satellite (TESS) data
+analysis pipeline. That dry run in preparation for formal V&V is nearing completion.
+
+While waiting for the TESS dry run to complete, we made some improvements to the user interface.
+
+There is one incompatible change in this release. The property `ziggy.remote.environment.names =
+hecc` is now `ziggy.remote.environment.names = hecc-infiniband, hecc-slingshot`. That means that
+`ziggy.remote.hecc.user` is now `ziggy.remote.hecc-infiniband.user` and
+`ziggy.remote.hecc-slingshot.user`. The same holds true for the `group` property. Please be sure to
+update your property files accordingly.
+
+## New Features
+
+1. Add divider between Instances and Tasks in Instances panel (ZIGGY-586)
+1. Split HECC environment into 2 environments (ZIGGY-653)
+
+## Bug Fixes
+
+1. Fix "new release of pip is available" message in build-env.sh (ZIGGY-651)
+1. Adjust Subtask column spacing in scoreboard (ZIGGY-652)
+1. Performance report fails when instance node has no completed tasks (ZIGGY-654)
+1. Performance report generation fails when wall time HDF5 files missing (ZIGGY-655)
+1. Minor issues with performance report (ZIGGY-656)
+1. Restart does not correctly handle multiple restart modes (ZIGGY-657)
+1. Memory sample comparator violates general contract (ZIGGY-658)
+1. Fix VDP-2922 (ZIGGY-662)
+
 # v0.12.0: Last release before 1.0.0?
 
 This version is also being used to run the Transiting Exoplanet Survey Satellite (TESS) data

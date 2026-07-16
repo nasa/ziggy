@@ -1,7 +1,5 @@
 package gov.nasa.ziggy.util.dispmod;
 
-import static com.lowagie.text.Element.ALIGN_LEFT;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,8 +14,8 @@ import gov.nasa.ziggy.services.alert.AlertLog;
  */
 public class AlertLogDisplayModel extends DisplayModel {
     private static final String[] COLUMN_NAMES = { "Source", "Task", "Severity", "Message" };
-    private static final int[] COLUMN_ALIGNMENT = { ALIGN_LEFT, ALIGN_LEFT, ALIGN_LEFT,
-        ALIGN_LEFT };
+    private static final Class<?>[] COLUMN_CLASSES = { String.class, String.class, String.class,
+        String.class };
 
     private List<AlertLog> alerts = new ArrayList<>();
 
@@ -33,6 +31,26 @@ public class AlertLogDisplayModel extends DisplayModel {
     }
 
     @Override
+    public int getRowCount() {
+        return alerts.size();
+    }
+
+    @Override
+    public int getColumnCount() {
+        return COLUMN_NAMES.length;
+    }
+
+    @Override
+    public String getColumnName(int column) {
+        return COLUMN_NAMES[column];
+    }
+
+    @Override
+    public Class<?> getColumnClass(int columnIndex) {
+        return COLUMN_CLASSES[columnIndex];
+    }
+
+    @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
         Alert alert = alerts.get(rowIndex).getAlertData();
 
@@ -43,25 +61,5 @@ public class AlertLogDisplayModel extends DisplayModel {
             case 3 -> alert.getMessage();
             default -> throw new IllegalArgumentException("Unexpected value: " + columnIndex);
         };
-    }
-
-    @Override
-    public int getColumnCount() {
-        return COLUMN_NAMES.length;
-    }
-
-    @Override
-    public int getAlignment(int column) {
-        return COLUMN_ALIGNMENT[column];
-    }
-
-    @Override
-    public int getRowCount() {
-        return alerts.size();
-    }
-
-    @Override
-    public String getColumnName(int column) {
-        return COLUMN_NAMES[column];
     }
 }

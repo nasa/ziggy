@@ -8,7 +8,7 @@
 
 Ziggy uses alerts to tell the pipeline operator that something has happened that they ought to know about. Alerts are displayed on the `Alerts` status panel. It looks like this:
 
-<img src="images/monitoring-alerts.png" style="width:32cm;"/>
+<img src="images/monitoring-alerts.png" style="width:35cm;"/>
 
 There are two flavors of alert that you're likely to see: warnings and errors. Warnings will turn the alerts stoplight yellow, errors turn it red. The alerts panel shows which task generated the alert, when it happened, and a hopefully-useful message. If there are no alerts, the stoplight will be green.
 

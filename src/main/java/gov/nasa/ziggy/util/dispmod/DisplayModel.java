@@ -3,10 +3,11 @@ package gov.nasa.ziggy.util.dispmod;
 import java.io.PrintStream;
 import java.util.Date;
 
+import gov.nasa.ziggy.ui.util.HtmlBuilder;
 import gov.nasa.ziggy.util.ZiggyStringUtils;
 
 /**
- * Superclass for all DisplayModel classes. Contains abstract methods and print logic
+ * Superclass for all DisplayModel classes. Contains abstract methods and print logic.
  *
  * @author Todd Klaus
  * @author Bill Wohler
@@ -18,11 +19,11 @@ public abstract class DisplayModel {
 
     public abstract int getColumnCount();
 
+    public abstract String getColumnName(int columnIndex);
+
+    public abstract Class<?> getColumnClass(int columnIndex);
+
     public abstract Object getValueAt(int rowIndex, int columnIndex);
-
-    public abstract String getColumnName(int column);
-
-    public abstract int getAlignment(int column);
 
     public void print(PrintStream ps) {
         print(ps, null);
@@ -42,7 +43,8 @@ public abstract class DisplayModel {
             columnWidths[column] = Math.max(0, getColumnName(column).length() + COLUMN_SPACING);
             for (int row = 0; row < getRowCount(); row++) {
                 columnWidths[column] = Math.max(columnWidths[column],
-                    getValueAt(row, column).toString().length() + COLUMN_SPACING);
+                    HtmlBuilder.stripHtml(getValueAt(row, column).toString()).length()
+                        + COLUMN_SPACING);
             }
         }
 
@@ -63,7 +65,8 @@ public abstract class DisplayModel {
         for (int row = 0; row < getRowCount(); row++) {
             for (int column = 0; column < getColumnCount(); column++) {
                 ps.print(
-                    ZiggyStringUtils.pad(getValueAt(row, column).toString(), columnWidths[column]));
+                    ZiggyStringUtils.pad(HtmlBuilder.stripHtml(getValueAt(row, column).toString()),
+                        columnWidths[column]));
             }
             ps.println();
         }

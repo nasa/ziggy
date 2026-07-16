@@ -32,11 +32,11 @@ A lot of options! For now, just put some kind of identifying text in the `Pipeli
 
 As soon as the dialog box disappears, select the `Instances` content menu item. The left side should look something like this<sup>1</sup>:
 
-<img src="images/instances-running.png" style="width:18cm;"/>
+<img src="images/instances-running.png" style="width:15cm;"/>
 
-Select your pipeline instance in the table. On the right you see this:
+Select your pipeline instance in the table. On the right you see this<sup>2</sup>:
 
-<img src="images/permuter-tasks.png" style="width:16cm;"/>
+<img src="images/permuter-tasks.png" style="width:17cm;"/>
 
 Notice a few things:
 
@@ -48,17 +48,19 @@ Notice a few things:
 
 As you watch, time progresses in the last column of the task table, while the Status values progress through the processing steps until the task is `COMPLETE`. The Subtasks column shows the number of completed subtasks over the total subtasks. If any of the subtasks encounter an error, the number of subtasks with errors will appear in parenthesis and the row will turn red. The Subtasks counts should change from `0/4` (zero out of four subtasks complete) to `4/4` (four out of four subtasks complete). The Subtasks counts in the scoreboard change in unison with the ones in the task table. Eventually the two permuter tasks will finish and the entry in the Status column will turn to `COMPLETE`. Then two new tasks appear:
 
-<img src="images/flip-tasks.png" style="width:16cm;"/>
+<img src="images/flip-tasks.png" style="width:17cm;"/>
 
 Finally, after a few more seconds, two new tasks, named `averaging`, appear. Shortly after that, we get to this state:
 
-<img src="images/tasks-done.png" style="width:16cm;"/>
+<img src="images/tasks-done.png" style="width:17cm;"/>
 
 The pipeline and worker lights are grey again, the instance and all the tasks show `COMPLETE`. Congratulations! You've just run your first Ziggy pipeline!
 
 At this point, you'd probably like an explanation of just what everything on the `Instances` panel is trying to tell you. If so, read on! Specifically, the article on [The Instances Panel](instances-panel.md).
 
 <sup>1</sup> The Event name column is initially hidden to save space. See the article [Event Handler Examples](event-handler-examples.md) for information on how to show and use this column.
+
+<sup>2</sup> The Worker column is initially hidden to save space. It can be shown using the context menu in the table header.
 
 [[Previous]](ziggy-gui.md)
 [[Up]](ziggy-gui.md)

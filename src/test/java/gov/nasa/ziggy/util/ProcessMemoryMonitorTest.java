@@ -275,4 +275,14 @@ public class ProcessMemoryMonitorTest {
             .resolve("1-1-task")
             .resolve("st-100-max-mem-usage.h5")));
     }
+
+    @Test
+    public void testMemorySampleCompareTo() {
+        MaxMemorySample zeroSample = new MaxMemorySample(1, 0, new MemorySample(0L, 0L));
+        long bigLong = 21605843020L;
+        MaxMemorySample bigMemorySample = new MaxMemorySample(1, 1, new MemorySample(1L, bigLong));
+        assertEquals(-1, bigMemorySample.compareTo(zeroSample));
+        assertEquals(0, bigMemorySample.compareTo(bigMemorySample));
+        assertEquals(1, zeroSample.compareTo(bigMemorySample));
+    }
 }

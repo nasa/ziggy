@@ -33,6 +33,9 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
     /** Preferred column widths. */
     public static final int[] COLUMN_WIDTHS = TasksDisplayModel.COLUMN_WIDTHS;
 
+    /** Worker column. */
+    public static final String WORKER = TasksDisplayModel.WORKER;
+
     private long pipelineInstanceId;
     private PipelineInstance pipelineInstance;
     private List<TaskTimeInfo> tasks = new ArrayList<>();
@@ -119,13 +122,18 @@ public class TasksTableModel extends AbstractZiggyTableModel<PipelineTaskDisplay
     }
 
     @Override
-    public Object getValueAt(int rowIndex, int columnIndex) {
-        return tasksDisplayModel.getValueAt(rowIndex, columnIndex);
+    public String getColumnName(int column) {
+        return tasksDisplayModel.getColumnName(column);
     }
 
     @Override
-    public String getColumnName(int column) {
-        return tasksDisplayModel.getColumnName(column);
+    public Class<?> getColumnClass(int columnIndex) {
+        return tasksDisplayModel.getColumnClass(columnIndex);
+    }
+
+    @Override
+    public Object getValueAt(int rowIndex, int columnIndex) {
+        return tasksDisplayModel.getValueAt(rowIndex, columnIndex);
     }
 
     @Override

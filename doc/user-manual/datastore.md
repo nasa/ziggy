@@ -153,7 +153,7 @@ Now that we have the datastore layout defined, let's look at the data file type 
 
 A data file type declaration has three pieces of information: a `name,` a `location`, and a `fileNameRegexp`.
 
-The `name` is hopefully self-explanatory. As always, this must be unique. 
+The `name` is hopefully self-explanatory. As always, this must be unique.
 
 What is a `location`? It's a valid, er, location in the datastore, as defined by the `datastoreNode` instances. In the case of `raw data`, the `location` is `dataset/L0`. This means that `raw data` files can be found in directories `set-1/L0`, `set-2/L0`, etc. Note that the separator used in `location` instances is always the slash character. This is true even when the local file system uses some other character as its file separator in file path definitions.
 

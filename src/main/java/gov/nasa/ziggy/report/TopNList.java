@@ -3,8 +3,6 @@ package gov.nasa.ziggy.report;
 import java.util.LinkedList;
 import java.util.List;
 
-import gov.nasa.ziggy.report.HumanReadableStatistics.Conversion;
-
 /**
  * This class manages an ordered, fixed-length list (list will contain up to but no more than N
  * items) of Comparables
@@ -49,31 +47,15 @@ public class TopNList {
         }
     }
 
-    public TopNList millisToHumanReadable() {
-        return toHumanReadable(Conversion.fromMillis(mean()));
-    }
-
-    public TopNList bytesToHumanReadable() {
-        return toHumanReadable(Conversion.fromBytes(mean()));
-    }
-
-    private TopNList toHumanReadable(Conversion conversion) {
+    public TopNList toHumanReadable(double divisor) {
         TopNList topTen = new TopNList(getList().size());
 
         for (TopNListElement element : getList()) {
-            double convertedValue = element.getValue() / conversion.divisor();
+            double convertedValue = element.getValue() / divisor;
             topTen.add(convertedValue, element.getLabel());
         }
 
         return topTen;
-    }
-
-    private double mean() {
-        double sum = 0.0;
-        for (TopNListElement element : getList()) {
-            sum += element.getValue();
-        }
-        return sum / getList().size();
     }
 
     public List<TopNListElement> getList() {
