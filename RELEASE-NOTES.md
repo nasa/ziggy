@@ -6,6 +6,11 @@ link to that. Changes that are incompatible with previous versions are marked be
 version is 0, we will be making breaking changes when bumping the minor number. However, once we hit
 version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v1.0.0: First official release
+
+This version is running the Transiting Exoplanet Survey Satellite (TESS) data analysis pipeline.
+There are no changes from 0.13.0.
+
 # v0.13.0: Really last release before 1.0.0?
 
 This version is also being used to run the Transiting Exoplanet Survey Satellite (TESS) data

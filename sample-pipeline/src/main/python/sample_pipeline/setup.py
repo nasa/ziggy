@@ -6,7 +6,7 @@ from setuptools import setup
 # an obvious way to tell pip where to look.
 setup(
     name='sample_pipeline',
-    version='0.13.0',
+    version='1.0.0',
     packages=['major_tom'],
     url='',
     license='',
