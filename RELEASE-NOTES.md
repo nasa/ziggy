@@ -6,6 +6,25 @@ link to that. Changes that are incompatible with previous versions are marked be
 version is 0, we will be making breaking changes when bumping the minor number. However, once we hit
 version 1.0.0, incompatible changes will only be made when bumping the major number.
 
+# v1.0.2: Fix vulnerability identified by NASA security team
+
+## New Features
+
+## Bug Fixes
+
+1. Fix security vulnerability in log messaging (ZIGGY-687)
+
+# v1.0.1: First official patch
+
+This release fixes the `ziggy export-pipelines` command.
+
+## New Features
+
+## Bug Fixes
+
+1. ziggy export-pipelines can't start (ZIGGY-682)
+1. NASA won't let us download wrapper.jar (ZIGGY-684)
+
 # v1.0.0: First official release
 
 This version is running the Transiting Exoplanet Survey Satellite (TESS) data analysis pipeline.

@@ -22,7 +22,7 @@ import gov.nasa.ziggy.util.PipelineException;
  */
 public class TaskLogInformation implements Comparable<TaskLogInformation>, Serializable {
 
-    private static final long serialVersionUID = 20230511L;
+    private static final long serialVersionUID = 20261123L;
 
     /**
      * Pattern for log file names: 10-100-algname.10-0.log, where the numbers are instance, task,
@@ -42,7 +42,6 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
     private final int taskLogIndex;
     private final long logSizeBytes;
     private final String filename;
-    private final String fullPath;
     private final TaskLogType taskLogType;
     private final long lastModified;
 
@@ -59,7 +58,6 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         taskId = Long.parseLong(matcher.group(TASK_ID_GROUP_NUMBER));
         taskLogIndex = Integer.parseInt(matcher.group(TASK_LOG_INDEX_NUMBER));
         jobIndex = Integer.parseInt(matcher.group(JOB_INDEX_GROUP_NUMBER));
-        fullPath = taskFile.getAbsolutePath();
         logSizeBytes = taskFile.length();
         lastModified = taskFile.lastModified();
     }
@@ -92,6 +90,10 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
         return DateFormat.getDateTimeInstance().format(date);
     }
 
+    public String fullPath() {
+        return taskLogType.logDir().resolve(filename).toAbsolutePath().toString();
+    }
+
     public long getInstanceId() {
         return instanceId;
     }
@@ -114,10 +116,6 @@ public class TaskLogInformation implements Comparable<TaskLogInformation>, Seria
 
     public String getFilename() {
         return filename;
-    }
-
-    public String getFullPath() {
-        return fullPath;
     }
 
     public TaskLogType getTaskLogType() {

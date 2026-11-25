@@ -48,7 +48,7 @@ task buildWrapper() {
         // See https://wrapper.tanukisoftware.com/doc/english/versions.jsp to determine the URL.
         providers.exec {
             workingDir tmp
-            commandLine "curl", "-o", "wrapper-${wrapperVersion}.tar.gz", "https://download.tanukisoftware.com/wrapper/$wrapperVersion/${wrapperBaseName}.tar.gz"
+            commandLine "curl", "-o", "wrapper-${wrapperVersion}.tar.gz", "--resolve", "download.tanukisoftware.com:443:3.15.99.129", "https://download.tanukisoftware.com/wrapper/$wrapperVersion/${wrapperBaseName}.tar.gz"
         }.result.get()
 
         providers.exec {

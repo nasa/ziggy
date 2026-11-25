@@ -304,7 +304,7 @@ public class PipelineSupervisor extends AbstractPipelineProcess {
 
     @AcceptableCatchBlock(rationale = Rationale.EXCEPTION_CHAIN)
     private String taskLogContents(SingleTaskLogRequest request) {
-        File taskLogFile = new File(request.getTaskLogInformation().getFullPath());
+        File taskLogFile = new File(request.getTaskLogInformation().fullPath());
         String stepLogContents = "<Request timed-out!>";
         log.info("Reading task log {}", taskLogFile);
 

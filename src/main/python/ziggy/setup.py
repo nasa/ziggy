@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='ziggy',
-    version='1.0.0',
+    version='1.0.2',
     packages=['ziggytools', 'ziggytools.tests'],
     url='',
     license='',
